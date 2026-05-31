@@ -1,14 +1,3 @@
-"""Aeon prelude — built-in operators, native types, GPU primitives.
-
-The operator-name list constants and the ``native_types`` Name list
-are re-exported from the Rust core (``aeon-rs/src/prelude_consts.rs``).
-The Python lambdas / GPU higher-order functions / ``native_import`` /
-``eval`` references and the resulting ``typing_vars`` /
-``evaluation_vars`` dicts stay Python — they're Python-by-design (live
-function references that the evaluator dispatches through Python's
-calling protocol, and lark-parsed type signatures).
-"""
-
 from __future__ import annotations
 
 import importlib
@@ -18,14 +7,12 @@ from aeon.sugar.parser import parse_type
 from aeon.sugar.stypes import SType
 from aeon.utils.name import Name
 
-# Static name lists — ported to Rust (aeon-rs/src/prelude_consts.rs);
-# re-exported here for backward compatibility with existing imports.
-from aeon_rs import ALL_OPS as ALL_OPS
-from aeon_rs import COMPARISON_OPERATORS as COMPARISON_OPERATORS
-from aeon_rs import EQUALITY_OPERATORS as EQUALITY_OPERATORS
-from aeon_rs import INTEGER_ARITHMETIC_OPERATORS as INTEGER_ARITHMETIC_OPERATORS
-from aeon_rs import LOGICAL_OPERATORS as LOGICAL_OPERATORS
-from aeon_rs import native_types as native_types
+INTEGER_ARITHMETIC_OPERATORS = ["+", "*", "-", "/", "%"]
+COMPARISON_OPERATORS = ["<", ">", "<=", ">="]
+LOGICAL_OPERATORS = ["&&", "||"]
+EQUALITY_OPERATORS = ["==", "!="]
+
+ALL_OPS = INTEGER_ARITHMETIC_OPERATORS + COMPARISON_OPERATORS + LOGICAL_OPERATORS + EQUALITY_OPERATORS
 
 
 def p(x):
@@ -35,6 +22,18 @@ def p(x):
 
 def native_import(name):
     return importlib.import_module(name)
+
+
+native_types: list[Name] = [
+    Name("Unit", 0),
+    Name("Bool", 0),
+    Name("Int", 0),
+    Name("Float", 0),
+    Name("String", 0),
+    Name("Set", 0),
+    Name("Tensor", 0),
+    Name("GpuConfig", 0),
+]
 
 
 def gpu_map(f):

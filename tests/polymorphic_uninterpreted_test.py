@@ -25,6 +25,41 @@ def use_int (n: Int) : {r: Int | r == my_id n} =
     assert check_compile(source, st_top)
 
 
+def test_monomorphic_uncurried_uf_congruence():
+    """A multi-argument *monomorphic* uninterpreted function reaches the SMT
+    layer and the solver applies function congruence through it.
+
+    ``add2`` is already monomorphic, so no specialisation twin is minted;
+    it flows straight through ``flatten`` into each ``CanonicConstraint``'s
+    ``functions`` and is uncurried into a 2-ary Z3 ``Function`` by
+    ``mk_funs``. With premise ``c == a`` the solver must discharge
+    ``add2 c b == add2 a b`` purely by congruence (issue #299).
+    """
+    source = """
+def add2 : (x: Int) -> (y: Int) -> Int = uninterpreted
+
+def go (a: Int) (b: Int) (c: {z: Int | z == a}) : {n: Int | n == add2 a b} =
+    let r : {y: Int | y == add2 c b} = native "0" in
+    r ;
+"""
+    assert check_compile(source, st_top)
+
+
+def test_monomorphic_uncurried_uf_no_spurious_congruence():
+    """Without a premise linking the arguments, the solver must *not* assume
+    ``add2 a b == add2 c b``. Locks in that the uncurried monomorphic
+    declaration is interpreted soundly, not collapsed to a constant.
+    """
+    source = """
+def add2 : (x: Int) -> (y: Int) -> Int = uninterpreted
+
+def go (a: Int) (b: Int) (c: Int) : {n: Int | n == add2 a b} =
+    let r : {y: Int | y == add2 c b} = native "0" in
+    r ;
+"""
+    assert not check_compile(source, st_top)
+
+
 def test_polymorphic_uf_at_user_type():
     """The same polymorphic UF specialises to a user-declared opaque sort."""
     source = """

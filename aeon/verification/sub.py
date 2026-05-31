@@ -94,6 +94,22 @@ def lower_constraint_type(ttype: Type) -> Type:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
 
 
+def _has_concrete_base_result(ty: Type) -> bool:
+    """True when peeling all ``forall`` binders and value arrows lands on a
+    concrete base type (a ``TypeConstructor``, possibly refined). Polymorphic
+    functions whose result is a bare type variable — notably the ``native`` and
+    ``uninterpreted`` builtins, typed ``forall a, … -> {x:a | false}`` — have no
+    SMT sort and must not be declared as uninterpreted functions."""
+    v: Type = ty
+    while isinstance(v, (TypePolymorphism, RefinementPolymorphism)):
+        v = v.body
+    while isinstance(v, AbstractionType):
+        v = v.type
+    if isinstance(v, RefinedType):
+        v = v.type
+    return isinstance(v, TypeConstructor)
+
+
 def implication_constraint(
     name: Name,
     ty: Type,
@@ -130,11 +146,13 @@ def implication_constraint(
             if reflected_impl is not None:
                 (params, body) = reflected_impl
                 return ReflectedFunctionDeclaration(name, lowered, params, body, c)
-            # Polymorphic uninterpreted functions reach SMT as a UFD
-            # over the foralls-stripped abstraction type. Type variables
-            # remain as ``TypeVar`` in arg positions;
-            # ``_specialize_liquid_term`` monomorphises per call.
-            if is_first_order_function(lowered):
+            # Declare first-order polymorphic functions (e.g. typeclass method
+            # projections) as uninterpreted so their applications can appear in
+            # refinements. Type variables remain as ``TypeVar`` in arg positions;
+            # ``_specialize_liquid_term`` monomorphises per call. Skip functions
+            # whose result is a bare type variable (native/uninterpreted
+            # builtins) — they have no SMT sort.
+            if is_first_order_function(lowered) and _has_concrete_base_result(ty):
                 return UninterpretedFunctionDeclaration(name, lowered, c)
             return c
         case _:

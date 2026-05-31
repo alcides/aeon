@@ -31,6 +31,7 @@ from aeon.typechecking.liquid import (
     LiquidTypeCheckException,
     LiquidTypeCheckingContext,
     check_liquid,
+    liquid_admissible,
     lower_abstraction_type,
     lower_context,
     type_infer_liquid,
@@ -68,18 +69,15 @@ def fresh(context: TypingContext, ty: Type) -> Type:
             vname = Name("√", fresh_counter.fresh())
             hole_name = Name("hole", fresh_counter.fresh())
 
-            # TODO Poly: check if t should be in LiquidTypes
+            argtypes: list[tuple[LiquidTerm, TypeConstructor | TypeVar]] = []
+            for n, t in context.vars() + [(vname, ty.type)]:
+                sort = liquid_admissible(t)
+                if sort is not None:
+                    argtypes.append((LiquidVar(n), sort))
             return RefinedType(
                 vname,
                 ity,
-                LiquidHornApplication(
-                    hole_name,
-                    [
-                        (LiquidVar(n), t)
-                        for n, t in context.vars() + [(vname, ty.type)]
-                        if isinstance(t, TypeConstructor)
-                    ],
-                ),
+                LiquidHornApplication(hole_name, argtypes),
             )
         case RefinedType(_, _, _) | Top() | TypeVar():
             return ty

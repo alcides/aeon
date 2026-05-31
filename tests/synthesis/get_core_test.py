@@ -5,7 +5,7 @@ import pytest
 from aeon.core.terms import Literal, TypeApplication, Var
 from aeon.core.types import (
     AbstractionType,
-    BaseKind,
+    Kind,
     TypeConstructor,
     TypePolymorphism,
     TypeVar,
@@ -59,7 +59,7 @@ def test_extract_all_types_poly_target():
     # forall a, List a  in TARGET position with instantiation {Int, String}
     poly = TypePolymorphism(
         Name("a", 0),
-        BaseKind(),
+        Kind.BASE,
         TypeConstructor(Name("List", 0), [TypeVar(Name("a", 0))]),
     )
     inst = {t_int, t_string}
@@ -77,7 +77,7 @@ def test_extract_all_types_poly_nested_in_abstraction():
     # AbstractionType recursive self-call (which registers the nested List Int).
     poly = TypePolymorphism(
         Name("a", 0),
-        BaseKind(),
+        Kind.BASE,
         AbstractionType(
             Name("x", 0),
             TypeVar(Name("a", 0)),
@@ -98,7 +98,7 @@ def test_extract_all_types_poly_empty_instantiation():
     # Empty instantiation set is a graceful no-op: forall not registered, no crash.
     poly = TypePolymorphism(
         Name("a", 0),
-        BaseKind(),
+        Kind.BASE,
         TypeConstructor(Name("List", 0), [TypeVar(Name("a", 0))]),
     )
     data = extract_all_types([poly], instantiation_types=set())
@@ -112,7 +112,7 @@ def test_mono_var_get_core_type_application():
     # with .type == t_int.
     poly = TypePolymorphism(
         Name("a", 0),
-        BaseKind(),
+        Kind.BASE,
         AbstractionType(Name("x", 0), TypeVar(Name("a", 0)), TypeVar(Name("a", 0))),
     )
     inst = {t_int}

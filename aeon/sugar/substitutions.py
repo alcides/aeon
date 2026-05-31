@@ -64,7 +64,11 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
             return SRefinedType(name, rec(ty), ref)
         case SAbstractionType(var_name, var_type, return_type):
             return SAbstractionType(
-                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+                var_name,
+                rec(var_type),
+                rec(return_type),
+                multiplicity=getattr(ty, "multiplicity", MOmega),
+                is_instance=getattr(ty, "is_instance", False),
             )
         case STypePolymorphism(tname, kind, body):
             if tname == alpha:
@@ -90,7 +94,11 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
             return SRefinedType(name, rec(ty), substitution_sterm_in_sterm(ref, beta, alpha))
         case SAbstractionType(var_name, var_type, return_type):
             return SAbstractionType(
-                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+                var_name,
+                rec(var_type),
+                rec(return_type),
+                multiplicity=getattr(ty, "multiplicity", MOmega),
+                is_instance=getattr(ty, "is_instance", False),
             )
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))
@@ -197,7 +205,11 @@ def substitute_refinement_param_in_stype(ty: SType, old: Name, new: Name) -> STy
             return SRefinedType(name, rec(ity), substitution_sterm_in_sterm(ref, SVar(new), old))
         case SAbstractionType(var_name, var_type, return_type):
             return SAbstractionType(
-                var_name, rec(var_type), rec(return_type), multiplicity=getattr(ty, "multiplicity", MOmega)
+                var_name,
+                rec(var_type),
+                rec(return_type),
+                multiplicity=getattr(ty, "multiplicity", MOmega),
+                is_instance=getattr(ty, "is_instance", False),
             )
         case STypePolymorphism(tname, kind, body):
             return STypePolymorphism(tname, kind, rec(body))

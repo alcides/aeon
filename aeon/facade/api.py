@@ -86,6 +86,20 @@ class UnificationUnknownTypeError(AeonError):
         return self.term.loc
 
 
+@dataclass
+class InstanceResolutionError(AeonError):
+    class_name: str
+    head: str | None
+    loc: Location
+
+    def __str__(self) -> str:
+        target = self.head if self.head is not None else "<unknown>"
+        return f"No instance found for class '{self.class_name}' on type '{target}'."
+
+    def position(self) -> Location:
+        return self.loc
+
+
 class CoreTypeCheckingError(AeonError):
     pass
 

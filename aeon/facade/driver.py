@@ -15,6 +15,7 @@ from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import DesugaredProgram, desugar
+from aeon.sugar.instance_registry import clear_instance_registry
 from aeon.sugar.lifting import lift
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context
 from aeon.sugar.parser import parse_main_program
@@ -54,6 +55,7 @@ class AeonDriver:
             aeon_code = read_file(filename)
 
         with RecordTime("ParseSugar"):
+            clear_instance_registry()
             prog: Program = parse_main_program(aeon_code, filename=filename)
             prog = bind_program(prog, [])
 

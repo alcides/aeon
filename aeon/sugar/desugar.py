@@ -45,6 +45,8 @@ from aeon.sugar.program import (
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl, InductiveDecl
+from aeon.sugar.program import ClassMethod, InstanceMethod
+from aeon.sugar.program import ClassDecl, InstanceDecl
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
@@ -58,7 +60,8 @@ from aeon.sugar.stypes import (
 )
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 from aeon.utils.name import Name, fresh_counter
-from aeon.sugar.ast_helpers import st_int, st_string
+from aeon.sugar.ast_helpers import st_int, st_string, st_unit
+from aeon.sugar.instance_registry import InstanceInfo, register_instance
 
 from aeon.facade.api import ImportError
 from aeon.sugar.equality import type_equality
@@ -354,6 +357,7 @@ def lower_by_blocks_in_definitions(
                         decreasing_by,
                         loc,
                         arg_multiplicities=d.arg_multiplicities,
+                        instance_flags=d.instance_flags,
                     )
                 )
             case _:
@@ -500,12 +504,36 @@ def resolve_qualified_names_in_definition(
         d.decreasing_by,
         d.loc,
         arg_multiplicities=d.arg_multiplicities,
+        instance_flags=d.instance_flags,
     )
 
 
 def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
+
+    # Pull class/instance declarations from imported modules into the main
+    # program so they are expanded by the single ``expand_typeclasses`` pass
+    # below. Typeclass methods resolve by type through the global instance
+    # registry rather than by qualified name, so — unlike ordinary library
+    # definitions, which ``handle_imports`` module-prefixes — they live
+    # directly in the main namespace.
+    inductive_names_top = {d.name.name for d in p.inductive_decls}
+    imported_classes, imported_instances = collect_imported_typeclasses(p.imports, inductive_names_top)
+    if imported_classes or imported_instances:
+        p = Program(
+            p.imports,
+            p.type_decls,
+            p.inductive_decls,
+            p.definitions,
+            imported_classes + p.class_decls,
+            imported_instances + p.instance_decls,
+        )
+
+    # Lower class/instance declarations into inductives + plain definitions
+    # before any inductive processing so the generated dictionary types flow
+    # through the normal pipeline.
+    p = expand_typeclasses(p)
 
     # We need inductive constructor info to lower `match` expressions.
     # Note: `expand_inductive_decls` clears `p.inductive_decls`, so we snapshot it here.
@@ -773,6 +801,206 @@ def _collect_implicit_refinement_params_for_inductive(
             pass
         case _:
             assert False, f"_collect_implicit_refinement_params_for_inductive: unhandled {ty} ({type(ty)})"
+
+
+class TypeClassError(Exception):
+    """Raised when a class/instance declaration is malformed (unknown class,
+    missing method, etc.)."""
+
+
+def _mangle_stype(ty: SType) -> str:
+    """A flat identifier-safe rendering of a type, used to name instance dicts."""
+    match ty:
+        case STypeVar(name):
+            return name.name
+        case STypeConstructor(name, args):
+            if not args:
+                return name.name
+            return name.name + "_" + "_".join(_mangle_stype(a) for a in args)
+        case _:
+            return "t"
+
+
+def _stype_head_name(ty: SType) -> str | None:
+    """Outermost type-constructor (or type-variable) name of a type, used to key
+    the instance database. ``Int`` → "Int", ``List a`` → "List", ``a`` → "a"."""
+    match ty:
+        case STypeConstructor(name, _):
+            return name.name
+        case STypeVar(name):
+            return name.name
+        case _:
+            return None
+
+
+def _curry_lambda(binders: list[Name], body: STerm) -> STerm:
+    """Wrap ``body`` in nested lambdas, one per binder (left-to-right)."""
+    for b in reversed(binders):
+        body = SAbstraction(b, body)
+    return body
+
+
+def expand_typeclasses(p: Program) -> Program:
+    """Lower ``class``/``instance`` declarations to inductives + plain definitions.
+
+    A ``class C (a : k) where m_i : T_i [:= d_i]`` becomes:
+      * an inductive ``C a`` with a single constructor ``C_mk`` whose fields are
+        the method types — dependent, so a later field's refinement may mention an
+        earlier method (this is how refinement *laws* are encoded); and
+      * one projection ``def m_i : forall a, [d : C a] -> T_i = native "d[i+1]"``
+        that pulls field ``i`` out of the runtime dictionary tuple
+        ``('C_mk', f0, f1, …)``.
+
+    An ``instance [Ck a]… : C T where m_i bs := e_i`` becomes a dictionary
+    definition ``def <name> : C T = C_mk impl_0 … impl_n`` where each ``impl_i``
+    is the supplied body (curried over its binders) or the class default when the
+    method is omitted. Instance constraints become instance-implicit parameters.
+    """
+    if not p.class_decls and not p.instance_decls:
+        return p
+
+    # Generated projection / dictionary definitions must precede user code that
+    # references them: aeon resolves names define-before-use, so we prepend.
+    new_inductives: list[InductiveDecl] = list(p.inductive_decls)
+    gen_defs: list[Definition] = []
+
+    class_methods: dict[str, list[ClassMethod]] = {}
+
+    for cls in p.class_decls:
+        cname = cls.name
+        type_param_names = [n for (n, _) in cls.type_params]
+        class_methods[cname.name] = list(cls.methods)
+
+        ret_type = STypeConstructor(cname, [STypeVar(n) for n in type_param_names])
+
+        # Unprefixed constructor name ``mk``; ``expand_inductive_decls`` namespaces
+        # it to ``<Class>_mk``. The dictionary is built by referencing it through
+        # ``SQualifiedVar(<Class>, mk)`` (resolved per-class during desugaring).
+        cons = Definition(
+            name=Name("mk"),
+            foralls=[],
+            args=[(m.name, m.type) for m in cls.methods],
+            type=ret_type,
+            body=SLiteral(None, st_unit),
+            loc=cls.loc,
+        )
+        new_inductives.append(
+            InductiveDecl(
+                name=cname,
+                args=list(type_param_names),
+                rforalls=[],
+                constructors=[cons],
+                measures=[],
+                loc=cls.loc,
+            )
+        )
+
+        foralls: list[tuple[Name, Kind]] = [(n, k) for (n, k) in cls.type_params]
+        for i, m in enumerate(cls.methods):
+            dict_name = Name(f"_d{fresh_counter.fresh()}")
+            # Eta-expand the projection: peel the method type's leading arrows
+            # into explicit ``args`` so the projection's *return* type is a base
+            # (or refined) type rather than a function type. A ``native`` whose
+            # return type is itself a polymorphic function type fails to
+            # elaborate (the type-variable would be instantiated with a function
+            # type, which cannot carry the inserted refinement). Applying the
+            # dictionary field to the peeled binders sidesteps that entirely.
+            peeled: list[tuple[Name, SType]] = []
+            ret_t: SType = m.type
+            while isinstance(ret_t, SAbstractionType):
+                peeled.append((ret_t.var_name, ret_t.var_type))
+                ret_t = ret_t.type
+            call = f"{dict_name.name}[{i + 1}]" + "".join(f"({pn.name})" for (pn, _) in peeled)
+            gen_defs.append(
+                Definition(
+                    name=m.name,
+                    foralls=list(foralls),
+                    args=[(dict_name, ret_type), *peeled],
+                    type=ret_t,
+                    body=SApplication(
+                        SVar(Name("native", 0)),
+                        SLiteral(call, st_string),
+                    ),
+                    loc=m.loc,
+                    instance_flags=(True, *(False for _ in peeled)),
+                )
+            )
+
+    for inst in p.instance_decls:
+        methods = class_methods.get(inst.class_name.name)
+        if methods is None:
+            raise TypeClassError(f"Instance for unknown class '{inst.class_name.name}'")
+
+        provided: dict[str, InstanceMethod] = {m.name.name: m for m in inst.methods}
+
+        impls: list[STerm] = []
+        for m in methods:
+            im = provided.get(m.name.name)
+            if im is not None:
+                binders = [n for (n, _) in im.args]
+                impls.append(_curry_lambda(binders, im.body))
+            elif m.default is not None:
+                impls.append(m.default)
+            else:
+                raise TypeClassError(f"Instance of '{inst.class_name.name}' is missing method '{m.name.name}'")
+
+        # Instantiate the dictionary constructor at the instance's type
+        # arguments (e.g. ``Eq_mk[Int]``) so elaboration can resolve the
+        # constructor's ``forall`` binders. The method implementations are
+        # lambdas whose parameter types are unknown until ``a`` is fixed, so
+        # argument-driven inference alone cannot recover it.
+        dict_body: STerm = SQualifiedVar(inst.class_name.name, Name("mk"))
+        for ta in inst.type_args:
+            dict_body = STypeApplication(dict_body, ta)
+        for impl in impls:
+            dict_body = SApplication(dict_body, impl)
+
+        dict_type: SType = STypeConstructor(inst.class_name, list(inst.type_args))
+
+        tyvars = set()
+        for ta in inst.type_args:
+            tyvars |= get_type_vars(ta)
+        for c in inst.constraints:
+            tyvars |= get_type_vars(c)
+        inst_foralls: list[tuple[Name, Kind]] = [
+            (tv.name, Kind.BASE) for tv in sorted(tyvars, key=lambda t: t.name.name)
+        ]
+
+        constraint_args: list[tuple[Name, SType]] = [(Name(f"_c{fresh_counter.fresh()}"), c) for c in inst.constraints]
+
+        if inst.name is not None:
+            dict_def_name = inst.name
+        else:
+            dict_def_name = Name(f"__inst_{inst.class_name.name}_{'_'.join(_mangle_stype(t) for t in inst.type_args)}")
+
+        gen_defs.append(
+            Definition(
+                name=dict_def_name,
+                foralls=inst_foralls,
+                args=constraint_args,
+                type=dict_type,
+                body=dict_body,
+                loc=inst.loc,
+                instance_flags=tuple(True for _ in constraint_args),
+            )
+        )
+
+        if inst.type_args:
+            head = _stype_head_name(inst.type_args[0])
+            if head is not None:
+                register_instance(
+                    inst.class_name.name,
+                    head,
+                    InstanceInfo(
+                        dict_name=dict_def_name,
+                        foralls=tuple(n for (n, _) in inst_foralls),
+                        num_constraints=len(constraint_args),
+                        type_args=tuple(inst.type_args),
+                        constraints=tuple(inst.constraints),
+                    ),
+                )
+
+    return Program(p.imports, p.type_decls, new_inductives, gen_defs + list(p.definitions))
 
 
 def infer_inductive_rforall_decls(p: Program) -> Program:
@@ -1120,6 +1348,7 @@ def expand_bare_parametric_type_ctors(defs: list[Definition], type_decls: list[T
                 d.decreasing_by,
                 d.loc,
                 arg_multiplicities=d.arg_multiplicities,
+                instance_flags=d.instance_flags,
             )
         )
     return ndefs
@@ -1216,6 +1445,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                         decreasing_by,
                         loc,
                         arg_multiplicities=d.arg_multiplicities,
+                        instance_flags=d.instance_flags,
                     )
                 )
     return ndefs
@@ -1301,6 +1531,7 @@ def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
                         decreasing_by,
                         loc,
                         arg_multiplicities=d.arg_multiplicities,
+                        instance_flags=d.instance_flags,
                     )
                 )
     return ndefs
@@ -1338,6 +1569,47 @@ def _bare_name(module_name: str, def_name: str) -> str:
 ModuleScope = dict[str, Name]  # bare_name -> original Name
 QualifiedScope = dict[tuple[str, str], Name]  # (qualifier, bare_name) -> original Name
 UnqualifiedScope = dict[str, Name]  # bare_name -> original Name
+
+
+def collect_imported_typeclasses(
+    imports: list[ImportAe],
+    inductive_names: set[str],
+    _seen: set[str] | None = None,
+) -> tuple[list[ClassDecl], list[InstanceDecl]]:
+    """Gather ``class``/``instance`` declarations from (transitively) imported
+    modules.
+
+    Typeclass declarations are resolved by type via the global instance
+    registry rather than by qualified name, so they must be expanded in the
+    *main* program's namespace alongside its own typeclasses — they cannot be
+    module-prefixed like ordinary library definitions. This walks the import
+    graph (deduplicating by module path, mirroring ``handle_imports``) and
+    returns the collected declarations for the caller to merge before
+    ``expand_typeclasses`` runs."""
+    seen: set[str] = set() if _seen is None else _seen
+    classes: list[ClassDecl] = []
+    instances: list[InstanceDecl] = []
+    for imp in imports:
+        # ``open SomeLocalInductive`` is not a file import — skip it (there is
+        # no ``SomeLocalInductive.ae`` to resolve).
+        if imp.is_open and imp.module_path in inductive_names:
+            continue
+        if imp.module_path in seen:
+            continue
+        seen.add(imp.module_path)
+        try:
+            import_p = _resolve_import(imp)
+        except Exception:
+            # A genuinely missing/erroneous import is reported authoritatively
+            # by ``handle_imports`` later; don't double-report here.
+            continue
+        sub_inductive_names = {d.name.name for d in import_p.inductive_decls}
+        sub_classes, sub_instances = collect_imported_typeclasses(import_p.imports, sub_inductive_names, seen)
+        classes.extend(sub_classes)
+        instances.extend(sub_instances)
+        classes.extend(import_p.class_decls)
+        instances.extend(import_p.instance_decls)
+    return classes, instances
 
 
 def handle_imports(
@@ -1449,6 +1721,7 @@ def handle_imports(
                 resolved_d.decreasing_by,
                 resolved_d.loc,
                 arg_multiplicities=resolved_d.arg_multiplicities,
+                instance_flags=resolved_d.instance_flags,
             )
             prefixed_definitions.append(prefixed_d)
 
@@ -1538,8 +1811,9 @@ def type_of_definition(d: Definition) -> SType:
             ntype = rtype
             n_args = len(args)
             for i, (name, atype) in enumerate(reversed(args)):
-                mult = d.multiplicity_of(n_args - 1 - i)
-                ntype = SAbstractionType(name, atype, ntype, loc, multiplicity=mult)
+                idx = n_args - 1 - i
+                mult = d.multiplicity_of(idx)
+                ntype = SAbstractionType(name, atype, ntype, loc, multiplicity=mult, is_instance=d.is_instance_arg(idx))
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc)
             for name, kind in reversed(foralls):
@@ -1557,8 +1831,11 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
             nbody = body
             n_args = len(args)
             for i, (name, atype) in enumerate(reversed(args)):
-                mult = d.multiplicity_of(n_args - 1 - i)
-                ntype = SAbstractionType(name, atype, ntype, loc=loc, multiplicity=mult)
+                idx = n_args - 1 - i
+                mult = d.multiplicity_of(idx)
+                ntype = SAbstractionType(
+                    name, atype, ntype, loc=loc, multiplicity=mult, is_instance=d.is_instance_arg(idx)
+                )
                 nbody = SAbstraction(name, nbody, loc=loc)
             for name, sort in reversed(rforalls):
                 ntype = SRefinementPolymorphism(name, sort, ntype, loc=loc)
