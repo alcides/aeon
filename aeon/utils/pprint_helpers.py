@@ -1,7 +1,5 @@
-"""Wadler-Leijen ``Doc`` combinator library — re-export of the Rust core
-(``aeon-rs/src/pprint_helpers.rs``)."""
-
-from __future__ import annotations
+"""Wadler-Leijen pretty-printer Doc combinators — re-export of the Rust
+core (``aeon-rs/src/pprint_helpers.rs``)."""
 
 from aeon_rs import DEFAULT_TAB_SIZE as DEFAULT_TAB_SIZE
 from aeon_rs import DEFAULT_WIDTH as DEFAULT_WIDTH
@@ -16,3 +14,19 @@ from aeon_rs import nil as nil
 from aeon_rs import parens as parens
 from aeon_rs import soft_line as soft_line
 from aeon_rs import text as text
+
+__all__ = [
+    "DEFAULT_TAB_SIZE",
+    "DEFAULT_WIDTH",
+    "Doc",
+    "concat",
+    "group",
+    "hard_line",
+    "insert_between",
+    "line",
+    "nest",
+    "nil",
+    "parens",
+    "soft_line",
+    "text",
+]
