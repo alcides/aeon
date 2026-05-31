@@ -84,10 +84,13 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<liquid::LiquidLiteralInt>()?;
     m.add_class::<liquid::LiquidLiteralFloat>()?;
     m.add_class::<liquid::LiquidLiteralString>()?;
+    m.add_class::<liquid::LiquidLiteralUnit>()?;
     m.add_class::<liquid::LiquidVar>()?;
     m.add_class::<liquid::LiquidApp>()?;
     m.add_class::<liquid::LiquidHornApplication>()?;
     m.add_function(wrap_pyfunction!(liquid::liquid_free_vars, m)?)?;
+    m.add_function(wrap_pyfunction!(liquid::ensure_liqterm, m)?)?;
+    m.add_function(wrap_pyfunction!(liquid::is_safe_for_application, m)?)?;
 
     // Type hierarchy
     m.add_class::<types::Type>()?;
