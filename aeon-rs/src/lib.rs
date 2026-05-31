@@ -48,6 +48,7 @@ mod smt_helpers;
 mod smt_z3;
 mod sub;
 mod sugar_helpers;
+mod superscripts;
 mod termination;
 mod typectx;
 mod typeinfer;
@@ -495,6 +496,10 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("EQUALITY_OPERATORS", prelude_consts::get_equality_operators(m.py()))?;
     m.add("ALL_OPS", prelude_consts::get_all_ops(m.py()))?;
     m.add("native_types", prelude_consts::get_native_types(m.py()))?;
+
+    // Superscript / subscript translation (aeon.utils.superscripts).
+    m.add_function(wrap_pyfunction!(superscripts::superscript, m)?)?;
+    m.add_function(wrap_pyfunction!(superscripts::subscript, m)?)?;
 
     // Random-enumerative synthesizer with Pareto-front tracking.
     m.add_class::<rust_enum_synth::RustEnumSynthesizer>()?;
