@@ -49,11 +49,13 @@ pub fn get_core_decorator_queue_meta_key(py: Python<'_>) -> PyObject {
 pub fn metadata_update(
     py: Python<'_>,
     metadata: Py<PyDict>,
-    fun: Py<Definition>,
+    fun: PyObject,
     aux_dict: Option<Py<PyDict>>,
 ) -> PyResult<Py<PyDict>> {
     let aux = aux_dict.unwrap_or_else(|| PyDict::new_bound(py).unbind());
-    let fname = fun.borrow(py).name.clone_ref(py);
+    // Duck-type: any object with a `.name` attribute that's a Name.
+    let fname_obj = fun.bind(py).getattr("name")?;
+    let fname: Py<Name> = fname_obj.downcast::<Name>()?.clone().unbind();
     update_md(py, &metadata, &fname, &aux)?;
     Ok(metadata)
 }
