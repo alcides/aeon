@@ -6,7 +6,7 @@
 
 use pyo3::prelude::*;
 
-use crate::kind::{BaseKind, Kind, StarKind};
+use crate::kind::Kind;
 use crate::liquid::LiquidLiteralBool;
 use crate::liquid_check::typecheck_liquid;
 use crate::name::Name;
@@ -24,15 +24,15 @@ fn t_bool(py: Python<'_>) -> PyResult<PyObject> {
 }
 
 fn star_kind(py: Python<'_>) -> PyResult<PyObject> {
-    Ok(Py::new(py, (StarKind, Kind))?.into_any())
+    Ok(crate::kind::star(py))
 }
 
 fn is_star(py: Python<'_>, k: &PyObject) -> bool {
-    k.bind(py).downcast::<StarKind>().is_ok()
+    crate::kind::is_star(py, &k)
 }
 
 fn is_base(py: Python<'_>, k: &PyObject) -> bool {
-    k.bind(py).downcast::<BaseKind>().is_ok()
+    crate::kind::is_base(py, &k)
 }
 
 fn kinds_eq(py: Python<'_>, a: &PyObject, b: &PyObject) -> PyResult<bool> {
@@ -109,7 +109,7 @@ fn wf_inner(
             if !is_base(py, k) {
                 return Ok(false);
             }
-            let bk = Py::new(py, (BaseKind, Kind))?.into_any();
+            let bk = crate::kind::base(py);
             if !in_vars(&bk)? {
                 return Ok(false);
             }
@@ -271,13 +271,13 @@ pub fn wellformed(
 ) -> PyResult<bool> {
     if is_star(py, k) {
         let sk = star_kind(py)?;
-        let bk = Py::new(py, (BaseKind, Kind))?.into_any();
+        let bk = crate::kind::base(py);
         if wf_inner(py, ctx, t, &sk)? {
             return Ok(true);
         }
         return wf_inner(py, ctx, t, &bk);
     }
-    let bk = Py::new(py, (BaseKind, Kind))?.into_any();
+    let bk = crate::kind::base(py);
     wf_inner(py, ctx, t, &bk)
 }
 

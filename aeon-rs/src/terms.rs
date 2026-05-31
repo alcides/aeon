@@ -23,8 +23,11 @@ pub struct Term;
 
 #[pymethods]
 impl Term {
+    // Accept (and ignore) arbitrary args so Python subclasses can pass
+    // their own dataclass arguments through super().__new__.
     #[new]
-    fn py_new() -> Self {
+    #[pyo3(signature = (*_args, **_kwargs))]
+    fn py_new(_args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, pyo3::types::PyDict>>) -> Self {
         Term
     }
 
@@ -251,6 +254,61 @@ impl Hole {
 
     fn __eq__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> bool {
         match other.downcast::<Hole>() {
+            Ok(o) => {
+                let o = o.borrow();
+                let a = self.name.borrow(py);
+                let b = o.name.borrow(py);
+                a.name == b.name && a.id == b.id
+            }
+            Err(_) => false,
+        }
+    }
+
+    fn __hash__(slf: &Bound<'_, Self>) -> PyResult<u64> {
+        hash_via_str(slf.py(), slf.as_any())
+    }
+}
+
+// ---------- ImplicitRefinementHole ----------
+//
+// Placeholder inserted by elaboration when instantiating a
+// `RefinementPolymorphism`. Always appears as the `refinement` field of a
+// `RefinementApplication`. Solved by Horn inference, never by GP
+// synthesis — `get_holes` skips it by virtue of being a distinct `Term`
+// subclass (not a subclass of `Hole`), so `case Hole(...)` patterns at
+// synthesis sites do not match it.
+
+#[pyclass(module = "aeon_rs", extends = Term, frozen)]
+pub struct ImplicitRefinementHole {
+    #[pyo3(get)]
+    pub name: Py<Name>,
+    #[pyo3(get)]
+    pub loc: PyObject,
+}
+
+#[pymethods]
+impl ImplicitRefinementHole {
+    #[new]
+    #[pyo3(signature = (name, loc = None))]
+    fn py_new(py: Python<'_>, name: Py<Name>, loc: Option<PyObject>) -> (Self, Term) {
+        (ImplicitRefinementHole { name, loc: resolve_loc(py, loc) }, Term)
+    }
+
+    #[classattr]
+    fn __match_args__<'py>(py: Python<'py>) -> Bound<'py, PyTuple> {
+        PyTuple::new_bound(py, &["name", "loc"])
+    }
+
+    fn __str__(&self, py: Python<'_>) -> String {
+        format!("?ρ{}", self.name.borrow(py).__str__())
+    }
+
+    fn __repr__(&self, py: Python<'_>) -> String {
+        format!("ImplicitRefinementHole({})", self.name.borrow(py).__str__())
+    }
+
+    fn __eq__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> bool {
+        match other.downcast::<ImplicitRefinementHole>() {
             Ok(o) => {
                 let o = o.borrow();
                 let a = self.name.borrow(py);

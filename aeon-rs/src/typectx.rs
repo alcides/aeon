@@ -8,7 +8,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
 
-use crate::kind::{Kind, StarKind};
+use crate::kind::Kind;
 use crate::name::Name;
 use crate::types::{
     AbstractionType, RefinedType, Top, Type, TypeConstructor, TypePolymorphism, TypeVar,
@@ -243,7 +243,7 @@ impl TypeBinder {
     ) -> PyResult<(Self, TypingContextEntry)> {
         let kind = match type_kind {
             Some(k) => k,
-            None => Py::new(py, (StarKind, Kind))?.into_any(),
+            None => crate::kind::star(py),
         };
         Ok((TypeBinder { type_name, type_kind: kind }, TypingContextEntry))
     }
@@ -472,14 +472,8 @@ impl TypingContext {
 
     pub fn kind_of(&self, py: Python<'_>, ty: PyObject) -> PyResult<PyObject> {
         let bound = ty.bind(py);
-        let base_kind = || -> PyResult<PyObject> {
-            let bk = py.import_bound("aeon_rs")?.getattr("BaseKind")?.call0()?;
-            Ok(bk.unbind())
-        };
-        let star_kind = || -> PyResult<PyObject> {
-            let sk = py.import_bound("aeon_rs")?.getattr("StarKind")?.call0()?;
-            Ok(sk.unbind())
-        };
+        let base_kind = || -> PyResult<PyObject> { Ok(crate::kind::base(py)) };
+        let star_kind = || -> PyResult<PyObject> { Ok(crate::kind::star(py)) };
 
         if bound.is_instance_of::<Top>() {
             return base_kind();

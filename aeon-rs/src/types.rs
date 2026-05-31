@@ -14,8 +14,11 @@ pub struct Type;
 
 #[pymethods]
 impl Type {
+    // Accept (and ignore) arbitrary args so Python subclasses can pass
+    // their own dataclass arguments through super().__new__.
     #[new]
-    fn py_new() -> Self {
+    #[pyo3(signature = (*_args, **_kwargs))]
+    fn py_new(_args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, pyo3::types::PyDict>>) -> Self {
         Type
     }
 }
