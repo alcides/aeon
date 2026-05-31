@@ -100,6 +100,27 @@ class InstanceResolutionError(AeonError):
         return self.loc
 
 
+@dataclass
+class NonOrderableComparisonError(AeonError):
+    """Raised when an ordered comparison (``<``, ``<=``, ``>``, ``>=``) is used
+    at a type that has no ordering (issue #292). The builtin comparison
+    operators are restricted to ``Int``, ``Float`` and ``String``; other types
+    must define their own ordering via the ``Ord`` typeclass."""
+
+    operator: str
+    type_name: str
+    loc: Location
+
+    def __str__(self) -> str:
+        return (
+            f"Operator '{self.operator}' is not defined for type '{self.type_name}'; "
+            f"ordered comparisons require Int, Float or String."
+        )
+
+    def position(self) -> Location:
+        return self.loc
+
+
 class CoreTypeCheckingError(AeonError):
     pass
 

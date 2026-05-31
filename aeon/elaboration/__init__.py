@@ -5,6 +5,7 @@ from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
     InstanceResolutionError,
+    NonOrderableComparisonError,
     UnificationFailedError,
     UnificationKindError,
     UnificationSubtypingError,
@@ -61,6 +62,30 @@ def _extract_base_type_name(ty: SType) -> str | None:
             return _extract_base_type_name(inner)
         case _:
             return None
+
+
+# Ordered comparison operators are restricted to ordered base types (issue
+# #292). The check runs at elaboration, when each operator's type variable is
+# instantiated to a concrete type; comparisons at a bare type variable are left
+# to the caller's instantiation site. User-defined orderings go through the
+# ``Ord`` typeclass instead of these builtins.
+ORDERED_COMPARISON_OPERATORS = {"<", "<=", ">", ">="}
+ORDERABLE_TYPES = {"Int", "Float", "String"}
+
+
+def _check_orderable_comparison(body: STerm, ty: SType, loc) -> None:
+    """Reject ordered comparisons at non-ordered concrete types.
+
+    ``body`` is the (resolved) head of a type application; when it is one of the
+    ordered comparison operators and ``ty`` is a concrete type constructor that
+    is not ``Int``/``Float``/``String``, raise ``NonOrderableComparisonError``.
+    Type variables and unresolved types are skipped (nothing concrete to
+    reject)."""
+    if not isinstance(body, SVar) or body.name.name not in ORDERED_COMPARISON_OPERATORS:
+        return
+    base_name = _extract_base_type_name(ty)
+    if base_name is not None and base_name not in ORDERABLE_TYPES:
+        raise NonOrderableComparisonError(body.name.name, base_name, loc)
 
 
 @dataclass
@@ -668,6 +693,11 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
             body = elaborate_remove_unification(ctx, body)
 
             nt = handle_unification_in_type(ctx, ty)
+
+            # Ordered comparisons (``<``, ``<=``, ``>``, ``>=``) are only defined
+            # for ordered types (issue #292); reject e.g. ``Bool < Bool`` here,
+            # where the operator's type variable has been resolved to ``nt``.
+            _check_orderable_comparison(body, nt, loc)
 
             match nt:
                 case STypeConstructor(Name("Top", _)):
