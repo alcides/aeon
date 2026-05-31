@@ -1,24 +1,15 @@
-"""Registry of inductive constructor groups for SMT distinctness assertions.
-
-Populated during inductive expansion (desugar) and consumed during SMT
-translation so that Z3 ``Distinct(...)`` is asserted for constructor
-constants of the same inductive type.
-"""
+"""Registry of inductive constructor groups for SMT distinctness
+assertions — re-export of the Rust core
+(``aeon-rs/src/constructor_registry.rs``)."""
 
 from __future__ import annotations
 
-# Maps inductive type name -> set of prefixed constructor constant names
-# e.g. {"Pizza": {"Pizza_pepperoni", "Pizza_margherita", ...}}
-_constructor_groups: dict[str, set[str]] = {}
+from aeon_rs import clear_constructor_registry as clear_constructor_registry
+from aeon_rs import get_constructor_groups as get_constructor_groups
+from aeon_rs import register_constructors as register_constructors
 
-
-def register_constructors(type_name: str, constructor_names: list[str]) -> None:
-    _constructor_groups[type_name] = set(constructor_names)
-
-
-def get_constructor_groups() -> dict[str, set[str]]:
-    return _constructor_groups
-
-
-def clear_constructor_registry() -> None:
-    _constructor_groups.clear()
+__all__ = [
+    "clear_constructor_registry",
+    "get_constructor_groups",
+    "register_constructors",
+]
