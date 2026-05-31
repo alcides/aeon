@@ -15,8 +15,12 @@ pub struct LiquidTerm;
 
 #[pymethods]
 impl LiquidTerm {
+    // Accept (and ignore) arbitrary args so Python subclasses
+    // (LiquidHornApplication in aeon.core.types, etc.) can pass their own
+    // dataclass arguments through super().__new__.
     #[new]
-    fn py_new() -> Self {
+    #[pyo3(signature = (*_args, **_kwargs))]
+    fn py_new(_args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, pyo3::types::PyDict>>) -> Self {
         LiquidTerm
     }
 }
@@ -117,6 +121,46 @@ liquid_literal!(LiquidLiteralBool, bool, 0u8);
 liquid_literal!(LiquidLiteralInt, i64, 1u8);
 liquid_literal!(LiquidLiteralFloat, f64, 2u8);
 liquid_literal!(LiquidLiteralString, String, 3u8);
+
+// ---------- LiquidLiteralUnit (the lone Unit-typed liquid value) ----------
+// Distinct from LiquidLiteralBool(True): Unit has its own SMT sort with
+// exactly one element, so `unit == True` is ill-typed and rejected at the
+// liquid layer rather than silently true at the SMT layer.
+
+#[pyclass(module = "aeon_rs", extends = LiquidTerm, frozen)]
+pub struct LiquidLiteralUnit {
+    #[pyo3(get)]
+    pub loc: PyObject,
+}
+
+#[pymethods]
+impl LiquidLiteralUnit {
+    #[new]
+    #[pyo3(signature = (loc = None))]
+    fn py_new(py: Python<'_>, loc: Option<PyObject>) -> (Self, LiquidTerm) {
+        (LiquidLiteralUnit { loc: resolve_loc(py, loc) }, LiquidTerm)
+    }
+
+    #[classattr]
+    fn __match_args__<'py>(py: Python<'py>) -> Bound<'py, PyTuple> {
+        PyTuple::new_bound(py, &["loc"])
+    }
+
+    fn __eq__(&self, other: &Bound<'_, PyAny>) -> bool {
+        other.downcast::<LiquidLiteralUnit>().is_ok()
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        let mut h = DefaultHasher::new();
+        "()".hash(&mut h);
+        h.finish()
+    }
+
+    fn __repr__(&self) -> &'static str {
+        "()"
+    }
+}
 
 // ---------- LiquidVar ----------
 
@@ -364,4 +408,36 @@ fn lfv_into(
     }
     // Literals + LiquidHole + LiquidHornApplication contribute no free vars.
     Ok(())
+}
+
+/// `ensure_liqterm(a)` — wrap a `Name` in a `LiquidVar` (no-op for a
+/// LiquidTerm). Mirrors `aeon.core.liquid.ensure_liqterm`.
+#[pyfunction]
+pub fn ensure_liqterm(py: Python<'_>, a: PyObject) -> PyResult<PyObject> {
+    let b = a.bind(py);
+    if let Ok(n) = b.downcast::<crate::name::Name>() {
+        let name: Py<crate::name::Name> = n.clone().unbind();
+        let lv = Py::new(
+            py,
+            (
+                LiquidVar { name, loc: crate::loc::default_location(py) },
+                LiquidTerm,
+            ),
+        )?;
+        return Ok(lv.into_any());
+    }
+    Ok(a)
+}
+
+/// `is_safe_for_application(x)` — true iff `x` is a value-like
+/// LiquidTerm (a variable or a literal). Mirrors the Python original.
+#[pyfunction]
+pub fn is_safe_for_application(py: Python<'_>, x: PyObject) -> bool {
+    let b = x.bind(py);
+    b.downcast::<LiquidVar>().is_ok()
+        || b.downcast::<LiquidLiteralBool>().is_ok()
+        || b.downcast::<LiquidLiteralFloat>().is_ok()
+        || b.downcast::<LiquidLiteralInt>().is_ok()
+        || b.downcast::<LiquidLiteralString>().is_ok()
+        || b.downcast::<LiquidLiteralUnit>().is_ok()
 }
