@@ -1,0 +1,43 @@
+# End-to-end classification pipeline showcasing the Learning library.
+#
+# ``Learning.split`` returns a ``Pair Dataset Dataset`` with refinements
+# that link both halves' shape to the source dataset. The ``train_of`` /
+# ``test_of`` accessors propagate that link, so when we
+# ``Learning.accuracy model test_part`` the precondition
+# ``clf_features model == ds_features test_part`` is discharged
+# automatically (the model's ``clf_features`` matches ``ds_features
+# train_part``, which equals ``ds_features ds``, which equals
+# ``ds_features test_part``).
+
+open Learning
+
+
+def pipeline (path: String) (target_col: String) : Float =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    if Learning.is_multiclass ds then
+        let bds = Learning.smote ds in
+        let scaled = Learning.standard_scale bds in
+        let parts = Learning.split scaled 0.8 in
+        let train_part = Learning.train_of parts in
+        let test_part = Learning.test_of parts in
+        let model = Learning.random_forest_classifier train_part in
+        Learning.accuracy model test_part
+    else
+        let scaled = Learning.standard_scale ds in
+        let parts = Learning.split scaled 0.8 in
+        let train_part = Learning.train_of parts in
+        let test_part = Learning.test_of parts in
+        let model = Learning.random_forest_classifier train_part in
+        Learning.accuracy model test_part ;
+
+
+# ComplementNB requires imbalanced data — discharged via an inline
+# ``balanced`` runtime check.
+def cnb_pipeline (path: String) (target_col: String) : Classifier =
+    let 1 df = Learning.read_csv path in
+    let ds = Learning.target df target_col in
+    if Learning.balanced ds then
+        Learning.multinomial_nb ds
+    else
+        Learning.complement_nb ds ;

@@ -6,7 +6,7 @@ from aeon.utils.name import Name
 
 from aeon.backend.evaluator import EvaluationContext, eval
 from aeon.core.terms import Literal, Term, TypeAbstraction, TypeApplication
-from aeon.core.types import BaseKind, TypeConstructor
+from aeon.core.types import Kind, TypeConstructor
 from aeon.core.parser import parse_term
 
 
@@ -73,6 +73,6 @@ def test_rec():
 
 
 def test_type_abs_app():
-    tabs = TypeAbstraction(Name("t"), BaseKind(), parse_term("1"))
+    tabs = TypeAbstraction(Name("t"), Kind.BASE, parse_term("1"))
     tapp = TypeApplication(tabs, TypeConstructor(Name("Int", 0)))
     assert weval(tapp) == 1

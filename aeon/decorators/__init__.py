@@ -55,8 +55,6 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "minimize": minimize,
     "maximize": maximize,
     "minimize_cputime": minimize_cputime,
-    # Spelled-out alias (same implementation as minimize_cputime).
-    "minimize_cpu_time": minimize_cputime,
     "minimize_energy": minimize_energy,
 }
 

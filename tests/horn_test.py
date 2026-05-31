@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
+from aeon.core.types import AbstractionType
 from aeon.core.types import LiquidHornApplication
 from aeon.core.types import RefinedType
+from aeon.core.types import TypeConstructor
 from aeon.core.types import t_int
+from aeon.typechecking.context import TypingContext, UninterpretedBinder
+from aeon.typechecking.entailment import entailment
 from aeon.utils.ctx_helpers import build_context
 from aeon.verification.helpers import conj, constraint_builder
 from tests._parser_helpers import end, imp, parse_liquid
@@ -131,6 +135,93 @@ def test_solve():
     ex = get_abs_example()
     b = solve(ex)
     assert b is True
+
+
+def _liquid_function_names(t: LiquidTerm) -> set[Name]:
+    """All function names applied anywhere inside a liquid term."""
+    match t:
+        case LiquidApp(fun, args):
+            names = {fun}
+            for a in args:
+                names |= _liquid_function_names(a)
+            return names
+        case _:
+            return set()
+
+
+def _measure_context() -> tuple[TypingContext, Name]:
+    """A context with a user type ``Dataset`` and a custom measure
+    ``feats : (ds: Dataset) -> Int`` declared uninterpreted."""
+    dataset = TypeConstructor(Name("Dataset", 0))
+    feats = Name("feats", 0)
+    ctx = TypingContext()
+    ctx.entries.append(UninterpretedBinder(feats, AbstractionType(Name("ds", 0), dataset, t_int)))
+    return ctx, feats
+
+
+def test_initial_assignment_without_context_ignores_measures():
+    """Without a typing context, candidate generation is unchanged (prelude only)."""
+    k = Name("k")
+    hole = LiquidHornApplication(k, [(parse_liquid("x"), t_int)])
+    assign = build_initial_assignment(LiquidConstraint(hole))
+    assert k in assign
+    assert len(assign[k]) == 30
+
+
+def test_initial_assignment_uses_custom_measures():
+    """A custom measure in the typing context is woven into candidate predicates
+    for a hole over that measure's domain (e.g. ``feats(arg_0) <= 0``)."""
+    ctx, feats = _measure_context()
+    dataset = TypeConstructor(Name("Dataset", 0))
+    k = Name("k")
+    hole = LiquidHornApplication(k, [(parse_liquid("d"), dataset)])
+
+    base = build_initial_assignment(LiquidConstraint(hole))
+    with_ctx = build_initial_assignment(LiquidConstraint(hole), typing_ctx=ctx)
+
+    # The measure introduces strictly more candidates than the prelude alone.
+    assert len(with_ctx[k]) > len(base[k])
+
+    # At least one candidate actually mentions the custom measure.
+    assert any(feats in _liquid_function_names(c) for c in with_ctx[k])
+
+
+def _eq(a: LiquidTerm, b: LiquidTerm) -> LiquidApp:
+    return LiquidApp(Name("==", 0), [a, b])
+
+
+def test_solve_discharges_goal_requiring_a_measure():
+    """The hole's only viable refinement mentions a custom measure, so the
+    solver must *synthesise* a measure-based predicate to discharge the goal.
+
+    Two occurrences of the same hole ``?k(_, _)`` over ``(Dataset, Int)``:
+
+        forall d, n | n == feats(d)  =>  ?k(d, n)        (k as head)
+        forall p, m | ?k(p, m)       =>  feats(p) == m   (k as premise)
+
+    The second implication only holds if ``?k`` is strong enough to carry
+    ``feats(arg_0) == arg_1`` — a predicate that can only be generated once
+    the custom measure ``feats`` is plumbed into candidate generation.
+    """
+    ctx, feats = _measure_context()
+    dataset = TypeConstructor(Name("Dataset", 0))
+    k = Name("k")
+
+    d, n = Name("d", 0), Name("n", 0)
+    head_hole = LiquidHornApplication(k, [(LiquidVar(d), dataset), (LiquidVar(n), t_int)])
+    ap = constraint_builder(
+        vs=[(d, dataset), (n, t_int)],
+        exp=imp(_eq(LiquidVar(n), LiquidApp(feats, [LiquidVar(d)])), end(head_hole)),
+    )
+
+    p, m = Name("p", 0), Name("m", 0)
+    prem_hole = LiquidHornApplication(k, [(LiquidVar(p), dataset), (LiquidVar(m), t_int)])
+    cp = constraint_builder(
+        vs=[(p, dataset), (m, t_int)],
+        exp=imp(prem_hole, end(_eq(LiquidApp(feats, [LiquidVar(p)]), LiquidVar(m)))),
+    )
+
+    assert entailment(ctx, conj(ap, cp)) is True
 
 
 def test_simplify_constraint_fixpoint_reduces_trivial_boolean_structure():

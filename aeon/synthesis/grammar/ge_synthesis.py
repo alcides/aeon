@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 from aeon.typechecking.context import TypingContext
 
@@ -31,6 +31,47 @@ from geneticengine.solutions import Individual
 from geneticengine.evaluation.recorder import SearchRecorder
 
 from aeon.synthesis.decorators import Goal
+
+
+def _knee_point_individual(
+    individuals: Sequence[Individual | None],
+    problem: Problem,
+) -> Individual | None:
+    """Pick a single individual from a Pareto front by knee-point (compromise) selection.
+
+    All objectives are oriented toward minimization (maximize objectives are negated)
+    and normalized to ``[0, 1]``. The chosen individual is the one whose normalized
+    fitness vector has the smallest Euclidean distance to the utopia origin — the
+    "elbow" where further gains in one objective require disproportionate sacrifice
+    in another. Falls back to the lone valid candidate when only one exists, or to
+    ``None`` when none are valid.
+    """
+    valid = [ind for ind in individuals if ind is not None and ind.get_fitness(problem).valid]
+    if not valid:
+        return None
+    if len(valid) == 1:
+        return valid[0]
+
+    fits = [ind.get_fitness(problem).fitness_components for ind in valid]
+    minimize = problem.minimize
+    n_obj = len(minimize)
+    # Orient each objective so smaller = better.
+    oriented = [[(f[d] if minimize[d] else -f[d]) for d in range(n_obj)] for f in fits]
+    # Per-dimension normalization to [0, 1]; dimensions with zero spread contribute 0.
+    mins = [min(o[d] for o in oriented) for d in range(n_obj)]
+    maxs = [max(o[d] for o in oriented) for d in range(n_obj)]
+    spreads = [maxs[d] - mins[d] for d in range(n_obj)]
+
+    def squared_distance_to_utopia(o: list[float]) -> float:
+        total = 0.0
+        for d in range(n_obj):
+            if spreads[d] > 0:
+                normalized = (o[d] - mins[d]) / spreads[d]
+                total += normalized * normalized
+        return total
+
+    best_idx = min(range(len(valid)), key=lambda i: squared_distance_to_utopia(oriented[i]))
+    return valid[best_idx]
 
 
 def create_problem(
@@ -122,13 +163,9 @@ class GESynthesizer(Synthesizer):
             case _:
                 assert False, f"Method {self.method} not available for synthesis."
         individuals = alg.search()
-        match individuals:
-            case None | [None]:
-                return None
-            case [ind, *_]:
-                # TODO: handle multiple answers
-                if not ind.get_fitness(problem).valid:
-                    return None
-                return ind.get_phenotype().get_core()
-            case _:
-                return None
+        if not individuals:
+            return None
+        chosen = _knee_point_individual(individuals, problem)
+        if chosen is None:
+            return None
+        return chosen.get_phenotype().get_core()

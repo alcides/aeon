@@ -14,6 +14,7 @@ from aeon.core.liquid import (
 )
 from aeon.core.types import (
     AbstractionType,
+    ExistentialType,
     LiquidHornApplication,
     RefinedType,
     TypeConstructor,
@@ -24,7 +25,7 @@ from aeon.core.types import (
     t_int,
     t_string,
     t_unit,
-    BaseKind,
+    Kind,
 )
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.liquid import (
@@ -248,7 +249,7 @@ def test_lower_refined_arrow():
 def test_lower_polymorphic_type():
     a = Name("a")
     # forall a. (x:a) -> a
-    ty = TypePolymorphism(a, BaseKind(), AbstractionType(x, TypeVar(a), TypeVar(a)))
+    ty = TypePolymorphism(a, Kind.BASE, AbstractionType(x, TypeVar(a), TypeVar(a)))
     result = lower_abstraction_type(ty)
     assert len(result) >= 2
 
@@ -285,6 +286,27 @@ def test_lower_context_refined_var():
     lctx = lower_context(ctx)
     assert x in lctx.variables
     assert lctx.variables[x] == t_int
+
+
+def test_lower_context_existential_var():
+    """Form B ``ExistentialType`` bindings should be peeled — the binders
+    inside become independent variables and the body provides the outer
+    variable's bare type. Previously ``lower_context`` raised
+    ``AssertionError("Unknown context type …")`` whenever the typing
+    context held an existential binding (introduced when ANF was replaced
+    with Form B in #226), which propagated as a ``CoreWellformnessError``
+    during synthesis whenever a refinement type was checked."""
+    ctx = TypingContext()
+    inner_binder = Name("inner")
+    inner_refined = RefinedType(Name("v"), t_int, LiquidLiteralBool(True))
+    body = TypeConstructor(Name("String", 0))
+    ty = ExistentialType(((inner_binder, inner_refined),), body)
+    ctx = ctx.with_var(x, ty)
+    lctx = lower_context(ctx)
+    assert x in lctx.variables
+    assert lctx.variables[x] == body
+    assert inner_binder in lctx.variables
+    assert lctx.variables[inner_binder] == t_int
 
 
 # ---------------------------------------------------------------------------

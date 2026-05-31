@@ -109,12 +109,31 @@ by_body : TACTIC_CMD                                         -> by_body_atomic
 tactic_steps : TACTIC_CMD (";" TACTIC_CMD)*                -> tactic_steps
 TACTIC_CMD : "apply?" | "assumption" | "constructor" | "choose_literal" | "by_cases" | "split" | "inst"
 
-expression_un : expression_bool                                      -> same
-           | "!" expression_un                                       -> nnot
-           | expression_bool "==" expression_un                      -> binop_eq
-           | expression_bool "!=" expression_un                      -> binop_neq
-           | expression_bool "&&" expression_un                      -> binop_and
-           | expression_bool _DOUBLEPIPE expression_un               -> binop_or
+// Boolean operators, in order of precedence (low → high):
+//   || (logical or)
+//   && (logical and)
+//   ==, != (equality)
+//   !  (negation)
+//   <, <=, >, >=, --> (relational, in `expression_bool`)
+// Each level recurses on the right (right-associative). With this split,
+//   ``a == b && c == d`` parses as ``(a == b) && (c == d)``,
+//   ``!a == b``         as ``(!a) == b``,
+//   ``a || b && c``     as ``a || (b && c)``.
+
+expression_un : expression_or                                       -> same
+
+expression_or : expression_and                                      -> same
+              | expression_and _DOUBLEPIPE expression_or            -> binop_or
+
+expression_and : expression_eq                                      -> same
+               | expression_eq "&&" expression_and                  -> binop_and
+
+expression_eq : expression_not                                      -> same
+              | expression_not "==" expression_eq                   -> binop_eq
+              | expression_not "!=" expression_eq                   -> binop_neq
+
+expression_not : expression_bool                                    -> same
+               | "!" expression_not                                 -> nnot
 
 
 expression_bool : expression_plus                                  -> same

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import ast
 import pathlib
 from typing import Callable
 
 from lark import Lark, Transformer, v_args
 
 from aeon.core.multiplicity import from_token, Multiplicity, MOmega
-from aeon.core.types import BaseKind, StarKind
+from aeon.core.types import Kind
 from aeon.sugar.program import (
     Decorator,
     SAbstraction,
@@ -140,8 +141,7 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def minus(self, meta, args):
-        # TODO: check for length of args instead?
-        if isinstance(args[0], SLiteral) and type(args[0]) is int:
+        if isinstance(args[0], SLiteral) and type(args[0].value) is int:
             return SLiteral(-args[0].value, args[0].type, loc=self._loc(meta))
         return self.binop([i0, args[0]], "-", meta)
 
@@ -377,15 +377,13 @@ class TreeToSugar(Transformer):
         return SLiteral(args[0], type=st_string, loc=self._loc(meta))
 
     def ESCAPED_STRING(self, val):
-        # TODO: This is terrible and doesn't handle escapes
-        v = str(val)[1:-1]
-        return v
+        return ast.literal_eval(str(val))
 
     def base_kind(self, args):
-        return BaseKind()
+        return Kind.BASE
 
     def star_kind(self, args):
-        return StarKind()
+        return Kind.STAR
 
     def list(self, args):
         return args
@@ -558,9 +556,7 @@ class TreeToSugar(Transformer):
     def abstraction_et(self, args):
         return SAnnotation(
             SAbstraction(Name(args[0]), args[2]),
-            SAbstractionType(
-                Name(args[0]), args[1], STypeVar(Name("?t", fresh_counter.fresh()))
-            ),  # TODO NOW: understand this?
+            SAbstractionType(Name(args[0]), args[1], STypeVar(Name("?t", fresh_counter.fresh()))),
         )
 
 

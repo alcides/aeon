@@ -121,3 +121,60 @@ def test_split_or_in_conclusion():
     assert len(result) == 2
     assert result[0].seq.expr == parse_liquid("x > 0")
     assert result[1].seq.expr == parse_liquid("x < 0")
+
+
+def test_simplify_redundant_conclusion():
+    """Simplifies implications by removing redundant conjuncts from conclusion.
+
+    If premise is 'a > 0' and conclusion is 'a > 0 && b > 0',
+    the simplified conclusion should be just 'b > 0'.
+    """
+    a_name = Name("a", 42)
+    a_gt_0 = bind_lq(parse_liquid("a > 0"), [("a", a_name)])
+    a_gt_0_and_b_gt_0 = bind_lq(parse_liquid("a > 0 && b > 0"), [("a", a_name), ("b", Name("b", 43))])
+    b_gt_0 = bind_lq(parse_liquid("b > 0"), [("b", Name("b", 43))])
+
+    # forall a: a > 0 => a > 0 && b > 0
+    c = Implication(a_name, t_int, a_gt_0, LiquidConstraint(a_gt_0_and_b_gt_0))
+    r = simplify_constraint(c)
+
+    # Should simplify to: forall a: a > 0 => b > 0
+    expected = Implication(a_name, t_int, a_gt_0, LiquidConstraint(b_gt_0))
+    assert r == expected, f"Got {r}, expected {expected}"
+
+
+def test_simplify_redundant_conclusion_multiple_conjuncts():
+    """Simplifies implications with multiple redundant conjuncts.
+
+    If premise is 'a > 0 && b > 0' and conclusion is 'a > 0 && b > 0 && c > 0',
+    the simplified conclusion should be just 'c > 0'.
+    """
+    x_name = Name("x", 42)
+    premise = bind_lq(parse_liquid("a > 0 && b > 0"), [("a", Name("a", 43)), ("b", Name("b", 44))])
+    conclusion = bind_lq(
+        parse_liquid("a > 0 && b > 0 && c > 0"), [("a", Name("a", 43)), ("b", Name("b", 44)), ("c", Name("c", 45))]
+    )
+    c_gt_0 = bind_lq(parse_liquid("c > 0"), [("c", Name("c", 45))])
+
+    # forall x: (a > 0 && b > 0) => (a > 0 && b > 0 && c > 0)
+    c = Implication(x_name, t_int, premise, LiquidConstraint(conclusion))
+    r = simplify_constraint(c)
+
+    # Should simplify to: forall x: (a > 0 && b > 0) => c > 0
+    expected = Implication(x_name, t_int, premise, LiquidConstraint(c_gt_0))
+    assert r == expected, f"Got {r}, expected {expected}"
+
+
+def test_simplify_no_redundancy():
+    """Simplifies implications with no redundant conjuncts should remain unchanged."""
+    x_name = Name("x", 42)
+    a_gt_0 = bind_lq(parse_liquid("a > 0"), [("a", Name("a", 43))])
+    b_gt_0 = bind_lq(parse_liquid("b > 0"), [("b", Name("b", 44))])
+
+    # forall x: a > 0 => b > 0 (no redundancy)
+    c = Implication(x_name, t_int, a_gt_0, LiquidConstraint(b_gt_0))
+    r = simplify_constraint(c)
+
+    # Should remain: forall x: a > 0 => b > 0
+    expected = Implication(x_name, t_int, a_gt_0, LiquidConstraint(b_gt_0))
+    assert r == expected, f"Got {r}, expected {expected}"

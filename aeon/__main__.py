@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from argparse import ArgumentParser
+from pathlib import Path
 
 from aeon.facade.api import AeonError
 from aeon.facade.driver import AeonConfig, AeonDriver
@@ -13,6 +15,7 @@ from aeon.lsp.server import AeonLanguageServer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
 from aeon.synthesis.uis.terminal import TerminalUI
 from aeon.utils.pprint import pretty_print_sterm
+from aeon.documentation import generate_documentation
 
 sys.setrecursionlimit(10000)
 
@@ -105,6 +108,24 @@ def _parse_common_arguments(parser: ArgumentParser):
         help="Uses a pretty print version of the code to reformat it",
     )
 
+    parser.add_argument(
+        "--doc",
+        action="store_true",
+        help="Generate HTML documentation from the source file",
+    )
+
+    parser.add_argument(
+        "--doc-output",
+        type=str,
+        default=None,
+        help=(
+            "Output path for the generated HTML doc. "
+            "Either a file path (used as-is) or a directory path "
+            "(the file is written there with the source's stem). "
+            "Defaults to <source>.html next to the .ae file."
+        ),
+    )
+
 
 def select_synthesis_ui() -> SynthesisUI:
     return TerminalUI()
@@ -150,6 +171,21 @@ def main() -> None:
     if hasattr(args, "language_server_mode"):
         aeon_lsp = AeonLanguageServer(driver)
         aeon_lsp.start(args.tcp)
+        sys.exit(0)
+
+    if hasattr(args, "doc") and args.doc:
+        source_path = Path(args.filename)
+        if args.doc_output:
+            target = Path(args.doc_output)
+            if target.is_dir() or args.doc_output.endswith(("/", os.sep)):
+                output_path = str(target / f"{source_path.stem}.html")
+            else:
+                output_path = str(target)
+        else:
+            output_path = str(source_path.with_suffix(".html"))
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        generate_documentation(args.filename, output_path)
+        print(f"Documentation generated: {output_path}")
         sys.exit(0)
 
     errors = driver.parse(args.filename)

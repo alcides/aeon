@@ -20,7 +20,7 @@ The translator rejects tasks outside the subset with a printed reason (so a task
 | `int` / `bool` | `Int` / `Bool` |
 | `predicate P(args) { body }` | `def P args : Bool = body;` |
 | `method M(args) returns (r:T) requires R ensures E` | `def M args (last:Tlast \| R) : {r:T \| E} = ?hole;` |
-| `==>` (implication) | `(!(a)) \|\| (b)` — aeon's `-->` is in the grammar but [not registered as a function](../../aeon/prelude/prelude.py), so we desugar |
+| `==>` (implication) | `(a) --> (b)` — aeon's `-->` is parsed by the grammar and [registered in the prelude](../../aeon/prelude/prelude.py) |
 | `<==>` (iff) | `a == b` (Bool equivalence) |
 | `a <= b <= c` (chained) | `(a <= b) && (b <= c)` |
 | `f(a, b, c)` (Dafny call) | `(f a b c)` (curried aeon call) |
@@ -46,11 +46,14 @@ Dafny sources are fetched on demand from `raw.githubusercontent.com` and cached 
 
 These are tracked separately from this issue:
 
-* **`-->` not in prelude.** Aeon's grammar parses logical implication `-->` but [`aeon/prelude/prelude.py`](../../aeon/prelude/prelude.py) doesn't register it as a function, so the typechecker rejects refinements that use it. The translator desugars to `(!a) || b` as a workaround.
-* **`!` is right-greedy.** `!a || b` parses as `!(a || b)` because aeon's grammar makes the `!` rule consume an entire `expression_un`. The translator emits explicit parens around the negated operand.
-* **Pretty-printer flips operands.** `y >= 100` displays as `100 >= y` (and similar) — synthesis is correct; the printout is misleading. Cosmetic.
 * **SMT accepts undefined arithmetic.** `1 % 0`, `5 / 0` are sometimes "synthesized" as solutions because aeon's verifier doesn't constrain divisor-non-zero. Affects pass rates upward.
 * **Synthesizer can't handle `if` in specs.** Tasks whose predicates use Dafny's `if-then-else` expression form (e.g. DA0522) trip `AssertionError: Unhandled term If in synth`.
+
+### Resolved
+
+* **`-->` now in prelude.** Logical implication `-->` is registered in [`aeon/prelude/prelude.py`](../../aeon/prelude/prelude.py) (with an `Implies` SMT translation), so refinements may use it directly. The translator emits `(a) --> (b)` instead of desugaring to `(!a) || b`.
+* **`!` precedence fixed.** `!a || b` now parses as `(!a) || b` — the grammar gives `!` its own precedence level tighter than the boolean connectives, so no explicit parens around the negated operand are needed.
+* **Pretty-printer operand order fixed.** Comparisons such as `y >= 100` now print in source order rather than flipped (`100 >= y`).
 
 ## Extending the subset
 
