@@ -12,6 +12,7 @@ mod bind;
 mod builders;
 mod constructor_registry;
 mod core_bind;
+mod core_types_helpers;
 mod core_pprint;
 mod decorators;
 mod desugar;
@@ -91,6 +92,26 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(liquid::liquid_free_vars, m)?)?;
     m.add_function(wrap_pyfunction!(liquid::ensure_liqterm, m)?)?;
     m.add_function(wrap_pyfunction!(liquid::is_safe_for_application, m)?)?;
+
+    // Type-walking helpers (aeon.core.types free functions).
+    m.add_function(wrap_pyfunction!(core_types_helpers::base, m)?)?;
+    m.add_function(wrap_pyfunction!(core_types_helpers::extract_parts, m)?)?;
+    m.add_function(wrap_pyfunction!(core_types_helpers::is_bare, m)?)?;
+    m.add_function(wrap_pyfunction!(core_types_helpers::type_free_term_vars, m)?)?;
+    m.add_function(wrap_pyfunction!(core_types_helpers::get_type_vars, m)?)?;
+    m.add_function(wrap_pyfunction!(core_types_helpers::with_binders, m)?)?;
+    // Built-in TypeConstructors and helpers.
+    m.add("t_unit", core_types_helpers::get_t_unit(m.py())?)?;
+    m.add("t_bool", core_types_helpers::get_t_bool(m.py())?)?;
+    m.add("t_int", core_types_helpers::get_t_int(m.py())?)?;
+    m.add("t_float", core_types_helpers::get_t_float(m.py())?)?;
+    m.add("t_string", core_types_helpers::get_t_string(m.py())?)?;
+    m.add("t_set", core_types_helpers::get_t_set(m.py())?)?;
+    m.add("t_tensor", core_types_helpers::get_t_tensor(m.py())?)?;
+    m.add("t_gpu_config", core_types_helpers::get_t_gpu_config(m.py())?)?;
+    m.add("builtin_core_types", core_types_helpers::get_builtin_core_types(m.py())?)?;
+    m.add("top", core_types_helpers::get_top(m.py())?)?;
+    m.add("liq_true", core_types_helpers::get_liq_true(m.py())?)?;
 
     // Type hierarchy
     m.add_class::<types::Type>()?;

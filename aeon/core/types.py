@@ -1,31 +1,41 @@
-"""Type hierarchy. Re-exports the Rust core (aeon_rs) plus Python-side
-helpers and module-level constants that stay in Python.
+"""Type hierarchy — re-export of the Rust core (``aeon-rs/src/types.rs``
+and ``aeon-rs/src/core_types_helpers.rs``).
 """
 
 from __future__ import annotations
 
+# Type hierarchy + Kind, all from Rust.
 from aeon_rs import AbstractionType as AbstractionType
-from aeon_rs import BaseKind as BaseKind
 from aeon_rs import ExistentialType as ExistentialType
 from aeon_rs import Kind as Kind
 from aeon_rs import LiquidHornApplication as LiquidHornApplication
 from aeon_rs import RefinedType as RefinedType
 from aeon_rs import RefinementPolymorphism as RefinementPolymorphism
-from aeon_rs import StarKind as StarKind
 from aeon_rs import Top as Top
 from aeon_rs import Type as Type
 from aeon_rs import TypeConstructor as TypeConstructor
 from aeon_rs import TypePolymorphism as TypePolymorphism
 from aeon_rs import TypeVar as TypeVar
 
-from aeon.core.liquid import (
-    LiquidHole,
-    LiquidLiteralBool,
-    LiquidTerm,
-    liquid_free_vars,
-)
-from aeon.utils.location import SynthesizedLocation
-from aeon.utils.name import fresh_counter, Name
+# Module-level constants and helpers (built once at Rust module init).
+from aeon_rs import base as base
+from aeon_rs import builtin_core_types as builtin_core_types
+from aeon_rs import extract_parts as extract_parts
+from aeon_rs import get_type_vars as get_type_vars
+from aeon_rs import is_bare as is_bare
+from aeon_rs import liq_true as liq_true
+from aeon_rs import refined_to_unrefined_type as refined_to_unrefined_type
+from aeon_rs import t_bool as t_bool
+from aeon_rs import t_float as t_float
+from aeon_rs import t_gpu_config as t_gpu_config
+from aeon_rs import t_int as t_int
+from aeon_rs import t_set as t_set
+from aeon_rs import t_string as t_string
+from aeon_rs import t_tensor as t_tensor
+from aeon_rs import t_unit as t_unit
+from aeon_rs import top as top
+from aeon_rs import type_free_term_vars as type_free_term_vars
+from aeon_rs import with_binders as with_binders
 
 # Default type constructors
 t_unit = TypeConstructor(Name("Unit", 0), [])
