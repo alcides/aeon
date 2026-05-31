@@ -129,9 +129,14 @@ class TypingContext:
             case Top() | RefinedType(_, TypeConstructor(_), _) | RefinedType(_, TypeConstructor(_, _), _):
                 return Kind.BASE
             case TypeVar(name):
-                assert (name, Kind.BASE) in self.typevars()
-                # TODO Polytypes: What it * is in context?
-                return Kind.BASE
+                # Look up the kind the variable was bound with rather than
+                # assuming ``BASE``. Polytypes introduce type variables of
+                # higher kind (e.g. ``* -> *``), so the binder is the source
+                # of truth here.
+                for tv_name, tv_kind in self.typevars():
+                    if tv_name == name:
+                        return tv_kind
+                assert False, f"TypeVar {name} not found in context type variables {self.typevars()}"
             case RefinedType(_, TypeVar(name), _):
                 assert (name, Kind.BASE) in self.typevars(), f"{name} not in {self.typevars()}"
                 return Kind.BASE
@@ -161,14 +166,15 @@ class TypingContext:
         return name in [e.name for e in self.entries if isinstance(e, UninterpretedBinder)]
 
     def get_type_constructor(self, name: Name) -> list[Name] | None:
+        # Built-in type constructors (``Unit``, ``Int``, ``Bool``, ``Float``,
+        # ``String``, ``Set``, ...) are entered as ``TypeConstructorBinder``
+        # entries in ``__post_init__``, so there is no need for a hardcoded
+        # escape hatch here — the context is the single source of truth.
         for entry in self.entries[::-1]:
             match entry:
                 case TypeConstructorBinder(ename, eargs):
                     if ename == name:
                         return eargs
-        # TODO: enter in context.
-        if name.name in ["Unit", "Int", "Bool", "Float", "String"]:
-            return []
         return None
 
     def __hash__(self):
