@@ -16,7 +16,7 @@ use crate::elabctx::{
     ElabTypingContextEntry, ElabUninterpretedBinder, ElabVariableBinder,
     ElaborationTypingContext,
 };
-use crate::kind::BaseKind;
+
 use crate::name::{next_fresh_id, Name};
 use crate::sugar::{
     Decorator, Definition, InductiveDecl, Node, Program, SAbstraction, SAbstractionType,
@@ -1694,7 +1694,7 @@ pub fn introduce_forall_in_types(
         for j in 0..foralls_b.len() {
             new_foralls_list.append(foralls_b.get_item(j)?)?;
         }
-        let base_kind = Py::new(py, (BaseKind, Kind))?;
+        let base_kind = crate::kind::base(py);
         for n in new_foralls {
             let pair = PyTuple::new_bound(py, &[n.into_any(), base_kind.clone_ref(py).into_any()]).unbind();
             new_foralls_list.append(pair)?;
@@ -2461,7 +2461,7 @@ pub fn expand_inductive_decls(py: Python<'_>, p: Py<Program>) -> PyResult<Py<Pro
         let rec_body = mk_sapplication(py, native_var2, rec_lit, default_loc(py))?;
 
         // foralls: [(a, BaseKind()) for a in args]
-        let bk = Py::new(py, (BaseKind, Kind))?;
+        let bk = crate::kind::base(py);
         let foralls_list = PyList::empty_bound(py);
         let ia_b = ind_args.bind(py);
         for j in 0..ia_b.len() {

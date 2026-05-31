@@ -71,7 +71,7 @@ pub fn build_modular_vc(
     expected: PyObject,
 ) -> PyResult<ModularVC> {
     let ctx_py: Py<TypingContext> = ctx.clone().unbind();
-    let sk = Py::new(py, (crate::kind::StarKind, crate::kind::Kind))?.into_any();
+    let sk = crate::kind::star(py);
     if !crate::well_formed::wellformed(py, &ctx_py, &expected, &sk)? {
         let api = py.import_bound("aeon.facade.api")?;
         let cls = api.getattr("CoreWellformnessError")?;

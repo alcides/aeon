@@ -16,7 +16,7 @@ use crate::builders::{
     new_liquid_literal_float, new_liquid_literal_int, new_liquid_literal_string, new_liquid_var,
     new_refined_type, new_type_polymorphism, new_uninterpreted_function_declaration, new_var,
 };
-use crate::kind::{BaseKind, Kind, StarKind};
+use crate::kind::Kind;
 use crate::liquefy::{instantiate_refinement_in_type, liquefy, substitution_in_type};
 use crate::liquid::{
     LiquidApp, LiquidHornApplication, LiquidLiteralBool, LiquidLiteralFloat, LiquidLiteralInt,
@@ -281,7 +281,7 @@ fn prim_op(py: Python<'_>, op_name: &Py<Name>) -> PyResult<PyObject> {
             new_type_polymorphism(
                 py,
                 name_a,
-                Py::new(py, (BaseKind, Kind))?.into_any(),
+                crate::kind::base(py),
                 inner,
                 crate::loc::default_location(py),
             )
@@ -294,7 +294,7 @@ fn prim_op(py: Python<'_>, op_name: &Py<Name>) -> PyResult<PyObject> {
             new_type_polymorphism(
                 py,
                 name_a,
-                Py::new(py, (BaseKind, Kind))?.into_any(),
+                crate::kind::base(py),
                 inner,
                 crate::loc::default_location(py),
             )
@@ -572,7 +572,7 @@ fn is_compatible(py: Python<'_>, a: &PyObject, b: &PyObject) -> PyResult<bool> {
     if a.bind(py).eq(b.bind(py))? {
         return Ok(true);
     }
-    Ok(b.bind(py).downcast::<StarKind>().is_ok())
+    Ok(crate::kind::is_star(py, &b))
 }
 
 // =============================================================================
@@ -989,7 +989,7 @@ fn synth_inner(
         let tp = new_type_polymorphism(
             py,
             name_a,
-            Py::new(py, (StarKind, Kind))?.into_any(),
+            crate::kind::star(py),
             tv,
             crate::loc::default_location(py),
         )?;
@@ -1014,7 +1014,7 @@ fn check_inner(
     ty: PyObject,
 ) -> PyResult<PyObject> {
     let ctx_py: Py<TypingContext> = ctx.clone().unbind();
-    let sk = Py::new(py, (StarKind, Kind))?.into_any();
+    let sk = crate::kind::star(py);
     if !crate::well_formed::wellformed(py, &ctx_py, &ty, &sk)? {
         return Err(raise_api(py, "CoreWellformnessError", vec![ty.clone_ref(py)]));
     }
@@ -1157,7 +1157,7 @@ fn check_inner(
         let var_kind = tp.kind.clone_ref(py);
         let var_body = tp.body.clone_ref(py);
         drop(tp);
-        let is_base = var_kind.bind(py).downcast::<BaseKind>().is_ok();
+        let is_base = crate::kind::is_base(py, &var_kind);
         if is_base && !kind.bind(py).eq(var_kind.bind(py))? {
             return Err(raise_api(
                 py,
@@ -1262,7 +1262,7 @@ fn check_type_inner(
     ty: PyObject,
 ) -> PyResult<bool> {
     let ctx_py: Py<TypingContext> = ctx.clone().unbind();
-    let sk = Py::new(py, (StarKind, Kind))?.into_any();
+    let sk = crate::kind::star(py);
     if !crate::well_formed::wellformed(py, &ctx_py, &ty, &sk)? {
         return Ok(false);
     }
@@ -1353,7 +1353,7 @@ pub fn check_type_errors(
     expected_type: PyObject,
 ) -> PyResult<Py<PyList>> {
     let ctx_py: Py<TypingContext> = ctx.clone().unbind();
-    let sk = Py::new(py, (StarKind, Kind))?.into_any();
+    let sk = crate::kind::star(py);
     let out = PyList::empty_bound(py);
 
     if !crate::well_formed::wellformed(py, &ctx_py, &expected_type, &sk)? {
