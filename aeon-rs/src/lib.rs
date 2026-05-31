@@ -74,8 +74,8 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Kind hierarchy
     m.add_class::<kind::Kind>()?;
-    m.add_class::<kind::BaseKind>()?;
-    m.add_class::<kind::StarKind>()?;
+    m.add_function(wrap_pyfunction!(kind::base_kind_factory, m)?)?;
+    m.add_function(wrap_pyfunction!(kind::star_kind_factory, m)?)?;
 
     // LiquidTerm hierarchy
     m.add_class::<liquid::LiquidTerm>()?;
@@ -109,6 +109,7 @@ fn aeon_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<terms::Var>()?;
     m.add_class::<terms::Annotation>()?;
     m.add_class::<terms::Hole>()?;
+    m.add_class::<terms::ImplicitRefinementHole>()?;
     m.add_class::<terms::Application>()?;
     m.add_class::<terms::Abstraction>()?;
     m.add_class::<terms::Let>()?;

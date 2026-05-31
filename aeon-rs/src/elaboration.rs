@@ -12,7 +12,7 @@ use pyo3::types::{PyList, PyTuple};
 
 use crate::elab_inst::sugar_type_substitution;
 use crate::elabctx::ElaborationTypingContext;
-use crate::kind::BaseKind;
+
 use crate::loc::{default_location, resolve_loc};
 use crate::name::{next_fresh_id, Name};
 use crate::sugar::{
@@ -256,8 +256,7 @@ fn st_bool(py: Python<'_>) -> PyResult<PyObject> {
 }
 
 fn mk_base_kind(py: Python<'_>) -> PyResult<PyObject> {
-    let bk = Py::new(py, (BaseKind, crate::kind::Kind))?;
-    Ok(bk.into_any())
+    Ok(crate::kind::base(py))
 }
 
 fn mk_unification_var(py: Python<'_>, name: Py<Name>) -> PyResult<PyObject> {
@@ -2395,7 +2394,7 @@ fn elaborate_remove_unification(
                     let stp_r = stp.borrow();
                     let kind = stp_r.kind.clone_ref(py);
                     drop(stp_r);
-                    if kind.bind(py).downcast::<BaseKind>().is_ok() {
+                    if crate::kind::is_base(py, &kind) {
                         should_be_refined = false;
                     }
                 }
