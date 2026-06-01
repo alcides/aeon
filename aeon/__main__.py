@@ -6,7 +6,18 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-from aeon.facade.api import AeonError
+from aeon.facade.api import (
+    AeonError,
+    CoreTypeCheckingError,
+    ImportError as AeonImportError,
+    InstanceResolutionError,
+    LinearityError,
+    NonOrderableComparisonError,
+    UnificationFailedError,
+    UnificationKindError,
+    UnificationSubtypingError,
+    UnificationUnknownTypeError,
+)
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.api import SynthesisNotSuccessful
 from aeon.logger.logger import export_log
@@ -131,12 +142,51 @@ def select_synthesis_ui() -> SynthesisUI:
     return TerminalUI()
 
 
-def handle_error(err: AeonError):
-    # TODO: handle each error with proper printing
+def format_location(err: AeonError) -> str:
+    """Render an error's source span as ``file:line:col`` when positional
+    information is available, otherwise fall back to ``str(location)``."""
+    loc = err.position()
+    file = getattr(loc, "file", "")
+    start = getattr(loc, "start", None)
+    if start is not None:
+        line, col = start[0], start[1]
+        prefix = f"{file}:" if file else ""
+        return f"{prefix}{line}:{col}"
+    return str(loc)
+
+
+def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
+    """Map each error variant to a short human-readable kind label and an
+    optional hint suggesting how to fix it."""
     match err:
+        case AeonImportError():
+            return "Import error", "Check the module name and your AEONPATH / libraries folder."
+        case UnificationSubtypingError():
+            return "Type mismatch", "The expression's type is incompatible with the expected type."
+        case UnificationFailedError():
+            return "Unification error", "The same value is being constrained to two incompatible types."
+        case UnificationKindError():
+            return "Kind mismatch", "A type was used at the wrong kind."
+        case UnificationUnknownTypeError():
+            return "Unknown variable", "This name is not defined in the current context."
+        case InstanceResolutionError():
+            return "Missing instance", "Define a typeclass instance for this type, or add it as a constraint."
+        case NonOrderableComparisonError():
+            return "Non-orderable comparison", "Use Int, Float or String, or define an Ord instance for this type."
+        case LinearityError():
+            return "Linearity error", "A binding's usage does not match its declared multiplicity."
+        case CoreTypeCheckingError():
+            return "Type error", None
         case _:
-            print(f">>> Error at {err.position()}:")
-            print(err)
+            return "Error", None
+
+
+def handle_error(err: AeonError):
+    kind, hint = _error_kind_and_hint(err)
+    print(f">>> {kind} at {format_location(err)}:")
+    print(f"    {err}")
+    if hint is not None:
+        print(f"    hint: {hint}")
 
 
 def main() -> None:

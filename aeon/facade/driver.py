@@ -9,7 +9,7 @@ from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.core.types import top
 from aeon.decorators import Metadata, apply_core_decorators_phase
-from aeon.elaboration import elaborate
+from aeon.elaboration import elaborate_collecting_errors
 from aeon.facade.api import AeonError
 from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.ast_helpers import st_top
@@ -72,11 +72,11 @@ class AeonDriver:
             )
             metadata: Metadata = desugared.metadata
 
-        try:
-            with RecordTime("Elaboration"):
-                sterm: STerm = elaborate(desugared.elabcontext, desugared.program, st_top)
-        except AeonError as e:
-            return [e]  # TODO: Support multiple errors
+        with RecordTime("Elaboration"):
+            sterm, elab_errors = elaborate_collecting_errors(desugared.elabcontext, desugared.program, st_top)
+        if elab_errors:
+            return elab_errors
+        assert sterm is not None
 
         with RecordTime("Core generation"):
             typing_ctx = lower_to_core_context(desugared.elabcontext)
