@@ -48,7 +48,10 @@ class TypeVar(Type):
         return hash(self.name)
 
 
+@dataclass
 class Top(Type):
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
     def __repr__(self):
         return "⊤"
 

@@ -92,7 +92,9 @@ class LiquefactionException(LoweringException):
     pass
 
 
-# TODO: NOW! detect built-in SMT functions
+# Built-in SMT operators (Set ops, comparisons, etc.) need no special handling
+# here: every applied SVar liquefies to a LiquidApp, and dispatch between SMT
+# built-ins and uninterpreted functions is resolved later in translate_liq.
 def liquefy_app(
     app: SApplication,
     available_vars: list[tuple[Name, TypeConstructor | TypeVar]] | None = None,
@@ -171,7 +173,14 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
                 return substitution_in_liquid(lbody, lval, name)
             return None
         case SRec(name, _, val, body, _, _):
-            lval = liquefy(val, available_vars)  # TODO: induction?
+            # Best-effort: inline the binding by substitution. No inductive
+            # unrolling happens here — a genuinely recursive `val` is an
+            # abstraction, which liquefies to None, so the whole term drops to
+            # None. Sound reasoning about recursive functions instead flows
+            # through termination-gated reflection (see `_reflected_impl_for`
+            # in typeinfer and `ReflectedFunctionDeclaration`). Full induction
+            # over recursive refinements remains open (issue #291).
+            lval = liquefy(val, available_vars)
             lbody = liquefy(body, available_vars)
             if lval and lbody:
                 return substitution_in_liquid(lbody, lval, name)
@@ -202,8 +211,8 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
         available_vars = []
 
     match normalize(ty):
-        case STypeConstructor(Name("Top", 0), loc):
-            return Top()  # TODO: loc?
+        case STypeConstructor(Name("Top", 0), _, loc):
+            return Top(loc=loc)
         case STypeVar(name, loc):
             return TypeVar(name, loc=loc)
         case SAbstractionType(name, vty, rty, loc):

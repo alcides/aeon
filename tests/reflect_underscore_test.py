@@ -116,3 +116,29 @@ def test_recursive_body_rejected_with_clear_error():
 def main (_:Int) : Int = 0"""
     with pytest.raises(TypeError, match="recursive"):
         reflect_underscore_in_definitions(parse_program(src).definitions)
+
+
+def test_recursive_body_under_if_rejected():
+    # Regression (issue #291): the self-reference guard must see through `if`;
+    # otherwise this slips past and reaches the solver as an unprovable goal.
+    src = """def f (n:Int) : {r:Int | _} = if n == 0 then 0 else f (n - 1) + 2;
+def main (_:Int) : Int = 0"""
+    with pytest.raises(TypeError, match="recursive"):
+        reflect_underscore_in_definitions(parse_program(src).definitions)
+
+
+def test_recursive_body_under_let_rejected():
+    # Regression (issue #291): the guard must also see through `let`.
+    src = """def g (n:Int) : {r:Int | _} = (let m = g (n - 1) in m + 1);
+def main (_:Int) : Int = 0"""
+    with pytest.raises(TypeError, match="recursive"):
+        reflect_underscore_in_definitions(parse_program(src).definitions)
+
+
+def test_explicit_recurrence_with_metric_verifies():
+    # The supported, sound alternative to recursive `_`: state the recurrence
+    # explicitly so the recursive call's declared return type discharges it.
+    src = """def double (n:Int | n >= 0) : {r:Int | r == n + n} decreasing_by [n] =
+    if n == 0 then 0 else double (n - 1) + 2;
+def main (_:Int) : Int = 0"""
+    assert _verify(src) == []

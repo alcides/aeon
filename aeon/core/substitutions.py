@@ -602,7 +602,12 @@ def liquefy_app(app: Application) -> LiquidApp | None:
 
 
 def liquefy_rec(t: Rec) -> LiquidTerm | None:
-    value = liquefy(t.var_value)  # TODO: induction?
+    # Best-effort inline by substitution; no inductive unrolling. A genuinely
+    # recursive value is an abstraction and liquefies to None, dropping the
+    # whole term. Sound reasoning about recursive functions flows through
+    # termination-gated reflection instead. Full induction over recursive
+    # refinements remains open (issue #291).
+    value = liquefy(t.var_value)
     body = liquefy(t.body)
     if value and body:
         return substitution_in_liquid(body, value, t.var_name)
