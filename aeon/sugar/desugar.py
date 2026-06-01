@@ -79,7 +79,7 @@ def _sugar_contains_recursive_call(t: STerm, fname: Name) -> bool:
         cur = node
         while isinstance(cur, SApplication):
             cur = cur.fun
-        return isinstance(cur, SVar) and cur == fname
+        return isinstance(cur, SVar) and cur.name == fname
 
     def walk(node: STerm) -> bool:
         if isinstance(node, SApplication) and is_call_tree(node):
@@ -140,6 +140,12 @@ def _expand_reflection_marker(t: STerm, binder: Name, body: STerm) -> tuple[STer
 
 
 def _mentions_function(body: STerm, fname: Name) -> bool:
+    """Whether ``fname`` appears free in ``body`` (used to detect self-recursion).
+
+    Must traverse every construct a reflectable body can take; otherwise a
+    recursive call hidden inside an ``if``/``let``/``match`` slips past the
+    self-reference check and reaches the solver as an unprovable constraint.
+    """
     match body:
         case SVar(name, _):
             return name.name == fname.name
@@ -147,6 +153,20 @@ def _mentions_function(body: STerm, fname: Name) -> bool:
             return _mentions_function(fun, fname) or _mentions_function(arg, fname)
         case SAnnotation(expr, _, _):
             return _mentions_function(expr, fname)
+        case SIf(cond, then, otherwise, _):
+            return (
+                _mentions_function(cond, fname)
+                or _mentions_function(then, fname)
+                or _mentions_function(otherwise, fname)
+            )
+        case SLet(_, val, inner, _) | SRec(_, _, val, inner, _, _):
+            return _mentions_function(val, fname) or _mentions_function(inner, fname)
+        case STypeApplication(expr, _, _) | SRefinementApplication(expr, _, _):
+            return _mentions_function(expr, fname)
+        case SAbstraction(_, inner, _):
+            return _mentions_function(inner, fname)
+        case SMatch(scrutinee, branches, _):
+            return _mentions_function(scrutinee, fname) or any(_mentions_function(b.body, fname) for b in branches)
         case _:
             return False
 
@@ -214,8 +234,11 @@ def reflect_underscore_in_definitions(defs: list[Definition]) -> list[Definition
             )
         if _mentions_function(d.body, d.name):
             raise TypeError(
-                f"Cannot reflect the recursive body of '{d.name.name}' with `_` yet: "
-                "self-referential reflection is not supported."
+                f"Cannot reflect the recursive body of '{d.name.name}' with `_`: "
+                "self-referential reflection would require inductive reasoning (see issue #291). "
+                "Instead, state the recurrence explicitly in the return refinement "
+                "(e.g. `: {r:Int | r == n + n} decreasing_by [n]`), which the recursive "
+                "call's declared type discharges soundly."
             )
         bad = _unreflectable_construct(d.body)
         if bad is not None:

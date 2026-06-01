@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import replace
 from typing import Iterable
 
 from loguru import logger
@@ -107,6 +108,33 @@ def _strip_type_level_wrappers(t: Term) -> Term:
         else:
             t = t.expr
     return t
+
+
+def _erase_return_refinement(ty: Type) -> Type:
+    """Weaken ``ty``'s final codomain to its bare carrier type.
+
+    Walks the function-type spine (type/refinement polymorphism and arrow
+    binders) down to the return type; if that return type is a ``RefinedType``,
+    drop the refinement, keeping only the underlying ``TypeConstructor``/
+    ``TypeVar``.
+
+    Used to weaken the *inductive hypothesis* of a recursive binding that has no
+    well-founded termination metric. Typing a recursive call at the declared
+    refined return type is only sound when the function provably terminates;
+    without a metric, a non-terminating definition could otherwise "prove" an
+    absurd codomain such as ``{r:Int | r > r}`` and poison downstream proofs.
+    Argument refinements are left intact — they constrain how the function is
+    *called*, not what it may *assume* about its own result.
+    """
+    if isinstance(ty, TypePolymorphism):
+        return replace(ty, body=_erase_return_refinement(ty.body))
+    if isinstance(ty, RefinementPolymorphism):
+        return replace(ty, body=_erase_return_refinement(ty.body))
+    if isinstance(ty, AbstractionType):
+        return replace(ty, type=_erase_return_refinement(ty.type))
+    if isinstance(ty, RefinedType):
+        return ty.type
+    return ty
 
 
 def _reflected_impl_for(
@@ -479,14 +507,25 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             r = (Conjunction(c1, inner), t2)
             return r
         case Rec(var_name, var_type, var_value, body):
+            has_metric = bool(t.decreasing_by)
+            # The recursive occurrence may assume the declared (refined) return
+            # type as an inductive hypothesis only when a well-founded
+            # termination metric justifies the induction. Without one, weaken
+            # the hypothesis to the bare codomain so a non-terminating
+            # definition cannot "prove" an absurd refinement (see
+            # recursion_soundness_test.py). Non-recursive bindings are
+            # unaffected: their body never references var_name, so the weaker
+            # context binding is never consulted.
+            rec_var_type = var_type if has_metric else _erase_return_refinement(var_type)
+            rec_ctx: TypingContext = ctx.with_var(var_name, rec_var_type)
+            c1 = check(rec_ctx, var_value, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
-            c1 = check(nrctx, var_value, var_type)
             (c2, t2) = synth(nrctx, body)
             reflected_impl = _reflected_impl_for(
                 var_name,
                 var_type,
                 var_value,
-                has_termination_metric=bool(t.decreasing_by),
+                has_termination_metric=has_metric,
             )
             c1 = implication_constraint(var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl)
             c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
@@ -657,15 +696,25 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 inner = implication_constraint(bn, bt, inner, body.loc)
             return Conjunction(c1, inner)
         case Rec(var_name, var_type, var_value, body), _:
+            has_metric = bool(t.decreasing_by)
             t1 = fresh(ctx, var_type)
+            # The recursive occurrence may assume the declared (refined) return
+            # type as an inductive hypothesis only when a well-founded
+            # termination metric justifies the induction. Without one, weaken
+            # the hypothesis to the bare codomain so a non-terminating
+            # definition cannot "prove" an absurd refinement (see
+            # recursion_soundness_test.py). Non-recursive bindings are
+            # unaffected: their body never references var_name.
+            rec_t1 = t1 if has_metric else _erase_return_refinement(t1)
+            rec_ctx: TypingContext = ctx.with_var(var_name, rec_t1)
+            c1 = check(rec_ctx, var_value, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
-            c1 = check(nrctx, var_value, var_type)
             c2 = check(nrctx, body, ty)
             reflected_impl = _reflected_impl_for(
                 var_name,
                 t1,
                 var_value,
-                has_termination_metric=bool(t.decreasing_by),
+                has_termination_metric=has_metric,
             )
             c1 = implication_constraint(var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl)
             c2 = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)

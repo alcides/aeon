@@ -241,9 +241,15 @@ def _termination_obligation(
     entry_refs: list[LiquidTerm],
     nested_refs: tuple[LiquidTerm, ...],
 ) -> Constraint:
-    r"""``(entry /\ nested /\ branch) => (lex and metric(call) >= 0)`` when guarded; else ``lex`` only."""
-    needs_call_nonneg = bool(path) or bool(entry_refs) or bool(nested_refs)
-    oblig = mk_liquid_and(lex, _metric_call_non_negative(call_ms)) if needs_call_nonneg else lex
+    r"""``(entry /\ nested /\ branch) => (lex and metric(call) >= 0)``.
+
+    Non-negativity is **always** required: a well-founded measure must strictly
+    decrease *and* be bounded below. An unbounded integer metric descends
+    forever (``f (n - 1)`` never terminates) yet would satisfy a decrease-only
+    obligation, making the inductive hypothesis used for the recursive call
+    unsound. See ``tests/recursion_soundness_test.py``.
+    """
+    oblig = mk_liquid_and(lex, _metric_call_non_negative(call_ms))
     full = _full_path_guard_liquid(entry_refs, nested_refs, path, formals, type_formals)
     if full is None:
         return LiquidConstraint(LiquidLiteralBool(False))

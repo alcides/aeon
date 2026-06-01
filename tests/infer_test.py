@@ -178,32 +178,29 @@ def test_sumToSimple5():
 
 
 def test_sumToSimple6():
-    assert tt(
+    # `k` recurses with no base case (`k 5 -> k 1 -> k 0 -> k 0 -> …`), so it
+    # never terminates, yet claims the refined codomain `{y | y > 0}`. A core
+    # `let rec` carries no termination metric, so the recursive occurrence may
+    # NOT assume that refinement as an inductive hypothesis; this must be
+    # rejected. (Accepting it was the pre-fix soundness bug.)
+    assert not tt(
         "let k : (x:Int) -> {y:Int | y > 0} = \\x -> if x == 5 then k 1 else k 0 in k 5",
         "{k:Int| k > 0}",
     )
 
 
 def test_sumTo():
-    sumTo_def = """
-        let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) =
-        \\n ->
-            let b : {k:Bool | k == (n <= 0)} = n <= 0 in
-            if b then 0 else (
-                let n_minus_1 : {nm1:Int | nm1 == (n - 1) } = (n - 1) in
-                let sum_n_minus_1 : {s:Int| (s >= 0) && (n_minus_1 <= s)} = sum n_minus_1 in
-                n + sum_n_minus_1
-            ) in 1
-    """
-    sumTo_def = sumTo_def = (
+    # `sum` is total, but a core `let rec` cannot carry a termination metric, so
+    # its refined recurrence `{y | y >= 0 && x <= y}` cannot be assumed at the
+    # recursive call without a well-foundedness proof — the core checker
+    # conservatively rejects it. The same recurrence IS accepted in the surface
+    # language, where metric inference / `decreasing_by` supply well-foundedness
+    # (see tests/recursion_soundness_test.py).
+    sumTo_def = (
         "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n <= 0 then 0 else n + sum (n-1) in sum 4"
     )
     sumTo_type = "Int"
-    assert tt(sumTo_def, sumTo_type)
-    """
-    sumTo_def = "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n <= 0 then 0 else n + sum (n-1) in sum"
-    sumTo_type = "(x: Int) -> {y: Int | (y >= 0) && (x <= y) } "
-    """
+    assert not tt(sumTo_def, sumTo_type)
 
 
 def test_simplerec():
