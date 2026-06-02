@@ -26,4 +26,4 @@ def calculate_shopping_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (b
 
 
 @multi_minimize_float(calculate_shopping_errors train synth, 1)
-def synth  (prices: (Array Int)) (discounts: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let calculate_shopping_errors = unit in let train = unit in (?hole:Int))
+def synth  (prices: (Array Int)) (discounts: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let calculate_shopping_errors = unit in let train = unit in ?hole)

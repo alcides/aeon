@@ -11,4 +11,4 @@ def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200
 
 @multi_minimize_float(calculate_bouncing_balls_errors train synth, 1)
 def synth (a:Float) (b:Float) (c:Int) : Float
-    = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_bouncing_balls_errors = unit in (?hole: Float));
+    = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_bouncing_balls_errors = unit in ?hole);

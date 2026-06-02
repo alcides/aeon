@@ -15,4 +15,4 @@ inductive Dict
 def mbpp_fitness (f:(x0:Dict) -> List) : Float = native "float((0 if (f(('Dict_dcons', 'Math', 81, ('Dict_dcons', 'Physics', 83, ('Dict_dcons', 'Chemistry', 87, ('Dict_dnil',))))) == [('Chemistry', 87), ('Physics', 83), ('Math', 81)]) else 1) + (0 if (f(('Dict_dcons', 'Math', 400, ('Dict_dcons', 'Physics', 300, ('Dict_dcons', 'Chemistry', 250, ('Dict_dnil',))))) == [('Math', 400), ('Physics', 300), ('Chemistry', 250)]) else 1) + (0 if (f(('Dict_dcons', 'Math', 900, ('Dict_dcons', 'Physics', 1000, ('Dict_dcons', 'Chemistry', 1250, ('Dict_dnil',))))) == [('Chemistry', 1250), ('Physics', 1000), ('Math', 900)]) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (dict1:Dict) : List = (let mbpp_fitness = unit in (?hole : List))
+def synth (dict1:Dict) : List = (let mbpp_fitness = unit in ?hole)

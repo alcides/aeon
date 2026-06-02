@@ -27,4 +27,4 @@ def train: TrainData = extract_train_data (load_dataset "bowling" 200 200)
 
 
 @multi_minimize_float(calculate_bowling_errors train synth, 1)
-def synth (scores: String) : Int = (let extract_train_data = unit in let unpack_train_data = unit in let load_dataset = unit in let train = unit in let calculate_bowling_errors = unit in (?hole: Int))
+def synth (scores: String) : Int = (let extract_train_data = unit in let unpack_train_data = unit in let load_dataset = unit in let train = unit in let calculate_bowling_errors = unit in ?hole)

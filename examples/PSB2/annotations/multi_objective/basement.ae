@@ -13,4 +13,4 @@ def train: TrainData = extract_train_data (load_dataset "basement" 200 200)
 
 @allow_recursion
 @multi_minimize_float(calculate_basement_errors train synth, 1)
-def synth (nums: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_basement_errors = unit in (?hole : Int))
+def synth (nums: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_basement_errors = unit in ?hole)

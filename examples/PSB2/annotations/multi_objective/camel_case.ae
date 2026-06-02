@@ -21,4 +21,4 @@ def const1 : String = " "
 def train: TrainData = extract_train_data (load_dataset "camel-case" 200 200)
 
 @multi_minimize_float(calculate_camel_case_errors train synth, 1)
-def synth (s:String) : String = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_camel_case_errors = unit in (?hole:String))
+def synth (s:String) : String = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_camel_case_errors = unit in ?hole)

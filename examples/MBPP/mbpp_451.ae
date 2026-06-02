@@ -6,4 +6,4 @@
 def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f(' Google    Flutter ') == 'GoogleFlutter') else 1) + (0 if (f(' Google    Dart ') == 'GoogleDart') else 1) + (0 if (f(' iOS    Swift ') == 'iOSSwift') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (text1:String) : String = (let mbpp_fitness = unit in (?hole : String))
+def synth (text1:String) : String = (let mbpp_fitness = unit in ?hole)

@@ -18,4 +18,4 @@ def calculate_twitter_errors : (train : TrainData) -> (f:(a: String) -> String) 
 
 
 @multi_minimize_float(calculate_twitter_errors train synth, 1)
-def synth (tweet: String) : String = (let extract_train_data = unit in let load_dataset = unit in let calculate_twitter_errors = unit in let train = unit in (?hole:String))
+def synth (tweet: String) : String = (let extract_train_data = unit in let load_dataset = unit in let calculate_twitter_errors = unit in let train = unit in ?hole)

@@ -12,4 +12,4 @@ inductive Tuple
 def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Tuple) : Float = native "float((0 if (f([1, 1, 2, 3, 4, 4, 5, 1])(3) == ('Tuple_tcons', [1, 1, 2], ('Tuple_tcons', [3, 4, 4, 5, 1], ('Tuple_tnil',)))) else 1) + (0 if (f(['a', 'b', 'c', 'd'])(2) == ('Tuple_tcons', ['a', 'b'], ('Tuple_tcons', ['c', 'd'], ('Tuple_tnil',)))) else 1) + (0 if (f(['p', 'y', 't', 'h', 'o', 'n'])(4) == ('Tuple_tcons', ['p', 'y', 't', 'h'], ('Tuple_tcons', ['o', 'n'], ('Tuple_tnil',)))) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (list1:List) (L:Int) : Tuple = (let mbpp_fitness = unit in (?hole : Tuple))
+def synth (list1:List) (L:Int) : Tuple = (let mbpp_fitness = unit in ?hole)

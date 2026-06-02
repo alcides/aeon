@@ -10,4 +10,4 @@ inductive Dict
 def mbpp_fitness (f:(x0:Dict) -> (x1:Int) -> Bool) : Float = native "float((0 if (f(('Dict_dcons', 'Cierra Vega', 12, ('Dict_dcons', 'Alden Cantrell', 12, ('Dict_dcons', 'Kierra Gentry', 12, ('Dict_dcons', 'Pierre Cox', 12, ('Dict_dnil',))))))(10) == False) else 1) + (0 if (f(('Dict_dcons', 'Cierra Vega', 12, ('Dict_dcons', 'Alden Cantrell', 12, ('Dict_dcons', 'Kierra Gentry', 12, ('Dict_dcons', 'Pierre Cox', 12, ('Dict_dnil',))))))(12) == True) else 1) + (0 if (f(('Dict_dcons', 'Cierra Vega', 12, ('Dict_dcons', 'Alden Cantrell', 12, ('Dict_dcons', 'Kierra Gentry', 12, ('Dict_dcons', 'Pierre Cox', 12, ('Dict_dnil',))))))(5) == False) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (dict:Dict) (n:Int) : Bool = (let mbpp_fitness = unit in (?hole : Bool))
+def synth (dict:Dict) (n:Int) : Bool = (let mbpp_fitness = unit in ?hole)

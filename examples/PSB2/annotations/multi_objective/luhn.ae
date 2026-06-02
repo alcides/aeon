@@ -37,4 +37,4 @@ def calculate_luhn_errors : (train : TrainData) -> (f:(a: (Array Int)) -> Int)  
 
 @multi_minimize_float(calculate_luhn_errors train synth, 1)
 @disable_control_flow
-def synth (digits: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let calculate_luhn_errors = unit in let train = unit in (?hole: Int))
+def synth (digits: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let calculate_luhn_errors = unit in let train = unit in ?hole)

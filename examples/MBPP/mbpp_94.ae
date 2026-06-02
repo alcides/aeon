@@ -11,4 +11,4 @@ inductive Tuple
 def mbpp_fitness (f:(x0:List) -> String) : Float = native "float((0 if (f([('Rash', 143), ('Manjeet', 200), ('Varsha', 100)]) == 'Varsha') else 1) + (0 if (f([('Yash', 185), ('Dawood', 125), ('Sanya', 175)]) == 'Dawood') else 1) + (0 if (f([('Sai', 345), ('Salman', 145), ('Ayesha', 96)]) == 'Ayesha') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (test_list:List) : String = (let mbpp_fitness = unit in (?hole : String))
+def synth (test_list:List) : String = (let mbpp_fitness = unit in ?hole)

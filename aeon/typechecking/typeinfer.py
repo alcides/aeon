@@ -446,7 +446,17 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                         # binder name into the result type. Any binders
                         # already on the argument's type lift to the outer
                         # scope (binders are always flat).
-                        (_, ty_arg) = synth(ctx_inner, arg)
+                        #
+                        # A bare Hole has no synthesisable type (synth defaults
+                        # it to a polymorphic type variable), which is not an SMT
+                        # base type and would leave the `_y` binder undeclared in
+                        # the solver. But the hole was just `check`ed against the
+                        # domain type `atype`, so that is its type here — use it
+                        # so a hole in argument position needs no annotation.
+                        if isinstance(arg, Hole):
+                            ty_arg = atype
+                        else:
+                            (_, ty_arg) = synth(ctx_inner, arg)
                         if isinstance(ty_arg, ExistentialType):
                             outer_binders = outer_binders + ty_arg.binders
                             ty_arg = ty_arg.body

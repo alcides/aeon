@@ -19,4 +19,4 @@ def calculate_middle_char_errors : (train : TrainData) -> (f:(a: String) -> Stri
 
 
 @multi_minimize_float(calculate_middle_char_errors train synth, 1)
-def synth(s: String) : String = (let extract_train_data = unit in let load_dataset = unit in let calculate_middle_char_errors = unit in let train = unit in (?hole:String))
+def synth(s: String) : String = (let extract_train_data = unit in let load_dataset = unit in let calculate_middle_char_errors = unit in let train = unit in ?hole)

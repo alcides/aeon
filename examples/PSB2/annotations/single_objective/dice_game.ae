@@ -9,4 +9,4 @@ def  expected_values : List =  get_output_list ( unpack_train_data  train)
 
 @minimize_float(mean_absolute_error  (get_dg_synth_values input_list synth)(expected_values))
 def synth (n: Int) (m: Int) : Float
-    = (let extract_train_data = unit in let get_input_list = unit in let get_output_list = unit in let unpack_train_data = unit in let load_dataset = unit in let get_dg_synth_values = unit in let calculate_list_errors = unit in (?hole:Float));
+    = (let extract_train_data = unit in let get_input_list = unit in let get_output_list = unit in let unpack_train_data = unit in let load_dataset = unit in let get_dg_synth_values = unit in let calculate_list_errors = unit in ?hole);
