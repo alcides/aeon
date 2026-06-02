@@ -6,4 +6,4 @@
 def mbpp_fitness (f:(x0:Int) -> Float) : Float = native "float((0 if (__import__('math').isclose(f(10), 62.830000000000005, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(5), 31.415000000000003, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(4), 25.132, rel_tol=0.001)) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (r:Int) : Float = (let mbpp_fitness : Unit = unit in (?hole : Float))
+def synth (r:Int) : Float = (let mbpp_fitness = unit in (?hole : Float))

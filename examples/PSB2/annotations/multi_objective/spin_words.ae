@@ -11,4 +11,4 @@ def train: TrainData = extract_train_data (load_dataset "spin-words" 200 200)
 def calculate_spin_words_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
 @multi_minimize_float(calculate_spin_words_errors train synth, 1)
-def synth (phrase: String) : String = (let extract_train_data : Unit = unit in let unpack_train_data : Unit = unit in let load_dataset : Unit = unit in let calculate_spin_words_errors : Unit = unit in let train : Unit = unit in (?hole:String))
+def synth (phrase: String) : String = (let extract_train_data = unit in let unpack_train_data = unit in let load_dataset = unit in let calculate_spin_words_errors = unit in let train = unit in (?hole:String))

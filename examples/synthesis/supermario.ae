@@ -128,4 +128,4 @@ def level_chunks (level: Level) : (List Chunk) =
 
 @maximize_int(coverage (level_chunks new_map))
 @minimize_int(conflicts (level_chunks new_map))
-def new_map : Level = (let chunk_width : Unit = unit in let coverage : Unit = unit in let chunk_x : Unit = unit in let max : Unit = unit in let min : Unit = unit in let overlap : Unit = unit in let conflicts_one : Unit = unit in let conflicts : Unit = unit in let level_chunks : Unit = unit in ?hole)
+def new_map : Level = (let chunk_width = unit in let coverage = unit in let chunk_x = unit in let max = unit in let min = unit in let overlap = unit in let conflicts_one = unit in let conflicts = unit in let level_chunks = unit in ?hole)

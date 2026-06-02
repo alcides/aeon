@@ -6,4 +6,4 @@
 def mbpp_fitness (f:(x0:String) -> (x1:String) -> (x2:String) -> String) : Float = native "float((0 if (f('polygon')('y')('l') == 'pollgon') else 1) + (0 if (f('character')('c')('a') == 'aharaater') else 1) + (0 if (f('python')('l')('a') == 'python') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (str1:String) (ch:String) (newch:String) : String = (let mbpp_fitness : Unit = unit in (?hole : String))
+def synth (str1:String) (ch:String) (newch:String) : String = (let mbpp_fitness = unit in (?hole : String))

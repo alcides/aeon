@@ -46,4 +46,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (is_player neg2)
   + cost_neg (is_player neg3)
 )
-def is_player (p:Person) : Bool = (let pos1 : Unit = unit in let pos2 : Unit = unit in let pos3 : Unit = unit in let neg1 : Unit = unit in let neg2 : Unit = unit in let neg3 : Unit = unit in let mk : Unit = unit in let cost_pos : Unit = unit in let cost_neg : Unit = unit in ?hole)
+def is_player (p:Person) : Bool = (let pos1 = unit in let pos2 = unit in let pos3 = unit in let neg1 = unit in let neg2 = unit in let neg3 = unit in let mk = unit in let cost_pos = unit in let cost_neg = unit in ?hole)

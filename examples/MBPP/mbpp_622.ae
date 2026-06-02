@@ -8,4 +8,4 @@ type List
 def mbpp_fitness (f:(x0:List) -> (x1:List) -> (x2:Int) -> Float) : Float = native "float((0 if (f([1, 12, 15, 26, 38])([2, 13, 17, 30, 45])(5) == 16.0) else 1) + (0 if (f([2, 4, 8, 9])([7, 13, 19, 28])(4) == 8.5) else 1) + (0 if (f([3, 6, 14, 23, 36, 42])([2, 18, 27, 39, 49, 55])(6) == 25.0) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (arr1:List) (arr2:List) (n:Int) : Float = (let mbpp_fitness : Unit = unit in (?hole : Float))
+def synth (arr1:List) (arr2:List) (n:Int) : Float = (let mbpp_fitness = unit in (?hole : Float))

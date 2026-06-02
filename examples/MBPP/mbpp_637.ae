@@ -6,4 +6,4 @@
 def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Bool) : Float = native "float((0 if (f(1500)(1200) == False) else 1) + (0 if (f(100)(100) == True) else 1) + (0 if (f(2000)(5000) == False) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (actual_cost:Int) (sale_amount:Int) : Bool = (let mbpp_fitness : Unit = unit in (?hole : Bool))
+def synth (actual_cost:Int) (sale_amount:Int) : Bool = (let mbpp_fitness = unit in (?hole : Bool))

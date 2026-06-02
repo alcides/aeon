@@ -12,4 +12,4 @@ def train: TrainData = extract_train_data (load_dataset "dice-game" 200 200)
 def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> (Array Int)  =  \data -> \func -> native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]"
 
 @multi_minimize_float(calculate_dice_game_errors train synth, 1)
-def synth (n:Int) (m: Int) : Float = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let train : Unit = unit in let calculate_dice_game_errors : Unit = unit in (?hole: Float))
+def synth (n:Int) (m: Int) : Float = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_dice_game_errors = unit in (?hole: Float))

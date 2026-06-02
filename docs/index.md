@@ -488,7 +488,7 @@ To keep a function or variable (such as a fitness/oracle helper) out of the
 synthesizer's grammar, shadow it with a `Unit` binding in the hole's scope:
 
 ```aeon
-def synth (x: Int) : Int = (let oracle : Unit = unit in (?hole : Int))
+def synth (x: Int) : Int = (let oracle = unit in (?hole : Int))
 ```
 
 Inside the hole, `oracle` now has type `Unit`, so the type-directed grammar

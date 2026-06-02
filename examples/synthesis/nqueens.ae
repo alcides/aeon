@@ -53,4 +53,4 @@ def board_conflicts (b:Board) : Int =
     | Board_cons h tl => conflicts h tl + board_conflicts tl;
 
 @minimize_int(board_conflicts nqueens)
-def nqueens : Board = (let conflicts : Unit = unit in let board_conflicts : Unit = unit in let abs : Unit = unit in ?hole);
+def nqueens : Board = (let conflicts = unit in let board_conflicts = unit in let abs = unit in ?hole);

@@ -6,4 +6,4 @@
 def mbpp_fitness (f:(x0:Int) -> Float) : Float = native "float((0 if (f(3) == 15.588457268119894) else 1) + (0 if (f(20) == 692.8203230275509) else 1) + (0 if (f(10) == 173.20508075688772) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (side:Int) : Float = (let mbpp_fitness : Unit = unit in (?hole : Float))
+def synth (side:Int) : Float = (let mbpp_fitness = unit in (?hole : Float))

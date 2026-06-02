@@ -48,4 +48,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (recolor blue_28)
   + cost_neg (recolor blue_30)
 )
-def recolor (s:Shoe) : Bool = (let blue_40 : Unit = unit in let blue_42 : Unit = unit in let blue_45 : Unit = unit in let red_40 : Unit = unit in let red_30 : Unit = unit in let blue_28 : Unit = unit in let blue_30 : Unit = unit in let mk : Unit = unit in let cost_pos : Unit = unit in let cost_neg : Unit = unit in ?hole)
+def recolor (s:Shoe) : Bool = (let blue_40 = unit in let blue_42 = unit in let blue_45 = unit in let red_40 = unit in let red_30 = unit in let blue_28 = unit in let blue_30 = unit in let mk = unit in let cost_pos = unit in let cost_neg = unit in ?hole)

@@ -6,4 +6,4 @@
 def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f('Python') == 'Python') else 1) + (0 if (f('USA') == 'ASU') else 1) + (0 if (f('ab') == 'ab') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (str1:String) : String = (let mbpp_fitness : Unit = unit in (?hole : String))
+def synth (str1:String) : String = (let mbpp_fitness = unit in (?hole : String))

@@ -12,4 +12,4 @@ def calculate_gcd_errors : (train: TrainData) -> (f: (a: {x:Int | 1 <= x && x <=
 
 @multi_minimize_int(calculate_gcd_errors train synth, 1)
 def synth (n : {x:Int | 1 <= x && x <= 1000000})
-          (z : {y:Int | 1 <= y && y <= 1000000}) : {r:Int | 1 <= r} = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let train : Unit = unit in let calculate_gcd_errors : Unit = unit in (?hole: {r:Int | 1 <= r}));
+          (z : {y:Int | 1 <= y && y <= 1000000}) : {r:Int | 1 <= r} = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_gcd_errors = unit in (?hole: {r:Int | 1 <= r}));

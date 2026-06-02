@@ -19,4 +19,4 @@ def calculate_cipher_errors : (train : TrainData) -> (f:(a: String) ->(a: String
 
 
 @multi_minimize_float(calculate_cipher_errors train synth, 1)
-def synth (cipher_from: String) (cypher_to: String) (msg: String) : String = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let calculate_square_digits_errors : Unit = unit in let train : Unit = unit in (?hole:String))
+def synth (cipher_from: String) (cypher_to: String) (msg: String) : String = (let extract_train_data = unit in let load_dataset = unit in let calculate_square_digits_errors = unit in let train = unit in (?hole:String))

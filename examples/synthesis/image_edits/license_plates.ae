@@ -46,4 +46,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (blur_plate ped2)
   + cost_neg (blur_plate sign1)
 )
-def blur_plate (o:StreetObject) : Bool = (let car1 : Unit = unit in let car2 : Unit = unit in let truck1 : Unit = unit in let bike1 : Unit = unit in let ped1 : Unit = unit in let ped2 : Unit = unit in let sign1 : Unit = unit in let mk : Unit = unit in let cost_pos : Unit = unit in let cost_neg : Unit = unit in ?hole)
+def blur_plate (o:StreetObject) : Bool = (let car1 = unit in let car2 = unit in let truck1 = unit in let bike1 = unit in let ped1 = unit in let ped2 = unit in let sign1 = unit in let mk = unit in let cost_pos = unit in let cost_neg = unit in ?hole)

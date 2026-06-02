@@ -29,4 +29,4 @@ def calculate_mastermind_errors : (train : TrainData) -> (f:(a: String) -> (b:St
 
 
 @multi_minimize_float(calculate_mastermind_errors train synth, 2)
-def synth ( code : String) (guess: String ) : (Array Int) = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let calculate_mastermind_errors : Unit = unit in let train : Unit = unit in (?hole:(Array Int)))
+def synth ( code : String) (guess: String ) : (Array Int) = (let extract_train_data = unit in let load_dataset = unit in let calculate_mastermind_errors = unit in let train = unit in (?hole:(Array Int)))

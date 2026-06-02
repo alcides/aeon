@@ -40,4 +40,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (highlight abn1)
   + cost_neg (highlight abn2)
 )
-def highlight (n:Nucleus) : Bool = (let healthy1 : Unit = unit in let healthy2 : Unit = unit in let healthy3 : Unit = unit in let debris1 : Unit = unit in let debris2 : Unit = unit in let abn1 : Unit = unit in let abn2 : Unit = unit in let mk : Unit = unit in let cost_pos : Unit = unit in let cost_neg : Unit = unit in ?hole)
+def highlight (n:Nucleus) : Bool = (let healthy1 = unit in let healthy2 = unit in let healthy3 = unit in let debris1 = unit in let debris2 = unit in let abn1 = unit in let abn2 = unit in let mk = unit in let cost_pos = unit in let cost_neg = unit in ?hole)

@@ -12,4 +12,4 @@ def List_append (l:(Array Int)) (i:Int) : {l2:(Array Int) | List_size l2 == List
 def train: TrainData = extract_train_data (load_dataset "coin-sums" 200 200)
 
 @multi_minimize_float(calculate_coin_sum_errors train synth, 4)
-def synth (cents: Int) : (Array Int) = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let train : Unit = unit in let calculate_coin_sum_errors : Unit = unit in (?hole:(Array Int)))
+def synth (cents: Int) : (Array Int) = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_coin_sum_errors = unit in (?hole:(Array Int)))

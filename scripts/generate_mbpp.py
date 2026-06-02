@@ -786,7 +786,7 @@ def generate_file(problem: dict) -> str:
     # The fitness oracle is kept out of the synthesizer's grammar by shadowing
     # it with a useless Unit binding in the hole's scope (lexical shadowing),
     # rather than the former @hide(mbpp_fitness) decorator.
-    parts.append(f"def synth {synth_params} : {ret_type} = (let mbpp_fitness : Unit = unit in (?hole : {ret_type}))")
+    parts.append(f"def synth {synth_params} : {ret_type} = (let mbpp_fitness = unit in (?hole : {ret_type}))")
     parts.append("")
     return "\n".join(parts)
 

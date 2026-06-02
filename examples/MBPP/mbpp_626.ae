@@ -10,4 +10,4 @@ inductive Maybe a
 def mbpp_fitness (f:(x0:Int) -> (Maybe Int)) : Float = native "float((0 if (f(-1) == ('Maybe_none',)) else 1) + (0 if (f(0) == ('Maybe_just', 0)) else 1) + (0 if (f(2) == ('Maybe_just', 4)) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (r:Int) : (Maybe Int) = (let mbpp_fitness : Unit = unit in (?hole : (Maybe Int)))
+def synth (r:Int) : (Maybe Int) = (let mbpp_fitness = unit in (?hole : (Maybe Int)))
