@@ -238,7 +238,7 @@ def reflect_underscore_in_definitions(defs: list[Definition]) -> list[Definition
         if _mentions_function(d.body, d.name):
             raise TypeError(
                 f"Cannot reflect the recursive body of '{d.name.name}' with `_`: "
-                "self-referential reflection would require inductive reasoning (see issue #291). "
+                "self-referential reflection would require inductive reasoning (see issue #328). "
                 "Instead, state the recurrence explicitly in the return refinement "
                 "(e.g. `: {r:Int | r == n + n} decreasing_by [n]`), which the recursive "
                 "call's declared type discharges soundly."

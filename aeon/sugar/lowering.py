@@ -179,7 +179,9 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             # None. Sound reasoning about recursive functions instead flows
             # through termination-gated reflection (see `_reflected_impl_for`
             # in typeinfer and `ReflectedFunctionDeclaration`). Full induction
-            # over recursive refinements remains open (issue #291).
+            # over recursive refinements is intentionally not done here — see the
+            # scope decision in docs/design/recursive-refinement-induction.md
+            # (issue #328).
             lval = liquefy(val, available_vars)
             lbody = liquefy(body, available_vars)
             if lval and lbody:

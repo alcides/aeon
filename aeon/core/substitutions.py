@@ -606,7 +606,8 @@ def liquefy_rec(t: Rec) -> LiquidTerm | None:
     # recursive value is an abstraction and liquefies to None, dropping the
     # whole term. Sound reasoning about recursive functions flows through
     # termination-gated reflection instead. Full induction over recursive
-    # refinements remains open (issue #291).
+    # refinements is intentionally not done here — see the scope decision in
+    # docs/design/recursive-refinement-induction.md (issue #328).
     value = liquefy(t.var_value)
     body = liquefy(t.body)
     if value and body:
