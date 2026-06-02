@@ -13,10 +13,6 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.program import SLiteral
 
 
-def raise_decorator_error(name: str) -> None:
-    raise Exception(f"Exception in decorator named {name}.")
-
-
 class Goal(NamedTuple):
     minimize: bool
     length: int
@@ -160,58 +156,6 @@ def multi_minimize_int(
         minimize=True,
         length=number_of_objectives,
     )
-
-
-def hide(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects more than zero arguments.
-
-    It does not modify the original definition. It makes sure that no
-    grammar nodes are generated from the var names passed as arguments.
-    """
-    assert len(decorator.macro_args) != 0
-
-    # TODO How can I verify if the function is in the context?
-    def get_var_name(arg):
-        if isinstance(arg, SVar):
-            return arg.name
-        else:
-            raise_decorator_error("hide")
-
-    # rethink this
-    aux_dict = {"hide": [get_var_name(arg) for arg in decorator.macro_args]}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
-
-
-def hide_types(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects more than zero arguments.
-
-    It does not modify the original definition. It makes sure that no
-    grammar nodes are generated from the var names passed as arguments.
-    """
-    assert len(decorator.macro_args) != 0
-
-    # TODO How can I verify if the function is in the context?
-    def get_var_name(arg):
-        if isinstance(arg, SVar):
-            return arg.name
-        else:
-            raise_decorator_error("hide_types")
-
-    # rethink this
-    aux_dict = {"hide_types": [get_var_name(arg) for arg in decorator.macro_args]}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
 
 
 def error_fitness(

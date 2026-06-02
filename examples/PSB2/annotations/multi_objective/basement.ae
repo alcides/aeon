@@ -11,10 +11,6 @@ def List_get (l:(Array Int)) (i: Int) : Int = native "l[i]"
 
 def train: TrainData = extract_train_data (load_dataset "basement" 200 200)
 
-@hide(extract_train_data,
-            load_dataset,
-            train,
-            calculate_basement_errors)
 @allow_recursion
 @multi_minimize_float(calculate_basement_errors train synth, 1)
-def synth (nums: (Array Int)) : Int = (?hole : Int)
+def synth (nums: (Array Int)) : Int = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let train : Unit = unit in let calculate_basement_errors : Unit = unit in (?hole : Int))

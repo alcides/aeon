@@ -5,6 +5,5 @@
 
 def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f('2026-01-02') == '02-01-2026') else 1) + (0 if (f('2020-11-13') == '13-11-2020') else 1) + (0 if (f('2021-04-26') == '26-04-2021') else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (dt:String) : String = (?hole : String)
+def synth (dt:String) : String = (let mbpp_fitness : Unit = unit in (?hole : String))

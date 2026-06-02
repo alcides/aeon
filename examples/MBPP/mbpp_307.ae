@@ -10,6 +10,5 @@ inductive Tuple
 
 def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> (x2:Int) -> Tuple) : Float = native "float((0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(50) == ('Tuple_mk', 'HELLO', 5, [50], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(100) == ('Tuple_mk', 'HELLO', 5, [100], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(500) == ('Tuple_mk', 'HELLO', 5, [500], True)) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (tuplex:Tuple) (m:Int) (n:Int) : Tuple = (?hole : Tuple)
+def synth (tuplex:Tuple) (m:Int) (n:Int) : Tuple = (let mbpp_fitness : Unit = unit in (?hole : Tuple))

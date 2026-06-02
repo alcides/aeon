@@ -782,9 +782,11 @@ def generate_file(problem: dict) -> str:
         parts.append("")
     parts.append(f'def mbpp_fitness (f:{fitness_arg_type}) : Float = native "{native_body}"')
     parts.append("")
-    parts.append("@hide(mbpp_fitness)")
     parts.append("@minimize_float(mbpp_fitness synth)")
-    parts.append(f"def synth {synth_params} : {ret_type} = (?hole : {ret_type})")
+    # The fitness oracle is kept out of the synthesizer's grammar by shadowing
+    # it with a useless Unit binding in the hole's scope (lexical shadowing),
+    # rather than the former @hide(mbpp_fitness) decorator.
+    parts.append(f"def synth {synth_params} : {ret_type} = (let mbpp_fitness : Unit = unit in (?hole : {ret_type}))")
     parts.append("")
     return "\n".join(parts)
 

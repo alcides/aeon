@@ -34,9 +34,8 @@ def score (s:Archery) : Int =
     | mk a b c d e f =>
         a * 16 + b * 17 + c * 23 + d * 24 + e * 39 + f * 40;
 
-@hide(score, abs)
 @minimize_int(abs (100 - score archery_hole))
 def archery_hole : {s:Archery |
     (t16 s >= 0) && (t17 s >= 0) && (t23 s >= 0) &&
     (t24 s >= 0) && (t39 s >= 0) && (t40 s >= 0)
-} = ?hole
+} = (let score : Unit = unit in let abs : Unit = unit in ?hole)

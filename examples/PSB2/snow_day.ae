@@ -21,9 +21,8 @@ def calculate_snow_day_errors : (train: TrainData) -> (f: (a: {x:Int   |  0   <=
                                                        -> Float) -> (List Float) =
     \data -> \func -> native "[abs(func(x[0][0])(x[0][1])(x[0][2])(x[0][3]) - x[1][0]) for x in data]"
 
-@hide(extract_train_data, load_dataset, train, calculate_snow_day_errors)
 @multi_minimize_float(calculate_snow_day_errors train synth, 1)
 def synth (n : {x:Int   |  0   <= x && x <= 20})
           (m : {a:Float |  0.0 <= a && a <= 20.0})
           (t : {b:Float |  0.0 <= b && b <= 10.0})
-          (p : {c:Float |  0.0 <= c && c <= 1.0}) : {r:Float | 0.0 <= r} = (?hole: {r:Float | 0.0 <= r});
+          (p : {c:Float |  0.0 <= c && c <= 1.0}) : {r:Float | 0.0 <= r} = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let train : Unit = unit in let calculate_snow_day_errors : Unit = unit in (?hole: {r:Float | 0.0 <= r}));

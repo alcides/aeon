@@ -7,6 +7,5 @@ type List
 
 def mbpp_fitness (f:(x0:List) -> Int) : Float = native "float((0 if (f([1, 2, 'abc', 1.2]) == 2) else 1) + (0 if (f([1, 2, 3]) == 3) else 1) + (0 if (f([1, 1.2, 4, 5.1]) == 2) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (list1:List) : Int = (?hole : Int)
+def synth (list1:List) : Int = (let mbpp_fitness : Unit = unit in (?hole : Int))

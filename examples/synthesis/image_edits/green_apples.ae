@@ -40,5 +40,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (recolor_target red2)
   + cost_neg (recolor_target yellow1)
 )
-@hide(green1, green2, red1, red2, yellow1, mk, cost_pos, cost_neg)
-def recolor_target (a:Apple) : Bool = ?hole
+def recolor_target (a:Apple) : Bool = (let green1 : Unit = unit in let green2 : Unit = unit in let red1 : Unit = unit in let red2 : Unit = unit in let yellow1 : Unit = unit in let mk : Unit = unit in let cost_pos : Unit = unit in let cost_neg : Unit = unit in ?hole)

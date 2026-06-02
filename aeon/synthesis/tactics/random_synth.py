@@ -17,7 +17,7 @@ from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.holes import collect_hole_judgments
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.uis.api import SynthesisUI
-from aeon.typechecking.context import TypingContext, VariableBinder
+from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name, fresh_counter
 
@@ -51,13 +51,6 @@ class TacticRandomSynthesizer(Synthesizer):
         assert isinstance(type, Type)
 
         current_metadata = metadata.get(fun_name, {})
-        hidden_names = {v.name for v in current_metadata.get("hide", [])}
-        if hidden_names:
-            filtered_entries = [
-                e for e in ctx.entries if not (isinstance(e, VariableBinder) and e.name.name in hidden_names)
-            ]
-            ctx = TypingContext(filtered_entries)
-
         has_goals = bool(current_metadata.get("goals"))
         rng = random.Random(self.seed)
         tactics = [

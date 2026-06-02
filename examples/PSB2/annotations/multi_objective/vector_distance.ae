@@ -30,9 +30,5 @@ def flatten_list : (t:(Array Int)) -> (Array Int) = \l -> native "__import__('fu
 def calculate_vector_distance_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (b: (Array Int)) -> Float)  -> (Array Int)  =  \data -> \func -> native "[abs(func(x[0])(x[1]) - y[0]) for x , y in data]"
 
 
-@hide(extract_train_data,
-            load_dataset,
-            calculate_vector_distance_errors,
-            train)
 @multi_minimize_float(calculate_vector_distance_errors train synth, 1)
-def synth  (vector1: (Array Int)) (vector2: (Array Int)) : Float = (?hole:Float)
+def synth  (vector1: (Array Int)) (vector2: (Array Int)) : Float = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let calculate_vector_distance_errors : Unit = unit in let train : Unit = unit in (?hole:Float))

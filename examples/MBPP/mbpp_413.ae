@@ -10,6 +10,5 @@ inductive Tuple
 
 def mbpp_fitness (f:(x0:List) -> (x1:Int) -> List) : Float = native "float((0 if (f([('Greyson Fulton', 98, 99), ('Brady Kent', 97, 96), ('Wyatt Knott', 91, 94), ('Beau Turnbull', 94, 98)])(0) == ['Greyson Fulton', 'Brady Kent', 'Wyatt Knott', 'Beau Turnbull']) else 1) + (0 if (f([('Greyson Fulton', 98, 99), ('Brady Kent', 97, 96), ('Wyatt Knott', 91, 94), ('Beau Turnbull', 94, 98)])(2) == [99, 96, 94, 98]) else 1) + (0 if (f([('Greyson Fulton', 98, 99), ('Brady Kent', 97, 96), ('Wyatt Knott', 91, 94), ('Beau Turnbull', 94, 98)])(1) == [98, 97, 91, 94]) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (list1:List) (n:Int) : List = (?hole : List)
+def synth (list1:List) (n:Int) : List = (let mbpp_fitness : Unit = unit in (?hole : List))

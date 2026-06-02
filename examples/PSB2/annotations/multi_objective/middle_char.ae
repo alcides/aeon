@@ -18,9 +18,5 @@ def train: TrainData = extract_train_data (load_dataset "middle-character" 200 2
 def calculate_middle_char_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  =  \data -> \func -> native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
 
-@hide(extract_train_data,
-            load_dataset,
-            calculate_middle_char_errors,
-            train )
 @multi_minimize_float(calculate_middle_char_errors train synth, 1)
-def synth(s: String) : String = (?hole:String)
+def synth(s: String) : String = (let extract_train_data : Unit = unit in let load_dataset : Unit = unit in let calculate_middle_char_errors : Unit = unit in let train : Unit = unit in (?hole:String))

@@ -9,6 +9,5 @@ inductive Tuple
 
 def mbpp_fitness (f:(x0:Tuple) -> Float) : Float = native "float((0 if (__import__('math').isclose(f(('Tuple_tcons', 8, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tcons', -1, ('Tuple_tcons', 7, ('Tuple_tnil',))))))), -67.2, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(('Tuple_tcons', -10, ('Tuple_tcons', -20, ('Tuple_tcons', -30, ('Tuple_tnil',))))), -2000.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(('Tuple_tcons', 19, ('Tuple_tcons', 15, ('Tuple_tcons', 18, ('Tuple_tnil',))))), 1710.0, rel_tol=0.001)) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (numbers:Tuple) : Float = (?hole : Float)
+def synth (numbers:Tuple) : Float = (let mbpp_fitness : Unit = unit in (?hole : Float))

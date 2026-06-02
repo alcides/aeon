@@ -479,7 +479,18 @@ See `examples/synthesis/cputime_energy.ae` for a program that combines correctne
 
 - `@allow_recursion` — allow recursion during synthesis
 - `@disable_control_flow` — disable control flow grammar nodes during synthesis
-- `@hide(var1, var2)` — exclude specific variables from the synthesis grammar
-- `@hide_types(type1, type2)` — exclude specific types from the synthesis grammar
 - `@error_fitness(value)` — set the fitness value to use when an exception occurs during synthesis
 - `@prompt("description")` — provide a prompt for LLM-based synthesis
+
+#### Hiding a binding from synthesis
+
+To keep a function or variable (such as a fitness/oracle helper) out of the
+synthesizer's grammar, shadow it with a `Unit` binding in the hole's scope:
+
+```aeon
+def synth (x: Int) : Int = (let oracle : Unit = unit in (?hole : Int))
+```
+
+Inside the hole, `oracle` now has type `Unit`, so the type-directed grammar
+never builds it into a candidate. This relies on ordinary lexical shadowing and
+replaces the former `@hide` / `@hide_types` decorators.

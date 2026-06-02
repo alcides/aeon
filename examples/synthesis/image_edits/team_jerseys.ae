@@ -60,6 +60,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (cut_out white_def)
   + cost_neg (cut_out white_gk)
 )
-@hide(red_fwd1, red_def1, red_fwd2, red_gk, white_fwd, white_def, white_gk,
-      mk, cost_pos, cost_neg)
-def cut_out (p:Player) : Bool = ?hole
+def cut_out (p:Player) : Bool = (let red_fwd1 : Unit = unit in let red_def1 : Unit = unit in let red_fwd2 : Unit = unit in let red_gk : Unit = unit in let white_fwd : Unit = unit in let white_def : Unit = unit in let white_gk : Unit = unit in let mk : Unit = unit in let cost_pos : Unit = unit in let cost_neg : Unit = unit in ?hole)
