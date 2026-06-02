@@ -18,7 +18,7 @@ def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else
 
 def dice_game ( n : {x:Int | 1 <= x && x <= 10000}) (m : {y:Int | 1 <= y && y <= 10000}) : Float = Math.toFloat(peter_wins n  m ) / Math.toFloat(mult n m);
 
-def synth ( n : {a:Int | 1 <= a && a <= 10000}) (m : {b:Int | 1 <= b && b <= 10000}) : Float = (?hole:Float);
+def synth ( n : {a:Int | 1 <= a && a <= 10000}) (m : {b:Int | 1 <= b && b <= 10000}) : Float = ?hole;
 
 def fitness : Float =
     ds = load_dataset "dice-game" 200 200;

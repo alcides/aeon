@@ -35,9 +35,8 @@ def profit (t:Trade) : Int =
     | mk b s => price_at s - price_at b;
 
 # Synthesize a valid trade that maximizes profit.
-@hide(price_at, profit)
 @maximize_int(profit trade_hole)
-def trade_hole : {t:Trade | buy_idx t < sell_idx t} = ?hole
+def trade_hole : {t:Trade | buy_idx t < sell_idx t} = (let price_at = unit in let profit = unit in ?hole)
 
 # Verification: the known optimal trade (buy=1, sell=5) should type-check.
 def trade_known : {t:Trade | buy_idx t < sell_idx t} = .mk 1 5

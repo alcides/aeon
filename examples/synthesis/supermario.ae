@@ -126,15 +126,6 @@ def level_chunks (level: Level) : (List Chunk) =
 # --- Synthesis target ---
 # Maximize map coverage, minimize spatial conflicts between chunks.
 
-@hide(chunk_width,
-      coverage,
-      chunk_x,
-      max,
-      min,
-      overlap,
-      conflicts_one,
-      conflicts,
-      level_chunks)
 @maximize_int(coverage (level_chunks new_map))
 @minimize_int(conflicts (level_chunks new_map))
-def new_map : Level = ?hole
+def new_map : Level = (let chunk_width = unit in let coverage = unit in let chunk_x = unit in let max = unit in let min = unit in let overlap = unit in let conflicts_one = unit in let conflicts = unit in let level_chunks = unit in ?hole)

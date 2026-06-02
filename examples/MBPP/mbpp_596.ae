@@ -7,6 +7,5 @@ type Tuple
 
 def mbpp_fitness (f:(x0:Tuple) -> Int) : Float = native "float((0 if (f(('A', 1, 'B', 2, 'C', 3)) == sys.getsizeof(('A', 1, 'B', 2, 'C', 3))) else 1) + (0 if (f((1, 'Raju', 2, 'Nikhil', 3, 'Deepanshu')) == sys.getsizeof((1, 'Raju', 2, 'Nikhil', 3, 'Deepanshu'))) else 1) + (0 if (f(((1, 'Lion'), (2, 'Tiger'), (3, 'Fox'), (4, 'Wolf'))) == sys.getsizeof(((1, 'Lion'), (2, 'Tiger'), (3, 'Fox'), (4, 'Wolf')))) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (tuple_list:Tuple) : Int = (?hole : Int)
+def synth (tuple_list:Tuple) : Int = (let mbpp_fitness = unit in ?hole)

@@ -27,7 +27,7 @@ def square_digit_unsafe  ( n : Int) : String =
         result = String.concat (square_digit_unsafe(Math.floor_division n 10)) (String.intToString(square));
         result;
 
-def synth_sd ( n : Int) : String = (?hole:String)
+def synth_sd ( n : Int) : String = ?hole
 
 def fitness : Float =
     ds = load_dataset "square-digits" 200 200;

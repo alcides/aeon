@@ -25,9 +25,8 @@ def total (c:Change) : Int =
     match c with
     | mk c1 c5 c10 => c1 + c5 + c10;
 
-@hide(total)
 @minimize_int(total change_hole)
 def change_hole : {c:Change |
     (ones c >= 0) && (fives c >= 0) && (tens c >= 0) &&
     (ones c + 5 * fives c + 10 * tens c == 37)
-} = ?hole
+} = (let total = unit in ?hole)

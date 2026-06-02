@@ -9,6 +9,24 @@ def extract_target_functions(source):
     return incomplete_functions_and_holes(ctx, core_ast_anf)
 
 
+def test_bare_hole_in_argument_position_typechecks():
+    """A bare hole used as a function argument needs no type annotation.
+
+    The hole is `check`ed against the parameter type, so it has that type even
+    though `synth` alone would default a hole to a polymorphic type variable.
+    Regression: previously the argument was re-synthesised, the hole became a
+    polymorphic var (not an SMT base type), and the dependent-result binder
+    `_y` was left undeclared in the solver -> KeyError during verification.
+    """
+    source = r"""
+        def fun (i:Int) : Int = i * ?hole
+        def main (x:Int) : Int = fun 10
+    """
+    # Should typecheck without a `(?hole : Int)` annotation.
+    holes = extract_target_functions(source)
+    assert any(fn.name == "fun" for (fn, _) in holes)
+
+
 def test_hole_identification():
     code = """
             def year : Int = 2023;

@@ -26,11 +26,5 @@ def const2 : String = "/"
 def train: TrainData = extract_train_data (load_dataset "bowling" 200 200)
 
 
-@hide(extract_train_data,
-            unpack_train_data,
-            load_dataset,
-            train,
-            calculate_bowling_errors)
-@hide_types(TrainData)
 @multi_minimize_float(calculate_bowling_errors train synth, 1)
-def synth (scores: String) : Int = (?hole: Int)
+def synth (scores: String) : Int = (let extract_train_data = unit in let unpack_train_data = unit in let load_dataset = unit in let train = unit in let calculate_bowling_errors = unit in ?hole)
