@@ -55,7 +55,10 @@ class UnificationFailedError(AeonError):
     conflict2: SType
 
     def __str__(self) -> str:
-        return f"Unification variable {self.name} needs to be {self.conflict1} and {self.conflict2} simultaneously, but the two types are not compatible."
+        return (
+            f"Could not infer a single type for {self.name}: it would need to be both "
+            f"{self.conflict1} and {self.conflict2} simultaneously, but those two types are not compatible."
+        )
 
     def position(self) -> Location:
         return self.conflict1.loc
