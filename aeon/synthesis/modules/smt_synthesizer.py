@@ -252,6 +252,7 @@ class SMTSynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         current_meta = metadata.get(fun_name, {})
         uninterp_ctx = _build_uninterp_ctx(ctx)

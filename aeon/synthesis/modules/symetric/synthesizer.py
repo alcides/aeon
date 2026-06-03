@@ -6,27 +6,36 @@ observational *equivalence*, metric synthesis is guided by a distance *metric*
 on outputs: programs whose outputs are close to the goal are good, and the
 search drives that distance to zero.
 
-The aeon synthesis interface already exposes exactly the metric we need:
-``evaluate(term) -> list[float]`` is the fitness/distance of a candidate (e.g.
-the Jaccard distance of the inverse-CSG benchmarks), and ``validate(term)``
-checks well-typedness. This backend therefore implements the paper's pipeline
-directly over that interface:
+The aeon synthesis interface exposes what we need: ``evaluate(term) ->
+list[float]`` is the distance of a candidate (e.g. the inverse-CSG Jaccard
+distance), ``output_value(term)`` is the candidate's raw output (its "scene"),
+and ``validate(term)`` checks well-typedness. The pipeline:
 
-1. **Construct** an (approximate) version space by sampling well-typed
-   candidate programs bottom-up from the library components in scope (the
-   inductive constructors, library functions and constants).
-2. **Cluster** candidates by their metric value, keeping a diverse set of
-   low-distance representatives -- the compression that makes the version
-   space of "approximately correct" programs small.
-3. **Extract** the representative closest to the goal.
-4. **Repair** it with distance-guided local search: perturb numeric constants
-   and regenerate sub-terms, accepting improvements (with a patience/tabu
-   cutoff and restarts from other representatives), until the metric reaches 0
-   -- an exact reconstruction, which is then validated -- or the budget ends.
+1. **Construct** an approximate version space by a metric-guided beam-search
+   *bottom-up enumeration*: round by round, apply every in-scope component
+   (inductive constructor / library function) to the bank built so far,
+   drawing numeric arguments from a coarse grid.
+2. **Cluster** by keeping, at each type, the ``beam`` closest-to-goal
+   representatives and de-duplicating by output value (observational
+   equivalence) -- the compression that keeps the version space small.
+3. **Extract** the representatives closest to the goal.
+4. **Repair** them by *tabu search over structured rewrites* -- increment or
+   decrement a numeric constant, swap an operator for one of the same
+   signature (e.g. union<->diff), graft a near-by sub-term from the bank, or
+   regenerate a sub-term -- accepting non-improving moves (with a tabu list)
+   to cross the flat plateaus of the distance metric, until it reaches 0 (an
+   exact reconstruction, then validated) or the budget ends.
 
 It targets single-metric *minimization* problems (the paper's setting). When a
-hole carries no ``@minimize``/``@maximize`` objective the metric is absent, and
-the backend degrades to a plain search for any well-typed term.
+hole carries no ``@minimize``/``@maximize`` objective the metric is binary
+(well-typed = solution), and the same machinery searches for any valid term
+(enumerating the full constant range, since there is no gradient to follow).
+
+Caveat vs. the paper: the authors cluster programs by *mutual* scene similarity
+within epsilon (a goal-independent version space). aeon only exposes a
+distance-*to-goal* and an output *value*, so clustering here is by
+observational equivalence plus a goal-directed beam -- a weaker compression
+than the paper's epsilon-approximate XFTA.
 
 Selected with ``--synthesizer symetric``.
 """
@@ -35,8 +44,9 @@ from __future__ import annotations
 
 import random
 import time
+from collections import deque
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from loguru import logger
 
@@ -104,16 +114,24 @@ class SymetricSynthesizer(Synthesizer):
         seed: int = 0,
         int_lo: int = 0,
         int_hi: int = 16,
-        pool: int = 256,
-        patience: int = 64,
+        beam: int = 12,
+        grid_size: int = 5,
+        rounds: int = 3,
+        combo_cap: int = 40,
+        patience: int = 240,
+        tabu_size: int = 64,
         max_arg_depth: int = 2,
-        construct_fraction: float = 0.35,
+        construct_fraction: float = 0.3,
     ):
         self.seed = seed
         self.int_lo = int_lo
         self.int_hi = int_hi
-        self.pool = pool
+        self.beam = beam
+        self.grid_size = grid_size
+        self.rounds = rounds
+        self.combo_cap = combo_cap
         self.patience = patience
+        self.tabu_size = tabu_size
         self.max_arg_depth = max_arg_depth
         self.construct_fraction = construct_fraction
 
@@ -170,6 +188,135 @@ class SymetricSynthesizer(Synthesizer):
             term = Application(term, arg)
         return term
 
+    # -- bottom-up enumeration (the approximate version space) ----------------
+
+    def _int_grid(self) -> list[int]:
+        """A coarse, evenly-spaced grid of integer constants. Enumerating the
+        full range for every numeric argument explodes combinatorially; the grid
+        covers the space, and repair tunes constants off it."""
+        lo, hi = self.int_lo, self.int_hi
+        n = max(1, min(self.grid_size, hi - lo))
+        if n == 1:
+            return [lo]
+        step = (hi - 1 - lo) / (n - 1)
+        return sorted({lo + round(i * step) for i in range(n)})
+
+    @staticmethod
+    def _okey(output_value: Optional[Callable[[Term], object]], term: Term) -> object:
+        """An equivalence key for a candidate: its evaluated output (so that
+        observationally-equal programs collapse), falling back to its syntax."""
+        if output_value is not None:
+            try:
+                o = output_value(term)
+                if o is not None:
+                    return repr(o)
+            except Exception:
+                pass
+        return str(term)
+
+    def _combos(
+        self, comp: Component, bank: dict[str, list[Term]], ints: list[Term], cap: int, rnd: random.Random
+    ) -> list[Term]:
+        """Applications of ``comp`` drawing each argument from the current bank
+        (for structured types) or the integer grid (for numeric arguments).
+        Enumerates the full product when small, otherwise samples ``cap``."""
+        int_key = base_key(t_int)
+        pools: list[list[Term]] = []
+        for ak in comp.arg_keys:
+            pool = ints if ak == int_key else bank.get(ak, [])
+            if not pool:
+                return []
+            pools.append(pool)
+        total = 1
+        for p in pools:
+            total *= len(p)
+        out: list[Term] = []
+        if total <= cap:
+            import itertools
+
+            for choice in itertools.product(*pools):
+                term: Term = Var(comp.name)
+                for a in choice:
+                    term = Application(term, a)
+                out.append(term)
+        else:
+            for _ in range(self.combo_cap):
+                term = Var(comp.name)
+                for p in pools:
+                    term = Application(term, rnd.choice(p))
+                out.append(term)
+        return out
+
+    def _bottom_up(
+        self,
+        goal_key: str,
+        has_metric: bool,
+        consider: Callable[[Optional[Term]], float],
+        output_value: Optional[Callable[[Term], object]],
+        rnd: random.Random,
+        deadline: float,
+    ) -> dict[str, list[Term]]:
+        """Grow a bank of candidate terms bottom-up, one round per program size,
+        keeping at each type the ``beam`` closest-to-goal representatives and
+        de-duplicating by output (observational equivalence).
+
+        With a distance metric to guide repair, numeric arguments are drawn from
+        a coarse grid (repair tunes them off it). Without one -- a binary
+        refinement/validation goal, where there is no gradient -- they are drawn
+        from the full range so the exact constants can actually appear."""
+        int_key = base_key(t_int)
+        grid = self._int_grid() if has_metric else list(range(self.int_lo, self.int_hi))
+        ints: list[Term] = [Literal(v, t_int) for v in grid]
+        bank: dict[str, list[Term]] = {}
+        ranked: dict[str, list[tuple[float, Term]]] = {}
+        seen: dict[str, set] = {}
+
+        def absorb(key: str, terms: list[Term]) -> None:
+            scored: list[tuple[float, Term]] = []
+            for t in terms:
+                if time.time() >= deadline:
+                    break
+                d = consider(t)
+                if d != INF:
+                    scored.append((d, t))
+            scored.sort(key=lambda x: x[0])
+            s = seen.setdefault(key, set())
+            kept = ranked.get(key, [])
+            for d, t in scored:
+                if len([1 for dd, _ in kept]) >= self.beam:
+                    break
+                k = self._okey(output_value, t)
+                if k in s:
+                    continue
+                s.add(k)
+                kept.append((d, t))
+            kept.sort(key=lambda x: x[0])
+            ranked[key] = kept[: self.beam]
+            bank[key] = [t for _, t in ranked[key]]
+
+        # Round 0: nullary material -- the in-scope atoms, plus, when the goal is
+        # itself a number, the whole integer range as candidate answers (a single
+        # constant has no combinatorial cost, so we needn't restrict it to the
+        # coarse grid the multi-argument builders use).
+        for key, vs in self._atoms.items():
+            absorb(key, list(vs))
+        if goal_key == int_key:
+            absorb(int_key, [Literal(v, t_int) for v in range(self.int_lo, self.int_hi)])
+
+        # Validation goals are checked in-process (cheap), so we can enumerate
+        # combinations fully; metric goals pay a per-candidate evaluation and
+        # stay capped.
+        cap = self.combo_cap if has_metric else max(self.combo_cap, 4096)
+        for _round in range(self.rounds):
+            if time.time() >= deadline:
+                break
+            for key, comps in self._builders.items():
+                for comp in comps:
+                    if time.time() >= deadline:
+                        break
+                    absorb(comp.ret_key, self._combos(comp, bank, ints, cap, rnd))
+        return bank
+
     # -- term decomposition / mutation ---------------------------------------
 
     def _positions(self, term: Term) -> list[Term]:
@@ -193,17 +340,52 @@ class SymetricSynthesizer(Synthesizer):
                     return k
         return "?"
 
-    def _mutate(self, term: Term, rnd: random.Random) -> Term:
+    def _neighbors(self, term: Term, bank: dict[str, list[Term]], rnd: random.Random) -> list[Term]:
+        """Structured rewrites of ``term`` (the paper's repair moves):
+        increment/decrement a numeric constant, swap an operator for one of the
+        same signature (e.g. union<->diff), graft a near-by sub-term from the
+        bank, or regenerate a sub-term."""
+        out: list[Term] = []
         positions = self._positions(term)
-        target = rnd.choice(positions)
-        if isinstance(target, Literal) and base_key(target.type) == base_key(t_int):
-            step = rnd.choice([-3, -2, -1, 1, 2, 3])
-            replacement: Term = Literal(int(target.value) + step, t_int)  # type: ignore[call-overload]
-        else:
-            key = self._term_key(target)
-            new = self._gen(key, self.max_arg_depth, rnd)
-            replacement = new if new is not None else target
-        return _replace(term, target, replacement)
+
+        # 1. +/-1 on numeric constants (the paper's increment/decrement).
+        int_positions = [p for p in positions if isinstance(p, Literal) and base_key(p.type) == base_key(t_int)]
+        rnd.shuffle(int_positions)
+        for lit in int_positions[:6]:
+            for step in (-1, 1):
+                out.append(_replace(term, lit, Literal(int(lit.value) + step, t_int)))  # type: ignore[call-overload]
+
+        # 2. Operator swap: a constructor head -> another with the same signature.
+        for sub in positions:
+            head, args = _decompose(sub)
+            if isinstance(head, Var) and head.name in self._by_name:
+                alts = [n for n in self._sig_alts.get(self._by_name[head.name].arg_keys, []) if n != head.name]
+                if alts:
+                    out.append(_replace(term, sub, _rebuild(Var(rnd.choice(alts)), args)))
+                break
+
+        # 3. Graft a same-type representative from the bank.
+        graftable = [p for p in positions if bank.get(self._term_key(p))]
+        if graftable:
+            g_pos = rnd.choice(graftable)
+            out.append(_replace(term, g_pos, rnd.choice(bank[self._term_key(g_pos)])))
+
+        # 4. Regenerate a random sub-term.
+        if positions:
+            r_pos = rnd.choice(positions)
+            gen = self._gen(self._term_key(r_pos), self.max_arg_depth, rnd)
+            if gen is not None:
+                out.append(_replace(term, r_pos, gen))
+
+        base = str(term)
+        seen: set[str] = set()
+        uniq: list[Term] = []
+        for t in out:
+            st = str(t)
+            if st != base and st not in seen:
+                seen.add(st)
+                uniq.append(t)
+        return uniq
 
     # -- scoring --------------------------------------------------------------
 
@@ -256,6 +438,7 @@ class SymetricSynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         rnd = random.Random(self.seed)
         start = time.time()
@@ -266,6 +449,11 @@ class SymetricSynthesizer(Synthesizer):
 
         self._builders, self._atoms = self._collect(ctx)
         self._by_name: dict[Name, Component] = {c.name: c for cs in self._builders.values() for c in cs}
+        # Components grouped by argument signature, for operator-swap rewrites.
+        self._sig_alts: dict[tuple[str, ...], list[Name]] = {}
+        for cs in self._builders.values():
+            for c in cs:
+                self._sig_alts.setdefault(c.arg_keys, []).append(c.name)
         goal_key = base_key(type)
 
         score = self._make_score(evaluate, validate, minimize_flags)
@@ -287,46 +475,62 @@ class SymetricSynthesizer(Synthesizer):
         def out_of_time() -> bool:
             return (time.time() - start) >= budget
 
-        # 1+2. Construct an approximate version space and cluster by metric.
-        # Sample a spread of sizes, heavily weighting shallow candidates: a
-        # single large primitive already overlaps the goal and so gives the
-        # repair phase a non-flat metric to climb, whereas deep random terms are
-        # almost always disjoint from the goal (distance 1).
-        clusters: dict[float, tuple[Term, float]] = {}
-        tries = 0
+        # 1+2. Construct + cluster: a metric-guided beam-search bottom-up
+        # enumeration. Each round grows programs one operator deeper, keeping at
+        # each type the `beam` closest-to-goal representatives and de-duplicating
+        # by output (observational equivalence), so the version space stays
+        # small while systematically covering structures.
         construct_deadline = start + budget * self.construct_fraction
-        while len(clusters) < self.pool and time.time() < construct_deadline and tries < self.pool * 8:
-            tries += 1
-            depth = rnd.randint(0, self.max_arg_depth + 1)
-            term = self._gen(goal_key, depth, rnd)
-            if term is None:
-                continue
-            s = consider(term)
-            if s == INF:
-                continue
-            bucket = round(s, 3)
-            if bucket not in clusters or s < clusters[bucket][1]:
-                clusters[bucket] = (term, s)
-            if best_score <= 0.0:
-                break
+        bank = self._bottom_up(goal_key, bool(minimize_flags), consider, output_value, rnd, construct_deadline)
+
+        # A few random terms as a safety net if the bank missed the goal type.
+        while goal_key not in bank and not out_of_time() and time.time() < construct_deadline:
+            consider(self._gen(goal_key, rnd.randint(0, self.max_arg_depth + 1), rnd))
+            break
 
         if best_term is None:
             raise SynthesisNotSuccessful("symetric: could not build any valid candidate")
 
-        # 3+4. Extract closest representatives and repair each via local search.
-        seeds = [t for t, _ in sorted(clusters.values(), key=lambda c: c[1])]
-        for seed in seeds:
-            if out_of_time() or best_score <= 0.0:
-                break
-            cur, cur_s = seed, score(seed)
-            stale = 0
-            while not out_of_time() and stale < self.patience and best_score > 0.0:
-                cand = self._mutate(cur, rnd)
-                s = consider(cand)
-                if s < cur_s:
-                    cur, cur_s, stale = cand, s, 0
-                else:
-                    stale += 1
+        # 3+4. Extract the closest representatives and repair each by tabu search
+        # over structured rewrites. Tabu (and accepting non-improving moves) lets
+        # repair cross the flat plateaus of the distance metric.
+        seeds = list(bank.get(goal_key, []))
+        if best_term is not None and best_term not in seeds:
+            seeds.insert(0, best_term)
+        # Repair every representative in parallel, one tabu step at a time
+        # (round-robin), so a structurally-different seed -- e.g. a *union* of two
+        # primitives -- keeps getting search effort instead of all of it being
+        # spent on the single closest seed, which is often a strong local optimum.
+        searches: list[dict[str, Any]] = [
+            {"cur": s, "cur_s": score(s), "tabu": deque(maxlen=self.tabu_size), "stale": 0} for s in seeds[: self.beam]
+        ]
+        for st in searches:
+            st["tabu"].append(str(st["cur"]))
+        while searches and not out_of_time() and best_score > 0.0:
+            for st in list(searches):
+                if out_of_time() or best_score <= 0.0:
+                    break
+                if st["stale"] >= self.patience:
+                    searches.remove(st)
+                    continue
+                neighbors = self._neighbors(st["cur"], bank, rnd)
+                rnd.shuffle(neighbors)
+                pick: Optional[Term] = None
+                pick_s = INF
+                for n in neighbors[:8]:  # a sampled neighbourhood keeps steps cheap
+                    if out_of_time():
+                        break
+                    if str(n) in st["tabu"]:
+                        continue
+                    s = consider(n)
+                    if s < pick_s:
+                        pick, pick_s = n, s
+                if pick is None:
+                    searches.remove(st)
+                    continue
+                st["stale"] = 0 if pick_s < st["cur_s"] else st["stale"] + 1
+                st["cur"], st["cur_s"] = pick, pick_s
+                st["tabu"].append(str(pick))
 
         if best_term is not None and best_score <= 0.0 and _safe(validate, best_term):
             ui.register(best_term, [best_score], time.time() - start, True)
