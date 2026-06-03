@@ -107,6 +107,7 @@ class SymetricSynthesizer(Synthesizer):
         pool: int = 256,
         patience: int = 64,
         max_arg_depth: int = 2,
+        construct_fraction: float = 0.35,
     ):
         self.seed = seed
         self.int_lo = int_lo
@@ -114,6 +115,7 @@ class SymetricSynthesizer(Synthesizer):
         self.pool = pool
         self.patience = patience
         self.max_arg_depth = max_arg_depth
+        self.construct_fraction = construct_fraction
 
     # -- term construction ----------------------------------------------------
 
@@ -292,7 +294,8 @@ class SymetricSynthesizer(Synthesizer):
         # almost always disjoint from the goal (distance 1).
         clusters: dict[float, tuple[Term, float]] = {}
         tries = 0
-        while len(clusters) < self.pool and not out_of_time() and tries < self.pool * 8:
+        construct_deadline = start + budget * self.construct_fraction
+        while len(clusters) < self.pool and time.time() < construct_deadline and tries < self.pool * 8:
             tries += 1
             depth = rnd.randint(0, self.max_arg_depth + 1)
             term = self._gen(goal_key, depth, rnd)
