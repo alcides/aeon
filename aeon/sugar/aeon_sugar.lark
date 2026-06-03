@@ -43,9 +43,15 @@ cons_rule : _PIPE ID args ":" type                           -> def_ind_cons
 measures : measure_rule*                                  -> list
 measure_rule : "+" ID args ":" type                        -> def_ind_cons
 
-def : soft_constraint "def" ID ":" type "=" expression ";"?                  -> def_cons
-    | soft_constraint "def" ID  args ":" type decreasing_by_opt "=" expression ";"?     -> def_fun_eq
+// A definition name may be a plain identifier or a dotted ``Type.method`` name
+// (issue #27): ``def Int.toString : ...`` declares a method on ``Int`` that
+// ``recv.toString`` dispatches to when the receiver has type ``Int``.
+def : soft_constraint "def" def_name ":" type "=" expression ";"?                  -> def_cons
+    | soft_constraint "def" def_name  args ":" type decreasing_by_opt "=" expression ";"?     -> def_fun_eq
     | instance_decl                                                          -> same
+
+def_name : ID                                                -> same
+         | QUALIFIED_ID                                      -> same
 
 // Lean-style instance declaration. ``inst_constraints`` are instance-implicit
 // requirements written ``[Eq a]``; each member is ``name binders := body ;``.
@@ -204,23 +210,38 @@ expression_b : "\\" ID "->" expression                      -> abstraction_e
              | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same
 
+// Postfix layer. A method call ``receiver.method`` (issue #27) is
+// ``method_recv DOT_ID``; crucially the receiver is a ``method_recv`` (a non-dot
+// atom or a method chain), NOT a bare anonymous constructor. Anonymous
+// constructors keep their own ``DOT_ID`` branch here (as an application head)
+// and in ``expression_simple`` (as an argument), so ``.mk .sc_blue 40`` stays an
+// anon-constructor application instead of being misread as ``.mk`` ``.sc_blue``
+// method access.
 application_t : application_t "[" type "]"                    -> type_application_e
               | application_t "{" expression "}"              -> refinement_application_e
-              | expression_simple                             -> same
+              | method_recv                                  -> same
+              | DOT_ID                                       -> anon_constructor
+
+method_recv : method_recv DOT_ID                             -> method_access
+            | non_dot_simple                                 -> same
 
 application : application expression_simple                  -> application_e
             | application_t                                  -> same
 
-expression_simple : "(" expression ")"                       -> same
+// Atoms that may be a method-call receiver (everything except anonymous
+// constructors, which start with ``.``).
+non_dot_simple : "(" expression ")"                          -> same
         | "(" expression ":" type ")"                        -> annotation
         | INTLIT                                             -> int_lit
         | FLOATLIT                                           -> float_lit
         | BOOLLIT                                            -> bool_lit
         | ESCAPED_STRING                                     -> string_lit
         | QUALIFIED_ID                                       -> qualified_var
-        | DOT_ID                                             -> anon_constructor
         | ID                                                 -> var
         | "?" ID                                             -> hole
+
+expression_simple : non_dot_simple                           -> same
+        | DOT_ID                                             -> anon_constructor
 
 
 kind : "B" -> base_kind
@@ -239,7 +260,15 @@ BOOLLIT.5 : "true" | "false"
 //   plain ``ID``.
 MULT.6 : "0" | "1" | "omega" | "ω" | /n(?=[ \t]+[A-Za-z_])/
 INTLIT : /[0-9][0-9]*/
-FLOATLIT : SIGNED_FLOAT
+// Mirrors ``common.SIGNED_FLOAT`` (fractional, ``.5``, exponent and signed
+// forms — including ``-1.0``) with one carve-out: a bare trailing dot like
+// ``1.`` is only a float when NOT followed by an identifier start, so
+// ``1.toString`` lexes as ``1`` + ``.toString`` (DOT_ID) for method-call
+// syntax (issue #27) instead of ``1.`` + ``toString``.
+FLOATLIT : /[+-]?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?/
+         | /[+-]?[0-9]+\.([eE][+-]?[0-9]+)?(?![A-Za-z_0-9.])/
+         | /[+-]?\.[0-9]+([eE][+-]?[0-9]+)?/
+         | /[+-]?[0-9]+[eE][+-]?[0-9]+/
 
 TYPENAME : /[a-zA-Z0-9]+/
 QUALIFIED_ID.2 : /[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*/
@@ -254,7 +283,6 @@ COMMENT: /\s*/ "#" /[^\n]/*
 %import common.ESCAPED_STRING
 %import common.WS
 %import common.CNAME
-%import common.SIGNED_FLOAT
 
 %ignore WS
 %ignore COMMENT

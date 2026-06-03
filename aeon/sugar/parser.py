@@ -19,6 +19,7 @@ from aeon.sugar.program import (
     SRefinementApplication,
     SMatch,
     SMatchBranch,
+    SMethodSelector,
     SHole,
     SBy,
     SIf,
@@ -336,6 +337,17 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def application_e(self, meta, args):
         return SApplication(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def method_access(self, meta, args):
+        # ``receiver.method`` (issue #27). ``args[0]`` is the receiver expression
+        # and ``args[1]`` is the ``DOT_ID`` token ``.method``. The receiver is the
+        # *argument* of the selector so existing ``SApplication``-recursing passes
+        # walk into it without needing a dedicated case.
+        receiver = args[0]
+        method = str(args[1])[1:]  # strip leading dot
+        loc = self._loc(meta)
+        return SApplication(SMethodSelector(Name(method), loc=loc), receiver, loc=loc)
 
     @v_args(meta=True)
     def abstraction_e(self, meta, args):

@@ -1,0 +1,23 @@
+# Method-call syntax (issue #27): `receiver.method` dispatches on the receiver's
+# type. `def Int.toString` declares a method on `Int`; `1.toString` then resolves
+# to `Int.toString 1`. Calls chain, and the method result can take further
+# arguments (`1.plus 2` is `(Int.plus 1) 2`).
+
+def Int.toString (n:Int) : String = native "str(n)";
+def Int.plus (x:Int) (y:Int) : Int = x + y;
+def Int.double (n:Int) : Int = n + n;
+
+def main (args:Int) : Unit =
+    # method call on a literal receiver
+    let a : String = 1.toString in
+    # method with an argument, then a chained method on the result
+    let b : String = (1.plus 2).toString in
+    # method call on a variable receiver
+    let n : Int = 4 in
+    let c : String = n.double.toString in
+    # a dotted definition is also callable directly as `Int.double`
+    let d : Int = Int.double 5 in
+    let _ : Unit = print a in        # 1
+    let _ : Unit = print b in        # 3
+    let _ : Unit = print c in        # 8
+    print (d.toString);             # 10

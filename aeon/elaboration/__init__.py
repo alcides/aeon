@@ -6,6 +6,7 @@ from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
     AeonError,
     InstanceResolutionError,
+    MethodResolutionError,
     NonOrderableComparisonError,
     UnificationFailedError,
     UnificationKindError,
@@ -23,6 +24,7 @@ from aeon.sugar.program import (
     SInstanceHole,
     SLet,
     SLiteral,
+    SMethodSelector,
     SRec,
     SRefinementAbstraction,
     SRefinementApplication,
@@ -63,6 +65,26 @@ def _extract_base_type_name(ty: SType) -> str | None:
             return _extract_base_type_name(inner)
         case _:
             return None
+
+
+def _resolve_method_selector(ctx: ElaborationTypingContext, receiver: STerm, method: Name, loc) -> STerm:
+    """Rewrite a method call ``receiver.method`` (issue #27) into a plain
+    reference to the resolved ``Type.method`` function applied to the receiver.
+
+    The qualifier is the receiver's inferred base type: we synthesize the
+    receiver's type, take its base type-constructor name (``Int`` for ``1``),
+    and look up the ``Type.method`` definition in scope. The returned term is
+    the *unelaborated* ``SApplication(SVar(resolved), receiver)`` so the caller
+    can route it through normal synth/check (handling polymorphism, instance
+    holes and further applied arguments uniformly)."""
+    (_, recv_ty) = elaborate_synth(ctx, receiver)
+    type_name = _extract_base_type_name(_resolve_uvars(recv_ty))
+    if type_name is None:
+        raise MethodResolutionError(method.name, None, loc)
+    resolved = ctx.resolve_method(method.name, type_name)
+    if resolved is None:
+        raise MethodResolutionError(method.name, type_name, loc)
+    return SApplication(SVar(resolved, loc=loc), receiver, loc=loc)
 
 
 # Ordered comparison operators are restricted to ordered base types (issue
@@ -393,6 +415,12 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             unify(ctx, nthen_type, u)
             unify(ctx, nelse_type, u)
             return SIf(ncond, nthen, nelse), u
+        case SApplication(SMethodSelector(method), receiver, loc=loc):
+            return elaborate_synth(ctx, _resolve_method_selector(ctx, receiver, method, loc))
+        case SMethodSelector(method, loc=loc):
+            # A selector only ever appears applied to its receiver; standalone
+            # is a parser/internal bug.
+            raise MethodResolutionError(method.name, None, loc)
         case SApplication(fun, arg):
             (nfun, nfun_type) = elaborate_synth(ctx, fun)
             while isinstance(nfun_type, STypePolymorphism):
@@ -474,6 +502,8 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
                 return elaborate_check(ctx, resolved, ty)
             # Fallback: raise error
             raise UnificationUnknownTypeError(t)
+        case (SApplication(SMethodSelector(method), receiver, loc=loc), _):
+            return elaborate_check(ctx, _resolve_method_selector(ctx, receiver, method, loc), ty)
         case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
             nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))

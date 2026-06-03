@@ -59,6 +59,25 @@ class ElaborationTypingContext:
                         return ty
         return None
 
+    def resolve_method(self, method: str, type_name: str) -> Name | None:
+        """Resolve a method call ``receiver.method`` (issue #27) to the bound
+        ``Name`` of the ``type_name.method`` definition, given the receiver's
+        base type ``type_name``. Returns the actual in-scope ``Name`` (carrying
+        its unique id, so the produced reference lowers to the right core
+        binder) or ``None`` if no such definition exists.
+
+        The lookup is by the fully-qualified string ``"Type.method"`` — which is
+        exactly how a ``def Type.method`` is named — scanning the most recent
+        binding first so locals shadow globals consistently with ``type_of``.
+        """
+        candidate = f"{type_name}.{method}"
+        for entry in self.entries[::-1]:
+            match entry:
+                case ElabVariableBinder(bname, _) | ElabUninterpretedBinder(bname, _):
+                    if bname.name == candidate:
+                        return bname
+        return None
+
     def with_var(self, name: Name, ty: SType):
         """Creates a new context, with an extra variable."""
         nentries = [x for x in self.entries] + [ElabVariableBinder(name, ty)]
