@@ -1,0 +1,23 @@
+# Verification of a neural network: robustness of a classification label.
+#
+# Inspired by https://arxiv.org/abs/2605.02790 and the local-robustness queries
+# at the heart of NN verification (MNIST/CIFAR adversarial robustness): for an
+# input known to be in a class, no small perturbation flips the predicted label.
+#
+# A 1-input classifier predicts "class A" when its score is positive. For any
+# nominal input x in the class region [0.4, 0.6] and any adversarial xp within
+# an L-infinity ball of radius 0.05, we prove the score stays strictly positive,
+# so the label never flips.
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y == x || y == 0.0)} =
+    if x >= 0.0 then x else 0.0;
+
+# score(x) = relu(2*x - 0.5). On xp in [0.35, 0.65] the pre-activation is in
+# [0.2, 0.8], so the score is >= 0.2 > 0. The return type asserts > 0.
+def robust_label
+    (x:  {v: Float | 0.4 <= v && v <= 0.6})
+    (xp: {v: Float | x - 0.05 <= v && v <= x + 0.05})
+    : {score: Float | score > 0.0} =
+    relu (2.0 * xp - 0.5);
+
+def main (_: Int) : Unit =
+    print (robust_label 0.5 0.53)

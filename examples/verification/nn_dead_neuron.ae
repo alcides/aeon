@@ -15,7 +15,7 @@ def dead_neuron
     (x1: {v: Float | 0.0 <= v && v <= 1.0})
     (x2: {v: Float | 0.0 <= v && v <= 1.0})
     : {y: Float | y == 0.0} =
-    relu (((0.0 - x1) - x2) - 1.0);
+    relu (0.0 - x1 - x2 - 1.0);
 
 def main (_: Int) : Unit =
     print (dead_neuron 0.3 0.8)

@@ -18,7 +18,7 @@ def margin
     (x2: {v: Float | 0.0 <= v && v <= 1.0})
     : {m: Float | m > 0.0} =
     let h1 : {v: Float | v >= 0.0} = relu (x1 + x2) in
-    let h2 : {v: Float | v == 0.0} = relu ((x1 - x2) - 5.0) in
+    let h2 : {v: Float | v == 0.0} = relu (x1 - x2 - 5.0) in
     (3.0 * h1 + 1.0) - h2;
 
 def main (_: Int) : Unit =
