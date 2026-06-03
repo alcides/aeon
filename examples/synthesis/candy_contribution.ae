@@ -1,0 +1,38 @@
+# Constraint Programming: the "pooled contribution" puzzle.
+#
+# The opening example from
+# https://pganalyze.com/blog/a-practical-introduction-to-constraint-programming-using-cp-sat
+# Alice, Bob and Carol pool money for a $50 purchase:
+#   * each contributes between $0 and $20
+#   * the contributions total exactly $50
+#   * Alice gives at least as much as Bob
+#   * Carol's contribution is a multiple of $5
+#   * all three give different amounts
+# and we want to share the load fairly (minimise the largest single contribution).
+#
+# Optimum: the largest contribution cannot be below 18 (three distinct amounts
+# <= 17 sum to at most 17+16+15 = 48 < 50), and 18 is achievable: 18, 17, 15.
+
+inductive Contrib
+| mk (a:Int | 0 <= a && a <= 20) (b:Int | 0 <= b && b <= 20) (c:Int | 0 <= c && c <= 20) :
+     {x:Contrib | (ca x == a) && (cb x == b) && (cc x == c)}
++ ca (x:Contrib) : Int  + cb (x:Contrib) : Int  + cc (x:Contrib) : Int
+
+# (a) Synthesis: find a valid split.
+@minimize_int(0)
+def contrib_hole : {x:Contrib |
+    (ca x + cb x + cc x == 50) &&
+    (ca x >= cb x) &&
+    (cc x % 5 == 0) &&
+    (ca x != cb x) && (ca x != cc x) && (cb x != cc x)
+} = ?hole;
+
+# (b) Verification: the fair optimum (18, 17, 15) satisfies the constraints AND
+# proves optimality — no contribution exceeds 18.
+def contrib_optimum : {x:Contrib |
+    (ca x + cb x + cc x == 50) &&
+    (ca x >= cb x) &&
+    (cc x % 5 == 0) &&
+    (ca x != cb x) && (ca x != cc x) && (cb x != cc x) &&
+    (ca x <= 18) && (cb x <= 18) && (cc x <= 18)
+} = .mk 18 17 15

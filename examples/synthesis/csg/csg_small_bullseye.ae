@@ -1,0 +1,52 @@
+# Inverse CSG benchmark "small/bullseye" (32x32).
+#
+# From Feser, Dillig & Solar-Lezama, "Metric Program Synthesis for Inverse CSG"
+# (arXiv:2206.06164). The target scene is the authors' own benchmark, taken
+# verbatim from their SyMetric artifact (github.com/jfeser/symetric,
+# bench/cad_ext/small/bullseye):
+#
+#     (union (sub (circle 8 8 7) (circle 8 8 6)) (sub (circle 8 8 4) (circle 8 8 2)))
+#
+# Inverse CSG is programming-by-example over a bitmap: recover a CSG program
+# (Fig. 3 of the paper) that draws the target image. The CAD DSL:
+#
+#   E ::= Circle(x,y,r) | Rect(x1,y1,x2,y2)
+#       | E union E | E diff E | Repeat(E,dx,dy,c)                      (Fig. 3)
+#
+# The scene (16x16, scaling 2 -> 32x32) is rasterised by csg_metric.py exactly
+# as the tool's lib/scene2d.ml does; the per-pixel work runs natively (Pillow).
+# Target image:  examples/synthesis/csg/targets/csg_small_bullseye.png
+#
+# The paper guides search by the Jaccard distance between bitmaps (Sec. 4.2),
+# delta(A,B) = 1 - |A and B| / |A or B|, so `@minimize_float(jaccard shape)` does
+# distance-guided synthesis exactly as in the paper. jaccard == 0 (equivalently
+# the pixel difference `error` == 0) is an exact reconstruction. Run from the
+# repository root.
+
+open Csg
+
+inductive Csg
+| Circle (cx:Int) (cy:Int) (cr:Int) : Csg
+| Rect (rx1:Int) (ry1:Int) (rx2:Int) (ry2:Int) : Csg
+| Union (ua:Csg) (ub:Csg) : Csg
+| Diff (da:Csg) (db:Csg) : Csg
+| Repeat (re:Csg) (rx:Int) (ry:Int) (rc:Int) : Csg
+
+# The paper's distance metric: Jaccard distance to the target (in [0,1], 0 = exact).
+def jaccard (e:Csg) : Float =
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').jaccard_distance(e, 'examples/synthesis/csg/targets/csg_small_bullseye.png'))[1]";
+
+# Pixel-difference (Hamming) distance: 0 exactly when the bitmap is reconstructed.
+def error (e:Csg) : {n:Int | n >= 0} =
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').score(e, 'examples/synthesis/csg/targets/csg_small_bullseye.png'))[1]";
+
+# Rasterise a CSG program to a PNG, so a synthesised shape can be viewed.
+def render (e:Csg) (path:String) : Unit =
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').render(e, 32, path))[1]";
+
+# (a) Synthesis: recover a CSG program, guided by the paper's Jaccard metric.
+@minimize_float(jaccard shape)
+def shape : Csg = (let jaccard = unit in let error = unit in let render = unit in let shape_solution = unit in ?hole);
+
+# (b) The original benchmark program (reconstructs the target, error == 0):
+def shape_solution : Csg = Union (Diff (Circle 8 8 7) (Circle 8 8 6)) (Diff (Circle 8 8 4) (Circle 8 8 2));

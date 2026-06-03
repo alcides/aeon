@@ -1,0 +1,42 @@
+# Constraint-based fuzzing: generating valid structured inputs.
+#
+# Inspired by Fandango (https://fandango-fuzzer.github.io/), a fuzzer that
+# produces inputs satisfying both a grammar *and* semantic constraints that span
+# several fields. Fandango's headline ability is exactly those cross-field
+# constraints — e.g. "the day is valid for the given month".
+#
+# In Aeon the constraint *is* a refinement type, and a `?hole` asks the
+# synthesiser to produce an input that satisfies it — one draw from the space of
+# valid inputs a fuzzer would sample. Encoding the spec as a type also means any
+# generated input is correct by construction: no post-hoc filtering.
+#
+# Target: a calendar date (year, month, day) where the day must be legal for the
+# month — 30-day months, and February capped at 28 (non-leap for simplicity).
+
+inductive Date
+| mk (y:Int | 1900 <= y && y <= 2100)
+     (m:Int | 1 <= m && m <= 12)
+     (d:Int | 1 <= d && d <= 31) :
+     {dt:Date | (year dt == y) && (month dt == m) && (day dt == d)}
++ year  (dt:Date) : Int
++ month (dt:Date) : Int
++ day   (dt:Date) : Int
+
+# Cross-field validity, expressed directly in the refinement language:
+#   * April, June, September, November have at most 30 days
+#   * February has at most 28 days (non-leap)
+#   * the remaining months already admit up to 31 via the field bound above
+
+# (a) Fuzzing: synthesise a valid date (one sample from the valid-input space).
+@minimize_int(0)
+def fuzz_date : {dt:Date |
+    ((month dt != 4 && month dt != 6 && month dt != 9 && month dt != 11) || day dt <= 30) &&
+    (month dt != 2 || day dt <= 28)
+} = ?hole;
+
+# (b) Verification: a hand-picked valid date type-checks; an invalid one (e.g.
+# Feb 30) would be rejected by the same spec.
+def a_valid_date : {dt:Date |
+    ((month dt != 4 && month dt != 6 && month dt != 9 && month dt != 11) || day dt <= 30) &&
+    (month dt != 2 || day dt <= 28)
+} = .mk 2024 2 28

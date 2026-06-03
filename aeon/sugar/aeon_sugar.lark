@@ -146,18 +146,27 @@ by_body : TACTIC_CMD                                         -> by_body_atomic
 tactic_steps : TACTIC_CMD (";" TACTIC_CMD)*                -> tactic_steps
 TACTIC_CMD : "apply?" | "assumption" | "constructor" | "choose_literal" | "by_cases" | "split" | "inst"
 
-// Boolean operators, in order of precedence (low → high):
-//   || (logical or)
-//   && (logical and)
-//   ==, != (equality)
-//   !  (negation)
-//   <, <=, >, >=, --> (relational, in `expression_bool`)
-// Each level recurses on the right (right-associative). With this split,
+// Operators, in order of precedence (low → high), following Lean's
+// associativity conventions:
+//   -->        implication            (right-associative, loosest)
+//   ||         logical or             (right-associative)
+//   &&         logical and            (right-associative)
+//   ==, !=     equality               (non-associative)
+//   !          negation               (prefix)
+//   <,<=,>,>=  relational             (non-associative)
+//   +, -       additive               (LEFT-associative)
+//   *, /, %    multiplicative         (LEFT-associative)
+// With this split,
 //   ``a == b && c == d`` parses as ``(a == b) && (c == d)``,
-//   ``!a == b``         as ``(!a) == b``,
-//   ``a || b && c``     as ``a || (b && c)``.
+//   ``!a == b``          as ``(!a) == b``,
+//   ``a || b && c``      as ``a || (b && c)``,
+//   ``a - b - c``        as ``(a - b) - c``   (left-associative),
+//   ``a / b / c``        as ``(a / b) / c``   (left-associative).
 
-expression_un : expression_or                                       -> same
+expression_un : expression_imp                                      -> same
+
+expression_imp : expression_or                                      -> same
+               | expression_or "-->" expression_imp                 -> binop_imp
 
 expression_or : expression_and                                      -> same
               | expression_and _DOUBLEPIPE expression_or            -> binop_or
@@ -166,28 +175,27 @@ expression_and : expression_eq                                      -> same
                | expression_eq "&&" expression_and                  -> binop_and
 
 expression_eq : expression_not                                      -> same
-              | expression_not "==" expression_eq                   -> binop_eq
-              | expression_not "!=" expression_eq                   -> binop_neq
+              | expression_not "==" expression_not                  -> binop_eq
+              | expression_not "!=" expression_not                  -> binop_neq
 
 expression_not : expression_bool                                    -> same
                | "!" expression_not                                 -> nnot
 
 
 expression_bool : expression_plus                                  -> same
-                | expression_plus "<" expression_bool              -> binop_lt
-                | expression_plus "<=" expression_bool             -> binop_le
-                | expression_plus ">" expression_bool              -> binop_gt
-                | expression_plus ">=" expression_bool             -> binop_ge
-                | expression_plus "-->" expression_bool            -> binop_imp
+                | expression_plus "<" expression_plus              -> binop_lt
+                | expression_plus "<=" expression_plus             -> binop_le
+                | expression_plus ">" expression_plus              -> binop_gt
+                | expression_plus ">=" expression_plus             -> binop_ge
 
 expression_plus : expression_fact                           -> same
-                | expression_fact "+" expression_plus       -> binop_plus
-                | expression_fact "-" expression_plus       -> binop_minus
+                | expression_plus "+" expression_fact       -> binop_plus
+                | expression_plus "-" expression_fact       -> binop_minus
 
 expression_fact : expression_b                           -> same
-                | expression_b "*" expression_fact       -> binop_mult
-                | expression_b "/" expression_fact       -> binop_div
-                | expression_b "%" expression_fact       -> binop_mod
+                | expression_fact "*" expression_b       -> binop_mult
+                | expression_fact "/" expression_b       -> binop_div
+                | expression_fact "%" expression_b       -> binop_mod
 
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e
