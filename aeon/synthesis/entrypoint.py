@@ -12,7 +12,9 @@ import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTHESIZE
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
-from aeon.core.terms import Term, Var
+import dataclasses
+
+from aeon.core.terms import Let, Rec, Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
@@ -48,11 +50,28 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
 Evaluators: TypeAlias = list[Callable[[Term], float]]
 
 
+def _set_program_tail(term: Term, new_tail: Term) -> Term:
+    """Replace the innermost body of a chain of top-level ``let``/``rec``
+    bindings with ``new_tail``, leaving the bindings (and hence everything in
+    scope) intact."""
+    if isinstance(term, Rec):
+        return dataclasses.replace(term, body=_set_program_tail(term.body, new_tail))
+    if isinstance(term, Let):
+        return dataclasses.replace(term, body=_set_program_tail(term.body, new_tail))
+    return new_tail
+
+
 def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float]:
     """Build a fitness function for a single goal, dispatching on ``goal.kind``."""
 
     def fitness(v: Term) -> float:
-        program_for_fitness = substitution(v, Var(goal.function), Name("main", 0))
+        # Evaluate the goal's objective function (a nullary top-level binding,
+        # e.g. ``jaccard shape``) by making it the program's result. Replacing
+        # the program tail works whether or not a ``main`` entry point is
+        # present -- under ``--no-main`` there is none, and the previous
+        # ``main``-substitution silently left the metric uncomputed (the program
+        # evaluated to its placeholder tail instead of the objective).
+        program_for_fitness = _set_program_tail(v, Var(goal.function))
         try:
             if goal.kind == "cputime":
                 return measure_cputime(lambda: eval(program_for_fitness, ectx))
