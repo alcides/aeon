@@ -149,3 +149,11 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
 | `tactics`       | Random tactic walks (Lean-style) | Goals whose proof decomposes into tactic steps |
 | `lta`           | Component-based via Liquid Tree Automata | Reusing a library of refined functions to assemble a term |
+
+---
+
+## Benchmarks
+
+For the catalogue of synthesis and verification benchmarks bundled with Aeon —
+where they live, how many there are, and how to run them — see
+[benchmarks.md](benchmarks.md).
