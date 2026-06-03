@@ -1,4 +1,4 @@
-# Inverse CSG benchmark: the union of two circles
+# Inverse CSG benchmark: a row of four circles (Repeat)
 #
 # From Feser, Dillig & Solar-Lezama, "Metric Program Synthesis for Inverse CSG"
 # (arXiv:2206.06164). Inverse CSG is programming-by-example over a bitmap: given
@@ -13,7 +13,7 @@
 #   inside (Repeat e x y c)   iff inside e at (u-i*x, v-i*y) for some 0<=i<c
 #     (the union of c copies of e, copy i translated by (i*x, i*y))
 #
-# Target image:  examples/synthesis/csg/targets/csg_two_circles.png   (32x32 bitmap)
+# Target image:  examples/synthesis/csg/targets/csg_repeat_dots.png   (32x32 bitmap)
 #
 # The per-pixel evaluation and the pixel-difference distance metric run natively
 # (examples/synthesis/csg/csg_metric.py, via Pillow); a full bitmap is too large
@@ -32,7 +32,7 @@ inductive Csg
 
 # Pixel-difference distance between e's bitmap and the target (the paper's metric).
 def error (e:Csg) : {n:Int | n >= 0} =
-    native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').score(e, 'examples/synthesis/csg/targets/csg_two_circles.png'))[1]";
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').score(e, 'examples/synthesis/csg/targets/csg_repeat_dots.png'))[1]";
 
 # Rasterise a CSG program to a PNG, so a synthesised shape can be viewed.
 def render (e:Csg) (path:String) : Unit =
@@ -44,5 +44,5 @@ def render (e:Csg) (path:String) : Unit =
 def shape : Csg = ?hole;
 
 # (b) The reference program that generated the target bitmap (error == 0):
-#     Union (Circle 10 16 7) (Circle 22 16 7)
-def shape_solution : Csg = Union (Circle 10 16 7) (Circle 22 16 7);
+#     Repeat (Circle 5 16 2) 6 0 4
+def shape_solution : Csg = Repeat (Circle 5 16 2) 6 0 4;

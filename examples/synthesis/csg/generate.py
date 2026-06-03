@@ -32,7 +32,8 @@ import csg_metric  # noqa: E402
 GRID = 32
 
 # ---- CSG reference programs as Python tuples (mirroring the Aeon semantics) ----
-# ('circle', cx, cy, r) | ('rect', x1,y1,x2,y2) | ('union', a, b) | ('diff', a, b)
+# ('circle', cx,cy,r) | ('rect', x1,y1,x2,y2) | ('union', a, b) | ('diff', a, b)
+# | ('repeat', sub, x, y, c)
 
 
 def to_tuple(e):
@@ -46,6 +47,8 @@ def to_tuple(e):
         return ("Csg_Union", to_tuple(e[1]), to_tuple(e[2]))
     if t == "diff":
         return ("Csg_Diff", to_tuple(e[1]), to_tuple(e[2]))
+    if t == "repeat":
+        return ("Csg_Repeat", to_tuple(e[1]), e[2], e[3], e[4])
     raise ValueError(t)
 
 
@@ -59,6 +62,8 @@ def to_aeon(e):
         return f"Union ({to_aeon(e[1])}) ({to_aeon(e[2])})"
     if t == "diff":
         return f"Diff ({to_aeon(e[1])}) ({to_aeon(e[2])})"
+    if t == "repeat":
+        return f"Repeat ({to_aeon(e[1])}) {e[2]} {e[3]} {e[4]}"
     raise ValueError(t)
 
 
@@ -68,11 +73,14 @@ TEMPLATE = r"""# Inverse CSG benchmark: __TITLE__
 # (arXiv:2206.06164). Inverse CSG is programming-by-example over a bitmap: given
 # a target image, recover a CSG program (Fig. 3 of the paper) that draws it.
 #
-#   E ::= Circle(x,y,r) | Rect(x1,y1,x2,y2) | E union E | E diff E      (Fig. 3)
+#   E ::= Circle(x,y,r) | Rect(x1,y1,x2,y2)
+#       | E union E | E diff E | Repeat(E,x,y,c)                        (Fig. 3)
 #   inside Circle(x,y,r)      iff (x-u)^2 + (y-v)^2 < r^2                (Fig. 4)
 #   inside Rect(x1,y1,x2,y2)  iff x1<=u<=x2 and y1<=v<=y2
 #   inside (a union b)        iff inside a  or  inside b
 #   inside (a diff b)         iff inside a  and not inside b
+#   inside (Repeat e x y c)   iff inside e at (u-i*x, v-i*y) for some 0<=i<c
+#     (the union of c copies of e, copy i translated by (i*x, i*y))
 #
 # Target image:  examples/synthesis/csg/targets/__NAME__.png   (__GRID__x__GRID__ bitmap)
 #
@@ -89,6 +97,7 @@ inductive Csg
 | Rect (rx1:Int) (ry1:Int) (rx2:Int) (ry2:Int) : Csg
 | Union (ua:Csg) (ub:Csg) : Csg
 | Diff (da:Csg) (db:Csg) : Csg
+| Repeat (re:Csg) (rx:Int) (ry:Int) (rc:Int) : Csg
 
 # Pixel-difference distance between e's bitmap and the target (the paper's metric).
 def error (e:Csg) : {n:Int | n >= 0} =
@@ -140,6 +149,26 @@ BENCHMARKS = [
         "csg_ring",
         "a ring / annulus (big Circle diff small Circle)",
         ("diff", ("circle", 16, 16, 12), ("circle", 16, 16, 6)),
+        GRID,
+    ),
+    (
+        "csg_repeat_dots",
+        "a row of four circles (Repeat)",
+        ("repeat", ("circle", 5, 16, 2), 6, 0, 4),
+        GRID,
+    ),
+    (
+        "csg_key",
+        "the paper's running example: a key (Circle head, Rect shaft, Repeat teeth)",
+        (
+            "union",
+            ("circle", 8, 16, 5),
+            (
+                "union",
+                ("rect", 12, 14, 26, 18),
+                ("repeat", ("rect", 20, 10, 21, 13), 3, 0, 3),
+            ),
+        ),
         GRID,
     ),
 ]

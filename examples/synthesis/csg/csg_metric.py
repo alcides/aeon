@@ -7,6 +7,7 @@ a (very slow) in-language Aeon expression.
 
 A CSG value arrives from Aeon as nested tuples, e.g.
     ('Csg_Diff', ('Csg_Rect', 5, 5, 26, 26), ('Csg_Circle', 16, 16, 8))
+    ('Csg_Repeat', ('Csg_Circle', 5, 16, 2), 6, 0, 4)
 
 `score(e, target_path)` returns the number of pixels where shape `e` disagrees
 with the target bitmap (the metric the synthesiser minimises). `render(e, n,
@@ -29,6 +30,11 @@ def contains(e, u, v):
         return contains(e[1], u, v) or contains(e[2], u, v)
     if tag == "Csg_Diff":
         return contains(e[1], u, v) and not contains(e[2], u, v)
+    if tag == "Csg_Repeat":
+        # Union of c copies of the sub-shape, copy i translated by (i*x, i*y):
+        # a translated shape contains p iff the original contains p - translation.
+        _, sub, x, y, c = e
+        return any(contains(sub, u - i * x, v - i * y) for i in range(c))
     raise ValueError(f"unknown CSG node: {tag!r}")
 
 

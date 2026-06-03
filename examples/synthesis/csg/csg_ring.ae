@@ -4,11 +4,14 @@
 # (arXiv:2206.06164). Inverse CSG is programming-by-example over a bitmap: given
 # a target image, recover a CSG program (Fig. 3 of the paper) that draws it.
 #
-#   E ::= Circle(x,y,r) | Rect(x1,y1,x2,y2) | E union E | E diff E      (Fig. 3)
+#   E ::= Circle(x,y,r) | Rect(x1,y1,x2,y2)
+#       | E union E | E diff E | Repeat(E,x,y,c)                        (Fig. 3)
 #   inside Circle(x,y,r)      iff (x-u)^2 + (y-v)^2 < r^2                (Fig. 4)
 #   inside Rect(x1,y1,x2,y2)  iff x1<=u<=x2 and y1<=v<=y2
 #   inside (a union b)        iff inside a  or  inside b
 #   inside (a diff b)         iff inside a  and not inside b
+#   inside (Repeat e x y c)   iff inside e at (u-i*x, v-i*y) for some 0<=i<c
+#     (the union of c copies of e, copy i translated by (i*x, i*y))
 #
 # Target image:  examples/synthesis/csg/targets/csg_ring.png   (32x32 bitmap)
 #
@@ -25,6 +28,7 @@ inductive Csg
 | Rect (rx1:Int) (ry1:Int) (rx2:Int) (ry2:Int) : Csg
 | Union (ua:Csg) (ub:Csg) : Csg
 | Diff (da:Csg) (db:Csg) : Csg
+| Repeat (re:Csg) (rx:Int) (ry:Int) (rc:Int) : Csg
 
 # Pixel-difference distance between e's bitmap and the target (the paper's metric).
 def error (e:Csg) : {n:Int | n >= 0} =
