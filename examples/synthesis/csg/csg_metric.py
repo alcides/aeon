@@ -32,6 +32,14 @@ DIM = 16
 SCALING = 2
 SCALED = DIM * SCALING  # 32
 
+# A synthesised `Repeat e dx dy c` can carry an arbitrarily large count `c`.
+# Evaluating it literally is `c` recursive `contains` calls per pixel, so an
+# unconstrained candidate (e.g. c in the millions) would make a single fitness
+# evaluation effectively hang. The whole grid is only SCALED wide, so any copy
+# beyond SCALED is fully off-screen and cannot change the bitmap; clamp the
+# count so evaluation stays bounded.
+MAX_REPEAT = SCALED
+
 
 def contains(e, x, y):
     """Is scaled-space pixel (x, y) inside CSG shape e?  (Fig. 4 of the paper.)"""
@@ -51,7 +59,8 @@ def contains(e, x, y):
         # Union of c copies of the sub-shape, copy i translated by (i*dx, i*dy).
         _, sub, dx, dy, c = e
         sdx, sdy = dx * SCALING, dy * SCALING
-        return any(contains(sub, x - i * sdx, y - i * sdy) for i in range(c))
+        n = min(max(c, 0), MAX_REPEAT)
+        return any(contains(sub, x - i * sdx, y - i * sdy) for i in range(n))
     raise ValueError(f"unknown CSG node: {tag!r}")
 
 
@@ -85,7 +94,12 @@ def score(e, target_path):
     img = Image.open(target_path).convert("1")
     w, h = img.size
     tp = img.load()
-    rows = bitmap(e, w)
+    try:
+        rows = bitmap(e, w)
+    except Exception:
+        # A malformed or pathologically deep candidate evaluates to the
+        # worst-possible distance rather than crashing the synthesiser.
+        return w * h
     err = 0
     for r in range(h):
         for x in range(w):
@@ -106,7 +120,12 @@ def jaccard_distance(e, target_path):
     img = Image.open(target_path).convert("1")
     w, h = img.size
     tp = img.load()
-    rows = bitmap(e, w)
+    try:
+        rows = bitmap(e, w)
+    except Exception:
+        # Worst-possible distance for a candidate that cannot be rasterised,
+        # so the synthesiser is steered away from it instead of crashing.
+        return 1.0
     inter = 0
     union = 0
     for r in range(h):

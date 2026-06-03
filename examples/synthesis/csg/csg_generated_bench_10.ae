@@ -46,8 +46,7 @@ def render (e:Csg) (path:String) : Unit =
 
 # (a) Synthesis: recover a CSG program, guided by the paper's Jaccard metric.
 @minimize_float(jaccard shape)
-@hide(jaccard, error, render, shape_solution)
-def shape : Csg = ?hole;
+def shape : Csg = (let jaccard = unit in let error = unit in let render = unit in let shape_solution = unit in ?hole);
 
 # (b) The original benchmark program (reconstructs the target, error == 0):
 def shape_solution : Csg = Union (Union (Rect 0 8 14 9) (Diff (Rect 3 3 15 10) (Rect 0 5 7 7))) (Repeat (Circle 4 9 2) 13 2 4);
