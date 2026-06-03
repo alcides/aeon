@@ -38,6 +38,7 @@ within the budget, but OK", and anything else as a hard failure.
 | Core synthesis examples | `examples/synthesis/*.ae`, `*.aef` | 21 + 3 | Illustrative holes, Z3-tutorial puzzles, and a few classics |
 | SMT puzzles | `examples/synthesis/smt/` | 8 | Classic Z3 constraint puzzles (hakank.org/z3) |
 | Image-edit predicates | `examples/synthesis/image_edits/` | 6 | Object-selection predicate synthesis over a lattice |
+| Inverse CSG | `examples/synthesis/csg/` | 47 | Recover a CSG program from a target bitmap (SyMetric) |
 | Micro-benchmarks | `examples/benchmarks/` | 11 | Tiny, focused synthesizer-efficiency probes |
 | MBPP | `examples/MBPP/` | 427 | Mostly Basic Python Problems, as refinement specs |
 | PSB2 | `examples/PSB2/` | 65 | Program Synthesis Benchmark 2 tasks (incl. `solved/`) |
@@ -46,9 +47,10 @@ within the budget, but OK", and anything else as a hard failure.
 | Vericoding | `benchmarks/vericoding/` | 99 tasks | Dafny→Aeon translation harness (generated, not committed) |
 
 The folders swept by CI (`run_examples.sh`) are `ffi`, `image`, `imports`,
-`list`, `syntax`, `synthesis`, `synthesis/image_edits`, `PSB2/solved`, and
-`99problems`. The remaining suites (MBPP, the full PSB2 tree, Vericoding) are
-larger research corpora exercised on demand rather than on every push.
+`list`, `syntax`, `synthesis`, `synthesis/image_edits`, `verification`,
+`PSB2/solved`, and `99problems`. The remaining suites (MBPP, the full PSB2 tree,
+Inverse CSG, and Vericoding) are larger research corpora exercised on demand
+rather than on every push.
 
 ## Core synthesis examples — `examples/synthesis/`
 
@@ -87,6 +89,29 @@ exposes fields through measure functions, and leaves a `?hole` for the solver.
 Six object-selection tasks (highlight nuclei, select players, recolor apples,
 blur plates, recolor shoes, cut out a team) where the synthesizer learns a
 selection predicate from positive/negative examples via a cost objective.
+
+## Inverse CSG — `examples/synthesis/csg/`
+
+Programming-by-example over bitmaps: given a target image, recover a
+Constructive Solid Geometry program that draws it, reproducing the benchmark of
+Feser, Dillig & Solar-Lezama, *Metric Program Synthesis for Inverse CSG*
+([arXiv:2206.06164](https://arxiv.org/abs/2206.06164), the SyMetric tool). A
+`Csg` inductive type (`Circle`, `Rect`, `Union`, `Diff`, `Repeat`) is searched
+with `@minimize_float(jaccard shape)`, the paper's Jaccard-distance metric;
+per-pixel rasterisation and the distance run natively in `csg_metric.py` (via
+Pillow), since a full bitmap is too large to evaluate in-language. Each file
+hides its helper functions and reference solution from the grammar with
+`let … = unit in` shadowing so the search is genuine.
+
+The 47 instances span sizes `tiny` (2), `small` (13), `medium` (6), `large`
+(1), plus 25 `generated` cases (`generate.py`, catalogued in `benchmarks.tsv`),
+each with a 32×32 target under `targets/`. Because all 47 are deliberately hard
+(most exit with "no solution found" inside a short budget), this suite is run on
+demand rather than swept by CI:
+
+```bash
+uv run python -m aeon --budget 60 -s gp examples/synthesis/csg/csg_small_bullseye.ae
+```
 
 ## Micro-benchmarks — `examples/benchmarks/`
 
