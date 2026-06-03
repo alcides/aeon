@@ -77,7 +77,11 @@ def render(e, scaled, path):
 
 
 def score(e, target_path):
-    """Pixel-difference distance between e's bitmap and the target PNG."""
+    """Pixel-difference (Hamming) distance between e's bitmap and the target.
+
+    This is 0 exactly when e reconstructs the target, and is used for the
+    exact-match checks. The synthesiser is guided by `jaccard_distance` below.
+    """
     img = Image.open(target_path).convert("1")
     w, h = img.size
     tp = img.load()
@@ -89,3 +93,30 @@ def score(e, target_path):
             if target != rows[r][x]:
                 err += 1
     return err
+
+
+def jaccard_distance(e, target_path):
+    """The paper's distance metric (Sec. 4.2): Jaccard distance between bitmaps.
+
+    delta(A, B) = 1 - |A intersect B| / |A union B|, with delta = 0 for two
+    empty scenes. This mirrors the tool's Scene2d.jaccard_pixels. It lies in
+    [0, 1] and is 0 exactly when e reconstructs the target, so it is what the
+    metric synthesiser minimises.
+    """
+    img = Image.open(target_path).convert("1")
+    w, h = img.size
+    tp = img.load()
+    rows = bitmap(e, w)
+    inter = 0
+    union = 0
+    for r in range(h):
+        for x in range(w):
+            a = rows[r][x]
+            b = 1 if tp[x, r] else 0
+            if a and b:
+                inter += 1
+            if a or b:
+                union += 1
+    if union == 0:
+        return 0.0
+    return 1.0 - inter / union

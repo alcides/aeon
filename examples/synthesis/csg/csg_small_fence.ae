@@ -17,8 +17,11 @@
 # as the tool's lib/scene2d.ml does; the per-pixel work runs natively (Pillow).
 # Target image:  examples/synthesis/csg/targets/csg_small_fence.png
 #
-# `@minimize_int(error shape)` performs distance-guided synthesis as in the
-# paper; error == 0 is an exact reconstruction. Run from the repository root.
+# The paper guides search by the Jaccard distance between bitmaps (Sec. 4.2),
+# delta(A,B) = 1 - |A and B| / |A or B|, so `@minimize_float(jaccard shape)` does
+# distance-guided synthesis exactly as in the paper. jaccard == 0 (equivalently
+# the pixel difference `error` == 0) is an exact reconstruction. Run from the
+# repository root.
 
 open Csg
 
@@ -29,7 +32,11 @@ inductive Csg
 | Diff (da:Csg) (db:Csg) : Csg
 | Repeat (re:Csg) (rx:Int) (ry:Int) (rc:Int) : Csg
 
-# Pixel-difference distance between e's bitmap and the target (the paper's metric).
+# The paper's distance metric: Jaccard distance to the target (in [0,1], 0 = exact).
+def jaccard (e:Csg) : Float =
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').jaccard_distance(e, 'examples/synthesis/csg/targets/csg_small_fence.png'))[1]";
+
+# Pixel-difference (Hamming) distance: 0 exactly when the bitmap is reconstructed.
 def error (e:Csg) : {n:Int | n >= 0} =
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').score(e, 'examples/synthesis/csg/targets/csg_small_fence.png'))[1]";
 
@@ -37,9 +44,9 @@ def error (e:Csg) : {n:Int | n >= 0} =
 def render (e:Csg) (path:String) : Unit =
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').render(e, 32, path))[1]";
 
-# (a) Synthesis: recover a CSG program whose bitmap matches the target.
-@minimize_int(error shape)
-@hide(error, render, shape_solution)
+# (a) Synthesis: recover a CSG program, guided by the paper's Jaccard metric.
+@minimize_float(jaccard shape)
+@hide(jaccard, error, render, shape_solution)
 def shape : Csg = ?hole;
 
 # (b) The original benchmark program (reconstructs the target, error == 0):

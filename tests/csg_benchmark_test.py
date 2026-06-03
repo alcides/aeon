@@ -52,11 +52,15 @@ def test_suite_is_complete():
 
 @pytest.mark.parametrize("cat,name,sexpr", BENCHMARKS, ids=[f"{c}/{n}" for c, n, _ in BENCHMARKS])
 def test_reference_reconstructs_target(cat, name, sexpr):
-    """The original program renders to exactly the committed target bitmap."""
+    """The original program renders to exactly the committed target bitmap.
+
+    Both the pixel-difference distance and the paper's Jaccard metric are 0.
+    """
     ref = to_runtime(parse(sexpr))
     png = os.path.join(CSG, "targets", f"csg_{cat}_{name}.png")
     assert os.path.exists(png), f"missing target image: {png}"
     assert csg_metric.score(ref, png) == 0
+    assert csg_metric.jaccard_distance(ref, png) == 0.0
 
 
 @pytest.mark.parametrize("cat,name,sexpr", BENCHMARKS, ids=[f"{c}/{n}" for c, n, _ in BENCHMARKS])
@@ -75,6 +79,14 @@ def test_benchmark_parses_and_typechecks(cat, name, sexpr):
     )
     errors = AeonDriver(cfg).parse(os.path.join(CSG, f"csg_{cat}_{name}.ae"))
     assert errors == []
+
+
+def test_jaccard_discriminates():
+    """The Jaccard metric is in (0, 1] for a shape that is not the target."""
+    png = os.path.join(CSG, "targets", "csg_tiny_two_circle.png")
+    wrong = ("Csg_Circle", 1, 1, 1)  # a tiny corner circle, far from the target
+    d = csg_metric.jaccard_distance(wrong, png)
+    assert 0.0 < d <= 1.0
 
 
 def test_native_metric_end_to_end():
