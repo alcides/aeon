@@ -1,0 +1,52 @@
+# Constraint Programming: graph (map) colouring.
+#
+# Inspired by https://pganalyze.com/blog/a-practical-introduction-to-constraint-programming-using-cp-sat
+# The canonical CP "hello world": colour the seven states/territories of
+# Australia with three colours so that no two bordering regions share a colour.
+#
+#   Regions:  WA  NT  SA  Q  NSW  V  T
+#   Colours:  1, 2, 3
+#   Borders:  WA-NT  WA-SA  NT-SA  NT-Q  SA-Q  SA-NSW  SA-V  Q-NSW  NSW-V
+#             (Tasmania, T, is an island — no land borders)
+#
+# Where CP-SAT searches a model, Aeon expresses the constraints *as a refinement
+# type* and either (a) synthesises a satisfying assignment for the `?hole`, or
+# (b) verifies that a hand-written assignment type-checks against the spec.
+
+inductive Coloring
+| mk (wa:Int  | 1 <= wa  && wa  <= 3)
+     (nt:Int  | 1 <= nt  && nt  <= 3)
+     (sa:Int  | 1 <= sa  && sa  <= 3)
+     (q:Int   | 1 <= q   && q   <= 3)
+     (nsw:Int | 1 <= nsw && nsw <= 3)
+     (v:Int   | 1 <= v   && v   <= 3)
+     (t:Int   | 1 <= t   && t   <= 3) :
+     {c:Coloring |
+        (c_wa c == wa) && (c_nt c == nt) && (c_sa c == sa) && (c_q c == q) &&
+        (c_nsw c == nsw) && (c_v c == v) && (c_t c == t)}
++ c_wa  (c:Coloring) : Int
++ c_nt  (c:Coloring) : Int
++ c_sa  (c:Coloring) : Int
++ c_q   (c:Coloring) : Int
++ c_nsw (c:Coloring) : Int
++ c_v   (c:Coloring) : Int
++ c_t   (c:Coloring) : Int
+
+# The "all bordering regions differ" constraint, written directly in the
+# refinement language (one inequality per border edge).
+
+# (a) Synthesis: ask Aeon to fill in a colouring satisfying every border.
+@minimize_int(1)
+def coloring_hole : {c:Coloring |
+    (c_wa c != c_nt c) && (c_wa c != c_sa c) && (c_nt c != c_sa c) &&
+    (c_nt c != c_q c)  && (c_sa c != c_q c)  && (c_sa c != c_nsw c) &&
+    (c_sa c != c_v c)  && (c_q c != c_nsw c) && (c_nsw c != c_v c)
+} = ?hole
+
+# (b) Verification: a known proper 3-colouring type-checks against the spec.
+#   WA=1 NT=2 SA=3 Q=1 NSW=2 V=1 T=1
+def coloring_solution : {c:Coloring |
+    (c_wa c != c_nt c) && (c_wa c != c_sa c) && (c_nt c != c_sa c) &&
+    (c_nt c != c_q c)  && (c_sa c != c_q c)  && (c_sa c != c_nsw c) &&
+    (c_sa c != c_v c)  && (c_q c != c_nsw c) && (c_nsw c != c_v c)
+} = .mk 1 2 3 1 2 1 1
