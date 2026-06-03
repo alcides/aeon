@@ -1,0 +1,20 @@
+# Verification of a neural network: local (Lipschitz) robustness.
+#
+# Inspired by https://arxiv.org/abs/2605.02790. The headline NN-verification
+# property: a small perturbation of the input causes only a small change in the
+# output. ReLU is 1-Lipschitz, so f(x) = relu(2*x) changes by at most 2*|dx|.
+#
+# We bound an input perturbation to |xp - x| <= 0.1 and prove the output moves by
+# at most 0.5 (a safe slack over the true bound 0.2).
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y == x || y == 0.0)} =
+    if x >= 0.0 then x else 0.0;
+
+# `xp` is any point within 0.1 of `x`; the result type bounds the output delta.
+def robust
+    (x: Float)
+    (xp: {v: Float | x - 0.1 <= v && v <= x + 0.1})
+    : {d: Float | 0.0 - 0.5 <= d && d <= 0.5} =
+    relu (2.0 * xp) - relu (2.0 * x);
+
+def main (_: Int) : Unit =
+    print (robust 1.0 1.05)

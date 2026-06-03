@@ -1,0 +1,26 @@
+# Constraint-based fuzzing: an RGB colour under a perceptual constraint.
+#
+# Inspired by Fandango (https://fandango-fuzzer.github.io/). The grammar is a
+# 24-bit colour (three channels 0..255); the semantic constraint is a *dark*
+# colour by perceived luminance. Using the integer approximation
+#   L = (3*R + 6*G + B) / 10
+# "dark" means L <= 64, i.e. 3*R + 6*G + B <= 640 (no division needed).
+
+inductive Color
+| mk (r:Int | 0 <= r && r <= 255) (g:Int | 0 <= g && g <= 255) (b:Int | 0 <= b && b <= 255) :
+     {col:Color | (cr col == r) && (cg col == g) && (cb col == b)}
++ cr (col:Color) : Int  + cg (col:Color) : Int  + cb (col:Color) : Int
+
+# (a) Fuzzing: synthesise a dark, non-black colour.
+@minimize_int(0)
+def fuzz_color : {col:Color |
+    (3 * cr col + 6 * cg col + cb col <= 640) &&
+    (cr col + cg col + cb col > 0)
+} = ?hole;
+
+# (b) Verification: (40, 30, 50) has luminance (120+180+50)/10 = 35 <= 64 and is
+# non-black; pure white (255,255,255) would be rejected.
+def a_color : {col:Color |
+    (3 * cr col + 6 * cg col + cb col <= 640) &&
+    (cr col + cg col + cb col > 0)
+} = .mk 40 30 50

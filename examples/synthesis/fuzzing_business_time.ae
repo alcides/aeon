@@ -1,0 +1,26 @@
+# Constraint-based fuzzing: a time-of-day within business hours.
+#
+# Inspired by Fandango (https://fandango-fuzzer.github.io/). The grammar is a
+# wall-clock time (hh:mm:ss); the cross-field semantic constraint is "within
+# business hours, 09:30 <= t < 17:00" — a window whose lower bound couples the
+# hour and minute fields.
+
+inductive Time
+| mk (h:Int | 0 <= h && h <= 23) (m:Int | 0 <= m && m <= 59) (s:Int | 0 <= s && s <= 59) :
+     {t:Time | (hh t == h) && (mm t == m) && (ss t == s)}
++ hh (t:Time) : Int  + mm (t:Time) : Int  + ss (t:Time) : Int
+
+# (a) Fuzzing: synthesise a time in [09:30, 17:00).
+@minimize_int(0)
+def fuzz_time : {t:Time |
+    # at or after 09:30
+    ((hh t > 9) || (hh t == 9 && mm t >= 30)) &&
+    # strictly before 17:00
+    (hh t < 17)
+} = ?hole;
+
+# (b) Verification: 13:45:00 is inside the window; 09:15 or 17:30 would be out.
+def a_time : {t:Time |
+    ((hh t > 9) || (hh t == 9 && mm t >= 30)) &&
+    (hh t < 17)
+} = .mk 13 45 0

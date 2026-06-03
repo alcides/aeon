@@ -1,0 +1,25 @@
+# Verification of a neural network: a robust classification margin.
+#
+# Inspired by https://arxiv.org/abs/2605.02790. A 2-class network outputs two
+# logits; we prove class A *always* wins over the whole input box [0,1]^2 — i.e.
+# the decision is robust, there is no adversarial input that flips the label.
+#
+#   hidden:  h1 = relu(x1 + x2)            (in [0, 2])
+#            h2 = relu(x1 - x2 - 5)        (always 0 on the box: argument < 0)
+#   logits:  A  = 3*h1 + 1   (>= 1)
+#            B  = h2          (== 0)
+#   margin = A - B            (>= 1 > 0)  ==> class A always chosen.
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y == x || y == 0.0)} =
+    if x >= 0.0 then x else 0.0;
+
+# The return type `margin > 0` is the safety property: A beats B everywhere.
+def margin
+    (x1: {v: Float | 0.0 <= v && v <= 1.0})
+    (x2: {v: Float | 0.0 <= v && v <= 1.0})
+    : {m: Float | m > 0.0} =
+    let h1 : {v: Float | v >= 0.0} = relu (x1 + x2) in
+    let h2 : {v: Float | v == 0.0} = relu ((x1 - x2) - 5.0) in
+    (3.0 * h1 + 1.0) - h2;
+
+def main (_: Int) : Unit =
+    print (margin 0.7 0.2)
