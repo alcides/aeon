@@ -152,6 +152,50 @@ def make_evaluator(
     return evaluate
 
 
+def make_output_evaluator(
+    ectx: EvaluationContext,
+    replace: Callable[[Term], Term],
+    hole_fun: Name,
+    budget_eval: float = 1.0,
+) -> Callable[[Term], Any]:
+    """Build a function that evaluates a candidate to its raw *output value*.
+
+    Where ``make_evaluator`` returns the goal's distance, this returns the value
+    the candidate itself denotes (the program's "scene"/output), by setting the
+    program tail to the synthesised function and evaluating it. Metric
+    synthesisers use it to cluster candidates by their actual output
+    (observational equivalence) rather than only by distance-to-goal. Returns
+    ``None`` when the candidate cannot be evaluated (so callers can skip it).
+    """
+
+    def run(program: Term, result_queue: mp.Queue) -> None:
+        try:
+            value = eval(_set_program_tail(program, Var(hole_fun)), ectx)
+            try:
+                result_queue.put(("ok", value))
+            except Exception:
+                # Unpicklable output: fall back to its repr so it is still
+                # usable as an equivalence key across the process boundary.
+                result_queue.put(("ok", repr(value)))
+        except Exception as e:  # noqa: BLE001 — any failure means "no output"
+            result_queue.put(("error", f"{type(e).__name__}: {e}"))
+
+    def output(candidate: Term, timeout: float = budget_eval) -> Any:
+        prog = replace(candidate)
+        result_queue: mp.Queue = mp.Queue()
+        proc = mp.Process(target=run, args=(prog, result_queue))
+        proc.start()
+        proc.join(timeout=timeout)
+        if proc.is_alive():
+            proc.terminate()
+            proc.join()
+            return None
+        kind, payload = result_queue.get()
+        return payload if kind == "ok" else None
+
+    return output
+
+
 def synthesize_holes(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -183,6 +227,7 @@ def synthesize_holes(
         validator = make_validator(ctx, replace)
         evaluators = make_evaluators(ectx, fun_name, metadata)
         evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
+        output_evaluator = make_output_evaluator(ectx, replace, fun_name, budget_eval)
         assert isinstance(tyctx, TypingContext)
         assert isinstance(ty, Type)
         tac_map = metadata.get(fun_name, {}).get("tactic_scripts")
@@ -204,6 +249,7 @@ def synthesize_holes(
                 metadata=metadata,
                 budget=budget,
                 ui=ui,
+                output_value=output_evaluator,
             )
         except Exception as e:
             ui.end(None, None)

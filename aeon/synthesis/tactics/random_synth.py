@@ -46,6 +46,7 @@ class TacticRandomSynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
