@@ -455,7 +455,9 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             (inner, innert) = elaborate_synth(ctx, body)
             assert isinstance(innert, SRefinementPolymorphism)
 
-            ref_type = SAbstractionType(Name("_", fresh_counter.fresh()), innert.sort, st_bool)
+            # ``innert.sort`` is the full predicate type (``d1 -> ... -> Bool``,
+            # possibly n-ary), so the refinement is checked against it directly.
+            ref_type = innert.sort
             nrefinement = elaborate_check(ctx, refinement, ref_type)
 
             nty = substitution_sterm_in_stype(innert.body, nrefinement, innert.name)

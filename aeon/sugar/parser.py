@@ -171,6 +171,18 @@ class TreeToSugar(Transformer):
     def polymorphism_t(self, args):
         return STypePolymorphism(Name(args[0]), args[1], args[2])
 
+    def pred_sort(self, args):
+        # The sort of an abstract-refinement parameter, parsed as a bare arrow
+        # chain ``d1 -> d2 -> ... -> Bool``. Fold it (right-associatively) into
+        # the curried predicate type, which is stored directly as the
+        # refinement's ``sort``. Unary ``d -> Bool`` yields ``SAbstractionType(d,
+        # Bool)``; binary ``d -> d -> Bool`` yields ``d -> (d -> Bool)``; etc.
+        domains = list(args[:-1])
+        sort: SType = args[-1]
+        for d in reversed(domains):
+            sort = SAbstractionType(Name("_"), d, sort)
+        return sort
+
     def refinement_polymorphism_t(self, args):
         return SRefinementPolymorphism(Name(args[0]), args[1], args[2])
 

@@ -365,6 +365,19 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
     return RefinedType(new_name, ty.type, refinement)
 
 
+def _as_predicate_type(sort: Type) -> AbstractionType:
+    """The full predicate type of an abstract-refinement sort.
+
+    Refinement sorts now carry the full (possibly n-ary) predicate type
+    ``d1 -> ... -> Bool``. Legacy callers (and a few unit tests that build core
+    nodes directly) may still pass a bare domain ``d``, which is wrapped as
+    ``d -> Bool`` so downstream code always sees an ``AbstractionType``.
+    """
+    if isinstance(sort, AbstractionType):
+        return sort
+    return AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
+
+
 # patterm matching term
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
@@ -580,7 +593,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
                 return (c, nty)
             assert isinstance(refinement, Abstraction)
-            pred_type = AbstractionType(Name("_", fresh_counter.fresh()), rp.sort, t_bool)
+            # ``rp.sort`` is the full (possibly n-ary) predicate type.
+            pred_type = rp.sort
             c_ref = check(ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
             return (Conjunction(c, c_ref), nty)
@@ -589,7 +603,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # Synth-mode Λρ: mirror Chk-RAbs (lines 505-512) but without an expected type.
             # Introduce fκ : psort -> bool, synth the body, wrap the resulting type with
             # RefinementPolymorphism and gate the constraint behind the UF declaration.
-            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), psort, t_bool)
+            # ``psort`` is the full (possibly n-ary) predicate type.
+            fk_type = _as_predicate_type(psort)
             ctx_ext = ctx.with_var(pname, fk_type)
             (c_body, body_ty) = synth(ctx_ext, inner)
             return (
@@ -791,7 +806,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
         case RefinementAbstraction(pname, psort, inner), RefinementPolymorphism(rname, rsort, rbody):
             c_sort = sub(ctx, psort, rsort, t.loc)
-            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), rsort, t_bool)
+            # ``rsort`` is the full (possibly n-ary) predicate type.
+            fk_type = _as_predicate_type(rsort)
             ctx_ext = ctx.with_var(pname, fk_type)
             body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
             inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
@@ -800,10 +816,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
         # per tutorial fig 8.4 Chk-RAbs
         case _, RefinementPolymorphism(name, sort, body):
-            # ρ = κ : sort → bool; φ = λx.fκ(x)
+            # ρ = κ : sort; φ = λx.fκ(x). ``sort`` is the full (possibly n-ary)
+            # predicate type ``d1 -> ... -> Bool``.
             fk_name = Name("_f" + name.name, fresh_counter.fresh())
-            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
-            # Γ' = Γ; fκ : sort → bool
+            fk_type = _as_predicate_type(sort)
+            # Γ' = Γ; fκ : sort
             ctx_ext = ctx.with_var(fk_name, fk_type)
             # s[ρ := fκ] — substitute κ → fk in the body type
             body_sub = substitution_liquid_in_type(body, LiquidVar(fk_name), name)

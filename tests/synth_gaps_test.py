@@ -80,11 +80,13 @@ def test_synth_refinement_abstraction_wraps_with_polymorphism():
     we don't depend on the still-open `synth(Abstraction)` gap (#207)."""
     ctx = TypingContext()
     p = Name("p")
-    term = RefinementAbstraction(p, t_int, Literal(0, t_int))
+    # The sort is the full predicate type (Int -> Bool).
+    pred_sort = AbstractionType(Name("_"), t_int, t_bool)
+    term = RefinementAbstraction(p, pred_sort, Literal(0, t_int))
     (_, ty) = synth(ctx, term)
     assert isinstance(ty, RefinementPolymorphism)
     assert ty.name == p
-    assert ty.sort == t_int
+    assert ty.sort == pred_sort
     assert isinstance(ty.body, RefinedType)
     assert ty.body.type == t_int
 
@@ -94,9 +96,10 @@ def test_synth_refinement_abstraction_introduces_fresh_uf_in_context():
     the body. Synth-ing a body that references `p` must succeed."""
     ctx = TypingContext()
     p = Name("p")
-    # Λρ:Int. p   — Var(p) reads the UF symbol.
+    # Λρ:(Int -> Bool). p   — the sort is the full predicate type; Var(p) reads the UF symbol.
+    pred_sort = AbstractionType(Name("_"), t_int, t_bool)
     body = Var(p)
-    term = RefinementAbstraction(p, t_int, body)
+    term = RefinementAbstraction(p, pred_sort, body)
     (constraint, ty) = synth(ctx, term)
     assert isinstance(ty, RefinementPolymorphism)
     # Body type is the UF type `(_:Int) -> Bool`, lifted through Var-selfification.
@@ -113,7 +116,7 @@ def test_synth_refinement_abstraction_constraint_is_valid():
     introduced by the new arm)."""
     ctx = TypingContext()
     p = Name("p")
-    # Λρ:Int. 0  — body is a trivially well-typed literal.
-    term = RefinementAbstraction(p, t_int, Literal(0, t_int))
+    # Λρ:(Int -> Bool). 0  — body is a trivially well-typed literal.
+    term = RefinementAbstraction(p, AbstractionType(Name("_"), t_int, t_bool), Literal(0, t_int))
     (constraint, _) = synth(ctx, term)
     assert smt_valid(constraint)

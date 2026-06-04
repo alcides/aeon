@@ -61,7 +61,7 @@ from aeon.sugar.stypes import (
 )
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 from aeon.utils.name import Name, fresh_counter
-from aeon.sugar.ast_helpers import st_int, st_string, st_unit
+from aeon.sugar.ast_helpers import st_int, st_string, st_unit, st_bool
 from aeon.sugar.instance_registry import InstanceInfo, register_instance
 
 from aeon.facade.api import ImportError
@@ -831,16 +831,18 @@ def _collect_implicit_refinement_params_for_inductive(
             rec(base, bound_rho)
             match ref:
                 case SApplication(SVar(p), SVar(b)) if b == binder and p not in bound_rho:
+                    # The inferred sort is the full predicate type ``base -> Bool``.
+                    pred_ty = SAbstractionType(Name("_"), base, st_bool)
                     if not _eligible_refinement_base_for_inductive(ind, base):
                         pass
                     elif p in acc:
-                        if not type_equality(acc[p], base):
+                        if not type_equality(acc[p], pred_ty):
                             raise TypeError(
                                 f"Inconsistent sorts for inferred datatype refinement {p.name} "
-                                f"on {ind.name.name}: {acc[p]} vs {base}"
+                                f"on {ind.name.name}: {acc[p]} vs {pred_ty}"
                             )
                     else:
-                        acc[p] = base
+                        acc[p] = pred_ty
                 case _:
                     pass
         case STypeConstructor(_, ty_args):
@@ -1517,13 +1519,15 @@ def _collect_implicit_refinement_params(ty: SType, bound_rho: set[Name], acc: di
             rec(base, bound_rho)
             match ref:
                 case SApplication(SVar(p), SVar(b)) if b == binder and p not in bound_rho:
+                    # The inferred sort is the full predicate type ``base -> Bool``.
+                    pred_ty = SAbstractionType(Name("_"), base, st_bool)
                     if p in acc:
-                        if acc[p] != base:
+                        if acc[p] != pred_ty:
                             raise TypeError(
-                                f"Inconsistent sorts for implicit refinement parameter {p.name}: {acc[p]} vs {base}"
+                                f"Inconsistent sorts for implicit refinement parameter {p.name}: {acc[p]} vs {pred_ty}"
                             )
                     else:
-                        acc[p] = base
+                        acc[p] = pred_ty
                 case _:
                     pass
         case STypeConstructor(_, ty_args):

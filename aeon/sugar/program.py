@@ -360,7 +360,8 @@ class STypeAbstraction(STerm):
 
 @dataclass(frozen=True)
 class SRefinementAbstraction(STerm):
-    """Binds a refinement parameter ρ with sort (domain type) ρ : sort -> Bool."""
+    """Binds a refinement parameter ρ whose sort is the full (possibly n-ary)
+    predicate type ρ : d1 -> ... -> Bool."""
 
     name: Name
     sort: SType
@@ -368,7 +369,7 @@ class SRefinementAbstraction(STerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"Λ<{self.name}:{self.sort} -> Bool>=> ({self.body})"
+        return f"Λ<{self.name}:{self.sort}>=> ({self.body})"
 
 
 @dataclass()  # frozen=True
