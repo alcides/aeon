@@ -49,3 +49,17 @@ if [ "$status" -ne 0 ]; then
     echo "Some examples failed."
     exit 111
 fi
+
+# Property-based testing examples (issue #37): run with --test; every property
+# must pass (exit code 0).
+for entry in examples/pbt/props_*.ae
+do
+    printf "Running (pbt) %s ..." "$entry"
+    if uv run python -m aeon --test "$entry" > /dev/null 2>&1; then
+        printf "(success)\n"
+    else
+        printf "(failed)\n"
+        echo "Some property-based tests failed."
+        exit 111
+    fi
+done

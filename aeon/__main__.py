@@ -87,6 +87,12 @@ def _parse_common_arguments(parser: ArgumentParser):
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
     parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Run property-based tests: check every @property function on random inputs",
+    )
+
+    parser.add_argument(
         "-s",
         "--synthesizer",
         type=str,
@@ -94,7 +100,8 @@ def _parse_common_arguments(parser: ArgumentParser):
         help=(
             "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
             "tdsyn_random (type-directed random walk), tactics (random tactic search), gp, synquid, "
-            "random_search, enumerative (grammar enumeration), hc, 1p1, smt, decision_tree, llm, "
+            "random_search, enumerative (grammar enumeration), hc, 1p1, smt, "
+            "sygus (reduce to SyGuS and solve with z3/cvc5), decision_tree, llm, "
             "lta (Liquid Tree Automata, arXiv:2605.13456)"
         ),
     )
@@ -208,12 +215,17 @@ def main() -> None:
     if args.timings:
         logger.add(sys.stderr, level="TIME")
 
+    run_tests = getattr(args, "test", False)
+    if run_tests and args.no_main:
+        print("warning: --no-main is ignored under --test (a main slot is needed to evaluate properties).")
     cfg = AeonConfig(
         synthesizer=args.synthesizer,
         synthesis_ui=select_synthesis_ui(),
         synthesis_budget=args.budget,
         timings=args.timings,
-        no_main=args.no_main,
+        # Property evaluation splices the call into the program's main slot, so
+        # the slot must exist — force the main hole even if --no-main was passed.
+        no_main=args.no_main and not run_tests,
         synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
     )
     driver = AeonDriver(cfg)
@@ -242,6 +254,12 @@ def main() -> None:
 
     match errors:
         case []:
+            if run_tests:
+                if not driver.has_tests():
+                    print("No @property functions found.")
+                    sys.exit(0)
+                failures = driver.run_tests()
+                sys.exit(1 if failures else 0)
             match (args.format, driver.has_synth()):
                 case (True, _):
                     driver.pretty_print(args.filename, args.fix)

@@ -36,6 +36,7 @@ from aeon.synthesis.decorators import (
     multi_minimize_float,
     multi_minimize_int,
     prompt,
+    property_test,
 )
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -53,6 +54,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
     "prompt": prompt,
+    "property": property_test,
     "csv_data": csv_data,
     "csv_file": csv_file,
     "minimize": minimize,

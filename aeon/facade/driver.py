@@ -109,6 +109,23 @@ class AeonDriver:
         with RecordTime("Evaluation"):
             return eval(self.core, self.evaluation_ctx)
 
+    def has_tests(self) -> bool:
+        """Whether the program declares any ``@property`` functions."""
+        return any(isinstance(entry, dict) and "property" in entry for entry in self.metadata.values())
+
+    def run_tests(self, seed: int = 0) -> list:
+        """Check every ``@property`` function, print a pytest-style report, and
+        return the list of failing results (empty when all pass)."""
+        from aeon.synthesis.pbt import run_properties
+
+        results = run_properties(self.typing_ctx, self.evaluation_ctx, self.core, self.metadata, seed=seed)
+        for result in results:
+            print(result.summary())
+        failures = [r for r in results if not r.passed]
+        passed = sum(1 for r in results if r.passed and r.error is None)
+        print(f"\n{passed} passed, {len(failures)} failed, {len(results)} total")
+        return failures
+
     def has_synth(self) -> bool:
         with RecordTime("DetectSynthesis"):
             self.incomplete_functions: list[

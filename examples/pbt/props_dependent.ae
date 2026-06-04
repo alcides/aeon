@@ -1,0 +1,22 @@
+# Dependent arguments and explicit sample counts.
+#
+# Later arguments may be refined by earlier ones: inputs are generated
+# left-to-right and each earlier choice is substituted into the remaining
+# argument types, so the generator for `i` only ever draws values below `n`.
+# No discards, no hand-written generators.
+#
+# Run with:  aeon --test examples/pbt/props_dependent.ae
+
+@property
+def prop_below (n : Int) (i : {v : Int | v < n}) : Bool = i < n;
+
+# Two dependent arguments. Each dependent argument rebuilds its generator per
+# draw (its type is specialised to the earlier choices), so a smaller sample
+# count keeps this snappy.
+@property(25)
+def prop_between (lo : Int) (hi : {v : Int | v > lo}) (x : {v : Int | v > lo && v < hi}) : Bool =
+    x > lo && x < hi;
+
+# @property(N) sets the number of random samples for this property.
+@property(500)
+def prop_double_is_even (x : Int) : Bool = (x + x) % 2 == 0;

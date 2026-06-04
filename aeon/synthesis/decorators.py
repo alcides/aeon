@@ -264,6 +264,39 @@ def allow_recursion(
     return fun, [], metadata
 
 
+def property_test(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Marks a ``Bool``-returning function as a property to be checked by the
+    property-based testing runner (``--test``).
+
+    The function's arguments are the universally-quantified inputs; their types
+    (including refinements, which act as preconditions) drive automatic input
+    generation by reusing the synthesis grammar machinery. The definition is
+    left unchanged — this decorator only records metadata.
+
+    Usage::
+
+        @property
+        def prop_rev (l : List) : Bool { eq (reverse (reverse l)) l }
+
+        @property(1000)            # optional: number of random samples
+        def prop_abs (x : Int) : Bool { abs x >= 0 }
+    """
+    samples: int | None = None
+    if decorator.macro_args:
+        assert len(decorator.macro_args) == 1, "property decorator expects at most one (integer) argument"
+        arg = decorator.macro_args[0]
+        assert isinstance(arg, SLiteral) and isinstance(arg.value, int), (
+            "property decorator's argument must be an integer literal (the number of samples)"
+        )
+        samples = arg.value
+    metadata = metadata_update(metadata, fun, {"property": {"samples": samples}})
+    return fun, [], metadata
+
+
 def prompt(
     decorator: Decorator,
     fun: Definition,

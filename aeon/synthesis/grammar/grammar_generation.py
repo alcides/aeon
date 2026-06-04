@@ -910,6 +910,7 @@ def gen_grammar_nodes(
     synth_func_name: Name,
     metadata: Metadata,
     grammar_nodes: list[type] | None = None,
+    start_override: Type | None = None,
 ) -> tuple[list[type], type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
@@ -1000,6 +1001,8 @@ def gen_grammar_nodes(
     types_to_consider = (
         set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty]) | mono_extra_types
     )
+    if start_override is not None:
+        types_to_consider = types_to_consider | {start_override}
     types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
     type_info = extract_all_types(list(types_to_consider), ctx, instantiation_types)
     type_nodes = list(set(type_info.values()))
@@ -1022,7 +1025,15 @@ def gen_grammar_nodes(
     # register the forall node itself, so for a polymorphic synthesis target we
     # derive the starting node from its first monomorphized body.
     # TODO: synthesize across all instantiations of a polymorphic target.
-    if isinstance(ty, TypePolymorphism):
+    if start_override is not None:
+        # Property-based testing starts generation from a refined node so the
+        # metahandler enforces the refinement at generation time (no discards),
+        # instead of the unrefined base used for synthesis (which relies on a
+        # separate validator). The refined node's only alternatives are
+        # in-range literals, so this also avoids generating arbitrary
+        # value-producing expressions.
+        start_ty = start_override
+    elif isinstance(ty, TypePolymorphism):
         mono = monomorphize_poly_type(ty, instantiation_types)
         start_ty = refined_to_unrefined_type(mono[0][0]) if mono else refined_to_unrefined_type(ty)
     else:
@@ -1050,8 +1061,14 @@ def print_grammar_nodes(grammar_nodes: list[type]) -> None:
         # print("---------------------------------------------------")
 
 
-def create_grammar(ctx: TypingContext, ty: Type, fun_name: Name, metadata: Metadata) -> Grammar:
-    grammar_nodes, starting_node = gen_grammar_nodes(ctx, ty, fun_name, metadata, [])
+def create_grammar(
+    ctx: TypingContext,
+    ty: Type,
+    fun_name: Name,
+    metadata: Metadata,
+    start_override: Type | None = None,
+) -> Grammar:
+    grammar_nodes, starting_node = gen_grammar_nodes(ctx, ty, fun_name, metadata, [], start_override=start_override)
     g = extract_grammar(grammar_nodes, starting_node)
     g = g.usable_grammar()
     return g
