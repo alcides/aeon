@@ -1,0 +1,9 @@
+# List-Snoc: append one element at the back.
+#
+# Synquid benchmark List-Snoc (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def snocL (xs: (List a)) (x: a) : {l:(List a) | List.size l == List.size xs + 1} = ?hole;

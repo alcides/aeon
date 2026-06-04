@@ -1,0 +1,10 @@
+# List-ElemIndex: index of x, or none.
+#
+# Synquid benchmark List-ElemIndex (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Uses stdlib Maybe; index/element relationship not encoded.
+
+open List
+open Maybe
+
+def elemIndex (x: a) (xs: (List a)) : (Maybe Int) = ?hole;

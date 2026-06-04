@@ -1,0 +1,9 @@
+# List-Null: is the list empty?
+#
+# Synquid benchmark List-Null (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def null (xs: (List a)) : {b:Bool | b == (List.size xs == 0)} = ?hole;

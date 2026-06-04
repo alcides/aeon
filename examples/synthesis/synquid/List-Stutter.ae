@@ -1,0 +1,9 @@
+# List-Stutter: duplicate each element; |result| == 2*|xs|.
+#
+# Synquid benchmark List-Stutter (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def stutter (xs: (List a)) : {l:(List a) | List.size l == 2 * List.size xs} = ?hole;

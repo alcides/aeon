@@ -1,0 +1,9 @@
+# List-Concat (Cons): prepend x; |result| == |xs|+1.
+#
+# Synquid benchmark List-Concat (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def concatC (x: a) (xs: (List a)) : {l:(List a) | List.size l == List.size xs + 1} = ?hole;

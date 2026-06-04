@@ -1,0 +1,9 @@
+# List-Fold-Append: append expressed as a fold; sizes add.
+#
+# Synquid benchmark List-Fold-Append (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def appendF (xs: (List a)) (ys: (List a)) : {l:(List a) | List.size l == List.size xs + List.size ys} = ?hole;

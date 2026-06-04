@@ -39,6 +39,7 @@ within the budget, but OK", and anything else as a hard failure.
 | SMT puzzles | `examples/synthesis/smt/` | 8 | Classic Z3 constraint puzzles (hakank.org/z3) |
 | Image-edit predicates | `examples/synthesis/image_edits/` | 6 | Object-selection predicate synthesis over a lattice |
 | Inverse CSG | `examples/synthesis/csg/` | 47 | Recover a CSG program from a target bitmap (SyMetric) |
+| Synquid | `examples/synthesis/synquid/` | 64 | Refinement-typed synthesis suite (Synquid, PLDI'16) |
 | Micro-benchmarks | `examples/benchmarks/` | 11 | Tiny, focused synthesizer-efficiency probes |
 | MBPP | `examples/MBPP/` | 427 | Mostly Basic Python Problems, as refinement specs |
 | PSB2 | `examples/PSB2/` | 65 | Program Synthesis Benchmark 2 tasks (incl. `solved/`) |
@@ -49,8 +50,8 @@ within the budget, but OK", and anything else as a hard failure.
 The folders swept by CI (`run_examples.sh`) are `ffi`, `image`, `imports`,
 `list`, `syntax`, `synthesis`, `synthesis/image_edits`, `verification`,
 `PSB2/solved`, and `99problems`. The remaining suites (MBPP, the full PSB2 tree,
-Inverse CSG, and Vericoding) are larger research corpora exercised on demand
-rather than on every push.
+Inverse CSG, Synquid, and Vericoding) are larger research corpora exercised on
+demand rather than on every push.
 
 ## Core synthesis examples — `examples/synthesis/`
 
@@ -111,6 +112,28 @@ demand rather than swept by CI:
 
 ```bash
 uv run python -m aeon --budget 60 -s gp examples/synthesis/csg/csg_small_bullseye.ae
+```
+
+## Synquid — `examples/synthesis/synquid/`
+
+Aeon ports of all 64 programs in the
+[`test/pldi16`](https://github.com/nadia-polikarpova/synquid/tree/master/test/pldi16)
+suite of the Synquid tool (Polikarpova, Kuraj & Solar-Lezama, *Program Synthesis
+from Polymorphic Refinement Types*, PLDI 2016) — Lists, sorted lists, trees,
+BSTs, binary heaps, AVL/red-black trees, an address book, and an evaluator. Each
+file is a datatype, a refinement-typed signature, and a `?hole`.
+
+Ports specialise the element type to `Int` and use the standard-library `List`
+(and `Maybe`) directly; only datatypes with no stdlib equivalent are inline.
+Size/length/height and sorted-list *order* invariants are encoded exactly, while
+two-sided / set / colour / balance invariants (BST order, heap order, AVL
+balance, RBT colour, element-set preservation) are ported as structural specs
+and documented per file. The suite's
+[README](../examples/synthesis/synquid/README.md) has the fidelity table and a
+roadmap for closing the gap. Run on demand (not swept by CI):
+
+```bash
+uv run python -m aeon --budget 30 -s synquid examples/synthesis/synquid/IncList-Insert.ae
 ```
 
 ## Micro-benchmarks — `examples/benchmarks/`

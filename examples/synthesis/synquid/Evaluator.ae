@@ -1,0 +1,12 @@
+# Evaluator: evaluate an arithmetic expression to an Int.
+#
+# Synquid benchmark Evaluator (pldi16).
+#
+# Monomorphic: Expr is over Int literals. Result unconstrained (Synquid ties it to a denotational measure).
+
+inductive Expr
+| lit (v: Int) : Expr
+| add (le: Expr) (re: Expr) : Expr
+| mul (me: Expr) (ne: Expr) : Expr
+
+def eval (e: Expr) : Int = ?hole;

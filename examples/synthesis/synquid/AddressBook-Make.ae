@@ -1,0 +1,14 @@
+# AddressBook-Make: split entries into business/personal.
+#
+# Synquid benchmark AddressBook-Make (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Classification modelled only by the two counts summing to the input length.
+
+open List
+
+inductive AddrBook a
+| mkAB (biz: (List a)) (per: (List a)) : {ab:(AddrBook a) | bcount ab == List.size biz && pcount ab == List.size per}
++ bcount (ab: (AddrBook a)) : Int
++ pcount (ab: (AddrBook a)) : Int
+
+def make (xs: (List a)) : {ab:(AddrBook a) | bcount ab + pcount ab == List.size xs} = ?hole;
