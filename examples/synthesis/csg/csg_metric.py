@@ -73,6 +73,17 @@ def bitmap(e, scaled=SCALED):
     return rows
 
 
+def scene_vector(e, scaled=SCALED):
+    """The candidate's rasterised scene as a flat 0/1 vector.
+
+    This is the *feature* the SyMetric backend clusters on (via the @cluster
+    decorator): two CSG programs are similar when their bitmaps are similar,
+    which is what the paper's metric measures -- unlike the raw CSG term, whose
+    value is an abstract syntax tree with no metric of its own.
+    """
+    return [v for row in bitmap(e, scaled) for v in row]
+
+
 def render(e, scaled, path):
     """Rasterise shape e and save it as a 1-bit PNG."""
     rows = bitmap(e, scaled)

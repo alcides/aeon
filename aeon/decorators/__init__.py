@@ -19,6 +19,7 @@ from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
 from aeon.synthesis.decorators import (
     allow_recursion,
+    cluster,
     csv_data,
     csv_file,
     disable_control_flow,
@@ -55,6 +56,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "maximize": maximize,
     "minimize_cputime": minimize_cputime,
     "minimize_energy": minimize_energy,
+    "cluster": cluster,
 }
 
 # Backwards-compatible name (sugar-phase registry only).
