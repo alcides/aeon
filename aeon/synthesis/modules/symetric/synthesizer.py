@@ -35,12 +35,19 @@ objective, or an opaque/AST-valued output like the inductive CSG encoding) it
 fails immediately with an explanation rather than pretending; use another
 backend there.
 
-Caveat vs. the paper: the authors cluster programs by *mutual* scene similarity
-within epsilon (a goal-independent version space). This backend now computes its
-own goal-independent distance between candidate outputs (via ``output_value``),
-but only over whatever the program denotes -- if that denotation is the scene
-(a numeric vector) the clustering is faithful; if it is an AST whose scene is
-derived elsewhere, the strategy is rejected as unsuitable.
+It clusters by ``output_value`` -- the candidate's output. When the program
+denotes its observable directly (a number, or a numeric vector) that is already
+the right feature. When it denotes an AST whose scene is derived elsewhere (the
+inverse-CSG ``Csg`` term), a ``@cluster(f shape)`` decorator names the
+featuriser ``f`` (e.g. ``scene``, which rasterises a candidate to its 0/1
+bitmap); ``output_value`` then yields ``f(candidate)`` and clustering is by the
+genuine scene distance. Without such a feature, the AST is not a metric space
+and the hole is rejected as unsuitable.
+
+Caveat vs. the paper: the authors cluster by *mutual* scene similarity within
+epsilon (a goal-independent version space); this backend's beam is also
+goal-directed, a weaker compression -- but with a featuriser the distance it
+clusters by is the same scene distance.
 
 Selected with ``--synthesizer symetric``.
 """

@@ -196,6 +196,19 @@ def make_output_evaluator(
     return output
 
 
+def _cluster_function(metadata: Metadata, fun_name: Name) -> Optional[Name]:
+    """The ``@cluster`` featuriser function for this hole, if any (robust to
+    Name identity, like the goals lookup)."""
+    entry = metadata.get(fun_name, {})
+    c = entry.get("cluster") if isinstance(entry, dict) else None
+    if c is not None:
+        return c
+    for _, v in metadata.items():
+        if isinstance(v, dict) and v.get("cluster"):
+            return v["cluster"]
+    return None
+
+
 def synthesize_holes(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -227,7 +240,11 @@ def synthesize_holes(
         validator = make_validator(ctx, replace)
         evaluators = make_evaluators(ectx, fun_name, metadata)
         evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
-        output_evaluator = make_output_evaluator(ectx, replace, fun_name, budget_eval)
+        # A `@cluster(f shape)` decorator names a featuriser: the candidate's
+        # output for clustering is then `f(candidate)` (e.g. a rasterised scene),
+        # not the candidate's raw value.
+        cluster_fun = _cluster_function(metadata, fun_name)
+        output_evaluator = make_output_evaluator(ectx, replace, cluster_fun or fun_name, budget_eval)
         assert isinstance(tyctx, TypingContext)
         assert isinstance(ty, Type)
         tac_map = metadata.get(fun_name, {}).get("tactic_scripts")

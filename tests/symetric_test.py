@@ -65,6 +65,33 @@ def test_rejects_hole_without_objective():
         _solve(code, budget=10.0)
 
 
+def test_cluster_decorator_makes_csg_suitable():
+    # With @cluster(scene shape) the candidate's clustering feature is its
+    # rasterised scene (a numeric vector), so the inverse-CSG benchmark -- whose
+    # raw output is an AST -- becomes suitable: symetric runs instead of
+    # rejecting it.
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "aeon",
+            "--no-main",
+            "-s",
+            "symetric",
+            "--budget",
+            "8",
+            "examples/synthesis/csg/csg_tiny_two_circle.ae",
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    out = proc.stdout + proc.stderr
+    assert "Not suitable" not in out, out[-2000:]
+    assert "Traceback" not in proc.stderr, out[-2000:]
+
+
 def test_rejects_non_numeric_output(tmp_path):
     # A numeric objective, but the candidate output is an inductive/AST value
     # (a Csg term) with no distance defined on it: not suitable. The CLI surfaces

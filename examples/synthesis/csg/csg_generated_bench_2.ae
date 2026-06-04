@@ -20,10 +20,12 @@
 # The paper guides search by the Jaccard distance between bitmaps (Sec. 4.2),
 # delta(A,B) = 1 - |A and B| / |A or B|, so `@minimize_float(jaccard shape)` does
 # distance-guided synthesis exactly as in the paper. jaccard == 0 (equivalently
-# the pixel difference `error` == 0) is an exact reconstruction. Run from the
-# repository root.
+# the pixel difference `error` == 0) is an exact reconstruction. `@cluster(scene
+# shape)` names the candidate's rasterised scene as the feature the metric
+# (symetric) backend clusters individuals by. Run from the repository root.
 
 open Csg
+open Array
 
 inductive Csg
 | Circle (cx:Int) (cy:Int) (cr:Int) : Csg
@@ -40,13 +42,20 @@ def jaccard (e:Csg) : Float =
 def error (e:Csg) : {n:Int | n >= 0} =
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').score(e, 'examples/synthesis/csg/targets/csg_generated_bench_2.png'))[1]";
 
+# The candidate's rasterised scene as a 0/1 vector -- the feature SyMetric
+# clusters individuals by, so two programs are similar when their scenes are.
+def scene (e:Csg) : (Array Int) =
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').scene_vector(e))[1]";
+
 # Rasterise a CSG program to a PNG, so a synthesised shape can be viewed.
 def render (e:Csg) (path:String) : Unit =
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').render(e, 32, path))[1]";
 
-# (a) Synthesis: recover a CSG program, guided by the paper's Jaccard metric.
+# (a) Synthesis: recover a CSG program, guided by the Jaccard metric and
+# clustered by scene (so `-s symetric` can use the scene distance).
 @minimize_float(jaccard shape)
-def shape : Csg = (let jaccard = unit in let error = unit in let render = unit in let shape_solution = unit in ?hole);
+@cluster(scene shape)
+def shape : Csg = (let jaccard = unit in let error = unit in let scene = unit in let render = unit in let shape_solution = unit in ?hole);
 
 # (b) The original benchmark program (reconstructs the target, error == 0):
 def shape_solution : Csg = Repeat (Diff (Diff (Rect 3 3 6 14) (Circle 3 11 2)) (Union (Rect 2 1 11 4) (Rect 13 10 15 15))) 12 4 4;
