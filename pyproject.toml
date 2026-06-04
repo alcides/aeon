@@ -40,6 +40,7 @@ dependencies = [
     'scikit-image',
     'sympy',
     'textdistance',
+    'cvc5 >= 1.1',
     'z3-solver >= 4',
     'zstandard==0.25.0',
     'zss',
