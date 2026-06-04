@@ -5,10 +5,10 @@ open Array
 
 def listEq (xs: (Array Int)) (ys: (Array Int)) : Bool = native "xs == ys"
 
-def isPalindrome (l: (Array Int)) : Bool = listEq l (Array.reversed l)
+def Array.isPalindrome (l: (Array Int)) : Bool = listEq l l.reversed
 
 def main (args:Int) : Unit =
-    pal = Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 1;
-    notpal = Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3;
-    _ = print (isPalindrome pal);
-    print (isPalindrome notpal)
+    pal = (((Array.new[Int]).append 1).append 2).append 1;
+    notpal = (((Array.new[Int]).append 1).append 2).append 3;
+    _ = print pal.isPalindrome;
+    print notpal.isPalindrome

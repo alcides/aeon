@@ -211,22 +211,31 @@ expression_b : "\\" ID "->" expression                      -> abstraction_e
              | application                                  -> same
 
 // Postfix layer. A method call ``receiver.method`` (issue #27) is
-// ``method_recv DOT_ID``; crucially the receiver is a ``method_recv`` (a non-dot
-// atom or a method chain), NOT a bare anonymous constructor. Anonymous
-// constructors keep their own ``DOT_ID`` branch here (as an application head)
-// and in ``expression_simple`` (as an argument), so ``.mk .sc_blue 40`` stays an
-// anon-constructor application instead of being misread as ``.mk`` ``.sc_blue``
-// method access.
+// ``method_recv METHOD_DOT``. Following Lean, the dot is whitespace-sensitive:
+// ``METHOD_DOT`` is an *attached* dot (no space before it, e.g. ``1.toString``,
+// ``(e).m``) and binds tighter than application; a *spaced* or leading ``DOT_ID``
+// (e.g. ``.mk``, ``f .Ctor``) is an anonymous constructor. The retagging happens
+// in the ``MethodDotPostLex`` post-lexer. Because the method dot binds tightly
+// even in argument position (``app_arg``), ``f 1.toString`` parses as
+// ``f (1.toString)``, while ``.mk .sc_blue 40`` stays an anon-constructor
+// application.
+%declare METHOD_DOT
+
 application_t : application_t "[" type "]"                    -> type_application_e
               | application_t "{" expression "}"              -> refinement_application_e
               | method_recv                                  -> same
               | DOT_ID                                       -> anon_constructor
 
-method_recv : method_recv DOT_ID                             -> method_access
+method_recv : method_recv METHOD_DOT                         -> method_access
             | non_dot_simple                                 -> same
 
-application : application expression_simple                  -> application_e
+application : application app_arg                            -> application_e
             | application_t                                  -> same
+
+// An application argument: a method-receiver (so attached method dots bind
+// tightly, Lean-style) or a leading/spaced anonymous constructor.
+app_arg : method_recv                                        -> same
+        | DOT_ID                                             -> anon_constructor
 
 // Atoms that may be a method-call receiver (everything except anonymous
 // constructors, which start with ``.``).
@@ -239,9 +248,6 @@ non_dot_simple : "(" expression ")"                          -> same
         | QUALIFIED_ID                                       -> qualified_var
         | ID                                                 -> var
         | "?" ID                                             -> hole
-
-expression_simple : non_dot_simple                           -> same
-        | DOT_ID                                             -> anon_constructor
 
 
 kind : "B" -> base_kind

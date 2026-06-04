@@ -61,20 +61,28 @@ class ElaborationTypingContext:
 
     def resolve_method(self, method: str, type_name: str) -> Name | None:
         """Resolve a method call ``receiver.method`` (issue #27) to the bound
-        ``Name`` of the ``type_name.method`` definition, given the receiver's
-        base type ``type_name``. Returns the actual in-scope ``Name`` (carrying
-        its unique id, so the produced reference lowers to the right core
-        binder) or ``None`` if no such definition exists.
+        ``Name`` of the method defined for the receiver's base type
+        ``type_name``. Returns the actual in-scope ``Name`` (carrying its unique
+        id, so the produced reference lowers to the right core binder) or
+        ``None`` if no such definition exists.
 
-        The lookup is by the fully-qualified string ``"Type.method"`` — which is
-        exactly how a ``def Type.method`` is named — scanning the most recent
-        binding first so locals shadow globals consistently with ``type_of``.
+        Two binder-naming conventions are tried, in order:
+
+        * ``"Type.method"`` — a dotted definition ``def Type.method`` (issue #27);
+        * ``"Type_method"`` — a function ``method`` imported from a module named
+          ``Type`` (modules prefix their members as ``Module_member``). This is
+          what makes library calls like ``xs.length`` dispatch to ``List``'s
+          ``length`` when the element/container type name matches the module
+          name (the issue #26 design: a type and its namespace share a name).
+
+        The most recent binding is scanned first, so locals shadow globals
+        consistently with ``type_of``.
         """
-        candidate = f"{type_name}.{method}"
+        candidates = (f"{type_name}.{method}", f"{type_name}_{method}")
         for entry in self.entries[::-1]:
             match entry:
                 case ElabVariableBinder(bname, _) | ElabUninterpretedBinder(bname, _):
-                    if bname.name == candidate:
+                    if bname.name in candidates:
                         return bname
         return None
 

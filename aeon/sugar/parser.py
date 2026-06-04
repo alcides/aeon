@@ -5,6 +5,8 @@ import pathlib
 from typing import Callable
 
 from lark import Lark, Transformer, v_args
+from lark.lark import PostLex
+from lark.lexer import Token
 
 from aeon.core.multiplicity import from_token, Multiplicity, MOmega
 from aeon.core.types import Kind
@@ -87,6 +89,55 @@ def _split_arg_multiplicities(fn_args):
             mults.append(MOmega)
             flags.append(False)
     return plain, tuple(mults), tuple(flags)
+
+
+# Token types that can end a method-call *receiver*. An immediately-following
+# ``.name`` (no intervening whitespace) is then a method dot, Lean-style — not an
+# anonymous constructor. (Bare ``x.name`` never reaches here: the lexer already
+# fuses it into a single ``QUALIFIED_ID``.)
+_RECEIVER_END_TOKENS = frozenset(
+    {
+        "RPAR",  # (e).m
+        "INTLIT",  # 1.m
+        "FLOATLIT",  # 1.5.m
+        "BOOLLIT",
+        "ESCAPED_STRING",
+        "ID",  # ?x.m (hole) and any bare ident not fused into QUALIFIED_ID
+        "QUALIFIED_ID",  # x.a.m  -> (x.a).m
+        "METHOD_DOT",  # 1.a.b chains
+    }
+)
+
+
+class MethodDotPostLex(PostLex):
+    """Distinguish a method/projection dot from an anonymous-constructor dot by
+    whitespace, mirroring Lean (issue #27).
+
+    A ``DOT_ID`` (``.name``) that is *attached* to the previous token — no
+    whitespace, and that token can end a receiver — is retagged ``METHOD_DOT``
+    and binds tighter than application (``f 1.toString`` ≡ ``f (1.toString)``).
+    A leading or space-separated ``.name`` stays a ``DOT_ID`` anonymous
+    constructor (``.mk .sc_blue 40``)."""
+
+    # Ensure the contextual LALR lexer always offers ``DOT_ID`` (``METHOD_DOT``
+    # has no pattern; it is produced only here), so attached dots are lexable in
+    # states that expect a method dot.
+    always_accept = ("DOT_ID",)
+
+    def process(self, stream):
+        prev: Token | None = None
+        for tok in stream:
+            if (
+                tok.type == "DOT_ID"
+                and prev is not None
+                and prev.type in _RECEIVER_END_TOKENS
+                and prev.end_pos is not None
+                and tok.start_pos is not None
+                and prev.end_pos == tok.start_pos
+            ):
+                tok.type = "METHOD_DOT"
+            prev = tok
+            yield tok
 
 
 class AnnotatedStr(str):
@@ -668,6 +719,7 @@ def _get_cached_parser(rule: str) -> Lark:
             start=rule,
             import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
             propagate_positions=True,
+            postlex=MethodDotPostLex(),
         )
     return _parser_cache[rule]
 

@@ -20,6 +20,7 @@ from aeon.sugar.program import (
     SApplication,
     SLiteral,
     SMethodSelector,
+    SVar,
 )
 from tests.driver import check_compile
 
@@ -76,6 +77,28 @@ def test_float_literals_still_parse(src):
     assert isinstance(parse_expression(src), SLiteral)
 
 
+def test_lean_precedence_attached_dot_binds_tighter_than_application():
+    """Lean-style: an *attached* dot binds tighter than application, so
+    ``f 1.toString`` is ``f (1.toString)`` — the ``.toString`` is a method on the
+    literal ``1``, not an argument to ``f``."""
+    t = parse_expression("f 1.toString")
+    assert isinstance(t, SApplication)
+    assert isinstance(t.fun, SVar) and t.fun.name.name == "f"
+    # argument is the method call `1.toString`
+    assert isinstance(t.arg, SApplication)
+    assert isinstance(t.arg.fun, SMethodSelector) and t.arg.fun.method.name == "toString"
+    assert isinstance(t.arg.arg, SLiteral) and t.arg.arg.value == 1
+
+
+def test_spaced_dot_is_anonymous_constructor_argument():
+    """A *spaced* dot is an anonymous-constructor argument: ``f .mk`` is ``f``
+    applied to the anonymous constructor ``.mk`` (whitespace-sensitive, like Lean)."""
+    t = parse_expression("f .mk")
+    assert isinstance(t, SApplication)
+    assert isinstance(t.fun, SVar) and t.fun.name.name == "f"
+    assert isinstance(t.arg, SAnonConstructor) and t.arg.name == "mk"
+
+
 # --- Dotted definition names -------------------------------------------------
 
 
@@ -119,6 +142,55 @@ def test_chained_method_call_on_variable_receiver():
         "def main (i:Int) : Int =\n  let n : Int = 3 in\n  n.double.double;\n"  # ((n.double).double) == 12
     )
     assert check_compile(src, st_top, 12)
+
+
+# --- Polymorphic types & Lean-style positional insertion ---------------------
+
+_LIST = "open List\n"
+
+
+def test_method_on_polymorphic_container_module_function():
+    """``xs.length`` on a ``List Int`` dispatches to the ``List`` module's
+    ``length`` (receiver is the only/first argument)."""
+    src = _LIST + ("def main (i:Int) : Int =\n  let xs : (List Int) = cons 1 (cons 2 (cons 3 nil)) in\n  xs.length;\n")
+    assert check_compile(src, st_top, 3)
+
+
+def test_receiver_inserted_at_matching_parameter_position():
+    """Lean-style positional insertion: ``xs.map f`` becomes ``List.map f xs``
+    even though ``List.map``'s list parameter is second. map [1,2,3] (+1) then
+    sum == 9."""
+    src = _LIST + (
+        "def inc (x:Int) : Int = x + 1;\n"
+        "def main (i:Int) : Int =\n"
+        "  let xs : (List Int) = cons 1 (cons 2 (cons 3 nil)) in\n"
+        "  (xs.map inc).sum;\n"
+    )
+    assert check_compile(src, st_top, 9)
+
+
+def test_polymorphic_method_chain_with_first_position_receiver():
+    """``xs.append ys`` is ``List.append xs ys`` (receiver first); chained with
+    ``.sum``. append [1,2] [3,4] then sum == 10."""
+    src = _LIST + (
+        "def main (i:Int) : Int =\n"
+        "  let xs : (List Int) = cons 1 (cons 2 nil) in\n"
+        "  let ys : (List Int) = cons 3 (cons 4 nil) in\n"
+        "  (xs.append ys).sum;\n"
+    )
+    assert check_compile(src, st_top, 10)
+
+
+def test_user_defined_polymorphic_dotted_method():
+    """A user ``def List.len`` with a polymorphic ``(List a)`` parameter resolves
+    and instantiates at ``List Int``."""
+    src = _LIST + (
+        "def List.len (l: (List a)) : Int = length l;\n"
+        "def main (i:Int) : Int =\n"
+        "  let xs : (List Int) = cons 1 (cons 2 (cons 3 nil)) in\n"
+        "  xs.len;\n"
+    )
+    assert check_compile(src, st_top, 3)
 
 
 def test_unknown_method_raises():
