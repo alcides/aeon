@@ -240,22 +240,17 @@ def synthesize_holes(
                 steps = tuple(next(iter(tac_map.values())))
         syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
 
-        # A `@cluster(f shape)` decorator names a featuriser: the candidate's
-        # output for clustering is then `f(candidate)` (e.g. a rasterised scene),
-        # not the candidate's raw value.
-        cluster_fun = _cluster_function(metadata, fun_name)
-        feature_fun = cluster_fun or fun_name
-
-        # Synthesisers that cluster by output get the (distance, feature) pair
-        # from a persistent worker pool (one round-trip, no spawn per evaluation);
-        # everything else keeps the spawn-per-evaluation path unchanged.
-        pool: Optional[EvaluationPool] = None
-        if getattr(syn_impl, "uses_output_clustering", False):
-            pool = EvaluationPool(ectx, replace, evaluators, feature_fun, compute_feature=True, budget_eval=budget_eval)
-            evaluator, output_evaluator = _pool_backed(pool)
-        else:
-            evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
-            output_evaluator = make_output_evaluator(ectx, replace, feature_fun, budget_eval)
+        # Evaluate every candidate on a persistent worker pool: the objective
+        # distance always, plus the candidate's output only when the backend
+        # consumes it. A `@cluster(f shape)` decorator names the output
+        # featuriser `f` (e.g. a rasterised scene); otherwise the output is the
+        # candidate's own value.
+        wants_output = getattr(syn_impl, "uses_output_value", False)
+        feature_fun = _cluster_function(metadata, fun_name) or fun_name
+        pool = EvaluationPool(
+            ectx, replace, evaluators, feature_fun, compute_feature=wants_output, budget_eval=budget_eval
+        )
+        evaluator, output_evaluator = _pool_backed(pool)
 
         try:
             t = syn_impl.synthesize(
@@ -273,8 +268,7 @@ def synthesize_holes(
             ui.end(None, None)
             raise e
         finally:
-            if pool is not None:
-                pool.close()
+            pool.close()
 
         ui.end(t, None)
         mapping[hole_name] = t

@@ -38,11 +38,11 @@ class InvalidIndividualException(SynthesisError):
 
 
 class Synthesizer(ABC):
-    # Opt in to the (distance, output-feature) evaluation pool: backends that
-    # cluster by a candidate's output (only ``symetric`` today) set this, so
-    # ``synthesize_holes`` computes both in one round-trip over persistent
-    # workers instead of spawning a process per evaluation.
-    uses_output_clustering: bool = False
+    # Whether this backend consumes the ``output_value`` callable. The shared
+    # evaluation pool computes a candidate's output only when some backend asks
+    # for it (the default backends use only the distance); what a backend then
+    # *does* with the output -- e.g. cluster by it -- stays inside the backend.
+    uses_output_value: bool = False
 
     def synthesize(
         self,

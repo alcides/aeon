@@ -1,15 +1,17 @@
 """A pool of persistent worker processes for candidate evaluation.
 
-The default evaluator spawns a *fresh* process for every candidate and tears it
-down again (`make_evaluator` in ``entrypoint.py``). For a metric synthesiser
-that evaluates thousands of candidates -- and needs both the objective distance
-*and* an output feature for each -- the spawn/teardown and re-pickling dominate.
+Evaluating a candidate in a fresh process each time (the simple ``make_evaluator``
+in ``entrypoint.py``) pays a process spawn/teardown and re-pickles the whole
+program every call. Across the thousands of candidates a search evaluates -- and,
+for a backend that clusters by output, both an objective distance *and* an
+output feature per candidate -- that overhead dominates.
 
 ``EvaluationPool`` keeps a small set of workers alive: the static program
 environment is pickled to each worker once, candidates stream in over a queue,
 and each worker returns the ``(distance, feature)`` **pair** in a single
-round-trip. A candidate that hangs is still contained -- a per-task timeout
-kills and replaces its worker -- so the sandboxing guarantee is preserved.
+round-trip (the feature is computed only when a backend asks for it). A
+candidate that hangs is still contained -- a per-task timeout kills and replaces
+its worker -- so the sandboxing guarantee is preserved.
 """
 
 from __future__ import annotations
