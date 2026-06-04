@@ -590,9 +590,7 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
 
 def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, TypingType]) -> list[TypingType]:
     """Creates a list of python types for all variables in context."""
-    var_nodes = [
-        create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)
-    ]
+    var_nodes = [create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)]
     app_nodes = [
         create_var_apps_node(var_name, ty, type_info)
         for (var_name, ty) in vars
