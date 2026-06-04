@@ -35,10 +35,6 @@ def train: TrainData = extract_train_data (load_dataset "luhn" 200 200)
 def calculate_luhn_errors : (train : TrainData) -> (f:(a: (Array Int)) -> Int)  -> (Array Int)  =  \data -> \func -> native "[abs(func(x[0]) - y[0]) for x , y  in data]"
 
 
-@hide(extract_train_data,
-            load_dataset,
-            calculate_luhn_errors,
-            train )
 @multi_minimize_float(calculate_luhn_errors train synth, 1)
 @disable_control_flow
-def synth (digits: (Array Int)) : Int = (?hole: Int)
+def synth (digits: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let calculate_luhn_errors = unit in let train = unit in ?hole)

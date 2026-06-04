@@ -11,7 +11,6 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.liquid import typecheck_liquid
-from aeon.utils.name import Name
 
 
 def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
@@ -36,8 +35,9 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
         case TypePolymorphism(name, kind, body):
             return k == Kind.STAR and wellformed(ctx.with_typevar(name, kind), body)
         case RefinementPolymorphism(name, sort, body):
-            pred_type = AbstractionType(Name("_", 0), sort, t_bool)
-            return k == Kind.STAR and wellformed(ctx, sort) and wellformed(ctx.with_var(name, pred_type), body)
+            # ``sort`` is the full (possibly n-ary) predicate type
+            # ``d1 -> ... -> Bool``; bind the refinement parameter at it directly.
+            return k == Kind.STAR and wellformed(ctx, sort) and wellformed(ctx.with_var(name, sort), body)
         case TypeConstructor(name, args):
             if not args:
                 return ctx.get_type_constructor(name) is not None

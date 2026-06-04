@@ -46,5 +46,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (is_player neg2)
   + cost_neg (is_player neg3)
 )
-@hide(pos1, pos2, pos3, neg1, neg2, neg3, mk, cost_pos, cost_neg)
-def is_player (p:Person) : Bool = ?hole
+def is_player (p:Person) : Bool = (let pos1 = unit in let pos2 = unit in let pos3 = unit in let neg1 = unit in let neg2 = unit in let neg3 = unit in let mk = unit in let cost_pos = unit in let cost_neg = unit in ?hole)

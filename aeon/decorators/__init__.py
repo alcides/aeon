@@ -19,12 +19,11 @@ from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
 from aeon.synthesis.decorators import (
     allow_recursion,
+    cluster,
     csv_data,
     csv_file,
     disable_control_flow,
     error_fitness,
-    hide,
-    hide_types,
     maximize,
     maximize_float,
     maximize_int,
@@ -48,8 +47,6 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "maximize_float": maximize_float,
     "multi_minimize_float": multi_minimize_float,
     "multi_minimize_int": multi_minimize_int,
-    "hide": hide,
-    "hide_types": hide_types,
     "allow_recursion": allow_recursion,
     "error_fitness": error_fitness,
     "disable_control_flow": disable_control_flow,
@@ -61,6 +58,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "maximize": maximize,
     "minimize_cputime": minimize_cputime,
     "minimize_energy": minimize_energy,
+    "cluster": cluster,
 }
 
 # Backwards-compatible name (sugar-phase registry only).

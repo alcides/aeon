@@ -1,0 +1,36 @@
+# ARC Prize 2024: transpose a grid (reflect across the main diagonal).
+#
+# https://www.kaggle.com/competitions/arc-prize-2024/data
+# Another ARC-style transformation: out[r][c] = in[c][r].
+#
+#     input            output (transpose)
+#     1 2 3            1 4 7
+#     4 5 6    --->    2 5 8
+#     7 8 9            3 6 9
+
+inductive Grid
+| mk (g00:Int | 0 <= g00 && g00 <= 9) (g01:Int | 0 <= g01 && g01 <= 9) (g02:Int | 0 <= g02 && g02 <= 9)
+     (g10:Int | 0 <= g10 && g10 <= 9) (g11:Int | 0 <= g11 && g11 <= 9) (g12:Int | 0 <= g12 && g12 <= 9)
+     (g20:Int | 0 <= g20 && g20 <= 9) (g21:Int | 0 <= g21 && g21 <= 9) (g22:Int | 0 <= g22 && g22 <= 9) :
+     {g:Grid |
+        (c00 g == g00) && (c01 g == g01) && (c02 g == g02) &&
+        (c10 g == g10) && (c11 g == g11) && (c12 g == g12) &&
+        (c20 g == g20) && (c21 g == g21) && (c22 g == g22)}
++ c00 (g:Grid) : Int  + c01 (g:Grid) : Int  + c02 (g:Grid) : Int
++ c10 (g:Grid) : Int  + c11 (g:Grid) : Int  + c12 (g:Grid) : Int
++ c20 (g:Grid) : Int  + c21 (g:Grid) : Int  + c22 (g:Grid) : Int
+
+# (a) Synthesis: produce the transpose of the 1..9 input above.
+@minimize_int(0)
+def transpose_hole : {o:Grid |
+    (c00 o == 1) && (c01 o == 4) && (c02 o == 7) &&
+    (c10 o == 2) && (c11 o == 5) && (c12 o == 8) &&
+    (c20 o == 3) && (c21 o == 6) && (c22 o == 9)
+} = ?hole;
+
+# (b) Verification: the hand-written transpose type-checks.
+def transpose_example : {o:Grid |
+    (c00 o == 1) && (c01 o == 4) && (c02 o == 7) &&
+    (c10 o == 2) && (c11 o == 5) && (c12 o == 8) &&
+    (c20 o == 3) && (c21 o == 6) && (c22 o == 9)
+} = .mk 1 4 7 2 5 8 3 6 9

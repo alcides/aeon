@@ -1,0 +1,12 @@
+# BST-Insert: insert a key into a BST.
+#
+# Synquid benchmark BST-Insert (pldi16).
+#
+# Element type polymorphic. BST ORDER invariant NOT encoded (needs n-ary abstract refinements, #1); only node-count. Structural/size port.
+
+inductive BTree a
+| bleaf : {t:(BTree a) | bsz t == 0}
+| bnode (left: (BTree a)) (key: a) (right: (BTree a)) : {t:(BTree a) | bsz t == bsz left + bsz right + 1}
++ bsz (t: (BTree a)) : Int
+
+def binsert (x: a) (t: (BTree a)) : {r:(BTree a) | bsz r >= bsz t} = ?hole;

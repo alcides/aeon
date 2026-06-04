@@ -1,0 +1,26 @@
+# Verification of a neural network: an ACAS-Xu-style advisory property.
+#
+# Inspired by https://arxiv.org/abs/2605.02790 and the ACAS Xu benchmarks that
+# anchor NN verification. ACAS Xu networks score collision-avoidance advisories;
+# the *lowest-scoring* advisory is the one issued. A safety property says: over a
+# region of the input space, the "Clear-of-Conflict" (COC) advisory scores at
+# least as low as a turn advisory, so COC is what gets issued.
+#
+# We model a tiny network over a normalised input box [0,1]^2 and prove
+#   coc_score <= left_score   everywhere on the box
+# (so the turn advisory is never preferred to COC in this region).
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y == x || y == 0.0)} =
+    if x >= 0.0 then x else 0.0;
+
+# The return type `d <= 0` is the property:  coc_score - left_score <= 0.
+def coc_preferred
+    (x1: {v: Float | 0.0 <= v && v <= 1.0})
+    (x2: {v: Float | 0.0 <= v && v <= 1.0})
+    : {d: Float | d <= 0.0} =
+    let h1   : {v: Float | v >= 0.0} = relu (x1 + x2) in
+    let coc  : {v: Float | v == 0.0} = relu (x1 - x2 - 5.0) in   # dead on this box
+    let left : {v: Float | v >= 1.0} = 2.0 * h1 + 1.0 in
+    coc - left;
+
+def main (_: Int) : Unit =
+    print (coc_preferred 0.6 0.3)

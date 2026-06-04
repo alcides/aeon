@@ -1,0 +1,12 @@
+# RBT-Insert: insert into a red-black tree.
+#
+# Synquid benchmark RBT-Insert (pldi16).
+#
+# Element type polymorphic. Red-black COLOUR / black-height (and BST order) NOT encoded (needs #1); node-count only. Structural/size port.
+
+inductive Rbt a
+| rleaf : {t:(Rbt a) | rsz t == 0}
+| rnode (left: (Rbt a)) (key: a) (right: (Rbt a)) : {t:(Rbt a) | rsz t == rsz left + rsz right + 1}
++ rsz (t: (Rbt a)) : Int
+
+def rinsert (x: a) (t: (Rbt a)) : {r:(Rbt a) | rsz r >= rsz t} = ?hole;

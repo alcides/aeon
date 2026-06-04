@@ -30,7 +30,7 @@ from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.uis.api import SynthesisUI
-from aeon.typechecking.context import TypingContext, VariableBinder
+from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
@@ -84,15 +84,10 @@ class LTASynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
-
-        current_metadata = metadata.get(fun_name, {})
-        hidden_names = {v.name for v in current_metadata.get("hide", [])}
-        if hidden_names:
-            filtered = [e for e in ctx.entries if not (isinstance(e, VariableBinder) and e.name.name in hidden_names)]
-            ctx = TypingContext(filtered)
 
         start = time.time()
         ui.register(None, None, 0, True)

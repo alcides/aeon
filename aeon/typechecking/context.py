@@ -160,7 +160,21 @@ class TypingContext:
         ]
 
     def concrete_vars(self) -> list[tuple[Name, Type]]:
-        return [(e.name, e.type) for e in self.entries if isinstance(e, VariableBinder)]
+        """Concrete term variables in scope, honoring lexical shadowing.
+
+        ``with_var`` appends, so entries run outermost→innermost. When a surface
+        name is bound more than once (an inner ``let`` shadowing an outer
+        binding), only the innermost binding is referenceable by that name, so
+        we keep the last occurrence per name string. This is what every
+        synthesis consumer wants — the set of variables actually reachable at a
+        program point — and it is what lets a shadowing ``let`` hide an outer
+        binding from the synthesizer's grammar.
+        """
+        latest: dict[str, tuple[Name, Type]] = {}
+        for e in self.entries:
+            if isinstance(e, VariableBinder):
+                latest[e.name.name] = (e.name, e.type)
+        return list(latest.values())
 
     def has_uninterpreted_fun(self, name) -> bool:
         return name in [e.name for e in self.entries if isinstance(e, UninterpretedBinder)]

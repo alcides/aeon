@@ -1,0 +1,13 @@
+# AVL-Insert: insert into an AVL tree.
+#
+# Synquid benchmark AVL-Insert (pldi16).
+#
+# Element type polymorphic. AVL BALANCE invariant (and BST order) NOT encoded (needs #1); node-count and height only. Structural/size port.
+
+inductive Avl a
+| aleaf : {t:(Avl a) | asz t == 0 && ah t == 0}
+| anode (left: (Avl a)) (key: a) (right: (Avl a)) : {t:(Avl a) | asz t == asz left + asz right + 1 && ah t == (if ah left >= ah right then ah left else ah right) + 1}
++ asz (t: (Avl a)) : Int
++ ah  (t: (Avl a)) : Int
+
+def ainsert (x: a) (t: (Avl a)) : {r:(Avl a) | asz r >= asz t} = ?hole;

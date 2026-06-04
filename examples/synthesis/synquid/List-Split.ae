@@ -1,0 +1,14 @@
+# List-Split: split into two lists covering the input.
+#
+# Synquid benchmark List-Split (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+inductive LPair a
+| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p == List.size fa && bsize p == List.size sb}
++ asize (p: (LPair a)) : Int
++ bsize (p: (LPair a)) : Int
+
+def split (xs: (List a)) : {p:(LPair a) | asize p + bsize p == List.size xs} = ?hole;

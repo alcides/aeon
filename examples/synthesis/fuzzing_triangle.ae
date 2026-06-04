@@ -1,0 +1,25 @@
+# Constraint-based fuzzing: a valid (non-degenerate) triangle.
+#
+# Inspired by Fandango (https://fandango-fuzzer.github.io/). Generate three side
+# lengths that actually form a triangle: every side must be shorter than the sum
+# of the other two (the strict triangle inequality). A classic property-based
+# testing generator — and a famous source of buggy classifiers.
+
+inductive Triangle
+| mk (a:Int | 1 <= a && a <= 100) (b:Int | 1 <= b && b <= 100) (c:Int | 1 <= c && c <= 100) :
+     {t:Triangle | (sa t == a) && (sb t == b) && (sc t == c)}
++ sa (t:Triangle) : Int  + sb (t:Triangle) : Int  + sc (t:Triangle) : Int
+
+# (a) Fuzzing: synthesise a scalene triangle (all sides different, valid shape).
+@minimize_int(0)
+def fuzz_triangle : {t:Triangle |
+    (sa t + sb t > sc t) && (sa t + sc t > sb t) && (sb t + sc t > sa t) &&
+    (sa t != sb t) && (sb t != sc t) && (sa t != sc t)
+} = ?hole;
+
+# (b) Verification: (4, 5, 6) is a valid scalene triangle; (1, 2, 3) is
+# degenerate (1 + 2 == 3) and would be rejected.
+def a_triangle : {t:Triangle |
+    (sa t + sb t > sc t) && (sa t + sc t > sb t) && (sb t + sc t > sa t) &&
+    (sa t != sb t) && (sb t != sc t) && (sa t != sc t)
+} = .mk 4 5 6

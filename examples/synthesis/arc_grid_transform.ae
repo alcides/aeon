@@ -1,0 +1,45 @@
+# ARC Prize 2024: a grid transformation as a refinement spec.
+#
+# https://www.kaggle.com/competitions/arc-prize-2024/data
+# ARC tasks give a few input/output grid pairs and ask you to infer the
+# underlying transformation, then apply it to a held-out input. Cells hold a
+# colour 0..9.
+#
+# Here the rule is a horizontal mirror (reverse every row) of a 3x3 grid. We
+# state the *output* as a refinement over the (fixed) input and either
+# synthesise the answer grid or verify a hand-written one.
+#
+#     input            output (= input mirrored left<->right)
+#     1 2 3            3 2 1
+#     4 5 6    --->    6 5 4
+#     7 8 9            9 8 7
+
+inductive Grid
+| mk (g00:Int | 0 <= g00 && g00 <= 9) (g01:Int | 0 <= g01 && g01 <= 9) (g02:Int | 0 <= g02 && g02 <= 9)
+     (g10:Int | 0 <= g10 && g10 <= 9) (g11:Int | 0 <= g11 && g11 <= 9) (g12:Int | 0 <= g12 && g12 <= 9)
+     (g20:Int | 0 <= g20 && g20 <= 9) (g21:Int | 0 <= g21 && g21 <= 9) (g22:Int | 0 <= g22 && g22 <= 9) :
+     {g:Grid |
+        (c00 g == g00) && (c01 g == g01) && (c02 g == g02) &&
+        (c10 g == g10) && (c11 g == g11) && (c12 g == g12) &&
+        (c20 g == g20) && (c21 g == g21) && (c22 g == g22)}
++ c00 (g:Grid) : Int  + c01 (g:Grid) : Int  + c02 (g:Grid) : Int
++ c10 (g:Grid) : Int  + c11 (g:Grid) : Int  + c12 (g:Grid) : Int
++ c20 (g:Grid) : Int  + c21 (g:Grid) : Int  + c22 (g:Grid) : Int
+
+# The output spec: each cell equals the input cell mirrored across its row.
+# (Input is the grid 1..9 above; mirroring row r swaps columns 0 and 2.)
+
+# (a) Synthesis: ask Aeon to produce the transformed grid.
+@minimize_int(0)
+def mirror_hole : {o:Grid |
+    (c00 o == 3) && (c01 o == 2) && (c02 o == 1) &&
+    (c10 o == 6) && (c11 o == 5) && (c12 o == 4) &&
+    (c20 o == 9) && (c21 o == 8) && (c22 o == 7)
+} = ?hole;
+
+# (b) Verification: the hand-written mirrored grid type-checks against the spec.
+def mirror_example : {o:Grid |
+    (c00 o == 3) && (c01 o == 2) && (c02 o == 1) &&
+    (c10 o == 6) && (c11 o == 5) && (c12 o == 4) &&
+    (c20 o == 9) && (c21 o == 8) && (c22 o == 7)
+} = .mk 3 2 1 6 5 4 9 8 7

@@ -22,9 +22,5 @@ def train: TrainData = extract_train_data (load_dataset "paired-digits" 200 200)
 def calculate_paired_digits_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
-@hide(extract_train_data,
-            load_dataset,
-            calculate_paired_digits_errors,
-            train )
 @multi_minimize_float(calculate_paired_digits_errors train synth, 1)
-def synth (nums: String) : Int = (?hole:Int)
+def synth (nums: String) : Int = (let extract_train_data = unit in let load_dataset = unit in let calculate_paired_digits_errors = unit in let train = unit in ?hole)

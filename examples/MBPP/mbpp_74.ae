@@ -7,6 +7,5 @@ type List
 
 def mbpp_fitness (f:(x0:List) -> (x1:List) -> Bool) : Float = native "float((0 if (f(['red', 'green', 'green'])(['a', 'b', 'b']) == True) else 1) + (0 if (f(['red', 'green', 'greenn'])(['a', 'b', 'b']) == False) else 1) + (0 if (f(['red', 'green', 'greenn'])(['a', 'b']) == False) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (colors:List) (patterns:List) : Bool = (?hole : Bool)
+def synth (colors:List) (patterns:List) : Bool = (let mbpp_fitness = unit in ?hole)

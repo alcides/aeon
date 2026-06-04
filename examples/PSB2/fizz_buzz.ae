@@ -25,7 +25,7 @@ def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String =
     if div15 n then "FizzBuzz" else (if ((n % 3) == 0) then "Fizz" else (if ((n % 5) == 0)  then "Buzz" else native "str(n)"));
 
 #def synth_fizz ( n :{x:Int | 1 <= x && x <= 1000000}) : String {
-def synth_fizz ( n :Int ) : String = (?hole:String)
+def synth_fizz ( n :Int ) : String = ?hole
 
 def train: TrainData = extract_train_data (load_dataset "fizz-buzz" 200 200)
 def input_list : List = get_input_list (unpack_train_data train)

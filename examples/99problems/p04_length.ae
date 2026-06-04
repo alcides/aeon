@@ -3,8 +3,8 @@
 
 open Array
 
-def myLength (l: (Array a)) : {n:Int | n == Array.size l} = Array.length l
+def Array.len (l: (Array a)) : {n:Int | n == Array.size l} = l.length
 
 def main (args:Int) : Unit =
-    xs = Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3;
-    print (myLength xs);
+    xs = (((Array.new[Int]).append 1).append 2).append 3;
+    print xs.len;

@@ -1,0 +1,21 @@
+# Verification of a neural network: detecting a dead ReLU.
+#
+# Inspired by https://arxiv.org/abs/2605.02790. A "dead" neuron outputs 0 for
+# every input in the operating region — useful to know for pruning, and a
+# property NN analysers compute. We prove the neuron's pre-activation is always
+# negative on the box [0,1]^2, so its ReLU output is provably 0 everywhere.
+#
+#   pre-activation:  z = -x1 - x2 - 1   ranges over [-3, -1]  (always < 0)
+#   relu(z)                             == 0  on the whole box
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y == x || y == 0.0)} =
+    if x >= 0.0 then x else 0.0;
+
+# The return type `y == 0` asserts the neuron is dead over the input region.
+def dead_neuron
+    (x1: {v: Float | 0.0 <= v && v <= 1.0})
+    (x2: {v: Float | 0.0 <= v && v <= 1.0})
+    : {y: Float | y == 0.0} =
+    relu (0.0 - x1 - x2 - 1.0);
+
+def main (_: Int) : Unit =
+    print (dead_neuron 0.3 0.8)

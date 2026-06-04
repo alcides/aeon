@@ -1,0 +1,9 @@
+# List-Map: map a function; preserves length.
+#
+# Synquid benchmark List-Map (pldi16).
+#
+# Polymorphic in both element types (a -> b), matching the original.
+
+open List
+
+def mapL (f: (x:a) -> b) (xs: (List a)) : {l:(List b) | List.size l == List.size xs} = ?hole;

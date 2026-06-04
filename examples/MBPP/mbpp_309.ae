@@ -5,6 +5,5 @@
 
 def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Int) : Float = native "float((0 if (f(5)(10) == 10) else 1) + (0 if (f(-1)(-2) == -1) else 1) + (0 if (f(9)(7) == 9) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (a:Int) (b:Int) : Int = (?hole : Int)
+def synth (a:Int) (b:Int) : Int = (let mbpp_fitness = unit in ?hole)

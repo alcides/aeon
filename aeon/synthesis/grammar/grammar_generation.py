@@ -944,15 +944,10 @@ def gen_grammar_nodes(
 
     current_metadata = metadata.get(synth_func_name, {})
     is_recursion_allowed = current_metadata.get("recursion", False)
-    vars_to_ignore = current_metadata.get("hide", [])
-    vars_to_ignore_names = {v.name for v in vars_to_ignore}
-    types_to_ignore = current_metadata.get("hide_types", [])
 
     def skip(name: Name) -> bool:
         if name == synth_func_name:
             return not is_recursion_allowed
-        elif name.name in vars_to_ignore_names:
-            return True
         elif name.name.startswith("__internal__"):
             return True
         elif name.name in ["native", "native_import", "print"]:
@@ -1009,7 +1004,6 @@ def gen_grammar_nodes(
     )
     if start_override is not None:
         types_to_consider = types_to_consider | {start_override}
-    types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
     # Sort by a stable string key so grammar construction is reproducible across
     # processes: ``set`` iteration order over types / node classes otherwise
     # depends on object ``id()`` (and hence allocation order), which makes

@@ -13,10 +13,6 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.program import SLiteral
 
 
-def raise_decorator_error(name: str) -> None:
-    raise Exception(f"Exception in decorator named {name}.")
-
-
 class Goal(NamedTuple):
     minimize: bool
     length: int
@@ -122,6 +118,33 @@ def maximize_float(
     return make_optimizer(decorator.macro_args, fun, metadata, st_float, minimize=False)
 
 
+def cluster(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Name a function that maps a candidate to its *vector representation*.
+
+    Used only by the metric (``symetric``) backend: it clusters individuals --
+    and measures the goal-independent distance between them -- by these vectors
+    rather than by the candidates' raw outputs. The argument is an expression in
+    the same form as ``@minimize_int`` (e.g. ``@cluster(scene shape)``); it is
+    lifted into an internal nullary function whose name is recorded under the
+    ``cluster`` metadata key. Other backends ignore it.
+    """
+    assert len(decorator.macro_args) == 1, "cluster decorator expects a single argument"
+    function_name = Name(f"__internal__cluster_{fun.name}", fresh_counter.fresh())
+    function = Definition(
+        name=function_name,
+        foralls=[],
+        args=[],
+        type=st_top,
+        body=decorator.macro_args[0],
+    )
+    metadata = metadata_update(metadata, fun, {"cluster": function_name})
+    return fun, [function], metadata
+
+
 def multi_minimize_float(
     decorator: Decorator,
     fun: Definition,
@@ -160,58 +183,6 @@ def multi_minimize_int(
         minimize=True,
         length=number_of_objectives,
     )
-
-
-def hide(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects more than zero arguments.
-
-    It does not modify the original definition. It makes sure that no
-    grammar nodes are generated from the var names passed as arguments.
-    """
-    assert len(decorator.macro_args) != 0
-
-    # TODO How can I verify if the function is in the context?
-    def get_var_name(arg):
-        if isinstance(arg, SVar):
-            return arg.name
-        else:
-            raise_decorator_error("hide")
-
-    # rethink this
-    aux_dict = {"hide": [get_var_name(arg) for arg in decorator.macro_args]}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
-
-
-def hide_types(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects more than zero arguments.
-
-    It does not modify the original definition. It makes sure that no
-    grammar nodes are generated from the var names passed as arguments.
-    """
-    assert len(decorator.macro_args) != 0
-
-    # TODO How can I verify if the function is in the context?
-    def get_var_name(arg):
-        if isinstance(arg, SVar):
-            return arg.name
-        else:
-            raise_decorator_error("hide_types")
-
-    # rethink this
-    aux_dict = {"hide_types": [get_var_name(arg) for arg in decorator.macro_args]}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
 
 
 def error_fitness(
