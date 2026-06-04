@@ -93,6 +93,13 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Random seed for property-based testing (--test). Generation is reproducible for a fixed seed.",
+    )
+
+    parser.add_argument(
         "-s",
         "--synthesizer",
         type=str,
@@ -258,7 +265,7 @@ def main() -> None:
                 if not driver.has_tests():
                     print("No @property functions found.")
                     sys.exit(0)
-                failures = driver.run_tests()
+                failures = driver.run_tests(seed=args.seed)
                 sys.exit(1 if failures else 0)
             match (args.format, driver.has_synth()):
                 case (True, _):

@@ -126,3 +126,21 @@ def test_adt_counterexample_is_shrunk_to_minimum(adt_results):
     # single element (tail shrunk to nil) whose value is shrunk to 0.
     r = adt_results["prop_always_empty"]
     assert r.counterexample == ["List_cons 0 List_nil"]
+
+
+def test_generation_grammar_is_canonically_ordered():
+    # Reproducibility guard: create_grammar must order productions and their
+    # alternatives by a stable key, so seeded generation is identical across
+    # processes (set/id() ordering would otherwise vary per run).
+    from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
+    from aeon.core.types import RefinedType, t_int
+    from aeon.synthesis.grammar.grammar_generation import create_grammar
+    from aeon.typechecking.context import TypingContext
+    from aeon.utils.name import Name
+
+    ty = RefinedType(Name("v", 0), t_int, LiquidApp(Name(">", 0), [LiquidVar(Name("v", 0)), LiquidLiteralInt(0)]))
+    grammar = create_grammar(TypingContext(), ty, Name("p", 0), {})
+    keys = list(grammar.alternatives.keys())
+    assert keys == sorted(keys, key=lambda c: c.__name__)
+    for alternatives in grammar.alternatives.values():
+        assert list(alternatives) == sorted(alternatives, key=lambda c: c.__name__)
