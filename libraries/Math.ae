@@ -2,14 +2,15 @@ def math : Unit = native_import "math"
 
 # ── Constants ──────────────────────────────────────────────────────────
 
-# The value of PI.
-def PI : Float = native "math.pi"
+# The value of PI (3.14159265...), bounded to a tight range so refinements
+# can reason about it (e.g. that it is positive and that 3 < PI < 4).
+def PI : {v:Float | 3.1415926 < v && v < 3.1415927} = native "math.pi"
 
-# The value of Euler's number e.
-def E : Float = native "math.e"
+# The value of Euler's number e (2.71828182...).
+def E : {v:Float | 2.7182818 < v && v < 2.7182819} = native "math.e"
 
-# The value of tau (2 * PI).
-def TAU : Float = native "math.tau"
+# The value of tau (2 * PI, 6.28318530...).
+def TAU : {v:Float | 6.2831853 < v && v < 6.2831854} = native "math.tau"
 
 # Positive infinity.
 def INF : Float = native "math.inf"
