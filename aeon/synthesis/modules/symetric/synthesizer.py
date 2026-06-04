@@ -26,16 +26,21 @@ and ``validate(term)`` checks well-typedness. The pipeline:
    to cross the flat plateaus of the distance metric, until it reaches 0 (an
    exact reconstruction, then validated) or the budget ends.
 
-It targets single-metric *minimization* problems (the paper's setting). When a
-hole carries no ``@minimize``/``@maximize`` objective the metric is binary
-(well-typed = solution), and the same machinery searches for any valid term
-(enumerating the full constant range, since there is no gradient to follow).
+It is, deliberately, *only* a metric synthesiser: it clusters candidates and
+steers repair by the distance between their **outputs**, so it applies only when
+(a) the hole carries a ``@minimize``/``@maximize`` objective and (b) candidate
+outputs live in a space a distance can be computed on -- a number, or a
+numeric/boolean vector such as a rasterised scene. On any other hole (no
+objective, or an opaque/AST-valued output like the inductive CSG encoding) it
+fails immediately with an explanation rather than pretending; use another
+backend there.
 
 Caveat vs. the paper: the authors cluster programs by *mutual* scene similarity
-within epsilon (a goal-independent version space). aeon only exposes a
-distance-*to-goal* and an output *value*, so clustering here is by
-observational equivalence plus a goal-directed beam -- a weaker compression
-than the paper's epsilon-approximate XFTA.
+within epsilon (a goal-independent version space). This backend now computes its
+own goal-independent distance between candidate outputs (via ``output_value``),
+but only over whatever the program denotes -- if that denotation is the scene
+(a numeric vector) the clustering is faithful; if it is an AST whose scene is
+derived elsewhere, the strategy is rejected as unsuitable.
 
 Selected with ``--synthesizer symetric``.
 """
@@ -122,6 +127,7 @@ class SymetricSynthesizer(Synthesizer):
         tabu_size: int = 64,
         max_arg_depth: int = 2,
         construct_fraction: float = 0.3,
+        epsilon: float = 0.0,
     ):
         self.seed = seed
         self.int_lo = int_lo
@@ -134,6 +140,7 @@ class SymetricSynthesizer(Synthesizer):
         self.tabu_size = tabu_size
         self.max_arg_depth = max_arg_depth
         self.construct_fraction = construct_fraction
+        self.epsilon = epsilon
 
     # -- term construction ----------------------------------------------------
 
@@ -202,17 +209,80 @@ class SymetricSynthesizer(Synthesizer):
         return sorted({lo + round(i * step) for i in range(n)})
 
     @staticmethod
-    def _okey(output_value: Optional[Callable[[Term], object]], term: Term) -> object:
-        """An equivalence key for a candidate: its evaluated output (so that
-        observationally-equal programs collapse), falling back to its syntax."""
-        if output_value is not None:
+    def _vectorize(value: object) -> Optional[tuple[float, ...]]:
+        """Flatten a candidate's *output* into a numeric feature vector, on which
+        a distance can be computed -- e.g. a rasterised scene (a list of
+        booleans) becomes a 0/1 vector. Returns ``None`` for outputs that are not
+        a number or a (possibly nested, homogeneous) collection of numbers, such
+        as opaque objects, strings, or tagged ASTs: those are *not* a space the
+        distance metric can operate on, so the metric strategy does not apply."""
+        feats: list[float] = []
+
+        def flat(v: object) -> bool:
+            if isinstance(v, bool):
+                feats.append(1.0 if v else 0.0)
+                return True
+            if isinstance(v, (int, float)):
+                feats.append(float(v))
+                return True
+            if isinstance(v, (list, tuple, set, frozenset)):
+                return all(flat(x) for x in v)
+            return False
+
+        return tuple(feats) if flat(value) and feats else None
+
+    @staticmethod
+    def _odist(a: Optional[tuple[float, ...]], b: Optional[tuple[float, ...]]) -> float:
+        """Mean absolute difference between two output feature vectors -- the
+        synthesiser's *own*, goal-independent distance between two candidates'
+        outputs (cf. the paper's delta on scenes)."""
+        if a is None or b is None or len(a) != len(b) or not a:
+            return INF
+        return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
+
+    def _require_suitable(
+        self,
+        goal_type: Type,
+        minimize_flags: list[bool],
+        output_value: Optional[Callable[[Term], object]],
+        rnd: random.Random,
+    ) -> None:
+        """Raise ``SynthesisNotSuccessful`` unless metric synthesis applies: the
+        hole must carry a numeric objective, and candidate outputs must be a
+        space a distance can be computed on (numbers, or numeric/boolean
+        vectors). Otherwise this strategy cannot help, and we say so."""
+        if not minimize_flags:
+            raise SynthesisNotSuccessful(
+                "symetric is a metric synthesiser: this hole has no @minimize/@maximize "
+                "objective to cluster and steer candidates by. Not suitable -- use "
+                "another backend (e.g. enumerative, gp, tdsyn)."
+            )
+        if output_value is None:
+            return  # cannot inspect outputs (e.g. a direct call); proceed best-effort
+        goal_key = base_key(goal_type)
+        saw_output = False
+        for _ in range(8):
+            term = self._gen(goal_key, self.max_arg_depth, rnd)
+            if term is None:
+                continue
             try:
                 o = output_value(term)
-                if o is not None:
-                    return repr(o)
             except Exception:
-                pass
-        return str(term)
+                continue
+            if o is None:
+                continue
+            saw_output = True
+            if self._vectorize(o) is not None:
+                return  # a candidate output is a numeric vector: the metric applies
+        if saw_output:
+            raise SynthesisNotSuccessful(
+                "symetric needs candidate outputs to be numbers or numeric/boolean "
+                "vectors (e.g. a rasterised scene) so it can measure the distance "
+                "between two candidates; this hole's candidates output a value with no "
+                "such metric (e.g. an inductive/AST value, as in the CSG encoding). "
+                "Not suitable -- expose the output as a feature vector, or use another "
+                "backend."
+            )
 
     def _combos(
         self, comp: Component, bank: dict[str, list[Term]], ints: list[Term], cap: int, rnd: random.Random
@@ -268,8 +338,16 @@ class SymetricSynthesizer(Synthesizer):
         grid = self._int_grid() if has_metric else list(range(self.int_lo, self.int_hi))
         ints: list[Term] = [Literal(v, t_int) for v in grid]
         bank: dict[str, list[Term]] = {}
-        ranked: dict[str, list[tuple[float, Term]]] = {}
-        seen: dict[str, set] = {}
+        # Each kept entry is (distance-to-goal, term, output-feature-vector).
+        ranked: dict[str, list[tuple[float, Term, Optional[tuple[float, ...]]]]] = {}
+
+        def out_vec(t: Term) -> Optional[tuple[float, ...]]:
+            if output_value is None:
+                return None
+            try:
+                return self._vectorize(output_value(t))
+            except Exception:
+                return None
 
         def absorb(key: str, terms: list[Term]) -> None:
             scored: list[tuple[float, Term]] = []
@@ -280,19 +358,23 @@ class SymetricSynthesizer(Synthesizer):
                 if d != INF:
                     scored.append((d, t))
             scored.sort(key=lambda x: x[0])
-            s = seen.setdefault(key, set())
-            kept = ranked.get(key, [])
-            for d, t in scored:
-                if len([1 for dd, _ in kept]) >= self.beam:
-                    break
-                k = self._okey(output_value, t)
-                if k in s:
-                    continue
-                s.add(k)
-                kept.append((d, t))
-            kept.sort(key=lambda x: x[0])
-            ranked[key] = kept[: self.beam]
-            bank[key] = [t for _, t in ranked[key]]
+            reps = ranked.get(key, [])
+            # Cluster the most promising candidates by *output* similarity: a
+            # candidate within epsilon of an existing representative's output is
+            # the same "scene", so keep only the one closest to the goal. This is
+            # the goal-independent clustering -- distances are between candidates'
+            # outputs, not to the goal.
+            for d, t in scored[: max(self.beam * 2, 16)]:
+                vec = out_vec(t)
+                dup = next((i for i, (_, _, rv) in enumerate(reps) if self._odist(vec, rv) <= self.epsilon), None)
+                if dup is not None:
+                    if d < reps[dup][0]:
+                        reps[dup] = (d, t, vec)
+                else:
+                    reps.append((d, t, vec))
+            reps.sort(key=lambda x: x[0])
+            ranked[key] = reps[: self.beam]
+            bank[key] = [t for _, t, _ in ranked[key]]
 
         # Round 0: nullary material -- the in-scope atoms, plus, when the goal is
         # itself a number, the whole integer range as candidate answers (a single
@@ -455,6 +537,11 @@ class SymetricSynthesizer(Synthesizer):
             for c in cs:
                 self._sig_alts.setdefault(c.arg_keys, []).append(c.name)
         goal_key = base_key(type)
+
+        # SyMetric is a *metric* synthesiser: it clusters candidates and steers
+        # repair by the distance between their outputs. Fail fast, with a clear
+        # message, on holes where that strategy does not apply.
+        self._require_suitable(type, minimize_flags, output_value, rnd)
 
         score = self._make_score(evaluate, validate, minimize_flags)
 
