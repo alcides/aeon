@@ -1,0 +1,17 @@
+# SRBench ground-truth benchmark --- Strogatz vdp2
+#
+# Recover  f(x, y):  y' = -(1/10)*x
+# from input/output samples alone, using {+, -, *, /}, float constants, and
+# the inputs x, y. From the ODE-Strogatz repository (La Cava et al., 2016),
+# one of the two ground-truth dataset sources in SRBench (La Cava et al., 2021).
+#
+# Sampled uniformly over x in [-2.5, 2.5], y in [-2.5, 2.5] (chosen within the
+# system's stable region and clear of singularities).
+# fitness = mean absolute error over 30 sampled points (0.0 == perfect), minimized.
+#   uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/strogatz_vdp2.ae
+
+def sr_errors : (func: (a0:Float) -> (a1:Float) -> Float) -> Float =
+    \func -> native "(lambda np, R: (lambda P: sum(abs(func(p[0])(p[1]) - (-(1.0/10.0)*p[0])) for p in P) / len(P))([[R.uniform(-2.5, 2.5), R.uniform(-2.5, 2.5)] for _ in range(0, 30)]))(__import__('numpy'), __import__('random').Random(0))";
+
+@minimize_float(sr_errors synth)
+def synth (x:Float) (y:Float) : Float = (let sr_errors = unit in ?hole)

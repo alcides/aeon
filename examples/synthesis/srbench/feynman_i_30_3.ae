@@ -1,0 +1,15 @@
+# SRBench ground-truth benchmark --- Feynman I.30.3
+#
+# Recover  f(Int_0, n, theta) = Int_0 * sin(n * theta / 2) ** 2 / sin(theta / 2) ** 2
+# from input/output samples alone, using {+, -, *, /}, float constants, and
+# the inputs. From the Feynman Symbolic Regression Database (Udrescu & Tegmark,
+# 2020); sampling ranges follow the SRSD reformulation (Matsubara et al., 2022).
+#
+# fitness = mean absolute error over 30 sampled points (0.0 == perfect), minimized.
+#   uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_i_30_3.ae
+
+def sr_errors : (func: (a0:Float) -> (a1:Float) -> (a2:Float) -> Float) -> Float =
+    \func -> native "(lambda np, R: (lambda P: sum(abs(func(p[0])(p[1])(p[2]) - (p[0] * np.sin(p[1] * p[2] / 2) ** 2 / np.sin(p[2] / 2) ** 2)) for p in P) / len(P))([[(10.0 ** R.uniform(1.0, 3.0)), float(R.randint(10, 1000)), R.uniform(0.0, 1.0)] for _ in range(0, 30)]))(__import__('numpy'), __import__('random').Random(0))";
+
+@minimize_float(sr_errors synth)
+def synth (Int_0:Float) (n:Float) (theta:Float) : Float = (let sr_errors = unit in ?hole)
