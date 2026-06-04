@@ -99,6 +99,9 @@ class AeonDriver:
         self.core = core_ast
         self.typing_ctx = typing_ctx
         self.evaluation_ctx = evaluation_ctx
+        # Names (prefixed, e.g. ``List_cons``) of data constructors, so the
+        # property-based tester can build constructor-only generators for ADTs.
+        self.constructor_names = {n.name for n in desugared.constructor_defs.values()}
 
         with RecordTime("LLVM compilation"):
             pipeline.compile(self.core)
@@ -108,6 +111,30 @@ class AeonDriver:
     def run(self) -> Any:
         with RecordTime("Evaluation"):
             return eval(self.core, self.evaluation_ctx)
+
+    def has_tests(self) -> bool:
+        """Whether the program declares any ``@property`` functions."""
+        return any(isinstance(entry, dict) and "property" in entry for entry in self.metadata.values())
+
+    def run_tests(self, seed: int = 0) -> list:
+        """Check every ``@property`` function, print a pytest-style report, and
+        return the list of failing results (empty when all pass)."""
+        from aeon.synthesis.pbt import run_properties
+
+        results = run_properties(
+            self.typing_ctx,
+            self.evaluation_ctx,
+            self.core,
+            self.metadata,
+            seed=seed,
+            constructor_names=self.constructor_names,
+        )
+        for result in results:
+            print(result.summary())
+        failures = [r for r in results if not r.passed]
+        passed = sum(1 for r in results if r.passed and r.error is None)
+        print(f"\n{passed} passed, {len(failures)} failed, {len(results)} total")
+        return failures
 
     def has_synth(self) -> bool:
         with RecordTime("DetectSynthesis"):

@@ -136,7 +136,12 @@ def extract_all_types(
     if instantiation_types is None:
         instantiation_types = set()
     data: dict[Type, TypingType] = {_key(Top()): ae_top}
-    for ty in {_key(t) for t in types}:
+    # Iterate ``types`` in the given order (deduplicating via ``data``) rather
+    # than through a set comprehension: the class-creation order here determines
+    # ``__subclasses__()`` order, and hence the grammar's production order, so a
+    # set would make seeded generation non-deterministic across processes.
+    for t in types:
+        ty = _key(t)
         if ty not in data:
             match ty:
                 case TypeConstructor(_, args):
@@ -827,7 +832,8 @@ def monomorphize_poly_type(
     if isinstance(current, RefinementPolymorphism):
         return []
 
-    base_types = list(instantiation_types)
+    # Sorted for reproducibility (set iteration order is id-dependent).
+    base_types = sorted(instantiation_types, key=repr)
     if not base_types:
         return []
 
@@ -910,6 +916,7 @@ def gen_grammar_nodes(
     synth_func_name: Name,
     metadata: Metadata,
     grammar_nodes: list[type] | None = None,
+    start_override: Type | None = None,
 ) -> tuple[list[type], type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
@@ -995,8 +1002,14 @@ def gen_grammar_nodes(
     types_to_consider = (
         set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty]) | mono_extra_types
     )
-    type_info = extract_all_types(list(types_to_consider), ctx, instantiation_types)
-    type_nodes = list(set(type_info.values()))
+    if start_override is not None:
+        types_to_consider = types_to_consider | {start_override}
+    # Sort by a stable string key so grammar construction is reproducible across
+    # processes: ``set`` iteration order over types / node classes otherwise
+    # depends on object ``id()`` (and hence allocation order), which makes
+    # seeded generation non-deterministic between runs.
+    type_info = extract_all_types(sorted(types_to_consider, key=repr), ctx, instantiation_types)
+    type_nodes = sorted(set(type_info.values()), key=lambda c: c.__name__)
 
     literals = create_literals_nodes(type_info)
     vars = create_var_nodes(ctx_vars_unrefined, type_info)
@@ -1016,7 +1029,15 @@ def gen_grammar_nodes(
     # register the forall node itself, so for a polymorphic synthesis target we
     # derive the starting node from its first monomorphized body.
     # TODO: synthesize across all instantiations of a polymorphic target.
-    if isinstance(ty, TypePolymorphism):
+    if start_override is not None:
+        # Property-based testing starts generation from a refined node so the
+        # metahandler enforces the refinement at generation time (no discards),
+        # instead of the unrefined base used for synthesis (which relies on a
+        # separate validator). The refined node's only alternatives are
+        # in-range literals, so this also avoids generating arbitrary
+        # value-producing expressions.
+        start_ty = start_override
+    elif isinstance(ty, TypePolymorphism):
         mono = monomorphize_poly_type(ty, instantiation_types)
         start_ty = refined_to_unrefined_type(mono[0][0]) if mono else refined_to_unrefined_type(ty)
     else:
@@ -1044,8 +1065,30 @@ def print_grammar_nodes(grammar_nodes: list[type]) -> None:
         # print("---------------------------------------------------")
 
 
-def create_grammar(ctx: TypingContext, ty: Type, fun_name: Name, metadata: Metadata) -> Grammar:
-    grammar_nodes, starting_node = gen_grammar_nodes(ctx, ty, fun_name, metadata, [])
+def _determinize_grammar(g: Grammar) -> Grammar:
+    """Sort a grammar's productions and their alternatives by class name so the
+    seed -> choice mapping is reproducible across processes.
+
+    ``Grammar.usable_grammar`` rebuilds the grammar from a ``set`` of reachable
+    symbols (``list(set(...))``), whose order depends on object ``id()`` and thus
+    on allocation order. Sampling chooses among ``alternatives[symbol]``, so
+    making that ordering deterministic is sufficient for reproducible generation.
+    Weights are stored per production class, so reordering does not change them."""
+    g.alternatives = {
+        key: sorted(g.alternatives[key], key=lambda c: c.__name__)
+        for key in sorted(g.alternatives, key=lambda c: c.__name__)
+    }
+    return g
+
+
+def create_grammar(
+    ctx: TypingContext,
+    ty: Type,
+    fun_name: Name,
+    metadata: Metadata,
+    start_override: Type | None = None,
+) -> Grammar:
+    grammar_nodes, starting_node = gen_grammar_nodes(ctx, ty, fun_name, metadata, [], start_override=start_override)
     g = extract_grammar(grammar_nodes, starting_node)
     g = g.usable_grammar()
-    return g
+    return _determinize_grammar(g)
