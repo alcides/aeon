@@ -1,0 +1,28 @@
+# Abstraction-Refinement Finite Tree Automata (AFTA) synthesis -- Wang, Dillig &
+# Singh, "Program Synthesis using Abstraction Refinement" (POPL 2018,
+# arXiv:1710.07740). The direct successor of the concrete `fta` backend.
+#
+# Where `fta` keys automaton states by a candidate's *concrete* output (one
+# state per distinct value), AFTA keys them by an *abstract* value: the
+# truth-vector of a set P of predicates drawn from the hole's refinement. Many
+# concrete outputs share one truth-vector, so the abstract automaton is much
+# smaller.
+#
+# AFTA starts from the COARSEST abstraction (P empty -- every value is one
+# state), extracts the smallest abstractly-accepting program, and `validate`s it
+# (the concrete oracle, as in `fta`). On a spurious acceptance it REFINES: it
+# adds the goal conjunct(s) the failed candidate violates to P, splits the
+# offending state, and retries -- a CEGAR loop that converges once P covers the
+# spec. Soundness never rests on the abstraction; the returned program is always
+# validated.
+#
+# Like `fta`, AFTA needs no @minimize/@maximize objective: a pure refinement
+# hole is enough. Run with:
+#
+#   uv run python -m aeon --no-main -s afta --budget 10 examples/synthesis/afta/abstraction_refinement.ae
+#
+# The three-conjunct refinement below drives several refinement rounds: the
+# coarse abstraction first accepts a wrong value, AFTA harvests the violated
+# conjuncts, and the search converges on the single integer satisfying all three.
+
+def answer : {v:Int | v > 0 && v % 5 == 0 && v + 7 == 17} = ?hole;
