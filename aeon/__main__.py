@@ -94,7 +94,8 @@ def _parse_common_arguments(parser: ArgumentParser):
         help=(
             "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
             "tdsyn_random (type-directed random walk), tactics (random tactic search), gp, synquid, "
-            "random_search, enumerative (grammar enumeration), hc, 1p1, smt, decision_tree, llm, "
+            "random_search, enumerative (grammar enumeration), hc, 1p1, smt, "
+            "sygus (reduce to SyGuS and solve with cvc5), decision_tree, llm, "
             "lta (Liquid Tree Automata, arXiv:2605.13456), "
             "symetric (metric program synthesis, arXiv:2206.06164)"
         ),
