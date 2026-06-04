@@ -25,7 +25,7 @@ from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 from aeon.synthesis.api import ErrorInSynthesis, InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
-from aeon.synthesis.evaluation_pool import EvaluationPool, set_program_tail
+from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool, set_program_tail
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
@@ -240,16 +240,16 @@ def synthesize_holes(
                 steps = tuple(next(iter(tac_map.values())))
         syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
 
-        # Evaluate every candidate on a persistent worker pool: the objective
-        # distance always, plus the candidate's output only when the backend
-        # consumes it. A `@cluster(f shape)` decorator names the output
-        # featuriser `f` (e.g. a rasterised scene); otherwise the output is the
+        # Evaluate every candidate on a persistent worker pool. The backend
+        # declares which computations it wants run per candidate (the objective
+        # ``fitness`` always; an ``output`` feature if it clusters by one, etc.);
+        # the pool runs exactly those, in one round-trip, knowing nothing about
+        # what they mean. A `@cluster(f shape)` decorator names the output
+        # featuriser `f` (e.g. a rasterised scene), else the output is the
         # candidate's own value.
-        wants_output = getattr(syn_impl, "uses_output_value", False)
         feature_fun = _cluster_function(metadata, fun_name) or fun_name
-        pool = EvaluationPool(
-            ectx, replace, evaluators, feature_fun, compute_feature=wants_output, budget_eval=budget_eval
-        )
+        primitives = EvalPrimitives(evaluators, ectx, feature_fun)
+        pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
         evaluator, output_evaluator = _pool_backed(pool)
 
         try:
@@ -276,28 +276,31 @@ def synthesize_holes(
 
 
 def _pool_backed(pool: EvaluationPool) -> tuple[Callable[[Term], list[float]], Callable[[Term], Any]]:
-    """Wrap a pool as the ``(evaluate, output_value)`` pair the synthesiser
-    expects. Each candidate is evaluated once (yielding both distance and
-    feature); a per-candidate cache means the two callables share that work."""
-    cache: dict[str, tuple] = {}
+    """Adapt a pool to the ``(evaluate, output_value)`` callables the synthesiser
+    interface expects: ``evaluate`` reads the ``fitness`` computation, and
+    ``output_value`` the ``output`` one. Each candidate is run once (all its
+    computations together) and the results cached, so the two callables share
+    that single round-trip."""
+    cache: dict[str, dict[str, tuple[str, Any]]] = {}
 
-    def pair(term: Term) -> tuple:
+    def results(term: Term) -> dict[str, tuple[str, Any]]:
         key = str(term)
         if key not in cache:
-            cache[key] = pool.pair(term)
+            cache[key] = pool.run(term)
         return cache[key]
 
     def evaluate(term: Term) -> list[float]:
-        status, dist, _feat, err = pair(term)
+        status, value = results(term).get("fitness", ("ok", []))
         if status == "invalid":
             raise InvalidIndividualException()
         if status == "timeout":
             raise TimeoutInEvaluationException()
         if status == "error":
-            raise ErrorInSynthesis(Exception(err), msg=err)
-        return dist if dist is not None else []
+            raise ErrorInSynthesis(Exception(value), msg=str(value))
+        return value if value is not None else []
 
     def output_value(term: Term) -> Any:
-        return pair(term)[2]
+        status, value = results(term).get("output", ("error", None))
+        return value if status == "ok" else None
 
     return evaluate, output_value

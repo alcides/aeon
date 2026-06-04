@@ -121,9 +121,10 @@ def _peel(ty: Type) -> tuple[list[Type], Type]:
 
 
 class SymetricSynthesizer(Synthesizer):
-    # Needs each candidate's output (it clusters by it), so the evaluation pool
-    # computes the (distance, output) pair in one round-trip.
-    uses_output_value = True
+    def computations(self, primitives):
+        # Beyond the objective fitness, it needs each candidate's output feature
+        # to cluster by; the pool computes both in one round-trip.
+        return {"fitness": primitives.fitness, "output": primitives.feature}
 
     def __init__(
         self,

@@ -1,23 +1,24 @@
-"""A pool of persistent worker processes for candidate evaluation.
+"""A pool of persistent worker processes that run computations on candidates.
 
 Evaluating a candidate in a fresh process each time (the simple ``make_evaluator``
 in ``entrypoint.py``) pays a process spawn/teardown and re-pickles the whole
-program every call. Across the thousands of candidates a search evaluates -- and,
-for a backend that clusters by output, both an objective distance *and* an
-output feature per candidate -- that overhead dominates.
+program every call. Across the thousands of candidates a search evaluates, that
+overhead dominates.
 
-``EvaluationPool`` keeps a small set of workers alive: the static program
-environment is pickled to each worker once, candidates stream in over a queue,
-and each worker returns the ``(distance, feature)`` **pair** in a single
-round-trip (the feature is computed only when a backend asks for it). A
-candidate that hangs is still contained -- a per-task timeout kills and replaces
-its worker -- so the sandboxing guarantee is preserved.
+``EvaluationPool`` keeps a small set of workers alive and is *computation
+agnostic*: it is built with a dict of named ``Computation``s -- functions of the
+substituted program -- and returns, for each candidate, a ``{name: (status,
+value)}`` map computed in a single round-trip. It does not know what those
+computations mean; a backend decides which to request (a fitness distance, an
+output/scene feature for clustering, or anything else) via
+``Synthesizer.computations``. A candidate that hangs is still contained: a
+per-task timeout kills and replaces its worker.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import multiprocess as mp
 
@@ -25,6 +26,13 @@ from aeon.backend.evaluator import EvaluationContext, eval
 from aeon.core.terms import Let, Rec, Term, Var
 from aeon.synthesis.api import InvalidIndividualException
 from aeon.utils.name import Name
+
+# A computation maps a (candidate-substituted) program to a value. It may raise
+# ``InvalidIndividualException`` to signal "this candidate has no value here".
+Computation = Callable[[Term], Any]
+
+# Per-computation result statuses.
+OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
 
 
 def set_program_tail(term: Term, new_tail: Term) -> Term:
@@ -35,36 +43,51 @@ def set_program_tail(term: Term, new_tail: Term) -> Term:
     return new_tail
 
 
-# Result statuses for a single evaluation.
-OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
+class EvalPrimitives:
+    """The building blocks a backend composes its requested computations from,
+    without ever touching the raw evaluation context directly."""
 
-Static = tuple  # (ectx, replace, evaluators, feature_fun, compute_feature)
+    def __init__(self, evaluators: list[Callable[[Term], float]], ectx: EvaluationContext, feature_fun: Name):
+        self._evaluators = evaluators
+        self._ectx = ectx
+        self._feature_fun = feature_fun
+
+    @property
+    def fitness(self) -> Computation:
+        """Evaluate the objective(s): the list of per-goal distances."""
+        evaluators = self._evaluators
+        return lambda prog: [ev(prog) for ev in evaluators]
+
+    @property
+    def feature(self) -> Computation:
+        """The candidate's output feature -- the ``@cluster`` featuriser applied
+        to it, or its own value when there is no featuriser."""
+        return self.eval_function(self._feature_fun)
+
+    def eval_function(self, fun: Name) -> Computation:
+        """Evaluate the program function ``fun`` applied to the candidate (by
+        making it the program's result)."""
+        ectx = self._ectx
+        return lambda prog: eval(set_program_tail(prog, Var(fun)), ectx)
 
 
-def _worker_main(static: Static, task_q: Any, result_q: Any) -> None:
-    ectx, replace, evaluators, feature_fun, compute_feature = static
+def _worker_main(static: tuple, task_q: Any, result_q: Any) -> None:
+    replace, computations = static
     while True:
         msg = task_q.get()
         if msg is None:  # shutdown
             return
         cid, candidate = msg
         prog = replace(candidate)
-        status = OK
-        dist: Optional[list] = []
-        err = ""
-        try:
-            dist = [ev(prog) for ev in evaluators]
-        except InvalidIndividualException:
-            status, dist = INVALID, None
-        except Exception as e:  # noqa: BLE001 — any failure means "drop this candidate"
-            status, dist, err = ERROR, None, f"{type(e).__name__}: {e}"
-        feat = None
-        if compute_feature:
+        out: dict[str, tuple[str, Any]] = {}
+        for name, comp in computations.items():
             try:
-                feat = eval(set_program_tail(prog, Var(feature_fun)), ectx)
-            except Exception:  # noqa: BLE001 — a featureless candidate just has no feature
-                feat = None
-        result_q.put((cid, status, dist, feat, err))
+                out[name] = (OK, comp(prog))
+            except InvalidIndividualException:
+                out[name] = (INVALID, None)
+            except Exception as e:  # noqa: BLE001 — any failure means "no value here"
+                out[name] = (ERROR, f"{type(e).__name__}: {e}")
+        result_q.put((cid, out))
 
 
 @dataclasses.dataclass
@@ -77,15 +100,13 @@ class _Worker:
 class EvaluationPool:
     def __init__(
         self,
-        ectx: EvaluationContext,
         replace: Callable[[Term], Term],
-        evaluators: list[Callable[[Term], float]],
-        feature_fun: Name,
-        compute_feature: bool = True,
+        computations: dict[str, Computation],
         budget_eval: float = 1.0,
         n_workers: int = 1,
     ):
-        self._static: Static = (ectx, replace, evaluators, feature_fun, compute_feature)
+        self._static = (replace, computations)
+        self._names = list(computations.keys())
         self._budget = budget_eval
         self._n = max(1, n_workers)
         self._counter = 0
@@ -106,11 +127,15 @@ class EvaluationPool:
         fresh = self._spawn()
         w.proc, w.task_q, w.result_q = fresh.proc, fresh.task_q, fresh.result_q
 
-    def map(self, terms: list[Term]) -> list[tuple[str, Optional[list], Any, str]]:
-        """Evaluate ``terms``, returning a ``(status, distance, feature, error)``
-        tuple per term. Terms are processed in batches of ``n_workers`` in
-        parallel; a worker that does not answer within the budget is recycled."""
-        results: list[tuple[str, Optional[list], Any, str]] = [(TIMEOUT, None, None, "")] * len(terms)
+    def _timeout(self) -> dict[str, tuple[str, Any]]:
+        return {name: (TIMEOUT, None) for name in self._names}
+
+    def map(self, terms: list[Term]) -> list[dict[str, tuple[str, Any]]]:
+        """Run every computation on each term, returning one ``{name: (status,
+        value)}`` map per term. Terms are processed in batches of ``n_workers``
+        in parallel; a worker that does not answer within the budget is recycled
+        and its term reported as a timeout for every computation."""
+        results: list[dict[str, tuple[str, Any]]] = [self._timeout() for _ in terms]
         for base in range(0, len(terms), self._n):
             dispatched: list[tuple[int, _Worker]] = []
             for offset, term in enumerate(terms[base : base + self._n]):
@@ -120,14 +145,14 @@ class EvaluationPool:
                 dispatched.append((base + offset, w))
             for idx, w in dispatched:
                 try:
-                    _cid, status, dist, feat, err = w.result_q.get(timeout=self._budget + 1.0)
-                    results[idx] = (status, dist, feat, err)
+                    _cid, out = w.result_q.get(timeout=self._budget + 1.0)
+                    results[idx] = out
                 except Exception:
                     self._recycle(w)
-                    results[idx] = (TIMEOUT, None, None, "")
+                    results[idx] = self._timeout()
         return results
 
-    def pair(self, term: Term) -> tuple[str, Optional[list], Any, str]:
+    def run(self, term: Term) -> dict[str, tuple[str, Any]]:
         return self.map([term])[0]
 
     def close(self) -> None:

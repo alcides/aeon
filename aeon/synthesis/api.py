@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from aeon.typechecking.context import TypingContext
 
@@ -9,6 +9,9 @@ from aeon.utils.name import Name
 
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.decorators.api import Metadata
+
+if TYPE_CHECKING:
+    from aeon.synthesis.evaluation_pool import Computation, EvalPrimitives
 
 
 class SynthesisError(Exception):
@@ -38,11 +41,14 @@ class InvalidIndividualException(SynthesisError):
 
 
 class Synthesizer(ABC):
-    # Whether this backend consumes the ``output_value`` callable. The shared
-    # evaluation pool computes a candidate's output only when some backend asks
-    # for it (the default backends use only the distance); what a backend then
-    # *does* with the output -- e.g. cluster by it -- stays inside the backend.
-    uses_output_value: bool = False
+    def computations(self, primitives: "EvalPrimitives") -> dict[str, "Computation"]:
+        """Declare the per-candidate computations this backend wants the shared
+        evaluation pool to run. The default is just the objective ``fitness``
+        (exposed as the ``evaluate`` argument); a backend that also reads the
+        candidate's output (e.g. to cluster by it) adds ``"output"``, and any
+        other named computation it composes from ``primitives``. What a backend
+        *does* with each result stays inside the backend."""
+        return {"fitness": primitives.fitness}
 
     def synthesize(
         self,
