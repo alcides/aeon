@@ -9,7 +9,7 @@
 #   uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_i_34_10.ae
 
 def sr_errors : (func: (a0:Float) -> (a1:Float) -> Float) -> Float =
-    \func -> native "(lambda np, R: (lambda P: sum(abs(func(p[0])(p[1]) - (p[0] / (1 - p[1] / 299792458.0))) for p in P) / len(P))([[(10.0 ** R.uniform(9.0, 11.0)), ((10.0 ** R.uniform(5.0, 7.0)) * R.choice((1.0, -1.0)))] for _ in range(0, 30)]))(__import__('numpy'), __import__('random').Random(0))";
+    \func -> native "(lambda m, R: (lambda P: sum(abs(func(p[0])(p[1]) - (p[0] / (1 - p[1] / 299792458.0))) for p in P) / len(P))([[(10.0 ** R.uniform(9.0, 11.0)), ((10.0 ** R.uniform(5.0, 7.0)) * R.choice((1.0, -1.0)))] for _ in range(0, 30)]))(__import__('math'), __import__('random').Random(0))";
 
 @minimize_float(sr_errors synth)
 def synth (omega_0:Float) (v:Float) : Float = (let sr_errors = unit in ?hole)

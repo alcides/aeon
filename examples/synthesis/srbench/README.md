@@ -29,8 +29,9 @@ def synth (<vars>:Float) ... : Float = (let sr_errors = unit in ?hole)
 ```
 
 - The true equation and the sampling are computed inside a self-contained
-  `native` Python expression (`__import__('numpy')` / `__import__('random')`),
-  so no library import or external data file is needed.
+  `native` Python expression using only the standard library
+  (`__import__('math')` / `__import__('random')`), so no third-party
+  dependency (e.g. numpy) or external data file is needed.
 - Fitness is the mean absolute error over 30 sampled points (`0.0` is a perfect
   fit), minimized.
 - `sr_errors` is shadowed inside the hole so the synthesizer builds the
