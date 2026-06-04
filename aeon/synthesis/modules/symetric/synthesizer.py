@@ -121,6 +121,10 @@ def _peel(ty: Type) -> tuple[list[Type], Type]:
 
 
 class SymetricSynthesizer(Synthesizer):
+    # Clusters by candidate outputs, so it wants the (distance, feature) pair
+    # from the evaluation pool rather than two separate process spawns.
+    uses_output_clustering = True
+
     def __init__(
         self,
         seed: int = 0,

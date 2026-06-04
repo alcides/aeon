@@ -12,9 +12,8 @@ import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTHESIZE
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
-import dataclasses
 
-from aeon.core.terms import Let, Rec, Term, Var
+from aeon.core.terms import Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
@@ -26,6 +25,7 @@ from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 from aeon.synthesis.api import ErrorInSynthesis, InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.evaluation_pool import EvaluationPool, set_program_tail
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
@@ -50,17 +50,6 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
 Evaluators: TypeAlias = list[Callable[[Term], float]]
 
 
-def _set_program_tail(term: Term, new_tail: Term) -> Term:
-    """Replace the innermost body of a chain of top-level ``let``/``rec``
-    bindings with ``new_tail``, leaving the bindings (and hence everything in
-    scope) intact."""
-    if isinstance(term, Rec):
-        return dataclasses.replace(term, body=_set_program_tail(term.body, new_tail))
-    if isinstance(term, Let):
-        return dataclasses.replace(term, body=_set_program_tail(term.body, new_tail))
-    return new_tail
-
-
 def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float]:
     """Build a fitness function for a single goal, dispatching on ``goal.kind``."""
 
@@ -71,7 +60,7 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
         # present -- under ``--no-main`` there is none, and the previous
         # ``main``-substitution silently left the metric uncomputed (the program
         # evaluated to its placeholder tail instead of the objective).
-        program_for_fitness = _set_program_tail(v, Var(goal.function))
+        program_for_fitness = set_program_tail(v, Var(goal.function))
         try:
             if goal.kind == "cputime":
                 return measure_cputime(lambda: eval(program_for_fitness, ectx))
@@ -170,7 +159,7 @@ def make_output_evaluator(
 
     def run(program: Term, result_queue: mp.Queue) -> None:
         try:
-            value = eval(_set_program_tail(program, Var(hole_fun)), ectx)
+            value = eval(set_program_tail(program, Var(hole_fun)), ectx)
             try:
                 result_queue.put(("ok", value))
             except Exception:
@@ -239,12 +228,6 @@ def synthesize_holes(
         replace = make_program(term, hole_name)
         validator = make_validator(ctx, replace)
         evaluators = make_evaluators(ectx, fun_name, metadata)
-        evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
-        # A `@cluster(f shape)` decorator names a featuriser: the candidate's
-        # output for clustering is then `f(candidate)` (e.g. a rasterised scene),
-        # not the candidate's raw value.
-        cluster_fun = _cluster_function(metadata, fun_name)
-        output_evaluator = make_output_evaluator(ectx, replace, cluster_fun or fun_name, budget_eval)
         assert isinstance(tyctx, TypingContext)
         assert isinstance(ty, Type)
         tac_map = metadata.get(fun_name, {}).get("tactic_scripts")
@@ -256,6 +239,24 @@ def synthesize_holes(
             elif len(tac_map) == 1:
                 steps = tuple(next(iter(tac_map.values())))
         syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
+
+        # A `@cluster(f shape)` decorator names a featuriser: the candidate's
+        # output for clustering is then `f(candidate)` (e.g. a rasterised scene),
+        # not the candidate's raw value.
+        cluster_fun = _cluster_function(metadata, fun_name)
+        feature_fun = cluster_fun or fun_name
+
+        # Synthesisers that cluster by output get the (distance, feature) pair
+        # from a persistent worker pool (one round-trip, no spawn per evaluation);
+        # everything else keeps the spawn-per-evaluation path unchanged.
+        pool: Optional[EvaluationPool] = None
+        if getattr(syn_impl, "uses_output_clustering", False):
+            pool = EvaluationPool(ectx, replace, evaluators, feature_fun, compute_feature=True, budget_eval=budget_eval)
+            evaluator, output_evaluator = _pool_backed(pool)
+        else:
+            evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
+            output_evaluator = make_output_evaluator(ectx, replace, feature_fun, budget_eval)
+
         try:
             t = syn_impl.synthesize(
                 ctx=tyctx,
@@ -271,7 +272,38 @@ def synthesize_holes(
         except Exception as e:
             ui.end(None, None)
             raise e
+        finally:
+            if pool is not None:
+                pool.close()
 
         ui.end(t, None)
         mapping[hole_name] = t
     return mapping
+
+
+def _pool_backed(pool: EvaluationPool) -> tuple[Callable[[Term], list[float]], Callable[[Term], Any]]:
+    """Wrap a pool as the ``(evaluate, output_value)`` pair the synthesiser
+    expects. Each candidate is evaluated once (yielding both distance and
+    feature); a per-candidate cache means the two callables share that work."""
+    cache: dict[str, tuple] = {}
+
+    def pair(term: Term) -> tuple:
+        key = str(term)
+        if key not in cache:
+            cache[key] = pool.pair(term)
+        return cache[key]
+
+    def evaluate(term: Term) -> list[float]:
+        status, dist, _feat, err = pair(term)
+        if status == "invalid":
+            raise InvalidIndividualException()
+        if status == "timeout":
+            raise TimeoutInEvaluationException()
+        if status == "error":
+            raise ErrorInSynthesis(Exception(err), msg=err)
+        return dist if dist is not None else []
+
+    def output_value(term: Term) -> Any:
+        return pair(term)[2]
+
+    return evaluate, output_value
