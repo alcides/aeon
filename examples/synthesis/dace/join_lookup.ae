@@ -1,0 +1,13 @@
+# DACE category: relational join (VLOOKUP) -- pull `price` from a lookup table
+# by key, then complete `cost = qty * price`.
+open Table
+
+def orders : Table = native "[{'item':1,'qty':2},{'item':2,'qty':3}]";
+def prices : Table = native "[{'item':1,'price':10},{'item':2,'price':7}]";
+
+def joined    : Table = Table.join orders prices "item";
+def with_cost : Table = Table.mutate joined "cost" (\row -> native "row['qty'] * row['price']");
+
+def total_cost : Int = Table.sum_col with_cost "cost";  # 2*10 + 3*7 = 41
+
+def main (x:Int) : Unit = print total_cost;

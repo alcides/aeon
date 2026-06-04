@@ -1,0 +1,14 @@
+# DACE category: column arithmetic (mutate) -- fill a derived column with a
+# per-row formula. Here `total = qty * price`, the canonical data-completion
+# task (Wang, Dillig & Singh, OOPSLA'17).
+open Table
+
+def orders : Table =
+    native "[{'item':'a','qty':2,'price':3},{'item':'b','qty':5,'price':4},{'item':'c','qty':1,'price':7}]";
+
+def completed : Table = Table.mutate orders "total" (\row -> native "row['qty'] * row['price']");
+
+# 2*3 + 5*4 + 1*7 = 33
+def grand_total : Int = Table.sum_col completed "total";
+
+def main (x:Int) : Unit = print grand_total;

@@ -1,0 +1,9 @@
+# DACE per-cell completion (average), synthesised by the FTA backend.
+#
+# Three input cells 6, 9, 15; complete the cell holding their mean. Written as
+# 3*v == 6+9+15 so the refinement is linear-integer (SMT-decidable).
+#
+#   uv run python -m aeon --no-main -s fta --budget 10 examples/synthesis/dace/synth/complete_average.ae
+#
+# Expected: ?hole: 10
+def average_cell : {v:Int | 3 * v == 6 + 9 + 15} = ?hole;
