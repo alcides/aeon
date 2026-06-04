@@ -97,6 +97,7 @@ def _parse_common_arguments(parser: ArgumentParser):
             "random_search, enumerative (grammar enumeration), hc, 1p1, smt, "
             "sygus (reduce to SyGuS and solve with cvc5), decision_tree, llm, "
             "lta (Liquid Tree Automata, arXiv:2605.13456), "
+            "fta (Finite Tree Automata, OOPSLA'17), "
             "symetric (metric program synthesis, arXiv:2206.06164)"
         ),
     )

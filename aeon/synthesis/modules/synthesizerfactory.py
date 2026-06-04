@@ -8,6 +8,7 @@ from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
+from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -43,5 +44,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return LTASynthesizer()
         case "symetric":
             return SymetricSynthesizer()
+        case "fta":
+            return FTASynthesizer()
         case _:
             assert False, f"Not supported synthesizer with name {module}"
