@@ -20,7 +20,7 @@ from aeon.core.terms import Annotation, Application, Let, Rec, Term, Var
 from aeon.core.types import AbstractionType, RefinementPolymorphism, Type, TypePolymorphism, t_bool
 from aeon.decorators.api import Metadata
 from aeon.sugar.lifting import lift
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_sterm
 
@@ -189,13 +189,14 @@ def _collect_properties(core: Term, metadata: Metadata) -> tuple[list[_PropertyS
 def _check_property(
     spec: _PropertySpec,
     typing_ctx: TypingContext,
+    adt_ctx: TypingContext,
     evaluation_ctx: EvaluationContext,
     core: Term,
     metadata: Metadata,
     seed: int,
     timeout: float,
 ) -> PropertyResult:
-    from aeon.synthesis.pbt.generators import TypeSampler
+    from aeon.synthesis.pbt.generators import TypeSampler, is_base_type
 
     # Cache one sampler per distinct argument type. A non-dependent argument has
     # the same type every trial, so its (expensive) grammar is built once and the
@@ -207,7 +208,11 @@ def _check_property(
         key = f"{idx}:{ty!r}"
         sampler = sampler_cache.get(key)
         if sampler is None:
-            sampler = TypeSampler(typing_ctx, ty, spec.name, metadata, seed=seed + idx * 7919)
+            # Base types use the full context (refinements resolve via the
+            # metahandler); ADTs use the constructor-only context so generation
+            # yields pure constructor trees.
+            ctx = typing_ctx if is_base_type(ty) else adt_ctx
+            sampler = TypeSampler(ctx, ty, spec.name, metadata, seed=seed + idx * 7919)
             sampler_cache[key] = sampler
         return sampler
 
@@ -241,6 +246,12 @@ def _check_property(
     return PropertyResult(spec.name, passed=True, trials=spec.samples)
 
 
+def _collect_constructors(core: Term, constructor_names: set[str]) -> list[VariableBinder]:
+    """Collect data-constructor bindings (e.g. ``List_cons``, ``List_nil``) from
+    the program's top-level definitions, identified by name."""
+    return [VariableBinder(name, ty) for name, ty in _iter_top_level(core) if name.name in constructor_names]
+
+
 def run_properties(
     typing_ctx: TypingContext,
     evaluation_ctx: EvaluationContext,
@@ -248,10 +259,17 @@ def run_properties(
     metadata: Metadata,
     seed: int = 0,
     timeout: float = DEFAULT_TIMEOUT,
+    constructor_names: set[str] | None = None,
 ) -> list[PropertyResult]:
     """Check every ``@property`` function and return one result per property."""
+    from aeon.synthesis.pbt.generators import build_adt_context
+
     specs, skips = _collect_properties(core, metadata)
+    ctor_binders = _collect_constructors(core, constructor_names or set())
+    adt_ctx = build_adt_context(typing_ctx, ctor_binders)
     results: list[PropertyResult] = list(skips)
     for spec in specs:
-        results.append(_check_property(spec, typing_ctx, evaluation_ctx, core, metadata, seed=seed, timeout=timeout))
+        results.append(
+            _check_property(spec, typing_ctx, adt_ctx, evaluation_ctx, core, metadata, seed=seed, timeout=timeout)
+        )
     return results

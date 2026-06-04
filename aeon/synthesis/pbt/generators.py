@@ -15,7 +15,7 @@ from aeon.core.terms import Term
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, t_string
 from aeon.decorators.api import Metadata
 from aeon.synthesis.grammar.grammar_generation import create_grammar
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import TypeBinder, TypeConstructorBinder, TypingContext, VariableBinder
 from aeon.utils.name import Name
 
 from geneticengine.random.sources import NativeRandomSource
@@ -28,6 +28,28 @@ DEFAULT_MAX_DEPTH = 5
 # Base types for which generation can start from a (possibly trivial) refined
 # node, yielding clean in-range literals rather than arbitrary expressions.
 _BASE_TYPES = (t_int, t_float, t_bool, t_string)
+
+
+def is_base_type(ty: Type) -> bool:
+    """Whether ``ty`` is a base type (or a refinement of one), as opposed to a
+    user-defined algebraic datatype like ``List`` or ``Maybe``."""
+    if isinstance(ty, RefinedType):
+        return ty.type in _BASE_TYPES
+    return isinstance(ty, TypeConstructor) and ty in _BASE_TYPES
+
+
+def build_adt_context(typing_ctx: TypingContext, constructor_binders: list[VariableBinder]) -> TypingContext:
+    """A generation context for algebraic datatypes containing ONLY data
+    constructors (plus the type/type-constructor declarations needed to resolve
+    them). Ordinary functions are dropped so generation yields pure constructor
+    trees instead of arbitrary value-producing expressions.
+
+    Constructors carry an abstract refinement (``forall <p:a->Bool>``) that
+    ``monomorphize_poly_type`` cannot instantiate; ``create_grammar`` strips it
+    via ``remove_uninterpreted_functions`` before monomorphizing, so the cleaned
+    constructor becomes a usable polymorphic node."""
+    keep = [e for e in typing_ctx.entries if isinstance(e, (TypeConstructorBinder, TypeBinder))]
+    return TypingContext(keep + list(constructor_binders))
 
 
 def _refined_start(ty: Type) -> Type | None:

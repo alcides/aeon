@@ -99,6 +99,9 @@ class AeonDriver:
         self.core = core_ast
         self.typing_ctx = typing_ctx
         self.evaluation_ctx = evaluation_ctx
+        # Names (prefixed, e.g. ``List_cons``) of data constructors, so the
+        # property-based tester can build constructor-only generators for ADTs.
+        self.constructor_names = {n.name for n in desugared.constructor_defs.values()}
 
         with RecordTime("LLVM compilation"):
             pipeline.compile(self.core)
@@ -118,7 +121,14 @@ class AeonDriver:
         return the list of failing results (empty when all pass)."""
         from aeon.synthesis.pbt import run_properties
 
-        results = run_properties(self.typing_ctx, self.evaluation_ctx, self.core, self.metadata, seed=seed)
+        results = run_properties(
+            self.typing_ctx,
+            self.evaluation_ctx,
+            self.core,
+            self.metadata,
+            seed=seed,
+            constructor_names=self.constructor_names,
+        )
         for result in results:
             print(result.summary())
         failures = [r for r in results if not r.passed]

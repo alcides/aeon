@@ -70,3 +70,50 @@ def test_non_bool_property_is_skipped(results):
     r = results["prop_not_bool"]
     assert r.passed  # skipped, not failed
     assert r.error is not None and "Bool" in r.error
+
+
+# --- Algebraic datatype (ADT) generation -----------------------------------
+
+ADT_SOURCE = """
+open List
+
+@property(40)
+def prop_reverse_preserves_length (l : (List Int)) : Bool =
+    length (reversed l) == length l;
+
+@property(60)
+def prop_always_empty (l : (List Int)) : Bool =
+    length l == 0;
+"""
+
+
+@pytest.fixture(scope="module")
+def adt_results():
+    cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
+    driver = AeonDriver(cfg)
+    errors = driver.parse(aeon_code=ADT_SOURCE)
+    assert errors == [], errors
+    rs = run_properties(
+        driver.typing_ctx,
+        driver.evaluation_ctx,
+        driver.core,
+        driver.metadata,
+        seed=0,
+        constructor_names=driver.constructor_names,
+    )
+    return {r.name.name: r for r in rs}
+
+
+def test_adt_property_passes(adt_results):
+    # Lists are generated as cons/nil trees; a true list property holds.
+    r = adt_results["prop_reverse_preserves_length"]
+    assert r.passed, r.summary()
+
+
+def test_adt_generates_non_empty_values(adt_results):
+    # A property false for any non-empty list must fail with a cons counterexample,
+    # proving the generator produces more than just the empty list.
+    r = adt_results["prop_always_empty"]
+    assert not r.passed
+    assert r.counterexample is not None
+    assert "cons" in r.counterexample[0].lower()
