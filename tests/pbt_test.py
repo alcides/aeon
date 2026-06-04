@@ -48,7 +48,9 @@ def test_passing_property_reports_success(results):
 def test_false_property_yields_counterexample(results):
     r = results["prop_all_positive"]
     assert not r.passed
-    assert r.counterexample is not None and len(r.counterexample) == 1
+    # Whatever negative/zero value was first found, shrinking minimizes it to 0
+    # (0 > 0 is false and 0 has minimal magnitude).
+    assert r.counterexample == ["0"]
 
 
 def test_refined_domain_only_generates_valid_inputs(results):
@@ -117,3 +119,10 @@ def test_adt_generates_non_empty_values(adt_results):
     assert not r.passed
     assert r.counterexample is not None
     assert "cons" in r.counterexample[0].lower()
+
+
+def test_adt_counterexample_is_shrunk_to_minimum(adt_results):
+    # Constructor-based shrinking reduces any failing list to the minimal one: a
+    # single element (tail shrunk to nil) whose value is shrunk to 0.
+    r = adt_results["prop_always_empty"]
+    assert r.counterexample == ["List_cons 0 List_nil"]

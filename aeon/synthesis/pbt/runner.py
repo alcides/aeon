@@ -17,9 +17,17 @@ from dataclasses import dataclass, replace as dc_replace
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Annotation, Application, Let, Rec, Term, Var
-from aeon.core.types import AbstractionType, RefinementPolymorphism, Type, TypePolymorphism, t_bool
+from aeon.core.types import (
+    AbstractionType,
+    RefinementPolymorphism,
+    Type,
+    TypePolymorphism,
+    t_bool,
+    type_free_term_vars,
+)
 from aeon.decorators.api import Metadata
 from aeon.sugar.lifting import lift
+from aeon.synthesis.pbt.shrink import ConstructorTypes, minimize
 from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_sterm
@@ -186,6 +194,17 @@ def _collect_properties(core: Term, metadata: Metadata) -> tuple[list[_PropertyS
     return specs, skips
 
 
+def _shrinkable_flags(arg_specs: list[tuple[Name, Type]]) -> list[bool]:
+    """An argument is *not* shrinkable when a later argument's type refers to it:
+    shrinking it could break the dependency and produce a spurious (out-of-domain)
+    counterexample. Matched by name string to be robust to id differences."""
+    flags: list[bool] = []
+    for i, (arg_name, _) in enumerate(arg_specs):
+        later_free = {fv.name for j in range(i + 1, len(arg_specs)) for fv in type_free_term_vars(arg_specs[j][1])}
+        flags.append(arg_name.name not in later_free)
+    return flags
+
+
 def _check_property(
     spec: _PropertySpec,
     typing_ctx: TypingContext,
@@ -193,6 +212,8 @@ def _check_property(
     evaluation_ctx: EvaluationContext,
     core: Term,
     metadata: Metadata,
+    constructor_types: ConstructorTypes,
+    constructor_names: set[str],
     seed: int,
     timeout: float,
 ) -> PropertyResult:
@@ -216,9 +237,16 @@ def _check_property(
             sampler_cache[key] = sampler
         return sampler
 
+    def evaluate(arg_terms: list[Term]) -> tuple[bool | None, str | None]:
+        call: Term = Var(spec.name)
+        for term in arg_terms:
+            call = Application(call, term)
+        return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
+
     for trial in range(spec.samples):
         chosen: list[tuple[Name, Term]] = []
         terms: list[Term] = []
+        arg_tys: list[Type] = []
         # Generate arguments left-to-right so a later argument's refinement that
         # mentions an earlier argument is specialised to the concrete choice.
         for idx, (arg_name, arg_type) in enumerate(spec.arg_specs):
@@ -228,19 +256,24 @@ def _check_property(
             term = sampler_for(ty, idx).sample()
             chosen.append((arg_name, term))
             terms.append(term)
+            arg_tys.append(ty)
 
-        call: Term = Var(spec.name)
-        for term in terms:
-            call = Application(call, term)
-        program = _replace_tail(core, call)
-
-        value, error = _eval_bool(program, evaluation_ctx, timeout)
+        value, _ = evaluate(terms)
         if value is not True:
+            minimized = minimize(
+                terms,
+                arg_tys,
+                _shrinkable_flags(spec.arg_specs),
+                lambda candidate: evaluate(candidate)[0] is not True,
+                constructor_types,
+                constructor_names,
+            )
+            _, error = evaluate(minimized)
             return PropertyResult(
                 name=spec.name,
                 passed=False,
                 trials=trial + 1,
-                counterexample=[_render(t) for t in terms],
+                counterexample=[_render(t) for t in minimized],
                 error=error,
             )
     return PropertyResult(spec.name, passed=True, trials=spec.samples)
@@ -264,12 +297,25 @@ def run_properties(
     """Check every ``@property`` function and return one result per property."""
     from aeon.synthesis.pbt.generators import build_adt_context
 
+    names = constructor_names or set()
     specs, skips = _collect_properties(core, metadata)
-    ctor_binders = _collect_constructors(core, constructor_names or set())
+    ctor_binders = _collect_constructors(core, names)
     adt_ctx = build_adt_context(typing_ctx, ctor_binders)
+    constructor_types: ConstructorTypes = {b.name.name: b.type for b in ctor_binders}
     results: list[PropertyResult] = list(skips)
     for spec in specs:
         results.append(
-            _check_property(spec, typing_ctx, adt_ctx, evaluation_ctx, core, metadata, seed=seed, timeout=timeout)
+            _check_property(
+                spec,
+                typing_ctx,
+                adt_ctx,
+                evaluation_ctx,
+                core,
+                metadata,
+                constructor_types,
+                names,
+                seed=seed,
+                timeout=timeout,
+            )
         )
     return results
