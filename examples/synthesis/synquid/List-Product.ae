@@ -1,0 +1,14 @@
+# List-Product: cartesian product size is the product of sizes.
+#
+# Synquid benchmark List-Product (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Pair records the two factor lengths (|result| would be their product).
+
+open List
+
+inductive LPair a
+| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p == List.size fa && bsize p == List.size sb}
++ asize (p: (LPair a)) : Int
++ bsize (p: (LPair a)) : Int
+
+def product (xs: (List a)) (ys: (List a)) : {p:(LPair a) | asize p == List.size xs && bsize p == List.size ys} = ?hole;

@@ -1,0 +1,14 @@
+# List-Zip: zip two lists; result length is the shorter one.
+#
+# Synquid benchmark List-Zip (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Result modelled as a pair of equal-length lists (the two projection columns).
+
+open List
+
+inductive LPair a
+| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p == List.size fa && bsize p == List.size sb}
++ asize (p: (LPair a)) : Int
++ bsize (p: (LPair a)) : Int
+
+def zip (xs: (List a)) (ys: (List a)) : {p:(LPair a) | asize p == bsize p && asize p <= List.size xs && bsize p <= List.size ys} = ?hole;

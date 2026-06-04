@@ -1,0 +1,9 @@
+# List-Take: keep the first n elements.
+#
+# Synquid benchmark List-Take (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def take (n: {v:Int | v >= 0}) (xs: {l:(List a) | List.size l >= n}) : {r:(List a) | List.size r == n} = ?hole;

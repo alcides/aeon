@@ -1,0 +1,9 @@
+# List-Ith: the i-th element (0-indexed).
+#
+# Synquid benchmark List-Ith (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Index bounded by the length; the returned value is unconstrained.
+
+open List
+
+def ith (xs: (List a)) (i: {v:Int | v >= 0 && v < List.size xs}) : a = ?hole;
