@@ -31,6 +31,7 @@ from aeon.sugar.program import (
     SLiteral,
     SIf,
     SQualifiedVar,
+    SMethodSelector,
     SRec,
     SLet,
     SMatch,
@@ -288,7 +289,15 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SBy(steps, loc=loc):
             h = Name("_by", fresh_counter.fresh())
             return SHole(h, loc=loc), {h: tuple(steps)}
-        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SQualifiedVar() | SAnonConstructor():
+        case (
+            SLiteral()
+            | SVar()
+            | SHole()
+            | SImplicitRefinementHole()
+            | SQualifiedVar()
+            | SAnonConstructor()
+            | SMethodSelector()
+        ):
             return t, {}
         case SAnnotation(expr, ty, loc=loc):
             ne, s1 = lower_by_blocks_in_sterm(expr)
@@ -408,6 +417,15 @@ def resolve_qualified_names_in_sterm(
             key = (qualifier, name.name)
             if key in qualified_scope:
                 return SVar(qualified_scope[key], loc=loc)
+            # ``qualifier.name`` where ``qualifier`` names no module or type:
+            # treat it as a method call ``qualifier.name`` on a (local)
+            # variable ``qualifier`` (issue #27). Since the lexer collapses
+            # ``x.m`` into a single QUALIFIED_ID, this is the only place a
+            # variable-receiver method call can be recovered. Elaboration
+            # resolves it against the receiver's type; if ``qualifier`` is not a
+            # bound variable either, it raises there.
+            if qualifier not in {q for (q, _) in qualified_scope}:
+                return SApplication(SMethodSelector(name, loc=loc), SVar(Name(qualifier), loc=loc), loc=loc)
             raise NameError(f"Name '{name.name}' not found in module '{qualifier}'")
         case SVar(name, loc) if name.name in unqualified_scope:
             return SVar(unqualified_scope[name.name], loc=loc)
@@ -607,6 +625,14 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
             # "open IntList" brings constructors into bare scope
             if decl.name.name in open_inductives:
                 unqualified_scope[cons.name.name] = prefixed
+
+    # Register dotted definition names ``def Type.method`` for qualified access
+    # (issue #27), so ``Type.method`` resolves to the same binder that a method
+    # call ``recv.method`` dispatches to during elaboration.
+    for d in defs:
+        if "." in d.name.name:
+            qualifier, _, bare = d.name.name.rpartition(".")
+            qualified_scope[(qualifier, bare)] = d.name
 
     # Resolve qualified names (Math.pow -> pow) and unqualified bare names from open/selective imports
     defs = [

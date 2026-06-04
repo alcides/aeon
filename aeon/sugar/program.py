@@ -289,6 +289,35 @@ class SAnonConstructor(STerm):
 
 
 @dataclass(frozen=True)
+class SMethodSelector(STerm):
+    """Deferred, type-directed method lookup (issue #27, *method call* syntax).
+
+    The surface form ``receiver.method`` parses to
+    ``SApplication(SMethodSelector(method), receiver)``. Keeping the selector a
+    *leaf* (it carries only the method name, never the receiver) means every
+    ``SApplication``-recursing pass already walks into the receiver for free, so
+    no desugar/bind/substitution pass needs a bespoke case — only elaboration,
+    which has the receiver's type and rewrites the node to a plain reference to
+    the resolved ``Type.method`` function applied to the receiver.
+
+    A selector never stands alone: it is always the ``fun`` of the application
+    the parser builds around it.
+    """
+
+    method: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f".{self.method}"
+
+    def __repr__(self):
+        return f"MethodSelector(.{self.method})"
+
+    def __eq__(self, other):
+        return isinstance(other, SMethodSelector) and self.method == other.method
+
+
+@dataclass(frozen=True)
 class SMatchBranch:
     constructor: Name
     binders: list[Name]

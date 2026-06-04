@@ -6,6 +6,7 @@ from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
     AeonError,
     InstanceResolutionError,
+    MethodResolutionError,
     NonOrderableComparisonError,
     UnificationFailedError,
     UnificationKindError,
@@ -23,6 +24,7 @@ from aeon.sugar.program import (
     SInstanceHole,
     SLet,
     SLiteral,
+    SMethodSelector,
     SRec,
     SRefinementAbstraction,
     SRefinementApplication,
@@ -63,6 +65,93 @@ def _extract_base_type_name(ty: SType) -> str | None:
             return _extract_base_type_name(inner)
         case _:
             return None
+
+
+def _receiver_arg_index(fn_type: SType | None, type_name: str) -> int:
+    """Index (among *explicit* value parameters) of the first parameter whose
+    base type is ``type_name`` — i.e. where a method call's receiver should be
+    inserted, Lean-style. Type/refinement-polymorphism binders are peeled and
+    instance-implicit parameters are skipped (they are auto-filled). Falls back
+    to ``0`` (insert first) when no parameter matches or the type is unknown."""
+    idx = 0
+    ty = fn_type
+    while ty is not None:
+        match ty:
+            case STypePolymorphism(_, _, body) | SRefinementPolymorphism(_, _, body):
+                ty = body
+            case SAbstractionType(_, var_type, rtype):
+                if ty.is_instance:
+                    ty = rtype
+                    continue
+                if _extract_base_type_name(var_type) == type_name:
+                    return idx
+                idx += 1
+                ty = rtype
+            case _:
+                break
+    return 0
+
+
+def _method_call_spine(t: STerm) -> tuple[Name, STerm, list[STerm]] | None:
+    """If ``t`` is the application spine of a method call, return
+    ``(method, receiver, call_args)``; otherwise ``None``.
+
+    ``receiver.method a1 ... an`` parses to nested applications whose innermost
+    function is the ``SMethodSelector`` and whose first applied argument is the
+    receiver: ``App(... App(App(SMethodSelector(method), receiver), a1) ..., an)``.
+    We unwind that into the method name, the receiver, and the remaining call
+    arguments ``[a1, ..., an]`` (which may be empty)."""
+    args: list[STerm] = []
+    cur = t
+    while isinstance(cur, SApplication):
+        args.insert(0, cur.arg)
+        cur = cur.fun
+    if isinstance(cur, SMethodSelector) and args:
+        return (cur.method, args[0], args[1:])
+    return None
+
+
+def _build_method_call(
+    ctx: ElaborationTypingContext, method: Name, receiver: STerm, call_args: list[STerm], loc
+) -> STerm:
+    """Rewrite a method call ``receiver.method call_args...`` (issue #27) into a
+    plain application of the resolved method function with the receiver inserted.
+
+    The qualifier is the receiver's inferred base type. Following Lean, the
+    receiver is inserted at the first explicit parameter whose type matches the
+    receiver's type — not blindly first — so ``xs.map f`` becomes ``List.map f
+    xs`` even though ``List.map``'s list is its second argument. Because we have
+    the whole call spine here, the common case is a plain reordered application
+    (no lambda); only a *partial* call that omits arguments before the receiver
+    position needs eta-expansion.
+
+    The returned term is left *unelaborated* so the caller routes it through
+    normal synth/check (handling polymorphism, instance holes and the remaining
+    arguments uniformly)."""
+    (_, recv_ty) = elaborate_synth(ctx, receiver)
+    type_name = _extract_base_type_name(_resolve_uvars(recv_ty))
+    if type_name is None:
+        raise MethodResolutionError(method.name, None, loc)
+    resolved = ctx.resolve_method(method.name, type_name)
+    if resolved is None:
+        raise MethodResolutionError(method.name, type_name, loc)
+
+    k = _receiver_arg_index(ctx.type_of(resolved), type_name)
+    term: STerm = SVar(resolved, loc=loc)
+    if k <= len(call_args):
+        final_args = call_args[:k] + [receiver] + call_args[k:]
+        for a in final_args:
+            term = SApplication(term, a, loc=loc)
+        return term
+    # Partial call: the receiver sits past the supplied arguments, so eta-expand
+    # the missing pre-receiver parameters into a lambda.
+    fresh = [Name(f"_self{fresh_counter.fresh()}") for _ in range(k - len(call_args))]
+    final_args = call_args + [SVar(p, loc=loc) for p in fresh] + [receiver]
+    for a in final_args:
+        term = SApplication(term, a, loc=loc)
+    for p in reversed(fresh):
+        term = SAbstraction(p, term, loc=loc)
+    return term
 
 
 # Ordered comparison operators are restricted to ordered base types (issue
@@ -393,6 +482,13 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             unify(ctx, nthen_type, u)
             unify(ctx, nelse_type, u)
             return SIf(ncond, nthen, nelse), u
+        case SApplication() if (_spine := _method_call_spine(t)) is not None:
+            method, receiver, call_args = _spine
+            return elaborate_synth(ctx, _build_method_call(ctx, method, receiver, call_args, t.loc))
+        case SMethodSelector(method, loc=loc):
+            # A selector only ever appears applied to its receiver; standalone
+            # is a parser/internal bug.
+            raise MethodResolutionError(method.name, None, loc)
         case SApplication(fun, arg):
             (nfun, nfun_type) = elaborate_synth(ctx, fun)
             while isinstance(nfun_type, STypePolymorphism):
@@ -474,6 +570,9 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
                 return elaborate_check(ctx, resolved, ty)
             # Fallback: raise error
             raise UnificationUnknownTypeError(t)
+        case (SApplication(), _) if (_spine := _method_call_spine(t)) is not None:
+            method, receiver, call_args = _spine
+            return elaborate_check(ctx, _build_method_call(ctx, method, receiver, call_args, t.loc), ty)
         case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
             nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))

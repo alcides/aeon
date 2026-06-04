@@ -3,9 +3,9 @@
 
 open Array
 
-def myReverse (l: (Array a)) : {r:(Array a) | Array.size r == Array.size l} = native "l[::-1]"
+def Array.rev (l: (Array a)) : {r:(Array a) | Array.size r == Array.size l} = native "l[::-1]"
 
 def main (args:Int) : Unit =
-    xs = Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3;
-    rs : (Array Int) = myReverse xs;
+    xs = (((Array.new[Int]).append 1).append 2).append 3;
+    rs : (Array Int) = xs.rev;
     print rs;

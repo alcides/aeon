@@ -90,6 +90,28 @@ class UnificationUnknownTypeError(AeonError):
 
 
 @dataclass
+class MethodResolutionError(AeonError):
+    """Raised when a method-call ``receiver.method`` (issue #27) cannot be
+    resolved: either the receiver's type is not concrete enough to pick a
+    qualifier, or no ``Type.method`` definition exists for that type."""
+
+    method: str
+    type_name: str | None
+    loc: Location
+
+    def __str__(self) -> str:
+        if self.type_name is None:
+            return (
+                f"Cannot resolve method call '.{self.method}': the receiver's type "
+                f"could not be determined. Annotate the receiver to fix its type."
+            )
+        return f"No method '{self.method}' defined for type '{self.type_name}' (looked up '{self.type_name}.{self.method}')."
+
+    def position(self) -> Location:
+        return self.loc
+
+
+@dataclass
 class InstanceResolutionError(AeonError):
     class_name: str
     head: str | None
