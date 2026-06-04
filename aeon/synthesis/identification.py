@@ -50,6 +50,16 @@ def get_holes_info(
         refined_types (bool): Whether to use refined types.
     """
     # ty = ty if refined_types else refined_to_unrefined_type(ty)
+    # Hole identification only needs to descend into subterms that actually
+    # contain a hole. Skipping hole-free subterms avoids re-typing
+    # already-elaborated library code: a polymorphic definition such as
+    # ``List.map`` (whose body mentions ``cons``/``map`` carrying abstract
+    # refinements) produces term/type shapes the arms below do not model, and
+    # previously aborted the whole traversal with ``assert False``. Such
+    # subterms contribute no holes, so returning early is both correct and
+    # strictly faster.
+    if not get_holes(t):
+        return {}
     match t:
         case Annotation(expr=Hole(name=hname), type=hty):
             hty = hty if refined_types else refined_to_unrefined_type(hty)
