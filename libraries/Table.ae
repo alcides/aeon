@@ -67,7 +67,7 @@ def summary(table: Table) (column: String) (f: (a: (Array Int)) -> b): b =
 # column: column to group by
 # returns: list of tables, each corresponding to a group
 def group_by(table: Table) (column: String): (Array Table) =
-    native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.group_by(table, column)"
+    native "__import__('aeon.bindings.table').bindings.table.group_by(table, column)"
 
 
 # Pivots a table: turns unique values from one column into new columns.
@@ -80,7 +80,7 @@ def group_by(table: Table) (column: String): (Array Table) =
 # values: column to fill values from
 # returns: reshaped table (list of dicts)
 def pivot(table: Table) (index: String) (columns: String) (values: String): Table =
-    native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.pivot(table, index, columns, values)"
+    native "__import__('aeon.bindings.table').bindings.table.pivot(table, index, columns, values)"
 
 
 # Melts a table: turns columns into rows (unpivot).
@@ -93,4 +93,86 @@ def pivot(table: Table) (index: String) (columns: String) (values: String): Tabl
 # value_name: name for the new value column
 # returns: reshaped table (list of dicts)
 def melt(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table =
-    native "__import__('aeon.aeon.bindings.table').aeon.aeon.bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
+    native "__import__('aeon.bindings.table').bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
+
+
+# ============================================================================
+# Data-completion operators (Wang, Dillig & Singh, "Synthesis of Data
+# Completion Scripts using Finite Tree Automata", OOPSLA 2017 -- the DACE DSL).
+#
+# These extend the relational core above (select / filter / map_column /
+# group_by / pivot / melt) with the spatial and aggregate constructs the paper's
+# data-completion tasks rely on: deriving a column from a per-row formula
+# (mutate), cell/shape access, column aggregates, sorting, slicing, running
+# (cumulative) totals, and relational joins. Together they cover the spatial +
+# relational reasoning DACE combines.
+# ============================================================================
+
+# --- shape / spatial access -------------------------------------------------
+
+# Number of rows in the table.
+def nrow(table: Table): Int = native "len(table)"
+
+# Number of columns in the table.
+def ncol(table: Table): Int = native "(len(table[0]) if len(table) > 0 else 0)"
+
+# The integer cell at row `r` (0-based) of column `col` -- DACE's spatial
+# cell reference.
+def cell(table: Table) (r: Int) (col: String): Int = native "table[r][col]"
+
+# --- deriving a column (mutate) ---------------------------------------------
+
+# Add a new column `newcol` whose value in each row is `f` applied to that row.
+# This is the workhorse of data completion: filling a column with a formula
+# over the other columns (e.g. `mutate t "total" (\row -> ...)`).
+def mutate(table: Table) (newcol: String) (f: (row: Row) -> Int): Table =
+    native "[dict(row, **{newcol: f(row)}) for row in table]"
+
+# --- column aggregates ------------------------------------------------------
+
+# Sum of the integer column `column`.
+def sum_col(table: Table) (column: String): Int = native "sum(row[column] for row in table)"
+
+# Integer mean (floor) of the column `column`.
+def mean_col(table: Table) (column: String): Int =
+    native "(sum(row[column] for row in table) // len(table) if len(table) > 0 else 0)"
+
+# Maximum of the integer column `column`.
+def max_col(table: Table) (column: String): Int = native "max(row[column] for row in table)"
+
+# Minimum of the integer column `column`.
+def min_col(table: Table) (column: String): Int = native "min(row[column] for row in table)"
+
+# Number of rows (COUNT).
+def count(table: Table): Int = native "len(table)"
+
+# --- ordering and slicing ---------------------------------------------------
+
+# Sort the rows in ascending order of `column` (arrange).
+def arrange(table: Table) (column: String): Table = native "sorted(table, key=lambda r: r[column])"
+
+# The first `n` rows (head / take).
+def head(table: Table) (n: Int): Table = native "table[:n]"
+
+# --- running (cumulative) total: a spatial scan ----------------------------
+
+# Add a column `newcol` holding the running sum of `column` down the rows --
+# the cumulative-total completion pattern (e.g. a balance column).
+def cumsum(table: Table) (column: String) (newcol: String): Table =
+    native "[dict(table[i], **{newcol: t}) for i, t in enumerate(__import__('itertools').accumulate(rw[column] for rw in table))]"
+
+# --- relational join --------------------------------------------------------
+
+# Inner-join `left` and `right` on equal values of key column `on`.
+def join(left: Table) (right: Table) (on: String): Table =
+    native "[dict(l, **{k: v for k, v in r.items() if k != on}) for l in left for r in right if l[on] == r[on]]"
+
+# --- tidyverse-style aliases for reshape (DACE naming) ---------------------
+
+# `spread` is `pivot`: long -> wide.
+def spread(table: Table) (index: String) (columns: String) (values: String): Table =
+    native "__import__('aeon.bindings.table').bindings.table.pivot(table, index, columns, values)"
+
+# `gather` is `melt`: wide -> long.
+def gather(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table =
+    native "__import__('aeon.bindings.table').bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"

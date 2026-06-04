@@ -1,0 +1,17 @@
+# Finite Tree Automata (FTA) synthesis -- Wang, Dillig & Singh, "Synthesis of
+# Data Completion Scripts using Finite Tree Automata" (OOPSLA 2017).
+#
+# The FTA backend builds a finite tree automaton bottom-up over the in-scope
+# components, keying states by each candidate's concrete output (observational
+# equivalence) and accepting the states whose representative satisfies the
+# refinement-typed specification -- so the spec is checked once per state, and
+# the smallest accepted program is extracted.
+#
+# Unlike `symetric`, FTA needs no @minimize/@maximize objective: a pure
+# refinement hole is enough. Run with:
+#
+#   uv run python -m aeon --no-main -s fta --budget 10 examples/synthesis/fta/arithmetic_refinement.ae
+#
+# The hole below is solved by the integer whose value satisfies the refinement.
+
+def answer : {v:Int | v + 4 == 7 && v * 2 == 6} = ?hole;
