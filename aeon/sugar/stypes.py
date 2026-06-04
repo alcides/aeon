@@ -80,7 +80,7 @@ class SRefinementPolymorphism(SType):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"∀<{self.name}:{self.sort} -> Bool>. {self.body}"
+        return f"∀<{self.name}:{self.sort}>. {self.body}"
 
 
 @dataclass

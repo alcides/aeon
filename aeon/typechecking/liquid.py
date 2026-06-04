@@ -263,7 +263,13 @@ def type_infer_liquid(
                                 )
                         else:
                             assert isinstance(resolved, (TypeConstructor, TypeVar))
-                            equalities[name] = resolved
+                            # Skip a self-referential binding ``a := a``: it is
+                            # vacuous and would make ``resolve_type`` loop. This
+                            # arises when a function reuses a type variable across
+                            # argument positions, e.g. an n-ary abstract-refinement
+                            # relation ``r : a -> a -> Bool``.
+                            if not (isinstance(resolved, TypeVar) and resolved.name == name):
+                                equalities[name] = resolved
                     case (TypeConstructor(t, a_args), TypeConstructor(e, e_args)) if t == e and len(a_args) == len(
                         e_args
                     ):

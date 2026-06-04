@@ -37,7 +37,7 @@ type_def : "inductive" ID iargs inductive_rforalls constructors measures      ->
 iargs: (ID)*                                                -> list
 // Abstract refinements on the datatype (Liquid Haskell ``data T <p :: S -> Bool>``): zero or more ``forall <p : S -> Bool>`` binders shared by all constructors. Also accepted on opaque ``type`` declarations to mark a phantom refinement parameter on the type.
 inductive_rforalls: inductive_rforall*                     -> list
-inductive_rforall: "forall" "<" ID ":" type "->" "Bool" ">"   -> inductive_rforall_binding
+inductive_rforall: "forall" "<" ID ":" pred_sort ">"   -> inductive_rforall_binding
 constructors : cons_rule*                                  -> list
 cons_rule : _PIPE ID args ":" type                           -> def_ind_cons
 measures : measure_rule*                                  -> list
@@ -111,11 +111,19 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
      | "(" ID ":" type _PIPE expression ")" "->" type      -> abstraction_refined_t
      | "(" MULT ID ":" type _PIPE expression ")" "->" type -> mult_abstraction_refined_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
-     | "forall" "<" ID ":" type "->" "Bool" ">" "," type   -> refinement_polymorphism_t
+     | "forall" "<" ID ":" pred_sort ">" "," type   -> refinement_polymorphism_t
      | ID "<" ID ">"                                       -> base_angle_refined_t
      | ID                                                  -> simple_t
      | "(" ID type+ ")"                                            -> constructor_t
      | "(" type ")"                                        -> same
+
+
+// The sort of an abstract refinement parameter: an n-ary predicate
+// ``d1 -> d2 -> ... -> Bool`` (unary ``d -> Bool``, binary ``d -> d -> Bool``,
+// ...). Parsed as a bare arrow chain (the trailing ``Bool`` is an ordinary
+// ``type``, avoiding a literal/identifier lexer clash) and folded by the parser
+// into the curried predicate type stored as the refinement's ``sort``.
+pred_sort : type ("->" type)+                              -> pred_sort
 
 
 expression : "-" expression_i                           -> minus
@@ -206,7 +214,7 @@ expression_fact : expression_b                           -> same
 
 expression_b : "\\" ID "->" expression                      -> abstraction_e
              | "\\" ID ":" type "->" expression             -> abstraction_et
-             | "Λ" "<" ID ":" type "->" "Bool" ">" "=>" expression -> rabstraction_e
+             | "Λ" "<" ID ":" pred_sort ">" "=>" expression -> rabstraction_e
              | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same
 
