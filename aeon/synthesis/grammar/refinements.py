@@ -83,7 +83,11 @@ def interval_to_metahandler(interval: Any, base_type: Type) -> MetaHandlerGenera
             metahandler_instance = aeon_to_gengy_metahandlers[base_type](min_range, max_range)
             return Annotated[python_type, metahandler_instance]
         case _:
-            raise NotImplementedError()
+            # Other sympy set shapes (e.g. a ``Union`` produced by a ``!= c``
+            # refinement) have no single-range metahandler. Skip them rather
+            # than crashing; ``intervals_to_metahandlers`` filters out ``None``,
+            # so the refined type simply gets no dedicated value generator.
+            return None
 
 
 def intervals_to_metahandlers(intervals_list: list, base_type: Type) -> list[MetaHandlerGenerator]:
@@ -92,8 +96,12 @@ def intervals_to_metahandlers(intervals_list: list, base_type: Type) -> list[Met
 
 def get_metahandler_union(
     metahandler_list: list[MetaHandlerGenerator],
-) -> MetaHandlerGenerator | Union[MetaHandlerGenerator]:
-    if len(metahandler_list) == 1:
+) -> MetaHandlerGenerator | Union[MetaHandlerGenerator] | None:
+    if len(metahandler_list) == 0:
+        # No representable range for this refinement (e.g. every interval was
+        # skipped). Callers treat ``None`` as "no dedicated value generator".
+        return None
+    elif len(metahandler_list) == 1:
         return metahandler_list[0]
     else:
         return Union[tuple(metahandler_list)]
