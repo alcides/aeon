@@ -1,6 +1,14 @@
 # Lexicographic termination: ``decreasing_by [m, n]`` matches Liquid Haskell ``/ [m, n]``.
 # Use refinements so ``m >= 0`` and ``n >= 0`` appear as VC premises (well-founded ``Nat^2``).
-
+#
+# NOTE: this is a *simplified* two-argument recursion, NOT the true Ackermann
+# function (see ackermann.ae). The recursive case here is ``ack m (n - 1)`` — it
+# drops the nested self-call of real Ackermann (``ack (m - 1) (ack m (n - 1))``)
+# precisely so the lexicographic metric [m, n] is verifiable: every call site
+# decreases the pair and each component stays >= 0. With the nested call the
+# second metric component would be a recursive result the verifier cannot bound
+# below, so true Ackermann cannot carry this proof. The base-region examples
+# below (which agree with true Ackermann) keep the demo honest.
 @example(ack 0 0 == 1)
 @example(ack 0 5 == 6)
 @example(ack 1 0 == 2)
