@@ -10,6 +10,7 @@ from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
 from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.modules.afta import AFTASynthesizer
+from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -49,5 +50,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return FTASynthesizer()
         case "afta":
             return AFTASynthesizer()
+        case "cata":
+            return CATASynthesizer()
         case _:
             assert False, f"Not supported synthesizer with name {module}"

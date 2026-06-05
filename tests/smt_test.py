@@ -284,3 +284,27 @@ def test_recursive_reflection_requires_termination_metric() -> None:
     impl = Abstraction(x, Application(Var(f), Var(x)))
     assert _reflected_impl_for(f, ty, impl, has_termination_metric=False) is None
     assert _reflected_impl_for(f, ty, impl, has_termination_metric=True) is not None
+
+
+def test_division_by_zero_is_not_vacuously_valid() -> None:
+    # `-2 / 0` is undefined: it crashes at runtime and Z3 leaves it
+    # unconstrained. A proof obligation that depends on it must NOT be reported
+    # valid by silently skipping it. Regression: absurd refinements slipped
+    # through (e.g. a literal `/ 0` "satisfying" any spec).
+    div0 = LiquidApp(Name("/", 0), [LiquidLiteralInt(-2), LiquidLiteralInt(0)])
+    claim = LiquidConstraint(LiquidApp(Name(">=", 0), [div0, LiquidLiteralInt(0)]))
+    assert smt_valid(claim) is False
+
+
+def test_modulo_by_zero_is_not_vacuously_valid() -> None:
+    mod0 = LiquidApp(Name("%", 0), [LiquidLiteralInt(5), LiquidLiteralInt(0)])
+    claim = LiquidConstraint(LiquidApp(Name("==", 0), [mod0, LiquidLiteralInt(0)]))
+    assert smt_valid(claim) is False
+
+
+def test_division_by_nonzero_still_valid() -> None:
+    # The fix must not over-reject: a well-defined division obligation that is
+    # genuinely true stays valid.
+    div = LiquidApp(Name("/", 0), [LiquidLiteralInt(6), LiquidLiteralInt(2)])
+    claim = LiquidConstraint(LiquidApp(Name("==", 0), [div, LiquidLiteralInt(3)]))
+    assert smt_valid(claim) is True

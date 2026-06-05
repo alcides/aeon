@@ -8,7 +8,9 @@ from loguru import logger
 
 from z3 import Function
 from z3 import Int
+from z3 import IntVal
 from z3 import Real
+from z3 import RealVal
 from z3 import Solver
 from z3 import StringVal
 from z3 import sat
@@ -585,20 +587,32 @@ def smt_valid(constraint: Constraint) -> bool:
         # asserted formula, and the push/pop here scopes each constraint, so
         # the declarations are re-emitted per constraint by construction.
         try:
-            smt_c = translate(c)
-        except ZeroDivisionError:
-            continue
-        if smt_c is False:
-            continue
-        s.add(smt_c)
-        result = s.check()
-        s.pop()
-        if result == sat:
-            _smt_valid_cache[key] = False
-            return False
-        elif result == unknown:
-            _smt_valid_cache[key] = False
-            return False
+            try:
+                smt_c = translate(c)
+            except ZeroDivisionError:
+                # A constant division/modulo by zero (e.g. ``-2 / 0``) is
+                # undefined: it crashes at runtime and Z3 leaves it
+                # unconstrained. *Skipping* the obligation silently *assumed* it
+                # valid -- unsound, and it let absurd refinements through (any
+                # spec was "satisfied" by a literal ``/ 0``). An obligation we
+                # cannot even define is not proven, so report it invalid.
+                _smt_valid_cache[key] = False
+                return False
+            if smt_c is False:
+                continue
+            s.add(smt_c)
+            result = s.check()
+            if result == sat:
+                _smt_valid_cache[key] = False
+                return False
+            elif result == unknown:
+                _smt_valid_cache[key] = False
+                return False
+        finally:
+            # Always balance the matching ``push`` -- ``s`` is a reused global
+            # solver, so an early ``return``/``continue`` that skipped the pop
+            # would leak scope state into later constraints and queries.
+            s.pop()
 
     _smt_valid_cache[key] = True
     return True
@@ -790,6 +804,20 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
             assert False, f"No var: {name}, with base {base}."
 
 
+def _coerce_numeric(a: Any) -> Any:
+    """Lift a Python numeric literal into the matching Z3 value so that an
+    operation on it uses Z3 semantics rather than Python's. Z3 expressions (and
+    anything non-numeric) pass through unchanged. ``bool`` is checked first
+    since it is a subclass of ``int``."""
+    if isinstance(a, bool):
+        return a
+    if isinstance(a, int):
+        return IntVal(a)
+    if isinstance(a, float):
+        return RealVal(a)
+    return a
+
+
 def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
     match t:
         case LiquidLiteralBool(b):
@@ -819,6 +847,17 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
             fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
             assert fun is not None, f"Function {fun_name} not found." + str(variables)
             args = [translate_liq(a, variables) for a in args]
+            if fun_name.name in ("/", "%"):
+                # Evaluate division and modulo with Z3 numeric semantics, not
+                # Python's. On two Python int literals, Python's ``/`` is *float*
+                # division (so ``6 / 2`` is ``3.0`` -- an unsound mismatch with
+                # the Int type) and raises ``ZeroDivisionError`` on a zero
+                # divisor (which used to silently drop the obligation, letting
+                # absurd refinements through). Coercing the operands into Z3
+                # makes ``/`` and ``%`` total integer operations, and division
+                # by zero a fixed-but-unconstrained Z3 term that no refinement
+                # can exploit.
+                args = [_coerce_numeric(a) for a in args]
             try:
                 return fun(*args)
             except Z3Exception as e:
