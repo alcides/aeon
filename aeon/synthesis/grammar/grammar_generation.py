@@ -549,7 +549,7 @@ def create_var_node(name: Name, ty: Type, python_ty: TypingType) -> TypingType:
     return dc
 
 
-def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
     """Creates a python type for a given variable in context that is a function."""
 
     # Collect arguments
@@ -563,6 +563,12 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
     # matching the storage convention used by `extract_all_types`.
     for aname, _ in args:
         rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
+    # Skip functions whose argument or return types cannot be represented as
+    # grammar nodes (e.g. a dependent refinement mentioning a sibling binder,
+    # such as ``clamp``'s ``hi: {v:Int | v >= lo}``). Such a function simply
+    # does not become a synthesis building block, instead of crashing.
+    if not _has(type_info, rtype) or any(not _has(type_info, aty) for (_, aty) in args):
+        return None
     python_ty = _get(type_info, rtype)
 
     vname = mangle_var(name)
@@ -584,17 +590,23 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
 
 def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, TypingType]) -> list[TypingType]:
     """Creates a list of python types for all variables in context."""
-    return [create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)] + [
+    var_nodes = [create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)]
+    app_nodes = [
         create_var_apps_node(var_name, ty, type_info)
         for (var_name, ty) in vars
         if _has(type_info, ty) and isinstance(ty, AbstractionType)
     ]
+    return var_nodes + [n for n in app_nodes if n is not None]
 
 
-def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"lambda_{mangle_type(ty)}"
     return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    # Skip arrow types whose own or body representation is unavailable (e.g. the
+    # function arguments of abstract-refinement-polymorphic library functions).
+    if not _has(type_info, ty) or not _has(type_info, return_type):
+        return None
     dc = make_dataclass(vname, [("body", _get(type_info, return_type))], bases=(_get(type_info, ty),))
 
     def get_core(_self):
@@ -621,18 +633,23 @@ def collect_all_abstractions(t: Type) -> Generator[AbstractionType]:
 
 
 def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
-    return [
+    nodes = [
         create_abstraction_node(ity, type_info)
         for ty in type_info
         for ity in collect_all_abstractions(ty)
         if isinstance(ity, AbstractionType)
     ]
+    return [n for n in nodes if n is not None]
 
 
-def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
     """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
     vname = f"app_{mangle_type(ty)}"
     return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    # Skip applications whose function, argument, or result type cannot be
+    # represented as grammar nodes.
+    if not all(_has(type_info, t) for t in (ty, ty.var_type, return_type)):
+        return None
     dc = make_dataclass(
         vname,
         [("fun", _get(type_info, ty)), ("arg", _get(type_info, ty.var_type))],
@@ -650,7 +667,8 @@ def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
 
 
 def create_application_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
-    return [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
+    nodes = [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
+    return [n for n in nodes if n is not None]
 
 
 def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:

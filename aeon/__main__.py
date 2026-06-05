@@ -111,6 +111,7 @@ def _parse_common_arguments(parser: ArgumentParser):
             "sygus (reduce to SyGuS and solve with cvc5), decision_tree, llm, "
             "lta (Liquid Tree Automata, arXiv:2605.13456), "
             "fta (Finite Tree Automata, OOPSLA'17), "
+            "afta (abstraction-refinement FTA, POPL'18), "
             "cata (constraint-annotated tree automata, recursive/relational), "
             "symetric (metric program synthesis, arXiv:2206.06164)"
         ),
