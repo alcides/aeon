@@ -1,3 +1,5 @@
+@example(maxI 3 5 == 5)
+@example(maxI 10 7 == 10)
 def maxI: (x : Int<p>) -> (y : Int<p>) -> Int<p> =
     \x -> \y -> if x < y then y else x;
 

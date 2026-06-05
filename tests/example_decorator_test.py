@@ -103,6 +103,57 @@ def test_examples_surface_in_documentation():
     assert "Examples" in html
 
 
+def test_numeric_example_records_training_data():
+    # A numeric `f(lits) == lit` example also feeds the decision-tree synthesizer
+    # as a training point [args..., expected].
+    source = """
+        @example(f 1.0 == 2.0)
+        @example(f 2.0 == 4.0)
+        def f (x : Float) : Float = x + x;
+
+        def main (_ : Int) : Unit = print 0;
+    """
+    driver = _driver(source)
+    data = [v["training_data"] for v in driver.metadata.values() if isinstance(v, dict) and "training_data" in v]
+    assert data == [[[1.0, 2.0], [2.0, 4.0]]]
+
+
+def test_non_numeric_examples_do_not_record_training_data():
+    # Bool examples (and non-equality assertions) carry no numeric expected value,
+    # so they must not produce decision-tree training points.
+    source = """
+        @example(p 35 64)
+        @example(p 1 1 == false)
+        def p (a : Int) (b : Int) : Bool = a == b;
+
+        def main (_ : Int) : Unit = print 0;
+    """
+    driver = _driver(source)
+    assert not any(isinstance(v, dict) and "training_data" in v for v in driver.metadata.values())
+
+
+@pytest.mark.skip(reason="Synthesis-only")
+def test_example_drives_decision_tree_synthesis():
+    # The decision-tree synthesizer learns a function purely from @example points.
+    from aeon.synthesis.entrypoint import synthesize_holes
+    from aeon.synthesis.identification import incomplete_functions_and_holes
+    from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
+
+    from tests.driver import check_and_return_core
+
+    source = """
+        @example(f 1.0 == 10.0)
+        @example(f 2.0 == 10.0)
+        @example(f 8.0 == 20.0)
+        @example(f 9.0 == 20.0)
+        def f (x : Float) : Float = ?hole;
+    """
+    core, ctx, ectx, md = check_and_return_core(source)
+    incs = incomplete_functions_and_holes(ctx, core)
+    mapping = synthesize_holes(ctx, ectx, core, incs, md, synthesizer=DecisionTreeSynthesizer(), budget=5)
+    assert any(v is not None for v in mapping.values())
+
+
 @pytest.mark.skip(reason="Synthesis-only")
 def test_example_drives_synthesis():
     # With a hole body and a fitness-based synthesizer, the @example goals should

@@ -329,7 +329,15 @@ def example(
 
     metadata = metadata_update(metadata, fun, {"examples": current + [Example(test_name, text)]})
 
-    # (2) A synthesis goal: minimize (if assertion then 0 else 1), so a
+    # (2) If the assertion is a numeric ``f(lits) == lit``, also record it as a
+    # training-data point so the decision-tree synthesizer (``-s decision_tree``)
+    # can learn a function from the examples directly.
+    point = _extract_example_point(assertion, fun.name)
+    if point is not None:
+        current_data = metadata.get(fun.name, {}).get("training_data", [])
+        metadata = metadata_update(metadata, fun, {"training_data": current_data + [point]})
+
+    # (3) A synthesis goal: minimize (if assertion then 0 else 1), so a
     # fitness-based synthesizer is rewarded for satisfying the example.
     goal_body = SIf(assertion, SLiteral(0, st_int), SLiteral(1, st_int))
     fun, extra, metadata = make_optimizer([goal_body], fun, metadata, st_int, minimize=True)
@@ -456,6 +464,26 @@ def csv_file(
     return make_optimizer([body], fun, metadata, st_float, minimize=True)
 
 
+def _call_arg_literals(term: STerm, fun_name: Name) -> list[float] | None:
+    """If ``term`` is a fully-applied call ``fun_name(lit1)...(litN)`` with numeric
+    literal arguments, return ``[lit1, ..., litN]`` (left-to-right); else ``None``.
+
+    Bool literals are rejected (``True``/``False`` are ``int`` instances in
+    Python but are not numeric training features)."""
+    args: list[float] = []
+    current = term
+    while isinstance(current, SApplication):
+        arg = current.arg
+        if not isinstance(arg, SLiteral) or isinstance(arg.value, bool) or not isinstance(arg.value, (int, float)):
+            return None
+        args.append(float(arg.value))
+        current = current.fun
+    if not isinstance(current, SVar) or current.name.name != fun_name.name:
+        return None
+    args.reverse()
+    return args
+
+
 def _extract_training_point(expr: STerm, fun_name: Name) -> list[float] | None:
     """Try to extract a training data point from a minimize expression.
 
@@ -475,26 +503,42 @@ def _extract_training_point(expr: STerm, fun_name: Name) -> list[float] | None:
     rhs = expr.arg  # expected
 
     # Extract expected value
-    if not isinstance(rhs, SLiteral) or not isinstance(rhs.value, (int, float)):
+    if not isinstance(rhs, SLiteral) or isinstance(rhs.value, bool) or not isinstance(rhs.value, (int, float)):
         return None
     expected = float(rhs.value)
 
-    # Extract function call arguments (built right-to-left via currying)
-    args: list[float] = []
-    current = lhs
-    while isinstance(current, SApplication):
-        arg = current.arg
-        if not isinstance(arg, SLiteral) or not isinstance(arg.value, (int, float)):
-            return None
-        args.append(float(arg.value))
-        current = current.fun
-
-    # Verify it's calling the right function
-    if not isinstance(current, SVar) or current.name.name != fun_name.name:
+    args = _call_arg_literals(lhs, fun_name)
+    if args is None:
         return None
-
-    args.reverse()
     return args + [expected]
+
+
+def _extract_example_point(assertion: STerm, fun_name: Name) -> list[float] | None:
+    """Try to extract a training data point from an ``@example`` assertion.
+
+    Looks for an equality ``fun_name(lit1)...(litN) == expected_lit`` (in either
+    order) with numeric literals, and returns ``[lit1, ..., litN, expected_lit]``.
+    Any other shape (Bool examples, non-literal arguments, other operators)
+    yields ``None`` — so it composes with, but does not require, the decision-tree
+    synthesizer.
+    """
+    if not (isinstance(assertion, SApplication) and isinstance(assertion.fun, SApplication)):
+        return None
+    op = assertion.fun.fun
+    if not isinstance(op, SVar) or op.name.name != "==":
+        return None
+    lhs = assertion.fun.arg
+    rhs = assertion.arg
+    # The expected value may be on either side: (call == lit) or (lit == call).
+    for call_side, lit_side in ((lhs, rhs), (rhs, lhs)):
+        if not isinstance(lit_side, SLiteral) or isinstance(lit_side.value, bool):
+            continue
+        if not isinstance(lit_side.value, (int, float)):
+            continue
+        args = _call_arg_literals(call_side, fun_name)
+        if args is not None:
+            return args + [float(lit_side.value)]
+    return None
 
 
 def _store_training_point(expr: STerm, fun: Definition, metadata: Metadata) -> Metadata:
