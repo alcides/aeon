@@ -9,6 +9,6 @@ generators are required.
 - :mod:`aeon.synthesis.pbt.runner` — discover, generate, check, and report.
 """
 
-from aeon.synthesis.pbt.runner import PropertyResult, run_properties
+from aeon.synthesis.pbt.runner import ExampleResult, PropertyResult, run_examples, run_properties
 
-__all__ = ["PropertyResult", "run_properties"]
+__all__ = ["ExampleResult", "PropertyResult", "run_examples", "run_properties"]

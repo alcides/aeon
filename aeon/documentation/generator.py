@@ -84,6 +84,9 @@ class FunctionDoc:
     arg_docs: dict[str, str] = field(default_factory=dict)
     return_doc: str | None = None
     is_uninterpreted: bool = False
+    # Surface renderings of each ``@example(...)`` assertion attached to this
+    # function. Shown as worked, machine-checked examples in the docs.
+    examples: list[str] = field(default_factory=list)
     # Head name of this function's final return type (after peeling
     # arrows / refinements / quantifiers). ``None`` if the head isn't a named
     # type constructor — e.g. the function returns a polymorphic ``a``.
@@ -469,7 +472,12 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
         func_header_comment, arg_docs, return_doc = split_arg_docs(raw_comment)
 
         args_formatted = [(format_name(n), format_type(t)) for n, t in defn.args]
-        decorators_formatted = [format_decorator(dec) for dec in defn.decorators]
+        # ``@example(assertion)`` decorators are surfaced in their own block; the
+        # remaining decorators are shown as chips.
+        examples_formatted = [
+            format_term(dec.macro_args[0]) for dec in defn.decorators if dec.name.name == "example" and dec.macro_args
+        ]
+        decorators_formatted = [format_decorator(dec) for dec in defn.decorators if dec.name.name != "example"]
         foralls_formatted = [(format_name(n), str(k)) for n, k in defn.foralls]
         rforalls_formatted = [(format_name(n), format_type(s)) for n, s in defn.rforalls]
 
@@ -492,6 +500,7 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
                 return_doc=return_doc,
                 is_uninterpreted=is_uninterpreted,
                 returns_type_head=return_type_head(defn.type),
+                examples=examples_formatted,
             )
         )
 
@@ -785,6 +794,26 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
             font-size: 0.85em;
             font-family: 'Courier New', monospace;
         }}
+        .examples {{
+            margin: 12px 0;
+        }}
+        .examples-title {{
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }}
+        .example {{
+            font-family: 'Courier New', monospace;
+            background: #eef6ff;
+            border-left: 3px solid #2980b9;
+            padding: 6px 10px;
+            margin: 4px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }}
         .constructor {{
             margin-left: 20px;
             padding: 10px;
@@ -1039,6 +1068,13 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
 
         if func.comment:
             html_parts.append(f'            <div class="comment">{html.escape(func.comment)}</div>\n')
+
+        if func.examples:
+            html_parts.append('            <div class="examples">\n')
+            html_parts.append('                <div class="examples-title">Examples</div>\n')
+            for ex in func.examples:
+                html_parts.append(f'                <div class="example">{html.escape(ex)}</div>\n')
+            html_parts.append("            </div>\n")
 
         sig_html_parts: list[str] = [html.escape(f"def {func.name}")]
 

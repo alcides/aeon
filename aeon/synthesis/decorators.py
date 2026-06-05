@@ -6,11 +6,11 @@ from typing import NamedTuple
 from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Decorator, Definition, SApplication, STerm, SVar
 from aeon.sugar.stypes import SType
-from aeon.sugar.ast_helpers import st_int, st_float, st_top
+from aeon.sugar.ast_helpers import st_int, st_float, st_top, st_bool
 from aeon.sugar.parser import parse_type
 from aeon.utils.name import Name, fresh_counter
 
-from aeon.sugar.program import SLiteral
+from aeon.sugar.program import SIf, SLiteral
 
 
 class Goal(NamedTuple):
@@ -24,6 +24,18 @@ class Goal(NamedTuple):
     # consumed evaluating it (via RAPL when available, otherwise a CPU-time
     # proxy). See ``aeon/synthesis/entrypoint.py``.
     kind: str = "expression"
+
+
+class Example(NamedTuple):
+    """A single ``@example(...)`` assertion attached to a function.
+
+    ``function`` is the name of an internal nullary ``Bool`` binding that
+    evaluates the assertion (used by the ``--test`` runner); ``text`` is a
+    surface rendering kept for human-readable test reports.
+    """
+
+    function: Name
+    text: str
 
 
 def multi_objective_type(element: str, number_of_objectives: int) -> SType:
@@ -266,6 +278,62 @@ def property_test(
         samples = arg.value
     metadata = metadata_update(metadata, fun, {"property": {"samples": samples}})
     return fun, [], metadata
+
+
+def example(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Attach a concrete input/output ``example`` to a function.
+
+    The single argument is a ``Bool``-valued assertion about the decorated
+    function — typically an equality between a fully-applied call and its
+    expected result::
+
+        # Absolute value of an integer.
+        @example(abs (0 - 3) == 3)
+        @example(abs 5 == 5)
+        def abs (x : Int) : Int { if x < 0 then 0 - x else x }
+
+    A single ``@example`` plays three roles:
+
+    * **Documentation** — it is rendered alongside the function in the HTML
+      docs (``--doc``), giving every function a worked, machine-checked example.
+    * **Test case** (``--test``) — the assertion is evaluated and must hold;
+      a false (or crashing) example is reported as a failure, like a unit test.
+    * **Synthesis goal** — it contributes a fitness objective minimizing
+      ``if assertion then 0 else 1``, so a fitness-based synthesizer searching
+      for a body (a ``?`` hole) is driven to satisfy every example
+      (programming-by-example). Examples compose with each other and with the
+      other ``@minimize``/``@maximize`` objectives.
+
+    The decorated definition is left unchanged; the decorator only records
+    metadata and appends internal helper bindings.
+    """
+    assert len(decorator.macro_args) == 1, "example decorator expects a single Bool expression"
+    assertion = decorator.macro_args[0]
+
+    # (1) An internal nullary Bool binding holding the raw assertion. The
+    # ``--test`` runner locates it by name and requires it to evaluate to True.
+    current = metadata.get(fun.name, {}).get("examples", [])
+    test_name = Name(f"__internal__example_{fun.name}_{len(current)}", fresh_counter.fresh())
+    test_fn = Definition(name=test_name, foralls=[], args=[], type=st_bool, body=assertion)
+
+    try:
+        from aeon.utils.pprint import pretty_print_sterm
+
+        text = pretty_print_sterm(assertion)
+    except Exception:
+        text = repr(assertion)
+
+    metadata = metadata_update(metadata, fun, {"examples": current + [Example(test_name, text)]})
+
+    # (2) A synthesis goal: minimize (if assertion then 0 else 1), so a
+    # fitness-based synthesizer is rewarded for satisfying the example.
+    goal_body = SIf(assertion, SLiteral(0, st_int), SLiteral(1, st_int))
+    fun, extra, metadata = make_optimizer([goal_body], fun, metadata, st_int, minimize=True)
+    return fun, [test_fn] + extra, metadata
 
 
 def prompt(
