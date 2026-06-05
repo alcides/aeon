@@ -1,0 +1,16 @@
+# CATA -- conditional (case-split) synthesis.
+#
+# The relational refinement below is satisfiable only by a *conditional*: when
+# the Boolean parameter b holds the result must equal x, otherwise y. CATA's
+# tree automaton includes conditional transitions `if c then t else e`, so it
+# builds `if b then x else y` and the liquid typechecker discharges both
+# implications.
+#
+# The base-case / recursive-case split is exactly the construct recursive
+# programs need; here it is exercised on a non-recursive selector, the smallest
+# conditional CATA can form.
+#
+# Run with:
+#   uv run python -m aeon --no-main -s cata --budget 30 examples/synthesis/cata/conditional_select.ae
+
+def pick (b : Bool) (x : Int) (y : Int) : {v:Int | (b --> v == x) && (!b --> v == y)} = ?hole;
