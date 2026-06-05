@@ -92,12 +92,6 @@ from aeon.utils.name import Name
 
 _loc = SynthesizedLocation("cata")
 
-# Partial operators: their result on a zero divisor is left unconstrained by the
-# SMT encoding, which lets candidates like ``-2 / 0`` vacuously satisfy a
-# refinement. Excluding them keeps every synthesised program total and its
-# acceptance meaningful (the underlying div-by-zero soundness gap is separate).
-_PARTIAL_OPS = frozenset({"/", "%"})
-
 
 @dataclass(frozen=True)
 class Comp:
@@ -173,8 +167,6 @@ class CATASynthesizer(Synthesizer):
                 atoms.setdefault(ret_key, []).append(head)
 
         for name, ty in ctx.concrete_vars():
-            if name.name in _PARTIAL_OPS:
-                continue  # keep synthesised programs total (see _PARTIAL_OPS)
             if is_polymorphic(ty):
                 # Num/Ord operators and polymorphic library functions: make them
                 # first-order by instantiating at the query's base types.

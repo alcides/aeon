@@ -24,7 +24,6 @@ from aeon.core.types import top
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import get_holes_info, incomplete_functions_and_holes
 from aeon.synthesis.modules.cata import CATASynthesizer
-from aeon.synthesis.modules.cata.synthesizer import _PARTIAL_OPS
 from aeon.synthesis.modules.lta.polymorphism import collect_type_universe
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from tests.driver import check_and_return_core
@@ -78,13 +77,14 @@ def test_monomorphizes_polymorphic_operators():
     assert "(>=)[Int" in bool_heads or "(<)[Int" in bool_heads, bool_heads
 
 
-def test_partial_operators_excluded():
-    # Division/modulo are excluded so every synthesised program is total (a
-    # candidate like -2 / 0 would otherwise vacuously satisfy a refinement).
+def test_partial_operators_available():
+    # Division and modulo are ordinary components now that the verifier handles
+    # division-by-zero soundly (a candidate like -2 / 0 is rejected, not
+    # vacuously accepted), so CATA no longer needs to work around it.
     builders, _atoms = _components("def succ (x:Int) : {v:Int | v > x} = ?hole;")
     heads = " ".join(str(c.head) for cs in builders.values() for c in cs)
-    assert _PARTIAL_OPS == frozenset({"/", "%"})
-    assert "(/)[" not in heads and "(%)[" not in heads, heads
+    assert "(/)[Int" in heads, heads  # polymorphic `/` monomorphised at Int
+    assert "%" in heads, heads  # monomorphic Int `%`
 
 
 def test_recursive_self_call_is_a_component():
