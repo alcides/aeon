@@ -1,0 +1,15 @@
+# SRBench ground-truth benchmark --- Feynman 3.99 Goldstein
+#
+# Recover  f(epsilon, E_n, L, m, Z_1, Z_2, q) = sqrt(1 + 2 * epsilon ** 2 * E_n * L ** 2 / (m * (Z_1 * Z_2 * q ** 2) ** 2))
+# from input/output samples alone, using {+, -, *, /}, float constants, and
+# the inputs. From the Feynman Symbolic Regression Database (Udrescu & Tegmark,
+# 2020); sampling ranges follow the SRSD reformulation (Matsubara et al., 2022).
+#
+# fitness = mean absolute error over 30 sampled points (0.0 == perfect), minimized.
+#   uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_3_99_goldstein.ae
+
+def sr_errors : (func: (a0:Float) -> (a1:Float) -> (a2:Float) -> (a3:Float) -> (a4:Float) -> (a5:Float) -> (a6:Float) -> Float) -> Float =
+    \func -> native "(lambda m, R: (lambda P: sum(abs(func(p[0])(p[1])(p[2])(p[3])(p[4])(p[5])(p[6]) - (m.sqrt(1 + 2 * p[0] * p[1] * p[2] ** 2 / (p[3] * (p[4] * p[5] * p[6] ** 2) ** 2)))) for p in P) / len(P))([[((10.0 ** R.uniform(-12.0, -16.0)) * R.choice((1.0, -1.0))), (10.0 ** R.uniform(-12.0, -16.0)), (10.0 ** R.uniform(-10.0, -8.0)), (10.0 ** R.uniform(-12.0, -28.0)), float(R.randint(1, 10)), float(R.randint(1, 10)), ((10.0 ** R.uniform(-11.0, -9.0)) * R.choice((1.0, -1.0)))] for _ in range(0, 30)]))(__import__('math'), __import__('random').Random(0))";
+
+@minimize_float(sr_errors synth)
+def synth (epsilon:Float) (E_n:Float) (L:Float) (m:Float) (Z_1:Float) (Z_2:Float) (q:Float) : Float = (let sr_errors = unit in ?hole)

@@ -1,0 +1,15 @@
+# SRBench ground-truth benchmark --- Feynman 8.56 Goldstein
+#
+# Recover  f(p, q, A_vec, m, Volt) = sqrt((p - q * A_vec) ** 2 * 2.99792458e8 ** 2 + m ** 2 * 2.99792458e8 ** 4) + q * Volt
+# from input/output samples alone, using {+, -, *, /}, float constants, and
+# the inputs. From the Feynman Symbolic Regression Database (Udrescu & Tegmark,
+# 2020); sampling ranges follow the SRSD reformulation (Matsubara et al., 2022).
+#
+# fitness = mean absolute error over 30 sampled points (0.0 == perfect), minimized.
+#   uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_8_56_goldstein.ae
+
+def sr_errors : (func: (a0:Float) -> (a1:Float) -> (a2:Float) -> (a3:Float) -> (a4:Float) -> Float) -> Float =
+    \func -> native "(lambda m, R: (lambda P: sum(abs(func(p[0])(p[1])(p[2])(p[3])(p[4]) - (m.sqrt((p[0] - p[1] * p[2]) ** 2 * 299792458.0 ** 2 + p[3] ** 2 * 299792458.0 ** 4) + p[1] * p[4])) for p in P) / len(P))([[((10.0 ** R.uniform(-9.0, -7.0)) * R.choice((1.0, -1.0))), ((10.0 ** R.uniform(-11.0, -9.0)) * R.choice((1.0, -1.0))), ((10.0 ** R.uniform(1.0, 3.0)) * R.choice((1.0, -1.0))), (10.0 ** R.uniform(-12.0, -28.0)), ((10.0 ** R.uniform(-1.0, 1.0)) * R.choice((1.0, -1.0)))] for _ in range(0, 30)]))(__import__('math'), __import__('random').Random(0))";
+
+@minimize_float(sr_errors synth)
+def synth (p:Float) (q:Float) (A_vec:Float) (m:Float) (Volt:Float) : Float = (let sr_errors = unit in ?hole)
