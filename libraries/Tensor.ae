@@ -116,26 +116,67 @@ def vupper (v: {x: Vector | dim x > 0}) : {f: Float | f == upper v} =
     native "float(np.max(v))"
 
 # ─── Vector arithmetic ─────────────────────────────────────────────────
+#
+# Where it is sound, these ops propagate the element interval too. The
+# bounds are the interval-arithmetic images and hold for the *actual*
+# min/max because, e.g., ``min(a + b) >= min a + min b``: the claimed
+# bounds are always at least as wide as the true ones, so the refinement
+# stays a sound over-approximation.
 
-# Element-wise sum; both operands must share a length, which the result
-# inherits.
-def vadd (a: Vector) (b: {x: Vector | dim x == dim a}) : {r: Vector | dim r == dim a} =
+# Element-wise sum. Interval: ``[la + lb, ua + ub]``.
+def vadd (a: Vector) (b: {x: Vector | dim x == dim a}) :
+    {r: Vector | dim r == dim a
+              && lower r >= lower a + lower b
+              && upper r <= upper a + upper b} =
     native "a + b"
 
-# Element-wise difference; same-length precondition.
-def vsub (a: Vector) (b: {x: Vector | dim x == dim a}) : {r: Vector | dim r == dim a} =
+# Element-wise difference. Interval: ``[la - ub, ua - lb]``.
+def vsub (a: Vector) (b: {x: Vector | dim x == dim a}) :
+    {r: Vector | dim r == dim a
+              && lower r >= lower a - upper b
+              && upper r <= upper a - lower b} =
     native "a - b"
 
-# Element-wise (Hadamard) product; same-length precondition.
+# Element-wise (Hadamard) product. General signs make the product
+# interval sign-dependent (not simply expressible), so the unrestricted
+# version propagates only the shape; use ``hadamard_nonneg`` when both
+# operands are known non-negative.
 def hadamard (a: Vector) (b: {x: Vector | dim x == dim a}) : {r: Vector | dim r == dim a} =
     native "a * b"
 
-# Scalar multiple; preserves length.
+# Hadamard product of two non-negative vectors. With ``la, lb >= 0`` the
+# product is monotone in both factors, so the interval is ``[la*lb,
+# ua*ub]`` and the result stays non-negative.
+def hadamard_nonneg
+    (a: {x: Vector | lower x >= 0.0})
+    (b: {x: Vector | dim x == dim a && lower x >= 0.0}) :
+    {r: Vector | dim r == dim a
+              && lower r >= lower a * lower b
+              && upper r <= upper a * upper b} =
+    native "a * b"
+
+# Scalar multiple; preserves length. Sign of ``s`` makes the scaled
+# interval sign-dependent, so the unrestricted version keeps only the
+# shape; use ``scale_nonneg`` for a non-negative factor.
 def scale (s: Float) (v: Vector) : {r: Vector | dim r == dim v} =
+    native "s * v"
+
+# Scale by a non-negative factor: the interval is just ``[s*lv, s*uv]``.
+def scale_nonneg (s: {f: Float | f >= 0.0}) (v: Vector) :
+    {r: Vector | dim r == dim v
+              && lower r >= s * lower v
+              && upper r <= s * upper v} =
     native "s * v"
 
 # Inner product; both operands must share a length.
 def dot (a: Vector) (b: {x: Vector | dim x == dim a}) : Float =
+    native "float(np.dot(a, b))"
+
+# Inner product of two non-negative vectors is non-negative.
+def dot_nonneg
+    (a: {x: Vector | lower x >= 0.0})
+    (b: {x: Vector | dim x == dim a && lower x >= 0.0}) :
+    {f: Float | f >= 0.0} =
     native "float(np.dot(a, b))"
 
 # Euclidean (L2) norm; always non-negative.
@@ -189,11 +230,13 @@ def mupper_of (m: {x: Matrix | rows x > 0 && cols x > 0}) : {f: Float | f == mup
 # ─── Matrix arithmetic ─────────────────────────────────────────────────
 
 # Element-wise sum; both operands must share a shape, which the result
-# inherits.
+# inherits. Value interval: ``[la + lb, ua + ub]``.
 def madd
     (a: Matrix)
     (b: {x: Matrix | rows x == rows a && cols x == cols a}) :
-    {r: Matrix | rows r == rows a && cols r == cols a} =
+    {r: Matrix | rows r == rows a && cols r == cols a
+              && mlower r >= mlower a + mlower b
+              && mupper r <= mupper a + mupper b} =
     native "a + b"
 
 # Matrix product. The inner dimensions must agree (``rows b == cols a``)
@@ -212,6 +255,9 @@ def matvec
     {r: Vector | dim r == rows m} =
     native "m @ v"
 
-# Transpose swaps the two dimensions.
-def transpose (m: Matrix) : {r: Matrix | rows r == cols m && cols r == rows m} =
+# Transpose swaps the two dimensions; the entries are unchanged, so the
+# value interval is preserved exactly.
+def transpose (m: Matrix) :
+    {r: Matrix | rows r == cols m && cols r == rows m
+              && mlower r == mlower m && mupper r == mupper m} =
     native "m.T"
