@@ -651,6 +651,50 @@ class TreeToSugar(Transformer):
     def def_fun_eq(self, meta, args):
         return self.def_fun(meta, args)
 
+    @v_args(meta=True)
+    def axiom_decl(self, meta, args):
+        # ``axiom name : <type> ;`` — Lean-style trusted declaration. The type
+        # may be a dependent, refined arrow; we peel its leading binders into a
+        # Definition's foralls / refinement-foralls / value args so that the
+        # usual lambda-wrapping makes the axiom *callable* (it is instantiated
+        # by application, ghost-lemma style). The body is a trusted ``native``
+        # token: never checked against the refinement, and — like a Lean axiom
+        # — not meant to be computed (applying it yields an opaque value).
+        name, ty = args[0], args[1]
+        loc = self._loc(meta)
+        foralls: list = []
+        rforalls: list = []
+        fn_args: list = []
+        mults: list = []
+        flags: list = []
+        while isinstance(ty, STypePolymorphism):
+            foralls.append((ty.name, ty.kind))
+            ty = ty.body
+        while isinstance(ty, SRefinementPolymorphism):
+            rforalls.append((ty.name, ty.sort))
+            ty = ty.body
+        while isinstance(ty, SAbstractionType):
+            fn_args.append((ty.var_name, ty.var_type))
+            mults.append(ty.multiplicity)
+            flags.append(ty.is_instance)
+            ty = ty.type
+        body = SApplication(
+            SVar(Name("native"), loc=loc),
+            SLiteral("()", type=st_string, loc=loc),
+            loc=loc,
+        )
+        return Definition(
+            Name(name),
+            foralls,
+            fn_args,
+            ty,
+            body,
+            rforalls=rforalls,
+            arg_multiplicities=tuple(mults),
+            instance_flags=tuple(flags),
+            loc=loc,
+        )
+
     def macros(self, args):
         return args
 
