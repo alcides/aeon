@@ -21,7 +21,7 @@ def test_simple_def():
 
 def test_poly():
     assert tt(
-        """ let max : forall a:B, (x:a) -> (y:a) -> {z:a| (z == x) || (z == y)  } = Λa:B => (\\x -> \\y -> if x < y then y else x) in
+        """ let max : forall a:B, (x:a) -> (y:a) -> {z:a| (z == x) || (z == y)  } = Λa:B => (fun x => fun y => if x < y then y else x) in
             let r = max 0 5 in
             let vvv : {m:Int | 0 <= m} = r + 1 in
             true""",

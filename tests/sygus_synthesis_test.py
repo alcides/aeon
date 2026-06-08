@@ -78,7 +78,7 @@ def test_precondition_constant_synthesis():
 
 def test_graceful_failure_non_smt_type():
     """A hole of a non-SMT (inductive) type is outside the subset."""
-    src = "inductive P\n| mk (v:Int | 0 < v && v < 10 ) : P\n\ndef fun : P = ?hole"
+    src = "inductive P\n| mk (v:Int | 0 < v && v < 10 ) : P\n\ndef func : P = ?hole"
     with pytest.raises(SynthesisNotSuccessful):
         _synthesize(src)
 

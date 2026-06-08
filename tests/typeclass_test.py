@@ -112,7 +112,7 @@ def test_default_method_used():
     source = r"""
     class Eq (a : B) where
         eq : (x : a) -> (y : a) -> Bool;
-        neq : (x : a) -> (y : a) -> Bool := \x -> \y -> if eq x y then false else true;
+        neq : (x : a) -> (y : a) -> Bool := fun x => fun y => if eq x y then false else true;
 
     instance : Eq Int where
         eq x y := x == y;
@@ -126,7 +126,7 @@ def test_default_method_false_branch():
     source = r"""
     class Eq (a : B) where
         eq : (x : a) -> (y : a) -> Bool;
-        neq : (x : a) -> (y : a) -> Bool := \x -> \y -> if eq x y then false else true;
+        neq : (x : a) -> (y : a) -> Bool := fun x => fun y => if eq x y then false else true;
 
     instance : Eq Int where
         eq x y := x == y;
@@ -141,7 +141,7 @@ def test_default_method_overridden():
     source = r"""
     class Eq (a : B) where
         eq : (x : a) -> (y : a) -> Bool;
-        neq : (x : a) -> (y : a) -> Bool := \x -> \y -> if eq x y then false else true;
+        neq : (x : a) -> (y : a) -> Bool := fun x => fun y => if eq x y then false else true;
 
     instance : Eq Int where
         eq x y := x == y;
@@ -182,7 +182,7 @@ def test_constrained_instance_resolves():
         eq x y := x == y;
 
     instance [Eq a] : Eq (Box a) where
-        eq x y := eq (Box_rec x (\v -> v)) (Box_rec y (\v -> v));
+        eq x y := eq (Box_rec x (fun v => v)) (Box_rec y (fun v => v));
 
     def main (args : Int) : Int = if eq (.box 3) (.box 3) then 0 else 1;
     """
@@ -203,7 +203,7 @@ def test_constrained_instance_dispatches_inner_eq():
         eq x y := x == y;
 
     instance [Eq a] : Eq (Box a) where
-        eq x y := eq (Box_rec x (\v -> v)) (Box_rec y (\v -> v));
+        eq x y := eq (Box_rec x (fun v => v)) (Box_rec y (fun v => v));
 
     def main (args : Int) : Int =
         if eq (.box 3) (.box 3) then (if eq (.box 3) (.box 4) then 1 else 2) else 3;
@@ -225,7 +225,7 @@ def test_nested_constrained_instance():
         eq x y := x == y;
 
     instance [Eq a] : Eq (Box a) where
-        eq x y := eq (Box_rec x (\v -> v)) (Box_rec y (\v -> v));
+        eq x y := eq (Box_rec x (fun v => v)) (Box_rec y (fun v => v));
 
     def main (args : Int) : Int =
         if eq (.box (.box 3)) (.box (.box 4)) then 10 else 20;

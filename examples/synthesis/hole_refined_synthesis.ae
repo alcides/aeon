@@ -1,4 +1,4 @@
 import Math (abs)
 
-@minimize_int(Math.abs(2024 - fun(253)))
-def fun (i:Int) : Int  = (?hole: {x:Int | x > 0} ) * i
+@minimize_int(Math.abs(2024 - func(253)))
+def func (i:Int) : Int  = (?hole: {x:Int | x > 0} ) * i

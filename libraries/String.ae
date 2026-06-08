@@ -16,7 +16,7 @@ def intToString(i: Int): String = native "str(i)"
 # i: first string
 # j: second string
 # returns: true if strings are equal, false otherwise
-def equal: (i: String) -> (j: String) -> Bool = \i -> \j -> native "i == j";
+def equal: (i: String) -> (j: String) -> Bool = fun i => fun j => native "i == j";
 
 # Returns a substring (slice) of the string from index j to l (exclusive).
 # i: input string
@@ -24,17 +24,17 @@ def equal: (i: String) -> (j: String) -> Bool = \i -> \j -> native "i == j";
 # l: end index (>= j, <= length of i)
 # returns: substring from j to l
 def slice: (i: String) -> (j: {x: Int | x >= 0 && x < len i}) -> (l: {y: Int | y >= j && y <= len i}) -> String =
-    \i -> \j -> \l -> native "i[j:l]";
+    fun i => fun j => fun l => native "i[j:l]";
 
 # Converts the string to uppercase.
 # i: input string
 # returns: uppercase version of the string
-def upper: (i: String) -> String = \i -> native "i.upper()"
+def upper: (i: String) -> String = fun i => native "i.upper()"
 
 # Converts the string to lowercase.
 # i: input string
 # returns: lowercase version of the string
-def lower: (i: String) -> String = \i -> native "i.lower()"
+def lower: (i: String) -> String = fun i => native "i.lower()"
 
 # Replaces all occurrences of substring j with l in string i.
 # i: input string

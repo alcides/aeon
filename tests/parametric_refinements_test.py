@@ -3,12 +3,12 @@ from __future__ import annotations
 from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
 
-ID_IMPLICIT_TYPE_IMPLICIT_REF = "def id : (x : t<p>) -> t<p> = \\x -> x;"
+ID_IMPLICIT_TYPE_IMPLICIT_REF = "def id : (x : t<p>) -> t<p> = fun x => x;"
 
 
 def test_parametric_explicit_type_implicit_refinement_compiles():
     source = """
-def id : forall t : B, (x : t<p>) -> t<p> = Λ t : B => Λ < p : t -> Bool > => \\x -> x;
+def id : forall t : B, (x : t<p>) -> t<p> = Λ t : B => Λ < p : t -> Bool > => fun x => x;
 def main (args:Int) : Unit =
     x : Int | x > 0 = 3;
     y : Int | y > 0 = id[Int] x;
@@ -19,10 +19,10 @@ def main (args:Int) : Unit =
 
 def test_parametric_explicit_type_explicit_refinement_compiles():
     source = """
-def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => Λ < p : t -> Bool > => \\x -> x;
+def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> = Λ t : B => Λ < p : t -> Bool > => fun x => x;
 def main (args:Int) : Unit =
     x : Int | x > 0 = 3;
-    y : Int | y > 0 = id[Int]{\\n -> n > 0} x;
+    y : Int | y > 0 = id[Int]{fun n => n > 0} x;
     print (y)
 """
     assert check_compile(source, st_top)
@@ -34,7 +34,7 @@ def test_parametric_explicit_type_explicit_pred_implicit_term_pred_compiles():
     instead of injecting a `_pred` synthesis hole."""
     source = """
 def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} =
-    Λ t : B => \\x -> x;
+    Λ t : B => fun x => x;
 
 def main (args:Int) : Unit =
     score : Int | score > 0 = 42;
@@ -83,10 +83,10 @@ def main (args:Int) : Unit =
 
 MAXI_EXPLICIT_REF = (
     "def maxI : forall <p : Int -> Bool>, (x : Int<p>) -> (y : Int<p>) -> Int<p> = "
-    "Λ < p : Int -> Bool > => \\x -> \\y -> if x < y then y else x;"
+    "Λ < p : Int -> Bool > => fun x => fun y => if x < y then y else x;"
 )
 
-MAXI_IMPLICIT_REF = "def maxI : (x : Int<p>) -> (y : Int<p>) -> Int<p> = \\x -> \\y -> if x < y then y else x;"
+MAXI_IMPLICIT_REF = "def maxI : (x : Int<p>) -> (y : Int<p>) -> Int<p> = fun x => fun y => if x < y then y else x;"
 
 
 def test_maxI_explicit_forall_p_compiles():
@@ -129,7 +129,7 @@ def main (args:Int) : Unit =
     assert not check_compile(source, st_top)
 
 
-CONST_DEF = "def const : (x : t | p x) -> (y : t) -> {v : t | p v} = \\x -> \\y -> x;"
+CONST_DEF = "def const : (x : t | p x) -> (y : t) -> {v : t | p v} = fun x => fun y => x;"
 
 
 def test_const_propagates_first_argument_predicate():
@@ -156,7 +156,7 @@ def main (args:Int) : Unit =
     assert not check_compile(source, st_top)
 
 
-WRAP_DEF = "def wrap : (x : t<p>) -> t<p> = \\x -> id[t]{\\v -> v == x} x;"
+WRAP_DEF = "def wrap : (x : t<p>) -> t<p> = fun x => id[t]{fun v => v == x} x;"
 
 
 def test_wrapper_around_explicit_type_id():
@@ -184,7 +184,7 @@ def main (args:Int) : Unit =
 
 def test_dollar_preserves_output_refinement():
     source = """
-def inc : (x : Int | x > 4) -> {y:Int | y > 0} = \\x -> x + 1;
+def inc : (x : Int | x > 4) -> {y:Int | y > 0} = fun x => x + 1;
 
 def main (args:Int) : Unit =
     n : Int | n > 4 = 5;
@@ -196,7 +196,7 @@ def main (args:Int) : Unit =
 
 def test_dollar_propagates_argument_refinement_check():
     source = """
-def inc : (x : Int | x > 4) -> {y:Int | y > 0} = \\x -> x + 1;
+def inc : (x : Int | x > 4) -> {y:Int | y > 0} = fun x => x + 1;
 
 def main (args:Int) : Unit =
     r : Int | r > 0 = inc $ 3;
@@ -207,8 +207,8 @@ def main (args:Int) : Unit =
 
 def test_dollar_right_associative_chain():
     source = """
-def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
-def dbl : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + x else 1;
+def inc : (x:Int) -> {y:Int | y > 0} = fun x => if x > 0 then x + 1 else 1;
+def dbl : (x:Int) -> {y:Int | y > 0} = fun x => if x > 0 then x + x else 1;
 
 def main (args:Int) : Unit =
     r : Int | r > 0 = inc $ dbl $ 3;
@@ -219,7 +219,7 @@ def main (args:Int) : Unit =
 
 def test_dollar_rejects_stricter_refinement():
     source = """
-def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
+def inc : (x:Int) -> {y:Int | y > 0} = fun x => if x > 0 then x + 1 else 1;
 
 def main (args:Int) : Unit =
     r : Int | r > 100 = inc $ 5;
@@ -230,7 +230,7 @@ def main (args:Int) : Unit =
 
 def test_dollar_lower_precedence_than_plus():
     source = """
-def inc : (x:Int) -> {y:Int | y > 0} = \\x -> if x > 0 then x + 1 else 1;
+def inc : (x:Int) -> {y:Int | y > 0} = fun x => if x > 0 then x + 1 else 1;
 
 def main (args:Int) : Unit =
     r : Int | r > 0 = inc $ 2 + 3;

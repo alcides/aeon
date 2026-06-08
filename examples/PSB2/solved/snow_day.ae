@@ -1,4 +1,4 @@
-def isZero : (n: Int) -> Bool = \n -> n == 0;
+def isZero : (n: Int) -> Bool = fun n => n == 0;
 
 def snow_day ( n: Int) ( m: Float) (t: Float) (p: Float) : Float = if isZero n then
         m

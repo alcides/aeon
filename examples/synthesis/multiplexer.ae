@@ -24,7 +24,7 @@ def mux6_spec (a0:Bool) (a1:Bool) (d0:Bool) (d1:Bool) (d2:Bool) (d3:Bool) : Bool
 # Exact fitness over the full 64-row truth table: count the disagreements
 # between the candidate `func` and the true multiplexer behaviour.
 def mux_errors : (func: (a0:Bool) -> (a1:Bool) -> (d0:Bool) -> (d1:Bool) -> (d2:Bool) -> (d3:Bool) -> Bool) -> Int =
-    \func -> native "sum(1 for a0 in (True, False) for a1 in (True, False) for d0 in (True, False) for d1 in (True, False) for d2 in (True, False) for d3 in (True, False) if func(a0)(a1)(d0)(d1)(d2)(d3) != [d0, d1, d2, d3][(1 if a0 else 0) + (2 if a1 else 0)])";
+    fun func => native "sum(1 for a0 in (True, False) for a1 in (True, False) for d0 in (True, False) for d1 in (True, False) for d2 in (True, False) for d3 in (True, False) if func(a0)(a1)(d0)(d1)(d2)(d3) != [d0, d1, d2, d3][(1 if a0 else 0) + (2 if a1 else 0)])";
 
 @minimize_int(mux_errors synth)
 def synth (a0:Bool) (a1:Bool) (d0:Bool) (d1:Bool) (d2:Bool) (d3:Bool) : Bool =

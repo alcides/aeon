@@ -49,13 +49,13 @@ def test_rec_refined_sugar_no_let():
 
 
 def test_elaboration_unification():
-    t = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1")
+    t = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (fun x => x)); let y:Int = x 3; 1")
     ectx = ElaborationTypingContext()
     ectx, subs = bind_ectx(ectx, [])
     t = bind_sterm(t, subs)
     v = elaborate_check(ectx, t, parse_type("Int"))
     v2 = elaborate_remove_unification(ectx, v)
-    expected = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1")
+    expected = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (fun x => x)); let y:Int = x[Int] 3; 1")
     expected = bind_sterm(expected, subs)
     assert term_equality(v2, expected)
 

@@ -135,12 +135,12 @@ let fahrenheit = celsius * 1.8 + 32.0;
 ```
 def add (x:Int) (y:Int) : Int = x + y;
 
-def add : (x:Int) -> (y:Int) -> Int = \x -> \y -> x + y;
+def add : (x:Int) -> (y:Int) -> Int = fun x => fun y => x + y;
 ```
 
 The above top-level definitions are equal to each other. The first version defines a function that takes two arguments, and has them available directly in the body. The second version defines an object of type function from int, to a function from int to int (curried, like Haskell), and defines that object using nested lambda functions.
 
-`\x -> x + 1` is an anonymous lambda function, which can be annotated with the type `(x:Int) -> Int`.
+`fun x => x + 1` is an anonymous lambda function (using Lean 4's `fun ... =>` syntax). The argument may be annotated with its type by wrapping it in parentheses: `fun (x:Int) => x + 1`.
 
 ### The `$` operator
 
@@ -254,7 +254,7 @@ Import results are cached by resolved path, and circular imports are detected an
 Aeon supports parametric polymorphism using `forall`:
 
 ```
-def id : forall t : B, (x : t) -> t = Λ t : B => \x -> x;
+def id : forall t : B, (x : t) -> t = Λ t : B => fun x => x;
 ```
 
 The kind `B` represents base types, and `*` represents all types. Type abstraction is introduced with `Λ` (capital lambda) and `=>`.
@@ -269,7 +269,7 @@ When a type variable appears with `<p>`, Aeon infers the refinement quantifier a
 
 ```
 def clamp : (x : Int<p>) -> (lo : Int<p>) -> (hi : Int<p>) -> Int<p> =
-    \x -> \lo -> \hi -> if x < lo then lo else if x > hi then hi else x;
+    fun x => fun lo => fun hi => if x < lo then lo else if x > hi then hi else x;
 ```
 
 The predicate `p` is inferred. Whatever refinement the caller's arguments satisfy, the result is guaranteed to satisfy it too:
@@ -289,11 +289,11 @@ You can write the refinement quantifier explicitly with `forall <p : T -> Bool>`
 
 ```
 def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} =
-    Λ t : B => Λ <p : t -> Bool> => \x -> x;
+    Λ t : B => Λ <p : t -> Bool> => fun x => x;
 
 def main (args:Int) : Unit =
     score : Int | score > 0 = 42;
-    safe_score : Int | safe_score > 0 = wrap[Int]{\n -> n > 0} score;
+    safe_score : Int | safe_score > 0 = wrap[Int]{fun n => n > 0} score;
     print safe_score;
 ```
 
@@ -302,7 +302,7 @@ def main (args:Int) : Unit =
 When calling a function with an explicit refinement parameter, use `{predicate}` to supply the refinement:
 
 ```
-wrap[Int]{\n -> n > 0} score
+wrap[Int]{fun n => n > 0} score
 ```
 
 ### Inductive types with parametric refinements

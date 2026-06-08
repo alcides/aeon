@@ -26,8 +26,8 @@ class Num (a : B) where
 class Ord (a : B) where
     lt : (x : a) -> (y : a) -> Bool;
     leq : (x : a) -> (y : a) -> Bool;
-    gt : (x : a) -> (y : a) -> Bool := \x -> \y -> lt y x;
-    geq : (x : a) -> (y : a) -> Bool := \x -> \y -> leq y x;
+    gt : (x : a) -> (y : a) -> Bool := fun x => fun y => lt y x;
+    geq : (x : a) -> (y : a) -> Bool := fun x => fun y => leq y x;
 
 # ── Instances ──────────────────────────────────────────────────────────
 

@@ -2,7 +2,7 @@ open Array
 
 @gpu(target="cuda", block_size=256)
 def multiply_by_ten (v:(Array Int)) : (Array Int) =
-    Array.map[Int][Int] (\x:Int -> x * 10) v;
+    Array.map[Int][Int] (fun (x : Int) => x * 10) v;
 
 def main (args:Int) : Unit =
     let v : (Array Int) = Array.new[Int] in

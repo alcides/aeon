@@ -15,21 +15,21 @@ from tests.driver import check_compile_expr
 
 
 def test_anf():
-    source = r"""let f : (x:Int) -> (y:Int) -> Int = (\x -> (\y -> x)) in
+    source = r"""let f : (x:Int) -> (y:Int) -> Int = (fun x => (fun y => x)) in
            let r = f (f 1 2) (f 2 3) in
            r"""
     assert check_compile_expr(source, st_top, 1)
 
 
 def test_anf_typed():
-    source = r"""let f : (x:Int) -> (y:Int) -> {z:Int | z == x } = (\x -> (\y -> x)) in
+    source = r"""let f : (x:Int) -> (y:Int) -> {z:Int | z == x } = (fun x => (fun y => x)) in
            let r = f (f 1 2) (f 2 3) in
            r"""
     assert check_compile_expr(source, st_top, 1)
 
 
 def test_anf_typed_smaller():
-    source = r"""let f : (x:Int) -> (y:Int) -> {z:Int | z == x } = (\x -> (\y -> x)) in
+    source = r"""let f : (x:Int) -> (y:Int) -> {z:Int | z == x } = (fun x => (fun y => x)) in
            f (f 3 4) 2"""
 
     source = "let x = 3 in x"
@@ -42,7 +42,7 @@ def test_annotation():
 
 
 def test_annotation_anf():
-    source = r"""let j = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in
+    source = r"""let j = (let f : (x:Int) -> {y :Int | y == x} = fun x => x in
                           let a : {x:Int | x == 3} = 3 in
                           f a)
                 in j"""
@@ -50,7 +50,7 @@ def test_annotation_anf():
 
 
 def test_annotation_anf2():
-    source = r"""let j : {x:Int | x == 3} = (let f : (x:Int) -> {y :Int | y == x} = \x -> x in let a : {x:Int | x == 3} = (let k : {x:Int | x == 3} = 3 in k) in f a) in j"""
+    source = r"""let j : {x:Int | x == 3} = (let f : (x:Int) -> {y :Int | y == x} = fun x => x in let a : {x:Int | x == 3} = (let k : {x:Int | x == 3} = 3 in k) in f a) in j"""
     assert check_compile_expr(source, parse_type("{x:Int | x == 3}"), 3)
 
 
@@ -119,14 +119,14 @@ def k : Int = g (2 + 40);
 def test_implication_in_refinement_typechecks():
     """`-->` is registered in the prelude, so refinements may use logical
     implication directly instead of desugaring to `(!a) || b`."""
-    source = r"""let f : (x:Int) -> {r:Int | (x > 0) --> (r > 0)} = \x -> (if x > 0 then x else 0) in f 5"""
+    source = r"""let f : (x:Int) -> {r:Int | (x > 0) --> (r > 0)} = fun x => (if x > 0 then x else 0) in f 5"""
     assert check_compile_expr(source, parse_type("Int"), 5)
 
 
 def test_implication_in_refinement_rejects_violation():
     """The implication is genuinely enforced by the verifier: an implementation
     that breaks `(x > 0) --> (r > 0)` must be rejected."""
-    source = r"""let f : (x:Int) -> {r:Int | (x > 0) --> (r > 0)} = \x -> (0 - x) in f 5"""
+    source = r"""let f : (x:Int) -> {r:Int | (x > 0) --> (r > 0)} = fun x => (0 - x) in f 5"""
     assert not check_compile_expr(source, parse_type("Int"))
 
 

@@ -9,7 +9,7 @@
 #   uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_rutherford_scattering.ae
 
 def sr_errors : (func: (a0:Float) -> (a1:Float) -> (a2:Float) -> (a3:Float) -> Float) -> Float =
-    \func -> native "(lambda m, R: (lambda P: sum(abs(func(p[0])(p[1])(p[2])(p[3]) - ((p[0] * p[1] * 0.0072973525693 * 1.054571817e-34 * 299792458.0 / (4 * p[2] * m.sin(p[3] / 2) ** 2)) ** 2)) for p in P) / len(P))([[float(R.randint(1, 10)), float(R.randint(1, 10)), (10.0 ** R.uniform(-12.0, -16.0)), R.uniform(0.0, 1.0)] for _ in range(0, 30)]))(__import__('math'), __import__('random').Random(0))";
+    fun func => native "(lambda m, R: (lambda P: sum(abs(func(p[0])(p[1])(p[2])(p[3]) - ((p[0] * p[1] * 0.0072973525693 * 1.054571817e-34 * 299792458.0 / (4 * p[2] * m.sin(p[3] / 2) ** 2)) ** 2)) for p in P) / len(P))([[float(R.randint(1, 10)), float(R.randint(1, 10)), (10.0 ** R.uniform(-12.0, -16.0)), R.uniform(0.0, 1.0)] for _ in range(0, 30)]))(__import__('math'), __import__('random').Random(0))";
 
 @minimize_float(sr_errors synth)
 def synth (Z_1:Float) (Z_2:Float) (E_n:Float) (theta:Float) : Float = (let sr_errors = unit in ?hole)

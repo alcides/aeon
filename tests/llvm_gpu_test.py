@@ -15,7 +15,7 @@ def test_gpu_fallback():
 
         @gpu(target="cuda", debug=false, cache=false, block_size=32, thread_count=1024)
         def multiply_by_two (v:(Vector Int)) (size:Int) : (Vector Int) =
-            Vector.map[Int][Int] (\\x:Int -> x * 2) v size;
+            Vector.map[Int][Int] (fun (x : Int) => x * 2) v size;
 
         def main (args:Int) : Int =
             let v : (Vector Int) = Vector.new[Int] in

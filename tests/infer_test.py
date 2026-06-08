@@ -43,8 +43,8 @@ def test_a_is_not_bool():
 
 
 def test_abs_is_int():
-    assert tt("\\x -> x", "(x:Int) -> Int")
-    assert not tt("\\x -> x", "(x:Bool) -> Int")
+    assert tt("fun x => x", "(x:Int) -> Int")
+    assert not tt("fun x => x", "(x:Bool) -> Int")
 
 
 def test_negatives():
@@ -99,19 +99,19 @@ def test_if3():
 
 
 def test_not():
-    not_def = "\\x -> if x then false else true"
+    not_def = "fun x => if x then false else true"
     not_type = "(x:Bool) -> {b:Bool | b == !x}"
     assert tt(not_def, not_type)
 
 
 def test_and():
-    and_def = "\\x -> \\y -> if x then y else false"
+    and_def = "fun x => fun y => if x then y else false"
     and_type = "(x:Bool) -> (y:Bool) -> {z:Bool | z == (x && y)}"
     assert tt(and_def, and_type)
 
 
 def test_or():
-    or_def = "\\x -> \\y -> if x then true else y"
+    or_def = "fun x => fun y => if x then true else y"
     or_type = "(x:Bool) -> (y:Bool) -> {z:Bool | z == (x || y)}"
     assert tt(or_def, or_type)
 
@@ -120,18 +120,18 @@ def test_or():
 
 
 def test_abs():
-    abs_def = "\\x -> if x >= 0 then x else -x"
+    abs_def = "fun x => if x >= 0 then x else -x"
     abs_type = "(x:Int) -> {z:Int | z >= 0}"
     assert tt(abs_def, abs_type)
 
 
 def test_abs_f():
-    assert tt("let f : (x:Int) -> Int = \\x -> x in f 1", "Int")
+    assert tt("let f : (x:Int) -> Int = fun x => x in f 1", "Int")
 
 
 def test_abs_if():
-    assert not tt("let f : (x:Int) -> Int = \\x -> x in if f 1 then 0 else 0", "Int")
-    assert tt("let f : (x:Int) -> Bool = \\x -> true in if f 1 then 0 else 0", "Int")
+    assert not tt("let f : (x:Int) -> Int = fun x => x in if f 1 then 0 else 0", "Int")
+    assert tt("let f : (x:Int) -> Bool = fun x => true in if f 1 then 0 else 0", "Int")
 
 
 def test_sumSimple1():
@@ -139,7 +139,7 @@ def test_sumSimple1():
 
 
 def test_sumSimple2():
-    assert tt("let sum : (x: Int) -> Int = \\x -> sum x in sum 0", "Int")
+    assert tt("let sum : (x: Int) -> Int = fun x => sum x in sum 0", "Int")
 
 
 def test_sumSimple3():
@@ -160,7 +160,7 @@ def test_sumSimple4():
 
 def test_sumSimple5():
     assert tt(
-        r"let a : ((x:Int) -> Int) = \x -> a 1 in a 2",
+        r"let a : ((x:Int) -> Int) = fun x => a 1 in a 2",
         "Int",
         {"b": "Bool", "sum": "(x:Bool) -> Bool"},
     )
@@ -172,7 +172,7 @@ def test_sumToSimple4():
 
 def test_sumToSimple5():
     assert tt(
-        "let k : (x:Int) -> {y:Int | y > x} = \\x -> x+1 in k 5",
+        "let k : (x:Int) -> {y:Int | y > x} = fun x => x+1 in k 5",
         "{k:Int| k > 5}",
     )
 
@@ -184,7 +184,7 @@ def test_sumToSimple6():
     # NOT assume that refinement as an inductive hypothesis; this must be
     # rejected. (Accepting it was the pre-fix soundness bug.)
     assert not tt(
-        "let k : (x:Int) -> {y:Int | y > 0} = \\x -> if x == 5 then k 1 else k 0 in k 5",
+        "let k : (x:Int) -> {y:Int | y > 0} = fun x => if x == 5 then k 1 else k 0 in k 5",
         "{k:Int| k > 0}",
     )
 
@@ -196,9 +196,7 @@ def test_sumTo():
     # conservatively rejects it. The same recurrence IS accepted in the surface
     # language, where metric inference / `decreasing_by` supply well-foundedness
     # (see tests/recursion_soundness_test.py).
-    sumTo_def = (
-        "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = \\n -> if n <= 0 then 0 else n + sum (n-1) in sum 4"
-    )
+    sumTo_def = "let sum : ((x: Int) -> {y: Int | (y >= 0) && (x <= y) }) = fun n => if n <= 0 then 0 else n + sum (n-1) in sum 4"
     sumTo_type = "Int"
     assert not tt(sumTo_def, sumTo_type)
 

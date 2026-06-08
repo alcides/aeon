@@ -665,7 +665,7 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
 def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDecl]) -> STerm:
     """
     Rewrite `match scrutinee with | C x y => e | ...` into:
-        <Inductive>_rec scrutinee (\\x -> \\y -> e) ...
+        <Inductive>_rec scrutinee (fun x => fun y => e) ...
     using the generated `<Inductive>_rec` eliminator introduced by `expand_inductive_decls`.
     """
 

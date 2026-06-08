@@ -4,5 +4,5 @@
 
 def abs (n:Int) : Int = if n < 0 then - n else n
 
-@minimize_int(abs(fun 5 + 5) + abs(fun 3 + 3) + abs(fun 10 + 10))
-def fun (x:Int) : Int = ?hole
+@minimize_int(abs(func 5 + 5) + abs(func 3 + 3) + abs(func 10 + 10))
+def func (x:Int) : Int = ?hole

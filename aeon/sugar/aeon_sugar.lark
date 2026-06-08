@@ -22,7 +22,7 @@ type_decl : "type" TYPENAME inductive_rforalls ";"?                            -
 // optional ``:= default`` body, terminated by ``;``.
 //   class Eq (a : B) where
 //     eq : (x : a) -> (y : a) -> Bool ;
-//     neq : (x : a) -> (y : a) -> Bool := \x -> \y -> !(eq x y) ;
+//     neq : (x : a) -> (y : a) -> Bool := fun x => fun y => !(eq x y) ;
 class_decl : "class" ID class_params class_supers "where" class_members  -> class_decl
 class_params : class_param*                                  -> list
 class_param : "(" ID ":" kind ")"                            -> class_param
@@ -212,8 +212,8 @@ expression_fact : expression_b                           -> same
                 | expression_fact "%" expression_b       -> binop_mod
 
 
-expression_b : "\\" ID "->" expression                      -> abstraction_e
-             | "\\" ID ":" type "->" expression             -> abstraction_et
+expression_b : "fun" ID "=>" expression                     -> abstraction_e
+             | "fun" "(" ID ":" type ")" "=>" expression     -> abstraction_et
              | "Λ" "<" ID ":" pred_sort ">" "=>" expression -> rabstraction_e
              | "Λ" ID ":" kind "=>" expression              -> tabstraction_e
              | application                                  -> same

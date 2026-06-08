@@ -3,9 +3,9 @@ open Math
 import PSB2 (extract_train_data, load_dataset)
 
 import Array
-def calculate_bouncing_balls_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> (Array Int)  =  \data -> \func -> native "[abs(func(x[0][0])(x[0][1])(x[0][2]) - x[1][0]) for x in data]"
+def calculate_bouncing_balls_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> (Array Int)  =  fun data => fun func => native "[abs(func(x[0][0])(x[0][1])(x[0][2]) - x[1][0]) for x in data]"
 
-def isZero : (n: Int) -> Bool = \n -> n == 0;
+def isZero : (n: Int) -> Bool = fun n => n == 0;
 
 def train: TrainData = extract_train_data (load_dataset "bouncing-balls" 200 200)
 

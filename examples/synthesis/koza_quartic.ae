@@ -19,7 +19,7 @@ def koza_quartic_spec (x:Float) : Float = x * x * x * x + x * x * x + x * x + x;
 # Mean absolute error of a candidate `func` against the quartic, sampled over
 # 21 evenly spaced points in [-1, 1].
 def sr_errors : (func: (x:Float) -> Float) -> Float =
-    \func -> native "sum(abs(func(x) - (x**4 + x**3 + x**2 + x)) for i in range(21) for x in [-1.0 + 0.1 * i]) / 21.0";
+    fun func => native "sum(abs(func(x) - (x**4 + x**3 + x**2 + x)) for i in range(21) for x in [-1.0 + 0.1 * i]) / 21.0";
 
 @minimize_float(sr_errors synth)
 def synth (x:Float) : Float =

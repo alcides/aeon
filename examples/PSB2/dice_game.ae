@@ -14,7 +14,7 @@ def constant_f1 : Float = 1.0
 
 def mult (n:Int) (m:Int ) : Int = n * m
 
-def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = \n -> \m-> if m == 0 then 0 else (Math.max 0 (n - m)) + peter_wins n (m - 1);
+def peter_wins: ( n:Int ) -> ( m:Int ) -> Int = fun n => fun m => if m == 0 then 0 else (Math.max 0 (n - m)) + peter_wins n (m - 1);
 
 def dice_game ( n : {x:Int | 1 <= x && x <= 10000}) (m : {y:Int | 1 <= y && y <= 10000}) : Float = Math.toFloat(peter_wins n  m ) / Math.toFloat(mult n m);
 

@@ -1,7 +1,7 @@
 import PSB2 (extract_train_data, load_dataset, calculate_coin_sum_errors)
 
 import Array
-def Math_floor_division : (i:Int) -> (j:Int) -> Int = \i -> \j -> native "i // j"
+def Math_floor_division : (i:Int) -> (j:Int) -> Int = fun i => fun j => native "i // j"
 
 def List_size : (l:(Array Int)) -> Int = uninterpreted
 

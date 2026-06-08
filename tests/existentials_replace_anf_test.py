@@ -60,7 +60,7 @@ def test_application_with_non_var_arg_typechecks_without_anf():
     even when the inner argument is a non-trivial `Application` and we never
     run the ANF pass."""
     src = r"""
-        let id : (x:Int) -> Int = \x -> x in
+        let id : (x:Int) -> Int = fun x => x in
         id (id 0)
     """.strip()
     ctx, term = _ctx_and_term(src)
@@ -72,7 +72,7 @@ def test_synth_application_emits_existential_for_non_var_arg():
     """Synth of `id (id 0)` returns an `ExistentialType` because the outer
     application's argument is itself an `Application`, not a `Var`/`Literal`."""
     src = r"""
-        let id : (x:Int) -> Int = \x -> x in
+        let id : (x:Int) -> Int = fun x => x in
         id (id 0)
     """.strip()
     ctx, term = _ctx_and_term(src)

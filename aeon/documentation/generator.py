@@ -291,7 +291,7 @@ def format_term(term: STerm, min_prec: int = _PREC_TOP) -> str:
         case SHole(name, _):
             return f"?{format_name(name)}"
         case SAbstraction(var_name, body, _):
-            inner = f"\\{format_name(var_name)} -> {format_term(body)}"
+            inner = f"fun {format_name(var_name)} => {format_term(body)}"
             return f"({inner})" if min_prec > _PREC_TOP else inner
         case SLet(var_name, var_value, body, _, _):
             inner = f"let {format_name(var_name)} = {format_term(var_value)} in {format_term(body)}"
