@@ -46,23 +46,33 @@ def net_out : (n: Network) -> Int = uninterpreted
 def grad_in : (g: Gradients) -> Int = uninterpreted
 def grad_out : (g: Gradients) -> Int = uninterpreted
 
-# ─── Activation functions (shape-preserving) ───────────────────────────
+# ─── Activation functions (shape-preserving, domain-refined) ───────────
+#
+# Each activation both preserves the length (``dim r == dim v``) and pins
+# the result's element interval (``lower``/``upper``) to its exact
+# codomain. So ``vget`` on the output reports the right bounds: an element
+# of a ``relu`` result is ``>= 0``, of a ``sigmoid`` result is in
+# ``[0, 1]``, etc. — checked by the type system, not by convention.
 
-# Rectified linear unit, applied element-wise.
-def relu (v: Vector) : {r: Vector | dim r == dim v} =
+# Rectified linear unit. Output elements are non-negative: ``[0, +inf)``.
+def relu (v: Vector) : {r: Vector | dim r == dim v && lower r >= 0.0} =
     native "np.maximum(v, 0.0)"
 
-# Logistic sigmoid, applied element-wise; every entry lands in (0, 1).
-def sigmoid (v: Vector) : {r: Vector | dim r == dim v} =
+# Logistic sigmoid. Output elements land in ``[0, 1]`` (strictly (0, 1)).
+def sigmoid (v: Vector) :
+    {r: Vector | dim r == dim v && lower r >= 0.0 && upper r <= 1.0} =
     native "1.0 / (1.0 + np.exp(-v))"
 
-# Hyperbolic tangent, applied element-wise.
-def tanh_act (v: Vector) : {r: Vector | dim r == dim v} =
+# Hyperbolic tangent. Output elements land in ``[-1, 1]``.
+def tanh_act (v: Vector) :
+    {r: Vector | dim r == dim v && lower r >= (0.0 - 1.0) && upper r <= 1.0} =
     native "np.tanh(v)"
 
 # Softmax over a non-empty vector; preserves length and yields a
-# probability distribution (entries in (0, 1) summing to 1).
-def softmax (v: {x: Vector | dim x > 0}) : {r: Vector | dim r == dim v} =
+# probability distribution — every entry lies in ``[0, 1]`` (and they sum
+# to 1).
+def softmax (v: {x: Vector | dim x > 0}) :
+    {r: Vector | dim r == dim v && lower r >= 0.0 && upper r <= 1.0} =
     native "np.exp(v - np.max(v)) / np.sum(np.exp(v - np.max(v)))"
 
 # ─── Layer construction ────────────────────────────────────────────────
