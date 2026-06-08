@@ -46,8 +46,13 @@ measure_rule : "+" ID args ":" type                        -> def_ind_cons
 // A definition name may be a plain identifier or a dotted ``Type.method`` name
 // (issue #27): ``def Int.toString : ...`` declares a method on ``Int`` that
 // ``recv.toString`` dispatches to when the receiver has type ``Int``.
+// Lean-style trusted axiom: ``axiom name : <type> ;`` introduces a constant
+// of the given (possibly dependent, refined) type without a proof. The type's
+// refinements are assumed; the body is never checked. Like Lean, axioms are
+// noncomputable (applying one yields an opaque proof token).
 def : soft_constraint "def" def_name ":" type "=" expression ";"?                  -> def_cons
     | soft_constraint "def" def_name  args ":" type decreasing_by_opt "=" expression ";"?     -> def_fun_eq
+    | "axiom" def_name ":" type ";"?                                         -> axiom_decl
     | instance_decl                                                          -> same
 
 def_name : ID                                                -> same
