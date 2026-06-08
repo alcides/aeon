@@ -122,10 +122,60 @@ e.g. introducing each neuron as an *opaque* SMT variable constrained by its
 is used. That VC-engineering step, plus multi-layer DeepPoly
 back-substitution to keep the `[l, u]` tight, is the real road to scale.
 
+## Chasing the bottleneck: "make it opaque so it scales"
+
+The natural next hypothesis was that the relaxed encoding stalls because each
+neuron is *inlined* (its defining expression copied everywhere it is used),
+and that representing neurons as opaque SMT variables would fix it. Profiling
+(`python -m cProfile -m aeon q.ae`) on a width-10 relaxed query showed two
+things:
+
+1. **Aeon already makes neurons opaque.** The verification condition is
+   literally `∀h0. h0 == <affine> → ∀h1. h1 == <affine> → ... → margin > 0`:
+   each `let` is lowered to a fresh quantified variable plus one defining
+   equation. Opacity was not the missing piece.
+
+2. **The cost is in the SMT *translation*, not z3's search and not ReLU
+   case-splitting.** `aeon/verification/smt.py:translate_liq` accounted for
+   ~22 s of a 38 s run and was called **~405,000 times** for a ~10-equation
+   problem. It is a *non-memoized* recursive descent, and the nested
+   `∀h. h==e → ...` chain makes it re-translate overlapping sub-formulas over
+   and over — cost grows with the verification-condition size = (number of
+   bindings) × (terms per affine).
+
+So the lever is to **shrink the VC**, not to add opacity. `relax_flat_gen.py`
+does this: for a single hidden layer the network is piecewise affine, so every
+*stable* ReLU (interval entirely ≥0 or ≤0) folds exactly into one collapsed
+affine form, and only the *unstable* ReLUs remain as bindings. Binding depth
+becomes `#unstable`, not width.
+
+Deterministic, load-independent evidence (same net, 4 inputs, 8 hidden,
+4 unstable — `translate_liq` call counts don't depend on machine load):
+
+| encoding | bindings | `translate_liq` calls |
+|----------|---------:|----------------------:|
+| `relax_gen.py` (per-neuron) | 8 | 161,018 |
+| `relax_flat_gen.py` (folded) | 4 | 97,656 |
+
+The translation work drops in step with the bindings removed; at width 32 the
+fold is 32 → ~4, a much larger cut.
+
+**Honest bottom line.** Folding is the right encoding-level lever and it helps
+proportionally, but it does *not* by itself reach MNIST scale: the input
+dimension (terms per affine — 64 for a full 8×8 image) and the high per-term
+constant of the non-memoized translator remain. The decisive fix is in Aeon
+core — **memoize `translate_liq` / share z3 sub-expressions** so the VC is
+translated once instead of re-walked per clause. That is an interpreter
+change, outside this library; the relaxation + folding here are what the
+library layer can soundly contribute. (Timings on this machine were too
+load-contaminated to report as a scaling curve; the call-count comparison
+above is deterministic and is the reliable signal.)
+
 ## Files
 
 - `gen.py` — trains the net and emits the *exact* Aeon robustness query.
-- `relax_gen.py` — emits the *linear-relaxation* (DeepPoly-style) query.
+- `relax_gen.py` — *linear-relaxation* (DeepPoly-style), one binding per neuron.
+- `relax_flat_gen.py` — relaxation **+ stable-neuron folding** (binding depth = #unstable).
 - `run_sweep.sh` — the scaling sweep harness.
 - `results.tsv` — raw timing/verdict data from the exact sweep above.
 - `verified_small.ae` — a committed, reproducible *robust* instance (~4 s).
