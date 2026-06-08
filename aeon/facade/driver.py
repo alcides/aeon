@@ -113,22 +113,29 @@ class AeonDriver:
             return eval(self.core, self.evaluation_ctx)
 
     def has_tests(self) -> bool:
-        """Whether the program declares any ``@property`` functions."""
-        return any(isinstance(entry, dict) and "property" in entry for entry in self.metadata.values())
+        """Whether the program declares any ``@property`` functions or
+        ``@example`` assertions."""
+        return any(
+            isinstance(entry, dict) and ("property" in entry or "examples" in entry) for entry in self.metadata.values()
+        )
 
     def run_tests(self, seed: int = 0) -> list:
-        """Check every ``@property`` function, print a pytest-style report, and
-        return the list of failing results (empty when all pass)."""
-        from aeon.synthesis.pbt import run_properties
+        """Check every ``@property`` function and ``@example`` assertion, print a
+        pytest-style report, and return the list of failing results (empty when
+        all pass)."""
+        from aeon.synthesis.pbt import ExampleResult, PropertyResult, run_examples, run_properties
 
-        results = run_properties(
-            self.typing_ctx,
-            self.evaluation_ctx,
-            self.core,
-            self.metadata,
-            seed=seed,
-            constructor_names=self.constructor_names,
+        results: list[PropertyResult | ExampleResult] = list(
+            run_properties(
+                self.typing_ctx,
+                self.evaluation_ctx,
+                self.core,
+                self.metadata,
+                seed=seed,
+                constructor_names=self.constructor_names,
+            )
         )
+        results += run_examples(self.evaluation_ctx, self.core, self.metadata)
         for result in results:
             print(result.summary())
         failures = [r for r in results if not r.passed]

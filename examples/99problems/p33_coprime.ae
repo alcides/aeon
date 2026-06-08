@@ -4,6 +4,9 @@
 def myGcd (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : {v:Int | v >= 0} decreasing_by [b] =
     if b == 0 then a else myGcd b (a % b)
 
+@example(coprime 35 64)
+@example(coprime 35 49 == false)
+@example(coprime 5 7)
 def coprime (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : Bool =
     myGcd a b == 1
 

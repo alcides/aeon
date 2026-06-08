@@ -1,11 +1,16 @@
 # 4 ways of writing the same function
 
+@example(mult 3 4 == 12)
 def mult : (n:Int) -> (m:Int) -> Int = \x -> \y -> x * y
 
+@example(mult2 3 4 == 12)
+@example(mult2 0 100 == 0)
 def mult2  (n:Int) (m:Int) : Int = n * m
 
+@example(mult3 5 6 == 30)
 def mult3  (n:Int) : (m:Int) -> {y:Int | true } = \m -> m * n
 
+@example(mult4 2 7 == 14)
 def mult4  (n:Int) (m:Int) : {y:Int | true} = native "m * n"
 
 

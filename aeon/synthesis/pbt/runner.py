@@ -279,6 +279,64 @@ def _check_property(
     return PropertyResult(spec.name, passed=True, trials=spec.samples)
 
 
+@dataclass
+class ExampleResult:
+    """Outcome of checking a single ``@example`` assertion.
+
+    Shaped like :class:`PropertyResult` (``passed`` / ``error`` / ``summary``)
+    so the ``--test`` runner can report properties and examples uniformly.
+    """
+
+    name: str  # human-readable label, e.g. "abs example #0: abs 5 == 5"
+    passed: bool
+    error: str | None = None
+
+    def summary(self) -> str:
+        if self.passed:
+            return f"PASS {self.name}"
+        head = f"FAIL {self.name}"
+        if self.error is not None:
+            head += f"\n     {self.error}"
+        return head
+
+
+def run_examples(
+    evaluation_ctx: EvaluationContext,
+    core: Term,
+    metadata: Metadata,
+    timeout: float = DEFAULT_TIMEOUT,
+) -> list[ExampleResult]:
+    """Check every ``@example`` assertion and return one result per example.
+
+    Each ``@example`` lowers to an internal nullary ``Bool`` binding (recorded
+    in ``metadata`` under the owning function's ``"examples"`` entry). We locate
+    that binding in the lowered program, evaluate it as the program's tail (so
+    all top-level definitions stay in scope) and require it to be ``True``.
+    """
+    from aeon.synthesis.decorators import Example
+
+    name_to_core: dict[str, Name] = {name.name: name for name, _ in _iter_top_level(core)}
+    results: list[ExampleResult] = []
+    for key, entry in metadata.items():
+        if not (isinstance(key, Name) and isinstance(entry, dict) and "examples" in entry):
+            continue
+        for idx, ex in enumerate(entry["examples"]):
+            assert isinstance(ex, Example)
+            label = f"{key.name} example #{idx}: {ex.text}"
+            core_name = name_to_core.get(ex.function.name)
+            if core_name is None:
+                results.append(ExampleResult(label, passed=False, error="internal example binding not found"))
+                continue
+            value, error = _eval_bool(_replace_tail(core, Var(core_name)), evaluation_ctx, timeout)
+            if value is True:
+                results.append(ExampleResult(label, passed=True))
+            elif value is False:
+                results.append(ExampleResult(label, passed=False, error="assertion evaluated to False"))
+            else:
+                results.append(ExampleResult(label, passed=False, error=error))
+    return results
+
+
 def _collect_constructors(core: Term, constructor_names: set[str]) -> list[VariableBinder]:
     """Collect data-constructor bindings (e.g. ``List_cons``, ``List_nil``) from
     the program's top-level definitions, identified by name."""
