@@ -87,9 +87,45 @@ neuron by affine functions of the inputs) — is the principled way to get
 useful precision *at scale*, and is the natural next step if this direction
 is pursued.
 
+## Follow-up: a linear-relaxation prototype (DeepPoly-in-refinements)
+
+`relax_gen.py` + `libraries/Relax.ae` sketch the principled fix: replace each
+unstable ReLU's exact `(y == 0 || y == x)` with its convex **triangle
+relaxation** (`y >= 0`, `y >= z`, `y <= a*z + b`) — sound linear bounds with
+**no disjunction**, so the solver never case-splits. Stable neurons stay
+exact; the per-neuron pre-activation interval `[l, u]` is exact for one
+hidden layer (affine over the box). See `examples/nn/relaxation.ae` for the
+idea on a hand-written net.
+
+**Does it unlock scale? Not on its own.** Controlled, same-machine,
+back-to-back (4 inputs, 6 unstable ReLUs):
+
+| width | exact (Certify) | relaxed (Relax) |
+|------:|----------------:|----------------:|
+|  8 |  9 s |  8 s |
+| 16 | 94 s | 71 s |
+
+Removing the case-splitting helps only modestly (~25%), and **both blow up
+with network width**. Even a *purely affine* relaxed net (0 unstable ReLUs)
+goes 9 s → 74 s from width 8 → 16. So in this refinement-typed encoding the
+dominant cost is **not** ReLU case-splitting — it is the size of the
+verification condition, which grows steeply with width because every neuron
+is inlined as an affine expression over the inputs and chained through
+`let`s. (Numbers are on a loaded machine, so absolute values are inflated;
+the *ratios*, measured back-to-back, are the signal.)
+
+**Takeaway.** The relaxation is necessary (it's the only way to avoid the
+exponential ReLU split) but **not sufficient**. To actually scale, it must be
+paired with a leaner encoding that keeps the VC linear in network size —
+e.g. introducing each neuron as an *opaque* SMT variable constrained by its
+(relaxed) bounds, rather than inlining its defining expression everywhere it
+is used. That VC-engineering step, plus multi-layer DeepPoly
+back-substitution to keep the `[l, u]` tight, is the real road to scale.
+
 ## Files
 
-- `gen.py` — trains the net and emits the Aeon robustness query.
+- `gen.py` — trains the net and emits the *exact* Aeon robustness query.
+- `relax_gen.py` — emits the *linear-relaxation* (DeepPoly-style) query.
 - `run_sweep.sh` — the scaling sweep harness.
-- `results.tsv` — raw timing/verdict data from the run above.
+- `results.tsv` — raw timing/verdict data from the exact sweep above.
 - `verified_small.ae` — a committed, reproducible *robust* instance (~4 s).
