@@ -1,0 +1,58 @@
+# Part 2 — DeepPoly/CROWN-style *relational* bounds vs interval bounds.
+#
+# Interval Bound Propagation (IBP) — what Tensor's lower/upper layer does —
+# tracks one interval per quantity and forgets how quantities relate. That
+# is sound but loose: it cannot see cancellation. The state of the art
+# (DeepPoly, CROWN, auto_LiRPA) instead keeps each neuron's *affine
+# relation* to the inputs, which is far tighter. In a refinement-typed
+# setting we get that relational reasoning for free: z3 sees the actual
+# scalar expressions, so the link between neurons survives.
+#
+# The canonical example is |x| = relu(x) + relu(-x).
+
+open Certify
+
+
+# RELATIONAL (passes): relu(x) + relu(-x) is |x|, so for x in [-1, 1] the
+# result is in [0, 1]. z3 proves the tight bound because it knows both
+# terms come from the same x and cancel: one relu is the value, the other
+# is 0.
+def abs_via_relus (x: {v: Float | (0.0 - 1.0) <= v && v <= 1.0}) :
+    {r: Float | 0.0 <= r && r <= 1.0} =
+    let p = relu x in
+    let n = relu (0.0 - x) in
+    p + n ;
+
+
+# IBP (fails to type-check): given only the *intervals* of the two relu
+# outputs — each in [0, 1], the link to x erased — the best sound bound on
+# the sum is [0, 2]. Claiming [0, 1] is then unprovable. This is exactly
+# the precision IBP loses; uncomment to see the type error.
+#
+# def abs_via_intervals (p: {v: Float | 0.0 <= v && v <= 1.0})
+#                       (n: {v: Float | 0.0 <= v && v <= 1.0}) :
+#     {r: Float | r <= 1.0} =
+#     p + n ;
+
+
+# A dense -> relu layer with an exact affine pre-activation. The affine
+# transformer is exact (DeepPoly keeps it symbolic too), so the box on the
+# inputs maps to the tight output interval: pre = 2*x1 + x2 in [0, 3], and
+# relu preserves it.
+def dense_relu_layer
+    (x1: {v: Float | 0.0 <= v && v <= 1.0})
+    (x2: {v: Float | 0.0 <= v && v <= 1.0}) :
+    {r: Float | 0.0 <= r && r <= 3.0} =
+    let pre = (2.0 * x1) + x2 in
+    relu pre ;
+
+
+# Affine cancellation IBP cannot do: 2*x - x is exactly x in [0, 1].
+# (Independent intervals would give [-1, 2].)
+def affine_cancel (x: {v: Float | 0.0 <= v && v <= 1.0}) :
+    {r: Float | 0.0 <= r && r <= 1.0} =
+    (2.0 * x) - x ;
+
+
+def main (_: Int) : Unit =
+    print 0
