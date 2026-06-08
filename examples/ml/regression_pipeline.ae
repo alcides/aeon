@@ -1,29 +1,31 @@
 # End-to-end regression pipeline.
 #
-# The ``Pair``-based split combined with ``train_of`` / ``test_of`` lets
-# the regressor's ``reg_features`` flow from training through scoring,
-# so ``Learning.r2 model test_part`` discharges its
-# ``reg_features model == ds_features test_part`` precondition.
+# The source has missing values (``target ... true``), so each split is
+# imputed **separately, after the split** — imputing the whole dataset
+# beforehand would fit the imputer on the test rows too (``coupled``
+# source) and ``Learning.r2`` would reject the test set. Scaling, when
+# used, follows the same rule.
 
 open Learning
 
 
-def train_ridge (path: String) (target_col: String) : Regressor =
-    let 1 df = Learning.read_csv path in
-    let ds = Learning.target df target_col in
-    let imputed = Learning.fill_median ds in
-    let scaled = Learning.standard_scale imputed in
-    let parts = Learning.split scaled 0.8 in
-    Learning.ridge_alpha 0.5 (Learning.train_of parts) ;
-
-
 def score_ridge (path: String) (target_col: String) : Float =
     let 1 df = Learning.read_csv path in
-    let ds = Learning.target df target_col in
-    let imputed = Learning.fill_median ds in
-    let scaled = Learning.standard_scale imputed in
-    let parts = Learning.split scaled 0.8 in
-    let train_part = Learning.train_of parts in
-    let test_part = Learning.test_of parts in
-    let model = Learning.ridge train_part in
-    Learning.r2 model test_part ;
+    # not a time series, but has missing values.
+    let ds0 = Learning.target df target_col false true in
+    let ds = Learning.require_enough_data ds0 in
+    let parts = Learning.split ds 0.8 true in
+    # Impute (and could scale) each half independently — no leakage.
+    let train = Learning.fill_median (Learning.train_of parts) in
+    let test = Learning.fill_median (Learning.test_of parts) in
+    let model = Learning.ridge_alpha 0.5 train in
+    Learning.r2 model test ;
+
+
+def train_ridge (path: String) (target_col: String) : Regressor =
+    let 1 df = Learning.read_csv path in
+    let ds0 = Learning.target df target_col false true in
+    let ds = Learning.require_enough_data ds0 in
+    let parts = Learning.split ds 0.8 true in
+    let train = Learning.fill_median (Learning.train_of parts) in
+    Learning.ridge train ;
