@@ -424,6 +424,10 @@ The generated files are gitignored; they are produced from source by the
 | -l, --log | Sets the log level (TRACE, DEBUG, INFO, WARNINGS, ERROR, CRITICAL, etc.)  |
 | -f, --logfile | Exports the log to a file                                              |
 | -n, --no-main | Disables introducing hole in main                                     |
+| --test | Runs every `@property` and `@example` as a test and reports pass/fail        |
+| --seed | Random seed for `--test` input generation (reproducible for a fixed seed)    |
+| --doc  | Generates HTML documentation from the source file                            |
+| --doc-output | Output path (file or directory) for the generated `--doc` HTML          |
 | -s, --synthesizer | Selects a synthesizer — see [Synthesizers](synthesizers) for a full list and descriptions |
 | --synthesis-format | Selects the output format for synthesized holes (default, json)      |
 | --budget | Time budget for synthesis in seconds (default: 60)                          |
@@ -474,6 +478,40 @@ See `examples/synthesis/cputime_energy.ae` for a program that combines correctne
 
 - `@csv_data("1.0,2.0,3.0\n4.0,5.0,12.0")` — provide inline CSV training data (last column is expected output)
 - `@csv_file("data.csv")` — load training data from a CSV file
+
+### Worked examples (`@example`)
+
+`@example(assertion)` attaches a concrete, `Bool`-valued assertion about a
+function — usually an equality between a fully-applied call and its expected
+result. A single annotation serves three purposes at once:
+
+```aeon
+# Absolute value of an integer.
+@example(my_abs (0 - 3) == 3)
+@example(my_abs 5 == 5)
+def my_abs (x : Int) : Int = if x < 0 then 0 - x else x;
+```
+
+- **Documentation** — the assertion is rendered next to the function by
+  `--doc`, giving every function a worked, machine-checked example.
+- **Test** — `--test` evaluates the assertion and requires it to hold,
+  reported alongside `@property` results.
+- **Synthesis specification** — when the body is a hole `?`, each example
+  contributes a `minimize (if assertion then 0 else 1)` objective, so a
+  fitness-based synthesizer is driven to satisfy every example
+  (programming-by-example). A numeric `f(args) == expected` example is also
+  recorded as a training point for the `decision_tree` synthesizer, which can
+  learn a function directly from its examples.
+
+```bash
+aeon --test examples/pbt/examples_decorator.ae   # check every @example
+aeon --doc  examples/pbt/examples_decorator.ae   # render them into HTML
+```
+
+Property-based tests use the related `@property` decorator: it marks a
+`Bool`-returning function whose arguments are universally quantified and checked
+on random inputs generated from their (refinement-constrained) types under
+`--test`.
 
 ### Synthesis control decorators
 

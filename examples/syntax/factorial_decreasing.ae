@@ -1,6 +1,6 @@
 # Unary recursion with an explicit Liquid Haskell-style metric (single Int).
 # Path-sensitive VCs: in the ``n != 0`` branch we prove ``(n-1) >= 0`` and decrease; use ``Nat``.
-# For lexicographic ``[m0, m1, …]``, see ``ackermann_decreasing.ae``.
+# For lexicographic ``[m0, m1, …]`` metrics, see ``ackermann.ae``.
 
 @example(fact 0 == 1)
 @example(fact 4 == 24)

@@ -8,14 +8,15 @@
 # It is defined for m, n >= 0 and terminates for every natural input, yet Aeon's
 # termination checker cannot prove that here — and the reason is instructive.
 #
-# Termination needs the lexicographic metric [m, n] (see ackermann_decreasing.ae
-# for that pattern). But for the nested call `ack (m - 1) (ack m (n - 1))` the
-# second metric component is the *inner recursive result* `ack m (n - 1)`, so the
-# well-foundedness obligation includes `ack m (n - 1) >= 0`. Inside a termination
-# VC `ack` is an uninterpreted symbol — its codomain refinement is not an axiom
-# there — so that obligation is unprovable. Refining the return type or the
-# arguments to Nat does not help: it only moves the same `ack ... >= 0` obligation
-# into an argument precondition.
+# Termination needs the lexicographic metric [m, n] — each recursive call must
+# make the pair (m, n) strictly smaller in dictionary order, with both
+# components bounded below. But for the nested call `ack (m - 1) (ack m (n - 1))`
+# the second metric component is the *inner recursive result* `ack m (n - 1)`, so
+# the well-foundedness obligation includes `ack m (n - 1) >= 0`. Inside a
+# termination VC `ack` is an uninterpreted symbol — its codomain refinement is
+# not an axiom there — so that obligation is unprovable. Refining the return type
+# or the arguments to Nat does not help: it only moves the same `ack ... >= 0`
+# obligation into an argument precondition.
 #
 # We therefore omit `decreasing_by`. Aeon only auto-infers a metric for *unary*
 # functions, so this binary definition is accepted without a termination proof.
