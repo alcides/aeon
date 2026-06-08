@@ -1,0 +1,55 @@
+# Worked proofs over the per-line model in ``libraries/LearningLines.ae``,
+# showing how the thesis's Appendix-A axioms — declared there with the
+# ``axiom`` keyword — are *instantiated* to discharge a refinement.
+#
+# Each function below carries its hypotheses as the refinement of an
+# ``Int`` parameter ``h`` and states its conclusion as the refinement of
+# the return type. The proof is the ``let inst = <axiom> <args> in h``
+# line: instantiating the axiom adds its fact to the context, which lets
+# the SMT solver discharge the conclusion. Remove that line and the
+# function no longer type-checks (see ``tests/learning_axioms_test.py``).
+
+open LearningLines
+
+
+# Time-series law (A.1). In a chronologically-ordered dataset with more
+# than one line, if ``earlier`` precedes ``later`` then ``later`` causally
+# depends on ``earlier``. This is the heart of temporal leakage: shuffling
+# a time series before the split can put a test instance chronologically
+# *earlier* than a training instance, so the model trains on a row that
+# depends on a future (test) row.
+def causal_from_precedence
+    (d: LDataset) (earlier: Line) (later: Line)
+    (h: {x: Int | line_count d > 1 && is_ts d && earlier != later && prec earlier later d}) :
+    {r: Int | causality earlier later} =
+    let inst = LearningLines.ax_timeseries earlier later d in
+    h ;
+
+
+# Precedence is transitive (A.5), instantiated for one triple.
+def precedence_is_transitive
+    (d: LDataset) (a: Line) (b: Line) (c: Line)
+    (h: {x: Int | a != b && b != c && a != c && prec a b d && prec b c d}) :
+    {r: Int | prec a c d} =
+    let inst = LearningLines.ax_prec_trans a b c d in
+    h ;
+
+
+# Causality is antisymmetric (A.4): mutual causal dependence is
+# impossible, so the hypotheses are contradictory and anything follows.
+def no_mutual_causality
+    (a: Line) (b: Line)
+    (h: {x: Int | causality a b && causality b a}) :
+    {r: Int | false} =
+    let inst = LearningLines.ax_causality_antisym a b in
+    h ;
+
+
+# A clone causally depends on its original (A.3) — duplicating a row (e.g.
+# random oversampling) before the split creates a train/test dependency.
+def clone_implies_dependency
+    (a: Line) (b: Line)
+    (h: {x: Int | clone a b}) :
+    {r: Int | causality a b} =
+    let inst = LearningLines.ax_clone_causality a b in
+    h ;
