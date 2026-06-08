@@ -19,18 +19,18 @@ def test_bare_hole_in_argument_position_typechecks():
     `_y` was left undeclared in the solver -> KeyError during verification.
     """
     source = r"""
-        def fun (i:Int) : Int = i * ?hole
-        def main (x:Int) : Int = fun 10
+        def func (i:Int) : Int = i * ?hole
+        def main (x:Int) : Int = func 10
     """
     # Should typecheck without a `(?hole : Int)` annotation.
     holes = extract_target_functions(source)
-    assert any(fn.name == "fun" for (fn, _) in holes)
+    assert any(fn.name == "func" for (fn, _) in holes)
 
 
 def test_hole_identification():
     code = """
             def year : Int = 2023;
-            def minus : (a:Int) -> (b:Int) -> Int = \\x -> \\y -> x - y;
+            def minus : (a:Int) -> (b:Int) -> Int = fun x => fun y => x - y;
             @minimize_int( year - (synth 7) )
             def synth(a: Int) : Int = (?hole:Int) * a
         """

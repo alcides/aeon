@@ -19,7 +19,7 @@ def calculate_snow_day_errors : (train: TrainData) -> (f: (a: {x:Int   |  0   <=
                                                        -> (c: {z:Float |  0.0 <= z && z <= 10.0})
                                                        -> (d: {w:Float |  0.0 <= w && w <= 1.0})
                                                        -> Float) -> (List Float) =
-    \data -> \func -> native "[abs(func(x[0][0])(x[0][1])(x[0][2])(x[0][3]) - x[1][0]) for x in data]"
+    fun data => fun func => native "[abs(func(x[0][0])(x[0][1])(x[0][2])(x[0][3]) - x[1][0]) for x in data]"
 
 @multi_minimize_float(calculate_snow_day_errors train synth, 1)
 def synth (n : {x:Int   |  0   <= x && x <= 20})

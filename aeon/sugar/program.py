@@ -191,7 +191,7 @@ class SAbstraction(STerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"(\\{self.var_name} -> {self.body})"
+        return f"(fun {self.var_name} => {self.body})"
 
     def __eq__(self, other):
         return isinstance(other, SAbstraction) and self.var_name == other.var_name and self.body == other.body

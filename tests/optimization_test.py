@@ -18,10 +18,10 @@ def test_opt_if():
 
 
 def test_opt_app():
-    eq("(\\x -> 1) 2", "1")
-    eq("(\\x -> x) 2", "2")
+    eq("(fun x => 1) 2", "1")
+    eq("(fun x => x) 2", "2")
 
-    eq("(\\x -> (\\y -> x)) 2 3", "2")
+    eq("(fun x => (fun y => x)) 2 3", "2")
 
 
 def test_opt_let():
@@ -29,7 +29,7 @@ def test_opt_let():
 
 
 def test_opt_mix():
-    eq("let x = (\\y -> y) in (if true then x 3 else x 4)", "3")
+    eq("let x = (fun y => y) in (if true then x 3 else x 4)", "3")
 
 
 def test_opt_tapp():
@@ -40,7 +40,7 @@ def test_opt_net():
     nh = """native "hello" """
     eq(nh, nh)
     eq("x", "x")
-    eq("\\x -> x", "\\x -> x")
+    eq("fun x => x", "fun x => x")
 
 
 def test_opt_and():

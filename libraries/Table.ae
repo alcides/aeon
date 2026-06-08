@@ -124,7 +124,7 @@ def cell(table: Table) (r: Int) (col: String): Int = native "table[r][col]"
 
 # Add a new column `newcol` whose value in each row is `f` applied to that row.
 # This is the workhorse of data completion: filling a column with a formula
-# over the other columns (e.g. `mutate t "total" (\row -> ...)`).
+# over the other columns (e.g. `mutate t "total" (fun row => ...)`).
 def mutate(table: Table) (newcol: String) (f: (row: Row) -> Int): Table =
     native "[dict(row, **{newcol: f(row)}) for row in table]"
 

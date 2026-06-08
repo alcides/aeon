@@ -36,7 +36,7 @@ from tests.driver import check_compile_expr
 def test_synth_if_in_application_arg_typechecks():
     """An if-expression used as an Application argument is ANF-lifted onto a let-RHS,
     which forces synth-mode on the If."""
-    source = r"""let f : (x:Int) -> Int = \x -> x in f (if 0 < 1 then 1 else 2)"""
+    source = r"""let f : (x:Int) -> Int = fun x => x in f (if 0 < 1 then 1 else 2)"""
     assert check_compile_expr(source, parse_type("Int"))
 
 

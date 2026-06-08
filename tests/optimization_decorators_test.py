@@ -19,7 +19,7 @@ from tests.driver import check_and_return_core, check_compile, extract_core
 def test_hole_minimize_int():
     code = """
             def year : Int = 2023;
-            def minus : (a:Int) -> (b:Int) -> Int = \\x -> \\y -> x - y;
+            def minus : (a:Int) -> (b:Int) -> Int = fun x => fun y => x - y;
             @minimize_int( year - (synth 7) )
             def synth(a: Int) : Int = (?hole:Int) * a
         """

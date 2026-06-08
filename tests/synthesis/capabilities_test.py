@@ -55,7 +55,7 @@ def test_e2e_synthesis_abs():
 
 
 def test_e2e_synthesis_app():
-    code = """type A; def f : (x:Int) -> A = \\x -> native "42";  def synth : A = ?hole;"""
+    code = """type A; def f : (x:Int) -> A = fun x => native "42";  def synth : A = ?hole;"""
     t, _ = synthesis_and_return(code)
 
     assert isinstance(t, Term)

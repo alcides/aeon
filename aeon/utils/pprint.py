@@ -490,7 +490,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
 
         case SAbstraction(var_name=var_name, body=body):
             pretty_var_name = text(var_name.pretty())
-            _left = concat([text("\\"), pretty_var_name, text(" ->")])
+            _left = concat([text("fun "), pretty_var_name, text(" =>")])
 
             _pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.ARROW, Side.RIGHT), depth + 1)
 
@@ -732,7 +732,7 @@ def _free_value_vars(term: STerm) -> set[Name]:
 def rename_unused_variables(term: STerm) -> STerm:
     """Replace value-level binders that are never referenced with ``_``.
 
-    Example: ``\\x -> 3`` becomes ``\\_ -> 3``. Applies to ``SAbstraction``,
+    Example: ``fun x => 3`` becomes ``fun _ => 3``. Applies to ``SAbstraction``,
     ``SLet`` and ``SRec``. Type and refinement abstractions are traversed
     but not renamed (their binders live in a separate namespace).
     """

@@ -64,7 +64,7 @@ def test_lower_vector_get():
 
 def test_lower_vector_map():
     lowerer = CPULLVMLowerer()
-    # map (\x -> x + 1) vec sz
+    # map (fun x => x + 1) vec sz
     kernel = Abstraction(Name("x"), Application(Application(Var(Name("+")), Var(Name("x"))), Literal(1, t_int)))
     app = Application(Application(Application(Var(Name("map")), kernel), Var(Name("vec"))), Var(Name("sz")))
     from aeon.llvm.llvm_ast import LLVMPointerType

@@ -6,5 +6,5 @@ def my_pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) ->
 
 
 def main (args:Int) : Unit =
-    int_to_string : (x:Int) -> String = \x -> native "str(x)";
+    int_to_string : (x:Int) -> String = fun x => native "str(x)";
     print (int_to_string (my_pow 3 4));

@@ -25,28 +25,28 @@ def repeat (v:a) (n:Int) : (Array a) = native "[v for _ in range(n)]"
 
 def ratio (a:Int) (b:Int) : Float = native "a/b"
 
-def forAllInts (fun:(a: Int) -> Bool) : Float =
+def forAllInts (func:(a: Int) -> Bool) : Float =
     n = 1000;
     vs = repeat random n;
     rds = Array.map generateInt vs;
-    rs = Array.map fun rds;
+    rs = Array.map func rds;
     positive = (countTrues rs);
     ratio positive n
 
 
-def forAllFloats (fun:(a: Float) -> Bool) : Float =
+def forAllFloats (func:(a: Float) -> Bool) : Float =
     n = 1000;
     vs = repeat random n;
     rds = Array.map generateFloat vs;
-    rs = Array.map fun rds;
+    rs = Array.map func rds;
     positive = (countTrues rds);
     ratio positive n
 
 
-def forAllLists (fun:(a: List) -> Bool) : Float =
+def forAllLists (func:(a: List) -> Bool) : Float =
     n = 1000;
     vs = repeat random n;
     rds = Array.map generateList vs;
-    rs = Array.map fun rds;
+    rs = Array.map func rds;
     positive = (countTrues rds);
     ratio positive n

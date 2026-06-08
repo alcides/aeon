@@ -596,7 +596,7 @@ def minimize_cputime(
 ) -> tuple[Definition, list[Definition], Metadata]:
     """Adds CPU time of the given expression as a synthesis objective.
 
-    Usage: ``@minimize_cputime(fun 42)``.
+    Usage: ``@minimize_cputime(func 42)``.
 
     The expression is typically a call to the decorated function. During
     synthesis, the synthesizer evaluates the candidate program against this
@@ -615,7 +615,7 @@ def minimize_energy(
 ) -> tuple[Definition, list[Definition], Metadata]:
     """Adds energy consumption of the given expression as a synthesis objective.
 
-    Usage: @minimize_energy(fun 42)
+    Usage: @minimize_energy(func 42)
 
     The expression is typically a call to the decorated function. During
     synthesis, the synthesizer evaluates the candidate program against this

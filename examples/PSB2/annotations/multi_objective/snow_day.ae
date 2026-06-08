@@ -1,10 +1,10 @@
 open Math
 import PSB2 (extract_train_data, load_dataset)
 
-def isZero : (n: Int) -> Bool = \n -> n == 0;
+def isZero : (n: Int) -> Bool = fun n => n == 0;
 
 def train: TrainData = extract_train_data (load_dataset "snow-day" 200 200)
-def calculate_snow_day_errors : (train : TrainData) -> (f:(a: Int) -> (b: Float) -> (c: Float) -> (d: Float) -> Float)  -> List  =  \data -> \func -> native "[abs(func(x[0])(x[1])(x[2])(x[3]) - y[0]) for x , y in data]"
+def calculate_snow_day_errors : (train : TrainData) -> (f:(a: Int) -> (b: Float) -> (c: Float) -> (d: Float) -> Float)  -> List  =  fun data => fun func => native "[abs(func(x[0])(x[1])(x[2])(x[3]) - y[0]) for x , y in data]"
 
 
 @multi_minimize_float(calculate_snow_day_errors train synth, 1)

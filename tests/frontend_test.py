@@ -115,11 +115,11 @@ def test_if():
 
 
 def test_abs():
-    assert parse_term("\\x -> x") == Abstraction(x_name, Var(x_name))
+    assert parse_term("fun x => x") == Abstraction(x_name, Var(x_name))
 
 
 def test_ann():
-    assert parse_term("\\x -> (x : Int)") == Abstraction(
+    assert parse_term("fun x => (x : Int)") == Abstraction(
         x_name,
         Annotation(Var(x_name), t_int),
     )
@@ -139,10 +139,10 @@ def test_poly_abs():
 
 
 def test_poly_abs_plus():
-    assert parse_term("Λa:B => \\ x -> x + 1") == TypeAbstraction(
+    assert parse_term("Λa:B => fun x => x + 1") == TypeAbstraction(
         Name("a"),
         Kind.BASE,
-        parse_term("\\ x -> x + 1"),
+        parse_term("fun x => x + 1"),
     )
 
 

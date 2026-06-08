@@ -21,7 +21,7 @@ examples (e.g. `examples/PSB2/.../gcd.ae`):
 
 ```aeon
 def sr_errors : (func: (a0:Float) -> ... -> Float) -> Float =
-    \func -> native "...mean absolute error of func vs the true equation
+    fun func => native "...mean absolute error of func vs the true equation
                       over sampled points, computed with numpy...";
 
 @minimize_float(sr_errors synth)

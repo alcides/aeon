@@ -5,8 +5,8 @@ from tests.driver import check_and_return_core
 
 
 def test_synquid():
-    source = """@minimize_int(fun(25))
-            def fun (i:Int) : Int =
+    source = """@minimize_int(func(25))
+            def func (i:Int) : Int =
                 let a : Int = 10*i;
                 (?hole: {x:Int | x >= (-45)} ) * i - a
     """

@@ -13,8 +13,8 @@ def test_substitution_term():
 
 
 def test_substitution_term_shadow():
-    t = parse_term(r"\a -> a + 1")
-    assert substitution(t, parse_term("2"), Name("a")) == parse_term(r"\a -> a + 1")
+    t = parse_term(r"fun a => a + 1")
+    assert substitution(t, parse_term("2"), Name("a")) == parse_term(r"fun a => a + 1")
 
 
 def test_substitution_term_let():

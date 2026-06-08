@@ -600,7 +600,7 @@ def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, Typing
 
 
 def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
-    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+    """Creates a dataclass to represent an abstraction (fun _0 => x) of type sth_arrow_X."""
     vname = f"lambda_{mangle_type(ty)}"
     return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
     # Skip arrow types whose own or body representation is unavailable (e.g. the
@@ -643,7 +643,7 @@ def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingTy
 
 
 def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
-    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+    """Creates a dataclass to represent an abstraction (fun _0 => x) of type sth_arrow_X."""
     vname = f"app_{mangle_type(ty)}"
     return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
     # Skip applications whose function, argument, or result type cannot be

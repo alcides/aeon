@@ -73,7 +73,7 @@ def test_higher_order_library_use_does_not_crash():
 open Math
 
 def total_error (f: (a0:Float) -> Float) (xs: (Array Float)) : Float =
-    Array.reduce (\\v -> \\acc -> Math.absf (f v) + acc) 0.0 xs;
+    Array.reduce (fun v => fun acc => Math.absf (f v) + acc) 0.0 xs;
 
 def synth (x: Float) : Float = ?hole;
 """

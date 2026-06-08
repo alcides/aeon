@@ -91,7 +91,7 @@ def test_e2e_llvm_matrix_filter():
 
     @llvm
     def filter_even(m:(Vector Int)) (s:Int) : (Vector Int) =
-        Vector.filter[Int] (\x:Int -> x % 2 == 0) m s;
+        Vector.filter[Int] (fun (x : Int) => x % 2 == 0) m s;
 
     def main (i:Int) : Int =
         let m : (Vector Int) = native "[1, 2, 3, 4, 5, 6]" in
@@ -111,7 +111,7 @@ def test_e2e_llvm_matrix_zip_with():
 
     @llvm
     def vec_add(v1:(Vector Int)) (v2:(Vector Int)) (s:Int) : (Vector Int) =
-        Vector.zipWith[Int][Int][Int] (\x:Int -> \y:Int -> x + y) v1 v2 s;
+        Vector.zipWith[Int][Int][Int] (fun (x : Int) => fun (y : Int) => x + y) v1 v2 s;
 
     def main (i:Int) : Int =
         let v1 : (Vector Int) = native "[1, 2, 3]" in
@@ -132,7 +132,7 @@ def test_e2e_llvm_matrix_count():
 
     @llvm
     def count_gt_10(v:(Vector Int)) (s:Int) : Int =
-        Vector.count[Int] (\x:Int -> x > 10) v s;
+        Vector.count[Int] (fun (x : Int) => x > 10) v s;
 
     def main (i:Int) : Int =
         let v : (Vector Int) = native "[5, 15, 8, 25, 3]" in
@@ -151,7 +151,7 @@ def test_e2e_llvm_matrix_map():
 
     @llvm
     def vec_inc(v:(Vector Int)) (s:Int) : (Vector Int) =
-        Vector.map[Int][Int] (\x:Int -> x + 1) v s;
+        Vector.map[Int][Int] (fun (x : Int) => x + 1) v s;
 
     def main (i:Int) : Int =
         let v : (Vector Int) = native "[1, 2, 3, 4, 5]" in
