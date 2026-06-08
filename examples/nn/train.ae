@@ -1,0 +1,42 @@
+# Gradient descent on a tiny regression network, dimension-checked.
+#
+# ``train_step`` backpropagates the MSE loss and applies one SGD update.
+# Its refinements force the input to match ``net_in``, the target to match
+# ``net_out``, and the learning rate to be positive — and they guarantee
+# the returned network keeps the same shape, so it can be fed straight
+# back into the next step. ``train`` recurses on a non-negative epoch
+# count (Aeon's termination check requires the metric to stay >= 0).
+
+open Tensor
+open NN
+open List
+
+
+# A 3 -> 5 -> 1 regression network.
+def build (_: Int) : {n: Network | net_in n == 3 && net_out n == 1} =
+    let l1 = dense_tanh 3 5 in
+    let l2 = dense 5 1 in
+    stack (sequential l1) l2 ;
+
+
+# Run ``epochs`` SGD steps on a single (x, target) pair. The recursion
+# threads the same-shape network through, so every step's preconditions
+# stay discharged.
+def train
+    (net: {n: Network | net_in n == 3 && net_out n == 1})
+    (x: {v: Vector | dim v == 3})
+    (target: {v: Vector | dim v == 1})
+    (epochs: {k: Int | k >= 0}) :
+    {out: Network | net_in out == 3 && net_out out == 1} decreasing_by [epochs] =
+    if epochs == 0 then net
+    else train (train_step net x target 0.1) x target (epochs - 1) ;
+
+
+# Train toward target [1.0] from input [0.5, -0.5, 1.0] and report the
+# final loss, which should be small.
+def main (_: Int) : Unit =
+    let net0 = build 0 in
+    let x = from_list (cons 0.5 (cons (0.0 - 0.5) (cons 1.0 nil))) in
+    let target = vfull 1 1.0 in
+    let trained = train net0 x target 200 in
+    print (mse (predict trained x) target)

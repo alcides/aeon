@@ -1,0 +1,173 @@
+# Dimension-indexed linear algebra: the numeric foundation for ``NN``.
+#
+# Design goals:
+#
+#   * Tensor *shape* lives in the types. ``Vector`` and ``Matrix`` are
+#     opaque, numpy-backed handles whose dimensions are described by the
+#     uninterpreted measures ``dim`` / ``rows`` / ``cols``. The SMT
+#     solver reasons about these symbolically, so the classic shape bugs
+#     are rejected at compile time rather than blowing up at runtime:
+#
+#       - ``vadd`` / ``vsub`` / ``hadamard`` require both operands to
+#         have the *same* length; ``dot`` likewise.
+#       - ``matmul`` requires the inner dimensions to agree
+#         (``rows b == cols a``) and stamps the product's shape
+#         (``rows a`` by ``cols b``).
+#       - ``matvec`` requires the vector's length to match the matrix's
+#         column count and yields a vector of length ``rows m``.
+#       - ``transpose`` swaps ``rows`` and ``cols`` at the type level.
+#
+#   * "Other requirements on values" beyond shape are refinements too:
+#     constructors take non-negative / positive sizes, ``get`` indices
+#     are bounds-checked (``0 <= i < dim v``), and ``normalize`` demands
+#     a non-zero-length vector.
+#
+#   * Runtime *witnesses* (``vdim``, ``mrows``, ``mcols``) refine their
+#     ``Int`` result back to the measure, so a length read at runtime can
+#     discharge a static dimension precondition.
+
+open Math
+open List
+
+# ─── Opaque, numpy-backed tensor handles ───────────────────────────────
+
+# A 1-D tensor (numpy 1-D float array).
+type Vector
+
+# A 2-D tensor (numpy 2-D float array).
+type Matrix
+
+# Side-effecting import; ``np`` is then in scope for every native body.
+def np : Unit = native_import "numpy"
+
+# ─── Uninterpreted shape measures ──────────────────────────────────────
+
+# Length of a vector.
+def dim : (v: Vector) -> Int = uninterpreted
+
+# Row / column counts of a matrix.
+def rows : (m: Matrix) -> Int = uninterpreted
+def cols : (m: Matrix) -> Int = uninterpreted
+
+# ─── Vector construction ───────────────────────────────────────────────
+
+# All-zeros vector of the requested length.
+def vzeros (n: {k: Int | k >= 0}) : {v: Vector | dim v == n} =
+    native "np.zeros(n)"
+
+# All-ones vector of the requested length.
+def vones (n: {k: Int | k >= 0}) : {v: Vector | dim v == n} =
+    native "np.ones(n)"
+
+# Constant vector: ``n`` copies of ``x``.
+def vfull (n: {k: Int | k >= 0}) (x: Float) : {v: Vector | dim v == n} =
+    native "np.full(n, x)"
+
+# Build a vector from an Aeon ``List`` of floats. The vector's length is
+# tied to the list's ``size`` measure, so a statically-known list length
+# carries through to ``dim``.
+def from_list (xs: (List Float)) : {v: Vector | dim v == size xs} =
+    native "__import__('aeon.bindings.tensor').bindings.tensor.Tensor_from_list(xs)"
+
+# ─── Vector inspection — runtime witnesses ─────────────────────────────
+
+# Length of a vector, refined back to the ``dim`` measure so it can
+# discharge a static dimension obligation.
+def vdim (v: Vector) : {n: Int | n == dim v && n >= 0} =
+    native "len(v)"
+
+# Bounds-checked indexed read.
+def vget (v: Vector) (i: {k: Int | k >= 0 && k < dim v}) : Float =
+    native "float(v[i])"
+
+# ─── Vector arithmetic ─────────────────────────────────────────────────
+
+# Element-wise sum; both operands must share a length, which the result
+# inherits.
+def vadd (a: Vector) (b: {x: Vector | dim x == dim a}) : {r: Vector | dim r == dim a} =
+    native "a + b"
+
+# Element-wise difference; same-length precondition.
+def vsub (a: Vector) (b: {x: Vector | dim x == dim a}) : {r: Vector | dim r == dim a} =
+    native "a - b"
+
+# Element-wise (Hadamard) product; same-length precondition.
+def hadamard (a: Vector) (b: {x: Vector | dim x == dim a}) : {r: Vector | dim r == dim a} =
+    native "a * b"
+
+# Scalar multiple; preserves length.
+def scale (s: Float) (v: Vector) : {r: Vector | dim r == dim v} =
+    native "s * v"
+
+# Inner product; both operands must share a length.
+def dot (a: Vector) (b: {x: Vector | dim x == dim a}) : Float =
+    native "float(np.dot(a, b))"
+
+# Euclidean (L2) norm; always non-negative.
+def norm (v: Vector) : {f: Float | f >= 0.0} =
+    native "float(np.linalg.norm(v))"
+
+# Unit vector in the direction of ``v``; requires a non-empty vector so
+# the norm is non-zero. Length is preserved.
+def normalize (v: {x: Vector | dim x > 0}) : {r: Vector | dim r == dim v} =
+    native "v / np.linalg.norm(v)"
+
+# Sum of all entries.
+def vsum (v: Vector) : Float =
+    native "float(np.sum(v))"
+
+# ─── Matrix construction ───────────────────────────────────────────────
+
+# Zero matrix of the requested shape.
+def mzeros (r: {k: Int | k >= 0}) (c: {k: Int | k >= 0}) :
+    {m: Matrix | rows m == r && cols m == c} =
+    native "np.zeros((r, c))"
+
+# ``n`` by ``n`` identity matrix.
+def eye (n: {k: Int | k >= 0}) : {m: Matrix | rows m == n && cols m == n} =
+    native "np.eye(n)"
+
+# ─── Matrix inspection — runtime witnesses ─────────────────────────────
+
+def mrows (m: Matrix) : {n: Int | n == rows m && n >= 0} =
+    native "m.shape[0]"
+
+def mcols (m: Matrix) : {n: Int | n == cols m && n >= 0} =
+    native "m.shape[1]"
+
+# Bounds-checked element read.
+def mget
+    (m: Matrix)
+    (i: {k: Int | k >= 0 && k < rows m})
+    (j: {k: Int | k >= 0 && k < cols m}) : Float =
+    native "float(m[i, j])"
+
+# ─── Matrix arithmetic ─────────────────────────────────────────────────
+
+# Element-wise sum; both operands must share a shape, which the result
+# inherits.
+def madd
+    (a: Matrix)
+    (b: {x: Matrix | rows x == rows a && cols x == cols a}) :
+    {r: Matrix | rows r == rows a && cols r == cols a} =
+    native "a + b"
+
+# Matrix product. The inner dimensions must agree (``rows b == cols a``)
+# and the product's shape is ``rows a`` by ``cols b``.
+def matmul
+    (a: Matrix)
+    (b: {x: Matrix | rows x == cols a}) :
+    {r: Matrix | rows r == rows a && cols r == cols b} =
+    native "a @ b"
+
+# Matrix-vector product. The vector length must match the column count;
+# the result has length ``rows m``.
+def matvec
+    (m: Matrix)
+    (v: {x: Vector | dim x == cols m}) :
+    {r: Vector | dim r == rows m} =
+    native "m @ v"
+
+# Transpose swaps the two dimensions.
+def transpose (m: Matrix) : {r: Matrix | rows r == cols m && cols r == rows m} =
+    native "m.T"

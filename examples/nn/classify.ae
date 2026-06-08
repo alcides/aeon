@@ -1,0 +1,40 @@
+# A 2-class classifier trained with softmax cross-entropy.
+#
+# The network ends in a ``linear`` layer producing 3-class *logits*;
+# ``train_step_ce`` applies softmax + cross-entropy internally and
+# backpropagates. The refinements are identical to the regression path:
+# input width must equal ``net_in``, the one-hot target width must equal
+# ``net_out``, the learning rate must be positive, and the trained network
+# provably keeps its shape so it threads through the recursion.
+
+open Tensor
+open NN
+open List
+
+
+# A 4 -> 8 -> 3 classifier: hidden ReLU layer, linear logits head.
+def build (_: Int) : {n: Network | net_in n == 4 && net_out n == 3} =
+    stack (sequential (dense_relu 4 8)) (dense 8 3) ;
+
+
+# Run ``epochs`` cross-entropy SGD steps on a single (x, one-hot) pair.
+def fit
+    (net: {n: Network | net_in n == 4 && net_out n == 3})
+    (x: {v: Vector | dim v == 4})
+    (target: {v: Vector | dim v == 3})
+    (epochs: {k: Int | k >= 0}) :
+    {out: Network | net_in out == 4 && net_out out == 3} decreasing_by [epochs] =
+    if epochs == 0 then net
+    else fit (train_step_ce net x target 0.2) x target (epochs - 1) ;
+
+
+# Train to predict class 1 (one-hot [0, 1, 0]) for a fixed input, then
+# report the cross-entropy loss (should be near zero) and the predicted
+# probability vector (``predict`` gives logits; ``softmax`` normalises).
+def main (_: Int) : Unit =
+    let net0 = build 0 in
+    let x = from_list (cons 1.0 (cons 0.5 (cons (0.0 - 1.0) (cons 0.25 nil)))) in
+    let target = from_list (cons 0.0 (cons 1.0 (cons 0.0 nil))) in
+    let trained = fit net0 x target 300 in
+    let loss = softmax_cross_entropy (predict trained x) target in
+    print loss

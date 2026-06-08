@@ -1,0 +1,249 @@
+# A small feed-forward neural network library, dimension-safe by typing.
+#
+# Built on ``Tensor``: a ``Layer`` is an affine map ``x |-> act (W x + b)``
+# whose input and output widths are tracked by the uninterpreted measures
+# ``in_features`` / ``out_features``. ``forward`` only accepts an input
+# vector whose length matches ``in_features`` and promises an output of
+# length ``out_features`` — so a layer fed the wrong-width activation is a
+# *type* error, not a numpy broadcast surprise.
+#
+# ``Network`` is a typed stack of layers. ``stack`` refuses to append a
+# layer unless its ``in_features`` equals the network's current
+# ``net_out``, and ``predict`` requires the input width to equal
+# ``net_in``. Build a whole MLP and the widths are checked end-to-end at
+# compile time:
+#
+#     let l1  = NN.dense_relu 4 8 in       -- 4 -> 8
+#     let l2  = NN.dense_relu 8 3 in       -- 8 -> 3   (8 must match l1's out)
+#     let net = NN.stack (NN.sequential l1) l2 in
+#     NN.predict net (Tensor.vzeros 4)     -- input width 4 must match net_in
+#
+# "Other requirements on values": layer constructors take *positive*
+# widths, ``make_layer`` requires the bias length to equal the weight
+# matrix's row count, and ``softmax`` requires a non-empty vector.
+
+open Tensor
+
+# A single affine layer: weights, bias, and an activation tag.
+type Layer
+
+# An ordered stack of layers.
+type Network
+
+# Gradients for a network — one (weight, bias) pair per layer. Carries
+# the same input/output widths as the network they were computed from, so
+# they can only be applied back to a shape-compatible network.
+type Gradients
+
+# ─── Shape measures ────────────────────────────────────────────────────
+
+def in_features : (l: Layer) -> Int = uninterpreted
+def out_features : (l: Layer) -> Int = uninterpreted
+
+def net_in : (n: Network) -> Int = uninterpreted
+def net_out : (n: Network) -> Int = uninterpreted
+
+def grad_in : (g: Gradients) -> Int = uninterpreted
+def grad_out : (g: Gradients) -> Int = uninterpreted
+
+# ─── Activation functions (shape-preserving) ───────────────────────────
+
+# Rectified linear unit, applied element-wise.
+def relu (v: Vector) : {r: Vector | dim r == dim v} =
+    native "np.maximum(v, 0.0)"
+
+# Logistic sigmoid, applied element-wise; every entry lands in (0, 1).
+def sigmoid (v: Vector) : {r: Vector | dim r == dim v} =
+    native "1.0 / (1.0 + np.exp(-v))"
+
+# Hyperbolic tangent, applied element-wise.
+def tanh_act (v: Vector) : {r: Vector | dim r == dim v} =
+    native "np.tanh(v)"
+
+# Softmax over a non-empty vector; preserves length and yields a
+# probability distribution (entries in (0, 1) summing to 1).
+def softmax (v: {x: Vector | dim x > 0}) : {r: Vector | dim r == dim v} =
+    native "np.exp(v - np.max(v)) / np.sum(np.exp(v - np.max(v)))"
+
+# ─── Layer construction ────────────────────────────────────────────────
+# ``dense_*`` randomly initialise an ``nin`` -> ``nout`` layer with the
+# given activation. Widths must be positive.
+
+# Linear layer (identity activation).
+def dense (nin: {k: Int | k > 0}) (nout: {k: Int | k > 0}) :
+    {l: Layer | in_features l == nin && out_features l == nout} =
+    native "(np.random.randn(nout, nin) * 0.1, np.zeros(nout), 'linear')"
+
+def dense_relu (nin: {k: Int | k > 0}) (nout: {k: Int | k > 0}) :
+    {l: Layer | in_features l == nin && out_features l == nout} =
+    native "(np.random.randn(nout, nin) * 0.1, np.zeros(nout), 'relu')"
+
+def dense_sigmoid (nin: {k: Int | k > 0}) (nout: {k: Int | k > 0}) :
+    {l: Layer | in_features l == nin && out_features l == nout} =
+    native "(np.random.randn(nout, nin) * 0.1, np.zeros(nout), 'sigmoid')"
+
+def dense_tanh (nin: {k: Int | k > 0}) (nout: {k: Int | k > 0}) :
+    {l: Layer | in_features l == nin && out_features l == nout} =
+    native "(np.random.randn(nout, nin) * 0.1, np.zeros(nout), 'tanh')"
+
+# Build a linear layer from explicit weights and bias. The bias length
+# must equal the weight matrix's row count (the output width); the layer
+# then maps ``cols w`` features to ``rows w``.
+def make_layer
+    (w: Matrix)
+    (b: {v: Vector | dim v == rows w}) :
+    {l: Layer | in_features l == cols w && out_features l == rows w} =
+    native "(w, b, 'linear')"
+
+# ─── Layer inspection — runtime witnesses ──────────────────────────────
+
+def layer_in (l: Layer) : {n: Int | n == in_features l && n >= 0} =
+    native "l[0].shape[1]"
+
+def layer_out (l: Layer) : {n: Int | n == out_features l && n >= 0} =
+    native "l[0].shape[0]"
+
+# ─── Forward pass ──────────────────────────────────────────────────────
+
+# Apply one layer: ``act (W x + b)``. The input width must match
+# ``in_features``; the result has width ``out_features``.
+def forward
+    (l: Layer)
+    (x: {v: Vector | dim v == in_features l}) :
+    {r: Vector | dim r == out_features l} =
+    native "(lambda W, b, a, z: np.maximum(z, 0.0) if a == 'relu' else (1.0/(1.0+np.exp(-z)) if a == 'sigmoid' else (np.tanh(z) if a == 'tanh' else z)))(l[0], l[1], l[2], l[0] @ x + l[1])"
+
+# ─── Network construction ──────────────────────────────────────────────
+
+# A one-layer network.
+def sequential (l: Layer) :
+    {n: Network | net_in n == in_features l && net_out n == out_features l} =
+    native "[l]"
+
+# Append a layer to a network. The new layer's input width must equal the
+# network's current output width; the extended network keeps its original
+# input width and adopts the new layer's output width.
+def stack
+    (net: Network)
+    (l: {x: Layer | in_features x == net_out net}) :
+    {n: Network | net_in n == net_in net && net_out n == out_features l} =
+    native "net + [l]"
+
+# ─── Network inspection — runtime witnesses ────────────────────────────
+
+def net_in_of (net: Network) : {n: Int | n == net_in net && n >= 0} =
+    native "net[0][0].shape[1]"
+
+def net_out_of (net: Network) : {n: Int | n == net_out net && n >= 0} =
+    native "net[-1][0].shape[0]"
+
+# ─── Network forward pass ──────────────────────────────────────────────
+
+# Run the input through every layer in order. The input width must match
+# ``net_in``; the output has width ``net_out``.
+def predict
+    (net: Network)
+    (x: {v: Vector | dim v == net_in net}) :
+    {r: Vector | dim r == net_out net} =
+    native "__import__('functools').reduce(lambda acc, ly: (lambda W, b, a, z: np.maximum(z, 0.0) if a == 'relu' else (1.0/(1.0+np.exp(-z)) if a == 'sigmoid' else (np.tanh(z) if a == 'tanh' else z)))(ly[0], ly[1], ly[2], ly[0] @ acc + ly[1]), net, x)"
+
+# ─── Loss functions (refined non-negative) ─────────────────────────────
+
+# Mean squared error between a prediction and a target of equal length.
+# This is the loss ``backward`` differentiates.
+def mse
+    (pred: Vector)
+    (target: {v: Vector | dim v == dim pred}) :
+    {f: Float | f >= 0.0} =
+    native "float(np.mean((pred - target) ** 2))"
+
+# Categorical cross-entropy: ``-sum(target * log(pred))``. ``pred`` should
+# be a probability vector (e.g. a ``softmax`` output); it is clipped away
+# from zero for numerical safety, so the result is always non-negative.
+# Both vectors must be non-empty and share a length.
+def cross_entropy
+    (pred: {v: Vector | dim v > 0})
+    (target: {v: Vector | dim v == dim pred}) :
+    {f: Float | f >= 0.0} =
+    native "float(-np.sum(target * np.log(np.clip(pred, 1e-12, 1.0))))"
+
+# Softmax cross-entropy computed directly from *logits* (the raw output of
+# a ``linear`` final layer) — numerically stable and equivalent to
+# ``cross_entropy (softmax logits) target`` but without the intermediate
+# clipping. This is the loss ``backward_ce`` differentiates. ``target``
+# should be a probability/one-hot vector of the same (non-empty) length.
+def softmax_cross_entropy
+    (logits: {v: Vector | dim v > 0})
+    (target: {v: Vector | dim v == dim logits}) :
+    {f: Float | f >= 0.0} =
+    native "__import__('aeon.bindings.nn').bindings.nn.NN_softmax_cross_entropy(logits, target)"
+
+# ─── Backpropagation ───────────────────────────────────────────────────
+
+# Gradients of the MSE loss w.r.t. every parameter of ``net``. The input
+# width must match ``net_in`` and the target width must match ``net_out``;
+# the resulting gradients carry those same widths, which is what lets
+# ``sgd_step`` accept them.
+def backward
+    (net: Network)
+    (x: {v: Vector | dim v == net_in net})
+    (target: {v: Vector | dim v == net_out net}) :
+    {g: Gradients | grad_in g == net_in net && grad_out g == net_out net} =
+    native "__import__('aeon.bindings.nn').bindings.nn.NN_backward(net, x, target)"
+
+# Gradients of the softmax cross-entropy loss — the classification
+# counterpart of ``backward``. The network output is read as logits, so
+# the final layer should be ``linear`` (build it with ``dense``); the
+# softmax is applied inside. ``target`` is a one-hot / probability vector
+# of width ``net_out``. Same shape contract as ``backward``, so the
+# resulting gradients feed straight into ``sgd_step``.
+def backward_ce
+    (net: Network)
+    (x: {v: Vector | dim v == net_in net})
+    (target: {v: Vector | dim v == net_out net}) :
+    {g: Gradients | grad_in g == net_in net && grad_out g == net_out net} =
+    native "__import__('aeon.bindings.nn').bindings.nn.NN_backward_ce(net, x, target)"
+
+# Runtime witnesses for the gradient widths.
+def grad_in_of (g: Gradients) : {n: Int | n == grad_in g && n >= 0} =
+    native "g[0][0].shape[1]"
+
+def grad_out_of (g: Gradients) : {n: Int | n == grad_out g && n >= 0} =
+    native "g[-1][0].shape[0]"
+
+# ─── Optimisation ──────────────────────────────────────────────────────
+
+# One gradient-descent update. The gradients must be shape-compatible
+# with the network (``grad_in == net_in`` and ``grad_out == net_out``),
+# and the learning rate must be strictly positive. The updated network
+# keeps the same input/output widths.
+def sgd_step
+    (net: Network)
+    (grads: {g: Gradients | grad_in g == net_in net && grad_out g == net_out net})
+    (lr: {f: Float | f > 0.0}) :
+    {out: Network | net_in out == net_in net && net_out out == net_out net} =
+    native "__import__('aeon.bindings.nn').bindings.nn.NN_sgd_step(net, grads, lr)"
+
+# One full training step on a single example: backprop the MSE loss, then
+# apply an SGD update. The widths line up by construction — the input and
+# target must match the network, the learning rate must be positive, and
+# the returned network preserves the shape.
+def train_step
+    (net: Network)
+    (x: {v: Vector | dim v == net_in net})
+    (target: {v: Vector | dim v == net_out net})
+    (lr: {f: Float | f > 0.0}) :
+    {out: Network | net_in out == net_in net && net_out out == net_out net} =
+    sgd_step net (backward net x target) lr ;
+
+# The classification counterpart of ``train_step``: backprop the softmax
+# cross-entropy loss, then apply an SGD update. Build the network with a
+# ``linear`` final layer (logits). Same width/learning-rate refinements,
+# and the returned network preserves the shape.
+def train_step_ce
+    (net: Network)
+    (x: {v: Vector | dim v == net_in net})
+    (target: {v: Vector | dim v == net_out net})
+    (lr: {f: Float | f > 0.0}) :
+    {out: Network | net_in out == net_in net && net_out out == net_out net} =
+    sgd_step net (backward_ce net x target) lr ;
