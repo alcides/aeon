@@ -1,0 +1,124 @@
+# Property-based tests and machine-checked examples for the Args library
+# (argparse via FFI). See libraries/Args.ae.
+#
+# Two kinds of checks:
+#
+#   * @property — universally quantified over generated Int/Float inputs (drawn
+#     from the synthesis grammar). The robust round-trip properties feed a value
+#     as an option *default*, which argparse stores verbatim without re-parsing
+#     it, so any generated value survives intact. prop_int_positional_roundtrips
+#     additionally exercises the real argv parse path (the value is rendered to
+#     a string and parsed back). Strings are covered by the @example tests
+#     instead — random String generation is not supported as a property input.
+#
+#   * @example — concrete unit tests for the argv-parsing paths (flags,
+#     options, choices, positionals, and string values) where a hand-picked
+#     input keeps argparse away from its CLI edge cases (a leading '-' looks
+#     like an option, etc.).
+#
+# Run with:  aeon --test examples/pbt/props_args.ae
+
+open Args
+open Array
+open String
+
+# ── argv constants (argparse consumes a list of strings) ─────────────────
+
+def argvEmpty : (Array String) = native "[]"
+def argvAlice : (Array String) = native "['alice']"
+def argv42 : (Array String) = native "['42']"
+def argvRatio : (Array String) = native "['1.5']"
+def argvVerbose : (Array String) = native "['--verbose']"
+def argvOutFile : (Array String) = native "['--out', 'file.txt']"
+def argvNum99 : (Array String) = native "['--num', '99']"
+def argvModeSlow : (Array String) = native "['--mode', 'slow']"
+
+# Built via Array.append so its size (2 > 0) is provable — addChoice requires
+# a statically non-empty list of options.
+def choicesModes : {l : (Array String) | Array.size l > 0} =
+    Array.append (Array.append Array.new "fast") "slow"
+
+def singleton (x : String) : (Array String) = native "[x]"
+
+# ── Properties: option defaults round-trip through argparse ───────────────
+# An option's default is stored as-is, so for ANY generated value, building a
+# parser with that default and parsing an empty argv must read it back equal.
+
+@property
+def prop_int_option_default_roundtrips (d : Int) : Bool =
+    p : Parser = Args.addIntOption (Args.newParser "t") "num" d "";
+    a : ParsedArgs = Args.parseList p argvEmpty;
+    Args.getInt a "num" == d;
+
+@property
+def prop_float_option_default_roundtrips (d : Float) : Bool =
+    p : Parser = Args.addFloatOption (Args.newParser "t") "x" d "";
+    a : ParsedArgs = Args.parseList p argvEmpty;
+    Args.getFloat a "x" == d;
+
+# (String inputs are exercised by the @example unit tests below rather than a
+# @property: random String generation is not supported as a quantified input.)
+
+# Full argv parse path: a non-negative int rendered to a string and parsed
+# back as a positional must equal the original (non-negative avoids the
+# leading-'-' argparse ambiguity).
+@property
+def prop_int_positional_roundtrips (d : {v : Int | v >= 0}) : Bool =
+    p : Parser = Args.addIntArg (Args.newParser "t") "count" "";
+    a : ParsedArgs = Args.parseList p (singleton (String.intToString d));
+    Args.getInt a "count" == d;
+
+# ── Unit tests: argv parsing for each accessor / argument kind ────────────
+
+# Required string positional.
+@example(getName argvAlice)
+def getName (argv : (Array String)) : Bool =
+    p : Parser = Args.addArg (Args.newParser "t") "name" "";
+    a : ParsedArgs = Args.parseList p argv;
+    String.equal (Args.getString a "name") "alice";
+
+# Required int positional.
+@example(getCount argv42 == 42)
+def getCount (argv : (Array String)) : Int =
+    p : Parser = Args.addIntArg (Args.newParser "t") "count" "";
+    a : ParsedArgs = Args.parseList p argv;
+    Args.getInt a "count";
+
+# Required float positional.
+@example(getRatio argvRatio == 1.5)
+def getRatio (argv : (Array String)) : Float =
+    p : Parser = Args.addFloatArg (Args.newParser "t") "ratio" "";
+    a : ParsedArgs = Args.parseList p argv;
+    Args.getFloat a "ratio";
+
+# Boolean flag: true when present, false (the default) when absent.
+@example(getVerbose argvVerbose == true)
+@example(getVerbose argvEmpty == false)
+def getVerbose (argv : (Array String)) : Bool =
+    p : Parser = Args.addFlag (Args.newParser "t") "verbose" "";
+    a : ParsedArgs = Args.parseList p argv;
+    Args.getBool a "verbose";
+
+# String option: default when absent, supplied value when present.
+@example(String.equal (getOut argvEmpty) "stdout")
+@example(String.equal (getOut argvOutFile) "file.txt")
+def getOut (argv : (Array String)) : String =
+    p : Parser = Args.addOption (Args.newParser "t") "out" "stdout" "";
+    a : ParsedArgs = Args.parseList p argv;
+    Args.getString a "out";
+
+# Int option: default when absent, supplied value when present.
+@example(getNum argvEmpty == 10)
+@example(getNum argvNum99 == 99)
+def getNum (argv : (Array String)) : Int =
+    p : Parser = Args.addIntOption (Args.newParser "t") "num" 10 "";
+    a : ParsedArgs = Args.parseList p argv;
+    Args.getInt a "num";
+
+# Choice option restricted to a fixed set: default and a valid override.
+@example(String.equal (getMode argvEmpty) "fast")
+@example(String.equal (getMode argvModeSlow) "slow")
+def getMode (argv : (Array String)) : String =
+    p : Parser = Args.addChoice (Args.newParser "t") "mode" choicesModes "fast" "";
+    a : ParsedArgs = Args.parseList p argv;
+    Args.getString a "mode";

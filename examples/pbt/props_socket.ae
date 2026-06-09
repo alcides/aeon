@@ -1,0 +1,86 @@
+# Property-based tests and machine-checked examples for the Socket library
+# (linear/QTT TCP+UDP sockets via FFI). See libraries/Socket.ae.
+#
+# What can be tested at runtime, and what cannot:
+#
+#   * Socket values are opaque and linear (multiplicity 1), so they cannot be
+#     *generated* the way Int/Float/String are — there is no constructor for
+#     the synthesis grammar to sample. The logical state predicates
+#     (`stream_bound`, `payload_len`, ...) are `uninterpreted`: SMT-only, with
+#     no runtime, so they cannot appear in a runtime assertion either.
+#
+#   * The send/recv/connect/accept operations need a live peer and a
+#     `SocketPayload`, and the library exposes no payload constructor, so they
+#     are not exercisable from a self-contained test.
+#
+#   * What we *can* drive is the real server-side syscall lifecycle:
+#     open → bind → listen → close. Each test binds to the loopback address on
+#     port 0, so the OS hands out a free ephemeral port and the tests never
+#     collide with each other or with ports already in use.
+#
+# That every test also type-checks is itself a check of the library's
+# linear/refinement contract: each socket is threaded through `let 1` binders
+# and consumed exactly once, advancing the bound/connected state machine.
+#
+# Run with:  aeon --test examples/pbt/props_socket.ae
+
+open Socket
+
+def loopback : {a : SockAddr | ipv4_sock_addr a == true} = ipv4_addr "127.0.0.1" 0
+
+# ── TCP lifecycle unit tests ─────────────────────────────────────────────
+
+# Open then close.
+@example(tcpOpenClose == true)
+def tcpOpenClose : Bool =
+    let 1 s = stream_socket unit in
+    let done = stream_close s in
+    true;
+
+# Open, bind to an ephemeral loopback port, close.
+@example(tcpBindClose == true)
+def tcpBindClose : Bool =
+    let 1 s0 = stream_socket unit in
+    let 1 s1 = stream_bind loopback s0 in
+    let done = stream_close s1 in
+    true;
+
+# Full server-side setup: open, bind, listen, close.
+@example(tcpServerSetup == true)
+def tcpServerSetup : Bool =
+    let 1 s0 = stream_socket unit in
+    let 1 s1 = stream_bind loopback s0 in
+    let 1 s2 = stream_listen 5 s1 in
+    let done = stream_close s2 in
+    true;
+
+# ── UDP lifecycle unit tests ─────────────────────────────────────────────
+
+# Open then close.
+@example(udpOpenClose == true)
+def udpOpenClose : Bool =
+    let 1 s = dgram_socket unit in
+    let done = dgram_close s in
+    true;
+
+# Open, bind to an ephemeral loopback port, close.
+@example(udpBindClose == true)
+def udpBindClose : Bool =
+    let 1 s0 = dgram_socket unit in
+    let 1 s1 = dgram_bind loopback s0 in
+    let done = dgram_close s1 in
+    true;
+
+# ── Property: the TCP server lifecycle works for any valid backlog ────────
+# `stream_listen` requires backlog > 0; we cap it well under the usual
+# SOMAXCONN so the syscall always succeeds. Each trial builds its own socket
+# (the constructors yield a fresh handle per use), so port 0 keeps every trial
+# on a distinct ephemeral port.
+
+@property(20)
+def prop_tcp_listen_any_backlog (backlog : {n : Int | n > 0 && n < 64}) : Bool =
+    let 1 s0 = stream_socket unit in
+    let 1 s1 = stream_bind loopback s0 in
+    let 1 s2 = stream_listen backlog s1 in
+    let done = stream_close s2 in
+    true;

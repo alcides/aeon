@@ -2,7 +2,7 @@ open Socket
 
 # Linear (QTT) socket lifecycle.
 #
-# `stream_socket` returns a fresh `StreamSocket` value. Binding it to a
+# `stream_socket unit` returns a fresh `StreamSocket` value. Binding it to a
 # `1`-multiplicity binder makes the type checker enforce that this socket
 # is consumed *exactly once* in its scope. Each socket-consuming operation
 # (`stream_bind`, `stream_listen`, ..., `stream_close`) takes its socket
@@ -20,7 +20,7 @@ open Socket
 # typechecker) can exercise the linearity discipline without actually
 # opening a socket at module load.
 def lifecycle (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit =
-    let 1 s0 = stream_socket in
+    let 1 s0 = stream_socket unit in
     let 1 s1 = stream_bind (ipv4_addr "127.0.0.1" port) s0 in
     let 1 s2 = stream_listen 5 s1 in
     stream_close s2;
