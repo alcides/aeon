@@ -82,8 +82,8 @@ class FTASynthesizer(Synthesizer):
     def __init__(
         self,
         seed: int = 0,
-        int_lo: int = -8,
-        int_hi: int = 33,
+        int_lo: int = 0,
+        int_hi: int = 8,
         rounds: int = 3,
         combo_cap: int = 4096,
         max_bank: int = 512,
@@ -103,6 +103,13 @@ class FTASynthesizer(Synthesizer):
         builders: dict[str, list[Component]] = {}
         atoms: dict[str, list[Var]] = {}
         for name, ty in ctx.concrete_vars():
+            if name.name in ("%", "/"):
+                # Partial operators: undefined on a zero divisor. The verifier
+                # here does not enforce a non-zero-divisor precondition, so a
+                # ``x % 0`` term is both well-typed and (via z3's unspecified
+                # mod-by-zero) spec-consistent -- a spurious accepting state.
+                # Keep them out of the automaton's alphabet.
+                continue
             if isinstance(ty, TypePolymorphism):
                 continue  # recursors / polymorphic library functions
             arg_types, ret = _peel(ty)
