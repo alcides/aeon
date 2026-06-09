@@ -6,7 +6,7 @@
 #     two opaque types — ``DataFrame`` (all columns intact) and
 #     ``Dataset`` (features + a designated target column).
 #   * Classification and regression are distinguished at the type level
-#     (``Classifier`` vs ``Regressor``). Metrics are typed against the
+#     (``SklearnClassifier`` vs ``SklearnRegressor``). Metrics are typed against the
 #     right kind of model — ``accuracy`` will not type-check against a
 #     regressor, ``mse`` will not type-check against a classifier.
 #   * A few dataset-consuming operations are linear (``(1 ds: Dataset)``)
@@ -66,19 +66,22 @@
 open List
 open Tuple
 open Pair
+import Tensor (Vector);
 
 # ─── Opaque types ───────────────────────────────────────────────────────
 
 type DataFrame
 type Dataset
-type Classifier
-type Regressor
+type SklearnClassifier
+type SklearnRegressor
 
-# ─── Library-level imports (side-effecting `import` calls) ─────────────
-
-def np : Unit = native_import "numpy"
-def pd : Unit = native_import "pandas"
-def skl : Unit = native_import "sklearn"
+# ─── Library-level imports ─────────────────────────────────────────────
+# ``numpy`` / ``pandas`` / ``sklearn`` are imported by the Python binding
+# module (``aeon/bindings/learning.py``); the native bodies here all go
+# through ``__import__('aeon.bindings.learning')``, so no bare ``np`` /
+# ``pd`` / ``skl`` symbols are needed at this layer. (Declaring them as
+# ``native_import`` here would collide with ``Tensor``'s ``np`` when both
+# libraries are opened together — e.g. via ``Models``.)
 
 # ─── Uninterpreted shape / class predicates ────────────────────────────
 
@@ -93,9 +96,9 @@ def ds_classes : (ds: Dataset) -> Int = uninterpreted
 def is_balanced : (ds: Dataset) -> Bool = uninterpreted
 
 # Shape of a fitted model.
-def clf_features : (m: Classifier) -> Int = uninterpreted
-def clf_classes : (m: Classifier) -> Int = uninterpreted
-def reg_features : (m: Regressor) -> Int = uninterpreted
+def clf_features : (m: SklearnClassifier) -> Int = uninterpreted
+def clf_classes : (m: SklearnClassifier) -> Int = uninterpreted
+def reg_features : (m: SklearnRegressor) -> Int = uninterpreted
 
 # ─── Pipeline-defect summary predicates (see header) ───────────────────
 
@@ -403,7 +406,7 @@ def fill_constant (value: Float) (1 ds: Dataset) :
                   && clean_test out == clean_test ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_fill_constant(ds, value)"
 
-# ─── Classifier training ───────────────────────────────────────────────
+# ─── SklearnClassifier training ───────────────────────────────────────────────
 # Every trainer requires a clean training set: an independent target (no
 # proxy feature) and no missing values. The minimum-data check
 # (rows > 10x features) is enforced by ``split``. Training stamps the
@@ -411,54 +414,54 @@ def fill_constant (value: Float) (1 ds: Dataset) :
 
 def random_forest_classifier
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_classifier(ds)"
 
 def random_forest_classifier_n (n: {k: Int | k > 0})
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_classifier_n(n, ds)"
 
 def logistic_regression
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_logistic_regression(ds)"
 
 def decision_tree_classifier
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_decision_tree_classifier(ds)"
 
 def gradient_boosting_classifier
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_gradient_boosting_classifier(ds)"
 
 def knn_classifier
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_knn_classifier(ds)"
 
 # ``k`` must be positive and not exceed the number of training rows.
 def knn_classifier_k
     (k: {n: Int | n > 0})
     (ds: {d: Dataset | ds_rows d >= k && independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_knn_classifier_k(k, ds)"
 
 def svc
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_svc(ds)"
 
 def gaussian_nb
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_gaussian_nb(ds)"
 
 def multinomial_nb
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_multinomial_nb(ds)"
 
 # ComplementNB targets imbalanced data — refining out the balanced case
@@ -466,79 +469,79 @@ def multinomial_nb
 # ``if Learning.balanced ds then ... else Learning.complement_nb ds``.
 def complement_nb
     (ds: {d: Dataset | is_balanced d == false && independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_complement_nb(ds)"
 
 def mlp_classifier
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Classifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mlp_classifier(ds)"
 
-# ─── Regressor training ────────────────────────────────────────────────
+# ─── SklearnRegressor training ────────────────────────────────────────────────
 
 def linear_regression
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_linear_regression(ds)"
 
 def ridge
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_ridge(ds)"
 
 def ridge_alpha (alpha: {a: Float | a >= 0.0})
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_ridge_alpha(alpha, ds)"
 
 def lasso
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_lasso(ds)"
 
 def lasso_alpha (alpha: {a: Float | a >= 0.0})
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_lasso_alpha(alpha, ds)"
 
 def elastic_net
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_elastic_net(ds)"
 
 def random_forest_regressor
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_regressor(ds)"
 
 def random_forest_regressor_n (n: {k: Int | k > 0})
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_regressor_n(n, ds)"
 
 def decision_tree_regressor
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_decision_tree_regressor(ds)"
 
 def gradient_boosting_regressor
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_gradient_boosting_regressor(ds)"
 
 def knn_regressor
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_knn_regressor(ds)"
 
 def svr
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_svr(ds)"
 
 def mlp_regressor
     (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: Regressor | reg_features m == ds_features ds} =
+    {m: SklearnRegressor | reg_features m == ds_features ds} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mlp_regressor(ds)"
 
 # ─── Prediction ────────────────────────────────────────────────────────
@@ -546,17 +549,17 @@ def mlp_regressor
 # it is leakage-neutral (no held-out guarantee is consumed).
 
 def predict
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
 def predict_proba
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict_proba(model, ds)"
 
 def predict_value
-    (model: Regressor)
+    (model: SklearnRegressor)
     (ds: {d: Dataset | reg_features model == ds_features d}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
@@ -567,71 +570,94 @@ def predict_value
 # require a balanced test set — discharge with the ``balanced`` witness.
 
 def accuracy
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d && clean_test d == true && is_balanced d == true}) :
     {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_accuracy(model, ds)"
 
 def precision
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d && clean_test d == true && is_balanced d == true}) :
     {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_precision(model, ds)"
 
 def recall
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d && clean_test d == true && is_balanced d == true}) :
     {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_recall(model, ds)"
 
 def f1
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d && clean_test d == true}) :
     {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_f1(model, ds)"
 
 def roc_auc
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d && clean_test d == true}) :
     {f: Float | 0.0 <= f && f <= 1.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_roc_auc(model, ds)"
 
 def confusion_matrix
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d && clean_test d == true}) : List =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_confusion_matrix(model, ds)"
 
 def classification_report
-    (model: Classifier)
+    (model: SklearnClassifier)
     (ds: {d: Dataset | clf_features model == ds_features d && clean_test d == true}) : String =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_classification_report(model, ds)"
 
 # ─── Regression metrics ────────────────────────────────────────────────
 
 def mse
-    (model: Regressor)
+    (model: SklearnRegressor)
     (ds: {d: Dataset | reg_features model == ds_features d && clean_test d == true}) :
     {f: Float | f >= 0.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mse(model, ds)"
 
 def rmse
-    (model: Regressor)
+    (model: SklearnRegressor)
     (ds: {d: Dataset | reg_features model == ds_features d && clean_test d == true}) :
     {f: Float | f >= 0.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_rmse(model, ds)"
 
 def mae
-    (model: Regressor)
+    (model: SklearnRegressor)
     (ds: {d: Dataset | reg_features model == ds_features d && clean_test d == true}) :
     {f: Float | f >= 0.0} =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mae(model, ds)"
 
 def r2
-    (model: Regressor)
+    (model: SklearnRegressor)
     (ds: {d: Dataset | reg_features model == ds_features d && clean_test d == true}) : Float =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_r2(model, ds)"
 
 def explained_variance
-    (model: Regressor)
+    (model: SklearnRegressor)
     (ds: {d: Dataset | reg_features model == ds_features d && clean_test d == true}) : Float =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_explained_variance(model, ds)"
+
+# ─── Single-sample, Vector-based prediction (for the Models typeclasses) ─
+# These let a fitted ``Learning`` model implement the ``Categorical`` /
+# ``Continuous`` classes in ``Models.ae``: they predict for one feature
+# vector (a 1-D tensor) rather than a whole ``Dataset``.
+
+# Class-probability vector for one feature vector.
+def classify_one (model: SklearnClassifier) (x: Vector) : Vector =
+    native "model.predict_proba([x])[0]"
+
+# Predicted value for one feature vector.
+def regress_one (model: SklearnRegressor) (x: Vector) : Float =
+    native "float(model.predict([x])[0])"
+
+# Runtime model introspection, refined against the shape measures.
+def clf_n_features (model: SklearnClassifier) : {n: Int | n == clf_features model && n >= 0} =
+    native "int(model.n_features_in_)"
+
+def clf_n_classes (model: SklearnClassifier) : {n: Int | n == clf_classes model && n >= 0} =
+    native "int(len(model.classes_))"
+
+def reg_n_features (model: SklearnRegressor) : {n: Int | n == reg_features model && n >= 0} =
+    native "int(model.n_features_in_)"

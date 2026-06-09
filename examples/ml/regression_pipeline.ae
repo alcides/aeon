@@ -22,7 +22,7 @@ def score_ridge (path: String) (target_col: String) : Float =
     Learning.r2 model test ;
 
 
-def train_ridge (path: String) (target_col: String) : Regressor =
+def train_ridge (path: String) (target_col: String) : SklearnRegressor =
     let 1 df = Learning.read_csv path in
     let ds0 = Learning.target df target_col false true in
     let ds = Learning.require_enough_data ds0 in

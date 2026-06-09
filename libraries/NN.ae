@@ -157,6 +157,20 @@ def predict
     {r: Vector | dim r == net_out net} =
     native "__import__('functools').reduce(lambda acc, ly: (lambda W, b, a, z: np.maximum(z, 0.0) if a == 'relu' else (1.0/(1.0+np.exp(-z)) if a == 'sigmoid' else (np.tanh(z) if a == 'tanh' else z)))(ly[0], ly[1], ly[2], ly[0] @ acc + ly[1]), net, x)"
 
+# Like ``predict`` but without the static ``dim x == net_in`` precondition
+# (a width mismatch is caught at runtime by numpy). This is the entry point
+# the ``Models`` typeclasses dispatch to: a typeclass method is generic over
+# the model type, so it cannot carry a per-model dimension refinement.
+# Prefer ``predict`` whenever the input width is statically known.
+def predict_unchecked (net: Network) (x: Vector) : Vector =
+    native "__import__('functools').reduce(lambda acc, ly: (lambda W, b, a, z: np.maximum(z, 0.0) if a == 'relu' else (1.0/(1.0+np.exp(-z)) if a == 'sigmoid' else (np.tanh(z) if a == 'tanh' else z)))(ly[0], ly[1], ly[2], ly[0] @ acc + ly[1]), net, x)"
+
+# Single scalar forward: output component 0, for a one-unit regression head.
+# Unchecked like ``predict_unchecked``; the ``Models`` ``Regressor`` instance
+# dispatches here.
+def predict_scalar (net: Network) (x: Vector) : Float =
+    native "float(__import__('functools').reduce(lambda acc, ly: (lambda W, b, a, z: np.maximum(z, 0.0) if a == 'relu' else (1.0/(1.0+np.exp(-z)) if a == 'sigmoid' else (np.tanh(z) if a == 'tanh' else z)))(ly[0], ly[1], ly[2], ly[0] @ acc + ly[1]), net, x)[0])"
+
 # ─── Loss functions (refined non-negative) ─────────────────────────────
 
 # Mean squared error between a prediction and a target of equal length.

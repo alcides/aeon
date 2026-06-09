@@ -8,7 +8,7 @@
 open Learning
 
 
-def generate_model_smote (path: String) (target_col: String) : Classifier =
+def generate_model_smote (path: String) (target_col: String) : SklearnClassifier =
     let 1 df = Learning.read_csv path in
     let ds0 = Learning.target df target_col false false in
     let ds = Learning.require_enough_data ds0 in
@@ -18,7 +18,7 @@ def generate_model_smote (path: String) (target_col: String) : Classifier =
     Learning.random_forest_classifier train ;
 
 
-def generate_model_plain (path: String) (target_col: String) : Classifier =
+def generate_model_plain (path: String) (target_col: String) : SklearnClassifier =
     let 1 df = Learning.read_csv path in
     let ds0 = Learning.target df target_col false false in
     let ds = Learning.require_enough_data ds0 in

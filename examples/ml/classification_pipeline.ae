@@ -35,7 +35,7 @@ def pipeline (path: String) (target_col: String) : Float =
 
 # ComplementNB requires imbalanced data — discharged via an inline
 # ``balanced`` runtime check.
-def cnb_pipeline (path: String) (target_col: String) : Classifier =
+def cnb_pipeline (path: String) (target_col: String) : SklearnClassifier =
     let 1 df = Learning.read_csv path in
     let ds = Learning.target df target_col false false in
     if Learning.balanced ds then

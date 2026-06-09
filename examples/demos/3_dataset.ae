@@ -7,7 +7,7 @@
 open Learning
 
 
-def train_multinomial (path: String) (target_col: String) : Classifier =
+def train_multinomial (path: String) (target_col: String) : SklearnClassifier =
     let 1 df = Learning.read_csv path in
     let ds0 = Learning.target df target_col false false in
     let ds = Learning.require_enough_data ds0 in
