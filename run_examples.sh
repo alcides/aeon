@@ -50,9 +50,10 @@ if [ "$status" -ne 0 ]; then
     exit 111
 fi
 
-# Property-based testing examples (issue #37) and @example assertions: run with
-# --test; every property and example must pass (exit code 0).
-for entry in examples/pbt/props_*.ae examples/pbt/examples_*.ae
+# Property-based testing examples (issue #37), @example assertions, and the
+# Testing-library unit/property suites: run with --test; every property and
+# example must pass (exit code 0).
+for entry in examples/pbt/props_*.ae examples/pbt/examples_*.ae examples/testing/*.ae
 do
     printf "Running (pbt) %s ..." "$entry"
     if uv run python -m aeon --test "$entry" > /dev/null 2>&1; then

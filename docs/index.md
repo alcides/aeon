@@ -397,6 +397,7 @@ There are a few libraries available, but unstable as they are under development:
 - Statistics.ae
 - String.ae
 - Table.ae
+- Testing.ae
 - Tuple.ae
 
 The full HTML reference for every standard-library module — generated from the
@@ -512,6 +513,50 @@ Property-based tests use the related `@property` decorator: it marks a
 `Bool`-returning function whose arguments are universally quantified and checked
 on random inputs generated from their (refinement-constrained) types under
 `--test`.
+
+### Unit testing (`Testing` library)
+
+A `@property` with **no arguments** is just a unit test: one concrete case the
+runner evaluates once (use `@property(1)` so it runs a single time). The
+`Testing` library gives this a readable vocabulary — every assertion returns a
+plain `Bool`, so unit tests and property tests share the same combinators and
+the same `--test` runner:
+
+```aeon
+open Testing
+open Image
+
+# Unit test — one concrete case.
+@property(1)
+def test_invert_black_is_white : Bool =
+    black = Image.mk 4 4 (Color.mk 0 0 0);
+    assertEqual (Image.get_pixel (Image.invert black) 0 0) (Color.mk 255 255 255);
+
+# Property — the colour channels are generated; the assertion must hold for all.
+@property
+def prop_solid_pixel_is_fill
+    (r : {v : Int | v >= 0 && v < 256})
+    (g : {v : Int | v >= 0 && v < 256})
+    (b : {v : Int | v >= 0 && v < 256}) : Bool =
+    col = Color.mk r g b;
+    assertEqual (Image.get_pixel (Image.mk 8 8 col) 0 0) col;
+```
+
+Dimensions are checked here with `Image.get_width` / `Image.get_height`, the
+runtime accessors whose return type is refined to equal the static `width` /
+`height` measures — so the same number the type system proves is the one you
+read back at runtime.
+
+Available assertions: `assertTrue` / `assertThat`, `assertFalse`, `assertEqual`,
+`assertNotEqual`, the ordering family `assertLess` / `assertLessEqual` /
+`assertGreater` / `assertGreaterEqual`, `assertClose` (floating-point tolerance),
+and the combinators `both` / `allOf3` / `allOf4` / `allOf5` for grouping several
+checks into a single test. See `examples/testing/image_tests.ae` for a full
+suite that tests the Image library.
+
+```bash
+aeon --test examples/testing/image_tests.ae
+```
 
 ### Synthesis control decorators
 
