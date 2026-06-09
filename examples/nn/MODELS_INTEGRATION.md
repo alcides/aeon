@@ -2,16 +2,17 @@
 
 A classifier typeclass and a regressor typeclass that **both** the
 neural-network models (`NN.Network`) and the scikit-learn-backed `Learning`
-models (`Learning.Classifier` / `Learning.Regressor`) implement, so the same
-code drives either kind of model.
+models (`SklearnClassifier` / `SklearnRegressor`) implement, so the same code
+drives either kind of model.
 
 ## What's here
 
-* **`libraries/Models.ae`** — `Categorical` (the classifier typeclass) and
-  `Continuous` (the regressor typeclass), with instances for `NN.Network`
-  *and* `Learning`'s `Classifier` / `Regressor`. `classify` / `regress` /
-  `cls_classes` / `cls_inputs` / `reg_inputs` dispatch by the model's type.
-  The shared feature representation is a `Tensor.Vector` (one sample).
+* **`libraries/Models.ae`** — `Classifier` (the classifier typeclass) and
+  `Regressor` (the regressor typeclass), with instances for `NN.Network`
+  *and* `Learning`'s `SklearnClassifier` / `SklearnRegressor`. `classify` /
+  `regress` / `cls_classes` / `cls_inputs` / `reg_inputs` dispatch by the
+  model's type. The shared feature representation is a `Tensor.Vector` (one
+  sample).
 * **`examples/nn/models.ae`** — runs a neural network and a `sklearn`
   decision tree through the *same* `classify` / `cls_classes` calls.
 * **`Learning.ae`** — gains single-sample, `Vector`-based entry points
@@ -20,10 +21,12 @@ code drives either kind of model.
 * **`NN.ae`** — gains `predict_unchecked` / `predict_scalar` (forward without
   the static `dim` precondition) as the generic methods' entry points.
 
-The class names `Categorical` / `Continuous` (the standard statistical terms
-for the two response kinds) are deliberately distinct from `Learning`'s
-opaque `Classifier` / `Regressor` *types* — a same-named class and type
-collide on a single z3 sort.
+The typeclasses take the natural names `Classifier` / `Regressor`. `Learning`'s
+opaque model *types* were therefore renamed to the more specific
+`SklearnClassifier` / `SklearnRegressor` (they are fitted scikit-learn
+estimators): a class and a type sharing one name collide on a single z3 sort,
+and the rename also reads better — `instance : Classifier SklearnClassifier`
+says "a fitted sklearn classifier is a Classifier".
 
 ## Interpreter fixes that made it possible (`aeon/sugar/desugar.py`)
 
@@ -65,8 +68,8 @@ All three are pure additions to resolution/ordering; the full suite passes.
   `NN.predict` / `Learning.accuracy` directly when you need the static
   guarantee.
 * **No polymorphic-over-constraint dispatch.** A function written generically
-  as `def f [Categorical m] (model: m) … = classify model …` does not resolve
-  the method from the `[Categorical m]` dictionary (it reports "no instance
+  as `def f [Classifier m] (model: m) … = classify model …` does not resolve
+  the method from the `[Classifier m]` dictionary (it reports "no instance
   for `<unknown>`"). Dispatch works on concrete model types
   (`classify net …`, `classify tree …`), which is what the example uses.
   Making the class dictionary drive method resolution inside a constrained

@@ -1,16 +1,16 @@
 # One interface, two very different models.
 #
-# ``Models`` exposes the classifier typeclass ``Categorical`` and the
-# regressor typeclass ``Continuous``. Both ``NN.Network`` and ``Learning``'s
-# scikit-learn-backed ``Classifier`` / ``Regressor`` are instances, so the
-# *same* method names — ``classify``, ``regress``, ``cls_classes`` … —
-# dispatch by the model's type. A neural network and a decision tree are
-# driven through one surface.
+# ``Models`` exposes the classifier typeclass ``Classifier`` and the
+# regressor typeclass ``Regressor``. The concrete model types are specific —
+# ``NN.Network`` and ``Learning``'s scikit-learn ``SklearnClassifier`` /
+# ``SklearnRegressor`` — and each is an instance, so the *same* method names
+# (``classify``, ``regress``, ``cls_classes`` …) dispatch by the model's
+# type. A neural network and a decision tree are driven through one surface.
 #
-# This is enabled by two interpreter fixes (see MODELS_INTEGRATION.md):
-# binder-aware name resolution (so ``NN`` and ``Learning`` no longer
-# capture each other's bare names and can be opened together) and concrete
-# instance heads over opaque imported types.
+# This is enabled by interpreter fixes (see MODELS_INTEGRATION.md): binder-
+# aware name resolution (so ``NN`` and ``Learning`` no longer capture each
+# other's bare names and can be opened together), native_import hoisting, and
+# concrete instance heads over opaque imported types.
 
 open Models
 open List
@@ -27,8 +27,8 @@ def main (_: Int) : Unit =
 
     # One feature vector, fed to both through the SAME typeclass method.
     let x = from_list (cons 5.1 (cons 3.5 (cons 1.4 (cons 0.2 nil)))) in
-    let nn_scores  = classify net x in     # Categorical Network
-    let tree_scores = classify tree x in   # Categorical Learning.Classifier
+    let nn_scores  = classify net x in     # Classifier Network
+    let tree_scores = classify tree x in   # Classifier SklearnClassifier
 
     # Shape accessors dispatch by model type too: both report 3 classes.
     print ((cls_classes net) + (cls_classes tree))

@@ -4,18 +4,15 @@
 # predictive models, so the same code drives a neural network and a
 # scikit-learn model alike:
 #
-#   * ``Categorical`` — the **classifier** typeclass (discrete target).
+#   * ``Classifier`` — a model whose target is a discrete class.
 #     ``classify`` returns a vector of per-class scores.
-#   * ``Continuous`` — the **regressor** typeclass (continuous target).
+#   * ``Regressor`` — a model whose target is a real number.
 #     ``regress`` returns the predicted number.
 #
-# Both ``NN.Network`` and ``Learning``'s fitted ``Classifier`` /
-# ``Regressor`` are instances, so a network and an sklearn model expose the
-# very same surface. (The class names avoid clashing with ``Learning``'s
-# opaque ``Classifier`` / ``Regressor`` *types*; ``Categorical`` /
-# ``Continuous`` are the standard statistical terms for the two response
-# kinds.) The shared feature representation is a ``Tensor.Vector`` — one
-# sample's features.
+# The *concrete* model types are specific — ``NN.Network`` (a neural
+# network), and ``Learning``'s ``SklearnClassifier`` / ``SklearnRegressor``
+# (fitted scikit-learn estimators) — and each opts into the matching class.
+# The shared feature representation is a ``Tensor.Vector`` (one sample).
 #
 # Scope note: typeclass methods are dictionary projections, *opaque to the
 # SMT backend* (the same caveat ``Num`` documents). So the dimension
@@ -23,8 +20,7 @@
 # ``Learning`` verify on their concrete operations are not carried as laws
 # through these generic methods — a width mismatch surfaces at runtime, not
 # compile time. Use the classes for type-directed dispatch and reuse; drop
-# to ``NN.predict`` / ``Learning.predict`` directly when you need the static
-# guarantee.
+# to ``NN.predict`` / ``Learning.predict`` directly for the static guarantee.
 
 open Tensor
 open NN
@@ -33,13 +29,13 @@ open Learning
 # ── Classes ────────────────────────────────────────────────────────────
 
 # The classifier typeclass: discrete target, vector of class scores.
-class Categorical (m : B) where
+class Classifier (m : B) where
     cls_inputs  : (model: m) -> Int;
     cls_classes : (model: m) -> Int;
     classify    : (model: m) -> (x: Vector) -> Vector;
 
 # The regressor typeclass: continuous target, a single predicted value.
-class Continuous (m : B) where
+class Regressor (m : B) where
     reg_inputs : (model: m) -> Int;
     regress    : (model: m) -> (x: Vector) -> Float;
 
@@ -48,24 +44,24 @@ class Continuous (m : B) where
 # as a regressor it returns output component 0. Both dispatch to the
 # unchecked forward (the typeclass input width is not statically known).
 
-instance : Categorical Network where
+instance : Classifier Network where
     cls_inputs model := net_in_of model;
     cls_classes model := net_out_of model;
     classify model x := predict_unchecked model x;
 
-instance : Continuous Network where
+instance : Regressor Network where
     reg_inputs model := net_in_of model;
     regress model x := predict_scalar model x;
 
-# ── Instances: Learning models (scikit-learn) ──────────────────────────
-# A fitted ``Learning.Classifier`` / ``Learning.Regressor`` predicts for one
+# ── Instances: scikit-learn models (Learning) ──────────────────────────
+# A fitted ``SklearnClassifier`` / ``SklearnRegressor`` predicts for one
 # feature vector via the single-sample entry points in ``Learning``.
 
-instance : Categorical Classifier where
+instance : Classifier SklearnClassifier where
     cls_inputs model := clf_n_features model;
     cls_classes model := clf_n_classes model;
     classify model x := classify_one model x;
 
-instance : Continuous Regressor where
+instance : Regressor SklearnRegressor where
     reg_inputs model := reg_n_features model;
     regress model x := regress_one model x;
