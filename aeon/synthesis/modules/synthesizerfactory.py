@@ -1,3 +1,5 @@
+import os
+
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
@@ -10,17 +12,21 @@ from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
 def make_synthesizer(module: str) -> Synthesizer:
+    # The random seed for stochastic backends is taken from the AEON_SEED
+    # environment variable (default 0), so experiments can vary it across runs
+    # (e.g. multi-seed benchmarks) without a dedicated CLI flag.
+    seed = int(os.environ.get("AEON_SEED", "0"))
     match module:
         case "random_search":
-            return GESynthesizer(method="random_search")
+            return GESynthesizer(seed=seed, method="random_search")
         case "enumerative":
-            return GESynthesizer(method="enumerative")
+            return GESynthesizer(seed=seed, method="enumerative")
         case "gp":
-            return GESynthesizer(method="genetic_programming")
+            return GESynthesizer(seed=seed, method="genetic_programming")
         case "1p1":
-            return GESynthesizer(method="one_plus_one")
+            return GESynthesizer(seed=seed, method="one_plus_one")
         case "hc":
-            return GESynthesizer(method="hill_climbing")
+            return GESynthesizer(seed=seed, method="hill_climbing")
         case "synquid":
             return SynquidSynthesizer()
         case "llm":
@@ -30,11 +36,11 @@ def make_synthesizer(module: str) -> Synthesizer:
         case "smt":
             return SMTSynthesizer()
         case "tdsyn" | "tdsyn_enumerative":
-            return TDSynSynthesizer(mode="enumerative")
+            return TDSynSynthesizer(mode="enumerative", seed=seed)
         case "tdsyn_random":
-            return TDSynSynthesizer(mode="random")
+            return TDSynSynthesizer(mode="random", seed=seed)
         case "tactics":
-            return TacticRandomSynthesizer()
+            return TacticRandomSynthesizer(seed=seed)
         case "lta":
             return LTASynthesizer()
         case _:
