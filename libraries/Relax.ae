@@ -1,0 +1,40 @@
+# Linear-relaxation activations — the scalable middle ground (DeepPoly / CROWN).
+#
+# ``Certify`` encodes each ReLU *exactly* (``y == 0 || y == x``). That
+# disjunction is sound and complete but forces the SMT solver to
+# case-split, so verification cost is exponential in the number of ReLUs
+# (see examples/nn/mnist/README.md — it stalls past a handful of neurons).
+#
+# DeepPoly and CROWN trade that exactness for scalability: each unstable
+# ReLU (pre-activation interval straddling 0) is replaced by its convex
+# *triangle relaxation* — a set of linear bounds with no disjunction:
+#
+#       y >= 0,   y >= z,   y <= a*z + b
+#
+# where the upper hypotenuse passes through (l, 0) and (u, u):
+#       a = u / (u - l),     b = -u*l / (u - l).
+#
+# Because there is no case split, z3 stays in linear real arithmetic and
+# scales polynomially, while still reasoning about the affine layers
+# *relationally* (it sees ``z = w·x + b`` exactly). The price is
+# completeness: a relaxed proof that succeeds is a sound robustness
+# guarantee, but a failure is inconclusive (the relaxation may be too
+# loose), exactly as in DeepPoly/CROWN.
+#
+# The triangle constants ``a``/``b`` depend on each neuron's
+# pre-activation interval ``[l, u]``, which an abstract-interpretation
+# pass must precompute — so these are meant to be emitted *per neuron*
+# with concrete constants (see examples/nn/mnist/relax_gen.py), not called
+# with symbolic bounds. Like every ``native`` body the refinement is
+# trusted: soundness rests on the caller passing an ``a``/``b`` derived
+# from a sound ``[l, u]`` over-approximation.
+
+# Unstable ReLU (l < 0 < u): the full triangle relaxation.
+def relu_relaxed (a: Float) (b: Float) (z: Float) :
+    {y: Float | y >= 0.0 && y >= z && y <= (a * z) + b} =
+    native "max(0.0, z)" ;
+
+# Lower bounds only (y >= 0, y >= z) — a sound relaxation with no upper
+# face. Useful when only a lower bound on the neuron is needed.
+def relu_lower (z: Float) : {y: Float | y >= 0.0 && y >= z} =
+    native "max(0.0, z)" ;

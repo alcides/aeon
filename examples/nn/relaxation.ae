@@ -1,0 +1,50 @@
+# The "missing middle" — linear-relaxation activations (DeepPoly / CROWN).
+#
+# `Certify.relu` is exact (`y == 0 || y == x`); that disjunction makes the
+# solver case-split, so cost is exponential in the number of ReLUs.
+# `Relax.relu_relaxed` instead gives each unstable ReLU its convex
+# *triangle* bounds — no disjunction, pure linear arithmetic:
+#
+#       y >= 0,   y >= z,   y <= a*z + b
+#
+# with the hypotenuse through (l, 0) and (u, u): a = u/(u-l), b = -u*l/(u-l),
+# where [l, u] is the pre-activation interval (precomputed by an abstract
+# pass). A relaxed proof is a sound robustness guarantee; a failure is
+# inconclusive (the relaxation may be too loose) — the DeepPoly/CROWN
+# trade-off.
+
+open Relax
+
+
+# One unstable neuron: z = x1 - x2 over the unit box ranges in [-1, 1], so
+# l = -1, u = 1 and the triangle is a = 0.5, b = 0.5. The relaxed ReLU is
+# bounded above by 0.5*z + 0.5, so y <= 1 over the box. The margin 2 - y is
+# therefore > 0 — proved with NO case split, in linear arithmetic.
+def robust_relaxed
+    (x1: {v: Float | 0.0 <= v && v <= 1.0})
+    (x2: {v: Float | 0.0 <= v && v <= 1.0}) :
+    {margin: Float | margin > 0.0} =
+    let y = relu_relaxed 0.5 0.5 (x1 - x2) in
+    2.0 - y ;
+
+
+# Soundness check: the triangle is a genuine over-approximation. The
+# returned bound holds for *every* input in the box, including the corner
+# x1=1, x2=0 where the true ReLU output is 1 and 2 - y = 1 > 0.
+def witness (_: Int) : {margin: Float | margin > 0.0} =
+    robust_relaxed 1.0 0.0 ;
+
+
+# Where does the incompleteness actually bite? Not here. The triangle
+# touches the exact ReLU at both endpoints (y=0 at z=l, y=u at z=u), so for
+# a *single* layer with exact pre-activation intervals it is tight on any
+# monotone single-neuron property — relaxed and exact agree. The slack it
+# adds in the interior only compounds across *multiple* layers, where the
+# pre-activation interval of a deep neuron must itself be over-approximated
+# from the relaxed bounds of the layer below. That layer-by-layer
+# concretization is exactly what DeepPoly/CROWN do (and tighten with
+# back-substitution); this single-layer prototype does not exercise it.
+
+
+def main (_: Int) : Unit =
+    print (robust_relaxed 0.8 0.2)

@@ -1,0 +1,8 @@
+inputs	hidden	relus	secs	verdict
+4	2	2	3	not-robust(rejected)
+4	4	4	5	not-robust(rejected)
+4	8	8	10	not-robust(rejected)
+4	16	16	93	not-robust(rejected)
+4	32	32	150	TIMEOUT(>150s)
+16	2	2	150	TIMEOUT(>150s)
+64	2	2	150	TIMEOUT(>150s)

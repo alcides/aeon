@@ -209,7 +209,36 @@ def _ple_unfold_once(
             return t, False
 
 
+# Cache for ``ple_unfold_fixpoint`` keyed by ``(id(term), id(reflected_funcs))``
+# with identity checks (so a recycled ``id`` can never yield a stale hit). With
+# premise objects shared across the conjuncts of a solve (see
+# ``_specialize_liquid_term``), the same unfolding is requested repeatedly;
+# unfolding is a pure function of its inputs, so reusing the result is sound.
+_ple_cache: dict[tuple[int, int], tuple[LiquidTerm, dict, LiquidTerm]] = {}
+
+
 def ple_unfold_fixpoint(
+    t: LiquidTerm,
+    reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
+    max_steps: int = 256,
+) -> LiquidTerm:
+    # No reflected functions in scope -> nothing can unfold. Skip the loop
+    # (and its per-call ``repr``/``term_size`` work, which otherwise dominates
+    # on large reflection-free premises) and return the term unchanged. This
+    # also preserves object identity, which the translate-time memo relies on.
+    if not reflected_functions:
+        return t
+    key = (id(t), id(reflected_functions))
+    hit = _ple_cache.get(key)
+    if hit is not None and hit[0] is t and hit[1] is reflected_functions:
+        return hit[2]
+    result = _ple_unfold_fixpoint_uncached(t, reflected_functions, max_steps)
+    _ple_cache[key] = (t, reflected_functions, result)
+    _bound(_ple_cache)
+    return result
+
+
+def _ple_unfold_fixpoint_uncached(
     t: LiquidTerm,
     reflected_functions: dict[str, tuple[tuple[Name, ...], LiquidTerm]],
     max_steps: int = 256,
@@ -404,13 +433,22 @@ def _specialize_liquid_term(
     nfuncs = functions
     nref = reflected_functions
     nargs: list[LiquidTerm] = []
+    # Track whether any argument was actually rewritten. When nothing changes
+    # we return the *original* ``t`` object rather than an identical-but-fresh
+    # ``LiquidApp``. `flatten` specializes the same accumulated-premise objects
+    # once per sibling conjunct, so preserving identity here lets the
+    # translate-time memo (keyed by object id) dedup those premises across the
+    # many CanonicConstraints of one solve instead of re-walking them each time.
+    args_changed = False
     for a in t.args:
         sa, nfuncs, nref = _specialize_liquid_term(a, nfuncs, variables, nref, specializations)
+        if sa is not a:
+            args_changed = True
         nargs.append(sa)
 
     fname = str(t.fun)
     if fname not in nfuncs:
-        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
+        return (t if not args_changed else LiquidApp(t.fun, nargs, loc=t.loc)), nfuncs, nref
 
     fty = nfuncs[fname]
     cur: Type = fty
@@ -424,7 +462,7 @@ def _specialize_liquid_term(
         cur = cur.type
 
     if not subst:
-        return LiquidApp(t.fun, nargs, loc=t.loc), nfuncs, nref
+        return (t if not args_changed else LiquidApp(t.fun, nargs, loc=t.loc)), nfuncs, nref
 
     concrete_sig = tuple(sorted(_mangle_sort_name(v) for v in subst.values()))
     skey = (fname, concrete_sig)
@@ -573,6 +611,12 @@ def smt_valid(constraint: Constraint) -> bool:
     if cached is not None:
         return cached
 
+    # One memo per solve: the constraints produced by `flatten` share their
+    # accumulated premise subterms (same objects), so translating them once and
+    # reusing the Z3 ASTs across conjuncts removes the dominant re-translation
+    # cost. Scoped here (not module-global) so it never spans solves with
+    # different alpha-renamed namespaces, and discarded when this call returns.
+    translate_memo: dict[int, tuple[LiquidTerm, Any]] = {}
     n = 0
     for c in flatten(constraint):
         n += 1
@@ -588,7 +632,7 @@ def smt_valid(constraint: Constraint) -> bool:
         # the declarations are re-emitted per constraint by construction.
         try:
             try:
-                smt_c = translate(c)
+                smt_c = translate(c, translate_memo)
             except ZeroDivisionError:
                 # A constant division/modulo by zero (e.g. ``-2 / 0``) is
                 # undefined: it crashes at runtime and Z3 leaves it
@@ -818,7 +862,38 @@ def _coerce_numeric(a: Any) -> Any:
     return a
 
 
-def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
+def translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None = None):
+    """Translate a ``LiquidTerm`` into a Z3 expression.
+
+    ``memo`` (optional) caches already-translated subterms by object identity
+    so a shared subtree is translated once. A single ``smt_valid`` run flattens
+    one constraint into many ``CanonicConstraint``s that share an *accumulated
+    premise* (the same ``h_i == e_i`` term objects recur in every conjunct), so
+    without memoization those affine premises are re-walked once per conjunct —
+    the dominant cost on large obligations (e.g. the NN robustness queries in
+    ``examples/nn/mnist``).
+
+    Soundness of reusing a cached AST across the conjuncts of one solve: every
+    binder is alpha-renamed to a globally fresh name (so a name has a single
+    sort throughout the run) and Z3 hash-conses constants/functions by
+    name+sort, so a given term object always denotes the same Z3 AST regardless
+    of which constraint's ``variables`` dict is in hand. The cache also keeps a
+    strong reference to each key term (``hit[0] is t`` guards against ``id``
+    recycling), and it is scoped to one ``smt_valid`` call. Without ``memo``
+    (external callers) behaviour is identical to before.
+    """
+    if memo is None:
+        return _translate_liq(t, variables, None)
+    tid = id(t)
+    hit = memo.get(tid)
+    if hit is not None and hit[0] is t:
+        return hit[1]
+    result = _translate_liq(t, variables, memo)
+    memo[tid] = (t, result)
+    return result
+
+
+def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None):
     match t:
         case LiquidLiteralBool(b):
             return b
@@ -846,7 +921,7 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any]):
         case LiquidApp(fun_name, args):
             fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
             assert fun is not None, f"Function {fun_name} not found." + str(variables)
-            args = [translate_liq(a, variables) for a in args]
+            args = [translate_liq(a, variables, memo) for a in args]
             if fun_name.name in ("/", "%"):
                 # Evaluate division and modulo with Z3 numeric semantics, not
                 # Python's. On two Python int literals, Python's ``/`` is *float*
@@ -925,13 +1000,14 @@ def _constructor_distinctness(variables: dict[str, Any]) -> list[BoolRef]:
 
 def translate(
     c: CanonicConstraint,
+    memo: dict[int, tuple[LiquidTerm, Any]] | None = None,
 ) -> BoolRef | bool:
     sorts = mk_sorts(c.sorts)
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)
     env = variables | functions
-    e1 = translate_liq(c.premise, env)
-    e2 = translate_liq(c.conclusion, env)
+    e1 = translate_liq(c.premise, env, memo)
+    e2 = translate_liq(c.conclusion, env, memo)
     if isinstance(e2, bool) and e2 is True:
         return False
     if isinstance(e1, bool) and isinstance(e2, bool):

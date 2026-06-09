@@ -1,0 +1,44 @@
+# Exactly-refined scalar primitives for *verified* networks.
+#
+# This is the relational counterpart to ``NN``'s vector activations. Those
+# carry only an interval codomain (``relu`` output ``>= 0``) — type-level
+# Interval Bound Propagation (IBP), which is fast but loses the link
+# between a neuron's output and its input. DeepPoly / CROWN-style
+# verification instead keeps each neuron's *exact* relation to its input,
+# which is far tighter and is what makes local-robustness proofs go
+# through.
+#
+# Here each activation is a piecewise-linear scalar function whose
+# refinement **fully characterises** it: e.g. ``relu x`` returns the
+# unique ``y`` with ``y >= 0 && y >= x && (y == 0 || y == x)`` — that is
+# exactly ``max(0, x)``. Because the relation is exact, z3 reasons through
+# a chain of these with no over-approximation. Build a small network from
+# them as ordinary scalar arithmetic (``w1*x1 + w2*x2 + b``) and the whole
+# input→output map is a piecewise-linear formula the SMT backend can
+# verify against, the same technology complete verifiers (Reluplex /
+# Marabou / β-CROWN's bound+branch) rely on.
+#
+# Trade-off: this is precise but scalar and per-network — the opposite end
+# of the spectrum from ``NN``/``Tensor``'s opaque, batched, IBP-only
+# tensors. Use ``Certify`` to *prove things about* small networks; use
+# ``NN`` to *run* large ones.
+
+# Rectified linear unit, exactly. The refinement pins ``y == max(0, x)``.
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y == x || y == 0.0)} =
+    if x >= 0.0 then x else 0.0 ;
+
+# Leaky ReLU with slope 1/100 on the negative side, exactly.
+def leaky_relu (x: Float) :
+    {y: Float | (x >= 0.0 --> y == x) && (x < 0.0 --> y == x / 100.0)} =
+    if x >= 0.0 then x else x / 100.0 ;
+
+# Hard tanh: clamp to [-1, 1], exactly. The refinement gives both the
+# codomain and the identity region.
+def hardtanh (x: Float) :
+    {y: Float | (0.0 - 1.0) <= y && y <= 1.0
+             && (((0.0 - 1.0) <= x && x <= 1.0) --> y == x)} =
+    if x <= (0.0 - 1.0) then (0.0 - 1.0) else (if x >= 1.0 then 1.0 else x) ;
+
+# Absolute value as a verified piecewise-linear unit: ``y == |x|``.
+def absval (x: Float) : {y: Float | y >= 0.0 && y >= x && y >= (0.0 - x) && (y == x || y == (0.0 - x))} =
+    if x >= 0.0 then x else (0.0 - x) ;
