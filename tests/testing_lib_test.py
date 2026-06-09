@@ -17,7 +17,8 @@ from aeon.synthesis.pbt import run_properties
 from aeon.synthesis.uis.api import SynthesisUI
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-IMAGE_TESTS = REPO_ROOT / "examples" / "testing" / "image_tests.ae"
+TESTING_EXAMPLES_DIR = REPO_ROOT / "examples" / "testing"
+EXAMPLE_SUITES = sorted(TESTING_EXAMPLES_DIR.glob("*.ae"))
 
 # A self-contained program exercising every assertion combinator: passing and
 # failing instances of each, so we can assert the runner classifies both.
@@ -105,12 +106,40 @@ def test_assertions_that_should_fail(results, name):
     assert not results[name].passed, results[name].summary()
 
 
-def test_image_example_suite_all_pass():
-    """The shipped Image test suite must pass end-to-end (also guards the
-    Image_diff_mse native float cast)."""
+@pytest.mark.parametrize("suite", EXAMPLE_SUITES, ids=lambda p: p.stem)
+def test_example_suites_all_pass(suite):
+    """Every shipped suite under examples/testing/ must pass end-to-end. This
+    also guards the libraries those suites exercise (e.g. the Image_diff_mse
+    native float cast and the Set.ae rewrite)."""
     cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
     driver = AeonDriver(cfg)
-    errors = driver.parse(str(IMAGE_TESTS))
+    errors = driver.parse(str(suite))
     assert errors == [], errors
     failures = driver.run_tests(seed=0)
     assert failures == [], [f.summary() for f in failures]
+
+
+def test_example_suites_discovered():
+    """Guard against the glob silently finding nothing (which would make the
+    parametrized test vacuously pass)."""
+    assert len(EXAMPLE_SUITES) >= 9
+
+
+def _parse_errors(source: str):
+    cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
+    return AeonDriver(cfg).parse(aeon_code=source)
+
+
+def test_string_length_refinement_discharged_on_literal():
+    """`String.len` is wired to Z3's native string length, so a slice whose
+    bounds are valid for the literal typechecks (the `l <= len i` precondition
+    is discharged because Z3 computes `len "hello" == 5`)."""
+    src = 'open String\ndef ok (_:Int) : String = slice "hello" 0 5;\n'
+    assert _parse_errors(src) == []
+
+
+def test_string_length_refinement_rejects_out_of_bounds_literal():
+    """Soundness: an out-of-bounds slice on a literal is still rejected — the
+    Z3 string length makes `99 <= len "hello"` provably false, not unknown."""
+    src = 'open String\ndef bad (_:Int) : String = slice "hello" 0 99;\n'
+    assert _parse_errors(src) != []

@@ -1,0 +1,60 @@
+# Tests for the Set library (immutable set). `size` / `contains` are
+# uninterpreted measures, so tests observe membership through `has`.
+#
+# Run with:  aeon --test examples/testing/set_tests.ae
+
+open Testing
+open Set
+
+# ── Unit tests ───────────────────────────────────────────────────────────────
+
+@property(1)
+def test_empty_has_nothing : Bool = assertFalse (has new 5);
+
+@property(1)
+def test_add_then_has : Bool = assertTrue (has (add new 5) 5);
+
+@property(1)
+def test_remove : Bool = assertFalse (has (remove (add new 5) 5) 5);
+
+@property(1)
+def test_remove_absent_is_noop : Bool =
+    s = remove (add new 5) 9;
+    assertTrue (has s 5);
+
+@property(1)
+def test_union : Bool =
+    s = union (add new 1) (add new 2);
+    both (assertTrue (has s 1))
+         (assertTrue (has s 2));
+
+@property(1)
+def test_intersection : Bool =
+    s = intersection (add (add new 1) 2) (add new 2);
+    both (assertTrue (has s 2))
+         (assertFalse (has s 1));
+
+@property(1)
+def test_difference : Bool =
+    s = difference (add (add new 1) 2) (add new 2);
+    both (assertTrue (has s 1))
+         (assertFalse (has s 2));
+
+# ── Property-based tests (Int elements generated) ─────────────────────────────
+
+# An element is present right after being added.
+@property
+def prop_add_then_has (x : Int) : Bool =
+    assertTrue (has (add new x) x);
+
+# An element is absent right after being removed.
+@property
+def prop_remove_then_absent (x : Int) : Bool =
+    assertFalse (has (remove (add new x) x) x);
+
+# Every element of either set is in their union.
+@property
+def prop_union_contains_both (x : Int) (y : Int) : Bool =
+    s = union (add new x) (add new y);
+    both (assertTrue (has s x))
+         (assertTrue (has s y));

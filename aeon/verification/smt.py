@@ -8,6 +8,7 @@ from loguru import logger
 
 from z3 import Function
 from z3 import Int
+from z3 import Length
 from z3 import IntVal
 from z3 import Real
 from z3 import RealVal
@@ -135,6 +136,12 @@ base_functions: dict[str, Any] = {
     "%": lambda x, y: x % y,
     "-->": lambda x, y: Implies(x, y),
     "ite": lambda c, t, e: If(c, t, e),
+    # String.len -> Z3's native string-length, so refinements over string length
+    # (e.g. the `len i` preconditions of String.slice/replace/split) connect to
+    # Z3's string theory. Without this, `String_len` would be an uninterpreted
+    # symbol and `len "hello"` could not be shown to equal 5, so length-refined
+    # operations were undischargeable on string literals.
+    "String_len": lambda s: Length(s),
     # SMT Set operations
     "Set_empty": EmptySet(IntSort()),
     "Set_sng": lambda x: SetAdd(EmptySet(IntSort()), x),
