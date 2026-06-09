@@ -44,7 +44,7 @@ def test_socket_open_bind_listen_close_ok():
 open Socket
 
 def lifecycle (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit =
-    let 1 s0 = stream_socket in
+    let 1 s0 = stream_socket unit in
     let 1 s1 = stream_bind (ipv4_addr "127.0.0.1" port) s0 in
     let 1 s2 = stream_listen 5 s1 in
     stream_close s2;
@@ -66,7 +66,7 @@ def test_socket_unclosed_errors():
 open Socket
 
 def leak (args: Int) : Unit =
-    let 1 s = stream_socket in
+    let 1 s = stream_socket unit in
     print "ignored s";
 
 def main (args: Int) : Unit = print "ok";
@@ -87,7 +87,7 @@ def test_socket_double_close_errors():
 open Socket
 
 def double_close (args: Int) : Unit =
-    let 1 s = stream_socket in
+    let 1 s = stream_socket unit in
     let _ = stream_close s in
     stream_close s;
 
@@ -110,7 +110,7 @@ def test_socket_use_after_consume_errors():
 open Socket
 
 def stale (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit =
-    let 1 s0 = stream_socket in
+    let 1 s0 = stream_socket unit in
     let 1 s1 = stream_bind (ipv4_addr "127.0.0.1" port) s0 in
     let 1 s2 = stream_listen 5 s1 in
     let _ = stream_close s2 in
@@ -134,7 +134,7 @@ def test_socket_alias_then_double_close_errors():
 open Socket
 
 def alias_double (args: Int) : Unit =
-    let 1 s = stream_socket in
+    let 1 s = stream_socket unit in
     let g = s in
     let _ = stream_close s in
     stream_close g;

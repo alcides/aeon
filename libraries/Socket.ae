@@ -2,7 +2,7 @@
 #
 # Every socket-consuming operation takes its socket parameter at
 # multiplicity 1 (``(1 s: ...)``), so the type checker enforces the
-# resource discipline at the binder. A ``let 1 s = stream_socket in
+# resource discipline at the binder. A ``let 1 s = stream_socket unit in
 # body`` *must* consume ``s`` exactly once: passing it to ``stream_bind``,
 # ``stream_close``, etc. discharges the linear obligation. Forgetting to
 # close any handle, or using one after consumption, is rejected at
@@ -56,13 +56,19 @@ def ipv4_addr (host: String) (port: { p: Int | (p >= 0) && (p <= 65535) }) :
     native "(host, port)"
 
 # ── Constructors — return a *fresh* socket the user must bind to a
-# linear binder (``let 1 s = stream_socket in ...``) ────────────────────
+# linear binder (``let 1 s = stream_socket unit in ...``) ───────────────
+#
+# They take a ``Unit`` argument so that opening a socket is an *applied*
+# action: each ``stream_socket unit`` re-runs the native and yields a new
+# handle. A nullary ``def`` would be a value, which the evaluator memoizes —
+# every use would then alias the same Python socket, so a second
+# ``let 1 s = stream_socket`` would reuse an already-closed descriptor.
 
-def stream_socket :
+def stream_socket (_ : Unit) :
     { s: StreamSocket | (stream_bound s == false) && (stream_connected s == false) } =
     native "socket.socket(socket.AF_INET, socket.SOCK_STREAM)"
 
-def dgram_socket :
+def dgram_socket (_ : Unit) :
     { s: DatagramSocket | (dgram_bound s == false) && (dgram_connected s == false) } =
     native "socket.socket(socket.AF_INET, socket.SOCK_DGRAM)"
 
