@@ -402,11 +402,23 @@ def resolve_qualified_names_in_sterm(
     qualified_scope: QualifiedScope,
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
+    bound: frozenset[str] = frozenset(),
 ) -> STerm:
-    """Replace SQualifiedVar nodes with SVar, and resolve unqualified bare names."""
+    """Replace SQualifiedVar nodes with SVar, and resolve unqualified bare names.
 
-    def rec(node: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope, constructor_defs)
+    ``bound`` is the set of names bound by an enclosing binder (function
+    parameter, ``let``, ``fun``, ``match`` pattern, ...). A bare variable that
+    is locally bound is *never* rewritten to an imported definition — so a
+    library's own parameter (e.g. ``NN``'s ``target``) cannot be captured by a
+    same-named export of another imported module (e.g. ``Learning.target``).
+    Together with the module-prefixing of each library's own top-level
+    references, this keeps imported modules from interfering with one another.
+    """
+
+    def rec(node: STerm, extra: frozenset[str] = frozenset()) -> STerm:
+        return resolve_qualified_names_in_sterm(
+            node, qualified_scope, unqualified_scope, constructor_defs, bound | extra
+        )
 
     match t:
         case SAnonConstructor(cname, loc=loc):
@@ -427,17 +439,22 @@ def resolve_qualified_names_in_sterm(
             if qualifier not in {q for (q, _) in qualified_scope}:
                 return SApplication(SMethodSelector(name, loc=loc), SVar(Name(qualifier), loc=loc), loc=loc)
             raise NameError(f"Name '{name.name}' not found in module '{qualifier}'")
-        case SVar(name, loc) if name.name in unqualified_scope:
+        case SVar(name, loc) if name.name in unqualified_scope and name.name not in bound:
             return SVar(unqualified_scope[name.name], loc=loc)
         case SApplication(fun, arg, loc):
             return SApplication(rec(fun), rec(arg), loc=loc)
         case SAbstraction(name, body, loc):
-            return SAbstraction(name, rec(body), loc=loc)
+            return SAbstraction(name, rec(body, frozenset({name.name})), loc=loc)
         case SLet(name, val, body, loc):
-            return SLet(name, rec(val), rec(body), loc=loc, multiplicity=t.multiplicity)
+            # ``val`` is in the outer scope; ``name`` is bound only in ``body``.
+            return SLet(name, rec(val), rec(body, frozenset({name.name})), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, val, body, decreasing_by, loc):
-            nd = tuple(rec(m) for m in decreasing_by)
-            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity)
+            # ``name`` is recursively bound in its own value and the body.
+            inner = frozenset({name.name})
+            nd = tuple(rec(m, inner) for m in decreasing_by)
+            return SRec(
+                name, ty, rec(val, inner), rec(body, inner), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity
+            )
         case SIf(cond, then, otherwise, loc):
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case SAnnotation(expr, ty, loc):
@@ -457,7 +474,7 @@ def resolve_qualified_names_in_sterm(
                     SMatchBranch(
                         constructor=br.constructor,
                         binders=br.binders,
-                        body=rec(br.body),
+                        body=rec(br.body, frozenset(b.name for b in br.binders)),
                         qualifier=br.qualifier,
                         loc=br.loc,
                     )
@@ -474,21 +491,34 @@ def resolve_qualified_names_in_stype(
     qualified_scope: QualifiedScope,
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
+    bound: frozenset[str] = frozenset(),
 ) -> SType:
-    """Resolve qualified names inside refinement predicates within types."""
+    """Resolve qualified names inside refinement predicates within types.
 
-    def rec_ty(t: SType) -> SType:
-        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope, constructor_defs)
+    ``bound`` carries the names bound by enclosing refinement binders and
+    dependent-function parameters, so a refinement variable (e.g. ``v`` in
+    ``{v: T | ...}`` or the ``rows`` parameter of a dependent type) is never
+    rewritten to a same-named import.
+    """
 
-    def rec_term(t: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope, constructor_defs)
+    def rec_ty(t: SType, extra: frozenset[str] = frozenset()) -> SType:
+        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope, constructor_defs, bound | extra)
+
+    def rec_term(t: STerm, extra: frozenset[str] = frozenset()) -> STerm:
+        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope, constructor_defs, bound | extra)
 
     match ty:
         case SRefinedType(name, inner_ty, refinement, loc):
-            return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement), loc=loc)
+            # ``name`` is the refinement's self binder, in scope in the predicate.
+            return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement, frozenset({name.name})), loc=loc)
         case SAbstractionType(var_name, var_type, body_type, loc):
+            # Dependent: ``var_name`` is bound in the codomain.
             return SAbstractionType(
-                var_name, rec_ty(var_type), rec_ty(body_type), loc=loc, multiplicity=ty.multiplicity
+                var_name,
+                rec_ty(var_type),
+                rec_ty(body_type, frozenset({var_name.name})),
+                loc=loc,
+                multiplicity=ty.multiplicity,
             )
         case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(name, kind, rec_ty(body), loc=loc)
@@ -507,13 +537,24 @@ def resolve_qualified_names_in_definition(
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
 ) -> Definition:
-    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope, constructor_defs)
-    new_args = [
-        (name, resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs))
-        for name, ty in d.args
-    ]
+    # The parameters bind names in the body and the return type; an argument
+    # type sees the *preceding* parameters (dependent function types). Seeding
+    # ``bound`` here is what stops a parameter name from being captured by a
+    # same-named import (e.g. ``NN``'s ``target`` vs ``Learning.target``).
+    arg_names = frozenset(name.name for name, _ in d.args)
+    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope, constructor_defs, arg_names)
+    new_args = []
+    seen_args: frozenset[str] = frozenset()
+    for name, ty in d.args:
+        new_args.append(
+            (
+                name,
+                resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, seen_args),
+            )
+        )
+        seen_args = seen_args | {name.name}
     new_type = (
-        resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope, constructor_defs)
+        resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope, constructor_defs, arg_names)
         if d.type
         else d.type
     )
@@ -600,6 +641,18 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports(
         file_imports, defs, type_decls
     )
+
+    # ``native_import`` definitions bind a global Python symbol (e.g. ``np``)
+    # that *other* modules' native bodies reference by bare name. The runtime
+    # builds a let-chain from ``defs`` (first entry = outermost binding), and a
+    # closure only captures bindings introduced before it. When a third module
+    # re-imports a provider (e.g. ``Learning`` selectively imports ``Tensor``),
+    # the import walk can place a consumer (``NN.dense_relu``, whose native uses
+    # ``np``) ahead of its provider (``Tensor``'s ``np``), so the consumer's
+    # closure would not see it. Hoisting every ``native_import`` to the front —
+    # they are side-effecting, dependency-free imports — makes those globals
+    # available to every definition regardless of import order.
+    defs = [d for d in defs if _is_native_import_def(d)] + [d for d in defs if not _is_native_import_def(d)]
 
     # Folded snapshot used to lower `match` expressions everywhere — main module's
     # inductives plus inductives discovered via imports.

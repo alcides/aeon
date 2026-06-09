@@ -66,6 +66,7 @@
 open List
 open Tuple
 open Pair
+import Tensor (Vector);
 
 # ─── Opaque types ───────────────────────────────────────────────────────
 
@@ -74,11 +75,13 @@ type Dataset
 type Classifier
 type Regressor
 
-# ─── Library-level imports (side-effecting `import` calls) ─────────────
-
-def np : Unit = native_import "numpy"
-def pd : Unit = native_import "pandas"
-def skl : Unit = native_import "sklearn"
+# ─── Library-level imports ─────────────────────────────────────────────
+# ``numpy`` / ``pandas`` / ``sklearn`` are imported by the Python binding
+# module (``aeon/bindings/learning.py``); the native bodies here all go
+# through ``__import__('aeon.bindings.learning')``, so no bare ``np`` /
+# ``pd`` / ``skl`` symbols are needed at this layer. (Declaring them as
+# ``native_import`` here would collide with ``Tensor``'s ``np`` when both
+# libraries are opened together — e.g. via ``Models``.)
 
 # ─── Uninterpreted shape / class predicates ────────────────────────────
 
@@ -635,3 +638,26 @@ def explained_variance
     (model: Regressor)
     (ds: {d: Dataset | reg_features model == ds_features d && clean_test d == true}) : Float =
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_explained_variance(model, ds)"
+
+# ─── Single-sample, Vector-based prediction (for the Models typeclasses) ─
+# These let a fitted ``Learning`` model implement the ``Categorical`` /
+# ``Continuous`` classes in ``Models.ae``: they predict for one feature
+# vector (a 1-D tensor) rather than a whole ``Dataset``.
+
+# Class-probability vector for one feature vector.
+def classify_one (model: Classifier) (x: Vector) : Vector =
+    native "model.predict_proba([x])[0]"
+
+# Predicted value for one feature vector.
+def regress_one (model: Regressor) (x: Vector) : Float =
+    native "float(model.predict([x])[0])"
+
+# Runtime model introspection, refined against the shape measures.
+def clf_n_features (model: Classifier) : {n: Int | n == clf_features model && n >= 0} =
+    native "int(model.n_features_in_)"
+
+def clf_n_classes (model: Classifier) : {n: Int | n == clf_classes model && n >= 0} =
+    native "int(len(model.classes_))"
+
+def reg_n_features (model: Regressor) : {n: Int | n == reg_features model && n >= 0} =
+    native "int(model.n_features_in_)"

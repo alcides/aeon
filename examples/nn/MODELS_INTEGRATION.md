@@ -1,66 +1,73 @@
-# Integrating NN with Learning via typeclasses — status & findings
+# Integrating NN with Learning via typeclasses
 
-Goal: a classifier typeclass and a regressor typeclass that both the
-neural-network models (`NN.Network`) and the `Learning` models
-(`Learning.Classifier` / `Learning.Regressor`) implement, so code can be
-written once against "any classifier" / "any regressor".
+A classifier typeclass and a regressor typeclass that **both** the
+neural-network models (`NN.Network`) and the scikit-learn-backed `Learning`
+models (`Learning.Classifier` / `Learning.Regressor`) implement, so the same
+code drives either kind of model.
 
-## Delivered
+## What's here
 
-* **`libraries/Models.ae`** — `Categorical` (classifier) and `Continuous`
-  (regressor) typeclasses, with `NN.Network` as an instance of both.
-  `classify` / `regress` / `n_classes` / … dispatch by model type. See
-  `examples/nn/models.ae` (runs).
-* **`NN.predict_unchecked` / `NN.predict_scalar`** — forward passes without
-  the static `dim x == net_in` precondition, the entry points the generic
-  (model-agnostic) methods dispatch to.
-* **Interpreter fix (`aeon/sugar/desugar.py`)** — the enabler. The parser
-  turns every non-builtin bare type name into a *type variable*, so
-  `instance : C Network` was silently read as polymorphic over a variable
-  named `Network`, and method bodies saw an abstract `'Network` that would
-  not unify with the concrete imported type. Instance desugaring now
-  promotes an upper-case head name that is not bound by the instance's
-  constraints to a concrete constructor. **Full suite: 1477 passed, 0
-  failed.** This makes typeclass instances over *any* opaque/imported type
-  work, not just NN's.
+* **`libraries/Models.ae`** — `Categorical` (the classifier typeclass) and
+  `Continuous` (the regressor typeclass), with instances for `NN.Network`
+  *and* `Learning`'s `Classifier` / `Regressor`. `classify` / `regress` /
+  `cls_classes` / `cls_inputs` / `reg_inputs` dispatch by the model's type.
+  The shared feature representation is a `Tensor.Vector` (one sample).
+* **`examples/nn/models.ae`** — runs a neural network and a `sklearn`
+  decision tree through the *same* `classify` / `cls_classes` calls.
+* **`Learning.ae`** — gains single-sample, `Vector`-based entry points
+  (`classify_one`, `regress_one`, `clf_n_features`, `clf_n_classes`,
+  `reg_n_features`) so a fitted model can satisfy the classes.
+* **`NN.ae`** — gains `predict_unchecked` / `predict_scalar` (forward without
+  the static `dim` precondition) as the generic methods' entry points.
 
-## Why `Learning` is not yet an instance (the honest blockers)
+The class names `Categorical` / `Continuous` (the standard statistical terms
+for the two response kinds) are deliberately distinct from `Learning`'s
+opaque `Classifier` / `Regressor` *types* — a same-named class and type
+collide on a single z3 sort.
 
-Two further Aeon limitations stop the *bidirectional* integration, both
-independent of the fix above:
+## Interpreter fixes that made it possible (`aeon/sugar/desugar.py`)
 
-1. **Typeclass methods are SMT-opaque.** Methods are dictionary
-   projections, invisible to the SMT backend (the same caveat `Num.ae`
-   documents). So the shape/metric *laws* that are the whole point of these
-   libraries — `dim x == net_in net`, `accuracy ∈ [0,1]`, `mse ≥ 0` —
-   cannot be carried as verified refinements through a generic method.
-   `Models` is therefore a dispatch/reuse surface, not a verified one;
-   `classify` takes an unconstrained `Vector` and a width mismatch is a
-   runtime error.
+1. **Concrete instance heads over opaque types.** The parser turned every
+   non-builtin bare type name into a type *variable*, so `instance : C
+   Network` was silently polymorphic over a variable named `Network` and
+   method bodies saw an abstract `'Network` that wouldn't unify with the
+   imported type. Instance desugaring now promotes an upper-case head name
+   (not bound by the instance's constraints) to a concrete constructor.
 
-2. **`Tensor` and `Learning` cannot be loaded together.** Aeon
-   re-elaborates a module's source on import, and `Tensor` and `Learning`
-   share unqualified names (`rows`, `cols`, `target`, `np`). Opening both
-   (directly, or transitively via `NN`) mis-resolves them — e.g.
-   `NN.train_step`'s local `target` binds to `Learning.target`, and
-   `Learning`'s `rows` binds to `Tensor.rows` — so a program that uses both
-   an NN model and a Learning model fails to elaborate. This is a
-   library-namespace collision, not a typeclass issue, but it blocks any
-   single program from holding both instance families.
+2. **Binder-aware name resolution (the name-collision fix).** Import
+   resolution rewrote *any* bare name found in the combined unqualified scope
+   to its module-prefixed form — **without respecting local binders**. So
+   `NN.train_step`'s parameter `target` was captured as `Learning.target`,
+   and `Learning`'s refinement variable `rows` as `Tensor.rows`, the moment
+   both libraries were loaded. The three resolvers now thread a `bound` set
+   (function parameters, `let` / `fun` / `match` binders, refinement and
+   dependent-type binders) and never rewrite a locally-bound name. A
+   library's own internal references are still module-qualified; only its
+   local binders are now shielded — so imported modules no longer interfere.
 
-## What would unblock it
+3. **`native_import` hoisting.** A `native_import` def binds a global Python
+   symbol (e.g. `np`) that other modules' native bodies use by bare name. The
+   runtime builds a let-chain from the def list and a closure only captures
+   bindings introduced before it; when `Learning` re-imports `Tensor`, the
+   import walk could place a consumer (`NN.dense_relu`) ahead of its provider
+   (`Tensor`'s `np`). `native_import` defs are now hoisted to the front of
+   the let-chain, so those globals are available regardless of import order.
 
-* For (2): qualify or rename the colliding exports (`Tensor.rows/cols` →
-  measures that don't collide; `Learning`'s `target`/`rows` similarly), or
-  give Aeon's importer proper per-module name isolation so re-elaboration
-  cannot capture another module's binders. Once both libraries co-load, a
-  `Learning` instance is straightforward:
-  `instance : Categorical Classifier where classify model x := <predict_proba on one sample>` (needs thin single-sample `Vector` bindings added to `Learning.ae`).
-* For (1): a way to expose a method's refinement to the SMT backend (reflect
-  the dictionary projection), or model-shape *measures* declared at the
-  class level — a larger typeclass/elaboration change.
+All three are pure additions to resolution/ordering; the full suite passes.
 
-The NN-side typeclasses are designed so that adding the `Learning`
-instances is a drop-in once (2) is resolved — the class names
-(`Categorical`/`Continuous`) were chosen specifically to avoid clashing
-with `Learning`'s `Classifier`/`Regressor` *types*.
+## Honest remaining limitations
+
+* **Typeclass methods are SMT-opaque** (the caveat `Num.ae` documents). So
+  the dimension/shape/metric invariants that `Tensor` / `NN` / `Learning`
+  verify on their *concrete* operations are not carried as laws through these
+  generic methods — `classify` takes an unconstrained `Vector` and a width
+  mismatch is a runtime error. `Models` is a dispatch/reuse surface; drop to
+  `NN.predict` / `Learning.accuracy` directly when you need the static
+  guarantee.
+* **No polymorphic-over-constraint dispatch.** A function written generically
+  as `def f [Categorical m] (model: m) … = classify model …` does not resolve
+  the method from the `[Categorical m]` dictionary (it reports "no instance
+  for `<unknown>`"). Dispatch works on concrete model types
+  (`classify net …`, `classify tree …`), which is what the example uses.
+  Making the class dictionary drive method resolution inside a constrained
+  generic is a separate typeclass-elaboration improvement.

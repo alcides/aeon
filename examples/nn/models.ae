@@ -1,27 +1,34 @@
-# Type-directed model interfaces: the classifier / regressor typeclasses.
+# One interface, two very different models.
 #
-# ``Models`` exposes two Lean-style typeclasses — ``Categorical`` (the
-# classifier typeclass) and ``Continuous`` (the regressor typeclass) — and
-# makes ``NN.Network`` an instance of both. Method calls (``classify``,
-# ``regress``, ``n_classes`` …) resolve by the model's type, so the same
-# surface drives any model that implements the class.
+# ``Models`` exposes the classifier typeclass ``Categorical`` and the
+# regressor typeclass ``Continuous``. Both ``NN.Network`` and ``Learning``'s
+# scikit-learn-backed ``Classifier`` / ``Regressor`` are instances, so the
+# *same* method names — ``classify``, ``regress``, ``cls_classes`` … —
+# dispatch by the model's type. A neural network and a decision tree are
+# driven through one surface.
 #
-# This mirrors how ``Learning`` separates classifiers from regressors at
-# the type level, but as *classes* a model type opts into — the basis for
-# writing model-agnostic pipelines. (See libraries/Models.ae for the
-# honest scope note: typeclass methods are SMT-opaque, so the dimension
-# invariants `Tensor`/`NN` verify on their concrete ops are not carried as
-# laws through these generic methods.)
+# This is enabled by two interpreter fixes (see MODELS_INTEGRATION.md):
+# binder-aware name resolution (so ``NN`` and ``Learning`` no longer
+# capture each other's bare names and can be opened together) and concrete
+# instance heads over opaque imported types.
 
 open Models
+open List
 
 
-# The same two methods, dispatched to the network instance.
 def main (_: Int) : Unit =
-    let clf = stack (sequential (dense_relu 4 8)) (dense 8 3) in   # 4 -> 3 classifier
-    let reg = stack (sequential (dense_relu 4 8)) (dense 8 1) in   # 4 -> 1 regressor
-    let x = vzeros 4 in
-    let scores = classify clf x in     # Categorical: vector of class scores
-    let value  = regress reg x in      # Continuous: a single number
-    # n_features / n_classes / feature_count also dispatch by model type.
-    print ((n_features clf + n_classes clf) + feature_count reg)
+    # A neural-network classifier: 4 inputs -> 3 classes.
+    let net = stack (sequential (dense_relu 4 8)) (dense 8 3) in
+
+    # A scikit-learn classifier trained on the same 4-feature, 3-class data.
+    let 1 df = read_csv "examples/nn/data/iris2.csv" in
+    let ds = target df "species" false false in
+    let tree = decision_tree_classifier ds in
+
+    # One feature vector, fed to both through the SAME typeclass method.
+    let x = from_list (cons 5.1 (cons 3.5 (cons 1.4 (cons 0.2 nil)))) in
+    let nn_scores  = classify net x in     # Categorical Network
+    let tree_scores = classify tree x in   # Categorical Learning.Classifier
+
+    # Shape accessors dispatch by model type too: both report 3 classes.
+    print ((cls_classes net) + (cls_classes tree))
