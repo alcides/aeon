@@ -52,6 +52,44 @@ from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from aeon.bindings.binding_utils import curried
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.dummy import DummyClassifier, DummyRegressor
+from sklearn.ensemble import (
+    AdaBoostClassifier,
+    AdaBoostRegressor,
+    BaggingClassifier,
+    BaggingRegressor,
+    ExtraTreesClassifier,
+    ExtraTreesRegressor,
+    HistGradientBoostingClassifier,
+    HistGradientBoostingRegressor,
+)
+from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.linear_model import (
+    ARDRegression,
+    BayesianRidge,
+    GammaRegressor,
+    HuberRegressor,
+    Lars,
+    LassoLars,
+    OrthogonalMatchingPursuit,
+    PassiveAggressiveClassifier,
+    PassiveAggressiveRegressor,
+    Perceptron,
+    PoissonRegressor,
+    QuantileRegressor,
+    RANSACRegressor,
+    RidgeClassifier,
+    SGDClassifier,
+    SGDRegressor,
+    TheilSenRegressor,
+    TweedieRegressor,
+)
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.neighbors import NearestCentroid, RadiusNeighborsClassifier, RadiusNeighborsRegressor
+from sklearn.svm import LinearSVC, LinearSVR, NuSVC, NuSVR
+from sklearn.tree import ExtraTreeClassifier, ExtraTreeRegressor
 
 
 # ─── helpers (not exposed to Aeon) ───────────────────────────────────────
@@ -447,6 +485,224 @@ def Learning_mlp_regressor(ds):
     return _fit(MLPRegressor(max_iter=500), ds)
 
 
+# ─── Full sklearn estimator family (auto-added) ─────────────────────────
+
+
+@curried
+def Learning_adaboost_classifier(ds):
+    return _fit(AdaBoostClassifier(), ds)
+
+
+@curried
+def Learning_bagging_classifier(ds):
+    return _fit(BaggingClassifier(), ds)
+
+
+@curried
+def Learning_extra_trees_classifier(ds):
+    return _fit(ExtraTreesClassifier(), ds)
+
+
+@curried
+def Learning_hist_gradient_boosting_classifier(ds):
+    return _fit(HistGradientBoostingClassifier(), ds)
+
+
+@curried
+def Learning_extra_tree_classifier(ds):
+    return _fit(ExtraTreeClassifier(), ds)
+
+
+@curried
+def Learning_bernoulli_nb(ds):
+    return _fit(BernoulliNB(), ds)
+
+
+@curried
+def Learning_ridge_classifier(ds):
+    return _fit(RidgeClassifier(), ds)
+
+
+@curried
+def Learning_sgd_classifier(ds):
+    return _fit(SGDClassifier(), ds)
+
+
+@curried
+def Learning_perceptron(ds):
+    return _fit(Perceptron(), ds)
+
+
+@curried
+def Learning_passive_aggressive_classifier(ds):
+    return _fit(PassiveAggressiveClassifier(), ds)
+
+
+@curried
+def Learning_linear_discriminant_analysis(ds):
+    return _fit(LinearDiscriminantAnalysis(), ds)
+
+
+@curried
+def Learning_quadratic_discriminant_analysis(ds):
+    return _fit(QuadraticDiscriminantAnalysis(), ds)
+
+
+@curried
+def Learning_linear_svc(ds):
+    return _fit(LinearSVC(), ds)
+
+
+@curried
+def Learning_nu_svc(ds):
+    return _fit(NuSVC(probability=True), ds)
+
+
+@curried
+def Learning_nearest_centroid(ds):
+    return _fit(NearestCentroid(), ds)
+
+
+@curried
+def Learning_radius_neighbors_classifier(ds):
+    return _fit(RadiusNeighborsClassifier(), ds)
+
+
+@curried
+def Learning_gaussian_process_classifier(ds):
+    return _fit(GaussianProcessClassifier(), ds)
+
+
+@curried
+def Learning_dummy_classifier(ds):
+    return _fit(DummyClassifier(), ds)
+
+
+@curried
+def Learning_adaboost_regressor(ds):
+    return _fit(AdaBoostRegressor(), ds)
+
+
+@curried
+def Learning_bagging_regressor(ds):
+    return _fit(BaggingRegressor(), ds)
+
+
+@curried
+def Learning_extra_trees_regressor(ds):
+    return _fit(ExtraTreesRegressor(), ds)
+
+
+@curried
+def Learning_hist_gradient_boosting_regressor(ds):
+    return _fit(HistGradientBoostingRegressor(), ds)
+
+
+@curried
+def Learning_extra_tree_regressor(ds):
+    return _fit(ExtraTreeRegressor(), ds)
+
+
+@curried
+def Learning_bayesian_ridge(ds):
+    return _fit(BayesianRidge(), ds)
+
+
+@curried
+def Learning_ard_regression(ds):
+    return _fit(ARDRegression(), ds)
+
+
+@curried
+def Learning_sgd_regressor(ds):
+    return _fit(SGDRegressor(), ds)
+
+
+@curried
+def Learning_huber_regressor(ds):
+    return _fit(HuberRegressor(), ds)
+
+
+@curried
+def Learning_passive_aggressive_regressor(ds):
+    return _fit(PassiveAggressiveRegressor(), ds)
+
+
+@curried
+def Learning_theil_sen_regressor(ds):
+    return _fit(TheilSenRegressor(), ds)
+
+
+@curried
+def Learning_ransac_regressor(ds):
+    return _fit(RANSACRegressor(), ds)
+
+
+@curried
+def Learning_orthogonal_matching_pursuit(ds):
+    return _fit(OrthogonalMatchingPursuit(), ds)
+
+
+@curried
+def Learning_lars(ds):
+    return _fit(Lars(), ds)
+
+
+@curried
+def Learning_lasso_lars(ds):
+    return _fit(LassoLars(), ds)
+
+
+@curried
+def Learning_poisson_regressor(ds):
+    return _fit(PoissonRegressor(), ds)
+
+
+@curried
+def Learning_gamma_regressor(ds):
+    return _fit(GammaRegressor(), ds)
+
+
+@curried
+def Learning_tweedie_regressor(ds):
+    return _fit(TweedieRegressor(), ds)
+
+
+@curried
+def Learning_quantile_regressor(ds):
+    return _fit(QuantileRegressor(), ds)
+
+
+@curried
+def Learning_linear_svr(ds):
+    return _fit(LinearSVR(), ds)
+
+
+@curried
+def Learning_nu_svr(ds):
+    return _fit(NuSVR(), ds)
+
+
+@curried
+def Learning_radius_neighbors_regressor(ds):
+    return _fit(RadiusNeighborsRegressor(), ds)
+
+
+@curried
+def Learning_gaussian_process_regressor(ds):
+    return _fit(GaussianProcessRegressor(), ds)
+
+
+@curried
+def Learning_kernel_ridge(ds):
+    return _fit(KernelRidge(), ds)
+
+
+@curried
+def Learning_dummy_regressor(ds):
+    return _fit(DummyRegressor(), ds)
+
+
 # ─── Prediction ─────────────────────────────────────────────────────────
 
 
@@ -460,6 +716,19 @@ def Learning_predict(model, ds):
 def Learning_predict_proba(model, ds):
     X, _ = _as_xy(ds)
     return model.predict_proba(X).tolist()
+
+
+@curried
+def Learning_classify_one(model, x):
+    """Class-score vector for one feature row (for the ``Models`` typeclass).
+
+    ``predict_proba`` when available; otherwise a one-hot of the hard
+    prediction, so non-probabilistic classifiers still return a score vector.
+    """
+    if hasattr(model, "predict_proba"):
+        return np.asarray(model.predict_proba([x])[0], dtype=float)
+    pred = model.predict([x])[0]
+    return np.array([1.0 if c == pred else 0.0 for c in model.classes_], dtype=float)
 
 
 # ─── Classification metrics ─────────────────────────────────────────────

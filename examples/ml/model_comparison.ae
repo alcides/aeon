@@ -1,0 +1,33 @@
+# Compare classifiers from several families on one typed pipeline.
+#
+# ``open Learning`` brings the whole API — the core (load / target / split /
+# metrics) plus every estimator family — into scope. Here we train four
+# classifiers drawn from four *different* families on the same train/test
+# split and report the best F1. The refinements thread through the pipeline:
+# ``split`` only accepts a dataset with enough rows, marks its test half as a
+# clean held-out set, and the trained models' feature counts must match the
+# test set — so a leaky or mis-shaped evaluation is a type error.
+
+open Learning
+open Math
+
+
+# F1 needs no class-balance precondition (unlike accuracy / precision /
+# recall), so it scores any clean test set directly. (The result is in
+# [0, 1], but ``maxf`` returns a plain ``Float``, so we report it as such.)
+def best_f1 (path: String) : Float =
+    let 1 df = read_csv path in
+    let ds0 = target df "species" false false in
+    let ds = require_enough_data ds0 in
+    let parts = split ds 0.7 true in
+    let train = train_of parts in
+    let test = test_of parts in
+    let forest = f1 (random_forest_classifier train) test in        # Ensembles
+    let tree   = f1 (decision_tree_classifier train) test in        # Trees
+    let svc_f  = f1 (svc train) test in                             # SVM
+    let lda    = f1 (linear_discriminant_analysis train) test in    # Discriminant
+    maxf (maxf forest tree) (maxf svc_f lda) ;
+
+
+def main (_: Int) : Unit =
+    print (best_f1 "examples/ml/data/iris.csv")
