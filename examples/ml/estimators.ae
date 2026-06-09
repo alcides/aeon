@@ -1,0 +1,30 @@
+# A tour of the sklearn estimator family, all behind the same Learning
+# interface. Every classifier returns a ``SklearnClassifier`` stamped with the
+# dataset's feature/class counts; every regressor a ``SklearnRegressor``. The
+# same ``independent_target`` / ``has_missing`` precondition guards them all.
+
+open Learning
+
+
+def main (_: Int) : Unit =
+    let 1 df = read_csv "examples/nn/data/iris2.csv" in
+    let ds = target df "species" false false in
+
+    # Classifiers spanning trees / ensembles / discriminant / kernels / NB.
+    let c1 = extra_trees_classifier ds in
+    let c2 = hist_gradient_boosting_classifier ds in
+    let c3 = linear_discriminant_analysis ds in
+    let c4 = gaussian_process_classifier ds in
+    let c5 = bernoulli_nb ds in
+    let c6 = ridge_classifier ds in           # no predict_proba; still a Classifier
+
+    # Regressors spanning linear / robust / ensemble / kernel families.
+    let r1 = bayesian_ridge ds in
+    let r2 = huber_regressor ds in
+    let r3 = theil_sen_regressor ds in
+    let r4 = adaboost_regressor ds in
+    let r5 = kernel_ridge ds in
+    let r6 = gaussian_process_regressor ds in
+
+    # Feature/class counts are stamped on every fitted model.
+    print ((clf_n_classes c1) + (reg_n_features r1))
