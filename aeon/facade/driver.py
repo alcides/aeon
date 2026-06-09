@@ -54,6 +54,12 @@ class AeonDriver:
         if aeon_code is None:
             aeon_code = read_file(filename)
 
+        # Clear any core/context retained from a previous parse so a parse or
+        # elaboration error on this input cannot leave tooling reading stale
+        # state (these are repopulated below once core generation succeeds).
+        self.core = None
+        self.typing_ctx = None
+
         with RecordTime("ParseSugar"):
             clear_instance_registry()
             prog: Program = parse_main_program(aeon_code, filename=filename)
@@ -82,6 +88,14 @@ class AeonDriver:
             typing_ctx = lower_to_core_context(desugared.elabcontext)
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
+
+        # Expose the core program and its top-level typing context as soon as
+        # they exist — before type checking — so tooling (the LSP's hover,
+        # completion and type-index features) can still introspect a program
+        # that elaborates but fails to type check. The later assignments on the
+        # success path overwrite these with identical values.
+        self.core = core_ast
+        self.typing_ctx = typing_ctx
 
         with RecordTime("TypeChecking"):
             type_errors = check_type_errors(typing_ctx, core_ast, top)

@@ -51,6 +51,48 @@ class ParseResult:
     holes: List[HolePosition] = field(default_factory=list)
 
 
+# Last-good per-document analysis state, used by the type-aware features (hover,
+# completion, inlay hints, navigation). Kept separate from the parse cache and
+# only overwritten on a parse that reaches core generation, so these survive
+# transient errors while the user is mid-edit — exactly when completion is most
+# wanted. Values are plain objects to avoid importing core types here.
+_type_index_cache: "Dict[URI, object]" = {}
+_typing_ctx_cache: "Dict[URI, object]" = {}
+_core_cache: "Dict[URI, object]" = {}
+
+
+def get_type_index(uri: URI):
+    """The last successfully-built ``TypeIndex`` for ``uri`` (or ``None``)."""
+    return _type_index_cache.get(uri)
+
+
+def get_typing_ctx(uri: URI):
+    """The last successful top-level typing context for ``uri`` (or ``None``)."""
+    return _typing_ctx_cache.get(uri)
+
+
+def get_core(uri: URI):
+    """The last successfully-generated core program for ``uri`` (or ``None``)."""
+    return _core_cache.get(uri)
+
+
+def _refresh_analysis(driver: AeonDriver, uri: URI) -> None:
+    """After a parse, rebuild and cache the position→type index for ``uri`` if
+    core generation succeeded. On failure the previous caches are left intact."""
+    core = getattr(driver, "core", None)
+    typing_ctx = getattr(driver, "typing_ctx", None)
+    if core is None or typing_ctx is None:
+        return
+    try:
+        from aeon.lsp.typeindex import build_type_index
+
+        _type_index_cache[uri] = build_type_index(typing_ctx, core)
+        _typing_ctx_cache[uri] = typing_ctx
+        _core_cache[uri] = core
+    except Exception:
+        logger.exception("Failed to build type index for %s", uri)
+
+
 def find_holes_in_source(source: str) -> List[HolePosition]:
     """Find all ?identifier holes in source text and return their LSP ranges (0-indexed)."""
     holes = []
@@ -119,6 +161,10 @@ async def _parse(
     try:
         content = fp.read()
         errors = driver.parse(filename=uri, aeon_code=content)
+
+        # Refresh the type-aware analysis caches (kept even when `errors` is
+        # non-empty, as long as the program reached core generation).
+        _refresh_analysis(driver, uri)
 
         holes = find_holes_in_source(content)
 

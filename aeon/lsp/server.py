@@ -4,9 +4,12 @@ from typing import List, Optional, AsyncIterable
 from lsprotocol.types import (
     TEXT_DOCUMENT_CODE_ACTION,
     TEXT_DOCUMENT_COMPLETION,
+    TEXT_DOCUMENT_DEFINITION,
     TEXT_DOCUMENT_DID_OPEN,
     TEXT_DOCUMENT_DID_CHANGE,
+    TEXT_DOCUMENT_DOCUMENT_SYMBOL,
     TEXT_DOCUMENT_HOVER,
+    TEXT_DOCUMENT_INLAY_HINT,
     WORKSPACE_DID_CHANGE_WATCHED_FILES,
     ApplyWorkspaceEditParams,
     CodeAction,
@@ -15,20 +18,31 @@ from lsprotocol.types import (
     CodeActionParams,
     Command,
     CompletionItem,
+    CompletionItemKind,
+    CompletionItemTag,
     CompletionOptions,
     CompletionParams,
+    DefinitionParams,
     DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
+    DocumentSymbol,
+    DocumentSymbolParams,
     Hover,
     HoverParams,
+    InlayHint,
+    InlayHintKind,
+    InlayHintParams,
+    Location,
     MarkupContent,
     MarkupKind,
     MessageType,
+    Position,
     PublishDiagnosticsParams,
     ShowMessageParams,
     Range,
+    SymbolKind,
     TextEdit,
     WorkspaceEdit,
 )
@@ -127,33 +141,142 @@ class AeonLanguageServer(LanguageServer):
             ls: AeonLanguageServer,
             params: HoverParams,
         ) -> Optional[Hover]:
-            await asyncio.sleep(ls.debounce_delay)
+            from . import aeon_adapter
+            from aeon.lsp.completion import format_type
+
             document = ls.workspace.get_text_document(params.text_document.uri)
             source = document.source
-            word = _get_word_at_position(source, params.position.line, params.position.character)
+            line, character = params.position.line, params.position.character
+            word = _get_word_at_position(source, line, character)
+
+            # Position-accurate hover: the inferred (refined) type of the
+            # expression under the cursor, from the type index.
+            index = aeon_adapter.get_type_index(params.text_document.uri)
+            if index is not None:
+                result = index.type_at(line, character)
+                if result is not None:
+                    ty, loc = result
+                    lhs = f"{word} : " if word else ""
+                    return Hover(
+                        contents=MarkupContent(
+                            kind=MarkupKind.Markdown,
+                            value=f"```aeon\n{lhs}{format_type(ty)}\n```",
+                        ),
+                        range=_loc_to_range(loc),
+                    )
+
+            # Fallback: top-level name match (e.g. hovering a definition's name,
+            # which is a binder and has no synthesized-expression observation).
             if not word:
                 return None
-            try:
-                typing_ctx = ls.aeon_driver.typing_ctx
-            except AttributeError:
+            typing_ctx = aeon_adapter.get_typing_ctx(params.text_document.uri) or getattr(
+                ls.aeon_driver, "typing_ctx", None
+            )
+            if typing_ctx is None:
                 return None
             for name, type_ in typing_ctx.vars():
                 if name.pretty() == word:
                     return Hover(
                         contents=MarkupContent(
                             kind=MarkupKind.Markdown,
-                            value=f"```\n{word} : {type_}\n```",
+                            value=f"```aeon\n{word} : {format_type(type_)}\n```",
                         )
                     )
             return None
 
-        @self.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["= "]))
+        @self.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["."]))
         async def lsp_completion(
             ls: AeonLanguageServer,
             params: CompletionParams,
         ) -> Optional[List[CompletionItem]]:
-            await asyncio.sleep(ls.debounce_delay)
-            return []
+            from . import aeon_adapter
+            from aeon.lsp.completion import compute_completions
+
+            document = ls.workspace.get_text_document(params.text_document.uri)
+            source = document.source
+            index = aeon_adapter.get_type_index(params.text_document.uri)
+            typing_ctx = aeon_adapter.get_typing_ctx(params.text_document.uri) or getattr(
+                ls.aeon_driver, "typing_ctx", None
+            )
+            try:
+                completions = compute_completions(
+                    source, params.position.line, params.position.character, typing_ctx, index
+                )
+            except Exception:
+                return []
+            return [_to_completion_item(c) for c in completions]
+
+        @self.feature(TEXT_DOCUMENT_INLAY_HINT)
+        async def inlay_hint(
+            ls: AeonLanguageServer,
+            params: InlayHintParams,
+        ) -> Optional[List[InlayHint]]:
+            from . import aeon_adapter
+            from aeon.lsp.navigation import inlay_hints
+
+            uri = params.text_document.uri
+            core = aeon_adapter.get_core(uri)
+            index = aeon_adapter.get_type_index(uri)
+            if core is None or index is None:
+                return []
+            document = ls.workspace.get_text_document(uri)
+            hints = []
+            for h in inlay_hints(core, document.source, index):
+                # 1-indexed core positions -> 0-indexed LSP.
+                hints.append(
+                    InlayHint(
+                        position=Position(line=h.line - 1, character=h.character - 1),
+                        label=h.label,
+                        kind=InlayHintKind.Type,
+                        padding_left=True,
+                    )
+                )
+            return hints
+
+        @self.feature(TEXT_DOCUMENT_DEFINITION)
+        async def definition(
+            ls: AeonLanguageServer,
+            params: DefinitionParams,
+        ) -> Optional[Location]:
+            from . import aeon_adapter
+            from aeon.lsp.navigation import build_def_index
+
+            uri = params.text_document.uri
+            core = aeon_adapter.get_core(uri)
+            if core is None:
+                return None
+            document = ls.workspace.get_text_document(uri)
+            def_index = build_def_index(core, document.source)
+            span = def_index.definition_at(params.position.line, params.position.character)
+            if span is None:
+                return None
+            return Location(uri=uri, range=_span_to_range(span))
+
+        @self.feature(TEXT_DOCUMENT_DOCUMENT_SYMBOL)
+        async def document_symbol(
+            ls: AeonLanguageServer,
+            params: DocumentSymbolParams,
+        ) -> Optional[List[DocumentSymbol]]:
+            from . import aeon_adapter
+            from aeon.lsp.navigation import document_symbols
+
+            uri = params.text_document.uri
+            core = aeon_adapter.get_core(uri)
+            if core is None:
+                return []
+            document = ls.workspace.get_text_document(uri)
+            out = []
+            for s in document_symbols(core, document.source):
+                out.append(
+                    DocumentSymbol(
+                        name=s.name,
+                        detail=s.detail,
+                        kind=SymbolKind.Function if s.is_function else SymbolKind.Variable,
+                        range=_span_to_range(s.full_range),
+                        selection_range=_span_to_range(s.selection_range),
+                    )
+                )
+            return out
 
         @self.feature(
             TEXT_DOCUMENT_CODE_ACTION,
@@ -216,6 +339,50 @@ class AeonLanguageServer(LanguageServer):
             ls.window_show_message(
                 ShowMessageParams(type=MessageType.Info, message=f"Synthesized ?{hole_name_str} = {synthesized_str}")
             )
+
+
+_COMPLETION_KIND_MAP = {
+    "method": CompletionItemKind.Method,
+    "function": CompletionItemKind.Function,
+    "variable": CompletionItemKind.Variable,
+}
+
+
+def _loc_to_range(loc) -> Range:
+    """Convert a 1-indexed core ``FileLocation`` to a 0-indexed LSP ``Range``."""
+    (sl, sc), (el, ec) = loc.get_start(), loc.get_end()
+    return Range(
+        start=Position(line=max(sl - 1, 0), character=max(sc - 1, 0)),
+        end=Position(line=max(el - 1, 0), character=max(ec - 1, 0)),
+    )
+
+
+def _span_to_range(span) -> Range:
+    """Convert a 1-indexed ``(sl, sc, el, ec)`` span to a 0-indexed LSP ``Range``."""
+    sl, sc, el, ec = span
+    return Range(
+        start=Position(line=max(sl - 1, 0), character=max(sc - 1, 0)),
+        end=Position(line=max(el - 1, 0), character=max(ec - 1, 0)),
+    )
+
+
+def _to_completion_item(c) -> CompletionItem:
+    """Map a :class:`aeon.lsp.completion.Completion` to an LSP ``CompletionItem``.
+
+    Tier-3-infeasible candidates are tagged ``Deprecated`` so editors render them
+    struck-through, and their ``sortText`` already sinks them below feasible
+    ones."""
+    tags = [CompletionItemTag.Deprecated] if not c.feasible else None
+    documentation = MarkupContent(kind=MarkupKind.Markdown, value=c.documentation) if c.documentation else None
+    return CompletionItem(
+        label=c.label,
+        kind=_COMPLETION_KIND_MAP.get(c.kind, CompletionItemKind.Text),
+        detail=c.detail,
+        documentation=documentation,
+        insert_text=c.insert_text,
+        sort_text=c.sort_text,
+        tags=tags,
+    )
 
 
 def _get_word_at_position(source: str, line: int, character: int) -> Optional[str]:
