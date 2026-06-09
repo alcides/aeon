@@ -119,9 +119,13 @@ def make_evaluator(
         eval_process.start()
         eval_process.join(timeout=timeout)
         if eval_process.is_alive():
-            eval_process.close()
+            # Order matters: ``Process.close()`` raises
+            # ``ValueError: Cannot close a process while it is still running``
+            # unless the process has already exited. Terminate and join first,
+            # then release its resources.
             eval_process.terminate()
             eval_process.join()
+            eval_process.close()
             raise TimeoutInEvaluationException()
         kind, payload = result_queue.get()
         if kind == "ok":
