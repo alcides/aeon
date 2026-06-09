@@ -1,0 +1,57 @@
+# Type-directed model interfaces — the classifier / regressor typeclasses.
+#
+# Two Lean-style typeclasses give a *named, type-directed* interface over
+# predictive models, mirroring the way ``Learning`` distinguishes
+# classifiers from regressors at the type level — but as classes that any
+# model type can instance:
+#
+#   * ``Categorical`` — the **classifier** typeclass: a model whose target
+#     is a discrete class. ``classify`` returns a vector of per-class
+#     scores (apply ``NN.softmax`` for probabilities; ``argmax`` for the
+#     label).
+#   * ``Continuous`` — the **regressor** typeclass: a model whose target
+#     is a real number. ``regress`` returns that number.
+#
+# (The names avoid a clash with ``Learning``'s opaque ``Classifier`` /
+# ``Regressor`` *types*; ``Categorical`` / ``Continuous`` are the standard
+# statistical terms for the two response kinds.)
+#
+# IMPORTANT — what the types can and cannot promise here. Typeclass
+# methods are dictionary projections, *opaque to the SMT backend* (the same
+# caveat ``Num`` documents). So the dimension invariants that ``Tensor`` /
+# ``NN`` verify on their concrete operations (``dim x == net_in net``)
+# cannot be carried as laws through these generic methods: ``classify``
+# takes an unconstrained ``Vector`` and a width mismatch surfaces at
+# runtime, not compile time. Use the class for type-directed *dispatch and
+# code reuse*; drop to ``NN.predict`` (or ``NN.forward``) directly when you
+# need the static shape guarantee.
+
+open Tensor
+open NN
+
+# ── Classes ────────────────────────────────────────────────────────────
+
+# The classifier typeclass: discrete target, vector of class scores.
+class Categorical (m : B) where
+    n_features : (model: m) -> Int;
+    n_classes  : (model: m) -> Int;
+    classify   : (model: m) -> (x: Vector) -> Vector;
+
+# The regressor typeclass: continuous target, a single predicted value.
+class Continuous (m : B) where
+    feature_count : (model: m) -> Int;
+    regress       : (model: m) -> (x: Vector) -> Float;
+
+# ── Instances: NN.Network ──────────────────────────────────────────────
+# A network used as a classifier returns its output logits as class scores;
+# used as a regressor it returns output component 0. Both dispatch to the
+# unchecked forward (the typeclass input width is not statically known).
+
+instance : Categorical Network where
+    n_features model := net_in_of model;
+    n_classes model := net_out_of model;
+    classify model x := predict_unchecked model x;
+
+instance : Continuous Network where
+    feature_count model := net_in_of model;
+    regress model x := predict_scalar model x;

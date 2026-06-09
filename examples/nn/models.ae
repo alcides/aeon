@@ -1,0 +1,27 @@
+# Type-directed model interfaces: the classifier / regressor typeclasses.
+#
+# ``Models`` exposes two Lean-style typeclasses — ``Categorical`` (the
+# classifier typeclass) and ``Continuous`` (the regressor typeclass) — and
+# makes ``NN.Network`` an instance of both. Method calls (``classify``,
+# ``regress``, ``n_classes`` …) resolve by the model's type, so the same
+# surface drives any model that implements the class.
+#
+# This mirrors how ``Learning`` separates classifiers from regressors at
+# the type level, but as *classes* a model type opts into — the basis for
+# writing model-agnostic pipelines. (See libraries/Models.ae for the
+# honest scope note: typeclass methods are SMT-opaque, so the dimension
+# invariants `Tensor`/`NN` verify on their concrete ops are not carried as
+# laws through these generic methods.)
+
+open Models
+
+
+# The same two methods, dispatched to the network instance.
+def main (_: Int) : Unit =
+    let clf = stack (sequential (dense_relu 4 8)) (dense 8 3) in   # 4 -> 3 classifier
+    let reg = stack (sequential (dense_relu 4 8)) (dense 8 1) in   # 4 -> 1 regressor
+    let x = vzeros 4 in
+    let scores = classify clf x in     # Categorical: vector of class scores
+    let value  = regress reg x in      # Continuous: a single number
+    # n_features / n_classes / feature_count also dispatch by model type.
+    print ((n_features clf + n_classes clf) + feature_count reg)

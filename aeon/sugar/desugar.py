@@ -977,10 +977,42 @@ def expand_typeclasses(p: Program) -> Program:
                 )
             )
 
+    def _concretize_head(ty: SType, bound: set[str]) -> SType:
+        """Resolve a bare type name in an instance head to a constructor.
+
+        The parser turns every non-builtin bare identifier into an
+        ``STypeVar`` (it has no type registry), so ``instance : C Network``
+        would otherwise be read as polymorphic over a variable *named*
+        ``Network`` — making the method bodies see an abstract ``'Network``
+        that won't unify with the concrete imported type. By Aeon's naming
+        convention type variables are lower-case; an upper-case head name
+        that is not bound by the instance's own constraints denotes a
+        concrete type, so promote it to a (nullary) ``STypeConstructor``.
+        Constraint-bound variables (e.g. ``a`` in ``instance [Eq a] : Eq
+        (Box a)``) are preserved.
+        """
+        match ty:
+            case STypeVar(name):
+                if name.name not in bound and name.name[:1].isupper():
+                    return STypeConstructor(name, [])
+                return ty
+            case STypeConstructor(name, args):
+                return STypeConstructor(name, [_concretize_head(a, bound) for a in args], loc=ty.loc)
+            case _:
+                return ty
+
     for inst in p.instance_decls:
         methods = class_methods.get(inst.class_name.name)
         if methods is None:
             raise TypeClassError(f"Instance for unknown class '{inst.class_name.name}'")
+
+        # Variables genuinely bound by the instance (those appearing in its
+        # constraints) stay variables; other upper-case head names are
+        # concrete types. Rewrite the head args once and use throughout.
+        constraint_vars: set[str] = set()
+        for c in inst.constraints:
+            constraint_vars |= {tv.name.name for tv in get_type_vars(c)}
+        inst_type_args = [_concretize_head(ta, constraint_vars) for ta in inst.type_args]
 
         provided: dict[str, InstanceMethod] = {m.name.name: m for m in inst.methods}
 
@@ -1001,15 +1033,15 @@ def expand_typeclasses(p: Program) -> Program:
         # lambdas whose parameter types are unknown until ``a`` is fixed, so
         # argument-driven inference alone cannot recover it.
         dict_body: STerm = SQualifiedVar(inst.class_name.name, Name("mk"))
-        for ta in inst.type_args:
+        for ta in inst_type_args:
             dict_body = STypeApplication(dict_body, ta)
         for impl in impls:
             dict_body = SApplication(dict_body, impl)
 
-        dict_type: SType = STypeConstructor(inst.class_name, list(inst.type_args))
+        dict_type: SType = STypeConstructor(inst.class_name, list(inst_type_args))
 
         tyvars = set()
-        for ta in inst.type_args:
+        for ta in inst_type_args:
             tyvars |= get_type_vars(ta)
         for c in inst.constraints:
             tyvars |= get_type_vars(c)
@@ -1022,7 +1054,7 @@ def expand_typeclasses(p: Program) -> Program:
         if inst.name is not None:
             dict_def_name = inst.name
         else:
-            dict_def_name = Name(f"__inst_{inst.class_name.name}_{'_'.join(_mangle_stype(t) for t in inst.type_args)}")
+            dict_def_name = Name(f"__inst_{inst.class_name.name}_{'_'.join(_mangle_stype(t) for t in inst_type_args)}")
 
         gen_defs.append(
             Definition(
@@ -1036,8 +1068,8 @@ def expand_typeclasses(p: Program) -> Program:
             )
         )
 
-        if inst.type_args:
-            head = _stype_head_name(inst.type_args[0])
+        if inst_type_args:
+            head = _stype_head_name(inst_type_args[0])
             if head is not None:
                 register_instance(
                     inst.class_name.name,
@@ -1046,7 +1078,7 @@ def expand_typeclasses(p: Program) -> Program:
                         dict_name=dict_def_name,
                         foralls=tuple(n for (n, _) in inst_foralls),
                         num_constraints=len(constraint_args),
-                        type_args=tuple(inst.type_args),
+                        type_args=tuple(inst_type_args),
                         constraints=tuple(inst.constraints),
                     ),
                 )
