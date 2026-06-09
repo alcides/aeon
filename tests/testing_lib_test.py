@@ -123,3 +123,23 @@ def test_example_suites_discovered():
     """Guard against the glob silently finding nothing (which would make the
     parametrized test vacuously pass)."""
     assert len(EXAMPLE_SUITES) >= 9
+
+
+def _parse_errors(source: str):
+    cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
+    return AeonDriver(cfg).parse(aeon_code=source)
+
+
+def test_string_length_refinement_discharged_on_literal():
+    """`String.len` is wired to Z3's native string length, so a slice whose
+    bounds are valid for the literal typechecks (the `l <= len i` precondition
+    is discharged because Z3 computes `len "hello" == 5`)."""
+    src = 'open String\ndef ok (_:Int) : String = slice "hello" 0 5;\n'
+    assert _parse_errors(src) == []
+
+
+def test_string_length_refinement_rejects_out_of_bounds_literal():
+    """Soundness: an out-of-bounds slice on a literal is still rejected — the
+    Z3 string length makes `99 <= len "hello"` provably false, not unknown."""
+    src = 'open String\ndef bad (_:Int) : String = slice "hello" 0 99;\n'
+    assert _parse_errors(src) != []

@@ -6,15 +6,14 @@
 # properties are better expressed as concrete cases.
 #
 # Functions with length-refined preconditions (`slice`, `replace`, `split`) are
-# also not covered: their refinements mention `len`, which is opaque to the SMT
-# solver, so they cannot be discharged for string *literals* (the solver cannot
-# compute `len "hello"`). They remain usable where the length is carried in a
-# refinement-typed variable.
+# covered too: `len` is translated to Z3's native string length, so the solver
+# computes `len "hello" == 5` and discharges those preconditions on literals.
 #
 # Run with:  aeon --test examples/testing/string_tests.ae
 
 open Testing
 open String
+import Array;
 
 @property(1)
 def test_len : Bool = assertEqual (len "hello") 5;
@@ -81,3 +80,26 @@ def test_repeat_zero : Bool = assertEqual (repeat "ab" 0) "";
 def test_isEmpty : Bool =
     both (assertTrue (isEmpty ""))
          (assertFalse (isEmpty "x"));
+
+# ── Length-refined operations (preconditions discharged via Z3 string length) ──
+
+@property(1)
+def test_slice_prefix : Bool = assertEqual (slice "hello" 0 3) "hel";
+
+@property(1)
+def test_slice_suffix : Bool = assertEqual (slice "hello" 1 5) "ello";
+
+@property(1)
+def test_slice_full : Bool = assertEqual (slice "hello" 0 5) "hello";
+
+@property(1)
+def test_replace : Bool = assertEqual (replace "hello" "l" "L") "heLLo";
+
+@property(1)
+def test_replace_word : Bool = assertEqual (replace "foofoo" "foo" "bar") "barbar";
+
+@property(1)
+def test_split : Bool =
+    parts = split "a,b,c" ",";
+    both (assertEqual (Array.length parts) 3)
+         (assertEqual (Array.get parts 0) "a");
