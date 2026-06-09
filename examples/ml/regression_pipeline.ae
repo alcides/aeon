@@ -3,29 +3,29 @@
 # The source has missing values (``target ... true``), so each split is
 # imputed **separately, after the split** — imputing the whole dataset
 # beforehand would fit the imputer on the test rows too (``coupled``
-# source) and ``Learning.r2`` would reject the test set. Scaling, when
+# source) and ``r2`` would reject the test set. Scaling, when
 # used, follows the same rule.
 
 open Learning
 
 
 def score_ridge (path: String) (target_col: String) : Float =
-    let 1 df = Learning.read_csv path in
+    let 1 df = read_csv path in
     # not a time series, but has missing values.
-    let ds0 = Learning.target df target_col false true in
-    let ds = Learning.require_enough_data ds0 in
-    let parts = Learning.split ds 0.8 true in
+    let ds0 = target df target_col false true in
+    let ds = require_enough_data ds0 in
+    let parts = split ds 0.8 true in
     # Impute (and could scale) each half independently — no leakage.
-    let train = Learning.fill_median (Learning.train_of parts) in
-    let test = Learning.fill_median (Learning.test_of parts) in
-    let model = Learning.ridge_alpha 0.5 train in
-    Learning.r2 model test ;
+    let train = fill_median (train_of parts) in
+    let test = fill_median (test_of parts) in
+    let model = ridge_alpha 0.5 train in
+    r2 model test ;
 
 
 def train_ridge (path: String) (target_col: String) : SklearnRegressor =
-    let 1 df = Learning.read_csv path in
-    let ds0 = Learning.target df target_col false true in
-    let ds = Learning.require_enough_data ds0 in
-    let parts = Learning.split ds 0.8 true in
-    let train = Learning.fill_median (Learning.train_of parts) in
-    Learning.ridge train ;
+    let 1 df = read_csv path in
+    let ds0 = target df target_col false true in
+    let ds = require_enough_data ds0 in
+    let parts = split ds 0.8 true in
+    let train = fill_median (train_of parts) in
+    ridge train ;
