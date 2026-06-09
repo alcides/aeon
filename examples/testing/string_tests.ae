@@ -1,0 +1,83 @@
+# Tests for the String library.
+#
+# These are all unit tests (zero-argument `@property(1)`). Property-based testing
+# over generated `String` arguments is intentionally avoided here: the input
+# generator does not terminate well for the unbounded `String` type, so string
+# properties are better expressed as concrete cases.
+#
+# Functions with length-refined preconditions (`slice`, `replace`, `split`) are
+# also not covered: their refinements mention `len`, which is opaque to the SMT
+# solver, so they cannot be discharged for string *literals* (the solver cannot
+# compute `len "hello"`). They remain usable where the length is carried in a
+# refinement-typed variable.
+#
+# Run with:  aeon --test examples/testing/string_tests.ae
+
+open Testing
+open String
+
+@property(1)
+def test_len : Bool = assertEqual (len "hello") 5;
+
+@property(1)
+def test_len_empty : Bool = assertEqual (len "") 0;
+
+@property(1)
+def test_intToString : Bool = assertEqual (intToString 42) "42";
+
+@property(1)
+def test_equal : Bool =
+    both (assertTrue (equal "abc" "abc"))
+         (assertFalse (equal "abc" "abd"));
+
+@property(1)
+def test_upper : Bool = assertEqual (upper "abc") "ABC";
+
+@property(1)
+def test_lower : Bool = assertEqual (lower "ABC") "abc";
+
+@property(1)
+def test_concat : Bool = assertEqual (concat "foo" "bar") "foobar";
+
+@property(1)
+def test_startsWith : Bool =
+    both (assertTrue (startsWith "hello" "he"))
+         (assertFalse (startsWith "hello" "lo"));
+
+@property(1)
+def test_endsWith : Bool =
+    both (assertTrue (endsWith "hello" "lo"))
+         (assertFalse (endsWith "hello" "he"));
+
+@property(1)
+def test_contains : Bool =
+    both (assertTrue (contains "hello" "ell"))
+         (assertFalse (contains "hello" "xyz"));
+
+@property(1)
+def test_indexOf : Bool =
+    both (assertEqual (indexOf "hello" "l") 2)
+         (assertEqual (indexOf "hello" "z") (0 - 1));
+
+@property(1)
+def test_lastIndexOf : Bool = assertEqual (lastIndexOf "hello" "l") 3;
+
+@property(1)
+def test_trim : Bool = assertEqual (trim "  hi  ") "hi";
+
+@property(1)
+def test_trimLeft : Bool = assertEqual (trimLeft "  hi") "hi";
+
+@property(1)
+def test_trimRight : Bool = assertEqual (trimRight "hi  ") "hi";
+
+@property(1)
+def test_repeat : Bool = assertEqual (repeat "ab" 3) "ababab";
+
+@property(1)
+def test_repeat_zero : Bool = assertEqual (repeat "ab" 0) "";
+
+@property(1)
+def test_isEmpty : Bool =
+    both (assertTrue (isEmpty ""))
+         (assertFalse (isEmpty "x"));
