@@ -7,7 +7,7 @@ def peter_wins (n:Int) (m:Int) : Int = if m == 0 then 0 else Math_max 0 (n - m) 
 
 def dice_game (n:Int | 1 <= n && n <= 10000) (m:Int | 1 <= m && m <= 10000) : Float = a : Float = Math_toFloat (peter_wins n m);
      b : Float = Math_toFloat (n * m);
-     c : Float = a / b;
+     c : Float = if b != 0.0 then a / b else 0.0;
      c;
 
 
