@@ -1,0 +1,50 @@
+# Inverse "image" synthesis via FTA, with the image encoded as refinements.
+#
+# The toy, fully-SMT version of the inverse-CSG idea from arXiv:2206.06164:
+# the paper treats a WxH bitmap as W*H boolean I/O examples, one per pixel
+# (the predicate `contains(e,x,y)`). Here we make that literal on a 2x2 grid.
+#
+#   * `pixel` is an UNINTERPRETED function: `pixel s x y == 1` iff cell (x,y)
+#     of scene `s` is on. z3 never executes it -- its entire meaning is given
+#     by the refinements on the scene generators below.
+#   * Each generator's refined return type PINS `pixel` on every one of the 4
+#     cells (one fact per pixel), so the bitmap semantics live in the logic.
+#   * The synthesis target (the "image") is the hole's refinement: one
+#     `pixel shape x y == <0|1>` fact per pixel -- the image loaded as a spec.
+#
+# The leaf alphabet is the four single-cell scenes + the empty scene; `union`
+# is the one combinator. (Nullary cells, so FTA enumerates no integer
+# arguments -- it builds the tree automaton purely over these components.)
+#
+#   uv run python -m aeon --no-main -s fta --budget 30 examples/synthesis/fta/pixel_refinement.ae
+#
+# Cells are stored as on-pixel codes x*2+y so FTA can key states by the
+# concrete on-pixel set (observational equivalence).
+
+import Array;
+
+def pixel : (s:(Array Int)) -> (x:Int) -> (y:Int) -> Int = uninterpreted
+
+def empty : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 1 0 == 0 && pixel s 1 1 == 0 } = native "[]"
+
+def cell00 : { s:(Array Int) | pixel s 0 0 == 1 && pixel s 0 1 == 0 && pixel s 1 0 == 0 && pixel s 1 1 == 0 } = native "[0]"
+def cell01 : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 1 && pixel s 1 0 == 0 && pixel s 1 1 == 0 } = native "[1]"
+def cell10 : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 1 0 == 1 && pixel s 1 1 == 0 } = native "[2]"
+def cell11 : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 1 0 == 0 && pixel s 1 1 == 1 } = native "[3]"
+
+# `union p q` is the per-cell logical OR of the two scenes.
+def union (p:(Array Int)) (q:(Array Int)) : { s:(Array Int) |
+       ((pixel p 0 0 == 1 || pixel q 0 0 == 1) --> pixel s 0 0 == 1) && ((pixel p 0 0 == 0 && pixel q 0 0 == 0) --> pixel s 0 0 == 0)
+    && ((pixel p 0 1 == 1 || pixel q 0 1 == 1) --> pixel s 0 1 == 1) && ((pixel p 0 1 == 0 && pixel q 0 1 == 0) --> pixel s 0 1 == 0)
+    && ((pixel p 1 0 == 1 || pixel q 1 0 == 1) --> pixel s 1 0 == 1) && ((pixel p 1 0 == 0 && pixel q 1 0 == 0) --> pixel s 1 0 == 0)
+    && ((pixel p 1 1 == 1 || pixel q 1 1 == 1) --> pixel s 1 1 == 1) && ((pixel p 1 1 == 0 && pixel q 1 1 == 0) --> pixel s 1 1 == 0)
+  } = native "p + q"
+
+# The target image, one refinement fact per pixel.  Here: the diagonal,
+# cells (0,0) and (1,1) on, the other two off.
+#     # .
+#     . #
+def shape : { s:(Array Int) |
+       pixel s 0 0 == 1 && pixel s 0 1 == 0
+    && pixel s 1 0 == 0 && pixel s 1 1 == 1
+  } = ?hole;

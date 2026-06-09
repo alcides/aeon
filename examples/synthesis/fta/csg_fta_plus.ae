@@ -1,0 +1,91 @@
+# Inverse CSG via FTA, with the image encoded as per-pixel refinements.
+#
+# Refinement-typed reformulation of the inverse-CSG benchmark of Feser, Dillig
+# & Solar-Lezama, "Metric Program Synthesis for Inverse CSG" (arXiv:2206.06164).
+# There, a WxH bitmap is treated as W*H boolean I/O examples -- one per pixel,
+# the predicate `contains(e,x,y)`. The metric backend (`symetric`) aggregates
+# those examples into a Jaccard distance and *minimises* it. Here we instead
+# keep the examples exact and hand them to FTA as a refinement: `pixel` is an
+# uninterpreted `contains`, each constructor's refined type pins it on every
+# cell, and the target image is the hole's per-pixel refinement.
+#
+# Grid is 3x3 (9 pixels) so the spec stays quantifier-free and decidable.
+# Scenes carry their on-pixel codes (i*3+j) so FTA keys states by output.
+#
+#   uv run python -m aeon --no-main -s fta --budget 30 examples/synthesis/fta/csg_fta_plus.ae
+#
+# CAD DSL (Fig. 3 of the paper, restricted to a fixed grid):
+#   E ::= Empty | Full | MidRow | MidCol | Center | Union E E | Diff E E
+#
+# Target image (a plus / cross):
+#     . # .
+#     # # #
+#     . # .
+
+import Array;
+
+# pixel s x y == 1  iff cell (x,y) of scene s is on  (the paper's `contains`).
+def pixel : (s:(Array Int)) -> (x:Int) -> (y:Int) -> Int = uninterpreted
+
+def Empty : { s:(Array Int) |
+       pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 0 2 == 0
+    && pixel s 1 0 == 0 && pixel s 1 1 == 0 && pixel s 1 2 == 0
+    && pixel s 2 0 == 0 && pixel s 2 1 == 0 && pixel s 2 2 == 0 } = native "[]"
+
+def Full : { s:(Array Int) |
+       pixel s 0 0 == 1 && pixel s 0 1 == 1 && pixel s 0 2 == 1
+    && pixel s 1 0 == 1 && pixel s 1 1 == 1 && pixel s 1 2 == 1
+    && pixel s 2 0 == 1 && pixel s 2 1 == 1 && pixel s 2 2 == 1 } = native "[0,1,2,3,4,5,6,7,8]"
+
+# MidRow: the middle row (1,*) is on.
+def MidRow : { s:(Array Int) |
+       pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 0 2 == 0
+    && pixel s 1 0 == 1 && pixel s 1 1 == 1 && pixel s 1 2 == 1
+    && pixel s 2 0 == 0 && pixel s 2 1 == 0 && pixel s 2 2 == 0 } = native "[3,4,5]"
+
+# MidCol: the middle column (*,1) is on.
+def MidCol : { s:(Array Int) |
+       pixel s 0 0 == 0 && pixel s 0 1 == 1 && pixel s 0 2 == 0
+    && pixel s 1 0 == 0 && pixel s 1 1 == 1 && pixel s 1 2 == 0
+    && pixel s 2 0 == 0 && pixel s 2 1 == 1 && pixel s 2 2 == 0 } = native "[1,4,7]"
+
+def Center : { s:(Array Int) |
+       pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 0 2 == 0
+    && pixel s 1 0 == 0 && pixel s 1 1 == 1 && pixel s 1 2 == 0
+    && pixel s 2 0 == 0 && pixel s 2 1 == 0 && pixel s 2 2 == 0 } = native "[4]"
+
+# Union: per-cell logical OR.
+def Union (p:(Array Int)) (q:(Array Int)) : { s:(Array Int) |
+       ((pixel p 0 0 == 1 || pixel q 0 0 == 1) --> pixel s 0 0 == 1) && ((pixel p 0 0 == 0 && pixel q 0 0 == 0) --> pixel s 0 0 == 0)
+    && ((pixel p 0 1 == 1 || pixel q 0 1 == 1) --> pixel s 0 1 == 1) && ((pixel p 0 1 == 0 && pixel q 0 1 == 0) --> pixel s 0 1 == 0)
+    && ((pixel p 0 2 == 1 || pixel q 0 2 == 1) --> pixel s 0 2 == 1) && ((pixel p 0 2 == 0 && pixel q 0 2 == 0) --> pixel s 0 2 == 0)
+    && ((pixel p 1 0 == 1 || pixel q 1 0 == 1) --> pixel s 1 0 == 1) && ((pixel p 1 0 == 0 && pixel q 1 0 == 0) --> pixel s 1 0 == 0)
+    && ((pixel p 1 1 == 1 || pixel q 1 1 == 1) --> pixel s 1 1 == 1) && ((pixel p 1 1 == 0 && pixel q 1 1 == 0) --> pixel s 1 1 == 0)
+    && ((pixel p 1 2 == 1 || pixel q 1 2 == 1) --> pixel s 1 2 == 1) && ((pixel p 1 2 == 0 && pixel q 1 2 == 0) --> pixel s 1 2 == 0)
+    && ((pixel p 2 0 == 1 || pixel q 2 0 == 1) --> pixel s 2 0 == 1) && ((pixel p 2 0 == 0 && pixel q 2 0 == 0) --> pixel s 2 0 == 0)
+    && ((pixel p 2 1 == 1 || pixel q 2 1 == 1) --> pixel s 2 1 == 1) && ((pixel p 2 1 == 0 && pixel q 2 1 == 0) --> pixel s 2 1 == 0)
+    && ((pixel p 2 2 == 1 || pixel q 2 2 == 1) --> pixel s 2 2 == 1) && ((pixel p 2 2 == 0 && pixel q 2 2 == 0) --> pixel s 2 2 == 0)
+  } = native "p + q"
+
+# Diff: p minus q (per-cell  p AND NOT q).
+def Diff (p:(Array Int)) (q:(Array Int)) : { s:(Array Int) |
+       ((pixel p 0 0 == 1 && pixel q 0 0 == 0) --> pixel s 0 0 == 1) && (!(pixel p 0 0 == 1 && pixel q 0 0 == 0) --> pixel s 0 0 == 0)
+    && ((pixel p 0 1 == 1 && pixel q 0 1 == 0) --> pixel s 0 1 == 1) && (!(pixel p 0 1 == 1 && pixel q 0 1 == 0) --> pixel s 0 1 == 0)
+    && ((pixel p 0 2 == 1 && pixel q 0 2 == 0) --> pixel s 0 2 == 1) && (!(pixel p 0 2 == 1 && pixel q 0 2 == 0) --> pixel s 0 2 == 0)
+    && ((pixel p 1 0 == 1 && pixel q 1 0 == 0) --> pixel s 1 0 == 1) && (!(pixel p 1 0 == 1 && pixel q 1 0 == 0) --> pixel s 1 0 == 0)
+    && ((pixel p 1 1 == 1 && pixel q 1 1 == 0) --> pixel s 1 1 == 1) && (!(pixel p 1 1 == 1 && pixel q 1 1 == 0) --> pixel s 1 1 == 0)
+    && ((pixel p 1 2 == 1 && pixel q 1 2 == 0) --> pixel s 1 2 == 1) && (!(pixel p 1 2 == 1 && pixel q 1 2 == 0) --> pixel s 1 2 == 0)
+    && ((pixel p 2 0 == 1 && pixel q 2 0 == 0) --> pixel s 2 0 == 1) && (!(pixel p 2 0 == 1 && pixel q 2 0 == 0) --> pixel s 2 0 == 0)
+    && ((pixel p 2 1 == 1 && pixel q 2 1 == 0) --> pixel s 2 1 == 1) && (!(pixel p 2 1 == 1 && pixel q 2 1 == 0) --> pixel s 2 1 == 0)
+    && ((pixel p 2 2 == 1 && pixel q 2 2 == 0) --> pixel s 2 2 == 1) && (!(pixel p 2 2 == 1 && pixel q 2 2 == 0) --> pixel s 2 2 == 0)
+  } = native "[x for x in p if x not in q]"
+
+# Target image (the plus), one refinement fact per pixel:
+#     . # .
+#     # # #
+#     . # .
+def shape : { s:(Array Int) |
+       pixel s 0 0 == 0 && pixel s 0 1 == 1 && pixel s 0 2 == 0
+    && pixel s 1 0 == 1 && pixel s 1 1 == 1 && pixel s 1 2 == 1
+    && pixel s 2 0 == 0 && pixel s 2 1 == 1 && pixel s 2 2 == 0
+  } = ?hole;

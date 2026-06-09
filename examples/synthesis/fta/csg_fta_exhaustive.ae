@@ -1,0 +1,124 @@
+# Inverse CSG via FTA -- EXHAUSTIVE refinement encoding of the bitmap (3x3).
+#
+# Reformulation of Feser, Dillig & Solar-Lezama, "Metric Program Synthesis for
+# Inverse CSG" (arXiv:2206.06164): a bitmap is W*H boolean I/O examples (the
+# paper's `contains(e,x,y)`). Every CSG-related function/constructor below is
+# refined to pass on pixel information THREE ways:
+#
+#   * POINTWISE   -- `pixel s i j` pinned on all 9 cells (the leaf shapes).
+#   * AGGREGATE   -- `area s` (on-pixel count) pinned == sum of the 9 pixels.
+#   * RELATIONAL  -- combinators/transforms relate the output's pixels to the
+#                    inputs' (Union/Diff superset/subset/disjoint, Mirror &
+#                    Transpose map pixels to reflected coordinates, area is
+#                    preserved by reflection / bounded by Union and Diff).
+#
+#   uv run python -m aeon --no-main -s fta --budget 90 examples/synthesis/fta/csg_fta_exhaustive.ae
+
+import Array;
+
+# pixel s x y == 1  iff cell (x,y) of scene s is on  (the paper's `contains`).
+def pixel : (s:(Array Int)) -> (x:Int) -> (y:Int) -> Int = uninterpreted
+# area s == number of on-pixels of s.
+def area  : (s:(Array Int)) -> Int = uninterpreted
+
+# ---------------------------------------------------------------- leaf shapes
+
+def Empty : { s:(Array Int) |
+       pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 0 2 == 0
+    && pixel s 1 0 == 0 && pixel s 1 1 == 0 && pixel s 1 2 == 0
+    && pixel s 2 0 == 0 && pixel s 2 1 == 0 && pixel s 2 2 == 0
+    && area s == 0 } = native "[]"
+
+def Full : { s:(Array Int) |
+       pixel s 0 0 == 1 && pixel s 0 1 == 1 && pixel s 0 2 == 1
+    && pixel s 1 0 == 1 && pixel s 1 1 == 1 && pixel s 1 2 == 1
+    && pixel s 2 0 == 1 && pixel s 2 1 == 1 && pixel s 2 2 == 1
+    && area s == 9 } = native "[0,1,2,3,4,5,6,7,8]"
+
+# Rect x1 y1 x2 y2: cell (i,j) on iff x1<=i<=x2 && y1<=j<=y2.
+def Rect (x1:Int) (y1:Int) (x2:Int) (y2:Int) : { s:(Array Int) |
+       (((x1 <= 0 && 0 <= x2) && (y1 <= 0 && 0 <= y2)) --> pixel s 0 0 == 1) && (!((x1 <= 0 && 0 <= x2) && (y1 <= 0 && 0 <= y2)) --> pixel s 0 0 == 0)
+    && (((x1 <= 0 && 0 <= x2) && (y1 <= 1 && 1 <= y2)) --> pixel s 0 1 == 1) && (!((x1 <= 0 && 0 <= x2) && (y1 <= 1 && 1 <= y2)) --> pixel s 0 1 == 0)
+    && (((x1 <= 0 && 0 <= x2) && (y1 <= 2 && 2 <= y2)) --> pixel s 0 2 == 1) && (!((x1 <= 0 && 0 <= x2) && (y1 <= 2 && 2 <= y2)) --> pixel s 0 2 == 0)
+    && (((x1 <= 1 && 1 <= x2) && (y1 <= 0 && 0 <= y2)) --> pixel s 1 0 == 1) && (!((x1 <= 1 && 1 <= x2) && (y1 <= 0 && 0 <= y2)) --> pixel s 1 0 == 0)
+    && (((x1 <= 1 && 1 <= x2) && (y1 <= 1 && 1 <= y2)) --> pixel s 1 1 == 1) && (!((x1 <= 1 && 1 <= x2) && (y1 <= 1 && 1 <= y2)) --> pixel s 1 1 == 0)
+    && (((x1 <= 1 && 1 <= x2) && (y1 <= 2 && 2 <= y2)) --> pixel s 1 2 == 1) && (!((x1 <= 1 && 1 <= x2) && (y1 <= 2 && 2 <= y2)) --> pixel s 1 2 == 0)
+    && (((x1 <= 2 && 2 <= x2) && (y1 <= 0 && 0 <= y2)) --> pixel s 2 0 == 1) && (!((x1 <= 2 && 2 <= x2) && (y1 <= 0 && 0 <= y2)) --> pixel s 2 0 == 0)
+    && (((x1 <= 2 && 2 <= x2) && (y1 <= 1 && 1 <= y2)) --> pixel s 2 1 == 1) && (!((x1 <= 2 && 2 <= x2) && (y1 <= 1 && 1 <= y2)) --> pixel s 2 1 == 0)
+    && (((x1 <= 2 && 2 <= x2) && (y1 <= 2 && 2 <= y2)) --> pixel s 2 2 == 1) && (!((x1 <= 2 && 2 <= x2) && (y1 <= 2 && 2 <= y2)) --> pixel s 2 2 == 0)
+    && area s == pixel s 0 0 + pixel s 0 1 + pixel s 0 2 + pixel s 1 0 + pixel s 1 1 + pixel s 1 2 + pixel s 2 0 + pixel s 2 1 + pixel s 2 2
+  } = native "[i*3+j for i in range(max(0,x1),min(3,x2+1)) for j in range(max(0,y1),min(3,y2+1))]"
+
+# Circle cx cy cr: cell (i,j) on iff (i-cx)^2 + (j-cy)^2 <= cr^2.
+def Circle (cx:Int) (cy:Int) (cr:Int) : { s:(Array Int) |
+       (((0 - cx) * (0 - cx) + (0 - cy) * (0 - cy) <= cr * cr) --> pixel s 0 0 == 1) && (!((0 - cx) * (0 - cx) + (0 - cy) * (0 - cy) <= cr * cr) --> pixel s 0 0 == 0)
+    && (((0 - cx) * (0 - cx) + (1 - cy) * (1 - cy) <= cr * cr) --> pixel s 0 1 == 1) && (!((0 - cx) * (0 - cx) + (1 - cy) * (1 - cy) <= cr * cr) --> pixel s 0 1 == 0)
+    && (((0 - cx) * (0 - cx) + (2 - cy) * (2 - cy) <= cr * cr) --> pixel s 0 2 == 1) && (!((0 - cx) * (0 - cx) + (2 - cy) * (2 - cy) <= cr * cr) --> pixel s 0 2 == 0)
+    && (((1 - cx) * (1 - cx) + (0 - cy) * (0 - cy) <= cr * cr) --> pixel s 1 0 == 1) && (!((1 - cx) * (1 - cx) + (0 - cy) * (0 - cy) <= cr * cr) --> pixel s 1 0 == 0)
+    && (((1 - cx) * (1 - cx) + (1 - cy) * (1 - cy) <= cr * cr) --> pixel s 1 1 == 1) && (!((1 - cx) * (1 - cx) + (1 - cy) * (1 - cy) <= cr * cr) --> pixel s 1 1 == 0)
+    && (((1 - cx) * (1 - cx) + (2 - cy) * (2 - cy) <= cr * cr) --> pixel s 1 2 == 1) && (!((1 - cx) * (1 - cx) + (2 - cy) * (2 - cy) <= cr * cr) --> pixel s 1 2 == 0)
+    && (((2 - cx) * (2 - cx) + (0 - cy) * (0 - cy) <= cr * cr) --> pixel s 2 0 == 1) && (!((2 - cx) * (2 - cx) + (0 - cy) * (0 - cy) <= cr * cr) --> pixel s 2 0 == 0)
+    && (((2 - cx) * (2 - cx) + (1 - cy) * (1 - cy) <= cr * cr) --> pixel s 2 1 == 1) && (!((2 - cx) * (2 - cx) + (1 - cy) * (1 - cy) <= cr * cr) --> pixel s 2 1 == 0)
+    && (((2 - cx) * (2 - cx) + (2 - cy) * (2 - cy) <= cr * cr) --> pixel s 2 2 == 1) && (!((2 - cx) * (2 - cx) + (2 - cy) * (2 - cy) <= cr * cr) --> pixel s 2 2 == 0)
+    && area s == pixel s 0 0 + pixel s 0 1 + pixel s 0 2 + pixel s 1 0 + pixel s 1 1 + pixel s 1 2 + pixel s 2 0 + pixel s 2 1 + pixel s 2 2
+  } = native "[i*3+j for i in range(3) for j in range(3) if (i-cx)*(i-cx)+(j-cy)*(j-cy) <= cr*cr]"
+
+# ------------------------------------------------------------- combinators
+# Union: per-cell OR; relationally a superset of both inputs, area <= sum.
+def Union (p:(Array Int)) (q:(Array Int)) : { s:(Array Int) |
+       ((pixel p 0 0 == 1 || pixel q 0 0 == 1) --> pixel s 0 0 == 1) && ((pixel p 0 0 == 0 && pixel q 0 0 == 0) --> pixel s 0 0 == 0)
+    && ((pixel p 0 1 == 1 || pixel q 0 1 == 1) --> pixel s 0 1 == 1) && ((pixel p 0 1 == 0 && pixel q 0 1 == 0) --> pixel s 0 1 == 0)
+    && ((pixel p 0 2 == 1 || pixel q 0 2 == 1) --> pixel s 0 2 == 1) && ((pixel p 0 2 == 0 && pixel q 0 2 == 0) --> pixel s 0 2 == 0)
+    && ((pixel p 1 0 == 1 || pixel q 1 0 == 1) --> pixel s 1 0 == 1) && ((pixel p 1 0 == 0 && pixel q 1 0 == 0) --> pixel s 1 0 == 0)
+    && ((pixel p 1 1 == 1 || pixel q 1 1 == 1) --> pixel s 1 1 == 1) && ((pixel p 1 1 == 0 && pixel q 1 1 == 0) --> pixel s 1 1 == 0)
+    && ((pixel p 1 2 == 1 || pixel q 1 2 == 1) --> pixel s 1 2 == 1) && ((pixel p 1 2 == 0 && pixel q 1 2 == 0) --> pixel s 1 2 == 0)
+    && ((pixel p 2 0 == 1 || pixel q 2 0 == 1) --> pixel s 2 0 == 1) && ((pixel p 2 0 == 0 && pixel q 2 0 == 0) --> pixel s 2 0 == 0)
+    && ((pixel p 2 1 == 1 || pixel q 2 1 == 1) --> pixel s 2 1 == 1) && ((pixel p 2 1 == 0 && pixel q 2 1 == 0) --> pixel s 2 1 == 0)
+    && ((pixel p 2 2 == 1 || pixel q 2 2 == 1) --> pixel s 2 2 == 1) && ((pixel p 2 2 == 0 && pixel q 2 2 == 0) --> pixel s 2 2 == 0)
+    && area s == pixel s 0 0 + pixel s 0 1 + pixel s 0 2 + pixel s 1 0 + pixel s 1 1 + pixel s 1 2 + pixel s 2 0 + pixel s 2 1 + pixel s 2 2
+    && area s <= area p + area q       # RELATIONAL: union bound
+    && area p <= area s && area q <= area s   # RELATIONAL: superset of both
+  } = native "p + q"
+
+# Diff: per-cell AND-NOT; relationally a subset of p, disjoint from q.
+def Diff (p:(Array Int)) (q:(Array Int)) : { s:(Array Int) |
+       ((pixel p 0 0 == 1 && pixel q 0 0 == 0) --> pixel s 0 0 == 1) && (!(pixel p 0 0 == 1 && pixel q 0 0 == 0) --> pixel s 0 0 == 0)
+    && ((pixel p 0 1 == 1 && pixel q 0 1 == 0) --> pixel s 0 1 == 1) && (!(pixel p 0 1 == 1 && pixel q 0 1 == 0) --> pixel s 0 1 == 0)
+    && ((pixel p 0 2 == 1 && pixel q 0 2 == 0) --> pixel s 0 2 == 1) && (!(pixel p 0 2 == 1 && pixel q 0 2 == 0) --> pixel s 0 2 == 0)
+    && ((pixel p 1 0 == 1 && pixel q 1 0 == 0) --> pixel s 1 0 == 1) && (!(pixel p 1 0 == 1 && pixel q 1 0 == 0) --> pixel s 1 0 == 0)
+    && ((pixel p 1 1 == 1 && pixel q 1 1 == 0) --> pixel s 1 1 == 1) && (!(pixel p 1 1 == 1 && pixel q 1 1 == 0) --> pixel s 1 1 == 0)
+    && ((pixel p 1 2 == 1 && pixel q 1 2 == 0) --> pixel s 1 2 == 1) && (!(pixel p 1 2 == 1 && pixel q 1 2 == 0) --> pixel s 1 2 == 0)
+    && ((pixel p 2 0 == 1 && pixel q 2 0 == 0) --> pixel s 2 0 == 1) && (!(pixel p 2 0 == 1 && pixel q 2 0 == 0) --> pixel s 2 0 == 0)
+    && ((pixel p 2 1 == 1 && pixel q 2 1 == 0) --> pixel s 2 1 == 1) && (!(pixel p 2 1 == 1 && pixel q 2 1 == 0) --> pixel s 2 1 == 0)
+    && ((pixel p 2 2 == 1 && pixel q 2 2 == 0) --> pixel s 2 2 == 1) && (!(pixel p 2 2 == 1 && pixel q 2 2 == 0) --> pixel s 2 2 == 0)
+    && area s == pixel s 0 0 + pixel s 0 1 + pixel s 0 2 + pixel s 1 0 + pixel s 1 1 + pixel s 1 2 + pixel s 2 0 + pixel s 2 1 + pixel s 2 2
+    && area s <= area p                # RELATIONAL: subset of p
+  } = native "[x for x in p if x not in q]"
+
+# ------------------------------------------------------------- transforms
+# Mirror: reflect columns, cell (i,j) <- p's (i, 2-j). Purely RELATIONAL.
+def Mirror (p:(Array Int)) : { s:(Array Int) |
+       pixel s 0 0 == pixel p 0 2 && pixel s 0 1 == pixel p 0 1 && pixel s 0 2 == pixel p 0 0
+    && pixel s 1 0 == pixel p 1 2 && pixel s 1 1 == pixel p 1 1 && pixel s 1 2 == pixel p 1 0
+    && pixel s 2 0 == pixel p 2 2 && pixel s 2 1 == pixel p 2 1 && pixel s 2 2 == pixel p 2 0
+    && area s == area p                # RELATIONAL: reflection preserves area
+  } = native "[(c // 3) * 3 + (2 - c % 3) for c in p]"
+
+# Transpose: reflect across the diagonal, cell (i,j) <- p's (j,i). RELATIONAL.
+def Transpose (p:(Array Int)) : { s:(Array Int) |
+       pixel s 0 0 == pixel p 0 0 && pixel s 0 1 == pixel p 1 0 && pixel s 0 2 == pixel p 2 0
+    && pixel s 1 0 == pixel p 0 1 && pixel s 1 1 == pixel p 1 1 && pixel s 1 2 == pixel p 2 1
+    && pixel s 2 0 == pixel p 0 2 && pixel s 2 1 == pixel p 1 2 && pixel s 2 2 == pixel p 2 2
+    && area s == area p                # RELATIONAL: transpose preserves area
+  } = native "[(c % 3) * 3 + (c // 3) for c in p]"
+
+# Target image (a plus / disc of radius 1):  Circle 1 1 1
+#     . # .
+#     # # #
+#     . # .
+def shape : { s:(Array Int) |
+       pixel s 0 0 == 0 && pixel s 0 1 == 1 && pixel s 0 2 == 0
+    && pixel s 1 0 == 1 && pixel s 1 1 == 1 && pixel s 1 2 == 1
+    && pixel s 2 0 == 0 && pixel s 2 1 == 1 && pixel s 2 2 == 0
+    && area s == 5
+  } = ?hole;

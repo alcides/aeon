@@ -1,0 +1,30 @@
+# Same setup as pixel_refinement.ae, but the spec PARTIALLY specifies the
+# image: it fixes only the first two pixels and leaves the other two free.
+# FTA returns the smallest scene consistent with the two given pixel facts.
+#
+#   uv run python -m aeon --no-main -s fta --budget 30 examples/synthesis/fta/pixel_partial.ae
+
+import Array;
+
+def pixel : (s:(Array Int)) -> (x:Int) -> (y:Int) -> Int = uninterpreted
+
+def empty : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 1 0 == 0 && pixel s 1 1 == 0 } = native "[]"
+
+def cell00 : { s:(Array Int) | pixel s 0 0 == 1 && pixel s 0 1 == 0 && pixel s 1 0 == 0 && pixel s 1 1 == 0 } = native "[0]"
+def cell01 : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 1 && pixel s 1 0 == 0 && pixel s 1 1 == 0 } = native "[1]"
+def cell10 : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 1 0 == 1 && pixel s 1 1 == 0 } = native "[2]"
+def cell11 : { s:(Array Int) | pixel s 0 0 == 0 && pixel s 0 1 == 0 && pixel s 1 0 == 0 && pixel s 1 1 == 1 } = native "[3]"
+
+def union (p:(Array Int)) (q:(Array Int)) : { s:(Array Int) |
+       ((pixel p 0 0 == 1 || pixel q 0 0 == 1) --> pixel s 0 0 == 1) && ((pixel p 0 0 == 0 && pixel q 0 0 == 0) --> pixel s 0 0 == 0)
+    && ((pixel p 0 1 == 1 || pixel q 0 1 == 1) --> pixel s 0 1 == 1) && ((pixel p 0 1 == 0 && pixel q 0 1 == 0) --> pixel s 0 1 == 0)
+    && ((pixel p 1 0 == 1 || pixel q 1 0 == 1) --> pixel s 1 0 == 1) && ((pixel p 1 0 == 0 && pixel q 1 0 == 0) --> pixel s 1 0 == 0)
+    && ((pixel p 1 1 == 1 || pixel q 1 1 == 1) --> pixel s 1 1 == 1) && ((pixel p 1 1 == 0 && pixel q 1 1 == 0) --> pixel s 1 1 == 0)
+  } = native "p + q"
+
+# Partial spec: only the FIRST TWO pixels are fixed -- (0,0) on, (0,1) off.
+# Cells (1,0) and (1,1) are unconstrained, so any scene with those two pixels
+# matching is a valid answer.
+def shape : { s:(Array Int) |
+       pixel s 0 0 == 1 && pixel s 0 1 == 0
+  } = ?hole;
