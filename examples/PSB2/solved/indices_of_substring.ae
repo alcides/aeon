@@ -1,19 +1,19 @@
 import Array
-def String_len : (i:String) -> Int = fun i => native "len(i)"
+def String_len : (i:String) -> Int := fun i => native "len(i)"
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) = fun start => fun end => fun step => native "list(range(start, end, step ))"
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) := fun start => fun end => fun step => native "list(range(start, end, step ))"
 
-def Filter :  (f: (s:Int) -> Bool) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "[x for x in xs if f(x)]"
+def Filter :  (f: (s:Int) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
 
-def String_equal : (i:String) -> (j:String) -> Bool = fun i => fun j => native "i == j";
+def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
 
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = fun i => fun j => fun l => native "i[j:l]"
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
 
-def indices_of_substring ( text :String) (target: String) : (Array Int) = start: Int = 0;
-    end: Int = ((String_len text) - (String_len target)) + 1 ;
-    step: Int = 1;
-    indices : (Array Int) = Range start end step;
-    matching_indices : (Array Int) = Filter ((fun i => String_equal (String_slice text i (i + (String_len target))) target):(s:Int) -> Bool)  indices;
+def indices_of_substring ( text :String) (target: String) : (Array Int) := start: Int := 0;
+    end: Int := ((String_len text) - (String_len target)) + 1 ;
+    step: Int := 1;
+    indices : (Array Int) := Range start end step;
+    matching_indices : (Array Int) := Filter ((fun i => String_equal (String_slice text i (i + (String_len target))) target):(s:Int) -> Bool)  indices;
     matching_indices;
 
-def main (args:Int) : Unit = print(indices_of_substring "hello world" "lo" )
+def main (args:Int) : Unit := print(indices_of_substring "hello world" "lo" )

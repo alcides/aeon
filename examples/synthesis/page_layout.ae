@@ -16,9 +16,9 @@ inductive Layout
      (x2:Int) (y2:Int)
      (x3:Int) (y3:Int) :
      {l:Layout |
-        (lx1 l == x1) && (ly1 l == y1) &&
-        (lx2 l == x2) && (ly2 l == y2) &&
-        (lx3 l == x3) && (ly3 l == y3)}
+        (lx1 l = x1) && (ly1 l = y1) &&
+        (lx2 l = x2) && (ly2 l = y2) &&
+        (lx3 l = x3) && (ly3 l = y3)}
 + lx1 (l:Layout) : Int
 + ly1 (l:Layout) : Int
 + lx2 (l:Layout) : Int
@@ -26,15 +26,15 @@ inductive Layout
 + lx3 (l:Layout) : Int
 + ly3 (l:Layout) : Int
 
-def PAGE_W : {n:Int | n == 190} = 190
-def PAGE_H : {n:Int | n == 270} = 270
+def PAGE_W : {n:Int | n = 190} := 190
+def PAGE_H : {n:Int | n = 270} := 270
 
-def W1 : {n:Int | n == 105} = 105
-def H1 : {n:Int | n == 140} = 140
-def W2 : {n:Int | n == 85}  = 85
-def H2 : {n:Int | n == 135} = 135
-def W3 : {n:Int | n == 120} = 120
-def H3 : {n:Int | n == 110} = 110
+def W1 : {n:Int | n = 105} := 105
+def H1 : {n:Int | n = 140} := 140
+def W2 : {n:Int | n = 85}  := 85
+def H2 : {n:Int | n = 135} := 135
+def W3 : {n:Int | n = 120} := 120
+def H3 : {n:Int | n = 110} := 110
 
 # Two axis-aligned boxes overlap iff their x and y projections both overlap.
 # We forbid overlap by requiring at least one axis to be disjoint.
@@ -54,7 +54,7 @@ def layout_hole : {l:Layout |
     # box2 vs box3.
     ((lx2 l + W2 <= lx3 l) || (lx3 l + W3 <= lx2 l) ||
      (ly2 l + H2 <= ly3 l) || (ly3 l + H3 <= ly2 l))
-} = ?hole
+} := ?hole
 
 # Verification: a hand-crafted non-overlapping layout should type-check.
 #   box1 in the top-left:                 (0,   0)  – occupies rows 0..140, cols 0..105
@@ -70,4 +70,4 @@ def layout_known : {l:Layout |
      (ly1 l + H1 <= ly3 l) || (ly3 l + H3 <= ly1 l)) &&
     ((lx2 l + W2 <= lx3 l) || (lx3 l + W3 <= lx2 l) ||
      (ly2 l + H2 <= ly3 l) || (ly3 l + H3 <= ly2 l))
-} = .mk 0 0 105 0 0 140
+} := .mk 0 0 105 0 0 140

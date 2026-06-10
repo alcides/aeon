@@ -6,4 +6,4 @@
 #   uv run python -m aeon --no-main -s fta --budget 10 examples/synthesis/dace/synth/complete_max.ae
 #
 # Expected: ?hole: 8
-def max_cell : {v:Int | v >= 8 && v >= 7 && (v == 8 || v == 7)} = ?hole;
+def max_cell : {v:Int | v >= 8 && v >= 7 && (v = 8 || v = 7)} := ?hole;

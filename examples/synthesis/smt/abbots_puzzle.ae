@@ -19,9 +19,9 @@ inductive Abbot
      (w: Int | w >= 0 && w <= 100)
      (c: Int | c >= 0 && c <= 100)
    : {a:Abbot |
-        (men a == m) &&
-        (women a == w) &&
-        (children a == c)}
+        (men a = m) &&
+        (women a = w) &&
+        (children a = c)}
 + men      (a:Abbot) : Int
 + women    (a:Abbot) : Int
 + children (a:Abbot) : Int
@@ -29,7 +29,7 @@ inductive Abbot
 @minimize_int(1)
 def abbots_hole : {a:Abbot |
     (men a >= 0) && (women a >= 0) && (children a >= 0) &&
-    (men a + women a + children a == 100) &&
-    (men a * 6 + women a * 4 + children a == 200) &&
-    (men a * 5 == women a)
-} = ?hole
+    (men a + women a + children a = 100) &&
+    (men a * 6 + women a * 4 + children a = 200) &&
+    (men a * 5 = women a)
+} := ?hole

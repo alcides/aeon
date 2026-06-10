@@ -14,4 +14,4 @@
 #
 # The hole below is solved by the integer whose value satisfies the refinement.
 
-def answer : {v:Int | v + 4 == 7 && v * 2 == 6} = ?hole;
+def answer : {v:Int | v + 4 = 7 && v * 2 = 6} := ?hole;

@@ -5,7 +5,7 @@
 
 type List
 
-def mbpp_fitness (f:(x0:List) -> List) : Float = native "float((0 if (f([['A'], ['A', 'B'], ['A', 'B', 'C']]) == ['A', 'B', 'C']) else 1) + (0 if (f([[1], [1, 2], [1, 2, 3]]) == [1, 2, 3]) else 1) + (0 if (f([[1, 1], [1, 2, 3], [1, 5, 6, 1]]) == [1, 5, 6, 1]) else 1))"
+def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f([['A'], ['A', 'B'], ['A', 'B', 'C']]) == ['A', 'B', 'C']) else 1) + (0 if (f([[1], [1, 2], [1, 2, 3]]) == [1, 2, 3]) else 1) + (0 if (f([[1, 1], [1, 2, 3], [1, 5, 6, 1]]) == [1, 5, 6, 1]) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (lst:List) : List = (let mbpp_fitness = unit in ?hole)
+def synth (lst:List) : List := (let mbpp_fitness := unit in ?hole)

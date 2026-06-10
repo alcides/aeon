@@ -23,8 +23,8 @@ inductive Weights
      (w3: Int | w3 >= 1 && w3 <= 40)
      (w4: Int | w4 >= 1 && w4 <= 40)
    : {x:Weights |
-        (p1 x == w1) && (p2 x == w2) &&
-        (p3 x == w3) && (p4 x == w4)}
+        (p1 x = w1) && (p2 x = w2) &&
+        (p3 x = w3) && (p4 x = w4)}
 + p1 (x:Weights) : Int
 + p2 (x:Weights) : Int
 + p3 (x:Weights) : Int
@@ -34,5 +34,5 @@ inductive Weights
 def weights_hole : {x:Weights |
     (p1 x >= 1) && (p4 x <= 40) &&
     (p1 x < p2 x) && (p2 x < p3 x) && (p3 x < p4 x) &&
-    (p1 x + p2 x + p3 x + p4 x == 40)
-} = ?hole
+    (p1 x + p2 x + p3 x + p4 x = 40)
+} := ?hole

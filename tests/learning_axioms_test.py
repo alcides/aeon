@@ -35,7 +35,7 @@ open LearningLines
 def thm
     (d: LDataset) (earlier: Line) (later: Line)
     (h: {{x: Int | line_count d > 1 && is_ts d && earlier != later && prec earlier later d}}) :
-    {{r: Int | causality earlier later}} =
+    {{r: Int | causality earlier later}} :=
     {body} ;
 """
 
@@ -44,7 +44,7 @@ open LearningLines
 def thm
     (d: LDataset) (a: Line) (b: Line) (c: Line)
     (h: {{x: Int | a != b && b != c && a != c && prec a b d && prec b c d}}) :
-    {{r: Int | prec a c d}} =
+    {{r: Int | prec a c d}} :=
     {body} ;
 """
 
@@ -53,7 +53,7 @@ open LearningLines
 def thm
     (a: Line) (b: Line)
     (h: {{x: Int | causality a b && causality b a}}) :
-    {{r: Int | false}} =
+    {{r: Int | false}} :=
     {body} ;
 """
 
@@ -62,15 +62,15 @@ open LearningLines
 def thm
     (a: Line) (b: Line)
     (h: {{x: Int | clone a b}}) :
-    {{r: Int | causality a b}} =
+    {{r: Int | causality a b}} :=
     {body} ;
 """
 
 CASES = {
-    "timeseries": (_TIMESERIES, "let inst = LearningLines.ax_timeseries earlier later d in h"),
-    "prec_trans": (_PREC_TRANS, "let inst = LearningLines.ax_prec_trans a b c d in h"),
-    "antisym": (_ANTISYM, "let inst = LearningLines.ax_causality_antisym a b in h"),
-    "clone": (_CLONE, "let inst = LearningLines.ax_clone_causality a b in h"),
+    "timeseries": (_TIMESERIES, "let inst := LearningLines.ax_timeseries earlier later d in h"),
+    "prec_trans": (_PREC_TRANS, "let inst := LearningLines.ax_prec_trans a b c d in h"),
+    "antisym": (_ANTISYM, "let inst := LearningLines.ax_causality_antisym a b in h"),
+    "clone": (_CLONE, "let inst := LearningLines.ax_clone_causality a b in h"),
 }
 
 

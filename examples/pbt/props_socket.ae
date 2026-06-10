@@ -26,49 +26,49 @@
 
 open Socket
 
-def loopback : {a : SockAddr | ipv4_sock_addr a == true} = ipv4_addr "127.0.0.1" 0
+def loopback : {a : SockAddr | ipv4_sock_addr a = true} := ipv4_addr "127.0.0.1" 0
 
 # ── TCP lifecycle unit tests ─────────────────────────────────────────────
 
 # Open then close.
-@example(tcpOpenClose == true)
-def tcpOpenClose : Bool =
-    let 1 s = stream_socket unit in
-    let done = stream_close s in
+@example(tcpOpenClose = true)
+def tcpOpenClose : Bool :=
+    let 1 s := stream_socket unit in
+    let done := stream_close s in
     true;
 
 # Open, bind to an ephemeral loopback port, close.
-@example(tcpBindClose == true)
-def tcpBindClose : Bool =
-    let 1 s0 = stream_socket unit in
-    let 1 s1 = stream_bind loopback s0 in
-    let done = stream_close s1 in
+@example(tcpBindClose = true)
+def tcpBindClose : Bool :=
+    let 1 s0 := stream_socket unit in
+    let 1 s1 := stream_bind loopback s0 in
+    let done := stream_close s1 in
     true;
 
 # Full server-side setup: open, bind, listen, close.
-@example(tcpServerSetup == true)
-def tcpServerSetup : Bool =
-    let 1 s0 = stream_socket unit in
-    let 1 s1 = stream_bind loopback s0 in
-    let 1 s2 = stream_listen 5 s1 in
-    let done = stream_close s2 in
+@example(tcpServerSetup = true)
+def tcpServerSetup : Bool :=
+    let 1 s0 := stream_socket unit in
+    let 1 s1 := stream_bind loopback s0 in
+    let 1 s2 := stream_listen 5 s1 in
+    let done := stream_close s2 in
     true;
 
 # ── UDP lifecycle unit tests ─────────────────────────────────────────────
 
 # Open then close.
-@example(udpOpenClose == true)
-def udpOpenClose : Bool =
-    let 1 s = dgram_socket unit in
-    let done = dgram_close s in
+@example(udpOpenClose = true)
+def udpOpenClose : Bool :=
+    let 1 s := dgram_socket unit in
+    let done := dgram_close s in
     true;
 
 # Open, bind to an ephemeral loopback port, close.
-@example(udpBindClose == true)
-def udpBindClose : Bool =
-    let 1 s0 = dgram_socket unit in
-    let 1 s1 = dgram_bind loopback s0 in
-    let done = dgram_close s1 in
+@example(udpBindClose = true)
+def udpBindClose : Bool :=
+    let 1 s0 := dgram_socket unit in
+    let 1 s1 := dgram_bind loopback s0 in
+    let done := dgram_close s1 in
     true;
 
 # ── Property: the TCP server lifecycle works for any valid backlog ────────
@@ -78,9 +78,9 @@ def udpBindClose : Bool =
 # on a distinct ephemeral port.
 
 @property(20)
-def prop_tcp_listen_any_backlog (backlog : {n : Int | n > 0 && n < 64}) : Bool =
-    let 1 s0 = stream_socket unit in
-    let 1 s1 = stream_bind loopback s0 in
-    let 1 s2 = stream_listen backlog s1 in
-    let done = stream_close s2 in
+def prop_tcp_listen_any_backlog (backlog : {n : Int | n > 0 && n < 64}) : Bool :=
+    let 1 s0 := stream_socket unit in
+    let 1 s1 := stream_bind loopback s0 in
+    let 1 s2 := stream_listen backlog s1 in
+    let done := stream_close s2 in
     true;

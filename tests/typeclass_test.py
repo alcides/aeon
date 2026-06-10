@@ -25,9 +25,9 @@ def test_instance_resolution_eq_int():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
-    def main (args : Int) : Int = if eq 3 3 then 0 else 1;
+    def main (args : Int) : Int := if eq 3 3 then 0 else 1;
     """
     assert _run(source) == 0
 
@@ -38,9 +38,9 @@ def test_instance_resolution_eq_int_false_branch():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
-    def main (args : Int) : Int = if eq 3 4 then 100 else 200;
+    def main (args : Int) : Int := if eq 3 4 then 100 else 200;
     """
     assert _run(source) == 200
 
@@ -51,14 +51,14 @@ def test_instance_dispatch_by_type():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
     instance : Eq Bool where
         eq x y := if x then y else (if y then false else true);
 
-    def main (args : Int) : Int =
-        let a : Bool = eq 3 3 in
-        let b : Bool = eq true false in
+    def main (args : Int) : Int :=
+        let a : Bool := eq 3 3 in
+        let b : Bool := eq true false in
         if a then (if b then 1 else 2) else 3;
     """
     assert _run(source) == 2
@@ -70,9 +70,9 @@ def test_instance_dict_typechecks_standalone():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
-    def main (args : Int) : Int = 0;
+    def main (args : Int) : Int := 0;
     """
     assert _run(source) == 0
 
@@ -83,9 +83,9 @@ def test_missing_instance_is_error():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
-    def main (args : Int) : Int = if eq true true then 0 else 1;
+    def main (args : Int) : Int := if eq true true then 0 else 1;
     """
     assert _errors(source)
 
@@ -95,12 +95,12 @@ def test_refined_method_law_verifies():
     # discharges it and the program compiles + runs.
     source = r"""
     class Eq (a : B) where
-        eq : (x : a) -> (y : a) -> {b : Bool | b == (x == y)};
+        eq : (x : a) -> (y : a) -> {b : Bool | b = (x = y)};
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
-    def main (args : Int) : Int = if eq 3 3 then 0 else 1;
+    def main (args : Int) : Int := if eq 3 3 then 0 else 1;
     """
     assert _run(source) == 0
 
@@ -115,9 +115,9 @@ def test_default_method_used():
         neq : (x : a) -> (y : a) -> Bool := fun x => fun y => if eq x y then false else true;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
-    def main (args : Int) : Int = if neq 3 4 then 100 else 200;
+    def main (args : Int) : Int := if neq 3 4 then 100 else 200;
     """
     assert _run(source) == 100
 
@@ -129,9 +129,9 @@ def test_default_method_false_branch():
         neq : (x : a) -> (y : a) -> Bool := fun x => fun y => if eq x y then false else true;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
-    def main (args : Int) : Int = if neq 5 5 then 100 else 200;
+    def main (args : Int) : Int := if neq 5 5 then 100 else 200;
     """
     assert _run(source) == 200
 
@@ -144,10 +144,10 @@ def test_default_method_overridden():
         neq : (x : a) -> (y : a) -> Bool := fun x => fun y => if eq x y then false else true;
 
     instance : Eq Int where
-        eq x y := x == y;
-        neq x y := if x == y then false else true;
+        eq x y := x = y;
+        neq x y := if x = y then false else true;
 
-    def main (args : Int) : Int = if neq 3 4 then 0 else 1;
+    def main (args : Int) : Int := if neq 3 4 then 0 else 1;
     """
     assert _run(source) == 0
 
@@ -157,12 +157,12 @@ def test_refined_method_law_violation_is_error():
     # verification of the instance dictionary fails.
     source = r"""
     class Eq (a : B) where
-        eq : (x : a) -> (y : a) -> {b : Bool | b == (x == y)};
+        eq : (x : a) -> (y : a) -> {b : Bool | b = (x = y)};
 
     instance : Eq Int where
         eq x y := true;
 
-    def main (args : Int) : Int = if eq 3 3 then 0 else 1;
+    def main (args : Int) : Int := if eq 3 3 then 0 else 1;
     """
     assert _errors(source)
 
@@ -179,12 +179,12 @@ def test_constrained_instance_resolves():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
     instance [Eq a] : Eq (Box a) where
         eq x y := eq (Box_rec x (fun v => v)) (Box_rec y (fun v => v));
 
-    def main (args : Int) : Int = if eq (.box 3) (.box 3) then 0 else 1;
+    def main (args : Int) : Int := if eq (.box 3) (.box 3) then 0 else 1;
     """
     assert _run(source) == 0
 
@@ -200,12 +200,12 @@ def test_constrained_instance_dispatches_inner_eq():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
     instance [Eq a] : Eq (Box a) where
         eq x y := eq (Box_rec x (fun v => v)) (Box_rec y (fun v => v));
 
-    def main (args : Int) : Int =
+    def main (args : Int) : Int :=
         if eq (.box 3) (.box 3) then (if eq (.box 3) (.box 4) then 1 else 2) else 3;
     """
     assert _run(source) == 2
@@ -222,12 +222,12 @@ def test_nested_constrained_instance():
         eq : (x : a) -> (y : a) -> Bool;
 
     instance : Eq Int where
-        eq x y := x == y;
+        eq x y := x = y;
 
     instance [Eq a] : Eq (Box a) where
         eq x y := eq (Box_rec x (fun v => v)) (Box_rec y (fun v => v));
 
-    def main (args : Int) : Int =
+    def main (args : Int) : Int :=
         if eq (.box (.box 3)) (.box (.box 4)) then 10 else 20;
     """
     assert _run(source) == 20

@@ -10,14 +10,14 @@
 # All three goals are minimized simultaneously by the multi-objective
 # synthesizer.
 
-def target : Int = 100
+def target : Int := 100
 
-def err (v: Int) : Int = (target - v) * (target - v)
+def err (v: Int) : Int := (target - v) * (target - v)
 
 @minimize_int(err (func 10))
 @minimize_cputime(func 10)
 @minimize_energy(func 10)
-def func (i:Int) : Int = i * ?hole
+def func (i:Int) : Int := i * ?hole
 
 
-def main (args: Int) : Unit = print (func 10)
+def main (args: Int) : Unit := print (func 10)

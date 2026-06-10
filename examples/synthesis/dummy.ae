@@ -1,2 +1,2 @@
 @minimize_int(-(func 3 - func 5))
-def func (i:Int | i > 0) : {j:Int | j > i} = ?todo
+def func (i:Int | i > 0) : {j:Int | j > i} := ?todo

@@ -42,9 +42,9 @@ def test_metric_objective_is_minimised_to_zero(tmp_path):
     # the objective and the output evaluator are wired exactly as in production.
     src = tmp_path / "min.ae"
     src.write_text(
-        "def dist (x:Int) : {r:Int | r >= 0} = if x >= 12 then x - 12 else 12 - x;\n\n"
+        "def dist (x:Int) : {r:Int | r >= 0} := if x >= 12 then x - 12 else 12 - x;\n\n"
         "@minimize_int(dist target)\n"
-        "def target : Int = (let dist = unit in ?hole);\n"
+        "def target : Int := (let dist := unit in ?hole);\n"
     )
     proc = subprocess.run(
         [sys.executable, "-m", "aeon", "--no-main", "-s", "symetric", "--budget", "10", str(src)],
@@ -60,7 +60,7 @@ def test_metric_objective_is_minimised_to_zero(tmp_path):
 
 def test_rejects_hole_without_objective():
     # No @minimize/@maximize: there is no metric to cluster or steer by.
-    code = "def n : {v:Int | v + 4 == 7} = ?hole;"
+    code = "def n : {v:Int | v + 4 = 7} := ?hole;"
     with pytest.raises(SynthesisNotSuccessful, match="metric synthesiser"):
         _solve(code, budget=10.0)
 
@@ -102,9 +102,9 @@ def test_rejects_non_numeric_output(tmp_path):
         "inductive Shape\n"
         "| Box (w:Int) (h:Int) : Shape\n"
         "| Stack (a:Shape) (b:Shape) : Shape\n\n"
-        'def cost (s:Shape) : Float = native "0.0";\n\n'
+        'def cost (s:Shape) : Float := native "0.0";\n\n'
         "@minimize_float(cost shape)\n"
-        "def shape : Shape = (let cost = unit in ?hole);\n"
+        "def shape : Shape := (let cost := unit in ?hole);\n"
     )
     proc = subprocess.run(
         [sys.executable, "-m", "aeon", "--no-main", "-s", "symetric", "--budget", "10", str(src)],

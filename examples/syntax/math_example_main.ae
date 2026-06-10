@@ -1,12 +1,12 @@
-@example(abs 5 == 5)
-@example(abs (0 - 3) == 3)
-@example(abs 0 == 0)
-def abs (i:Int) : Int = if i > 0 then i else -i
+@example(abs 5 = 5)
+@example(abs (0 - 3) = 3)
+@example(abs 0 = 0)
+def abs (i:Int) : Int := if i > 0 then i else -i
 
-@example(midpoint 2 4 == 3)
-@example(midpoint 1 5 == 3)
-def midpoint (a:Int) (b:Int) : Int = (a + b) / 2
+@example(midpoint 2 4 = 3)
+@example(midpoint 1 5 = 3)
+def midpoint (a:Int) (b:Int) : Int := (a + b) / 2
 
-def main (i:Int) : Unit =
-    x : Int = abs (-3) + midpoint 1 5;
+def main (i:Int) : Unit :=
+    x : Int := abs (-3) + midpoint 1 5;
     print x;

@@ -3,7 +3,7 @@
 #
 # Synthesis target: text_lowercase_underscore : String -> Bool
 
-def mbpp_fitness (f:(x0:String) -> Bool) : Float = native "float((0 if (f('aab_cbbbc') == True) else 1) + (0 if (f('aab_Abbbc') == False) else 1) + (0 if (f('Aaab_abbbc') == False) else 1))"
+def mbpp_fitness (f:(x0:String) -> Bool) : Float := native "float((0 if (f('aab_cbbbc') == True) else 1) + (0 if (f('aab_Abbbc') == False) else 1) + (0 if (f('Aaab_abbbc') == False) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (text:String) : Bool = (let mbpp_fitness = unit in ?hole)
+def synth (text:String) : Bool := (let mbpp_fitness := unit in ?hole)

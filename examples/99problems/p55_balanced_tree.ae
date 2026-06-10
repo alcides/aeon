@@ -8,23 +8,23 @@ inductive Tree
 | leaf : Tree
 | node (v: Int) (l: Tree) (r: Tree) : Tree
 
-def absInt (n: Int) : Int = if n >= 0 then n else 0 - n
+def absInt (n: Int) : Int := if n >= 0 then n else 0 - n
 
-def treeSize (t: Tree) : Int =
+def treeSize (t: Tree) : Int :=
     match t with
     | .leaf => 0
     | .node v l r => 1 + treeSize l + treeSize r
 
-def isBalanced (t: Tree) : Bool =
+def isBalanced (t: Tree) : Bool :=
     match t with
     | .leaf => true
     | .node v l r => absInt (treeSize l - treeSize r) <= 1 && isBalanced l && isBalanced r
 
 # Two example trees:
-def empty_tree : Tree = .leaf
-def balanced_tree : Tree = .node 1 (.node 2 .leaf .leaf) (.node 3 .leaf .leaf)
+def empty_tree : Tree := .leaf
+def balanced_tree : Tree := .node 1 (.node 2 .leaf .leaf) (.node 3 .leaf .leaf)
 
-def main (args:Int) : Unit =
-    _ = print (treeSize balanced_tree);
-    _ = print (isBalanced balanced_tree);
+def main (args:Int) : Unit :=
+    _ := print (treeSize balanced_tree);
+    _ := print (isBalanced balanced_tree);
     print (isBalanced empty_tree)

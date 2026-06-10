@@ -13,7 +13,7 @@
 inductive IPv4
 | mk (a:Int | 0 <= a && a <= 255) (b:Int | 0 <= b && b <= 255)
      (c:Int | 0 <= c && c <= 255) (d:Int | 0 <= d && d <= 255) :
-     {ip:IPv4 | (o0 ip == a) && (o1 ip == b) && (o2 ip == c) && (o3 ip == d)}
+     {ip:IPv4 | (o0 ip = a) && (o1 ip = b) && (o2 ip = c) && (o3 ip = d)}
 + o0 (ip:IPv4) : Int  + o1 (ip:IPv4) : Int  + o2 (ip:IPv4) : Int  + o3 (ip:IPv4) : Int
 
 # (a) Fuzzing: synthesise a routable address.
@@ -22,7 +22,7 @@ def fuzz_ip : {ip:IPv4 |
     (1 <= o0 ip && o0 ip <= 223) &&
     (o0 ip != 127) &&
     (o0 ip != 0 || o1 ip != 0 || o2 ip != 0 || o3 ip != 0)
-} = ?hole;
+} := ?hole;
 
 # (b) Verification: 192.168.1.42 satisfies the spec; 127.0.0.1 (loopback) and
 # 0.0.0.0 would be rejected.
@@ -30,4 +30,4 @@ def an_address : {ip:IPv4 |
     (1 <= o0 ip && o0 ip <= 223) &&
     (o0 ip != 127) &&
     (o0 ip != 0 || o1 ip != 0 || o2 ip != 0 || o3 ip != 0)
-} = .mk 192 168 1 42
+} := .mk 192 168 1 42

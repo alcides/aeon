@@ -9,10 +9,10 @@ open Maybe
 # Every Maybe value is either `none` or `just` — the two are exhaustive and
 # mutually exclusive.
 @property(40)
-def prop_none_or_just (m : (Maybe Int)) : Bool =
+def prop_none_or_just (m : (Maybe Int)) : Bool :=
     isNone m || isJust m;
 
 # `withDefault` on a `just` returns the wrapped value, ignoring the default.
 @property(40)
-def prop_with_default_on_just (d : Int) (v : Int) : Bool =
-    withDefault d (just v) == v;
+def prop_with_default_on_just (d : Int) (v : Int) : Bool :=
+    withDefault d (just v) = v;

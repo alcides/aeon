@@ -6,4 +6,4 @@
 
 open List
 
-def quickSort (xs: (List a)) : {l:(List a) | List.size l == List.size xs} = ?hole;
+def quickSort (xs: (List a)) : {l:(List a) | List.size l = List.size xs} := ?hole;

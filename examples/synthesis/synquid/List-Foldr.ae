@@ -6,4 +6,4 @@
 
 open List
 
-def foldrL (f: (x:a) -> (acc:b) -> b) (z: b) (xs: (List a)) : b = ?hole;
+def foldrL (f: (x:a) -> (acc:b) -> b) (z: b) (xs: (List a)) : b := ?hole;

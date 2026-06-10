@@ -17,7 +17,7 @@ from tests.driver import check_and_return_core
 def test_open_list_hole_does_not_crash_grammar_identification():
     code = """open List
 
-def reverse (xs: (List Int)) : {l:(List Int) | List.size l == List.size xs} = ?hole;
+def reverse (xs: (List Int)) : {l:(List Int) | List.size l = List.size xs} := ?hole;
 """
     term, ctx, _ectx, _metadata = check_and_return_core(code)
 

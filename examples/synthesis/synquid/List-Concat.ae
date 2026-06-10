@@ -6,4 +6,4 @@
 
 open List
 
-def concatC (x: a) (xs: (List a)) : {l:(List a) | List.size l == List.size xs + 1} = ?hole;
+def concatC (x: a) (xs: (List a)) : {l:(List a) | List.size l = List.size xs + 1} := ?hole;

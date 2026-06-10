@@ -5,7 +5,7 @@
 
 type Tuple
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Tuple) : Float = native "float((0 if (f(3)(4) == ((5.0, 0.9272952180016122), -2 + 2.4492935982947064e-16j)) else 1) + (0 if (f(4)(7) == ((8.06225774829855, 1.0516502125483738), -2 + 2.4492935982947064e-16j)) else 1) + (0 if (f(15)(17) == ((22.67156809750927, 0.8478169733934057), -2 + 2.4492935982947064e-16j)) else 1))"
+def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Tuple) : Float := native "float((0 if (f(3)(4) == ((5.0, 0.9272952180016122), -2 + 2.4492935982947064e-16j)) else 1) + (0 if (f(4)(7) == ((8.06225774829855, 1.0516502125483738), -2 + 2.4492935982947064e-16j)) else 1) + (0 if (f(15)(17) == ((22.67156809750927, 0.8478169733934057), -2 + 2.4492935982947064e-16j)) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (x:Int) (y:Int) : Tuple = (let mbpp_fitness = unit in ?hole)
+def synth (x:Int) (y:Int) : Tuple := (let mbpp_fitness := unit in ?hole)

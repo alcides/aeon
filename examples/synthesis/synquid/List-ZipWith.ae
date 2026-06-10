@@ -6,4 +6,4 @@
 
 open List
 
-def zipWith (f: (x:a) -> (y:b) -> c) (xs: (List a)) (ys: {l:(List b) | List.size l == List.size xs}) : {r:(List c) | List.size r == List.size xs} = ?hole;
+def zipWith (f: (x:a) -> (y:b) -> c) (xs: (List a)) (ys: {l:(List b) | List.size l = List.size xs}) : {r:(List c) | List.size r = List.size xs} := ?hole;

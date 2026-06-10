@@ -3,7 +3,7 @@
 #
 # Synthesis target: removezero_ip : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f('216.08.094.196') == '216.8.94.196') else 1) + (0 if (f('12.01.024') == '12.1.24') else 1) + (0 if (f('216.08.094.0196') == '216.8.94.196') else 1))"
+def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f('216.08.094.196') == '216.8.94.196') else 1) + (0 if (f('12.01.024') == '12.1.24') else 1) + (0 if (f('216.08.094.0196') == '216.8.94.196') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (ip:String) : String = (let mbpp_fitness = unit in ?hole)
+def synth (ip:String) : String := (let mbpp_fitness := unit in ?hole)

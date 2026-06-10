@@ -66,7 +66,7 @@ def test_multi_minimize_float_typechecks_against_native_array():
     source = """
         import Array;
         @multi_minimize_float(native "[1.0, 2.0]", 2)
-        def synth (i:Int) : Int = (?hole: Int)
+        def synth (i:Int) : Int := (?hole: Int)
     """
     _, _, _, metadata = check_and_return_core(source)
     goals = [g for v in metadata.values() if isinstance(v, dict) for g in v.get("goals", [])]
@@ -79,7 +79,7 @@ def test_multi_minimize_int_typechecks_against_native_array():
     source = """
         import Array;
         @multi_minimize_int(native "[1, 2, 3]", 3)
-        def synth (i:Int) : Int = (?hole: Int)
+        def synth (i:Int) : Int := (?hole: Int)
     """
     _, _, _, metadata = check_and_return_core(source)
     goals = [g for v in metadata.values() if isinstance(v, dict) for g in v.get("goals", [])]

@@ -11,22 +11,22 @@ open NN
 
 
 # Build a 4 -> 8 -> 8 -> 3 classifier and run one input through it.
-def classify (x: {v: Vector | dim v == 4}) : {r: Vector | dim r == 3} =
-    let l1 = dense_relu 4 8 in
-    let l2 = dense_relu 8 8 in
-    let l3 = dense 8 3 in
-    let net = stack (stack (sequential l1) l2) l3 in
+def classify (x: {v: Vector | dim v = 4}) : {r: Vector | dim r = 3} :=
+    let l1 := dense_relu 4 8 in
+    let l2 := dense_relu 8 8 in
+    let l3 := dense 8 3 in
+    let net := stack (stack (sequential l1) l2) l3 in
     softmax (predict net x) ;
 
 
 # A hand-built linear layer: weights are 2x3, so the bias must have
 # length 2 (the output width) — ``make_layer`` enforces that.
-def tiny_layer (_: Int) : {l: Layer | in_features l == 3 && out_features l == 2} =
-    let w = mzeros 2 3 in
-    let b = vzeros 2 in
+def tiny_layer (_: Int) : {l: Layer | in_features l = 3 && out_features l = 2} :=
+    let w := mzeros 2 3 in
+    let b := vzeros 2 in
     make_layer w b ;
 
 
-def main (_: Int) : Unit =
-    let probs = classify (vzeros 4) in
+def main (_: Int) : Unit :=
+    let probs := classify (vzeros 4) in
     print (vsum probs)

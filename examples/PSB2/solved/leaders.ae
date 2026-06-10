@@ -1,21 +1,21 @@
 import Array
-def itertools : Unit = native_import "itertools"
+def itertools : Unit := native_import "itertools"
 
-def List_reversed: (l: (Array Int))-> (Array Int) = fun xs => native "xs[::-1]"
-def List_new : (Array Int) = native "[]"
-def List_append: (l:(Array Int)) -> (i: Int) -> (Array Int) = fun xs => fun x => native "xs + [x]"
-def List_get: (l:(Array Int)) -> (i:Int) -> Int = fun xs => fun i => native "xs[i]"
+def List_reversed: (l: (Array Int))-> (Array Int) := fun xs => native "xs[::-1]"
+def List_new : (Array Int) := native "[]"
+def List_append: (l:(Array Int)) -> (i: Int) -> (Array Int) := fun xs => fun x => native "xs + [x]"
+def List_get: (l:(Array Int)) -> (i:Int) -> Int := fun xs => fun i => native "xs[i]"
 
-def Scanl_max : (xs:(Array Int)) -> (Array Int) = fun xs => native "list(itertools.accumulate(xs, max))"
-def Filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "[x for x in xs if f(x)]"
-def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) = fun xs => fun ys => native "list(zip(xs, ys))"
-def Map : (f: (s:(Array Int)) -> Int) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "list(map(f, xs))"
+def Scanl_max : (xs:(Array Int)) -> (Array Int) := fun xs => native "list(itertools.accumulate(xs, max))"
+def Filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
+def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
+def Map : (f: (s:(Array Int)) -> Int) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
 
-def cut_vector ( vector : (Array Int) ) : (Array Int) = reversed_vector: (Array Int) = List_reversed vector;
-    scanl_max: (Array Int) = Scanl_max reversed_vector;
-    leaders_reverse: (Array Int) = Filter ((fun x => List_get x 0 == List_get x 1) : (s:(Array Int)) -> Bool) (Zip reversed_vector scanl_max);
-    leaders = List_reversed (Map (fun x => List_get x 0 : (s:(Array Int)) -> Int) leaders_reverse);
+def cut_vector ( vector : (Array Int) ) : (Array Int) := reversed_vector: (Array Int) := List_reversed vector;
+    scanl_max: (Array Int) := Scanl_max reversed_vector;
+    leaders_reverse: (Array Int) := Filter ((fun x => List_get x 0 = List_get x 1) : (s:(Array Int)) -> Bool) (Zip reversed_vector scanl_max);
+    leaders := List_reversed (Map (fun x => List_get x 0 : (s:(Array Int)) -> Int) leaders_reverse);
     leaders;
 
-def main (args:Int) : Unit = vec: (Array Int) = List_append (List_append (List_append (List_append List_new 47) 87) 43) 44;
+def main (args:Int) : Unit := vec: (Array Int) := List_append (List_append (List_append (List_append List_new 47) 87) 43) 44;
     print(cut_vector vec);

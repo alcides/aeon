@@ -10,14 +10,14 @@ ANF (`aeon/frontend/anf_converter.py`) hoists every non-trivial argument into
 a `let` so that refinement substitution always has a name to latch onto:
 
 ```text
-f (g a)        ⇒  let _anf = g a in f _anf
+f (g a)        ⇒  let _anf := g a in f _anf
 ```
 
 Those synthesised `let` bindings are invisible aliases for their right-hand
 side. They are harmless today, but they get in the way the moment we add:
 
 1. **Move semantics on `let` for linear values** (Phase 3 of the QTT plan):
-   `let _anf = consume_once_value in f _anf` either double-consumes or
+   `let _anf := consume_once_value in f _anf` either double-consumes or
    silently drops the consumption.
 2. **Latte alias tracking**: ANF synthesises pairs `(_anf, g a)` that look
    like fresh bindings but are really equalities Latte already knows about,
@@ -41,7 +41,7 @@ class ExistentialType(Type):
   `with_binders`; the body is never itself an `ExistentialType`.
 - **Refinements live in binders.** `binders[i]` is typically
   `(name, RefinedType(name, base, predicate))`, where the refinement carries
-  *both* the static info (`base > 0`) and the equation (`name == g a`) when
+  *both* the static info (`base > 0`) and the equation (`name = g a`) when
   the binder was created from a syntactic call.
 - **Bodies are bare.** A body is one of `TypeConstructor`, `TypeVar`, or
   `AbstractionType`. Never `RefinedType`, never `ExistentialType`.
@@ -49,21 +49,21 @@ class ExistentialType(Type):
 Example. With
 
 ```aeon
-def inc (n: Int) : { m: Int | m == n + 1 } = n + 1;
-def safe_div (a: Int) (b: { n: Int | n != 0 }) : Int = a / b;
+def inc (n: Int) : { m: Int | m = n + 1 } := n + 1;
+def safe_div (a: Int) (b: { n: Int | n != 0 }) : Int := a / b;
 ```
 
 the type of `inc 0` is
 
 ```text
-[ _y : { ℓ : Int | ℓ == 1 } ]   Int
+[ _y : { ℓ : Int | ℓ = 1 } ]   Int
 ```
 
 and the type of `inc (inc 0)` is
 
 ```text
-[ _y₁ : { ℓ : Int | ℓ == 1 },
-  _y₂ : { ℓ : Int | ℓ == _y₁ + 1 } ]   Int
+[ _y₁ : { ℓ : Int | ℓ = 1 },
+  _y₂ : { ℓ : Int | ℓ = _y₁ + 1 } ]   Int
 ```
 
 Subtyping `[ binders ] body  <:  T` opens the existential by skolemising each
@@ -90,7 +90,7 @@ the same programs.
    - Synth the argument, getting `(c_arg, ty_arg)`.
    - If `ty_arg` is `ExistentialType(bs, body)`, lift `bs` outward.
    - If the function's parameter type is `(x: T) -> U`, allocate a fresh
-     `_y`, refine `T` to `{ _y : base(T) | predicate(T) ∧ _y == arg }`
+     `_y`, refine `T` to `{ _y : base(T) | predicate(T) ∧ _y = arg }`
      when `arg` is a name or literal, otherwise `{ _y : base(T) | predicate(T) }`,
      and prepend `(_y, refined)` to the result type's binders.
    - Substitute `Var(_y)` for `x` in the body.

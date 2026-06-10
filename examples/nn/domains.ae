@@ -10,32 +10,32 @@ open NN
 
 
 # A consumer that only accepts a non-negative float.
-def use_nonneg (x: {f: Float | f >= 0.0}) : Float = x ;
+def use_nonneg (x: {f: Float | f >= 0.0}) : Float := x ;
 
 # A consumer that only accepts a probability (an element of [0, 1]).
-def use_prob (x: {f: Float | 0.0 <= f && f <= 1.0}) : Float = x ;
+def use_prob (x: {f: Float | 0.0 <= f && f <= 1.0}) : Float := x ;
 
 
 # Reading element 0 of a ReLU output is provably >= 0: the precondition of
 # ``use_nonneg`` is discharged from ``lower (relu v) >= 0`` and
 # ``vget``'s ``x >= lower``.
-def relu_elem_is_nonneg (v: {w: Vector | dim w > 0}) : Float =
+def relu_elem_is_nonneg (v: {w: Vector | dim w > 0}) : Float :=
     use_nonneg (vget (relu v) 0) ;
 
 
 # Reading element 0 of a softmax output is provably a probability in
 # [0, 1]: both bounds come from softmax's refined codomain.
-def softmax_elem_is_prob (v: {w: Vector | dim w > 0}) : Float =
+def softmax_elem_is_prob (v: {w: Vector | dim w > 0}) : Float :=
     use_prob (vget (softmax v) 0) ;
 
 
 # End to end: the softmax codomain flows straight into the return
 # refinement — reading element 0 yields a value the caller can rely on
 # being a probability, with no cast or runtime check.
-def first_class_prob (x: {v: Vector | dim v == 3}) : {f: Float | 0.0 <= f && f <= 1.0} =
+def first_class_prob (x: {v: Vector | dim v = 3}) : {f: Float | 0.0 <= f && f <= 1.0} :=
     vget (softmax x) 0 ;
 
 
-def main (_: Int) : Unit =
-    let v = vones 4 in
+def main (_: Int) : Unit :=
+    let v := vones 4 in
     print (relu_elem_is_nonneg v)

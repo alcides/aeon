@@ -15,7 +15,7 @@ inductive Pick
 | mk (x0:Int | 0 <= x0 && x0 <= 1) (x1:Int | 0 <= x1 && x1 <= 1)
      (x2:Int | 0 <= x2 && x2 <= 1) (x3:Int | 0 <= x3 && x3 <= 1)
      (x4:Int | 0 <= x4 && x4 <= 1) :
-     {p:Pick | (s0 p == x0) && (s1 p == x1) && (s2 p == x2) && (s3 p == x3) && (s4 p == x4)}
+     {p:Pick | (s0 p = x0) && (s1 p = x1) && (s2 p = x2) && (s3 p = x3) && (s4 p = x4)}
 + s0 (p:Pick) : Int  + s1 (p:Pick) : Int  + s2 (p:Pick) : Int
 + s3 (p:Pick) : Int  + s4 (p:Pick) : Int
 
@@ -24,11 +24,11 @@ inductive Pick
 def knapsack_hole : {p:Pick |
     (2 * s0 p + 3 * s1 p + 4 * s2 p + 5 * s3 p + 9 * s4 p <= 10) &&
     (3 * s0 p + 4 * s1 p + 5 * s2 p + 8 * s3 p + 10 * s4 p >= 13)
-} = ?hole;
+} := ?hole;
 
 # (b) Verification: take items 1 and 3 (weight 3+5=8 <= 10, value 4+8=12)... not
 # enough; take items 0,1,3 (weight 2+3+5=10 <= 10, value 3+4+8=15 >= 13).
 def knapsack_solution : {p:Pick |
     (2 * s0 p + 3 * s1 p + 4 * s2 p + 5 * s3 p + 9 * s4 p <= 10) &&
     (3 * s0 p + 4 * s1 p + 5 * s2 p + 8 * s3 p + 10 * s4 p >= 13)
-} = .mk 1 1 0 1 0
+} := .mk 1 1 0 1 0

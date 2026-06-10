@@ -7,4 +7,4 @@
 #   uv run python -m aeon --no-main -s fta --budget 10 examples/synthesis/dace/synth/complete_total.ae
 #
 # Expected: ?hole: 15
-def total_cell : {v:Int | v == 8 + 7} = ?hole;
+def total_cell : {v:Int | v = 8 + 7} := ?hole;

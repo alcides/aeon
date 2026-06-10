@@ -8,9 +8,9 @@
 The two features feed each other: stronger types make synthesis precise (the synthesizer only proposes solutions the type system accepts), and synthesis lets you write *specifications* and let the machine fill in the *implementation*.
 
 ```
-let age : Int = 25;
-let age : {age:Int | age > 0} = 25;
-let age : {age:Int | age >= 18 && age < 130} = 25;
+let age : Int := 25;
+let age : {age:Int | age > 0} := 25;
+let age : {age:Int | age >= 18 && age < 130} := 25;
 ```
 
 All three declarations are valid, and each is more specific than the previous. Liquid types restrict the domain of values and functions, support assertions in the source code, and statically catch violations at compile time.
@@ -27,7 +27,7 @@ The function below carries its full specification in its type:
 ```
 def apply_discount (price : Int | price >= 0)
                    (pct   : Int | pct >= 0 && pct <= 100)
-                 : {r : Int | r >= 0 && r <= price} =
+                 : {r : Int | r >= 0 && r <= price} :=
     price - (price * pct / 100);
 ```
 
@@ -37,7 +37,7 @@ Now suppose we don't know *the answer*, but we do know *what makes an answer val
 
 ```
 @minimize_int(deposit)
-def deposit : {d : Int | d > 0 && d * 21900 >= 10000000} = ?hole;
+def deposit : {d : Int | d > 0 && d * 21900 >= 10000000} := ?hole;
 ```
 
 Running this with `uv run python -m aeon --budget 10 -s gp file.ae`, Aeon searches for an integer that satisfies the predicate and is as small as possible — landing on `457` (since `457 * 21900 = 10_008_300`).
@@ -52,7 +52,7 @@ The list below covers the ideas you'll meet first, with just enough context to g
 |---|---|
 | **Refinement types** | Types can carry a logical predicate: `{x:Int \| x > 0}` is the type of positive integers. Preconditions and postconditions live in the type itself and are checked statically by an SMT solver. |
 | **Specifications as types** | A function's contract is its type. Once `withdraw : (balance:Int \| balance >= 0) -> (amount:Int \| amount <= balance) -> {r:Int \| r >= 0}` type-checks, the contract is proved — no runtime assertion, no test required. |
-| **Immutability** | There is no assignment. `let x = 5` introduces a fresh binding for `x` in the scope that follows; the binding cannot be updated in place. |
+| **Immutability** | There is no assignment. `let x := 5` introduces a fresh binding for `x` in the scope that follows; the binding cannot be updated in place. |
 | **Currying and space application** | Multi-argument functions are nested single-argument functions. You apply them with whitespace: `add 2 3` is `(add 2) 3`. Partial application is automatic. |
 | **Expression-oriented** | Every construct is an expression and returns a value, including `if ... then ... else`. The last expression of a block is the block's value, so there is no separate `return` statement. |
 | **No exceptions, no `null`** | Errors are not raised. Failure is modelled with inductive types (`Maybe a`, `Either a b`) or, when possible, ruled out by refinement types so the failure case becomes unrepresentable. |
@@ -61,7 +61,7 @@ The list below covers the ideas you'll meet first, with just enough context to g
 | **Explicit polymorphism** | Generics are introduced with `forall t : B, ...` and applied at the call site, e.g. `id[Int]`. Type abstractions in the body use `Λ` (capital lambda). |
 | **Parametric refinements** | A function can be polymorphic over a refinement *predicate*, not just over a type. This lets one definition preserve whatever invariant the caller's arguments happen to satisfy. |
 | **Synthesis is a language feature** | `?hole` is a legal expression. The compiler can search for an expression of the surrounding type, optionally guided by `@minimize` / `@maximize` decorators, training data, or natural-language prompts. |
-| **Surface syntax** | Top-level definitions use `def`; local bindings use `let`. Function types use `->`. Comments begin with `#`. |
+| **Surface syntax** | Top-level definitions use `def`; local bindings use `let`. Function types use `->` (or the Unicode `→`). Comments begin with `#`. |
 | **Entry point** | A function `main` returning `Unit` is the program's entry point. Side effects come from primitives like `print` or through the FFI. |
 | **Python FFI** | Aeon is implemented as a Python interpreter, so it ships with a direct bridge to Python: `native "expr"` evaluates a Python expression, and `native_import "module"` pulls in a Python module (numpy, sklearn, etc.). The bridge is not statically type-checked, so an incorrect annotation surfaces at runtime. |
 
@@ -78,7 +78,7 @@ Aeon can be executed directly from PyPI using [uvx](https://github.com/astral-sh
 If your aeon file contains a function named `main`, it will be the entrypoint to the program.
 
 ```
-def main (args:Int) : Unit =
+def main (args:Int) : Unit :=
     print "Hello World"
 ```
 
@@ -108,34 +108,59 @@ Just like in Python, any line starting with # is a comment.
 Aeon supports most operators that exist in mainstream languages.
 
 ```
-let price = 100;
-let total = price + (price * tax / 100);
-let eligible = (age >= 18) && (score > 50);
-let discount = if price > 50 then 10 else 0;
+let price := 100;
+let total := price + (price * tax / 100);
+let eligible := (age >= 18) && (score > 50);
+let discount := if price > 50 then 10 else 0;
 true
 ```
+
+#### Unicode operators
+
+Following Lean, several operators accept a Unicode spelling in addition to their
+ASCII form. The two are exact aliases — they parse to the same term, so you can
+mix and match freely:
+
+| ASCII | Unicode | Meaning |
+|---|---|---|
+| `!=` | `≠` | inequality |
+| `<=` | `≤` | less-or-equal |
+| `>=` | `≥` | greater-or-equal |
+| `->` | `→` | function-type arrow |
+| `=>` | `⇒` or `↦` | lambda / match-branch arrow |
+
+```
+def classify : (n:Int) → Int := fun n ↦ if n ≤ 0 then 0 else 1;
+```
+
+Boolean implication keeps its ASCII spelling `-->`. (Equality is written `=`, and
+definitions use `:=`.)
+
+The formatter (`aeon --format`) normalizes to the Unicode spellings on output, so
+`a >= b` and `fun x => ...` are reformatted to `a ≥ b` and `fun x ↦ ...` (Lean's
+mapsto arrow).
 
 Function application uses spaces (no parentheses around arguments):
 
 ```
 open Math
 # ...
-let result = Math_max 10 20;
+let result := Math_max 10 20;
 ```
 
 Arithmetic operators work on both integers and floats:
 
 ```
-let celsius = 36.6;
-let fahrenheit = celsius * 1.8 + 32.0;
+let celsius := 36.6;
+let fahrenheit := celsius * 1.8 + 32.0;
 ```
 
 ## Functions
 
 ```
-def add (x:Int) (y:Int) : Int = x + y;
+def add (x:Int) (y:Int) : Int := x + y;
 
-def add : (x:Int) -> (y:Int) -> Int = fun x => fun y => x + y;
+def add : (x:Int) -> (y:Int) -> Int := fun x => fun y => x + y;
 ```
 
 The above top-level definitions are equal to each other. The first version defines a function that takes two arguments, and has them available directly in the body. The second version defines an object of type function from int, to a function from int to int (curried, like Haskell), and defines that object using nested lambda functions.
@@ -163,20 +188,20 @@ function is called.
 Example:
 
 ```
-def inc (x:Int) : {y:Int | _} = x + 1;
-def witness (x:Int) : {v:Int | v > x} = inc x;
+def inc (x:Int) : {y:Int | _} := x + 1;
+def witness (x:Int) : {v:Int | v > x} := inc x;
 ```
 
-`_` expands to `y == x + 1`, so `inc`'s return type becomes `{y:Int | y == x + 1}`.
-The proof for `witness` then succeeds because the solver knows `v == x + 1` at the
+`_` expands to `y = x + 1`, so `inc`'s return type becomes `{y:Int | y = x + 1}`.
+The proof for `witness` then succeeds because the solver knows `v = x + 1` at the
 call site, hence `v > x`.
 
 `if`-then-`else` bodies are reflected too, lowering to `ite` in the predicate, and
 `_` can be combined with manual conjuncts:
 
 ```
-def abs (x:Int) : {y:Int | _} = if x < 0 then (0 - x) else x;
-def double_nat (x:{v:Int | v >= 0}) : {y:Int | _ && y >= 0} = x + x;
+def abs (x:Int) : {y:Int | _} := if x < 0 then (0 - x) else x;
+def double_nat (x:{v:Int | v >= 0}) : {y:Int | _ && y >= 0} := x + x;
 ```
 
 Reflection is rejected with a clear error when the body cannot be encoded as a
@@ -192,23 +217,23 @@ Before SMT solving, Aeon also simplifies generated verification constraints (boo
 Types in Aeon can be very expressive. In refined types, `where` can be used interchangeably with `|`:
 
 ```
-let count : Int = 5;
-let count : {n:Int | n > 0} = 5;            # 0 would raise a type error!
-let count : {n:Int where n > 0} = 5;        # equivalent to the above
+let count : Int := 5;
+let count : {n:Int | n > 0} := 5;            # 0 would raise a type error!
+let count : {n:Int where n > 0} := 5;        # equivalent to the above
 
-def divide (num:Int) (den:Int | den != 0) : Int =
+def divide (num:Int) (den:Int | den != 0) : Int :=
     native "num // den";
 
 def withdraw (balance:Int | balance >= 0) (amount:Int | amount > 0 && amount <= balance)
-    : {result:Int | result >= 0} =
+    : {result:Int | result >= 0} :=
     balance - amount;
 ```
 
 Aeon infers the most precise type it can for each binding:
 
 ```
-let balance = 1000;                          # inferred: {balance:Int | balance == 1000}
-let remaining = withdraw balance 200;        # inferred: {remaining:Int | remaining >= 0}
+let balance := 1000;                          # inferred: {balance:Int | balance = 1000}
+let remaining := withdraw balance 200;        # inferred: {remaining:Int | remaining >= 0}
 ```
 
 ## Modules and Imports
@@ -254,7 +279,7 @@ Import results are cached by resolved path, and circular imports are detected an
 Aeon supports parametric polymorphism using `forall`:
 
 ```
-def id : forall t : B, (x : t) -> t = Λ t : B => fun x => x;
+def id : forall t : B, (x : t) -> t := Λ t : B => fun x => x;
 ```
 
 The kind `B` represents base types, and `*` represents all types. Type abstraction is introduced with `Λ` (capital lambda) and `=>`.
@@ -268,18 +293,18 @@ Aeon supports refinement polymorphism, allowing a refinement predicate to be abs
 When a type variable appears with `<p>`, Aeon infers the refinement quantifier automatically:
 
 ```
-def clamp : (x : Int<p>) -> (lo : Int<p>) -> (hi : Int<p>) -> Int<p> =
+def clamp : (x : Int<p>) -> (lo : Int<p>) -> (hi : Int<p>) -> Int<p> :=
     fun x => fun lo => fun hi => if x < lo then lo else if x > hi then hi else x;
 ```
 
 The predicate `p` is inferred. Whatever refinement the caller's arguments satisfy, the result is guaranteed to satisfy it too:
 
 ```
-def main (args:Int) : Unit =
-    temp : Int | temp >= 0 = 50;
-    lo : Int | lo >= 0 = 10;
-    hi : Int | hi >= 0 = 100;
-    result : Int | result >= 0 = clamp temp lo hi;  # refinement preserved!
+def main (args:Int) : Unit :=
+    temp : Int | temp >= 0 := 50;
+    lo : Int | lo >= 0 := 10;
+    hi : Int | hi >= 0 := 100;
+    result : Int | result >= 0 := clamp temp lo hi;  # refinement preserved!
     print result;
 ```
 
@@ -288,12 +313,12 @@ def main (args:Int) : Unit =
 You can write the refinement quantifier explicitly with `forall <p : T -> Bool>` and introduce it with `Λ`:
 
 ```
-def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} =
+def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} :=
     Λ t : B => Λ <p : t -> Bool> => fun x => x;
 
-def main (args:Int) : Unit =
-    score : Int | score > 0 = 42;
-    safe_score : Int | safe_score > 0 = wrap[Int]{fun n => n > 0} score;
+def main (args:Int) : Unit :=
+    score : Int | score > 0 := 42;
+    safe_score : Int | safe_score > 0 := wrap[Int]{fun n => n > 0} score;
     print safe_score;
 ```
 
@@ -333,7 +358,7 @@ Each constructor is declared with `|`, followed by its name, arguments, and retu
 Use `match ... with` to destructure inductive values:
 
 ```
-def len (l:IntList) : Int =
+def len (l:IntList) : Int :=
     match l with
     | empty => 0
     | cons hd tl => 1 + (len tl);
@@ -347,8 +372,8 @@ Inductive types can declare measure functions with `+`. These are used for refin
 
 ```
 inductive MList a
-| empty : {e:(MList a) | len e == 0}
-| cons (x:a) (y:(MList a)) : {z:(MList a) | len z == (len y + 1)}
+| empty : {e:(MList a) | len e = 0}
+| cons (x:a) (y:(MList a)) : {z:(MList a) | len z = (len y + 1)}
 + len (m:(MList a)) : Int
 ```
 
@@ -366,8 +391,8 @@ native_import : forall a:*, String -> a
 You can use `native` to evaluate any Python expression:
 
 ```
-let pi : Float = native "3.14159265";
-let primes : List = native "[2, 3, 5, 7, 11]";
+let pi : Float := native "3.14159265";
+let primes : List := native "[2, 3, 5, 7, 11]";
 ```
 
 Using `native` allows you to embed any Python expression as an Aeon value. Note that this is not type-checked statically, so an incorrect type annotation will crash at runtime.
@@ -375,7 +400,7 @@ Using `native` allows you to embed any Python expression as an Aeon value. Note 
 `native_import` allows importing Python modules directly:
 
 ```
-let numpy = native_import "numpy";
+let numpy := native_import "numpy";
 ```
 
 For a step-by-step guide to wrapping a whole Python package — covering opaque types, designing refinements, uninterpreted functions, and the axiom-by-`native` pattern — see [Writing FFI bindings for a Python package](ffi).
@@ -442,7 +467,7 @@ The generated files are gitignored; they are produced from source by the
 Aeon supports the automatic synthesis of incomplete code. Take the following example:
 
 ```
-def next_even (n:Int | n >= 0) : {r:Int | r > n && r % 2 == 0} =
+def next_even (n:Int | n >= 0) : {r:Int | r > n && r % 2 = 0} :=
     (?hole : Int);
 ```
 
@@ -454,7 +479,7 @@ Because liquid types are limited, you can define your target function using deco
 
 ```
 @minimize(approx 3.0 - 5.0)
-def approx (x:Int | x > 0) : Float =
+def approx (x:Int | x > 0) : Float :=
     (?hole : Float);
 ```
 
@@ -488,9 +513,9 @@ result. A single annotation serves three purposes at once:
 
 ```aeon
 # Absolute value of an integer.
-@example(my_abs (0 - 3) == 3)
-@example(my_abs 5 == 5)
-def my_abs (x : Int) : Int = if x < 0 then 0 - x else x;
+@example(my_abs (0 - 3) = 3)
+@example(my_abs 5 = 5)
+def my_abs (x : Int) : Int := if x < 0 then 0 - x else x;
 ```
 
 - **Documentation** — the assertion is rendered next to the function by
@@ -500,7 +525,7 @@ def my_abs (x : Int) : Int = if x < 0 then 0 - x else x;
 - **Synthesis specification** — when the body is a hole `?`, each example
   contributes a `minimize (if assertion then 0 else 1)` objective, so a
   fitness-based synthesizer is driven to satisfy every example
-  (programming-by-example). A numeric `f(args) == expected` example is also
+  (programming-by-example). A numeric `f(args) = expected` example is also
   recorded as a training point for the `decision_tree` synthesizer, which can
   learn a function directly from its examples.
 
@@ -528,8 +553,8 @@ open Image
 
 # Unit test — one concrete case.
 @property(1)
-def test_invert_black_is_white : Bool =
-    black = Image.mk 4 4 (Color.mk 0 0 0);
+def test_invert_black_is_white : Bool :=
+    black := Image.mk 4 4 (Color.mk 0 0 0);
     assertEqual (Image.get_pixel (Image.invert black) 0 0) (Color.mk 255 255 255);
 
 # Property — the colour channels are generated; the assertion must hold for all.
@@ -537,8 +562,8 @@ def test_invert_black_is_white : Bool =
 def prop_solid_pixel_is_fill
     (r : {v : Int | v >= 0 && v < 256})
     (g : {v : Int | v >= 0 && v < 256})
-    (b : {v : Int | v >= 0 && v < 256}) : Bool =
-    col = Color.mk r g b;
+    (b : {v : Int | v >= 0 && v < 256}) : Bool :=
+    col := Color.mk r g b;
     assertEqual (Image.get_pixel (Image.mk 8 8 col) 0 0) col;
 ```
 
@@ -571,7 +596,7 @@ To keep a function or variable (such as a fitness/oracle helper) out of the
 synthesizer's grammar, shadow it with a `Unit` binding in the hole's scope:
 
 ```aeon
-def synth (x: Int) : Int = (let oracle = unit in (?hole : Int))
+def synth (x: Int) : Int := (let oracle := unit in (?hole : Int))
 ```
 
 Inside the hole, `oracle` now has type `Unit`, so the type-directed grammar

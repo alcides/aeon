@@ -22,8 +22,8 @@ inductive Coloring
      (v:Int   | 1 <= v   && v   <= 3)
      (t:Int   | 1 <= t   && t   <= 3) :
      {c:Coloring |
-        (c_wa c == wa) && (c_nt c == nt) && (c_sa c == sa) && (c_q c == q) &&
-        (c_nsw c == nsw) && (c_v c == v) && (c_t c == t)}
+        (c_wa c = wa) && (c_nt c = nt) && (c_sa c = sa) && (c_q c = q) &&
+        (c_nsw c = nsw) && (c_v c = v) && (c_t c = t)}
 + c_wa  (c:Coloring) : Int
 + c_nt  (c:Coloring) : Int
 + c_sa  (c:Coloring) : Int
@@ -41,7 +41,7 @@ def coloring_hole : {c:Coloring |
     (c_wa c != c_nt c) && (c_wa c != c_sa c) && (c_nt c != c_sa c) &&
     (c_nt c != c_q c)  && (c_sa c != c_q c)  && (c_sa c != c_nsw c) &&
     (c_sa c != c_v c)  && (c_q c != c_nsw c) && (c_nsw c != c_v c)
-} = ?hole
+} := ?hole
 
 # (b) Verification: a known proper 3-colouring type-checks against the spec.
 #   WA=1 NT=2 SA=3 Q=1 NSW=2 V=1 T=1
@@ -49,4 +49,4 @@ def coloring_solution : {c:Coloring |
     (c_wa c != c_nt c) && (c_wa c != c_sa c) && (c_nt c != c_sa c) &&
     (c_nt c != c_q c)  && (c_sa c != c_q c)  && (c_sa c != c_nsw c) &&
     (c_sa c != c_v c)  && (c_q c != c_nsw c) && (c_nsw c != c_v c)
-} = .mk 1 2 3 1 2 1 1
+} := .mk 1 2 3 1 2 1 1

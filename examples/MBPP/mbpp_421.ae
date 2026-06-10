@@ -6,7 +6,7 @@
 inductive Tuple
 | mk (a0:String) (a1:String) (a2:Int) (a3:String) : Tuple
 
-def mbpp_fitness (f:(x0:Tuple) -> String) : Float = native "float((0 if (f(('Tuple_mk', 'ID', 'is', 4, 'UTS')) == 'ID-is-4-UTS') else 1) + (0 if (f(('Tuple_mk', 'QWE', 'is', 4, 'RTY')) == 'QWE-is-4-RTY') else 1) + (0 if (f(('Tuple_mk', 'ZEN', 'is', 4, 'OP')) == 'ZEN-is-4-OP') else 1))"
+def mbpp_fitness (f:(x0:Tuple) -> String) : Float := native "float((0 if (f(('Tuple_mk', 'ID', 'is', 4, 'UTS')) == 'ID-is-4-UTS') else 1) + (0 if (f(('Tuple_mk', 'QWE', 'is', 4, 'RTY')) == 'QWE-is-4-RTY') else 1) + (0 if (f(('Tuple_mk', 'ZEN', 'is', 4, 'OP')) == 'ZEN-is-4-OP') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (test_tup:Tuple) : String = (let mbpp_fitness = unit in ?hole)
+def synth (test_tup:Tuple) : String := (let mbpp_fitness := unit in ?hole)

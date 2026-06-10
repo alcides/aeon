@@ -4,10 +4,10 @@
 open Array
 
 def insert_at (x: Int) (l: (Array Int)) (k: {n:Int | n >= 0 && n <= Array_size l}) :
-        {r:(Array Int) | Array_size r == Array_size l + 1} =
+        {r:(Array Int) | Array_size r = Array_size l + 1} :=
     native "l[:k] + [x] + l[k:]"
 
-def main (args:Int) : Unit =
-    a : {x:(Array Int) | Array_size x == 4} =
+def main (args:Int) : Unit :=
+    a : {x:(Array Int) | Array_size x = 4} :=
         Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 4) 5;
     print (insert_at 3 a 2)

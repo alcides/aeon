@@ -23,15 +23,15 @@ open Relax
 def robust_relaxed
     (x1: {v: Float | 0.0 <= v && v <= 1.0})
     (x2: {v: Float | 0.0 <= v && v <= 1.0}) :
-    {margin: Float | margin > 0.0} =
-    let y = relu_relaxed 0.5 0.5 (x1 - x2) in
+    {margin: Float | margin > 0.0} :=
+    let y := relu_relaxed 0.5 0.5 (x1 - x2) in
     2.0 - y ;
 
 
 # Soundness check: the triangle is a genuine over-approximation. The
 # returned bound holds for *every* input in the box, including the corner
 # x1=1, x2=0 where the true ReLU output is 1 and 2 - y = 1 > 0.
-def witness (_: Int) : {margin: Float | margin > 0.0} =
+def witness (_: Int) : {margin: Float | margin > 0.0} :=
     robust_relaxed 1.0 0.0 ;
 
 
@@ -46,5 +46,5 @@ def witness (_: Int) : {margin: Float | margin > 0.0} =
 # back-substitution); this single-layer prototype does not exercise it.
 
 
-def main (_: Int) : Unit =
+def main (_: Int) : Unit :=
     print (robust_relaxed 0.8 0.2)

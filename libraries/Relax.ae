@@ -31,10 +31,10 @@
 
 # Unstable ReLU (l < 0 < u): the full triangle relaxation.
 def relu_relaxed (a: Float) (b: Float) (z: Float) :
-    {y: Float | y >= 0.0 && y >= z && y <= (a * z) + b} =
+    {y: Float | y >= 0.0 && y >= z && y <= (a * z) + b} :=
     native "max(0.0, z)" ;
 
 # Lower bounds only (y >= 0, y >= z) — a sound relaxation with no upper
 # face. Useful when only a lower bound on the neuron is needed.
-def relu_lower (z: Float) : {y: Float | y >= 0.0 && y >= z} =
+def relu_lower (z: Float) : {y: Float | y >= 0.0 && y >= z} :=
     native "max(0.0, z)" ;

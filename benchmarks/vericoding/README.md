@@ -18,14 +18,14 @@ The translator rejects tasks outside the subset with a printed reason (so a task
 | Dafny | Aeon |
 |---|---|
 | `int` / `bool` | `Int` / `Bool` |
-| `predicate P(args) { body }` | `def P args : Bool = body;` |
-| `method M(args) returns (r:T) requires R ensures E` | `def M args (last:Tlast \| R) : {r:T \| E} = ?hole;` |
+| `predicate P(args) { body }` | `def P args : Bool := body;` |
+| `method M(args) returns (r:T) requires R ensures E` | `def M args (last:Tlast \| R) : {r:T \| E} := ?hole;` |
 | `==>` (implication) | `(a) --> (b)` — aeon's `-->` is parsed by the grammar and [registered in the prelude](../../aeon/prelude/prelude.py) |
-| `<==>` (iff) | `a == b` (Bool equivalence) |
+| `<==>` (iff) | `a = b` (Bool equivalence) |
 | `a <= b <= c` (chained) | `(a <= b) && (b <= c)` |
 | `f(a, b, c)` (Dafny call) | `(f a b c)` (curried aeon call) |
-| `var X := EXPR;` inside predicate body | `let X = EXPR in` |
-| `abs(...)` (Dafny built-in) | emitted `def abs (x:Int) : Int = if x >= 0 then x else 0 - x;` |
+| `var X := EXPR;` inside predicate body | `let X := EXPR in` |
+| `abs(...)` (Dafny built-in) | emitted `def abs (x:Int) : Int := if x >= 0 then x else 0 - x;` |
 
 ## Running
 

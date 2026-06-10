@@ -8,8 +8,8 @@
 # fitness = mean absolute error over 30 sampled points (0.0 == perfect), minimized.
 #   uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_i_10_7.ae
 
-def sr_errors : (func: (a0:Float) -> (a1:Float) -> Float) -> Float =
+def sr_errors : (func: (a0:Float) -> (a1:Float) -> Float) -> Float :=
     fun func => native "(lambda m, R: (lambda P: sum(abs(func(p[0])(p[1]) - (p[0] / m.sqrt(1 - p[1] ** 2 / 299792458.0 ** 2))) for p in P) / len(P))([[(10.0 ** R.uniform(-1.0, 1.0)), (10.0 ** R.uniform(5.0, 8.0))] for _ in range(0, 30)]))(__import__('math'), __import__('random').Random(0))";
 
 @minimize_float(sr_errors synth)
-def synth (m_0:Float) (v:Float) : Float = (let sr_errors = unit in ?hole)
+def synth (m_0:Float) (v:Float) : Float := (let sr_errors := unit in ?hole)

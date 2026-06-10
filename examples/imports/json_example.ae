@@ -2,14 +2,14 @@ open Json
 
 # Round-trip: build an object via mk + setKey, stringify, parse, query.
 
-def built : Json =
-    o0 : Json = Json.mkObject;
-    o1 : Json = Json.setKey o0 "name" (Json.mkString "Aeon");
+def built : Json :=
+    o0 : Json := Json.mkObject;
+    o1 : Json := Json.setKey o0 "name" (Json.mkString "Aeon");
     Json.setKey o1 "version" (Json.mkInt 4)
 
 # stringify is refined non-empty, so it can be passed directly to parse.
-def decoded : Json = Json.parse (Json.stringify built)
+def decoded : Json := Json.parse (Json.stringify built)
 
-def name : String = Json.asString (Json.get decoded "name")
+def name : String := Json.asString (Json.get decoded "name")
 
-def main (_:Int) : Unit = print name
+def main (_:Int) : Unit := print name

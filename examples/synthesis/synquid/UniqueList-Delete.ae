@@ -6,4 +6,4 @@
 
 open List
 
-def udelete (x: a) (xs: (List a)) : {l:(List a) | List.size l <= List.size xs} = ?hole;
+def udelete (x: a) (xs: (List a)) : {l:(List a) | List.size l <= List.size xs} := ?hole;

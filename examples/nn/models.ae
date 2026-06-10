@@ -16,19 +16,19 @@ open Models
 open List
 
 
-def main (_: Int) : Unit =
+def main (_: Int) : Unit :=
     # A neural-network classifier: 4 inputs -> 3 classes.
-    let net = stack (sequential (dense_relu 4 8)) (dense 8 3) in
+    let net := stack (sequential (dense_relu 4 8)) (dense 8 3) in
 
     # A scikit-learn classifier trained on the same 4-feature, 3-class data.
-    let 1 df = read_csv "examples/nn/data/iris2.csv" in
-    let ds = target df "species" false false in
-    let tree = decision_tree_classifier ds in
+    let 1 df := read_csv "examples/nn/data/iris2.csv" in
+    let ds := target df "species" false false in
+    let tree := decision_tree_classifier ds in
 
     # One feature vector, fed to both through the SAME typeclass method.
-    let x = from_list (cons 5.1 (cons 3.5 (cons 1.4 (cons 0.2 nil)))) in
-    let nn_scores  = classify net x in     # Classifier Network
-    let tree_scores = classify tree x in   # Classifier SklearnClassifier
+    let x := from_list (cons 5.1 (cons 3.5 (cons 1.4 (cons 0.2 nil)))) in
+    let nn_scores  := classify net x in     # Classifier Network
+    let tree_scores := classify tree x in   # Classifier SklearnClassifier
 
     # Shape accessors dispatch by model type too: both report 3 classes.
     print ((cls_classes net) + (cls_classes tree))

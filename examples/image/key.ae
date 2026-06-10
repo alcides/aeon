@@ -16,32 +16,32 @@
 open Image
 open Color
 
-def target : Image = Image.open "examples/image/key_target.jpg"
+def target : Image := Image.open "examples/image/key_target.jpg"
 
 # Exact raster size for key_target.jpg (used so refinements prove rectangle bounds against the canvas).
-def target_w : { v : Int | v == 1024 } = 1024
+def target_w : { v : Int | v = 1024 } := 1024
 
-def target_h : { v : Int | v == 768 } = 768
+def target_h : { v : Int | v = 768 } := 768
 
-def white : Color = Color.mk 255 255 255
+def white : Color := Color.mk 255 255 255
 
-def key_grey : Color = Color.mk 192 192 192
+def key_grey : Color := Color.mk 192 192 192
 
 @minimize_float(fitness_bw_mse synth_key target)
 @minimize_float(fitness_half_size_mse synth_key target)
 @minimize_float(fitness_row_mismatch synth_key target)
 @minimize_float(fitness_col_mismatch synth_key target)
 @minimize_float(fitness_pixel_mismatch synth_key target)
-def synth_key : { img : Image | (width img == target_w) && (height img == target_h) } = ?hole
+def synth_key : { img : Image | (width img = target_w) && (height img = target_h) } := ?hole
 
 # Human-readable reference for the shape (matches the historical hand-written key program).
-def reference_key : Image =
-    image0 = Image.mk target_w target_h white;
-    image1 = Image.draw_rectangle image0 170 256 256 256 key_grey;
-    image2 = Image.draw_rectangle image1 255 341 85 83 white;
-    image3 = Image.draw_rectangle image2 426 341 509 83 key_grey;
-    image4 = Image.draw_rectangle image3 836 424 100 68 key_grey;
-    image5 = Image.draw_rectangle image4 686 424 100 48 key_grey;
+def reference_key : Image :=
+    image0 := Image.mk target_w target_h white;
+    image1 := Image.draw_rectangle image0 170 256 256 256 key_grey;
+    image2 := Image.draw_rectangle image1 255 341 85 83 white;
+    image3 := Image.draw_rectangle image2 426 341 509 83 key_grey;
+    image4 := Image.draw_rectangle image3 836 424 100 68 key_grey;
+    image5 := Image.draw_rectangle image4 686 424 100 48 key_grey;
     image5;
 
 # def dump_reference : Unit = Image.save reference_key "examples/image/key.jpg"

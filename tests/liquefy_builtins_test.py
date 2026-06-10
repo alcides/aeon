@@ -50,16 +50,16 @@ def test_set_op_through_smt():
     code = """
 type IntList
 
-def elts : (l:IntList) -> Set = uninterpreted
-def size : (l:IntList) -> Int = uninterpreted
+def elts : (l:IntList) -> Set := uninterpreted
+def size : (l:IntList) -> Int := uninterpreted
 
-def empty : {l:IntList | elts l == Set_empty} = native "[]"
+def empty : {l:IntList | elts l = Set_empty} := native "[]"
 
-def cons (x:Int) (xs:IntList) : {l:IntList | Set_mem x (elts l)} =
+def cons (x:Int) (xs:IntList) : {l:IntList | Set_mem x (elts l)} :=
     native "[x] + xs"
 
-def main (_:Int) : Unit =
-    a = cons 1 empty;
+def main (_:Int) : Unit :=
+    a := cons 1 empty;
     print(a)
 """
     assert check_compile(code, st_top)

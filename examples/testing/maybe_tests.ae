@@ -6,35 +6,35 @@ open Testing
 open Maybe
 
 # A typed `none` so its element type is fixed for `isNone` / `isJust`.
-def noneInt : (Maybe Int) = none;
+def noneInt : (Maybe Int) := none;
 
 # ── Unit tests ───────────────────────────────────────────────────────────────
 
 @property(1)
-def test_isJust : Bool =
+def test_isJust : Bool :=
     both (assertTrue (isJust (just 5)))
          (assertFalse (isJust noneInt));
 
 @property(1)
-def test_isNone : Bool =
+def test_isNone : Bool :=
     both (assertTrue (isNone noneInt))
          (assertFalse (isNone (just 5)));
 
 @property(1)
-def test_withDefault_just : Bool = assertEqual (withDefault 0 (just 7)) 7;
+def test_withDefault_just : Bool := assertEqual (withDefault 0 (just 7)) 7;
 
 @property(1)
-def test_withDefault_none : Bool = assertEqual (withDefault 0 noneInt) 0;
+def test_withDefault_none : Bool := assertEqual (withDefault 0 noneInt) 0;
 
 # ── Property-based tests ─────────────────────────────────────────────────────
 
 # `just x` is always present and unwraps to `x`.
 @property
-def prop_just_is_present (x : Int) : Bool =
+def prop_just_is_present (x : Int) : Bool :=
     both (assertTrue (isJust (just x)))
          (assertEqual (withDefault 0 (just x)) x);
 
 # withDefault on a present value ignores the default.
 @property
-def prop_withDefault_ignores_default (x : Int) (d : Int) : Bool =
+def prop_withDefault_ignores_default (x : Int) (d : Int) : Bool :=
     assertEqual (withDefault d (just x)) x;

@@ -17,14 +17,14 @@
 # Omitting the prefix gives the unrestricted default (`omega`), so
 # every existing program continues to type-check unchanged.
 
-def open_handle (path: Int) : Int = path;
+def open_handle (path: Int) : Int := path;
 
-def close (1 h: Int) : Int = h;
+def close (1 h: Int) : Int := h;
 
-def main (args: Int) : Unit =
+def main (args: Int) : Unit :=
     # `f` must be consumed exactly once. Removing `close f` here
     # produces a `LinearUnusedError`; calling `close f` twice produces
     # a `LinearUsedTooManyTimesError`.
-    let 1 f = open_handle 0 in
-    let r = close f in
+    let 1 f := open_handle 0 in
+    let r := close f in
     print r;

@@ -6,4 +6,4 @@
 
 open List
 
-def snocL (xs: (List a)) (x: a) : {l:(List a) | List.size l == List.size xs + 1} = ?hole;
+def snocL (xs: (List a)) (x: a) : {l:(List a) | List.size l = List.size xs + 1} := ?hole;

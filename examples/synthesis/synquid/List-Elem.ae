@@ -6,4 +6,4 @@
 
 open List
 
-def elemL (x: a) (xs: (List a)) : Bool = ?hole;
+def elemL (x: a) (xs: (List a)) : Bool := ?hole;

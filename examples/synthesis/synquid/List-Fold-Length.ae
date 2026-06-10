@@ -6,4 +6,4 @@
 
 open List
 
-def lengthL (xs: (List a)) : {r:Int | r == List.size xs} = ?hole;
+def lengthL (xs: (List a)) : {r:Int | r = List.size xs} := ?hole;

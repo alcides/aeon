@@ -25,11 +25,11 @@ def _driver(source: str) -> AeonDriver:
 
 
 PASSING = """
-@example(my_abs (0 - 3) == 3)
-@example(my_abs 5 == 5)
-def my_abs (x : Int) : Int = if x < 0 then 0 - x else x;
+@example(my_abs (0 - 3) = 3)
+@example(my_abs 5 = 5)
+def my_abs (x : Int) : Int := if x < 0 then 0 - x else x;
 
-def main (_ : Int) : Unit = print 0;
+def main (_ : Int) : Unit := print 0;
 """
 
 
@@ -42,11 +42,11 @@ def test_passing_examples_all_pass():
 
 def test_failing_example_is_reported():
     source = """
-        @example(wrong 1 == 1)
-        @example(wrong 1 == 2)
-        def wrong (x : Int) : Int = x;
+        @example(wrong 1 = 1)
+        @example(wrong 1 = 2)
+        def wrong (x : Int) : Int := x;
 
-        def main (_ : Int) : Unit = print 0;
+        def main (_ : Int) : Unit := print 0;
     """
     driver = _driver(source)
     results = run_examples(driver.evaluation_ctx, driver.core, driver.metadata)
@@ -79,9 +79,9 @@ def test_example_assertion_must_be_bool():
     # A non-Bool assertion is a type error (the synthesis goal wraps it in an if).
     source = """
         @example(bad 1)
-        def bad (x : Int) : Int = x;
+        def bad (x : Int) : Int := x;
 
-        def main (_ : Int) : Unit = print 0;
+        def main (_ : Int) : Unit := print 0;
     """
     cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
     driver = AeonDriver(cfg)
@@ -94,12 +94,12 @@ def test_examples_surface_in_documentation():
 
     doc = extract_documentation("inline.ae", source=PASSING)
     fn = next(f for f in doc.functions if f.name == "my_abs")
-    assert fn.examples == ["my_abs (0 - 3) == 3", "my_abs 5 == 5"]
+    assert fn.examples == ["my_abs (0 - 3) = 3", "my_abs 5 = 5"]
     # The @example decorator is rendered as an examples block, not a chip.
     assert all("example" not in d for d in fn.decorators)
 
     html = generate_html(doc)
-    assert "my_abs (0 - 3) == 3" in html
+    assert "my_abs (0 - 3) = 3" in html
     assert "Examples" in html
 
 
@@ -107,11 +107,11 @@ def test_numeric_example_records_training_data():
     # A numeric `f(lits) == lit` example also feeds the decision-tree synthesizer
     # as a training point [args..., expected].
     source = """
-        @example(f 1.0 == 2.0)
-        @example(f 2.0 == 4.0)
-        def f (x : Float) : Float = x + x;
+        @example(f 1.0 = 2.0)
+        @example(f 2.0 = 4.0)
+        def f (x : Float) : Float := x + x;
 
-        def main (_ : Int) : Unit = print 0;
+        def main (_ : Int) : Unit := print 0;
     """
     driver = _driver(source)
     data = [v["training_data"] for v in driver.metadata.values() if isinstance(v, dict) and "training_data" in v]
@@ -123,10 +123,10 @@ def test_non_numeric_examples_do_not_record_training_data():
     # so they must not produce decision-tree training points.
     source = """
         @example(p 35 64)
-        @example(p 1 1 == false)
-        def p (a : Int) (b : Int) : Bool = a == b;
+        @example(p 1 1 = false)
+        def p (a : Int) (b : Int) : Bool := a = b;
 
-        def main (_ : Int) : Unit = print 0;
+        def main (_ : Int) : Unit := print 0;
     """
     driver = _driver(source)
     assert not any(isinstance(v, dict) and "training_data" in v for v in driver.metadata.values())
@@ -142,11 +142,11 @@ def test_example_drives_decision_tree_synthesis():
     from tests.driver import check_and_return_core
 
     source = """
-        @example(f 1.0 == 10.0)
-        @example(f 2.0 == 10.0)
-        @example(f 8.0 == 20.0)
-        @example(f 9.0 == 20.0)
-        def f (x : Float) : Float = ?hole;
+        @example(f 1.0 = 10.0)
+        @example(f 2.0 = 10.0)
+        @example(f 8.0 = 20.0)
+        @example(f 9.0 = 20.0)
+        def f (x : Float) : Float := ?hole;
     """
     core, ctx, ectx, md = check_and_return_core(source)
     incs = incomplete_functions_and_holes(ctx, core)
@@ -159,12 +159,12 @@ def test_example_drives_synthesis():
     # With a hole body and a fitness-based synthesizer, the @example goals should
     # steer the search toward a body that satisfies them.
     source = """
-        @example(double 3 == 6)
-        @example(double 0 == 0)
-        @example(double 5 == 10)
-        def double (x : Int) : Int = ?hole;
+        @example(double 3 = 6)
+        @example(double 0 = 0)
+        @example(double 5 = 10)
+        def double (x : Int) : Int := ?hole;
 
-        def main (_ : Int) : Unit = print 0;
+        def main (_ : Int) : Unit := print 0;
     """
     cfg = AeonConfig(synthesizer="gp", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
     driver = AeonDriver(cfg)

@@ -3,8 +3,8 @@
 
 open Array
 
-def Array.len (l: (Array a)) : {n:Int | n == Array.size l} = l.length
+def Array.len (l: (Array a)) : {n:Int | n = Array.size l} := l.length
 
-def main (args:Int) : Unit =
-    xs = (((Array.new[Int]).append 1).append 2).append 3;
+def main (args:Int) : Unit :=
+    xs := (((Array.new[Int]).append 1).append 2).append 3;
     print xs.len;

@@ -15,7 +15,7 @@
 #   y >= 0           (output is non-negative)
 #   y == x || y == 0 (output is either the input or zero)
 # Z3 uses this disjunction to reason about reachable outputs downstream.
-def relu (x: Float) : {y: Float | y >= 0.0 && (y == x || y == 0.0)} =
+def relu (x: Float) : {y: Float | y >= 0.0 && (y = x || y = 0.0)} :=
     if x >= 0.0 then x else 0.0;
 
 # ── A single neuron:  relu(w1*x1 + w2*x2 + b) ──────────────────────────
@@ -30,7 +30,7 @@ def relu (x: Float) : {y: Float | y >= 0.0 && (y == x || y == 0.0)} =
 def neuron
     (x1: {v: Float | 0.0 <= v && v <= 1.0})
     (x2: {v: Float | 0.0 <= v && v <= 1.0})
-    : {y: Float | 0.0 <= y && y <= 5.0} =
+    : {y: Float | 0.0 <= y && y <= 5.0} :=
     relu (2.0 * x1 + 3.0 * x2 - 1.0);
 
 # ── A safety property over a 2-layer network ───────────────────────────
@@ -40,10 +40,10 @@ def neuron
 def network
     (x1: {v: Float | 0.0 <= v && v <= 1.0})
     (x2: {v: Float | 0.0 <= v && v <= 1.0})
-    : {y: Float | 0.0 <= y && y <= 30.0} =
-    let h1 : {v: Float | 0.0 <= v && v <= 4.0} = relu (2.0 * x1 + 3.0 * x2 - 1.0) in
-    let h2 : {v: Float | 0.0 <= v && v <= 5.0} = relu (5.0 * x1 - 1.0 * x2 + 0.0) in
+    : {y: Float | 0.0 <= y && y <= 30.0} :=
+    let h1 : {v: Float | 0.0 <= v && v <= 4.0} := relu (2.0 * x1 + 3.0 * x2 - 1.0) in
+    let h2 : {v: Float | 0.0 <= v && v <= 5.0} := relu (5.0 * x1 - 1.0 * x2 + 0.0) in
     relu (3.0 * h1 + 2.0 * h2 + 1.0);
 
-def main (_: Int) : Unit =
+def main (_: Int) : Unit :=
     print (network 1.0 0.5)

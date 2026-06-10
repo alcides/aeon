@@ -17,7 +17,7 @@ inductive Date
 | mk (y:Int | 1900 <= y && y <= 2100)
      (m:Int | 1 <= m && m <= 12)
      (d:Int | 1 <= d && d <= 31) :
-     {dt:Date | (year dt == y) && (month dt == m) && (day dt == d)}
+     {dt:Date | (year dt = y) && (month dt = m) && (day dt = d)}
 + year  (dt:Date) : Int
 + month (dt:Date) : Int
 + day   (dt:Date) : Int
@@ -32,11 +32,11 @@ inductive Date
 def fuzz_date : {dt:Date |
     ((month dt != 4 && month dt != 6 && month dt != 9 && month dt != 11) || day dt <= 30) &&
     (month dt != 2 || day dt <= 28)
-} = ?hole;
+} := ?hole;
 
 # (b) Verification: a hand-picked valid date type-checks; an invalid one (e.g.
 # Feb 30) would be rejected by the same spec.
 def a_valid_date : {dt:Date |
     ((month dt != 4 && month dt != 6 && month dt != 9 && month dt != 11) || day dt <= 30) &&
     (month dt != 2 || day dt <= 28)
-} = .mk 2024 2 28
+} := .mk 2024 2 28

@@ -20,8 +20,8 @@ inductive Bales
      (w4: Int | w4 >= 0 && w4 <= 50)
      (w5: Int | w5 >= 0 && w5 <= 50)
    : {b:Bales |
-        (b1 b == w1) && (b2 b == w2) && (b3 b == w3) &&
-        (b4 b == w4) && (b5 b == w5)}
+        (b1 b = w1) && (b2 b = w2) && (b3 b = w3) &&
+        (b4 b = w4) && (b5 b = w5)}
 + b1 (b:Bales) : Int
 + b2 (b:Bales) : Int
 + b3 (b:Bales) : Int
@@ -31,9 +31,9 @@ inductive Bales
 @minimize_int(1)
 def bales_hole : {b:Bales |
     (b1 b <= b2 b) && (b2 b <= b3 b) && (b3 b <= b4 b) && (b4 b <= b5 b) &&
-    (b1 b + b2 b == 80) &&
-    (b4 b + b5 b == 91) &&
-    (b1 b + b2 b + b3 b + b4 b + b5 b == 214) &&
-    (b1 b + b3 b == 82) &&
-    (b3 b + b5 b == 90)
-} = ?hole
+    (b1 b + b2 b = 80) &&
+    (b4 b + b5 b = 91) &&
+    (b1 b + b2 b + b3 b + b4 b + b5 b = 214) &&
+    (b1 b + b3 b = 82) &&
+    (b3 b + b5 b = 90)
+} := ?hole

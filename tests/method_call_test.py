@@ -103,43 +103,43 @@ def test_spaced_dot_is_anonymous_constructor_argument():
 
 
 def test_dotted_definition_name_parses():
-    prog = parse_program('def Int.toString (n:Int) : String = native "str(n)";\ndef main (i:Int) : Int = 0;\n')
+    prog = parse_program('def Int.toString (n:Int) : String := native "str(n)";\ndef main (i:Int) : Int := 0;\n')
     names = [d.name.name for d in prog.definitions]
     assert "Int.toString" in names
 
 
 # --- End-to-end resolution & evaluation --------------------------------------
 
-_PRELUDE = "def Int.double (n:Int) : Int = n + n;\ndef Int.plus (x:Int) (y:Int) : Int = x + y;\n"
+_PRELUDE = "def Int.double (n:Int) : Int := n + n;\ndef Int.plus (x:Int) (y:Int) : Int := x + y;\n"
 
 
 def test_method_call_compiles_and_evaluates():
-    src = _PRELUDE + "def main (i:Int) : Int = 3.double;\n"
+    src = _PRELUDE + "def main (i:Int) : Int := 3.double;\n"
     assert check_compile(src, st_top, 6)
 
 
 def test_method_call_with_argument_evaluates():
     # (1.plus 2) == 3, then .double == 6
-    src = _PRELUDE + "def main (i:Int) : Int = (1.plus 2).double;\n"
+    src = _PRELUDE + "def main (i:Int) : Int := (1.plus 2).double;\n"
     assert check_compile(src, st_top, 6)
 
 
 def test_qualified_call_resolves_to_same_definition():
     """A dotted def is also callable directly as ``Int.plus 1 2``."""
-    src = _PRELUDE + "def main (i:Int) : Int = Int.plus 4 5;\n"
+    src = _PRELUDE + "def main (i:Int) : Int := Int.plus 4 5;\n"
     assert check_compile(src, st_top, 9)
 
 
 def test_method_call_on_variable_receiver():
     """``x.method`` for a local variable ``x`` (lexed as a single QUALIFIED_ID)
     is recovered as a method call when ``x`` names no module."""
-    src = _PRELUDE + ("def main (i:Int) : Int =\n  let n : Int = 4 in\n  n.double;\n")
+    src = _PRELUDE + ("def main (i:Int) : Int :=\n  let n : Int := 4 in\n  n.double;\n")
     assert check_compile(src, st_top, 8)
 
 
 def test_chained_method_call_on_variable_receiver():
     src = _PRELUDE + (
-        "def main (i:Int) : Int =\n  let n : Int = 3 in\n  n.double.double;\n"  # ((n.double).double) == 12
+        "def main (i:Int) : Int :=\n  let n : Int := 3 in\n  n.double.double;\n"  # ((n.double).double) == 12
     )
     assert check_compile(src, st_top, 12)
 
@@ -152,7 +152,9 @@ _LIST = "open List\n"
 def test_method_on_polymorphic_container_module_function():
     """``xs.length`` on a ``List Int`` dispatches to the ``List`` module's
     ``length`` (receiver is the only/first argument)."""
-    src = _LIST + ("def main (i:Int) : Int =\n  let xs : (List Int) = cons 1 (cons 2 (cons 3 nil)) in\n  xs.length;\n")
+    src = _LIST + (
+        "def main (i:Int) : Int :=\n  let xs : (List Int) := cons 1 (cons 2 (cons 3 nil)) in\n  xs.length;\n"
+    )
     assert check_compile(src, st_top, 3)
 
 
@@ -161,9 +163,9 @@ def test_receiver_inserted_at_matching_parameter_position():
     even though ``List.map``'s list parameter is second. map [1,2,3] (+1) then
     sum == 9."""
     src = _LIST + (
-        "def inc (x:Int) : Int = x + 1;\n"
-        "def main (i:Int) : Int =\n"
-        "  let xs : (List Int) = cons 1 (cons 2 (cons 3 nil)) in\n"
+        "def inc (x:Int) : Int := x + 1;\n"
+        "def main (i:Int) : Int :=\n"
+        "  let xs : (List Int) := cons 1 (cons 2 (cons 3 nil)) in\n"
         "  (xs.map inc).sum;\n"
     )
     assert check_compile(src, st_top, 9)
@@ -173,9 +175,9 @@ def test_polymorphic_method_chain_with_first_position_receiver():
     """``xs.append ys`` is ``List.append xs ys`` (receiver first); chained with
     ``.sum``. append [1,2] [3,4] then sum == 10."""
     src = _LIST + (
-        "def main (i:Int) : Int =\n"
-        "  let xs : (List Int) = cons 1 (cons 2 nil) in\n"
-        "  let ys : (List Int) = cons 3 (cons 4 nil) in\n"
+        "def main (i:Int) : Int :=\n"
+        "  let xs : (List Int) := cons 1 (cons 2 nil) in\n"
+        "  let ys : (List Int) := cons 3 (cons 4 nil) in\n"
         "  (xs.append ys).sum;\n"
     )
     assert check_compile(src, st_top, 10)
@@ -185,16 +187,16 @@ def test_user_defined_polymorphic_dotted_method():
     """A user ``def List.len`` with a polymorphic ``(List a)`` parameter resolves
     and instantiates at ``List Int``."""
     src = _LIST + (
-        "def List.len (l: (List a)) : Int = length l;\n"
-        "def main (i:Int) : Int =\n"
-        "  let xs : (List Int) = cons 1 (cons 2 (cons 3 nil)) in\n"
+        "def List.len (l: (List a)) : Int := length l;\n"
+        "def main (i:Int) : Int :=\n"
+        "  let xs : (List Int) := cons 1 (cons 2 (cons 3 nil)) in\n"
         "  xs.len;\n"
     )
     assert check_compile(src, st_top, 3)
 
 
 def test_unknown_method_raises():
-    prog = parse_program("def Int.double (n:Int) : Int = n + n;\ndef main (i:Int) : Int = 1.nope;\n")
+    prog = parse_program("def Int.double (n:Int) : Int := n + n;\ndef main (i:Int) : Int := 1.nope;\n")
     desugared = desugar(prog)
     with pytest.raises(MethodResolutionError):
         elaborate(desugared.elabcontext, desugared.program, st_top)

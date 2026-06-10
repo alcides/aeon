@@ -9,23 +9,23 @@
 open Learning
 
 
-def score_ridge (path: String) (target_col: String) : Float =
-    let 1 df = read_csv path in
+def score_ridge (path: String) (target_col: String) : Float :=
+    let 1 df := read_csv path in
     # not a time series, but has missing values.
-    let ds0 = target df target_col false true in
-    let ds = require_enough_data ds0 in
-    let parts = split ds 0.8 true in
+    let ds0 := target df target_col false true in
+    let ds := require_enough_data ds0 in
+    let parts := split ds 0.8 true in
     # Impute (and could scale) each half independently — no leakage.
-    let train = fill_median (train_of parts) in
-    let test = fill_median (test_of parts) in
-    let model = ridge_alpha 0.5 train in
+    let train := fill_median (train_of parts) in
+    let test := fill_median (test_of parts) in
+    let model := ridge_alpha 0.5 train in
     r2 model test ;
 
 
-def train_ridge (path: String) (target_col: String) : SklearnRegressor =
-    let 1 df = read_csv path in
-    let ds0 = target df target_col false true in
-    let ds = require_enough_data ds0 in
-    let parts = split ds 0.8 true in
-    let train = fill_median (train_of parts) in
+def train_ridge (path: String) (target_col: String) : SklearnRegressor :=
+    let 1 df := read_csv path in
+    let ds0 := target df target_col false true in
+    let ds := require_enough_data ds0 in
+    let parts := split ds 0.8 true in
+    let train := fill_median (train_of parts) in
     ridge train ;

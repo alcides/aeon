@@ -9,4 +9,4 @@ inductive Expr
 | add (le: Expr) (re: Expr) : Expr
 | mul (me: Expr) (ne: Expr) : Expr
 
-def eval (e: Expr) : Int = ?hole;
+def eval (e: Expr) : Int := ?hole;

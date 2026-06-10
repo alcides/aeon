@@ -18,14 +18,14 @@
 # Reference specification: route the addressed data line to the output.
 #   a1 a0 -> selected line
 #    0  0 -> d0,   0 1 -> d1,   1 0 -> d2,   1 1 -> d3
-def mux6_spec (a0:Bool) (a1:Bool) (d0:Bool) (d1:Bool) (d2:Bool) (d3:Bool) : Bool =
+def mux6_spec (a0:Bool) (a1:Bool) (d0:Bool) (d1:Bool) (d2:Bool) (d3:Bool) : Bool :=
     if a1 then (if a0 then d3 else d2) else (if a0 then d1 else d0);
 
 # Exact fitness over the full 64-row truth table: count the disagreements
 # between the candidate `func` and the true multiplexer behaviour.
-def mux_errors : (func: (a0:Bool) -> (a1:Bool) -> (d0:Bool) -> (d1:Bool) -> (d2:Bool) -> (d3:Bool) -> Bool) -> Int =
+def mux_errors : (func: (a0:Bool) -> (a1:Bool) -> (d0:Bool) -> (d1:Bool) -> (d2:Bool) -> (d3:Bool) -> Bool) -> Int :=
     fun func => native "sum(1 for a0 in (True, False) for a1 in (True, False) for d0 in (True, False) for d1 in (True, False) for d2 in (True, False) for d3 in (True, False) if func(a0)(a1)(d0)(d1)(d2)(d3) != [d0, d1, d2, d3][(1 if a0 else 0) + (2 if a1 else 0)])";
 
 @minimize_int(mux_errors synth)
-def synth (a0:Bool) (a1:Bool) (d0:Bool) (d1:Bool) (d2:Bool) (d3:Bool) : Bool =
-    (let mux6_spec = unit in let mux_errors = unit in ?hole)
+def synth (a0:Bool) (a1:Bool) (d0:Bool) (d1:Bool) (d2:Bool) (d3:Bool) : Bool :=
+    (let mux6_spec := unit in let mux_errors := unit in ?hole)

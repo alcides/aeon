@@ -5,14 +5,14 @@ open Array
 # with an explicit empty argv so the example runs cleanly under
 # `aeon args_example.ae` (which doesn't forward CLI args).
 
-def parser : Parser =
-    p0 : Parser = Args.newParser "Demo CLI";
-    p1 : Parser = Args.addOption p0 "greeting" "Hello" "what to say";
+def parser : Parser :=
+    p0 : Parser := Args.newParser "Demo CLI";
+    p1 : Parser := Args.addOption p0 "greeting" "Hello" "what to say";
     Args.addFlag p1 "uppercase" "shout instead of say"
 
-def emptyArgs : (Array String) = native "[]"
+def emptyArgs : (Array String) := native "[]"
 
-def main (_:Int) : Unit =
-    a : ParsedArgs = Args.parseList parser emptyArgs;
-    g : String = Args.getString a "greeting";
+def main (_:Int) : Unit :=
+    a : ParsedArgs := Args.parseList parser emptyArgs;
+    g : String := Args.getString a "greeting";
     print g

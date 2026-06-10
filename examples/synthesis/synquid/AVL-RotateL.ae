@@ -5,9 +5,9 @@
 # Element type polymorphic. AVL BALANCE invariant (and BST order) NOT encoded (needs #1); node-count and height only. Structural/size port.
 
 inductive Avl a
-| aleaf : {t:(Avl a) | asz t == 0 && ah t == 0}
-| anode (left: (Avl a)) (key: a) (right: (Avl a)) : {t:(Avl a) | asz t == asz left + asz right + 1 && ah t == (if ah left >= ah right then ah left else ah right) + 1}
+| aleaf : {t:(Avl a) | asz t = 0 && ah t = 0}
+| anode (left: (Avl a)) (key: a) (right: (Avl a)) : {t:(Avl a) | asz t = asz left + asz right + 1 && ah t = (if ah left >= ah right then ah left else ah right) + 1}
 + asz (t: (Avl a)) : Int
 + ah  (t: (Avl a)) : Int
 
-def rotateL (left: (Avl a)) (x: a) (right: (Avl a)) : {r:(Avl a) | asz r == asz left + asz right + 1} = ?hole;
+def rotateL (left: (Avl a)) (x: a) (right: (Avl a)) : {r:(Avl a) | asz r = asz left + asz right + 1} := ?hole;

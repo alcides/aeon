@@ -8,16 +8,16 @@
 
 inductive Triple
 | mk (x:Int | 0 <= x && x <= 1000) (y:Int | 0 <= y && y <= 1000) (z:Int | 0 <= z && z <= 1000) :
-     {t:Triple | (t0 t == x) && (t1 t == y) && (t2 t == z)}
+     {t:Triple | (t0 t = x) && (t1 t = y) && (t2 t = z)}
 + t0 (t:Triple) : Int  + t1 (t:Triple) : Int  + t2 (t:Triple) : Int
 
 # (a) Fuzzing: synthesise a strictly increasing triple x < y < z.
 @minimize_int(0)
 def fuzz_sorted : {t:Triple |
     (t0 t < t1 t) && (t1 t < t2 t)
-} = ?hole;
+} := ?hole;
 
 # (b) Verification: (3, 14, 159) is strictly increasing; (5, 5, 9) is not.
 def a_sorted : {t:Triple |
     (t0 t < t1 t) && (t1 t < t2 t)
-} = .mk 3 14 159
+} := .mk 3 14 159

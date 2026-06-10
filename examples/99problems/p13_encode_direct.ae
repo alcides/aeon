@@ -3,11 +3,11 @@
 
 open Array
 
-def functools : Unit = native_import "functools"
+def functools : Unit := native_import "functools"
 
-def encode_direct (l: (Array Int)) : (Array (Array Int)) =
+def encode_direct (l: (Array Int)) : (Array (Array Int)) :=
     native "functools.reduce(lambda acc, x: acc + [[1, x]] if not acc or acc[-1][1] != x else acc[:-1] + [[acc[-1][0]+1, x]], l, [])"
 
-def main (args:Int) : Unit =
-    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 1) 1) 2) 3) 3;
+def main (args:Int) : Unit :=
+    a : (Array Int) := Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 1) 1) 2) 3) 3;
     print (encode_direct a)

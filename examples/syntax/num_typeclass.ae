@@ -11,10 +11,10 @@
 
 open Num
 
-def main (args : Int) : Int =
-    let s   : Int   = add 3 4 in          # 7        (Num Int)
-    let d   : Int   = sub s 2 in          # 5
-    let p   : Int   = mul d 2 in          # 10
-    let f   : Float = add 1.5 2.5 in      # 4.0      (Num Float)
+def main (args : Int) : Int :=
+    let s   : Int   := add 3 4 in          # 7        (Num Int)
+    let d   : Int   := sub s 2 in          # 5
+    let p   : Int   := mul d 2 in          # 10
+    let f   : Float := add 1.5 2.5 in      # 4.0      (Num Float)
     # `gt`/`geq` reach the Ord defaults; `lt` dispatches to Ord Float.
     if gt p 5 then (if lt 3.0 f then p else 0) else 0;

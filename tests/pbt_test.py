@@ -12,19 +12,19 @@ from aeon.synthesis.uis.api import SynthesisUI
 
 SOURCE = """
 @property
-def prop_add_commutes (x : Int) (y : Int) : Bool = x + y == y + x;
+def prop_add_commutes (x : Int) (y : Int) : Bool := x + y = y + x;
 
 @property
-def prop_all_positive (x : Int) : Bool = x > 0;
+def prop_all_positive (x : Int) : Bool := x > 0;
 
 @property(150)
-def prop_positive_domain (x : {v : Int | v > 0}) : Bool = x > 0;
+def prop_positive_domain (x : {v : Int | v > 0}) : Bool := x > 0;
 
 @property
-def prop_below (n : Int) (i : {v : Int | v < n}) : Bool = i < n;
+def prop_below (n : Int) (i : {v : Int | v < n}) : Bool := i < n;
 
 @property
-def prop_not_bool (x : Int) : Int = x;
+def prop_not_bool (x : Int) : Int := x;
 """
 
 
@@ -80,12 +80,12 @@ ADT_SOURCE = """
 open List
 
 @property(40)
-def prop_reverse_preserves_length (l : (List Int)) : Bool =
-    length (reversed l) == length l;
+def prop_reverse_preserves_length (l : (List Int)) : Bool :=
+    length (reversed l) = length l;
 
 @property(60)
-def prop_always_empty (l : (List Int)) : Bool =
-    length l == 0;
+def prop_always_empty (l : (List Int)) : Bool :=
+    length l = 0;
 """
 
 

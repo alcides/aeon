@@ -9,21 +9,21 @@ type Row
 # Reads a CSV file and returns a Table.
 # path: path to the CSV file
 # returns: table loaded from the CSV file
-def from_csv(path: String): Table =
+def from_csv(path: String): Table :=
     native "__import__('pandas').read_csv(path).to_dict('records')"
 
 
 # Writes a Table to a CSV file.
 # table: the table to write
 # path: path to the output CSV file
-def to_csv(table: Table) (path: String): Unit =
+def to_csv(table: Table) (path: String): Unit :=
     native "__import__('pandas').DataFrame(table).to_csv(path, index=False)"
 
 
 # Returns the list of column names in the table.
 # table: the table to inspect
 # returns: list of column names
-def columns(table: Table): (Array String) =
+def columns(table: Table): (Array String) :=
     native "list(table[0].keys()) if len(table) > 0 else []"
 
 
@@ -31,7 +31,7 @@ def columns(table: Table): (Array String) =
 # table: the table to select from
 # columns: columns to select
 # returns: new table with only the selected columns
-def select(table: Table) (columns: (Array String)): Table =
+def select(table: Table) (columns: (Array String)): Table :=
     native "[{col: row[col] for col in columns} for row in table]"
 
 
@@ -39,7 +39,7 @@ def select(table: Table) (columns: (Array String)): Table =
 # table: the table to filter
 # predicate: function to decide if a row is kept
 # returns: filtered table
-def filter(table: Table) (predicate: (row: Row) -> Bool): Table =
+def filter(table: Table) (predicate: (row: Row) -> Bool): Table :=
     native "[row for row in table if predicate(row)]"
 
 
@@ -48,7 +48,7 @@ def filter(table: Table) (predicate: (row: Row) -> Bool): Table =
 # column: column to modify
 # f: function to apply to each value in the column
 # returns: table with updated column values
-def map_column(table: Table) (column: String) (f: (a: t) -> b): Table =
+def map_column(table: Table) (column: String) (f: (a: t) -> b): Table :=
     native "[dict(row, **{column: f(row[column])}) for row in table]"
 
 
@@ -57,7 +57,7 @@ def map_column(table: Table) (column: String) (f: (a: t) -> b): Table =
 # column: column to summarize
 # f: summary function (e.g., sum, mean)
 # returns: result of the summary function
-def summary(table: Table) (column: String) (f: (a: (Array Int)) -> b): b =
+def summary(table: Table) (column: String) (f: (a: (Array Int)) -> b): b :=
     native "f([row[column] for row in table])"
 
 
@@ -66,7 +66,7 @@ def summary(table: Table) (column: String) (f: (a: (Array Int)) -> b): b =
 # table: the table to group
 # column: column to group by
 # returns: list of tables, each corresponding to a group
-def group_by(table: Table) (column: String): (Array Table) =
+def group_by(table: Table) (column: String): (Array Table) :=
     native "__import__('aeon.bindings.table').bindings.table.group_by(table, column)"
 
 
@@ -79,7 +79,7 @@ def group_by(table: Table) (column: String): (Array Table) =
 # columns: column whose unique values become new columns
 # values: column to fill values from
 # returns: reshaped table (list of dicts)
-def pivot(table: Table) (index: String) (columns: String) (values: String): Table =
+def pivot(table: Table) (index: String) (columns: String) (values: String): Table :=
     native "__import__('aeon.bindings.table').bindings.table.pivot(table, index, columns, values)"
 
 
@@ -92,7 +92,7 @@ def pivot(table: Table) (index: String) (columns: String) (values: String): Tabl
 # var_name: name for the new variable column
 # value_name: name for the new value column
 # returns: reshaped table (list of dicts)
-def melt(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table =
+def melt(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table :=
     native "__import__('aeon.bindings.table').bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
 
 
@@ -111,68 +111,68 @@ def melt(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (v
 # --- shape / spatial access -------------------------------------------------
 
 # Number of rows in the table.
-def nrow(table: Table): Int = native "len(table)"
+def nrow(table: Table): Int := native "len(table)"
 
 # Number of columns in the table.
-def ncol(table: Table): Int = native "(len(table[0]) if len(table) > 0 else 0)"
+def ncol(table: Table): Int := native "(len(table[0]) if len(table) > 0 else 0)"
 
 # The integer cell at row `r` (0-based) of column `col` -- DACE's spatial
 # cell reference.
-def cell(table: Table) (r: Int) (col: String): Int = native "table[r][col]"
+def cell(table: Table) (r: Int) (col: String): Int := native "table[r][col]"
 
 # --- deriving a column (mutate) ---------------------------------------------
 
 # Add a new column `newcol` whose value in each row is `f` applied to that row.
 # This is the workhorse of data completion: filling a column with a formula
 # over the other columns (e.g. `mutate t "total" (fun row => ...)`).
-def mutate(table: Table) (newcol: String) (f: (row: Row) -> Int): Table =
+def mutate(table: Table) (newcol: String) (f: (row: Row) -> Int): Table :=
     native "[dict(row, **{newcol: f(row)}) for row in table]"
 
 # --- column aggregates ------------------------------------------------------
 
 # Sum of the integer column `column`.
-def sum_col(table: Table) (column: String): Int = native "sum(row[column] for row in table)"
+def sum_col(table: Table) (column: String): Int := native "sum(row[column] for row in table)"
 
 # Integer mean (floor) of the column `column`.
-def mean_col(table: Table) (column: String): Int =
+def mean_col(table: Table) (column: String): Int :=
     native "(sum(row[column] for row in table) // len(table) if len(table) > 0 else 0)"
 
 # Maximum of the integer column `column`.
-def max_col(table: Table) (column: String): Int = native "max(row[column] for row in table)"
+def max_col(table: Table) (column: String): Int := native "max(row[column] for row in table)"
 
 # Minimum of the integer column `column`.
-def min_col(table: Table) (column: String): Int = native "min(row[column] for row in table)"
+def min_col(table: Table) (column: String): Int := native "min(row[column] for row in table)"
 
 # Number of rows (COUNT).
-def count(table: Table): Int = native "len(table)"
+def count(table: Table): Int := native "len(table)"
 
 # --- ordering and slicing ---------------------------------------------------
 
 # Sort the rows in ascending order of `column` (arrange).
-def arrange(table: Table) (column: String): Table = native "sorted(table, key=lambda r: r[column])"
+def arrange(table: Table) (column: String): Table := native "sorted(table, key=lambda r: r[column])"
 
 # The first `n` rows (head / take).
-def head(table: Table) (n: Int): Table = native "table[:n]"
+def head(table: Table) (n: Int): Table := native "table[:n]"
 
 # --- running (cumulative) total: a spatial scan ----------------------------
 
 # Add a column `newcol` holding the running sum of `column` down the rows --
 # the cumulative-total completion pattern (e.g. a balance column).
-def cumsum(table: Table) (column: String) (newcol: String): Table =
+def cumsum(table: Table) (column: String) (newcol: String): Table :=
     native "[dict(table[i], **{newcol: t}) for i, t in enumerate(__import__('itertools').accumulate(rw[column] for rw in table))]"
 
 # --- relational join --------------------------------------------------------
 
 # Inner-join `left` and `right` on equal values of key column `on`.
-def join(left: Table) (right: Table) (on: String): Table =
+def join(left: Table) (right: Table) (on: String): Table :=
     native "[dict(l, **{k: v for k, v in r.items() if k != on}) for l in left for r in right if l[on] == r[on]]"
 
 # --- tidyverse-style aliases for reshape (DACE naming) ---------------------
 
 # `spread` is `pivot`: long -> wide.
-def spread(table: Table) (index: String) (columns: String) (values: String): Table =
+def spread(table: Table) (index: String) (columns: String) (values: String): Table :=
     native "__import__('aeon.bindings.table').bindings.table.pivot(table, index, columns, values)"
 
 # `gather` is `melt`: wide -> long.
-def gather(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table =
+def gather(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table :=
     native "__import__('aeon.bindings.table').bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"

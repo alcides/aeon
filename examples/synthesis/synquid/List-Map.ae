@@ -6,4 +6,4 @@
 
 open List
 
-def mapL (f: (x:a) -> b) (xs: (List a)) : {l:(List b) | List.size l == List.size xs} = ?hole;
+def mapL (f: (x:a) -> b) (xs: (List a)) : {l:(List b) | List.size l = List.size xs} := ?hole;

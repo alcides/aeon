@@ -6,4 +6,4 @@
 
 open List
 
-def reverse (xs: (List a)) : {l:(List a) | List.size l == List.size xs} = ?hole;
+def reverse (xs: (List a)) : {l:(List a) | List.size l = List.size xs} := ?hole;

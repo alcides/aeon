@@ -7,4 +7,4 @@
 open List
 open Maybe
 
-def elemIndex (x: a) (xs: (List a)) : (Maybe Int) = ?hole;
+def elemIndex (x: a) (xs: (List a)) : (Maybe Int) := ?hole;

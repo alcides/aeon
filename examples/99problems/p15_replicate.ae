@@ -3,9 +3,9 @@
 
 open Array
 
-def replicate (l: (Array Int)) (n: {k:Int | k >= 0}) : {r:(Array Int) | Array.size r == n * Array.size l} =
+def replicate (l: (Array Int)) (n: {k:Int | k >= 0}) : {r:(Array Int) | Array.size r = n * Array.size l} :=
     native "[x for x in l for _ in range(n)]"
 
-def main (args:Int) : Unit =
-    a : (Array Int) = Array.append (Array.append (Array.new[Int]) 1) 2;
+def main (args:Int) : Unit :=
+    a : (Array Int) := Array.append (Array.append (Array.new[Int]) 1) 2;
     print (replicate a 3)

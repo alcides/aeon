@@ -13,8 +13,8 @@
 inductive Crypt
 | mk (t:Int | 0 <= t && t <= 9) (w:Int | 0 <= w && w <= 9) (o:Int | 0 <= o && o <= 9)
      (f:Int | 0 <= f && f <= 9) (u:Int | 0 <= u && u <= 9) (r:Int | 0 <= r && r <= 9) :
-     {x:Crypt | (lt x == t) && (lw x == w) && (lo x == o) &&
-                (lf x == f) && (lu x == u) && (lr x == r)}
+     {x:Crypt | (lt x = t) && (lw x = w) && (lo x = o) &&
+                (lf x = f) && (lu x = u) && (lr x = r)}
 + lt (x:Crypt) : Int  + lw (x:Crypt) : Int  + lo (x:Crypt) : Int
 + lf (x:Crypt) : Int  + lu (x:Crypt) : Int  + lr (x:Crypt) : Int
 
@@ -22,21 +22,21 @@ inductive Crypt
 @minimize_int(0)
 def crypt_hole : {x:Crypt |
     (lt x != 0) && (lf x != 0) &&
-    (2 * (100 * lt x + 10 * lw x + lo x) == 1000 * lf x + 100 * lo x + 10 * lu x + lr x) &&
+    (2 * (100 * lt x + 10 * lw x + lo x) = 1000 * lf x + 100 * lo x + 10 * lu x + lr x) &&
     (lt x != lw x) && (lt x != lo x) && (lt x != lf x) && (lt x != lu x) && (lt x != lr x) &&
     (lw x != lo x) && (lw x != lf x) && (lw x != lu x) && (lw x != lr x) &&
     (lo x != lf x) && (lo x != lu x) && (lo x != lr x) &&
     (lf x != lu x) && (lf x != lr x) &&
     (lu x != lr x)
-} = ?hole;
+} := ?hole;
 
 # (b) Verification: 836 + 836 = 1672  (T=8 W=3 O=6 F=1 U=7 R=2) type-checks.
 def crypt_solution : {x:Crypt |
     (lt x != 0) && (lf x != 0) &&
-    (2 * (100 * lt x + 10 * lw x + lo x) == 1000 * lf x + 100 * lo x + 10 * lu x + lr x) &&
+    (2 * (100 * lt x + 10 * lw x + lo x) = 1000 * lf x + 100 * lo x + 10 * lu x + lr x) &&
     (lt x != lw x) && (lt x != lo x) && (lt x != lf x) && (lt x != lu x) && (lt x != lr x) &&
     (lw x != lo x) && (lw x != lf x) && (lw x != lu x) && (lw x != lr x) &&
     (lo x != lf x) && (lo x != lu x) && (lo x != lr x) &&
     (lf x != lu x) && (lf x != lr x) &&
     (lu x != lr x)
-} = .mk 8 3 6 1 7 2
+} := .mk 8 3 6 1 7 2

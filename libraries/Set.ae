@@ -5,42 +5,42 @@ open Array
 type Set a
 
 # Number of elements, as an uninterpreted measure (no runtime value).
-def size : (s:(Set a)) -> Int = uninterpreted
+def size : (s:(Set a)) -> Int := uninterpreted
 
 # Whether the set contains an element, as an uninterpreted predicate usable in
 # refinements. Use ``has`` to test membership at runtime.
-def contains : (s:(Set a)) -> (x:a) -> Bool = uninterpreted
+def contains : (s:(Set a)) -> (x:a) -> Bool := uninterpreted
 
 # Creates a new empty set.
-def new : {s:(Set a) | size s == 0} = native "set()"
+def new : {s:(Set a) | size s = 0} := native "set()"
 
 # Adds an element, returning a new set (never smaller than the original).
 # s: set
 # x: element to add
 # returns: new set containing x
-def add (s:(Set a)) (x:a) : {s2:(Set a) | size s2 >= size s} = native "s | {x}"
+def add (s:(Set a)) (x:a) : {s2:(Set a) | size s2 >= size s} := native "s | {x}"
 
 # Checks if the set contains an element at runtime.
 # s: set
 # x: element to check
 # returns: true if x is in s
-def has (s:(Set a)) (x:a) : Bool = native "x in s"
+def has (s:(Set a)) (x:a) : Bool := native "x in s"
 
 # Removes an element, returning a new set. Removing an absent element is a
 # no-op (unlike Python's ``set.remove``).
 # s: set
 # x: element to remove
 # returns: new set without x
-def remove (s:(Set a)) (x:a) : (Set a) = native "s - {x}"
+def remove (s:(Set a)) (x:a) : (Set a) := native "s - {x}"
 
 # Returns the union of two sets.
-def union (s1:(Set a)) (s2:(Set a)) : (Set a) = native "s1 | s2"
+def union (s1:(Set a)) (s2:(Set a)) : (Set a) := native "s1 | s2"
 
 # Returns the intersection of two sets.
-def intersection (s1:(Set a)) (s2:(Set a)) : (Set a) = native "s1 & s2"
+def intersection (s1:(Set a)) (s2:(Set a)) : (Set a) := native "s1 & s2"
 
 # Returns the difference of two sets (elements in s1 but not in s2).
-def difference (s1:(Set a)) (s2:(Set a)) : (Set a) = native "s1 - s2"
+def difference (s1:(Set a)) (s2:(Set a)) : (Set a) := native "s1 - s2"
 
 # Returns the elements of the set as an array.
-def toList (s:(Set a)) : (Array a) = native "list(s)"
+def toList (s:(Set a)) : (Array a) := native "list(s)"

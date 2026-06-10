@@ -120,11 +120,11 @@ def test_set_empty_list():
     code = """
 type IntList
 
-def elts : (l:IntList) -> Set = uninterpreted
+def elts : (l:IntList) -> Set := uninterpreted
 
-def empty : {l:IntList | elts l == Set_empty} = native "[]"
+def empty : {l:IntList | elts l = Set_empty} := native "[]"
 
-def main (_:Int) : Unit = print(empty)
+def main (_:Int) : Unit := print(empty)
 """
     assert check_compile(code, st_top)
 
@@ -134,15 +134,15 @@ def test_set_cons_union():
     code = """
 type IntList
 
-def elts : (l:IntList) -> Set = uninterpreted
+def elts : (l:IntList) -> Set := uninterpreted
 
-def empty : {l:IntList | elts l == Set_empty} = native "[]"
+def empty : {l:IntList | elts l = Set_empty} := native "[]"
 
-def cons (x:Int) (xs:IntList) : {l:IntList | elts l == Set_cup (Set_sng x) (elts xs)} =
+def cons (x:Int) (xs:IntList) : {l:IntList | elts l = Set_cup (Set_sng x) (elts xs)} :=
     native "[x] + xs"
 
-def main (_:Int) : Unit =
-    a = cons 1 empty;
+def main (_:Int) : Unit :=
+    a := cons 1 empty;
     print(a)
 """
     assert check_compile(code, st_top)
@@ -153,20 +153,20 @@ def test_set_append_is_union():
     code = """
 type IntList
 
-def elts : (l:IntList) -> Set = uninterpreted
+def elts : (l:IntList) -> Set := uninterpreted
 
-def empty : {l:IntList | elts l == Set_empty} = native "[]"
+def empty : {l:IntList | elts l = Set_empty} := native "[]"
 
-def cons (x:Int) (xs:IntList) : {l:IntList | elts l == Set_cup (Set_sng x) (elts xs)} =
+def cons (x:Int) (xs:IntList) : {l:IntList | elts l = Set_cup (Set_sng x) (elts xs)} :=
     native "[x] + xs"
 
-def append (xs:IntList) (ys:IntList) : {l:IntList | elts l == Set_cup (elts xs) (elts ys)} =
+def append (xs:IntList) (ys:IntList) : {l:IntList | elts l = Set_cup (elts xs) (elts ys)} :=
     native "xs + ys"
 
-def main (_:Int) : Unit =
-    a = cons 1 empty;
-    b = cons 2 empty;
-    c = append a b;
+def main (_:Int) : Unit :=
+    a := cons 1 empty;
+    b := cons 2 empty;
+    c := append a b;
     print(c)
 """
     assert check_compile(code, st_top)
@@ -177,11 +177,11 @@ def test_set_sort_is_permutation():
     code = """
 type IntList
 
-def elts : (l:IntList) -> Set = uninterpreted
+def elts : (l:IntList) -> Set := uninterpreted
 
-def sort (xs:IntList) : {l:IntList | elts l == elts xs} = native "sorted(xs)"
+def sort (xs:IntList) : {l:IntList | elts l = elts xs} := native "sorted(xs)"
 
-def main (_:Int) : Unit =
+def main (_:Int) : Unit :=
     print(0)
 """
     assert check_compile(code, st_top)
@@ -192,12 +192,12 @@ def test_set_contains_faithful():
     code = """
 type IntList
 
-def elts : (l:IntList) -> Set = uninterpreted
+def elts : (l:IntList) -> Set := uninterpreted
 
-def contains (x:Int) (xs:IntList) : {b:Bool | b == Set_mem x (elts xs)} =
+def contains (x:Int) (xs:IntList) : {b:Bool | b = Set_mem x (elts xs)} :=
     native "x in xs"
 
-def main (_:Int) : Unit =
+def main (_:Int) : Unit :=
     print(0)
 """
     assert check_compile(code, st_top)
@@ -208,11 +208,11 @@ def test_set_filter_subset():
     code = """
 type IntList
 
-def elts : (l:IntList) -> Set = uninterpreted
+def elts : (l:IntList) -> Set := uninterpreted
 
-def myfilter (xs:IntList) : {l:IntList | Set_sub (elts l) (elts xs)} =
+def myfilter (xs:IntList) : {l:IntList | Set_sub (elts l) (elts xs)} :=
     native "[x for x in xs if x > 0]"
 
-def main (_:Int) : Unit = print(0)
+def main (_:Int) : Unit := print(0)
 """
     assert check_compile(code, st_top)

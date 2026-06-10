@@ -14,22 +14,22 @@
 
 inductive Nucleus
 | mk (radius : {r:Int | r >= 0 && r <= 100})
-   : {n:Nucleus | (radius_of n == radius)}
+   : {n:Nucleus | (radius_of n = radius)}
 + radius_of (n:Nucleus) : Int
 
 # Positive examples: healthy-range nuclei.
-def healthy1 : Nucleus = .mk 14
-def healthy2 : Nucleus = .mk 18
-def healthy3 : Nucleus = .mk 22
+def healthy1 : Nucleus := .mk 14
+def healthy2 : Nucleus := .mk 18
+def healthy3 : Nucleus := .mk 22
 
 # Negative examples: too small (debris) or too large (abnormal).
-def debris1 : Nucleus = .mk 4
-def debris2 : Nucleus = .mk 9
-def abn1    : Nucleus = .mk 32
-def abn2    : Nucleus = .mk 48
+def debris1 : Nucleus := .mk 4
+def debris2 : Nucleus := .mk 9
+def abn1    : Nucleus := .mk 32
+def abn2    : Nucleus := .mk 48
 
-def cost_pos (b:Bool) : Int = if b then 0 else 1
-def cost_neg (b:Bool) : Int = if b then 1 else 0
+def cost_pos (b:Bool) : Int := if b then 0 else 1
+def cost_neg (b:Bool) : Int := if b then 1 else 0
 
 @minimize_int(
     cost_pos (highlight healthy1)
@@ -40,4 +40,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (highlight abn1)
   + cost_neg (highlight abn2)
 )
-def highlight (n:Nucleus) : Bool = (let healthy1 = unit in let healthy2 = unit in let healthy3 = unit in let debris1 = unit in let debris2 = unit in let abn1 = unit in let abn2 = unit in let mk = unit in let cost_pos = unit in let cost_neg = unit in ?hole)
+def highlight (n:Nucleus) : Bool := (let healthy1 := unit in let healthy2 := unit in let healthy3 := unit in let debris1 := unit in let debris2 := unit in let abn1 := unit in let abn2 := unit in let mk := unit in let cost_pos := unit in let cost_neg := unit in ?hole)

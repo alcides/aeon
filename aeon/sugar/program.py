@@ -207,7 +207,7 @@ class SLet(STerm):
 
     def __str__(self):
         prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
-        return f"(let {prefix}{self.var_name} = {self.var_value} in\n\t{self.body})"
+        return f"(let {prefix}{self.var_name} := {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
         return (
@@ -234,7 +234,7 @@ class SRec(STerm):
 
     def __str__(self):
         prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
-        return "(let {}{} : {} = {} in\n\t{})".format(
+        return "(let {}{} : {} := {} in\n\t{})".format(
             prefix,
             self.var_name,
             self.var_type,
@@ -480,7 +480,7 @@ class Decorator(Node):
 
     def __repr__(self):
         macro_args = ", ".join([f"{term}" for term in self.macro_args])
-        named_args = ", ".join([f"{n}={t}" for n, t in self.named_args.items()])
+        named_args = ", ".join([f"{n} := {t}" for n, t in self.named_args.items()])
         all_args = ", ".join(filter(None, [macro_args, named_args]))
         return f"@{self.name}({all_args})"
 
@@ -519,7 +519,7 @@ class Definition(Node):
 
     def __str__(self):
         if not self.args:
-            return f"def {self.name} : {self.type} = {self.body};"
+            return f"def {self.name} : {self.type} := {self.body};"
         else:
             args = ", ".join(
                 [

@@ -61,14 +61,14 @@ def test_chained_comparison_does_not_split_implication():
     # comparison operator.
     out = translate_expression("k == 1 ==> b >= a")
     assert "==>" not in out
-    assert "(k == 1) --> (b >= a)" in out
+    assert "(k = 1) --> (b >= a)" in out
 
 
 def test_var_bindings_become_let_with_scope_parens():
     # Without explicit parens around REST, downstream chain-expansion would
     # split through the `&&` and lose the let scope.
     out = _expand_var_bindings("var x := 1; var y := 2; x + y > 0")
-    assert out == "let x = 1 in let y = 2 in (x + y > 0)"
+    assert out == "let x := 1 in let y := 2 in (x + y > 0)"
 
 
 def test_calls_become_curried():
@@ -169,8 +169,8 @@ method triple(x: int) returns (result: int)
 """
     out = translate(src, "DV0181")
     # Both conjuncts must appear; nothing should be left dangling.
-    assert "result / 3 == x" in out
-    assert "result / 3 * 3 == result" in out
+    assert "result / 3 = x" in out
+    assert "result / 3 * 3 = result" in out
     # No trailing `&&` (was the bug).
     assert "&&)" not in out
     assert "&&}" not in out

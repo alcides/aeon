@@ -1,26 +1,26 @@
 # Problem 46: Print a truth table for a logical expression of two variables.
 # We tabulate a 2-argument boolean function by evaluating it on all four inputs.
 
-def myAnd (a: Bool) (b: Bool) : Bool = a && b
-def myOr (a: Bool) (b: Bool) : Bool = a || b
-def myNand (a: Bool) (b: Bool) : Bool = !(a && b)
-def myXor (a: Bool) (b: Bool) : Bool = a != b
+def myAnd (a: Bool) (b: Bool) : Bool := a && b
+def myOr (a: Bool) (b: Bool) : Bool := a || b
+def myNand (a: Bool) (b: Bool) : Bool := !(a && b)
+def myXor (a: Bool) (b: Bool) : Bool := a != b
 
-def rowStr (a: Bool) (b: Bool) (r: Bool) : String =
+def rowStr (a: Bool) (b: Bool) (r: Bool) : String :=
     native "('T ' if a else 'F ') + ('T ' if b else 'F ') + ('T' if r else 'F')"
 
-def table (f: (x:Bool) -> (y:Bool) -> Bool) : Unit =
-    _ = print (rowStr true true (f true true));
-    _ = print (rowStr true false (f true false));
-    _ = print (rowStr false true (f false true));
+def table (f: (x:Bool) -> (y:Bool) -> Bool) : Unit :=
+    _ := print (rowStr true true (f true true));
+    _ := print (rowStr true false (f true false));
+    _ := print (rowStr false true (f false true));
     print (rowStr false false (f false false))
 
-def main (args:Int) : Unit =
-    _ = print "--- AND ---";
-    _ = table myAnd;
-    _ = print "--- OR ---";
-    _ = table myOr;
-    _ = print "--- NAND ---";
-    _ = table myNand;
-    _ = print "--- XOR ---";
+def main (args:Int) : Unit :=
+    _ := print "--- AND ---";
+    _ := table myAnd;
+    _ := print "--- OR ---";
+    _ := table myOr;
+    _ := print "--- NAND ---";
+    _ := table myNand;
+    _ := print "--- XOR ---";
     table myXor

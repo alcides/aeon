@@ -5,20 +5,20 @@ type Image
 # The image's height in pixels, as an uninterpreted measure. It carries the
 # size contracts of every operation (`mk`, `crop`, `resize`, ...) through the
 # type system but has no runtime value; use `get_height` to read it at runtime.
-def height : (im:Image) -> Int = uninterpreted
+def height : (im:Image) -> Int := uninterpreted
 
 # The image's width in pixels, as an uninterpreted measure (see `height`). Use
 # `get_width` to read it at runtime.
-def width : (im:Image) -> Int = uninterpreted
+def width : (im:Image) -> Int := uninterpreted
 
 # Reads the width at runtime. The return type is refined to equal the `width`
 # measure, so the value is provably the same width the type system reasons about
 # (e.g. `get_width (mk w h c)` has type `{r:Int | r == w}`).
-def get_width (im:Image) : {r:Int | r == width im} = native "im.width"
+def get_width (im:Image) : {r:Int | r = width im} := native "im.width"
 
 # Reads the height at runtime; refined to equal the `height` measure (see
 # `get_width`).
-def get_height (im:Image) : {r:Int | r == height im} = native "im.height"
+def get_height (im:Image) : {r:Int | r = height im} := native "im.height"
 
 # Creates a new image of given width, height, and color.
 # w: image width (>0)
@@ -29,12 +29,12 @@ def mk
     (w:{p:Int | p > 0})
     (h:{p:Int | p > 0})
     (color:Color) :
-    {i : Image | (width i == w) && (height i == h) } =
+    {i : Image | (width i = w) && (height i = h) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_mk(w, h, color[1:])"
 
 # Returns an independent copy (PIL Image.copy).
 def copy (im:Image) :
-    { c:Image | (width c == width im) && (height c == height im) } =
+    { c:Image | (width c = width im) && (height c = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_copy(im)"
 
 # Crops a rectangular region [x, x+w) × [y, y+h) into a new image of size w×h.
@@ -44,7 +44,7 @@ def crop
     (y:{p:Int | p >= 0 && p <= height im})
     (w:{p:Int | p > 0 && x + p <= width im })
     (h:{p:Int | p > 0 && y + p <= height im }) :
-    { r:Image | (width r == w) && (height r == h) } =
+    { r:Image | (width r = w) && (height r = h) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_crop(im, x, y, w, h)"
 
 # Resamples to an exact width and height (PIL Image.resize with high-quality filter).
@@ -52,7 +52,7 @@ def resize
     (im:Image)
     (w:{p:Int | p > 0})
     (h:{p:Int | p > 0}) :
-    { r:Image | (width r == w) && (height r == h) } =
+    { r:Image | (width r = w) && (height r = h) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_resize(im, w, h)"
 
 # Shrinks the image in-place on a copy so it fits inside max_w×max_h while preserving aspect ratio (PIL thumbnail).
@@ -60,26 +60,26 @@ def fit_inside
     (im:Image)
     (max_w:{p:Int | p > 0})
     (max_h:{p:Int | p > 0}) :
-    Image =
+    Image :=
 native "__import__('aeon.bindings.image').bindings.image.Image_fit_inside(im, max_w, max_h)"
 
 # Rotates counter-clockwise by angle degrees; output size matches input (expand=False, PIL default behavior).
 def rotate
     (im:Image)
     (angle:Float) :
-    { r:Image | (width r == width im) && (height r == height im) } =
+    { r:Image | (width r = width im) && (height r = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_rotate(im, angle)"
 
 # Horizontal mirror (PIL FLIP_LEFT_RIGHT).
 def flip_horizontal
     (im:Image) :
-    { r:Image | (width r == width im) && (height r == height im) } =
+    { r:Image | (width r = width im) && (height r = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_flip_horizontal(im)"
 
 # Vertical mirror (PIL FLIP_TOP_BOTTOM).
 def flip_vertical
     (im:Image) :
-    { r:Image | (width r == width im) && (height r == height im) } =
+    { r:Image | (width r = width im) && (height r = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_flip_vertical(im)"
 
 # Samples the RGB pixel at (x, y) as a Color (always RGB mode after open/mk).
@@ -87,7 +87,7 @@ def get_pixel
     (im:Image)
     (x:{p:Int | p >= 0 && p < width im })
     (y:{p:Int | p >= 0 && p < height im }) :
-    Color =
+    Color :=
 native "__import__('aeon.bindings.image').bindings.image.Image_get_pixel(im, x, y)"
 
 # Functional single-pixel draw: returns a new image with one pixel replaced (PIL putpixel on a copy).
@@ -96,7 +96,7 @@ def put_pixel
     (x:{p:Int | p >= 0 && p < width im })
     (y:{p:Int | p >= 0 && p < height im })
     (color:Color) :
-    { r:Image | (width r == width im) && (height r == height im) } =
+    { r:Image | (width r = width im) && (height r = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_put_pixel(im, x, y, color)"
 
 # Pastes `src` onto `dest` with top-left at (x, y); both images stay RGB-aligned in the binding layer.
@@ -105,72 +105,72 @@ def paste
     (src:Image)
     (x:{p:Int | p >= 0 && p + width src <= width dest })
     (y:{p:Int | p >= 0 && p + height src <= height dest }) :
-    { r:Image | (width r == width dest) && (height r == height dest) } =
+    { r:Image | (width r = width dest) && (height r = height dest) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_paste(dest, src, x, y)"
 
 # Converts to grayscale luminance then back to RGB so Color-based pipelines keep one channel width.
 def grayscale
     (im:Image) :
-    { g:Image | (width g == width im) && (height g == height im) } =
+    { g:Image | (width g = width im) && (height g = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_grayscale_rgb(im)"
 
 # Per-channel photographic invert (ImageOps.invert).
 def invert
     (im:Image) :
-    { r:Image | (width r == width im) && (height r == height im) } =
+    { r:Image | (width r = width im) && (height r = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_invert(im)"
 
 # Gaussian blur; radius is the PIL GaussianBlur radius (in pixels, ≥ 0).
 def blur
     (im:Image)
     (radius:Float) :
-    { r:Image | (width r == width im) && (height r == height im) } =
+    { r:Image | (width r = width im) && (height r = height im) } :=
 native "__import__('aeon.bindings.image').bindings.image.Image_blur(im, radius)"
 
 # Displays the image.
 # image: image to display
-def show (image:Image) : Unit = native "image.show()"
+def show (image:Image) : Unit := native "image.show()"
 
 # Saves the image to a file.
 # image: image to save
 # path: file path
-def save (image:Image) (path:String) : Unit = native "image.save(path)"
+def save (image:Image) (path:String) : Unit := native "image.save(path)"
 
 # Opens an image from a file (normalized to RGB for predictable Color / pixel operations).
 # path: file path
 # returns: loaded image
-def open (path:String) : Image = native "__import__('aeon.bindings.image').bindings.image.Image_open(path)"
+def open (path:String) : Image := native "__import__('aeon.bindings.image').bindings.image.Image_open(path)"
 
 # Computes the mean squared error (MSE) difference between two images.
 # img: first image
 # img2: second image
 # returns: MSE difference as float
-def diff (img : Image) (img2 : Image) : Float = native "__import__('aeon.bindings.image').bindings.image.Image_diff_mse(img, img2)"
+def diff (img : Image) (img2 : Image) : Float := native "__import__('aeon.bindings.image').bindings.image.Image_diff_mse(img, img2)"
 
 # ── Multi-objective synthesis metrics (candidate first, reference/target second). All are minimized.
 # Mean squared error on luminance (true grayscale), robust for grey-key matching.
 
-def fitness_bw_mse (candidate : Image) (reference : Image) : Float =
+def fitness_bw_mse (candidate : Image) (reference : Image) : Float :=
 native "__import__('aeon.bindings.image').bindings.image.Image_fitness_bw_mse(candidate, reference)"
 
 # Same as above after halving both sides (floor half width/height), still luminance MSE.
 
-def fitness_half_size_mse (candidate : Image) (reference : Image) : Float =
+def fitness_half_size_mse (candidate : Image) (reference : Image) : Float :=
 native "__import__('aeon.bindings.image').bindings.image.Image_fitness_half_size_mse(candidate, reference)"
 
 # Count of rows that are not byte-identical to the reference row (RGB).
 
-def fitness_row_mismatch (candidate : Image) (reference : Image) : Float =
+def fitness_row_mismatch (candidate : Image) (reference : Image) : Float :=
 native "__import__('aeon.bindings.image').bindings.image.Image_fitness_row_mismatch(candidate, reference)"
 
 # Count of columns that are not byte-identical to the reference column (RGB).
 
-def fitness_col_mismatch (candidate : Image) (reference : Image) : Float =
+def fitness_col_mismatch (candidate : Image) (reference : Image) : Float :=
 native "__import__('aeon.bindings.image').bindings.image.Image_fitness_col_mismatch(candidate, reference)"
 
 # Count of pixels where any RGB channel differs.
 
-def fitness_pixel_mismatch (candidate : Image) (reference : Image) : Float =
+def fitness_pixel_mismatch (candidate : Image) (reference : Image) : Float :=
 native "__import__('aeon.bindings.image').bindings.image.Image_fitness_pixel_mismatch(candidate, reference)"
 
 # Draws a rectangle on the image.
@@ -188,5 +188,5 @@ def draw_rectangle
     (w:{p:Int | p > 0 && x + p <= width im })
     (h:{p:Int | p > 0 && y + p <= height im })
     (color:Color) :
-    {rim:Image | (width rim == width im) && (height rim == height im) } =
+    {rim:Image | (width rim = width im) && (height rim = height im) } :=
         native "__import__('aeon.bindings.image').bindings.image.Image_draw_rectangle(im, x, y, w, h, color[1:])"

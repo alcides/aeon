@@ -7,9 +7,9 @@
 open List
 
 inductive IncList
-| inil : {l:IncList | ilen l == 0}
-| icons (hd: Int) (tl: {t:IncList | ilen t == 0 || hd <= imin t}) : {l:IncList | ilen l == ilen tl + 1 && imin l == hd}
+| inil : {l:IncList | ilen l = 0}
+| icons (hd: Int) (tl: {t:IncList | ilen t = 0 || hd <= imin t}) : {l:IncList | ilen l = ilen tl + 1 && imin l = hd}
 + ilen (l: IncList) : Int
 + imin (l: IncList) : Int
 
-def bstSort (xs: (List Int)) : {l:IncList | ilen l == List.size xs} = ?hole;
+def bstSort (xs: (List Int)) : {l:IncList | ilen l = List.size xs} := ?hole;

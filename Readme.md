@@ -29,9 +29,9 @@ uvx --from aeonlang aeon [file.ae]
 Refinement types let you attach predicates to base types. Here, `sqrt` is declared to accept only positive integers — passing a negative value is a *compile-time* error, not a runtime crash. The `native` keyword bridges to Python:
 
 ```aeon
-def sqrt : (i: {x:Int | x > 0}) -> Float = native "__import__('math').sqrt";
+def sqrt : (i: {x:Int | x > 0}) -> Float := native "__import__('math').sqrt";
 
-def main (i:Int) : Unit =
+def main (i:Int) : Unit :=
     print (sqrt (-25))   # type-checking error: -25 does not satisfy x > 0
 ```
 
@@ -41,7 +41,7 @@ Aeon can synthesize code to satisfy a refinement specification. Mark the body wi
 
 ```aeon
 @minimize_int(deposit)
-def deposit : {d:Int | d > 0 && d * 21900 >= 10000000} = ?hole;
+def deposit : {d:Int | d > 0 && d * 21900 >= 10000000} := ?hole;
 ```
 
 Run with `uv run python -m aeon --budget 10 -s gp file.ae` to synthesize the minimum annual deposit that reaches a $10,000 goal in 20 years at 1% interest.

@@ -37,15 +37,15 @@ def _synthesize(source: str, budget: float = 5.0):
 
 def test_constant_int_synthesis():
     """``{x:Int | x == 35}`` should synthesize the constant 35."""
-    _, _, mapping = _synthesize("def n : {x:Int | x == 35} = ?hole;")
+    _, _, mapping = _synthesize("def n : {x:Int | x = 35} := ?hole;")
     (term,) = mapping.values()
     assert term is not None
-    assert eval_int_program("def n : {x:Int | x == 35} = ?hole;", term) == 35
+    assert eval_int_program("def n : {x:Int | x = 35} := ?hole;", term) == 35
 
 
 def test_linear_equation_synthesis():
     """``{n:Int | n + 4 == 7}`` should synthesize 3."""
-    src = "def x_solution : {n:Int | n + 4 == 7} = ?hole"
+    src = "def x_solution : {n:Int | n + 4 = 7} := ?hole"
     _, _, mapping = _synthesize(src)
     (term,) = mapping.values()
     assert eval_int_program(src, term) == 3
@@ -53,7 +53,7 @@ def test_linear_equation_synthesis():
 
 def test_quadratic_synthesis():
     """``{n:Int | n * n == 4}`` should synthesize a value whose square is 4."""
-    src = "def x_solution : {n:Int | n * n == 4} = ?hole"
+    src = "def x_solution : {n:Int | n * n = 4} := ?hole"
     _, _, mapping = _synthesize(src)
     (term,) = mapping.values()
     val = eval_int_program(src, term)
@@ -62,7 +62,7 @@ def test_quadratic_synthesis():
 
 def test_function_of_input_synthesis():
     """A hole that must depend on an input: ``z == x + 1`` -> ``x + 1``."""
-    src = "def f(x:{k:Int | k > 0}) : {z:Int | z == x + 1} = ?h"
+    src = "def f(x:{k:Int | k > 0}) : {z:Int | z = x + 1} := ?h"
     _, _, mapping = _synthesize(src)
     (term,) = mapping.values()
     assert term is not None  # validated inside synthesize_holes
@@ -70,7 +70,7 @@ def test_function_of_input_synthesis():
 
 def test_precondition_constant_synthesis():
     """``x>0 => z<0`` is satisfiable by a constant; backend should find one."""
-    src = "def test(x:{k:Int | k > 0}) : {z:Int | z < 0} = ?r"
+    src = "def test(x:{k:Int | k > 0}) : {z:Int | z < 0} := ?r"
     _, _, mapping = _synthesize(src)
     (term,) = mapping.values()
     assert term is not None
@@ -78,14 +78,14 @@ def test_precondition_constant_synthesis():
 
 def test_graceful_failure_non_smt_type():
     """A hole of a non-SMT (inductive) type is outside the subset."""
-    src = "inductive P\n| mk (v:Int | 0 < v && v < 10 ) : P\n\ndef func : P = ?hole"
+    src = "inductive P\n| mk (v:Int | 0 < v && v < 10 ) : P\n\ndef func : P := ?hole"
     with pytest.raises(SynthesisNotSuccessful):
         _synthesize(src)
 
 
 def test_translation_emits_sygus_if():
     """The translation phase should produce well-formed SyGuS-IF text."""
-    src = "def f(x:{k:Int | k > 0}) : {z:Int | z == x + 1} = ?h"
+    src = "def f(x:{k:Int | k > 0}) : {z:Int | z = x + 1} := ?h"
     core, ctx, _, _ = check_and_return_core(src)
     targets = incomplete_functions_and_holes(ctx, core)
     holes = get_holes_info(ctx, core, top, targets, refined_types=True)
@@ -102,7 +102,7 @@ def test_translation_emits_sygus_if():
 
 def test_translation_rejects_non_refined_type():
     """A plain (unrefined) type has no spec and is not handled here."""
-    src = "def n : Int = ?hole"
+    src = "def n : Int := ?hole"
     core, ctx, _, _ = check_and_return_core(src)
     targets = incomplete_functions_and_holes(ctx, core)
     holes = get_holes_info(ctx, core, top, targets, refined_types=True)

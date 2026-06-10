@@ -21,8 +21,8 @@ open LearningLines
 def causal_from_precedence
     (d: LDataset) (earlier: Line) (later: Line)
     (h: {x: Int | line_count d > 1 && is_ts d && earlier != later && prec earlier later d}) :
-    {r: Int | causality earlier later} =
-    let inst = LearningLines.ax_timeseries earlier later d in
+    {r: Int | causality earlier later} :=
+    let inst := LearningLines.ax_timeseries earlier later d in
     h ;
 
 
@@ -30,8 +30,8 @@ def causal_from_precedence
 def precedence_is_transitive
     (d: LDataset) (a: Line) (b: Line) (c: Line)
     (h: {x: Int | a != b && b != c && a != c && prec a b d && prec b c d}) :
-    {r: Int | prec a c d} =
-    let inst = LearningLines.ax_prec_trans a b c d in
+    {r: Int | prec a c d} :=
+    let inst := LearningLines.ax_prec_trans a b c d in
     h ;
 
 
@@ -40,8 +40,8 @@ def precedence_is_transitive
 def no_mutual_causality
     (a: Line) (b: Line)
     (h: {x: Int | causality a b && causality b a}) :
-    {r: Int | false} =
-    let inst = LearningLines.ax_causality_antisym a b in
+    {r: Int | false} :=
+    let inst := LearningLines.ax_causality_antisym a b in
     h ;
 
 
@@ -50,6 +50,6 @@ def no_mutual_causality
 def clone_implies_dependency
     (a: Line) (b: Line)
     (h: {x: Int | clone a b}) :
-    {r: Int | causality a b} =
-    let inst = LearningLines.ax_clone_causality a b in
+    {r: Int | causality a b} :=
+    let inst := LearningLines.ax_clone_causality a b in
     h ;

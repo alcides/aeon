@@ -31,11 +31,11 @@ open Certify
 def robust_eps_0_5
     (x1: {v: Float | 0.5 <= v && v <= 1.5})
     (x2: {v: Float | (0.0 - 0.5) <= v && v <= 0.5}) :
-    {margin: Float | margin > 0.0} =
-    let h1 = relu (x1 + x2) in
-    let h2 = relu (x1 - x2) in
-    let logit0 = h1 + h2 in
-    let logit1 = (0.5 * h1) + (0.2 * h2) in
+    {margin: Float | margin > 0.0} :=
+    let h1 := relu (x1 + x2) in
+    let h2 := relu (x1 - x2) in
+    let logit0 := h1 + h2 in
+    let logit1 := (0.5 * h1) + (0.2 * h2) in
     logit0 - logit1 ;
 
 
@@ -61,11 +61,11 @@ def robust_eps_0_5
 def robust_with_confidence
     (x1: {v: Float | 0.5 <= v && v <= 1.5})
     (x2: {v: Float | (0.0 - 0.5) <= v && v <= 0.5}) :
-    {margin: Float | margin >= 0.4} =
-    let h1 = relu (x1 + x2) in
-    let h2 = relu (x1 - x2) in
+    {margin: Float | margin >= 0.4} :=
+    let h1 := relu (x1 + x2) in
+    let h2 := relu (x1 - x2) in
     (h1 + h2) - ((0.5 * h1) + (0.2 * h2)) ;
 
 
-def main (_: Int) : Unit =
+def main (_: Int) : Unit :=
     print (robust_eps_0_5 1.0 0.0)

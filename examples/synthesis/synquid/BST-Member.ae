@@ -5,8 +5,8 @@
 # Element type polymorphic. BST ORDER invariant NOT encoded (needs n-ary abstract refinements, #1); only node-count. Structural/size port.
 
 inductive BTree a
-| bleaf : {t:(BTree a) | bsz t == 0}
-| bnode (left: (BTree a)) (key: a) (right: (BTree a)) : {t:(BTree a) | bsz t == bsz left + bsz right + 1}
+| bleaf : {t:(BTree a) | bsz t = 0}
+| bnode (left: (BTree a)) (key: a) (right: (BTree a)) : {t:(BTree a) | bsz t = bsz left + bsz right + 1}
 + bsz (t: (BTree a)) : Int
 
-def member (x: a) (t: (BTree a)) : Bool = ?hole;
+def member (x: a) (t: (BTree a)) : Bool := ?hole;

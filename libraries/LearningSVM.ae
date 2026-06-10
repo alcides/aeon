@@ -8,32 +8,32 @@
 open LearningCore
 
 def svc
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_svc(ds)"
 
 # No predict_proba; one-hot fallback.
 def linear_svc
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_linear_svc(ds)"
 
 def nu_svc
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_nu_svc(ds)"
 
 def svr
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnRegressor | reg_features m == ds_features ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_svr(ds)"
 
 def linear_svr
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnRegressor | reg_features m == ds_features ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_linear_svr(ds)"
 
 def nu_svr
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnRegressor | reg_features m == ds_features ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_nu_svr(ds)"

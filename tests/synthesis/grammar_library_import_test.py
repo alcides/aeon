@@ -38,9 +38,9 @@ def _grammar_for_hole(code: str):
 def test_inline_dependent_refinement_on_sibling_binder_does_not_crash():
     # ``hi``'s refinement mentions the sibling binder ``lo`` (mirrors Math.clamp).
     code = """
-def clampish (x: Int) (lo: Int) (hi: {v:Int | v >= lo}) : Int = lo;
+def clampish (x: Int) (lo: Int) (hi: {v:Int | v >= lo}) : Int := lo;
 
-def synth (n: Int) : Int = ?hole;
+def synth (n: Int) : Int := ?hole;
 """
     assert _grammar_for_hole(code) is not None
 
@@ -48,9 +48,9 @@ def synth (n: Int) : Int = ?hole;
 def test_inline_nonzero_refinement_does_not_crash():
     # ``!= 0`` yields a sympy Union with no single-range metahandler.
     code = """
-def recip_guard (x: {v:Int | v != 0}) : Int = x;
+def recip_guard (x: {v:Int | v != 0}) : Int := x;
 
-def synth (n: Int) : Int = ?hole;
+def synth (n: Int) : Int := ?hole;
 """
     assert _grammar_for_hole(code) is not None
 
@@ -60,7 +60,7 @@ def test_open_math_library_does_not_crash():
     # ``!= 0`` divisor refinements into scope.
     code = """open Math
 
-def synth (x: Float) : Float = ?hole;
+def synth (x: Float) : Float := ?hole;
 """
     assert _grammar_for_hole(code) is not None
 
@@ -72,9 +72,9 @@ def test_higher_order_library_use_does_not_crash():
     code = """open Array
 open Math
 
-def total_error (f: (a0:Float) -> Float) (xs: (Array Float)) : Float =
+def total_error (f: (a0:Float) -> Float) (xs: (Array Float)) : Float :=
     Array.reduce (fun v => fun acc => Math.absf (f v) + acc) 0.0 xs;
 
-def synth (x: Float) : Float = ?hole;
+def synth (x: Float) : Float := ?hole;
 """
     assert _grammar_for_hole(code) is not None

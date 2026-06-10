@@ -7,20 +7,20 @@
 open Testing
 open Pair
 
-def pfst (p : (Pair Int Int)) : Int = match p with | mk a b => a;
-def psnd (p : (Pair Int Int)) : Int = match p with | mk a b => b;
+def pfst (p : (Pair Int Int)) : Int := match p with | mk a b => a;
+def psnd (p : (Pair Int Int)) : Int := match p with | mk a b => b;
 
 # ── Unit tests ───────────────────────────────────────────────────────────────
 
 @property(1)
-def test_fst : Bool = assertEqual (pfst (mk 3 4)) 3;
+def test_fst : Bool := assertEqual (pfst (mk 3 4)) 3;
 
 @property(1)
-def test_snd : Bool = assertEqual (psnd (mk 3 4)) 4;
+def test_snd : Bool := assertEqual (psnd (mk 3 4)) 4;
 
 @property(1)
-def test_both_components : Bool =
-    p = mk 10 20;
+def test_both_components : Bool :=
+    p := mk 10 20;
     both (assertEqual (pfst p) 10)
          (assertEqual (psnd p) 20);
 
@@ -28,8 +28,8 @@ def test_both_components : Bool =
 
 # The first projection returns the first component, whatever it is.
 @property
-def prop_fst (a : Int) (b : Int) : Bool = assertEqual (pfst (mk a b)) a;
+def prop_fst (a : Int) (b : Int) : Bool := assertEqual (pfst (mk a b)) a;
 
 # The second projection returns the second component.
 @property
-def prop_snd (a : Int) (b : Int) : Bool = assertEqual (psnd (mk a b)) b;
+def prop_snd (a : Int) (b : Int) : Bool := assertEqual (psnd (mk a b)) b;

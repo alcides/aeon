@@ -5,7 +5,7 @@ These tests verify:
 1. The semiring algebra (`add`, `mul`) behaves as Atkey 2018 specifies.
 2. The grammar accepts the new ``MULT`` prefix on parameters
    (`(1 x:T)`, `(0 x:T)`, `(omega x:T)` and the unicode `ω` form), on
-   let-binders (`let 1 x = …`), and on let-binders with a type
+   let-binders (`let 1 x := …`), and on let-binders with a type
    annotation.
 3. The parsed multiplicity reaches the relevant AST nodes
    (`Definition.arg_multiplicities`, `SLet.multiplicity`,
@@ -103,7 +103,7 @@ def test_mul_n_is_identity():
 
 def test_parser_records_arg_multiplicities():
     src = """
-def f (1 x: Int) (y: Int) (0 z: Int) : Int = x;
+def f (1 x: Int) (y: Int) (0 z: Int) : Int := x;
 """
     prog = parse_program(src)
     f = next(d for d in prog.definitions if d.name.name == "f")
@@ -112,7 +112,7 @@ def f (1 x: Int) (y: Int) (0 z: Int) : Int = x;
 
 def test_parser_omitting_multiplicity_defaults_to_omega():
     src = """
-def f (x: Int) (y: Int) : Int = x;
+def f (x: Int) (y: Int) : Int := x;
 """
     prog = parse_program(src)
     f = next(d for d in prog.definitions if d.name.name == "f")
@@ -121,7 +121,7 @@ def f (x: Int) (y: Int) : Int = x;
 
 def test_parser_omega_unicode_is_accepted():
     src = """
-def f (ω x: Int) : Int = x;
+def f (ω x: Int) : Int := x;
 """
     prog = parse_program(src)
     f = next(d for d in prog.definitions if d.name.name == "f")
@@ -129,13 +129,13 @@ def f (ω x: Int) : Int = x;
 
 
 def test_parser_records_mult_let_e():
-    """`let 1 x = e in body` records multiplicity on the SLet node."""
+    """`let 1 x := e in body` records multiplicity on the SLet node."""
     from aeon.sugar.program import SLet, SRec
 
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
-    let b = a in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
+    let b := a in
     b;
 """
     prog = parse_program(src)
@@ -153,12 +153,12 @@ def main (i: Int) : Int =
 
 
 def test_parser_records_mult_rec_e():
-    """`let MULT x : T = …` records on SRec."""
+    """`let MULT x : T := …` records on SRec."""
     from aeon.sugar.program import SLet, SRec
 
     src = """
-def main (i: Int) : Int =
-    let 1 a : Int = 5 in
+def main (i: Int) : Int :=
+    let 1 a : Int := 5 in
     a;
 """
     prog = parse_program(src)
@@ -190,8 +190,8 @@ def test_arg_multiplicity_reaches_core_abstraction_type():
     """A `(1 x: T)` parameter survives desugaring + lowering and ends up
     on the corresponding ``AbstractionType.multiplicity``."""
     src = """
-def f (1 x: Int) : Int = x;
-def main (_:Int) : Int = f 5;
+def f (1 x: Int) : Int := x;
+def main (_:Int) : Int := f 5;
 """
     prog = parse_program(src)
     desugared = desugar(prog, is_main_hole=False)
@@ -210,8 +210,8 @@ def test_omitted_multiplicity_lowers_to_omega():
     """Existing-style programs (no multiplicity) lower to ``MOmega`` —
     no behavioural change."""
     src = """
-def f (x: Int) : Int = x;
-def main (_:Int) : Int = f 5;
+def f (x: Int) : Int := x;
+def main (_:Int) : Int := f 5;
 """
     prog = parse_program(src)
     desugared = desugar(prog, is_main_hole=False)

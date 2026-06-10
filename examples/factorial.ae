@@ -2,9 +2,9 @@
 # (the sole Int parameter) must be well-founded: it has to decrease *and* stay
 # non-negative. That forces the domain to be a Nat — with a bare `n : Int` the
 # obligation `n - 1 >= 0` is unprovable (n could be negative).
-@example(factorial 0 == 1)
-@example(factorial 3 == 6)
-@example(factorial 5 == 120)
-def factorial (n:Int | n >= 0) : Int = if n == 0 then 1 else (n * factorial(n-1));
+@example(factorial 0 = 1)
+@example(factorial 3 = 6)
+@example(factorial 5 = 120)
+def factorial (n:Int | n >= 0) : Int := if n = 0 then 1 else (n * factorial(n-1));
 
-def main (_:Int) : Unit = print (factorial 3)
+def main (_:Int) : Unit := print (factorial 3)

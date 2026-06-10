@@ -16,90 +16,90 @@ open String
 import Array;
 
 @property(1)
-def test_len : Bool = assertEqual (len "hello") 5;
+def test_len : Bool := assertEqual (len "hello") 5;
 
 @property(1)
-def test_len_empty : Bool = assertEqual (len "") 0;
+def test_len_empty : Bool := assertEqual (len "") 0;
 
 @property(1)
-def test_intToString : Bool = assertEqual (intToString 42) "42";
+def test_intToString : Bool := assertEqual (intToString 42) "42";
 
 @property(1)
-def test_equal : Bool =
+def test_equal : Bool :=
     both (assertTrue (equal "abc" "abc"))
          (assertFalse (equal "abc" "abd"));
 
 @property(1)
-def test_upper : Bool = assertEqual (upper "abc") "ABC";
+def test_upper : Bool := assertEqual (upper "abc") "ABC";
 
 @property(1)
-def test_lower : Bool = assertEqual (lower "ABC") "abc";
+def test_lower : Bool := assertEqual (lower "ABC") "abc";
 
 @property(1)
-def test_concat : Bool = assertEqual (concat "foo" "bar") "foobar";
+def test_concat : Bool := assertEqual (concat "foo" "bar") "foobar";
 
 @property(1)
-def test_startsWith : Bool =
+def test_startsWith : Bool :=
     both (assertTrue (startsWith "hello" "he"))
          (assertFalse (startsWith "hello" "lo"));
 
 @property(1)
-def test_endsWith : Bool =
+def test_endsWith : Bool :=
     both (assertTrue (endsWith "hello" "lo"))
          (assertFalse (endsWith "hello" "he"));
 
 @property(1)
-def test_contains : Bool =
+def test_contains : Bool :=
     both (assertTrue (contains "hello" "ell"))
          (assertFalse (contains "hello" "xyz"));
 
 @property(1)
-def test_indexOf : Bool =
+def test_indexOf : Bool :=
     both (assertEqual (indexOf "hello" "l") 2)
          (assertEqual (indexOf "hello" "z") (0 - 1));
 
 @property(1)
-def test_lastIndexOf : Bool = assertEqual (lastIndexOf "hello" "l") 3;
+def test_lastIndexOf : Bool := assertEqual (lastIndexOf "hello" "l") 3;
 
 @property(1)
-def test_trim : Bool = assertEqual (trim "  hi  ") "hi";
+def test_trim : Bool := assertEqual (trim "  hi  ") "hi";
 
 @property(1)
-def test_trimLeft : Bool = assertEqual (trimLeft "  hi") "hi";
+def test_trimLeft : Bool := assertEqual (trimLeft "  hi") "hi";
 
 @property(1)
-def test_trimRight : Bool = assertEqual (trimRight "hi  ") "hi";
+def test_trimRight : Bool := assertEqual (trimRight "hi  ") "hi";
 
 @property(1)
-def test_repeat : Bool = assertEqual (repeat "ab" 3) "ababab";
+def test_repeat : Bool := assertEqual (repeat "ab" 3) "ababab";
 
 @property(1)
-def test_repeat_zero : Bool = assertEqual (repeat "ab" 0) "";
+def test_repeat_zero : Bool := assertEqual (repeat "ab" 0) "";
 
 @property(1)
-def test_isEmpty : Bool =
+def test_isEmpty : Bool :=
     both (assertTrue (isEmpty ""))
          (assertFalse (isEmpty "x"));
 
 # ── Length-refined operations (preconditions discharged via Z3 string length) ──
 
 @property(1)
-def test_slice_prefix : Bool = assertEqual (slice "hello" 0 3) "hel";
+def test_slice_prefix : Bool := assertEqual (slice "hello" 0 3) "hel";
 
 @property(1)
-def test_slice_suffix : Bool = assertEqual (slice "hello" 1 5) "ello";
+def test_slice_suffix : Bool := assertEqual (slice "hello" 1 5) "ello";
 
 @property(1)
-def test_slice_full : Bool = assertEqual (slice "hello" 0 5) "hello";
+def test_slice_full : Bool := assertEqual (slice "hello" 0 5) "hello";
 
 @property(1)
-def test_replace : Bool = assertEqual (replace "hello" "l" "L") "heLLo";
+def test_replace : Bool := assertEqual (replace "hello" "l" "L") "heLLo";
 
 @property(1)
-def test_replace_word : Bool = assertEqual (replace "foofoo" "foo" "bar") "barbar";
+def test_replace_word : Bool := assertEqual (replace "foofoo" "foo" "bar") "barbar";
 
 @property(1)
-def test_split : Bool =
-    parts = split "a,b,c" ",";
+def test_split : Bool :=
+    parts := split "a,b,c" ",";
     both (assertEqual (Array.length parts) 3)
          (assertEqual (Array.get parts 0) "a");

@@ -16,11 +16,12 @@ from aeon.utils.pprint_helpers import (
 def test_refinement_comparison_operand_order():
     # Regression: lift_liquid reversed curried application args, so a refinement
     # written `y >= 5` printed as `5 >= y` after a round-trip through the core AST.
+    # The pretty-printer emits the Unicode ``≥``.
     sugar_ty = parse_type("{y:Int | y >= 5}")
     core_ty = type_to_core(sugar_ty)
     rendered = str(stype_pretty(lift_type(core_ty)))
-    assert "y >= 5" in rendered
-    assert "5 >= y" not in rendered
+    assert "y ≥ 5" in rendered
+    assert "5 ≥ y" not in rendered
 
 
 def test_simple_pprint_1():

@@ -21,34 +21,34 @@ def _errors(source: str):
 
 
 def test_int_comparison_ok():
-    assert _run("def main (args : Int) : Int = if 1 < 2 then 0 else 1;") == 0
+    assert _run("def main (args : Int) : Int := if 1 < 2 then 0 else 1;") == 0
 
 
 def test_float_comparison_ok():
-    assert _run("def main (args : Int) : Int = if 1.0 >= 2.0 then 0 else 1;") == 1
+    assert _run("def main (args : Int) : Int := if 1.0 >= 2.0 then 0 else 1;") == 1
 
 
 def test_string_comparison_ok():
-    assert _run('def main (args : Int) : Int = if "a" < "b" then 0 else 1;') == 0
+    assert _run('def main (args : Int) : Int := if "a" < "b" then 0 else 1;') == 0
 
 
 def test_polymorphic_helper_at_int_ok():
     source = r"""
-    def cmp (x : Int) (y : Int) : Bool = x < y;
-    def main (args : Int) : Int = if cmp 2 1 then 0 else 1;
+    def cmp (x : Int) (y : Int) : Bool := x < y;
+    def main (args : Int) : Int := if cmp 2 1 then 0 else 1;
     """
     assert _run(source) == 1
 
 
 def test_bool_comparison_rejected():
-    errors = _errors("def main (args : Int) : Int = if true < false then 0 else 1;")
+    errors = _errors("def main (args : Int) : Int := if true < false then 0 else 1;")
     assert any(isinstance(e, NonOrderableComparisonError) for e in errors), errors
 
 
 def test_set_comparison_rejected():
     source = r"""
-    def main (args : Int) : Int =
-        let s : Set = Set_empty in
+    def main (args : Int) : Int :=
+        let s : Set := Set_empty in
         if s < s then 0 else 1;
     """
     errors = _errors(source)
@@ -56,5 +56,5 @@ def test_set_comparison_rejected():
 
 
 def test_gt_bool_comparison_rejected():
-    errors = _errors("def main (args : Int) : Int = if true > false then 0 else 1;")
+    errors = _errors("def main (args : Int) : Int := if true > false then 0 else 1;")
     assert any(isinstance(e, NonOrderableComparisonError) for e in errors), errors

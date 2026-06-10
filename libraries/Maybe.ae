@@ -9,10 +9,10 @@ inductive Maybe a
 | just (v:a) : (Maybe a)
 
 # Returns ``true`` when the value is absent.
-def isNone (m:(Maybe a)) : Bool = Maybe_rec m true (fun v => false)
+def isNone (m:(Maybe a)) : Bool := Maybe_rec m true (fun v => false)
 
 # Returns ``true`` when the value is present.
-def isJust (m:(Maybe a)) : Bool = Maybe_rec m false (fun v => true)
+def isJust (m:(Maybe a)) : Bool := Maybe_rec m false (fun v => true)
 
 # Returns the contained value, or ``d`` if the value is absent.
-def withDefault (d:a) (m:(Maybe a)) : a = Maybe_rec m d (fun v => v)
+def withDefault (d:a) (m:(Maybe a)) : a := Maybe_rec m d (fun v => v)

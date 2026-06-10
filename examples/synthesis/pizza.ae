@@ -30,13 +30,13 @@ inductive Assignment
      (rachel  : Pizza)
      (kevin   : Pizza)
    : {a:Assignment |
-        (emily_pizza a == emily) &&
-        (owen_pizza a == owen) &&
-        (yasmine_pizza a == yasmine) &&
-        (nathan_pizza a == nathan) &&
-        (wendy_pizza a == wendy) &&
-        (rachel_pizza a == rachel) &&
-        (kevin_pizza a == kevin)}
+        (emily_pizza a = emily) &&
+        (owen_pizza a = owen) &&
+        (yasmine_pizza a = yasmine) &&
+        (nathan_pizza a = nathan) &&
+        (wendy_pizza a = wendy) &&
+        (rachel_pizza a = rachel) &&
+        (kevin_pizza a = kevin)}
 + emily_pizza   (a:Assignment) : Pizza
 + owen_pizza    (a:Assignment) : Pizza
 + yasmine_pizza (a:Assignment) : Pizza
@@ -48,19 +48,19 @@ inductive Assignment
 @minimize_int(1)
 def pizza_solution_hole : {a:Assignment |
     # emily: Margherita or Cheese
-    ((emily_pizza a == .margherita) || (emily_pizza a == .cheese)) &&
+    ((emily_pizza a = .margherita) || (emily_pizza a = .cheese)) &&
     # owen: Margherita, Peppers, or Cheese
-    ((owen_pizza a == .margherita) || (owen_pizza a == .peppers) || (owen_pizza a == .cheese)) &&
+    ((owen_pizza a = .margherita) || (owen_pizza a = .peppers) || (owen_pizza a = .cheese)) &&
     # yasmine: not Cheese
     (yasmine_pizza a != .cheese) &&
     # nathan: Cheese, Pepperoni, or Margherita
-    ((nathan_pizza a == .cheese) || (nathan_pizza a == .pepperoni) || (nathan_pizza a == .margherita)) &&
+    ((nathan_pizza a = .cheese) || (nathan_pizza a = .pepperoni) || (nathan_pizza a = .margherita)) &&
     # wendy: not Hawaiian
     (wendy_pizza a != .hawaiian) &&
     # rachel: Cheese
-    (rachel_pizza a == .cheese) &&
+    (rachel_pizza a = .cheese) &&
     # kevin: Pepperoni, BBQ, Sausage, or Hawaiian
-    ((kevin_pizza a == .pepperoni) || (kevin_pizza a == .bbq) || (kevin_pizza a == .sausage) || (kevin_pizza a == .hawaiian)) &&
+    ((kevin_pizza a = .pepperoni) || (kevin_pizza a = .bbq) || (kevin_pizza a = .sausage) || (kevin_pizza a = .hawaiian)) &&
     # all 7 choices are distinct (21 pairs)
     (emily_pizza a != owen_pizza a) &&
     (emily_pizza a != yasmine_pizza a) &&
@@ -83,17 +83,17 @@ def pizza_solution_hole : {a:Assignment |
     (wendy_pizza a != rachel_pizza a) &&
     (wendy_pizza a != kevin_pizza a) &&
     (rachel_pizza a != kevin_pizza a)
-} = ?hole
+} := ?hole
 
 # Verification: the known solution below should type-check (Aeon proves correctness)
 # emily=Margherita, owen=Peppers, yasmine=Hawaiian,
 # nathan=Pepperoni, wendy=Sausage, rachel=Cheese, kevin=BBQ
 def pizza_solution : {a:Assignment |
-    (emily_pizza a == .margherita) &&
-    ((owen_pizza a == .margherita) || (owen_pizza a == .peppers) || (owen_pizza a == .cheese)) &&
+    (emily_pizza a = .margherita) &&
+    ((owen_pizza a = .margherita) || (owen_pizza a = .peppers) || (owen_pizza a = .cheese)) &&
     (yasmine_pizza a != .cheese) &&
-    ((nathan_pizza a == .cheese) || (nathan_pizza a == .pepperoni) || (nathan_pizza a == .margherita)) &&
+    ((nathan_pizza a = .cheese) || (nathan_pizza a = .pepperoni) || (nathan_pizza a = .margherita)) &&
     (wendy_pizza a != .hawaiian) &&
-    (rachel_pizza a == .cheese) &&
-    ((kevin_pizza a == .pepperoni) || (kevin_pizza a == .bbq) || (kevin_pizza a == .sausage) || (kevin_pizza a == .hawaiian))
-} = .mk .margherita .peppers .hawaiian .pepperoni .sausage .cheese .bbq
+    (rachel_pizza a = .cheese) &&
+    ((kevin_pizza a = .pepperoni) || (kevin_pizza a = .bbq) || (kevin_pizza a = .sausage) || (kevin_pizza a = .hawaiian))
+} := .mk .margherita .peppers .hawaiian .pepperoni .sausage .cheese .bbq

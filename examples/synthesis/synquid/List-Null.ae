@@ -6,4 +6,4 @@
 
 open List
 
-def null (xs: (List a)) : {b:Bool | b == (List.size xs == 0)} = ?hole;
+def null (xs: (List a)) : {b:Bool | b = (List.size xs = 0)} := ?hole;

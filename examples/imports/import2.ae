@@ -2,9 +2,9 @@ import Math (pow)
 
 def my_pow : (b: {c:Int | ((c >= 1)  && (c <= 100))}) ->
           (e:{d:Int | ((d >= 1) && (d <= 100))}) ->
-          Int = Math.pow;
+          Int := Math.pow;
 
 
-def main (args:Int) : Unit =
-    int_to_string : (x:Int) -> String = fun x => native "str(x)";
+def main (args:Int) : Unit :=
+    int_to_string : (x:Int) -> String := fun x => native "str(x)";
     print (int_to_string (my_pow 3 4));

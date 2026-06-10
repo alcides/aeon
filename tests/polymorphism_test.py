@@ -18,14 +18,14 @@ def tt(e: str, t: str, vars: None | dict[str, str] = None):
 
 
 def test_simple_def():
-    assert tt("let k : Int = 1 in k", "Int")
+    assert tt("let k : Int := 1 in k", "Int")
 
 
 def test_poly():
     assert tt(
-        """ let max : forall a:B, (x:a) -> (y:a) -> {z:a| (z == x) || (z == y)  } = Λa:B => (fun x => fun y => if x < y then y else x) in
-            let r = max 0 5 in
-            let vvv : {m:Int | 0 <= m} = r + 1 in
+        """ let max : forall a:B, (x:a) -> (y:a) -> {z:a| (z = x) || (z = y)  } := Λa:B => (fun x => fun y => if x < y then y else x) in
+            let r := max 0 5 in
+            let vvv : {m:Int | 0 <= m} := r + 1 in
             true""",
         """Bool""",
     )

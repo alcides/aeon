@@ -25,10 +25,10 @@ inductive Mamma
      (t: Int | t >= 1 && t <= 1200)
      (i: Int | i >= 1 && i <= 1200)
    : {x:Mamma |
-        (mom    x == m) &&
-        (papa   x == p) &&
-        (tommy  x == t) &&
-        (delta  x == i)}
+        (mom    x = m) &&
+        (papa   x = p) &&
+        (tommy  x = t) &&
+        (delta  x = i)}
 + mom    (x:Mamma) : Int
 + papa   (x:Mamma) : Int
 + tommy  (x:Mamma) : Int
@@ -37,9 +37,9 @@ inductive Mamma
 @minimize_int(1)
 def mamma_hole : {x:Mamma |
     (mom x >= 1) && (papa x >= 1) && (tommy x >= 1) && (delta x >= 1) &&
-    (mom x + papa x + tommy x == 840) &&
-    (6 * tommy x == papa x) &&
-    ((tommy x + delta x) * 2 == papa x + delta x) &&
-    (mom x + delta x + papa x + delta x + tommy x + delta x ==
+    (mom x + papa x + tommy x = 840) &&
+    (6 * tommy x = papa x) &&
+    ((tommy x + delta x) * 2 = papa x + delta x) &&
+    (mom x + delta x + papa x + delta x + tommy x + delta x =
         2 * (mom x + papa x + tommy x))
-} = ?hole
+} := ?hole

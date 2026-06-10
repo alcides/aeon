@@ -16,17 +16,17 @@ inductive Change
      (c5:  Int | c5  >= 0 && c5  <= 7)
      (c10: Int | c10 >= 0 && c10 <= 3)
    : {c:Change |
-        (ones c == c1) && (fives c == c5) && (tens c == c10)}
+        (ones c = c1) && (fives c = c5) && (tens c = c10)}
 + ones  (c:Change) : Int
 + fives (c:Change) : Int
 + tens  (c:Change) : Int
 
-def total (c:Change) : Int =
+def total (c:Change) : Int :=
     match c with
     | mk c1 c5 c10 => c1 + c5 + c10;
 
 @minimize_int(total change_hole)
 def change_hole : {c:Change |
     (ones c >= 0) && (fives c >= 0) && (tens c >= 0) &&
-    (ones c + 5 * fives c + 10 * tens c == 37)
-} = (let total = unit in ?hole)
+    (ones c + 5 * fives c + 10 * tens c = 37)
+} := (let total := unit in ?hole)

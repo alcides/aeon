@@ -36,7 +36,7 @@ from tests.driver import check_compile_expr
 def test_synth_if_in_application_arg_typechecks():
     """An if-expression used as an Application argument is ANF-lifted onto a let-RHS,
     which forces synth-mode on the If."""
-    source = r"""let f : (x:Int) -> Int = fun x => x in f (if 0 < 1 then 1 else 2)"""
+    source = r"""let f : (x:Int) -> Int := fun x => x in f (if 0 < 1 then 1 else 2)"""
     assert check_compile_expr(source, parse_type("Int"))
 
 
@@ -58,15 +58,15 @@ def test_synth_if_directly_returns_joined_refinement():
 
 def test_synth_if_preserves_branch_information_in_join():
     """After synth(If), the result type must imply the disjunction of branch values."""
-    # `let r = if (0 < 1) then 1 else 2 in r` should check against `{v:Int | (v == 1) || (v == 2)}`.
-    source = r"""let r = (if 0 < 1 then 1 else 2) in r"""
-    assert check_compile_expr(source, parse_type("{v:Int | (v == 1) || (v == 2)}"))
+    # `let r := if (0 < 1) then 1 else 2 in r` should check against `{v:Int | (v = 1) || (v = 2)}`.
+    source = r"""let r := (if 0 < 1 then 1 else 2) in r"""
+    assert check_compile_expr(source, parse_type("{v:Int | (v = 1) || (v = 2)}"))
 
 
 def test_synth_if_rejects_unrelated_postcondition():
     """The join doesn't manufacture facts: `{v:Int | v > 100}` is not derivable from
     branches that return 1 or 2."""
-    source = r"""let r = (if 0 < 1 then 1 else 2) in r"""
+    source = r"""let r := (if 0 < 1 then 1 else 2) in r"""
     assert not check_compile_expr(source, parse_type("{v:Int | v > 100}"))
 
 

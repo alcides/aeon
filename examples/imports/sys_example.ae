@@ -2,10 +2,10 @@ open Sys
 open Array
 
 # argv is statically known to be non-empty, so Array.head is well-typed.
-def progName : String = Array.head Sys.argv
+def progName : String := Array.head Sys.argv
 
-def show : Unit =
-    _ : Unit = print Sys.platform;
+def show : Unit :=
+    _ : Unit := print Sys.platform;
     print progName
 
-def main (_:Int) : Unit = show
+def main (_:Int) : Unit := show

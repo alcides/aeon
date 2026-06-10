@@ -3,7 +3,7 @@
 #
 # Synthesis target: prime_num : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float = native "float((0 if (f(13) == True) else 1) + (0 if (f(7) == True) else 1) + (0 if (f(-1010) == False) else 1))"
+def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (f(13) == True) else 1) + (0 if (f(7) == True) else 1) + (0 if (f(-1010) == False) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (num:Int) : Bool = (let mbpp_fitness = unit in ?hole)
+def synth (num:Int) : Bool := (let mbpp_fitness := unit in ?hole)

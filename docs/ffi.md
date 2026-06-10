@@ -36,7 +36,7 @@ When you write a binding, two layers exist side by side:
 
 `native` and `native_import` bridge the runtime layer. **Opaque types** and **uninterpreted functions** populate the refinement layer with names that talk *about* values the solver cannot inspect.
 
-The two layers must stay consistent — but the language does not enforce it. If you promise in a refinement that `width im == w` and your Python code returns an image of a different size, no compiler will catch the lie. **A binding is a trust boundary**: the wrapper author is responsible for making the refinement layer honest about runtime behaviour.
+The two layers must stay consistent — but the language does not enforce it. If you promise in a refinement that `width im = w` and your Python code returns an image of a different size, no compiler will catch the lie. **A binding is a trust boundary**: the wrapper author is responsible for making the refinement layer honest about runtime behaviour.
 
 ---
 
@@ -53,10 +53,10 @@ native_import : forall a:*, (x:String) -> a
 At runtime, `native_import "foo"` does `importlib.import_module("foo")` and — importantly — **binds the result into the Python globals under the name of the Aeon definition**. That is what makes the imported module addressable from later `native "..."` strings:
 
 ```aeon
-def math : Unit = native_import "math"
+def math : Unit := native_import "math"
 
-def PI : Float = native "math.pi"            # <- "math" here is the binding above
-def sqrt (i:{v:Float | v >= 0.0}) : Float = native "math.sqrt(i)"
+def PI : Float := native "math.pi"            # <- "math" here is the binding above
+def sqrt (i:{v:Float | v >= 0.0}) : Float := native "math.sqrt(i)"
 ```
 
 Conventions:
@@ -68,18 +68,18 @@ Conventions:
 Examples drawn from the standard library:
 
 ```aeon
-def math : Unit = native_import "math"
-def np : Unit = native_import "numpy"
-def plt : Unit = native_import "matplotlib.pyplot"
-def skl : Unit = native_import "sklearn"
-def json : Unit = native_import "json"
+def math : Unit := native_import "math"
+def np : Unit := native_import "numpy"
+def plt : Unit := native_import "matplotlib.pyplot"
+def skl : Unit := native_import "sklearn"
+def json : Unit := native_import "json"
 ```
 
 For deeper imports you can either `native_import "package.submodule"` or use the `__import__` trick directly inside a `native` string (see [§ multi-argument helpers](#curried) below).
 
 ---
 
-<a name="native"></a>
+<a name:="native"></a>
 
 ## 3. `native` — calling Python from Aeon
 
@@ -96,7 +96,7 @@ native : forall a:*, (x:String) -> a
 So inside the body of
 
 ```aeon
-def pow (i:Int) (j:{v:Int | v >= 0}) : Int = native "i ** j"
+def pow (i:Int) (j:{v:Int | v >= 0}) : Int := native "i ** j"
 ```
 
 both `i` and `j` are simply the Python values bound to the formal parameters at runtime. Aeon parameter names become Python identifiers — no marshalling, no wrappers.
@@ -110,14 +110,14 @@ You have two styles available:
 **Inline expression** — concise, fine for one-liners:
 
 ```aeon
-def abs (i:Int) : {v:Int | v >= 0} = native "abs(i)"
-def append (l:(List a)) (i:a) : (List a) = native "l + [i]"
+def abs (i:Int) : {v:Int | v >= 0} := native "abs(i)"
+def append (l:(List a)) (i:a) : (List a) := native "l + [i]"
 ```
 
 **Call into a helper module** — preferred when the logic is non-trivial, when you need imports the wrapper doesn't otherwise pull in, or when a single statement won't do:
 
 ```aeon
-def Image_open (path:String) : Image =
+def Image_open (path:String) : Image :=
     native "__import__('aeon.bindings.image').bindings.image.Image_open(path)"
 ```
 
@@ -154,8 +154,8 @@ A typical wrapper opens with:
 ```aeon
 type Path
 
-def os : Unit = native_import "os"
-def pathlib : Unit = native_import "pathlib"
+def os : Unit := native_import "os"
+def pathlib : Unit := native_import "pathlib"
 ```
 
 — and from that point on, `Path` is a real Aeon type you can use in signatures, refinements, and synthesis goals.
@@ -175,9 +175,9 @@ Three patterns cover most cases.
 The easiest case — your Python function has a precondition that can be stated in plain arithmetic:
 
 ```aeon
-def factorial (i:{v:Int | v >= 0}) : {v:Int | v >= 1} = native "math.factorial(i)"
-def sqrt (i:{v:Float | v >= 0.0}) : {v:Float | v >= 0.0} = native "math.sqrt(i)"
-def floor_division (i:Int) (j:{v:Int | v != 0}) : Int = native "i // j"
+def factorial (i:{v:Int | v >= 0}) : {v:Int | v >= 1} := native "math.factorial(i)"
+def sqrt (i:{v:Float | v >= 0.0}) : {v:Float | v >= 0.0} := native "math.sqrt(i)"
+def floor_division (i:Int) (j:{v:Int | v != 0}) : Int := native "i // j"
 ```
 
 These pre/post conditions are checked entirely by Z3 against the caller's arguments. They cost nothing at runtime and turn what would have been a `ValueError` or `ZeroDivisionError` into a compile error.
@@ -187,8 +187,8 @@ These pre/post conditions are checked entirely by Z3 against the caller's argume
 When the return type's refinement is independent of arguments, just state it:
 
 ```aeon
-def gcd (i:Int) (j:Int) : {v:Int | v >= 0} = native "math.gcd(i, j)"
-def isfinite (i:Float) : Bool = native "math.isfinite(i)"
+def gcd (i:Int) (j:Int) : {v:Int | v >= 0} := native "math.gcd(i, j)"
+def isfinite (i:Float) : Bool := native "math.isfinite(i)"
 ```
 
 When it depends on arguments, name the result variable and use the parameter names:
@@ -198,7 +198,7 @@ def clamp
     (x: Int)
     (lo: Int)
     (hi: {v:Int | v >= lo}) :
-    {v:Int | v >= lo && v <= hi} =
+    {v:Int | v >= lo && v <= hi} :=
     native "max(lo, min(x, hi))"
 ```
 
@@ -209,7 +209,7 @@ Here `lo` flows into the refinement of `hi` *and* into the result refinement —
 This is where it gets interesting. Suppose `Image` is opaque — the solver has no idea what an image *is*. How do you write
 
 ```aeon
-def crop (im:Image) (x:Int) (y:Int) (w:Int) (h:Int) : Image = ...
+def crop (im:Image) (x:Int) (y:Int) (w:Int) (h:Int) : Image := ...
 ```
 
 with a precondition like "the crop rectangle is inside the image" and a postcondition like "the resulting image has dimensions `w × h`"?
@@ -225,8 +225,8 @@ The trick is **uninterpreted functions**, covered next.
 Declare a function in the refinement language with no body:
 
 ```aeon
-def width : (im:Image) -> Int = uninterpreted
-def height : (im:Image) -> Int = uninterpreted
+def width : (im:Image) -> Int := uninterpreted
+def height : (im:Image) -> Int := uninterpreted
 ```
 
 For Z3, these are pure mathematical symbols satisfying only the **congruence axiom**: if `im1 == im2` then `width im1 == width im2`. Z3 will not compute them, simplify them, or substitute into them. It will only relate facts that mention them.
@@ -238,7 +238,7 @@ def mk
     (w:{p:Int | p > 0})
     (h:{p:Int | p > 0})
     (color:Color) :
-    {i:Image | (width i == w) && (height i == h)} =
+    {i:Image | (width i = w) && (height i = h)} :=
     native "Image_mk(w, h, color)"
 
 def crop
@@ -247,22 +247,22 @@ def crop
     (y:{p:Int | p >= 0 && p <= height im})
     (w:{p:Int | p > 0 && x + p <= width im})
     (h:{p:Int | p > 0 && y + p <= height im}) :
-    {r:Image | (width r == w) && (height r == h)} =
+    {r:Image | (width r = w) && (height r = h)} :=
     native "Image_crop(im, x, y, w, h)"
 ```
 
-Now a call like `crop im 10 10 5000 5000` is a *type error* if `im` is a 100×100 image and the solver can prove it. And every postcondition that mentions `width r == w` enables further reasoning downstream:
+Now a call like `crop im 10 10 5000 5000` is a *type error* if `im` is a 100×100 image and the solver can prove it. And every postcondition that mentions `width r = w` enables further reasoning downstream:
 
 ```aeon
-let resized : {r:Image | width r == 64 && height r == 64} = resize im 64 64
-let cropped : {r:Image | width r == 32} = crop resized 0 0 32 32      # OK by transitivity
+let resized : {r:Image | width r = 64 && height r = 64} := resize im 64 64
+let cropped : {r:Image | width r = 32} := crop resized 0 0 32 32      # OK by transitivity
 ```
 
 ### What you cannot do
 
 Uninterpreted functions are deliberately weak. The solver does *not* know:
 
-- `width (rotate im angle) == width im` — unless you say so (in `rotate`'s return type).
+- `width (rotate im angle) = width im` — unless you say so (in `rotate`'s return type).
 - `width im > 0` for arbitrary `im` — unless you say so (in the type of every function that produces an `Image`).
 - That `width` is monotonic, additive, distributive, anything.
 
@@ -283,7 +283,7 @@ Bad candidates:
 
 For inspiration, look at how the standard library declares them:
 
-- `libraries/List.ae` — `size : (l:(List a)) -> Int = uninterpreted`
+- `libraries/List.ae` — `size : (l:(List a)) -> Int := uninterpreted`
 - `libraries/Set.ae` — `size`, `contains`
 - `libraries/Image.ae` — `width`, `height`
 - `libraries/Statistics.ae` — a dozen statistical symbols
@@ -291,7 +291,7 @@ For inspiration, look at how the standard library declares them:
 
 ---
 
-<a name="axioms"></a>
+<a name:="axioms"></a>
 
 ## 7. Encoding axioms with `native` no-ops
 
@@ -304,7 +304,7 @@ def widenBelow
     (t1: Float)
     (t2: {t: Float | t >= t1})
     : {r: (List Float) | List.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
-    = native "xs"
+    := native "xs"
 ```
 
 `native "xs"` just hands back the input list. The interesting content is the return type: by *consuming* and *returning* the list, the function lets the solver assume — at the call site — that the named relationship holds. Callers thread their list through `widenBelow` to "unlock" the fact for downstream proofs.
@@ -313,7 +313,7 @@ This is the standard pattern for axioms over opaque types: a `native`-defined id
 
 ---
 
-<a name="curried"></a>
+<a name:="curried"></a>
 
 ## 8. Multi-argument Python helpers: the `curried` pattern
 
@@ -351,7 +351,7 @@ def mk
     (w:{p:Int | p > 0})
     (h:{p:Int | p > 0})
     (color:Color) :
-    {i:Image | width i == w && height i == h} =
+    {i:Image | width i = w && height i = h} :=
     native "__import__('aeon.bindings.image').bindings.image.Image_mk(w, h, color)"
 ```
 
@@ -359,7 +359,7 @@ If you only ever pass arguments inside the `native` string (like `Image_mk(w, h,
 
 ---
 
-<a name="worked-example"></a>
+<a name:="worked-example"></a>
 
 ## 9. A worked example: wrapping `pathlib`
 
@@ -375,37 +375,37 @@ Putting it together. Suppose we want a small `Path.ae` binding around `pathlib.P
 
 type Path
 
-def pathlib : Unit = native_import "pathlib"
-def os : Unit = native_import "os"
+def pathlib : Unit := native_import "pathlib"
+def os : Unit := native_import "os"
 
 # Uninterpreted symbols visible to the solver.
-def exists : (p:Path) -> Bool = uninterpreted
-def length : (p:Path) -> Int = uninterpreted
+def exists : (p:Path) -> Bool := uninterpreted
+def length : (p:Path) -> Int := uninterpreted
 
 # Construct a path from a string. Length is fixed by the source string,
 # existence is unknown.
-def mk (s:String) : {p:Path | length p == String.size s} =
+def mk (s:String) : {p:Path | length p = String.size s} :=
     native "pathlib.Path(s)"
 
 # Runtime check that lifts existence into the type system.
 # If the path does not exist, the caller branches into the else.
-def check_exists (p:Path) : {b:Bool | b == exists p} =
+def check_exists (p:Path) : {b:Bool | b = exists p} :=
     native "p.exists()"
 
 # Only callable on a path the solver knows exists.
-def read_text (p:{q:Path | exists q}) : String =
+def read_text (p:{q:Path | exists q}) : String :=
     native "p.read_text()"
 
 # Parent of a path is also a path; we don't claim anything about its length.
-def parent (p:Path) : Path =
+def parent (p:Path) : Path :=
     native "p.parent"
 ```
 
 A program using it:
 
 ```aeon
-def main (args:Int) : Unit =
-    p : Path = Path.mk "config.toml";
+def main (args:Int) : Unit :=
+    p : Path := Path.mk "config.toml";
     if Path.check_exists p then
         print (Path.read_text p)      # OK: branch refines p with `exists p`
     else
@@ -423,7 +423,7 @@ Without `check_exists`, calling `read_text p` is a type error — the preconditi
 A few things that bite first-time binding authors:
 
 - **`native` annotations are unchecked.** If you write `: Int` over a `native "..."` that returns a string, the program will crash at use, not at the binding. Be conservative.
-- **Uninterpreted means *uninterpreted*.** The solver knows nothing about `width` beyond what your function signatures say. If you forget to mention `width r == w` in a constructor's return type, that fact is lost — even though it is trivially true at runtime.
+- **Uninterpreted means *uninterpreted*.** The solver knows nothing about `width` beyond what your function signatures say. If you forget to mention `width r = w` in a constructor's return type, that fact is lost — even though it is trivially true at runtime.
 - **Parameter names matter.** They appear inside `native "..."` strings *and* inside refinements. Rename a parameter in one place, rename it in both.
 - **Beware shadowing in `native` strings.** The string is `eval`'d with the Aeon environment as Python globals. A binding called `min` will collide with Python's `min`. Stick to lower-case, descriptive, non-builtin names.
 - **One `native_import` per package.** Multiple `native_import "math"` definitions all work but create redundant bindings; one is enough.
