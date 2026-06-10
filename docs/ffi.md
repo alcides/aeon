@@ -229,7 +229,7 @@ def width : (im:Image) -> Int := uninterpreted
 def height : (im:Image) -> Int := uninterpreted
 ```
 
-For Z3, these are pure mathematical symbols satisfying only the **congruence axiom**: if `im1 == im2` then `width im1 == width im2`. Z3 will not compute them, simplify them, or substitute into them. It will only relate facts that mention them.
+For Z3, these are pure mathematical symbols satisfying only the **congruence axiom**: if `im1 = im2` then `width im1 = width im2`. Z3 will not compute them, simplify them, or substitute into them. It will only relate facts that mention them.
 
 That is enough to write meaningful preconditions and postconditions:
 

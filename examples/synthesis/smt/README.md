@@ -8,7 +8,7 @@ Aeon synthesis problems.  Each file:
   synthesis search space),
 * exposes the fields through measure functions (the `+ measure ... `
   declarations) so the solution can be referenced by name,
-* defines a `..._hole : { x : T | constraints } = ?hole` that the
+* defines a `..._hole : { x : T | constraints } := ?hole` that the
   synthesizer must fill in.
 
 The constraints are taken verbatim (modulo encoding) from
