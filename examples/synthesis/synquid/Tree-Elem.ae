@@ -5,8 +5,8 @@
 # Element type left polymorphic (forall a), matching the Synquid original. Result not tied to an elems set.
 
 inductive Tree a
-| leaf : {t:(Tree a) | tsize t == 0}
-| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t == tsize left + tsize right + 1}
+| leaf : {t:(Tree a) | tsize t = 0}
+| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t = tsize left + tsize right + 1}
 + tsize (t: (Tree a)) : Int
 
-def telem (x: a) (t: (Tree a)) : Bool = ?hole;
+def telem (x: a) (t: (Tree a)) : Bool := ?hole;

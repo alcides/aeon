@@ -8,11 +8,11 @@
 open LearningCore
 
 def mlp_classifier
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mlp_classifier(ds)"
 
 def mlp_regressor
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnRegressor | reg_features m == ds_features ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mlp_regressor(ds)"

@@ -35,18 +35,18 @@ def test_two_tcp_servers_in_one_evaluation_get_fresh_sockets():
     src = """
 open Socket
 
-def loopback : {a : SockAddr | ipv4_sock_addr a == true} = ipv4_addr "127.0.0.1" 0
+def loopback : {a : SockAddr | ipv4_sock_addr a = true} := ipv4_addr "127.0.0.1" 0
 
-def two_servers (u : Int) : Bool =
-    let 1 a0 = stream_socket unit in
-    let 1 a1 = stream_bind loopback a0 in
-    let done_a = stream_close a1 in
-    let 1 b0 = stream_socket unit in
-    let 1 b1 = stream_bind loopback b0 in
-    let done_b = stream_close b1 in
+def two_servers (u : Int) : Bool :=
+    let 1 a0 := stream_socket unit in
+    let 1 a1 := stream_bind loopback a0 in
+    let done_a := stream_close a1 in
+    let 1 b0 := stream_socket unit in
+    let 1 b1 := stream_bind loopback b0 in
+    let done_b := stream_close b1 in
     true;
 
-def main (i : Int) : Bool = two_servers i;
+def main (i : Int) : Bool := two_servers i;
 """
     # Before the fix this raised OSError (bad file descriptor) on b0's bind.
     assert _run(src) is True
@@ -58,18 +58,18 @@ def test_repeated_calls_each_open_a_fresh_socket():
     src = """
 open Socket
 
-def loopback : {a : SockAddr | ipv4_sock_addr a == true} = ipv4_addr "127.0.0.1" 0
+def loopback : {a : SockAddr | ipv4_sock_addr a = true} := ipv4_addr "127.0.0.1" 0
 
-def bind_close (u : Int) : Bool =
-    let 1 s0 = stream_socket unit in
-    let 1 s1 = stream_bind loopback s0 in
-    let done = stream_close s1 in
+def bind_close (u : Int) : Bool :=
+    let 1 s0 := stream_socket unit in
+    let 1 s1 := stream_bind loopback s0 in
+    let done := stream_close s1 in
     true;
 
-def main (i : Int) : Bool =
-    let a = bind_close i in
-    let b = bind_close i in
-    let c = bind_close i in
+def main (i : Int) : Bool :=
+    let a := bind_close i in
+    let b := bind_close i in
+    let c := bind_close i in
     a && b && c;
 """
     assert _run(src) is True
@@ -79,17 +79,17 @@ def test_two_udp_sockets_in_one_evaluation_get_fresh_sockets():
     src = """
 open Socket
 
-def loopback : {a : SockAddr | ipv4_sock_addr a == true} = ipv4_addr "127.0.0.1" 0
+def loopback : {a : SockAddr | ipv4_sock_addr a = true} := ipv4_addr "127.0.0.1" 0
 
-def two_dgram (u : Int) : Bool =
-    let 1 a0 = dgram_socket unit in
-    let 1 a1 = dgram_bind loopback a0 in
-    let done_a = dgram_close a1 in
-    let 1 b0 = dgram_socket unit in
-    let 1 b1 = dgram_bind loopback b0 in
-    let done_b = dgram_close b1 in
+def two_dgram (u : Int) : Bool :=
+    let 1 a0 := dgram_socket unit in
+    let 1 a1 := dgram_bind loopback a0 in
+    let done_a := dgram_close a1 in
+    let 1 b0 := dgram_socket unit in
+    let 1 b1 := dgram_bind loopback b0 in
+    let done_b := dgram_close b1 in
     true;
 
-def main (i : Int) : Bool = two_dgram i;
+def main (i : Int) : Bool := two_dgram i;
 """
     assert _run(src) is True

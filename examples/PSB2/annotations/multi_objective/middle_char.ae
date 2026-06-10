@@ -1,22 +1,22 @@
 import PSB2 (extract_train_data, load_dataset)
 import Array
-def math : Unit = native_import "math"
-def Math_floor : (i:Float) -> Int = fun i => native "math.floor(i)"
-def Math_toFloat : (i:Int) -> Float = fun i => native "float(i)"
-def Math_toInt : (i:Float) -> Int = fun i => native "int(i)"
+def math : Unit := native_import "math"
+def Math_floor : (i:Float) -> Int := fun i => native "math.floor(i)"
+def Math_toFloat : (i:Int) -> Float := fun i => native "float(i)"
+def Math_toInt : (i:Float) -> Int := fun i => native "int(i)"
 
-def String_len : (i:String) -> Int = fun i => native "len(i)"
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String = fun i => fun j => fun l => native "i[j:l]"
-
-
-def equal_int : (a: Int) -> (b: Int) -> Bool = fun x => fun y => native "x == y";
+def String_len : (i:String) -> Int := fun i => native "len(i)"
+def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
 
 
-def train: TrainData = extract_train_data (load_dataset "middle-character" 200 200)
+def equal_int : (a: Int) -> (b: Int) -> Bool := fun x => fun y => native "x == y";
 
 
-def calculate_middle_char_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  =  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
+def train: TrainData := extract_train_data (load_dataset "middle-character" 200 200)
+
+
+def calculate_middle_char_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
 
 @multi_minimize_float(calculate_middle_char_errors train synth, 1)
-def synth(s: String) : String = (let extract_train_data = unit in let load_dataset = unit in let calculate_middle_char_errors = unit in let train = unit in ?hole)
+def synth(s: String) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_middle_char_errors := unit in let train := unit in ?hole)

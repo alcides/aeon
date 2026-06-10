@@ -7,8 +7,8 @@
 open List
 
 inductive AddrBook a
-| mkAB (biz: (List a)) (per: (List a)) : {ab:(AddrBook a) | bcount ab == List.size biz && pcount ab == List.size per}
+| mkAB (biz: (List a)) (per: (List a)) : {ab:(AddrBook a) | bcount ab = List.size biz && pcount ab = List.size per}
 + bcount (ab: (AddrBook a)) : Int
 + pcount (ab: (AddrBook a)) : Int
 
-def make (xs: (List a)) : {ab:(AddrBook a) | bcount ab + pcount ab == List.size xs} = ?hole;
+def make (xs: (List a)) : {ab:(AddrBook a) | bcount ab + pcount ab = List.size xs} := ?hole;

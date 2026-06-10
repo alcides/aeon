@@ -11,15 +11,15 @@ open List
 
 # Reversing a list preserves its length.
 @property(40)
-def prop_reverse_preserves_length (l : (List Int)) : Bool =
-    length (reversed l) == length l;
+def prop_reverse_preserves_length (l : (List Int)) : Bool :=
+    length (reversed l) = length l;
 
 # The length of a concatenation is the sum of the lengths.
 @property(40)
-def prop_append_length_additive (xs : (List Int)) (ys : (List Int)) : Bool =
-    length (append xs ys) == length xs + length ys;
+def prop_append_length_additive (xs : (List Int)) (ys : (List Int)) : Bool :=
+    length (append xs ys) = length xs + length ys;
 
 # Length is never negative.
 @property(40)
-def prop_length_nonneg (l : (List Int)) : Bool =
+def prop_length_nonneg (l : (List Int)) : Bool :=
     length l >= 0;

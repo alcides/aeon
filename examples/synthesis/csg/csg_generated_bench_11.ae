@@ -35,27 +35,27 @@ inductive Csg
 | Repeat (re:Csg) (rx:Int) (ry:Int) (rc:Int) : Csg
 
 # The paper's distance metric: Jaccard distance to the target (in [0,1], 0 = exact).
-def jaccard (e:Csg) : Float =
+def jaccard (e:Csg) : Float :=
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').jaccard_distance(e, 'examples/synthesis/csg/targets/csg_generated_bench_11.png'))[1]";
 
 # Pixel-difference (Hamming) distance: 0 exactly when the bitmap is reconstructed.
-def error (e:Csg) : {n:Int | n >= 0} =
+def error (e:Csg) : {n:Int | n >= 0} :=
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').score(e, 'examples/synthesis/csg/targets/csg_generated_bench_11.png'))[1]";
 
 # The candidate's rasterised scene as a 0/1 vector -- the feature SyMetric
 # clusters individuals by, so two programs are similar when their scenes are.
-def scene (e:Csg) : (Array Int) =
+def scene (e:Csg) : (Array Int) :=
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').scene_vector(e))[1]";
 
 # Rasterise a CSG program to a PNG, so a synthesised shape can be viewed.
-def render (e:Csg) (path:String) : Unit =
+def render (e:Csg) (path:String) : Unit :=
     native "(__import__('sys').path.insert(0, 'examples/synthesis/csg'), __import__('csg_metric').render(e, 32, path))[1]";
 
 # (a) Synthesis: recover a CSG program, guided by the Jaccard metric and
 # clustered by scene (so `-s symetric` can use the scene distance).
 @minimize_float(jaccard shape)
 @cluster(scene shape)
-def shape : Csg = (let jaccard = unit in let error = unit in let scene = unit in let render = unit in let shape_solution = unit in ?hole);
+def shape : Csg := (let jaccard := unit in let error := unit in let scene := unit in let render := unit in let shape_solution := unit in ?hole);
 
 # (b) The original benchmark program (reconstructs the target, error == 0):
-def shape_solution : Csg = Diff (Repeat (Diff (Union (Circle 10 4 3) (Circle 7 4 2)) (Rect 8 3 11 11)) 2 5 3) (Rect 7 12 12 15);
+def shape_solution : Csg := Diff (Repeat (Diff (Union (Circle 10 4 3) (Circle 7 4 2)) (Rect 8 3 11 11)) 2 5 3) (Rect 7 12 12 15);

@@ -1,13 +1,13 @@
 # Problem 34: Calculate Euler's totient function phi(m).
 # phi(m) is the number of positive integers <= m that are coprime to m.
 
-def myGcd (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : {v:Int | v >= 0} decreasing_by [b] =
-    if b == 0 then a else myGcd b (a % b)
+def myGcd (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : {v:Int | v >= 0} decreasing_by [b] :=
+    if b = 0 then a else myGcd b (a % b)
 
-def totient (m: {x:Int | x >= 1}) : {v:Int | v >= 1} =
+def totient (m: {x:Int | x >= 1}) : {v:Int | v >= 1} :=
     native "sum(1 for k in range(1, m + 1) if __import__('math').gcd(k, m) == 1)"
 
-def main (args:Int) : Unit =
-    _ = print (totient 1);
-    _ = print (totient 10);
+def main (args:Int) : Unit :=
+    _ := print (totient 1);
+    _ := print (totient 10);
     print (totient 36)

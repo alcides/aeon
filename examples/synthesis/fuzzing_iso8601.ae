@@ -17,8 +17,8 @@ inductive DateTime
      (h:Int  | 0 <= h && h <= 23)
      (mi:Int | 0 <= mi && mi <= 59)
      (s:Int  | 0 <= s && s <= 59) :
-     {t:DateTime | (yr t == y) && (mon t == mo) && (dy t == d) &&
-                   (hr t == h) && (mn t == mi) && (sc t == s)}
+     {t:DateTime | (yr t = y) && (mon t = mo) && (dy t = d) &&
+                   (hr t = h) && (mn t = mi) && (sc t = s)}
 + yr (t:DateTime) : Int  + mon (t:DateTime) : Int  + dy (t:DateTime) : Int
 + hr (t:DateTime) : Int  + mn (t:DateTime) : Int   + sc (t:DateTime) : Int
 
@@ -29,13 +29,13 @@ def fuzz_datetime : {t:DateTime |
     ((mon t != 4 && mon t != 6 && mon t != 9 && mon t != 11) || dy t <= 30) &&
     # February: 28 days, or 29 in a leap year
     (mon t != 2 || dy t <= 28 ||
-        (dy t == 29 && ((yr t % 4 == 0 && yr t % 100 != 0) || yr t % 400 == 0)))
-} = ?hole;
+        (dy t = 29 && ((yr t % 4 = 0 && yr t % 100 != 0) || yr t % 400 = 0)))
+} := ?hole;
 
 # (b) Verification: 2024-02-29T13:45:30 is valid (2024 is a leap year);
 # 2023-02-29 (non-leap) would be rejected by the same spec.
 def a_datetime : {t:DateTime |
     ((mon t != 4 && mon t != 6 && mon t != 9 && mon t != 11) || dy t <= 30) &&
     (mon t != 2 || dy t <= 28 ||
-        (dy t == 29 && ((yr t % 4 == 0 && yr t % 100 != 0) || yr t % 400 == 0)))
-} = .mk 2024 2 29 13 45 30
+        (dy t = 29 && ((yr t % 4 = 0 && yr t % 100 != 0) || yr t % 400 = 0)))
+} := .mk 2024 2 29 13 45 30

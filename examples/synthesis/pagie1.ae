@@ -17,14 +17,14 @@
 #   uv run python -m aeon --budget 60 -s gp examples/synthesis/pagie1.ae
 
 # Reference specification.  1 / (1 + x^-4) == 1 / (1 + 1/x^4).
-def pagie1_spec (x:Float) (y:Float) : Float =
+def pagie1_spec (x:Float) (y:Float) : Float :=
     1.0 / (1.0 + 1.0 / (x * x * x * x)) + 1.0 / (1.0 + 1.0 / (y * y * y * y));
 
 # Mean absolute error of a candidate `func` against Pagie-1 over the 100-point
 # grid (the two list comprehensions drop x == 0 / y == 0).
-def sr_errors : (func: (x:Float) -> (y:Float) -> Float) -> Float =
+def sr_errors : (func: (x:Float) -> (y:Float) -> Float) -> Float :=
     fun func => native "sum(abs(func(x)(y) - (1.0/(1.0 + x**-4) + 1.0/(1.0 + y**-4))) for x in [-5.0 + i for i in range(11) if i != 5] for y in [-5.0 + j for j in range(11) if j != 5]) / 100.0";
 
 @minimize_float(sr_errors synth)
-def synth (x:Float) (y:Float) : Float =
-    (let pagie1_spec = unit in let sr_errors = unit in ?hole)
+def synth (x:Float) (y:Float) : Float :=
+    (let pagie1_spec := unit in let sr_errors := unit in ?hole)

@@ -113,15 +113,15 @@ def test_unit_sort_is_not_bool():
 def test_uninterpreted() -> None:
     aeon_code = """
 type List;
-def List_size: (l:List) -> Int = uninterpreted;
+def List_size: (l:List) -> Int := uninterpreted;
 
-def List_new : {x:List | List_size x == 0} = native "[]" ;
+def List_new : {x:List | List_size x = 0} := native "[]" ;
 
-def List_append (l:List) (i: Int) : {l2:List | List_size l2 == (List_size l) + 1} = native "l + [i]"
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 = (List_size l) + 1} := native "l + [i]"
 
-def main (x:Int) : Unit =
-    empty = List_new;
-    one = List_append empty 3;
+def main (x:Int) : Unit :=
+    empty := List_new;
+    one := List_append empty 3;
     print(one)
 """
     check_compile(aeon_code, st_top)
@@ -130,20 +130,20 @@ def main (x:Int) : Unit =
 def test_uninterpreted2() -> None:
     aeon_code = """
 type List;
-def List_size: (l:List) -> Int = uninterpreted;
-def List_new : {u:List | List_size u == 0} = native "[]" ;
-def List_append (l:List) (i: Int) : {l2:List | List_size l2 == List_size l + 1} = native "l + [i]"
+def List_size: (l:List) -> Int := uninterpreted;
+def List_new : {u:List | List_size u = 0} := native "[]" ;
+def List_append (l:List) (i: Int) : {l2:List | List_size l2 = List_size l + 1} := native "l + [i]"
 
-def main (x:Int) : Unit =
-    empty = List_new;
-    one = List_append empty 3;
+def main (x:Int) : Unit :=
+    empty := List_new;
+    one := List_append empty 3;
     print(one)
 """
     check_compile(aeon_code, st_top)
 
 
 def test_poly_to_smt():
-    expected_stype = SRefinedType(Name("y"), st_bool, parse_expression("y == (x > (9 - z))"))
+    expected_stype = SRefinedType(Name("y"), st_bool, parse_expression("y = (x > (9 - z))"))
 
     assert check_compile_expr(
         "(x + z) > 9",
@@ -175,11 +175,11 @@ def test_reflected_function_unfolding() -> None:
 
 def test_native_function_is_not_reflected() -> None:
     aeon_code = """
-def native_inc (x:Int) : Int = native "x + 1";
+def native_inc (x:Int) : Int := native "x + 1";
 
-def witness (x:Int) : {v:Int | v > x} = native_inc x;
+def witness (x:Int) : {v:Int | v > x} := native_inc x;
 
-def main (x:Int) : Unit = print(witness x)
+def main (x:Int) : Unit := print(witness x)
 """
     assert not check_compile(aeon_code, st_top)
 

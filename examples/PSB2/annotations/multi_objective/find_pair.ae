@@ -1,32 +1,32 @@
 import PSB2 (extract_train_data, load_dataset, get_input_list, get_output_list, unpack_train_data)
 
 import Array
-def itertools : Unit = native_import "itertools"
-def combinations : (n:(Array Int)) -> (m:Int) -> (Array Int) = fun n => fun m => native "list(itertools.combinations(n, m))"
+def itertools : Unit := native_import "itertools"
+def combinations : (n:(Array Int)) -> (m:Int) -> (Array Int) := fun n => fun m => native "list(itertools.combinations(n, m))"
 
-def Math_toFloat : (i:Int) -> Float = fun i => native "float(i)"
-def Math_max : (i:Int) -> (j:Int) -> Int = fun i => fun j => native "max(i,j)"
+def Math_toFloat : (i:Int) -> Float := fun i => native "float(i)"
+def Math_max : (i:Int) -> (j:Int) -> Int := fun i => fun j => native "max(i,j)"
 
-def List_filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "[x for x in xs if f(x)]"
+def List_filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
 
-def List_sum : (l:(Array Int)) -> Int = fun xs => native "sum(xs)"
-def List_head : (l: (Array Int)) -> (Array Int) = fun xs => native "xs[0]"
-def List_size : (l:(Array Int)) -> Int = uninterpreted
-def List_length : (l:(Array Int)) -> Int = fun list => native "len(list)"
-def List_new : {x:(Array Int) | List_size x == 0} = native "[]" ;
-def List_append (l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 == List_size l + 1} = native "l + [i]";
+def List_sum : (l:(Array Int)) -> Int := fun xs => native "sum(xs)"
+def List_head : (l: (Array Int)) -> (Array Int) := fun xs => native "xs[0]"
+def List_size : (l:(Array Int)) -> Int := uninterpreted
+def List_length : (l:(Array Int)) -> Int := fun list => native "len(list)"
+def List_new : {x:(Array Int) | List_size x = 0} := native "[]" ;
+def List_append (l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
 
 #PSB2 functions
 
-def train: TrainData = extract_train_data (load_dataset "find-pair" 200 200)
+def train: TrainData := extract_train_data (load_dataset "find-pair" 200 200)
 
-def input_list : (Array Int) = get_input_list (unpack_train_data train)
+def input_list : (Array Int) := get_input_list (unpack_train_data train)
 
-def expected_values : (Array Int) = get_output_list (unpack_train_data train)
-def flatten_list : (t:(Array Int)) -> (Array Int) = fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"
+def expected_values : (Array Int) := get_output_list (unpack_train_data train)
+def flatten_list : (t:(Array Int)) -> (Array Int) := fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"
 
-def calculate_find_pair_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (b:Int) -> (Array Int) ) -> (Array Int)  =  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)) )(func(input_value[0])(input_value[1]), correct_output) for input_value, correct_output in data ]"
+def calculate_find_pair_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (b:Int) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)) )(func(input_value[0])(input_value[1]), correct_output) for input_value, correct_output in data ]"
 
 
 @multi_minimize_float(calculate_find_pair_errors train synth, 1)
-def synth (numbers: (Array Int)) (target: Int) : (Array Int) = (let extract_train_data = unit in let load_dataset = unit in let calculate_find_pair_errors = unit in let train = unit in ?hole)
+def synth (numbers: (Array Int)) (target: Int) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_find_pair_errors := unit in let train := unit in ?hole)

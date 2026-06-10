@@ -90,7 +90,7 @@ is pursued.
 ## Follow-up: a linear-relaxation prototype (DeepPoly-in-refinements)
 
 `relax_gen.py` + `libraries/Relax.ae` sketch the principled fix: replace each
-unstable ReLU's exact `(y == 0 || y == x)` with its convex **triangle
+unstable ReLU's exact `(y = 0 || y = x)` with its convex **triangle
 relaxation** (`y >= 0`, `y >= z`, `y <= a*z + b`) — sound linear bounds with
 **no disjunction**, so the solver never case-splits. Stable neurons stay
 exact; the per-neuron pre-activation interval `[l, u]` is exact for one
@@ -131,7 +131,7 @@ and that representing neurons as opaque SMT variables would fix it. Profiling
 things:
 
 1. **Aeon already makes neurons opaque.** The verification condition is
-   literally `∀h0. h0 == <affine> → ∀h1. h1 == <affine> → ... → margin > 0`:
+   literally `∀h0. h0 = <affine> → ∀h1. h1 = <affine> → ... → margin > 0`:
    each `let` is lowered to a fresh quantified variable plus one defining
    equation. Opacity was not the missing piece.
 
@@ -139,7 +139,7 @@ things:
    case-splitting.** `aeon/verification/smt.py:translate_liq` accounted for
    ~22 s of a 38 s run and was called **~405,000 times** for a ~10-equation
    problem. It is a *non-memoized* recursive descent, and the nested
-   `∀h. h==e → ...` chain makes it re-translate overlapping sub-formulas over
+   `∀h. h=e → ...` chain makes it re-translate overlapping sub-formulas over
    and over — cost grows with the verification-condition size = (number of
    bindings) × (terms per affine).
 

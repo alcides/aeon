@@ -2,12 +2,12 @@ open Math
 import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_bb_synth_values, unpack_train_data, load_dataset, mean_absolute_error)
 
 
-def train: TrainData =  extract_train_data ( load_dataset "bouncing-balls" 200 200)
+def train: TrainData :=  extract_train_data ( load_dataset "bouncing-balls" 200 200)
 
-def  input_list : List =  get_input_list ( unpack_train_data train)
+def  input_list : List :=  get_input_list ( unpack_train_data train)
 
-def  expected_values : List =  get_output_list ( unpack_train_data train)
+def  expected_values : List :=  get_output_list ( unpack_train_data train)
 
 @minimize_float(  mean_absolute_error ( get_bb_synth_values  input_list synth) ( expected_values))
 def synth (a:Float) (b:Float) (c:Int) : Float
-    = (let extract_train_data = unit in let get_input_list = unit in let get_output_list = unit in let unpack_train_data = unit in let load_dataset = unit in let get_bb_synth_values = unit in let calculate_list_errors = unit in ?hole);
+    := (let extract_train_data := unit in let get_input_list := unit in let get_output_list := unit in let unpack_train_data := unit in let load_dataset := unit in let get_bb_synth_values := unit in let calculate_list_errors := unit in ?hole);

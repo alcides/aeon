@@ -8,6 +8,6 @@
 open LearningCore
 
 def kernel_ridge
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnRegressor | reg_features m == ds_features ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_kernel_ridge(ds)"

@@ -15,24 +15,24 @@
 
 inductive Contrib
 | mk (a:Int | 0 <= a && a <= 20) (b:Int | 0 <= b && b <= 20) (c:Int | 0 <= c && c <= 20) :
-     {x:Contrib | (ca x == a) && (cb x == b) && (cc x == c)}
+     {x:Contrib | (ca x = a) && (cb x = b) && (cc x = c)}
 + ca (x:Contrib) : Int  + cb (x:Contrib) : Int  + cc (x:Contrib) : Int
 
 # (a) Synthesis: find a valid split.
 @minimize_int(0)
 def contrib_hole : {x:Contrib |
-    (ca x + cb x + cc x == 50) &&
+    (ca x + cb x + cc x = 50) &&
     (ca x >= cb x) &&
-    (cc x % 5 == 0) &&
+    (cc x % 5 = 0) &&
     (ca x != cb x) && (ca x != cc x) && (cb x != cc x)
-} = ?hole;
+} := ?hole;
 
 # (b) Verification: the fair optimum (18, 17, 15) satisfies the constraints AND
 # proves optimality — no contribution exceeds 18.
 def contrib_optimum : {x:Contrib |
-    (ca x + cb x + cc x == 50) &&
+    (ca x + cb x + cc x = 50) &&
     (ca x >= cb x) &&
-    (cc x % 5 == 0) &&
+    (cc x % 5 = 0) &&
     (ca x != cb x) && (ca x != cc x) && (cb x != cc x) &&
     (ca x <= 18) && (cb x <= 18) && (cc x <= 18)
-} = .mk 18 17 15
+} := .mk 18 17 15

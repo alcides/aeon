@@ -8,13 +8,13 @@
 
 inductive Point
 | mk (x:Int) (y:Int) :
-     {p:Point | (px p == x) && (py p == y)}
+     {p:Point | (px p = x) && (py p = y)}
 + px (p:Point) : Int
 + py (p:Point) : Int
 
 def lattice_point_hole : {p:Point |
-    px p * px p + py p * py p == 25
-} = ?hole
+    px p * px p + py p * py p = 25
+} := ?hole
 
 # Verification: a known lattice point should type-check.
-def lattice_point : {p:Point | px p * px p + py p * py p == 25} = .mk 3 4
+def lattice_point : {p:Point | px p * px p + py p * py p = 25} := .mk 3 4

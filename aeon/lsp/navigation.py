@@ -181,10 +181,10 @@ class InlayInfo:
 def inlay_hints(core: Term, source: str, type_index) -> list[InlayInfo]:
     """Inferred-type hints for un-annotated ``let`` bindings.
 
-    An annotated ``let x : T = …`` lowers to a ``Rec`` (the user already sees
+    An annotated ``let x : T := …`` lowers to a ``Rec`` (the user already sees
     ``T``); only un-annotated bindings lower to ``Let``, and those are exactly
     where showing the inferred (refined) type is worth the screen space — e.g.
-    ``let x = 41`` gets ``: {ν:Int | ν == 41}``."""
+    ``let x := 41`` gets ``: {ν:Int | ν = 41}``."""
     from aeon.lsp.completion import format_type
 
     if type_index is None:

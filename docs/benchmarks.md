@@ -58,7 +58,7 @@ demand rather than on every push.
 A mixed set of small programs, each with a `?hole` (sometimes guided by a
 `@minimize_int` / `@maximize_int` / `@minimize_float` objective).
 
-**Illustrative / language-feature holes:** `int.ae` (synthesize `x == 35`),
+**Illustrative / language-feature holes:** `int.ae` (synthesize `x = 35`),
 `simple_synthesis.ae`, `hole.ae`, `dummy.ae`, `synthesis_proposal.ae`,
 `hole_refined_synthesis.ae`, `function_refined_synthesis_args.ae`,
 `multiobjective.ae`, and `cputime_energy.ae` (optimizes a hole for
@@ -102,7 +102,7 @@ with `@minimize_float(jaccard shape)`, the paper's Jaccard-distance metric;
 per-pixel rasterisation and the distance run natively in `csg_metric.py` (via
 Pillow), since a full bitmap is too large to evaluate in-language. Each file
 hides its helper functions and reference solution from the grammar with
-`let … = unit in` shadowing so the search is genuine.
+`let … := unit in` shadowing so the search is genuine.
 
 The 47 instances span sizes `tiny` (2), `small` (13), `medium` (6), `large`
 (1), plus 25 `generated` cases (`generate.py`, catalogued in `benchmarks.tsv`),
@@ -157,7 +157,7 @@ constraints (`bench_int_bounded`, `bench_int_negative`, `bench_int_disjoint`,
 ## Property-based testing — `examples/pbt/`
 
 Four examples that synthesize a function body to satisfy `@assert_property`
-specifications (e.g. `synth_int(x)` such that `x + synth_int(x) == 0`).
+specifications (e.g. `synth_int(x)` such that `x + synth_int(x) = 0`).
 
 ## Vericoding — `benchmarks/vericoding/`
 

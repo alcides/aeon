@@ -20,12 +20,12 @@ Every file follows the same `native`-fitness convention used by the PSB2
 examples (e.g. `examples/PSB2/.../gcd.ae`):
 
 ```aeon
-def sr_errors : (func: (a0:Float) -> ... -> Float) -> Float =
+def sr_errors : (func: (a0:Float) -> ... -> Float) -> Float :=
     fun func => native "...mean absolute error of func vs the true equation
                       over sampled points, computed with numpy...";
 
 @minimize_float(sr_errors synth)
-def synth (<vars>:Float) ... : Float = (let sr_errors = unit in ?hole)
+def synth (<vars>:Float) ... : Float := (let sr_errors := unit in ?hole)
 ```
 
 - The true equation and the sampling are computed inside a self-contained

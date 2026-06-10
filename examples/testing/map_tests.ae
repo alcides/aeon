@@ -10,33 +10,33 @@ open Map
 # ── Unit tests ───────────────────────────────────────────────────────────────
 
 @property(1)
-def test_get_after_set : Bool = assertEqual (get (set new 1 100) 1) 100;
+def test_get_after_set : Bool := assertEqual (get (set new 1 100) 1) 100;
 
 @property(1)
-def test_has : Bool =
-    m = set new 1 100;
+def test_has : Bool :=
+    m := set new 1 100;
     both (assertTrue (has m 1))
          (assertFalse (has m 2));
 
 @property(1)
-def test_overwrite : Bool =
-    m = set (set new 1 100) 1 200;
+def test_overwrite : Bool :=
+    m := set (set new 1 100) 1 200;
     assertEqual (get m 1) 200;
 
 @property(1)
-def test_two_keys : Bool =
-    m = set (set new 1 10) 2 20;
+def test_two_keys : Bool :=
+    m := set (set new 1 10) 2 20;
     both (assertEqual (get m 1) 10)
          (assertEqual (get m 2) 20);
 
 @property(1)
-def test_delete : Bool =
-    m = delete (set new 1 100) 1;
+def test_delete : Bool :=
+    m := delete (set new 1 100) 1;
     assertFalse (has m 1);
 
 @property(1)
-def test_delete_keeps_others : Bool =
-    m = delete (set (set new 1 10) 2 20) 1;
+def test_delete_keeps_others : Bool :=
+    m := delete (set (set new 1 10) 2 20) 1;
     both (assertFalse (has m 1))
          (assertTrue (has m 2));
 
@@ -44,20 +44,20 @@ def test_delete_keeps_others : Bool =
 
 # Whatever value you set for a key, you get it back.
 @property
-def prop_set_get_roundtrip (k : Int) (v : Int) : Bool =
+def prop_set_get_roundtrip (k : Int) (v : Int) : Bool :=
     assertEqual (get (set new k v) k) v;
 
 # A key is present right after being set.
 @property
-def prop_set_then_has (k : Int) (v : Int) : Bool =
+def prop_set_then_has (k : Int) (v : Int) : Bool :=
     assertTrue (has (set new k v) k);
 
 # A key is absent right after being deleted.
 @property
-def prop_delete_then_absent (k : Int) (v : Int) : Bool =
+def prop_delete_then_absent (k : Int) (v : Int) : Bool :=
     assertFalse (has (delete (set new k v) k) k);
 
 # The last write wins.
 @property
-def prop_last_write_wins (k : Int) (v1 : Int) (v2 : Int) : Bool =
+def prop_last_write_wins (k : Int) (v1 : Int) (v2 : Int) : Bool :=
     assertEqual (get (set (set new k v1) k v2) k) v2;

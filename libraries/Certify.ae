@@ -24,21 +24,21 @@
 # ``NN`` to *run* large ones.
 
 # Rectified linear unit, exactly. The refinement pins ``y == max(0, x)``.
-def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y == x || y == 0.0)} =
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y = x || y = 0.0)} :=
     if x >= 0.0 then x else 0.0 ;
 
 # Leaky ReLU with slope 1/100 on the negative side, exactly.
 def leaky_relu (x: Float) :
-    {y: Float | (x >= 0.0 --> y == x) && (x < 0.0 --> y == x / 100.0)} =
+    {y: Float | (x >= 0.0 --> y = x) && (x < 0.0 --> y = x / 100.0)} :=
     if x >= 0.0 then x else x / 100.0 ;
 
 # Hard tanh: clamp to [-1, 1], exactly. The refinement gives both the
 # codomain and the identity region.
 def hardtanh (x: Float) :
     {y: Float | (0.0 - 1.0) <= y && y <= 1.0
-             && (((0.0 - 1.0) <= x && x <= 1.0) --> y == x)} =
+             && (((0.0 - 1.0) <= x && x <= 1.0) --> y = x)} :=
     if x <= (0.0 - 1.0) then (0.0 - 1.0) else (if x >= 1.0 then 1.0 else x) ;
 
 # Absolute value as a verified piecewise-linear unit: ``y == |x|``.
-def absval (x: Float) : {y: Float | y >= 0.0 && y >= x && y >= (0.0 - x) && (y == x || y == (0.0 - x))} =
+def absval (x: Float) : {y: Float | y >= 0.0 && y >= x && y >= (0.0 - x) && (y = x || y = (0.0 - x))} :=
     if x >= 0.0 then x else (0.0 - x) ;

@@ -14,9 +14,9 @@ inductive Magic
      (d:Int | 1 <= d && d <= 9) (e:Int | 1 <= e && e <= 9) (f:Int | 1 <= f && f <= 9)
      (g:Int | 1 <= g && g <= 9) (h:Int | 1 <= h && h <= 9) (i:Int | 1 <= i && i <= 9) :
      {m:Magic |
-        (ma m == a) && (mb m == b) && (mc m == c) &&
-        (md m == d) && (me m == e) && (mf m == f) &&
-        (mg m == g) && (mh m == h) && (mi m == i)}
+        (ma m = a) && (mb m = b) && (mc m = c) &&
+        (md m = d) && (me m = e) && (mf m = f) &&
+        (mg m = g) && (mh m = h) && (mi m = i)}
 + ma (m:Magic) : Int  + mb (m:Magic) : Int  + mc (m:Magic) : Int
 + md (m:Magic) : Int  + me (m:Magic) : Int  + mf (m:Magic) : Int
 + mg (m:Magic) : Int  + mh (m:Magic) : Int  + mi (m:Magic) : Int
@@ -25,11 +25,11 @@ inductive Magic
 @minimize_int(0)
 def magic_hole : {m:Magic |
     # rows
-    (ma m + mb m + mc m == 15) && (md m + me m + mf m == 15) && (mg m + mh m + mi m == 15) &&
+    (ma m + mb m + mc m = 15) && (md m + me m + mf m = 15) && (mg m + mh m + mi m = 15) &&
     # columns
-    (ma m + md m + mg m == 15) && (mb m + me m + mh m == 15) && (mc m + mf m + mi m == 15) &&
+    (ma m + md m + mg m = 15) && (mb m + me m + mh m = 15) && (mc m + mf m + mi m = 15) &&
     # diagonals
-    (ma m + me m + mi m == 15) && (mc m + me m + mg m == 15) &&
+    (ma m + me m + mi m = 15) && (mc m + me m + mg m = 15) &&
     # all nine entries distinct
     (ma m != mb m) && (ma m != mc m) && (ma m != md m) && (ma m != me m) && (ma m != mf m) &&
     (ma m != mg m) && (ma m != mh m) && (ma m != mi m) &&
@@ -42,16 +42,16 @@ def magic_hole : {m:Magic |
     (mf m != mg m) && (mf m != mh m) && (mf m != mi m) &&
     (mg m != mh m) && (mg m != mi m) &&
     (mh m != mi m)
-} = ?hole;
+} := ?hole;
 
 # (b) Verification: the classic Lo Shu square type-checks.
 #     2 7 6
 #     9 5 1
 #     4 3 8
 def magic_solution : {m:Magic |
-    (ma m + mb m + mc m == 15) && (md m + me m + mf m == 15) && (mg m + mh m + mi m == 15) &&
-    (ma m + md m + mg m == 15) && (mb m + me m + mh m == 15) && (mc m + mf m + mi m == 15) &&
-    (ma m + me m + mi m == 15) && (mc m + me m + mg m == 15) &&
+    (ma m + mb m + mc m = 15) && (md m + me m + mf m = 15) && (mg m + mh m + mi m = 15) &&
+    (ma m + md m + mg m = 15) && (mb m + me m + mh m = 15) && (mc m + mf m + mi m = 15) &&
+    (ma m + me m + mi m = 15) && (mc m + me m + mg m = 15) &&
     (ma m != mb m) && (ma m != mc m) && (ma m != md m) && (ma m != me m) && (ma m != mf m) &&
     (ma m != mg m) && (ma m != mh m) && (ma m != mi m) &&
     (mb m != mc m) && (mb m != md m) && (mb m != me m) && (mb m != mf m) && (mb m != mg m) &&
@@ -63,4 +63,4 @@ def magic_solution : {m:Magic |
     (mf m != mg m) && (mf m != mh m) && (mf m != mi m) &&
     (mg m != mh m) && (mg m != mi m) &&
     (mh m != mi m)
-} = .mk 2 7 6 9 5 1 4 3 8
+} := .mk 2 7 6 9 5 1 4 3 8

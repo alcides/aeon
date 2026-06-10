@@ -3,8 +3,8 @@
 
 open Array
 
-def primesR (low: {x:Int | x >= 2}) (high: {y:Int | y >= low}) : (Array Int) =
+def primesR (low: {x:Int | x >= 2}) (high: {y:Int | y >= low}) : (Array Int) :=
     native "[n for n in range(low, high + 1) if all(n % d != 0 for d in range(2, int(n ** 0.5) + 1))]"
 
-def main (args:Int) : Unit =
+def main (args:Int) : Unit :=
     print (primesR 10 50)

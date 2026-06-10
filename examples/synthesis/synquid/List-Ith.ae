@@ -6,4 +6,4 @@
 
 open List
 
-def ith (xs: (List a)) (i: {v:Int | v >= 0 && v < List.size xs}) : a = ?hole;
+def ith (xs: (List a)) (i: {v:Int | v >= 0 && v < List.size xs}) : a := ?hole;

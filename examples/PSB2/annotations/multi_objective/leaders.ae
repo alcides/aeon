@@ -1,23 +1,23 @@
 import PSB2 (extract_train_data, load_dataset)
 import Array
-def itertools : Unit = native_import "itertools"
+def itertools : Unit := native_import "itertools"
 
-def List_reversed: (l: (Array Int))-> (Array Int) = fun xs => native "xs[::-1]"
-def List_new : (Array Int) = native "[]"
-def List_append: (l:(Array Int)) -> (i: Int) -> (Array Int) = fun xs => fun x => native "xs + [x]"
-def List_get: (l:(Array Int)) -> (i:Int) -> Int = fun xs => fun i => native "xs[i]"
+def List_reversed: (l: (Array Int))-> (Array Int) := fun xs => native "xs[::-1]"
+def List_new : (Array Int) := native "[]"
+def List_append: (l:(Array Int)) -> (i: Int) -> (Array Int) := fun xs => fun x => native "xs + [x]"
+def List_get: (l:(Array Int)) -> (i:Int) -> Int := fun xs => fun i => native "xs[i]"
 
-def Scanl_max : (xs:(Array Int)) -> (Array Int) = fun xs => native "list(itertools.accumulate(xs, max))"
-def Filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "[x for x in xs if f(x)]"
-def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) = fun xs => fun ys => native "list(zip(xs, ys))"
-def Map : (f: (s:(Array Int)) -> Int) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "list(map(f, xs))"
+def Scanl_max : (xs:(Array Int)) -> (Array Int) := fun xs => native "list(itertools.accumulate(xs, max))"
+def Filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
+def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
+def Map : (f: (s:(Array Int)) -> Int) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
 
 #PSB2 functions
-def train: TrainData = extract_train_data (load_dataset "leaders" 50 50)
+def train: TrainData := extract_train_data (load_dataset "leaders" 50 50)
 
 
-def calculate_leaders_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (Array Int) ) -> (Array Int)  =  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]"
+def calculate_leaders_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]"
 
 
 @multi_minimize_float(calculate_leaders_errors train synth, 1)
-def synth ( vector : (Array Int) ) : (Array Int) = (let extract_train_data = unit in let load_dataset = unit in let calculate_leaders_errors = unit in let train = unit in ?hole)
+def synth ( vector : (Array Int) ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_leaders_errors := unit in let train := unit in ?hole)

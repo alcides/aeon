@@ -1,38 +1,38 @@
 import PSB2 (extract_train_data, load_dataset)
 
 import Array
-def itertools : Unit = native_import "itertools"
+def itertools : Unit := native_import "itertools"
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) = fun start => fun end => fun step => native "list(range(start, end, step ))"
+def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) := fun start => fun end => fun step => native "list(range(start, end, step ))"
 
-def List_slice : (i:(Array Int)) -> (j:Int) -> (l:Int)-> (Array Int) = fun i => fun j => fun l => native "i[j:l]"
-def List_remove_last : (i:(Array Int)) -> (Array Int) = fun i => native "i[:-1]"
-def List_remove_first : (i:(Array Int)) -> (Array Int) = fun i => native "i[1:]"
-def List_reversed: (l: (Array Int))-> (Array Int) = fun xs => native "xs[::-1]"
+def List_slice : (i:(Array Int)) -> (j:Int) -> (l:Int)-> (Array Int) := fun i => fun j => fun l => native "i[j:l]"
+def List_remove_last : (i:(Array Int)) -> (Array Int) := fun i => native "i[:-1]"
+def List_remove_first : (i:(Array Int)) -> (Array Int) := fun i => native "i[1:]"
+def List_reversed: (l: (Array Int))-> (Array Int) := fun xs => native "xs[::-1]"
 
-def List_length: (l:(Array Int)) -> Int = fun list => native "len(list)"
-def List_new : (Array Int) = native "[]"
-def List_append: (l:(Array Int)) -> (i: Int) -> (Array Int) = fun xs => fun x => native "xs + [x]"
+def List_length: (l:(Array Int)) -> Int := fun list => native "len(list)"
+def List_new : (Array Int) := native "[]"
+def List_append: (l:(Array Int)) -> (i: Int) -> (Array Int) := fun xs => fun x => native "xs + [x]"
 
-def Accumulate : (xs:(Array Int)) -> (Array Int) = fun xs => native "list(itertools.accumulate(xs))"
-def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) = fun xs => fun ys => native "list(zip(xs, ys))"
-def Enumerate : (xs:(Array Int)) -> (Array Int) = fun xs => native "list(enumerate(xs))"
-def Map : (f: (s:(Array Int)) -> (Array Int)) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "list(map(f, xs))"
-def Math_abs : (i:Int) -> Int = fun i => native "abs(i)"
-def Tuple : (i:Int) -> (j:Int) -> (Array Int) = fun i => fun j => native "(i, j)"
-def Tuple_list : (i:(Array Int)) -> (j:(Array Int)) -> (Array Int) = fun i => fun j => native "[i, j]"
-def min_list : (i:(Array Int)) -> (key: (xs:(Array Int)) -> Int) -> (Array Int) = fun i => fun f => native "min(i,key=f)";
+def Accumulate : (xs:(Array Int)) -> (Array Int) := fun xs => native "list(itertools.accumulate(xs))"
+def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
+def Enumerate : (xs:(Array Int)) -> (Array Int) := fun xs => native "list(enumerate(xs))"
+def Map : (f: (s:(Array Int)) -> (Array Int)) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
+def Math_abs : (i:Int) -> Int := fun i => native "abs(i)"
+def Tuple : (i:Int) -> (j:Int) -> (Array Int) := fun i => fun j => native "(i, j)"
+def Tuple_list : (i:(Array Int)) -> (j:(Array Int)) -> (Array Int) := fun i => fun j => native "[i, j]"
+def min_list : (i:(Array Int)) -> (key: (xs:(Array Int)) -> Int) -> (Array Int) := fun i => fun f => native "min(i,key=f)";
 
-def get_fst : (i:(Array Int)) -> Int = fun i => native "i[0]"
-def get_snd : (i:(Array Int)) -> Int = fun i => native "i[1] if len(i) > 1 else i[0]"
-def get_zip : (i:(Array Int)) -> (Array Int) = fun i => native "i[1]"
+def get_fst : (i:(Array Int)) -> Int := fun i => native "i[0]"
+def get_snd : (i:(Array Int)) -> Int := fun i => native "i[1] if len(i) > 1 else i[0]"
+def get_zip : (i:(Array Int)) -> (Array Int) := fun i => native "i[1]"
 
 #PSB2 functions
 
-def train: TrainData = extract_train_data (load_dataset "cut-vector" 200 200)
+def train: TrainData := extract_train_data (load_dataset "cut-vector" 200 200)
 
-def calculate_cut_vector_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (Array Int) ) -> (Array Int)  =  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]"
+def calculate_cut_vector_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]"
 
 
 @multi_minimize_float(calculate_cut_vector_errors train cut_vector, 2)
-def cut_vector ( ls : (Array Int) ) : (Array Int) = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_cut_vector_errors = unit in ?hole)
+def cut_vector ( ls : (Array Int) ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_cut_vector_errors := unit in ?hole)

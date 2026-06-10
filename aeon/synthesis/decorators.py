@@ -54,7 +54,7 @@ def multi_objective_type(element: str, number_of_objectives: int) -> SType:
     ``bind_ids`` rather than the surface qualified-name pass (which runs before
     decorators expand).
     """
-    return parse_type(f"{{v:(Array {element}) | Array_size v == {number_of_objectives}}}")
+    return parse_type(f"{{v:(Array {element}) | Array_size v = {number_of_objectives}}}")
 
 
 def make_optimizer(

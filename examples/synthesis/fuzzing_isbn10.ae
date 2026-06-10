@@ -15,9 +15,9 @@ inductive ISBN
      (d5:Int | 0 <= d5 && d5 <= 9) (d6:Int | 0 <= d6 && d6 <= 9)
      (d7:Int | 0 <= d7 && d7 <= 9) (d8:Int | 0 <= d8 && d8 <= 9)
      (d9:Int | 0 <= d9 && d9 <= 9) (d10:Int | 0 <= d10 && d10 <= 10) :
-     {n:ISBN | (k1 n == d1) && (k2 n == d2) && (k3 n == d3) && (k4 n == d4) &&
-               (k5 n == d5) && (k6 n == d6) && (k7 n == d7) && (k8 n == d8) &&
-               (k9 n == d9) && (k10 n == d10)}
+     {n:ISBN | (k1 n = d1) && (k2 n = d2) && (k3 n = d3) && (k4 n = d4) &&
+               (k5 n = d5) && (k6 n = d6) && (k7 n = d7) && (k8 n = d8) &&
+               (k9 n = d9) && (k10 n = d10)}
 + k1 (n:ISBN) : Int  + k2 (n:ISBN) : Int  + k3 (n:ISBN) : Int  + k4 (n:ISBN) : Int
 + k5 (n:ISBN) : Int  + k6 (n:ISBN) : Int  + k7 (n:ISBN) : Int  + k8 (n:ISBN) : Int
 + k9 (n:ISBN) : Int  + k10 (n:ISBN) : Int
@@ -26,11 +26,11 @@ inductive ISBN
 @minimize_int(0)
 def fuzz_isbn : {n:ISBN |
     (10 * k1 n + 9 * k2 n + 8 * k3 n + 7 * k4 n + 6 * k5 n +
-     5 * k6 n + 4 * k7 n + 3 * k8 n + 2 * k9 n + 1 * k10 n) % 11 == 0
-} = ?hole;
+     5 * k6 n + 4 * k7 n + 3 * k8 n + 2 * k9 n + 1 * k10 n) % 11 = 0
+} := ?hole;
 
 # (b) Verification: 0-306-40615-2 is a real ISBN-10 (weighted sum 132 = 12*11).
 def an_isbn : {n:ISBN |
     (10 * k1 n + 9 * k2 n + 8 * k3 n + 7 * k4 n + 6 * k5 n +
-     5 * k6 n + 4 * k7 n + 3 * k8 n + 2 * k9 n + 1 * k10 n) % 11 == 0
-} = .mk 0 3 0 6 4 0 6 1 5 2
+     5 * k6 n + 4 * k7 n + 3 * k8 n + 2 * k9 n + 1 * k10 n) % 11 = 0
+} := .mk 0 3 0 6 4 0 6 1 5 2

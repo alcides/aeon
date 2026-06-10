@@ -70,7 +70,7 @@ def test_parse_dot_context_parenthesised_receiver():
 
 
 def test_parse_dot_context_none_without_dot():
-    assert C.parse_dot_context("let n = 3", 9) is None
+    assert C.parse_dot_context("let n := 3", 10) is None
 
 
 def test_literal_base_type():
@@ -84,11 +84,11 @@ def test_literal_base_type():
 def test_format_type_normalises_refinement_binder():
     # The internal binder (e.g. v⁴⁴) is normalised to ν and trivial refinements
     # are dropped.
-    _, index, _ = analyse("def main (u:Int) : Int =\n    let x = 7 in\n    x;\n")
-    r = index.type_at(1, col_after("def main (u:Int) : Int =\n    let x = 7 in\n    x;\n", 1, "7") - 1)
+    _, index, _ = analyse("def main (u:Int) : Int :=\n    let x := 7 in\n    x;\n")
+    r = index.type_at(1, col_after("def main (u:Int) : Int :=\n    let x := 7 in\n    x;\n", 1, "7") - 1)
     assert r is not None
     s = C.format_type(r[0])
-    assert s.startswith("{ν:Int |") and "== 7" in s
+    assert s.startswith("{ν:Int |") and "= 7" in s
 
 
 # --------------------------------------------------------------------------- #
@@ -97,7 +97,7 @@ def test_format_type_normalises_refinement_binder():
 
 
 def test_type_index_recovers_refined_literal_type():
-    src = "def main (u:Int) : Int =\n    let x = 41 in\n    x;\n"
+    src = "def main (u:Int) : Int :=\n    let x := 41 in\n    x;\n"
     _, index, errs = analyse(src)
     assert errs == []
     # cursor on the '1' of '41' (line 1, the literal starts after 'let x = ')
@@ -108,7 +108,7 @@ def test_type_index_recovers_refined_literal_type():
 
 
 def test_type_index_includes_locals_in_scope():
-    src = "def main (u:Int) : Int =\n    let x = 41 in\n    x;\n"
+    src = "def main (u:Int) : Int :=\n    let x := 41 in\n    x;\n"
     _, index, _ = analyse(src)
     c = src.splitlines()[2].index("x")
     scope = index.scope_at(2, c)
@@ -121,10 +121,10 @@ def test_type_index_includes_locals_in_scope():
 # --------------------------------------------------------------------------- #
 
 METHODS_SRC = (
-    'def Int.toString (n:Int) : String = native "str(n)";\n'
-    "def Int.double (n:Int) : Int = n + n;\n"
-    "def main (u:Int) : Int =\n"
-    "    let n = 4 in\n"
+    'def Int.toString (n:Int) : String := native "str(n)";\n'
+    "def Int.double (n:Int) : Int := n + n;\n"
+    "def main (u:Int) : Int :=\n"
+    "    let n := 4 in\n"
     "    n.double;\n"
 )
 
@@ -166,10 +166,10 @@ def test_identifier_completion_without_dot():
 # --------------------------------------------------------------------------- #
 
 REFINED_SRC = (
-    "def Int.half (x:{v:Int | v % 2 == 0}) : Int = x / 2;\n"
-    "def main (u:Int) : Int =\n"
-    "    let a : {v:Int | v == 4} = 4 in\n"
-    "    let b : {v:Int | v == 5} = 5 in\n"
+    "def Int.half (x:{v:Int | v % 2 = 0}) : Int := x / 2;\n"
+    "def main (u:Int) : Int :=\n"
+    "    let a : {v:Int | v = 4} := 4 in\n"
+    "    let b : {v:Int | v = 5} := 5 in\n"
     "    a.half;\n"
 )
 
@@ -232,7 +232,9 @@ def test_tier3_receiver_satisfies_decides_subtyping():
 # Navigation: symbols, definition, inlay hints
 # --------------------------------------------------------------------------- #
 
-NAV_SRC = "def inc (n:Int) : Int = n + 1;\ndef main (u:Int) : Int =\n    let x = 41 in\n    let y = inc x in\n    y;\n"
+NAV_SRC = (
+    "def inc (n:Int) : Int := n + 1;\ndef main (u:Int) : Int :=\n    let x := 41 in\n    let y := inc x in\n    y;\n"
+)
 
 
 def test_document_symbols_lists_top_level_defs():
@@ -283,7 +285,7 @@ def test_inlay_hints_show_inferred_refinement():
 def test_core_retained_on_type_error():
     # Ill-typed: assigning 5 to {v:Int | v == 4}. Type checking fails, but the
     # program elaborates, so tooling state must still be available.
-    src = "def main (u:Int) : Int =\n    let a : {v:Int | v == 4} = 5 in\n    a;\n"
+    src = "def main (u:Int) : Int :=\n    let a : {v:Int | v = 4} := 5 in\n    a;\n"
     d, index, errs = analyse(src)
     assert errs, "expected a type error"
     assert d.core is not None
@@ -292,7 +294,7 @@ def test_core_retained_on_type_error():
 
 
 def test_core_cleared_on_parse_error():
-    src = "def main (u:Int) : Int = !!! not valid"
+    src = "def main (u:Int) : Int := !!! not valid"
     d, index, errs = analyse(src)
     assert errs
     assert d.core is None

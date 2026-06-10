@@ -1,4 +1,4 @@
 inductive P
 | mk (v:Int | 0 < v && v < 10 ) : P
 
-def func : P  = ?hole
+def func : P  := ?hole

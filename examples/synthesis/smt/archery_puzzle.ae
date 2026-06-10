@@ -18,8 +18,8 @@ inductive Archery
      (e: Int | e >= 0 && e <= 10)
      (f: Int | f >= 0 && f <= 10)
    : {s:Archery |
-        (t16 s == a) && (t17 s == b) && (t23 s == c) &&
-        (t24 s == d) && (t39 s == e) && (t40 s == f)}
+        (t16 s = a) && (t17 s = b) && (t23 s = c) &&
+        (t24 s = d) && (t39 s = e) && (t40 s = f)}
 + t16 (s:Archery) : Int
 + t17 (s:Archery) : Int
 + t23 (s:Archery) : Int
@@ -27,9 +27,9 @@ inductive Archery
 + t39 (s:Archery) : Int
 + t40 (s:Archery) : Int
 
-def abs (x:Int) : {r:Int | r >= 0} = if x >= 0 then x else 0 - x;
+def abs (x:Int) : {r:Int | r >= 0} := if x >= 0 then x else 0 - x;
 
-def score (s:Archery) : Int =
+def score (s:Archery) : Int :=
     match s with
     | mk a b c d e f =>
         a * 16 + b * 17 + c * 23 + d * 24 + e * 39 + f * 40;
@@ -38,4 +38,4 @@ def score (s:Archery) : Int =
 def archery_hole : {s:Archery |
     (t16 s >= 0) && (t17 s >= 0) && (t23 s >= 0) &&
     (t24 s >= 0) && (t39 s >= 0) && (t40 s >= 0)
-} = (let score = unit in let abs = unit in ?hole)
+} := (let score := unit in let abs := unit in ?hole)

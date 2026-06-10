@@ -13,4 +13,4 @@
 # Run with:
 #   uv run python -m aeon --no-main -s cata --budget 30 examples/synthesis/cata/conditional_select.ae
 
-def pick (b : Bool) (x : Int) (y : Int) : {v:Int | (b --> v == x) && (!b --> v == y)} = ?hole;
+def pick (b : Bool) (x : Int) (y : Int) : {v:Int | (b --> v = x) && (!b --> v = y)} := ?hole;

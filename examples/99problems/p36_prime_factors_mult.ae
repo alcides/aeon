@@ -3,10 +3,10 @@
 
 open Array
 
-def sympy : Unit = native_import "sympy"
+def sympy : Unit := native_import "sympy"
 
-def primeFactorsMult (n: {x:Int | x >= 2}) : (Array (Array Int)) =
+def primeFactorsMult (n: {x:Int | x >= 2}) : (Array (Array Int)) :=
     native "[[p, e] for p, e in sorted(sympy.factorint(n).items())]"
 
-def main (args:Int) : Unit =
+def main (args:Int) : Unit :=
     print (primeFactorsMult 315)

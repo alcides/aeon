@@ -26,41 +26,41 @@ SOURCE = """
 open Testing
 
 @property(1)
-def t_assertTrue_pass : Bool = assertTrue (1 < 2);
+def t_assertTrue_pass : Bool := assertTrue (1 < 2);
 @property(1)
-def t_assertTrue_fail : Bool = assertTrue (2 < 1);
+def t_assertTrue_fail : Bool := assertTrue (2 < 1);
 
 @property(1)
-def t_assertFalse_pass : Bool = assertFalse (2 < 1);
+def t_assertFalse_pass : Bool := assertFalse (2 < 1);
 
 @property(1)
-def t_assertEqual_pass : Bool = assertEqual (3 * 4) 12;
+def t_assertEqual_pass : Bool := assertEqual (3 * 4) 12;
 @property(1)
-def t_assertEqual_fail : Bool = assertEqual (3 * 4) 13;
+def t_assertEqual_fail : Bool := assertEqual (3 * 4) 13;
 
 @property(1)
-def t_assertNotEqual_pass : Bool = assertNotEqual 1 2;
+def t_assertNotEqual_pass : Bool := assertNotEqual 1 2;
 
 @property(1)
-def t_assertLess_pass : Bool = assertLess 1 2;
+def t_assertLess_pass : Bool := assertLess 1 2;
 @property(1)
-def t_assertGreaterEqual_pass : Bool = assertGreaterEqual 2 2;
+def t_assertGreaterEqual_pass : Bool := assertGreaterEqual 2 2;
 
 @property(1)
-def t_assertClose_pass : Bool = assertClose (0.1 + 0.2) 0.3 0.0001;
+def t_assertClose_pass : Bool := assertClose (0.1 + 0.2) 0.3 0.0001;
 @property(1)
-def t_assertClose_fail : Bool = assertClose 1.0 2.0 0.1;
+def t_assertClose_fail : Bool := assertClose 1.0 2.0 0.1;
 
 @property(1)
-def t_both_pass : Bool = both (assertEqual 1 1) (assertLess 1 2);
+def t_both_pass : Bool := both (assertEqual 1 1) (assertLess 1 2);
 @property(1)
-def t_allOf3_pass : Bool = allOf3 (assertTrue true) (assertEqual 2 2) (assertFalse false);
+def t_allOf3_pass : Bool := allOf3 (assertTrue true) (assertEqual 2 2) (assertFalse false);
 @property(1)
-def t_allOf3_fail : Bool = allOf3 (assertTrue true) (assertEqual 2 3) (assertFalse false);
+def t_allOf3_fail : Bool := allOf3 (assertTrue true) (assertEqual 2 3) (assertFalse false);
 
 # A genuine property (generated input) phrased with the assertion vocabulary.
 @property
-def prop_abs_nonneg (x : Int) : Bool = assertGreaterEqual (x * x) 0;
+def prop_abs_nonneg (x : Int) : Bool := assertGreaterEqual (x * x) 0;
 """
 
 
@@ -134,12 +134,12 @@ def test_string_length_refinement_discharged_on_literal():
     """`String.len` is wired to Z3's native string length, so a slice whose
     bounds are valid for the literal typechecks (the `l <= len i` precondition
     is discharged because Z3 computes `len "hello" == 5`)."""
-    src = 'open String\ndef ok (_:Int) : String = slice "hello" 0 5;\n'
+    src = 'open String\ndef ok (_:Int) : String := slice "hello" 0 5;\n'
     assert _parse_errors(src) == []
 
 
 def test_string_length_refinement_rejects_out_of_bounds_literal():
     """Soundness: an out-of-bounds slice on a literal is still rejected — the
     Z3 string length makes `99 <= len "hello"` provably false, not unknown."""
-    src = 'open String\ndef bad (_:Int) : String = slice "hello" 0 99;\n'
+    src = 'open String\ndef bad (_:Int) : String := slice "hello" 0 99;\n'
     assert _parse_errors(src) != []

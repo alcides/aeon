@@ -6,4 +6,4 @@
 
 open List
 
-def insertSort (xs: (List a)) : {l:(List a) | List.size l == List.size xs} = ?hole;
+def insertSort (xs: (List a)) : {l:(List a) | List.size l = List.size xs} := ?hole;

@@ -17,13 +17,13 @@
 
 # Reference specification (the function we want synthesis to rediscover).
 # Even parity == NOT(a XOR b XOR c); on Bool, `x != y` is exclusive-or.
-def even_parity_3_spec (a:Bool) (b:Bool) (c:Bool) : Bool = !((a != b) != c);
+def even_parity_3_spec (a:Bool) (b:Bool) (c:Bool) : Bool := !((a != b) != c);
 
 # Exact fitness over the full 8-row truth table: count the disagreements
 # between the candidate `func` and the true even-parity predicate.
-def parity_errors : (func: (a:Bool) -> (b:Bool) -> (c:Bool) -> Bool) -> Int =
+def parity_errors : (func: (a:Bool) -> (b:Bool) -> (c:Bool) -> Bool) -> Int :=
     fun func => native "sum(1 for a in (True, False) for b in (True, False) for c in (True, False) if func(a)(b)(c) != (((1 if a else 0) + (1 if b else 0) + (1 if c else 0)) % 2 == 0))";
 
 @minimize_int(parity_errors synth)
-def synth (a:Bool) (b:Bool) (c:Bool) : Bool =
-    (let even_parity_3_spec = unit in let parity_errors = unit in ?hole)
+def synth (a:Bool) (b:Bool) (c:Bool) : Bool :=
+    (let even_parity_3_spec := unit in let parity_errors := unit in ?hole)

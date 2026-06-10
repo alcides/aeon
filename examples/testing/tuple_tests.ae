@@ -8,34 +8,34 @@ open Tuple
 # ── Unit tests ───────────────────────────────────────────────────────────────
 
 @property(1)
-def test_fst : Bool = assertEqual (fst (new 1 2)) 1;
+def test_fst : Bool := assertEqual (fst (new 1 2)) 1;
 
 @property(1)
-def test_snd : Bool = assertEqual (snd (new 1 2)) 2;
+def test_snd : Bool := assertEqual (snd (new 1 2)) 2;
 
 @property(1)
-def test_length : Bool = assertEqual (length (new 1 2)) 2;
+def test_length : Bool := assertEqual (length (new 1 2)) 2;
 
 @property(1)
-def test_eq : Bool =
+def test_eq : Bool :=
     both (assertTrue (eq (new 1 2) (new 1 2)))
          (assertFalse (eq (new 1 2) (new 2 1)));
 
 @property(1)
-def test_swap : Bool =
-    s = swap (new 1 2);
+def test_swap : Bool :=
+    s := swap (new 1 2);
     both (assertEqual (fst s) 2)
          (assertEqual (snd s) 1);
 
 @property(1)
-def test_map_fst : Bool =
-    t = map_fst (fun x => x + 10) (new 1 2);
+def test_map_fst : Bool :=
+    t := map_fst (fun x => x + 10) (new 1 2);
     both (assertEqual (fst t) 11)
          (assertEqual (snd t) 2);
 
 @property(1)
-def test_map_snd : Bool =
-    t = map_snd (fun x => x + 10) (new 1 2);
+def test_map_snd : Bool :=
+    t := map_snd (fun x => x + 10) (new 1 2);
     both (assertEqual (fst t) 1)
          (assertEqual (snd t) 12);
 
@@ -43,18 +43,18 @@ def test_map_snd : Bool =
 
 # Projections return the components they were built from.
 @property
-def prop_fst_snd (a : Int) (b : Int) : Bool =
+def prop_fst_snd (a : Int) (b : Int) : Bool :=
     both (assertEqual (fst (new a b)) a)
          (assertEqual (snd (new a b)) b);
 
 # Swapping exchanges the two components.
 @property
-def prop_swap (a : Int) (b : Int) : Bool =
-    s = swap (new a b);
+def prop_swap (a : Int) (b : Int) : Bool :=
+    s := swap (new a b);
     both (assertEqual (fst s) b)
          (assertEqual (snd s) a);
 
 # Swapping twice is the identity.
 @property
-def prop_swap_involution (a : Int) (b : Int) : Bool =
+def prop_swap_involution (a : Int) (b : Int) : Bool :=
     assertTrue (eq (swap (swap (new a b))) (new a b));

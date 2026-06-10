@@ -56,13 +56,13 @@ def test_factory_registers_cata():
 def test_solves_relational_operator_hole():
     # {v:Int | v > x} is relational (mentions the parameter x). CATA builds the
     # monomorphised `+` and discharges x + 1 > x for all x.
-    t = _solve("def succ (x:Int) : {v:Int | v > x} = ?hole;")
+    t = _solve("def succ (x:Int) : {v:Int | v > x} := ?hole;")
     assert "+" in str(t), str(t)
 
 
 def test_solves_conditional_select():
     # Satisfiable only by a conditional: if b then x else y.
-    t = _solve("def pick (b:Bool) (x:Int) (y:Int) : {v:Int | (b --> v == x) && (!b --> v == y)} = ?hole;")
+    t = _solve("def pick (b:Bool) (x:Int) (y:Int) : {v:Int | (b --> v = x) && (!b --> v = y)} := ?hole;")
     assert isinstance(t, If), str(t)
     assert "x" in str(t.then) and "y" in str(t.otherwise)
 
@@ -70,7 +70,7 @@ def test_solves_conditional_select():
 def test_monomorphizes_polymorphic_operators():
     # The polymorphic Num/Ord operators must appear as first-order Int/Bool
     # components, otherwise no arithmetic/comparison term could be built.
-    builders, _atoms = _components("def succ (x:Int) : {v:Int | v > x} = ?hole;")
+    builders, _atoms = _components("def succ (x:Int) : {v:Int | v > x} := ?hole;")
     int_heads = " ".join(str(c.head) for c in builders.get("Int", []))
     bool_heads = " ".join(str(c.head) for c in builders.get("Bool", []))
     assert "(+)[Int" in int_heads and "(-)[Int" in int_heads, int_heads
@@ -81,7 +81,7 @@ def test_partial_operators_available():
     # Division and modulo are ordinary components now that the verifier handles
     # division-by-zero soundly (a candidate like -2 / 0 is rejected, not
     # vacuously accepted), so CATA no longer needs to work around it.
-    builders, _atoms = _components("def succ (x:Int) : {v:Int | v > x} = ?hole;")
+    builders, _atoms = _components("def succ (x:Int) : {v:Int | v > x} := ?hole;")
     heads = " ".join(str(c.head) for cs in builders.values() for c in cs)
     assert "(/)[Int" in heads, heads  # polymorphic `/` monomorphised at Int
     assert "%" in heads, heads  # monomorphic Int `%`
@@ -90,7 +90,7 @@ def test_partial_operators_available():
 def test_recursive_self_call_is_a_component():
     # The function being synthesised is in scope in its own body, so the
     # recursive call is available as a component -- the basis for recursion.
-    builders, _atoms = _components("def f (x:{v:Int | v >= 0}) : {v:Int | v >= x} = ?hole;")
+    builders, _atoms = _components("def f (x:{v:Int | v >= 0}) : {v:Int | v >= x} := ?hole;")
     heads = " ".join(str(c.head) for cs in builders.values() for c in cs)
     assert "f" in heads, heads
 

@@ -6,4 +6,4 @@
 
 open List
 
-def appendF (xs: (List a)) (ys: (List a)) : {l:(List a) | List.size l == List.size xs + List.size ys} = ?hole;
+def appendF (xs: (List a)) (ys: (List a)) : {l:(List a) | List.size l = List.size xs + List.size ys} := ?hole;

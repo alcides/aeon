@@ -285,7 +285,7 @@ def test_parse_by_block():
 
 
 def test_desugar_by_records_tactic_scripts():
-    src = "def main : Int = by choose_literal\n"
+    src = "def main : Int := by choose_literal\n"
     p = bind_program(parse_main_program(src, "<t>"), [])
     d = desugar(p)
     meta_main = next(iter(d.metadata.keys()))
@@ -295,8 +295,8 @@ def test_desugar_by_records_tactic_scripts():
 
 
 def test_optional_def_semicolon_backward_compatible():
-    with_semi = "def main : Int = 42;\n"
-    without = "def main : Int = 42\n"
+    with_semi = "def main : Int := 42;\n"
+    without = "def main : Int := 42\n"
     assert (
         bind_program(parse_main_program(with_semi, "a"), []).definitions[0].body
         == bind_program(parse_main_program(without, "b"), []).definitions[0].body

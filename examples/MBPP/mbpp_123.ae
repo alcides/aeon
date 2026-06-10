@@ -3,7 +3,7 @@
 #
 # Synthesis target: amicable_numbers_sum : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(999) == 504) else 1) + (0 if (f(9999) == 31626) else 1) + (0 if (f(99) == 0) else 1))"
+def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(999) == 504) else 1) + (0 if (f(9999) == 31626) else 1) + (0 if (f(99) == 0) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (limit:Int) : Int = (let mbpp_fitness = unit in ?hole)
+def synth (limit:Int) : Int := (let mbpp_fitness := unit in ?hole)

@@ -18,9 +18,9 @@ open Certify
 # terms come from the same x and cancel: one relu is the value, the other
 # is 0.
 def abs_via_relus (x: {v: Float | (0.0 - 1.0) <= v && v <= 1.0}) :
-    {r: Float | 0.0 <= r && r <= 1.0} =
-    let p = relu x in
-    let n = relu (0.0 - x) in
+    {r: Float | 0.0 <= r && r <= 1.0} :=
+    let p := relu x in
+    let n := relu (0.0 - x) in
     p + n ;
 
 
@@ -42,17 +42,17 @@ def abs_via_relus (x: {v: Float | (0.0 - 1.0) <= v && v <= 1.0}) :
 def dense_relu_layer
     (x1: {v: Float | 0.0 <= v && v <= 1.0})
     (x2: {v: Float | 0.0 <= v && v <= 1.0}) :
-    {r: Float | 0.0 <= r && r <= 3.0} =
-    let pre = (2.0 * x1) + x2 in
+    {r: Float | 0.0 <= r && r <= 3.0} :=
+    let pre := (2.0 * x1) + x2 in
     relu pre ;
 
 
 # Affine cancellation IBP cannot do: 2*x - x is exactly x in [0, 1].
 # (Independent intervals would give [-1, 2].)
 def affine_cancel (x: {v: Float | 0.0 <= v && v <= 1.0}) :
-    {r: Float | 0.0 <= r && r <= 1.0} =
+    {r: Float | 0.0 <= r && r <= 1.0} :=
     (2.0 * x) - x ;
 
 
-def main (_: Int) : Unit =
+def main (_: Int) : Unit :=
     print 0

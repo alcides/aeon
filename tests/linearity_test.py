@@ -73,8 +73,8 @@ def _evaluate(source: str):
 def test_omega_default_no_check():
     """Programs without any multiplicity annotation aren't flagged."""
     src = """
-def main (i: Int) : Int =
-    let a = 5 in
+def main (i: Int) : Int :=
+    let a := 5 in
     a + a;
 """
     errs = _linearity(src)
@@ -84,8 +84,8 @@ def main (i: Int) : Int =
 def test_omega_explicit_no_check():
     """Explicit ``omega`` matches the default — no enforcement."""
     src = """
-def main (i: Int) : Int =
-    let omega a = 5 in
+def main (i: Int) : Int :=
+    let omega a := 5 in
     a + a;
 """
     errs = _linearity(src)
@@ -99,8 +99,8 @@ def main (i: Int) : Int =
 
 def test_linear_used_exactly_once_ok():
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     a;
 """
     errs = _linearity(src)
@@ -109,8 +109,8 @@ def main (i: Int) : Int =
 
 def test_linear_unused_errors():
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     42;
 """
     errs = _linearity(src)
@@ -119,8 +119,8 @@ def main (i: Int) : Int =
 
 def test_linear_used_twice_errors():
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     a + a;
 """
     errs = _linearity(src)
@@ -134,8 +134,8 @@ def main (i: Int) : Int =
 
 def test_erased_unused_ok():
     src = """
-def main (i: Int) : Int =
-    let 0 a = 5 in
+def main (i: Int) : Int :=
+    let 0 a := 5 in
     42;
 """
     errs = _linearity(src)
@@ -144,8 +144,8 @@ def main (i: Int) : Int =
 
 def test_erased_used_errors():
     src = """
-def main (i: Int) : Int =
-    let 0 a = 5 in
+def main (i: Int) : Int :=
+    let 0 a := 5 in
     a;
 """
     errs = _linearity(src)
@@ -159,8 +159,8 @@ def main (i: Int) : Int =
 
 def test_linear_used_equally_in_branches_ok():
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     if i > 0 then a else a;
 """
     errs = _linearity(src)
@@ -172,8 +172,8 @@ def test_linear_used_in_only_one_branch_errors():
     syntactic-count check sees two occurrences (one per arm) and flags
     a branch-mismatch error rather than too-many-uses."""
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     if i > 0 then a else 0;
 """
     errs = _linearity(src)
@@ -191,8 +191,8 @@ def main (i: Int) : Int =
 
 def test_linearity_errors_surface_through_check_type_errors():
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     a + a;
 """
     errs = _typecheck(src)
@@ -202,10 +202,10 @@ def main (i: Int) : Int =
 def test_omega_program_typecheck_is_clean():
     """A vanilla, multiplicity-free program produces no errors of any kind."""
     src = """
-def f (n: Int) : Int = n + 1;
+def f (n: Int) : Int := n + 1;
 
-def main (i: Int) : Int =
-    let a = 5 in
+def main (i: Int) : Int :=
+    let a := 5 in
     f a;
 """
     errs = _typecheck(src)
@@ -224,11 +224,11 @@ def test_linear_file_handle_close_ok():
     obligation transfers; if it took an ω parameter the linear ``f`` would
     be scaled to ω in ``close_f f`` and rejected."""
     src = """
-def open_f (path: Int) : Int = path;
-def close_f (1 f: Int) : Int = f;
+def open_f (path: Int) : Int := path;
+def close_f (1 f: Int) : Int := f;
 
-def main (i: Int) : Int =
-    let 1 f = open_f 0 in
+def main (i: Int) : Int :=
+    let 1 f := open_f 0 in
     close_f f;
 """
     errs = _typecheck(src)
@@ -244,10 +244,10 @@ def main (i: Int) : Int =
 def test_linear_file_handle_unclosed_errors():
     """Forgetting the `close` produces a `LinearUnusedError`."""
     src = """
-def open_f (path: Int) : Int = path;
+def open_f (path: Int) : Int := path;
 
-def main (i: Int) : Int =
-    let 1 f = open_f 0 in
+def main (i: Int) : Int :=
+    let 1 f := open_f 0 in
     42;
 """
     errs = _typecheck(src)
@@ -257,11 +257,11 @@ def main (i: Int) : Int =
 def test_linear_file_handle_double_close_errors():
     """Closing twice produces a `LinearUsedTooManyTimesError`."""
     src = """
-def open_f (path: Int) : Int = path;
-def close_f (1 f: Int) : Int = f;
+def open_f (path: Int) : Int := path;
+def close_f (1 f: Int) : Int := f;
 
-def main (i: Int) : Int =
-    let 1 f = open_f 0 in
+def main (i: Int) : Int :=
+    let 1 f := open_f 0 in
     close_f f + close_f f;
 """
     errs = _typecheck(src)
@@ -278,10 +278,10 @@ def test_linear_passed_to_omega_param_errors():
     argument tally to ``ω``, breaking the linear obligation. The
     syntactic-count check from Phase 2a missed this; Phase 2b catches it."""
     src = """
-def use_anyhow (x: Int) : Int = 0;
+def use_anyhow (x: Int) : Int := 0;
 
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     use_anyhow a;
 """
     errs = _linearity(src)
@@ -292,10 +292,10 @@ def test_linear_passed_to_linear_param_ok():
     """Passing a ``1``-bound value into a ``1``-parameter transfers the
     obligation cleanly: ``1 ⊗ 1 = 1``."""
     src = """
-def consume (1 x: Int) : Int = x;
+def consume (1 x: Int) : Int := x;
 
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     consume a;
 """
     errs = _linearity(src)
@@ -306,10 +306,10 @@ def test_omega_passed_to_linear_param_ok():
     """Calling a linear-parameter function with an unrestricted value is
     fine — the parameter's linear obligation is local to the function."""
     src = """
-def consume (1 x: Int) : Int = x;
+def consume (1 x: Int) : Int := x;
 
-def main (i: Int) : Int =
-    let a = 5 in
+def main (i: Int) : Int :=
+    let a := 5 in
     consume a;
 """
     errs = _linearity(src)
@@ -320,10 +320,10 @@ def test_erased_passed_to_omega_param_errors():
     """A ``0``-bound name leaking into a runtime application — even
     through an ``ω``-parameter — is a runtime use of an erased binding."""
     src = """
-def use_anyhow (x: Int) : Int = 0;
+def use_anyhow (x: Int) : Int := 0;
 
-def main (i: Int) : Int =
-    let 0 a = 5 in
+def main (i: Int) : Int :=
+    let 0 a := 5 in
     use_anyhow a;
 """
     errs = _linearity(src)
@@ -334,10 +334,10 @@ def test_erased_scaled_through_zero_param_ok():
     """``0 ⊗ μ = 0`` — a ``0``-parameter erases its argument's tally, so
     even passing a ``0``-bound name is fine."""
     src = """
-def ignore (0 x: Int) : Int = 0;
+def ignore (0 x: Int) : Int := 0;
 
-def main (i: Int) : Int =
-    let 0 a = 5 in
+def main (i: Int) : Int :=
+    let 0 a := 5 in
     ignore a;
 """
     errs = _linearity(src)
@@ -355,11 +355,11 @@ def test_alias_then_double_use_caught():
     linear binder. Without alias projection the tally for `f` stayed at 1
     and the violation was missed."""
     src = """
-def close_f (1 f: Int) : Int = f;
+def close_f (1 f: Int) : Int := f;
 
-def main (i: Int) : Int =
-    let 1 f = 5 in
-    let g = f in
+def main (i: Int) : Int :=
+    let 1 f := 5 in
+    let g := f in
     close_f g + close_f g;
 """
     errs = _linearity(src)
@@ -370,11 +370,11 @@ def test_alias_then_use_via_alias_only_ok():
     """`let g = f in close_f g` — `f` is used once via the alias, which is
     its single linear use. Should pass."""
     src = """
-def close_f (1 f: Int) : Int = f;
+def close_f (1 f: Int) : Int := f;
 
-def main (i: Int) : Int =
-    let 1 f = 5 in
-    let g = f in
+def main (i: Int) : Int :=
+    let 1 f := 5 in
+    let g := f in
     close_f g;
 """
     errs = _linearity(src)
@@ -385,12 +385,12 @@ def test_alias_chain_used_too_many():
     """Aliasing through multiple `let`s should still propagate to the
     original linear binder."""
     src = """
-def close_f (1 f: Int) : Int = f;
+def close_f (1 f: Int) : Int := f;
 
-def main (i: Int) : Int =
-    let 1 f = 5 in
-    let g = f in
-    let h = g in
+def main (i: Int) : Int :=
+    let 1 f := 5 in
+    let g := f in
+    let h := g in
     close_f h + close_f h;
 """
     errs = _linearity(src)
@@ -401,11 +401,11 @@ def test_alias_then_use_original_after_consume():
     """Using both the alias *and* the original name counts as two uses of
     the original linear binder."""
     src = """
-def close_f (1 f: Int) : Int = f;
+def close_f (1 f: Int) : Int := f;
 
-def main (i: Int) : Int =
-    let 1 f = 5 in
-    let g = f in
+def main (i: Int) : Int :=
+    let 1 f := 5 in
+    let g := f in
     close_f g + close_f f;
 """
     errs = _linearity(src)
@@ -421,10 +421,10 @@ def test_n_arg_accepts_linear_value():
     """``(n x: T)`` is the identity on the caller side, so a linear value
     flows through without being consumed by the function."""
     src = """
-def take_n (n x: Int) : Int = x;
+def take_n (n x: Int) : Int := x;
 
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     take_n a;
 """
     errs = _linearity(src)
@@ -434,10 +434,10 @@ def main (i: Int) : Int =
 def test_n_arg_accepts_omega_value():
     """``n`` works for ω callers too — scaling by ``n`` is identity."""
     src = """
-def take_n (n x: Int) : Int = x;
+def take_n (n x: Int) : Int := x;
 
-def main (i: Int) : Int =
-    let a = 5 in
+def main (i: Int) : Int :=
+    let a := 5 in
     take_n a;
 """
     errs = _linearity(src)
@@ -448,9 +448,9 @@ def test_n_arg_body_check_is_skipped():
     """A polymorphic-multiplicity binder doesn't enforce body-side use
     discipline, so an unused parameter doesn't error."""
     src = """
-def discard (n x: Int) : Int = 0;
+def discard (n x: Int) : Int := 0;
 
-def main (i: Int) : Int = discard 0;
+def main (i: Int) : Int := discard 0;
 """
     errs = _linearity(src)
     assert errs == [], f"expected no errors, got {errs}"
@@ -460,10 +460,10 @@ def test_n_arg_body_can_use_param_many_times():
     """``n`` says nothing about how the body uses the parameter — twice is
     fine, just like ω."""
     src = """
-def double (n x: Int) : Int = x + x;
+def double (n x: Int) : Int := x + x;
 
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     double a;
 """
     errs = _linearity(src)
@@ -480,10 +480,10 @@ def test_native_ffi_with_linear_param_ok():
     multiplicity — the body's tally produces ``_Bottom`` for every name in
     scope so the binder check passes."""
     src = """
-def write (1 buf: Int) : Int = native "buf";
+def write (1 buf: Int) : Int := native "buf";
 
-def main (i: Int) : Int =
-    let 1 b = 5 in
+def main (i: Int) : Int :=
+    let 1 b := 5 in
     write b;
 """
     errs = _linearity(src)
@@ -495,9 +495,9 @@ def test_native_ffi_with_erased_param_ok():
     ``x`` syntactically (it's inside an opaque string), and ``_Bottom``
     satisfies the erased discipline."""
     src = """
-def ghost (0 x: Int) : Int = native "0";
+def ghost (0 x: Int) : Int := native "0";
 
-def main (i: Int) : Int = ghost 0;
+def main (i: Int) : Int := ghost 0;
 """
     errs = _linearity(src)
     assert errs == [], f"expected no errors, got {errs}"
@@ -517,10 +517,10 @@ def test_match_linear_constructor_binders_used_linearly_ok():
 inductive LinPair
 | pair (1 a: Int) (1 b: Int) : LinPair
 
-def consume (1 x: Int) (1 y: Int) : Int = x + y;
+def consume (1 x: Int) (1 y: Int) : Int := x + y;
 
-def main (args: Int) : Int =
-    let p : LinPair = LinPair_pair 1 2 in
+def main (args: Int) : Int :=
+    let p : LinPair := LinPair_pair 1 2 in
     match p with
     | pair x y => consume x y;
 """
@@ -535,10 +535,10 @@ def test_match_linear_constructor_binders_double_use_errors():
 inductive LinPair
 | pair (1 a: Int) (1 b: Int) : LinPair
 
-def consume (1 x: Int) (1 y: Int) : Int = x + y;
+def consume (1 x: Int) (1 y: Int) : Int := x + y;
 
-def main (args: Int) : Int =
-    let p : LinPair = LinPair_pair 1 2 in
+def main (args: Int) : Int :=
+    let p : LinPair := LinPair_pair 1 2 in
     match p with
     | pair x y => consume x x;
 """
@@ -553,8 +553,8 @@ def test_match_omega_constructor_binders_unaffected():
 inductive Pair
 | pair (a: Int) (b: Int) : Pair
 
-def main (args: Int) : Int =
-    let p : Pair = Pair_pair 1 2 in
+def main (args: Int) : Int :=
+    let p : Pair := Pair_pair 1 2 in
     match p with
     | pair x y => x + x + y;
 """
@@ -567,10 +567,10 @@ def test_native_ffi_caller_still_respects_declared_mult():
     fires from the declared multiplicity. Passing a linear value into an
     ``ω``-parameter native shim scales to ω and trips the linear binder."""
     src = """
-def use_anyhow (x: Int) : Int = native "x";
+def use_anyhow (x: Int) : Int := native "x";
 
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     use_anyhow a;
 """
     errs = _linearity(src)
@@ -587,8 +587,8 @@ def test_m0_let_val_is_not_evaluated_at_runtime():
     that would crash if executed is harmless because the binding is
     purely compile-time."""
     src = """
-def main (i: Int) : Int =
-    let 0 ghost : Int = native "1/0" in
+def main (i: Int) : Int :=
+    let 0 ghost : Int := native "1/0" in
     42;
 """
     assert _evaluate(src) == 42
@@ -598,8 +598,8 @@ def test_m0_rec_val_is_not_evaluated_at_runtime():
     """Same erasure for ``Rec``: an erased recursive definition's body
     is never evaluated."""
     src = """
-def main (i: Int) : Int =
-    let 0 ghost : Int = native "(_ for _ in iter(int, 1))[0]" in
+def main (i: Int) : Int :=
+    let 0 ghost : Int := native "(_ for _ in iter(int, 1))[0]" in
     7;
 """
     assert _evaluate(src) == 7
@@ -611,8 +611,8 @@ def test_omega_let_val_is_evaluated():
     import pytest
 
     src = """
-def main (i: Int) : Int =
-    let ghost : Int = native "1/0" in
+def main (i: Int) : Int :=
+    let ghost : Int := native "1/0" in
     42;
 """
     with pytest.raises(ZeroDivisionError):
@@ -631,11 +631,11 @@ def test_let_partial_application_propagates_param_mult():
     the inferred function type — not by the conservative ``M1`` floor —
     so a double-call against the same linear ``sock`` is rejected."""
     src = """
-def stream_bind (addr: Int) (1 s: Int) : Int = s;
+def stream_bind (addr: Int) (1 s: Int) : Int := s;
 
-def main (i: Int) : Int =
-    let 1 sock = 5 in
-    let bind_to_addr = stream_bind 0 in
+def main (i: Int) : Int :=
+    let 1 sock := 5 in
+    let bind_to_addr := stream_bind 0 in
     bind_to_addr sock + bind_to_addr sock;
 """
     errs = _linearity(src)
@@ -646,11 +646,11 @@ def test_let_partial_application_single_use_ok():
     """The same partial application called once on a linear value
     transfers the obligation cleanly."""
     src = """
-def stream_bind (addr: Int) (1 s: Int) : Int = s;
+def stream_bind (addr: Int) (1 s: Int) : Int := s;
 
-def main (i: Int) : Int =
-    let 1 sock = 5 in
-    let bind_to_addr = stream_bind 0 in
+def main (i: Int) : Int :=
+    let 1 sock := 5 in
+    let bind_to_addr := stream_bind 0 in
     bind_to_addr sock;
 """
     errs = _linearity(src)
@@ -665,8 +665,8 @@ def main (i: Int) : Int =
 def test_too_many_error_lists_use_locations():
     """``a + a`` errors with both use sites visible in the message."""
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     a + a;
 """
     errs = _linearity(src)
@@ -683,10 +683,10 @@ def test_scaled_to_omega_message_explains_cause():
     the ``scaled-to-omega`` cause and a single use location, not a
     misleading ``2 times`` count."""
     src = """
-def use_anyhow (x: Int) : Int = 0;
+def use_anyhow (x: Int) : Int := 0;
 
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     use_anyhow a;
 """
     errs = _linearity(src)
@@ -703,8 +703,8 @@ def test_erased_error_lists_use_location():
     diagnostic — the binder location was useless since the user is
     fixing the use, not the binder."""
     src = """
-def main (i: Int) : Int =
-    let 0 a = 5 in
+def main (i: Int) : Int :=
+    let 0 a := 5 in
     a;
 """
     errs = _linearity(src)
@@ -719,8 +719,8 @@ def test_too_many_error_position_points_at_first_use():
     """``position()`` returns the first use rather than the binder so
     IDEs / CLIs jump the user to the offending site."""
     src = """
-def main (i: Int) : Int =
-    let 1 a = 5 in
+def main (i: Int) : Int :=
+    let 1 a := 5 in
     a + a;
 """
     errs = _linearity(src)

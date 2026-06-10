@@ -19,8 +19,8 @@ case it does not need to. Three mechanisms cover recursive refinements today:
    (shipped in #332).
 2. **PLE (Proof by Logical Evaluation)** — bounded ground unfolding of reflected
    function applications, which discharges *concrete* facts like
-   `factorial 3 == 6`.
-3. **Refinement reflection** — a single **ground** equation `f(params) == body`
+   `factorial 3 = 6`.
+3. **Refinement reflection** — a single **ground** equation `f(params) = body`
    per reflected function, fed to PLE.
 
 What is genuinely out of reach is **universally-quantified inductive
@@ -58,7 +58,7 @@ bounded by:
 - a `repr`-based cycle detector (`seen_guard`),
 - termination when no redex remains (`no_change`).
 
-This proves ground/closed facts (`factorial 3 == 6`) but **cannot** establish a
+This proves ground/closed facts (`factorial 3 = 6`) but **cannot** establish a
 property over an unbounded/symbolic argument: unfolding `factorial n` for
 symbolic `n` never reaches a fixpoint and stops at a guard.
 
@@ -89,7 +89,7 @@ bare codomain, so a non-terminating function cannot "prove" an absurd refinement
 ### The `_` marker rejects self-reference
 
 `reflect_underscore_in_definitions` (`aeon/sugar/desugar.py`) expands
-`{y | _}` into `{y | y == body}`, but **rejects** a self-recursive body,
+`{y | _}` into `{y | y = body}`, but **rejects** a self-recursive body,
 directing the user to state the recurrence explicitly — precisely because
 reflecting a recursive body as a ground equation would need induction to be
 useful.
@@ -98,11 +98,11 @@ useful.
 
 | Goal | Needed today? | Mechanism |
 |---|---|---|
-| `factorial 3 == 6` (closed) | no | PLE unfolding |
-| `double n : {r \| r == n + n}` with `decreasing_by [n]` | no | metric-gated IH |
+| `factorial 3 = 6` (closed) | no | PLE unfolding |
+| `double n : {r \| r = n + n}` with `decreasing_by [n]` | no | metric-gated IH |
 | `f` total / terminates | no | termination metric |
 | `forall n. factorial n >= 1` (open, inductive) | **yes** | *unsupported* |
-| `forall xs. length (append xs ys) == length xs + length ys` | **yes** | *unsupported* |
+| `forall xs. length (append xs ys) = length xs + length ys` | **yes** | *unsupported* |
 
 Induction is required only for the last class: **universally-quantified
 properties whose proof recurses on the structure/measure of the argument**.
@@ -114,7 +114,7 @@ recurrence in the return type and letting the verified metric discharge it.
 ### Option A — Status quo: explicit recurrence + metric *(recommended)*
 
 Keep the ground/PLE/metric design. Users express recursive specs as recurrences
-in the refinement (`{r | r == n + n}`) under `decreasing_by`.
+in the refinement (`{r | r = n + n}`) under `decreasing_by`.
 
 - **+** Sound (shipped, tested), decidable, fully automatic, no quantifiers.
 - **+** Matches Liquid Haskell's measure-based discipline.
@@ -123,7 +123,7 @@ in the refinement (`{r | r == n + n}`) under `decreasing_by`.
 
 ### Option B — Quantified axioms + z3 instantiation (e-matching)
 
-Emit `forall params. f(params) == body` and let z3 instantiate via triggers.
+Emit `forall params. f(params) = body` and let z3 instantiate via triggers.
 
 - **+** Closer to "real" reasoning; some inductive facts fall out via
   instantiation + the recurrence.

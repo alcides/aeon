@@ -16,4 +16,4 @@
 # monomorphised `+` and the integer grid bottom-up and the typechecker confirms
 # x + 1 > x for all x.
 
-def succ (x : Int) : {v:Int | v > x} = ?hole;
+def succ (x : Int) : {v:Int | v > x} := ?hole;

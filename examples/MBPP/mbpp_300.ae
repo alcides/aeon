@@ -3,7 +3,7 @@
 #
 # Synthesis target: count_binary_seq : Int -> Float
 
-def mbpp_fitness (f:(x0:Int) -> Float) : Float = native "float((0 if (__import__('math').isclose(f(1), 2.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(2), 6.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(3), 20.0, rel_tol=0.001)) else 1))"
+def mbpp_fitness (f:(x0:Int) -> Float) : Float := native "float((0 if (__import__('math').isclose(f(1), 2.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(2), 6.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(3), 20.0, rel_tol=0.001)) else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Float = (let mbpp_fitness = unit in ?hole)
+def synth (n:Int) : Float := (let mbpp_fitness := unit in ?hole)

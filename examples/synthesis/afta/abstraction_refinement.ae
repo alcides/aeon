@@ -25,4 +25,4 @@
 # coarse abstraction first accepts a wrong value, AFTA harvests the violated
 # conjuncts, and the search converges on the single integer satisfying all three.
 
-def answer : {v:Int | v > 0 && v % 5 == 0 && v + 7 == 17} = ?hole;
+def answer : {v:Int | v > 0 && v % 5 = 0 && v + 7 = 17} := ?hole;

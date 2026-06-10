@@ -36,13 +36,13 @@ def test_factory_registers_fta():
 
 def test_solves_linear_refinement():
     # The accepting state is the integer satisfying v + 4 == 7.
-    t = _solve("def n : {v:Int | v + 4 == 7} = ?hole;")
+    t = _solve("def n : {v:Int | v + 4 = 7} := ?hole;")
     assert isinstance(t, Literal) and t.value == 3
 
 
 def test_solves_conjoined_refinement():
     # Two constraints pin a single value; FTA validates one rep per output value.
-    t = _solve("def m : {v:Int | v * 2 == 10 && v - 1 == 4} = ?hole;")
+    t = _solve("def m : {v:Int | v * 2 = 10 && v - 1 = 4} := ?hole;")
     assert isinstance(t, Literal) and t.value == 5
 
 

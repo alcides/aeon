@@ -6,4 +6,4 @@
 
 open List
 
-def drop (n: {v:Int | v >= 0}) (xs: {l:(List a) | List.size l >= n}) : {r:(List a) | List.size r == List.size xs - n} = ?hole;
+def drop (n: {v:Int | v >= 0}) (xs: {l:(List a) | List.size l >= n}) : {r:(List a) | List.size r = List.size xs - n} := ?hole;

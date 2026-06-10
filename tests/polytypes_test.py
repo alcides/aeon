@@ -13,9 +13,9 @@ def test_polytype():
 def test_polytypes_e2e():
     source = """
             type List a;
-            def a : (List Int) = native "1";
-            def b : (l:(List Int)) -> Int = fun x => 0;
-            def c : Int = b a;
+            def a : (List Int) := native "1";
+            def b : (l:(List Int)) -> Int := fun x => 0;
+            def c : Int := b a;
         """
     assert check_compile(source, st_top)
 
@@ -23,11 +23,11 @@ def test_polytypes_e2e():
 def test_polytypes_link1():
     source = """
             type List a;
-            def k : (List Int) = native "1";
-            def k2 : (List Float) = native "1";
-            def f : (l:(List a)) -> (List a) = fun x => x;
-            def r : (List Int) = f k;
-            def r2 : (List Float) = f k2;
+            def k : (List Int) := native "1";
+            def k2 : (List Float) := native "1";
+            def f : (l:(List a)) -> (List a) := fun x => x;
+            def r : (List Int) := f k;
+            def r2 : (List Float) := f k2;
         """
     assert check_compile(source, st_top)
 
@@ -35,15 +35,15 @@ def test_polytypes_link1():
 def test_polytypes_link2():
     source = """
             type List a;
-            def k : (List Int) = native "1";
-            def f : (l:(List a)) -> (List a) = fun x => x;
-            def r : (List Float) = f k;
+            def k : (List Int) := native "1";
+            def f : (l:(List a)) -> (List a) := fun x => x;
+            def r : (List Float) := f k;
         """
     assert not check_compile(source, st_top)
 
 
 def test_polytypes_missing_decl():
     source = """
-            def k : (List Int) = native "1";
+            def k : (List Int) := native "1";
         """
     assert not check_compile(source, st_top)

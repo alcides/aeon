@@ -6,4 +6,4 @@
 
 open List
 
-def replicate (n: {v:Int | v >= 0}) (x: a) : {l:(List a) | List.size l == n} = ?hole;
+def replicate (n: {v:Int | v >= 0}) (x: a) : {l:(List a) | List.size l = n} := ?hole;

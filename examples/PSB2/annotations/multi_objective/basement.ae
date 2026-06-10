@@ -1,16 +1,16 @@
 import PSB2 (extract_train_data, load_dataset, calculate_basement_errors)
 
 import Array
-def List_size: (l:(Array Int)) -> Int = uninterpreted
-def List_len (l:(Array Int)) : Int  = native "len(l)"
-def List_new : {x:(Array Int) | List_size x == 0} = native "[]" ;
-def List_append (l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 == List_size l + 1} = native "l + [i]";
-def List_get (l:(Array Int)) (i: Int) : Int = native "l[i]"
+def List_size: (l:(Array Int)) -> Int := uninterpreted
+def List_len (l:(Array Int)) : Int  := native "len(l)"
+def List_new : {x:(Array Int) | List_size x = 0} := native "[]" ;
+def List_append (l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
+def List_get (l:(Array Int)) (i: Int) : Int := native "l[i]"
 
 #PSB2 functions
 
-def train: TrainData = extract_train_data (load_dataset "basement" 200 200)
+def train: TrainData := extract_train_data (load_dataset "basement" 200 200)
 
 @allow_recursion
 @multi_minimize_float(calculate_basement_errors train synth, 1)
-def synth (nums: (Array Int)) : Int = (let extract_train_data = unit in let load_dataset = unit in let train = unit in let calculate_basement_errors = unit in ?hole)
+def synth (nums: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_basement_errors := unit in ?hole)

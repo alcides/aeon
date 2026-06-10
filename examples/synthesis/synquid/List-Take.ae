@@ -6,4 +6,4 @@
 
 open List
 
-def take (n: {v:Int | v >= 0}) (xs: {l:(List a) | List.size l >= n}) : {r:(List a) | List.size r == n} = ?hole;
+def take (n: {v:Int | v >= 0}) (xs: {l:(List a) | List.size l >= n}) : {r:(List a) | List.size r = n} := ?hole;

@@ -3,55 +3,55 @@ open Array
 type Parser
 type ParsedArgs
 
-def argparse : Unit = native_import "argparse"
+def argparse : Unit := native_import "argparse"
 
 # ── Parser construction ────────────────────────────────────────────────
 
 # Creates a new argument parser with a description shown in --help output.
-def newParser (description: String) : Parser =
+def newParser (description: String) : Parser :=
     native "argparse.ArgumentParser(description=description)"
 
 # Adds a required positional string argument.
-def addArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser =
+def addArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
     native "(p.add_argument(name, help=help), p)[1]"
 
 # Adds a required positional integer argument.
-def addIntArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser =
+def addIntArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
     native "(p.add_argument(name, type=int, help=help), p)[1]"
 
 # Adds a required positional float argument.
-def addFloatArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser =
+def addFloatArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
     native "(p.add_argument(name, type=float, help=help), p)[1]"
 
 # Adds an optional boolean flag (e.g. --verbose). Defaults to false.
-def addFlag (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser =
+def addFlag (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
     native "(p.add_argument('--' + name, action='store_true', help=help), p)[1]"
 
 # Adds an optional string option, e.g. --output FILE.
-def addOption (p: Parser) (name: {s:String | s != ""}) (default: String) (help: String) : Parser =
+def addOption (p: Parser) (name: {s:String | s != ""}) (default: String) (help: String) : Parser :=
     native "(p.add_argument('--' + name, default=default, help=help), p)[1]"
 
 # Adds an optional integer option.
-def addIntOption (p: Parser) (name: {s:String | s != ""}) (default: Int) (help: String) : Parser =
+def addIntOption (p: Parser) (name: {s:String | s != ""}) (default: Int) (help: String) : Parser :=
     native "(p.add_argument('--' + name, type=int, default=default, help=help), p)[1]"
 
 # Adds an optional float option.
-def addFloatOption (p: Parser) (name: {s:String | s != ""}) (default: Float) (help: String) : Parser =
+def addFloatOption (p: Parser) (name: {s:String | s != ""}) (default: Float) (help: String) : Parser :=
     native "(p.add_argument('--' + name, type=float, default=default, help=help), p)[1]"
 
 # Adds an optional argument restricted to a non-empty list of choices.
-def addChoice (p: Parser) (name: {s:String | s != ""}) (options: {l: (Array String) | Array.size l > 0}) (default: String) (help: String) : Parser =
+def addChoice (p: Parser) (name: {s:String | s != ""}) (options: {l: (Array String) | Array.size l > 0}) (default: String) (help: String) : Parser :=
     native "(p.add_argument('--' + name, default=default, choices=options, help=help), p)[1]"
 
 # ── Parsing ────────────────────────────────────────────────────────────
 
 # Parses sys.argv[1:] using the configured parser. argparse will call
 # sys.exit on parse error or when --help is passed.
-def parse (p: Parser) : ParsedArgs =
+def parse (p: Parser) : ParsedArgs :=
     native "p.parse_args()"
 
 # Parses an explicit list of strings. Useful for tests and embedding.
-def parseList (p: Parser) (xs: (Array String)) : ParsedArgs =
+def parseList (p: Parser) (xs: (Array String)) : ParsedArgs :=
     native "p.parse_args(xs)"
 
 # ── Reading parsed values ──────────────────────────────────────────────
@@ -60,17 +60,17 @@ def parseList (p: Parser) (xs: (Array String)) : ParsedArgs =
 # their underscored form.
 
 # Reads a string value by name.
-def getString (a: ParsedArgs) (name: {s:String | s != ""}) : String =
+def getString (a: ParsedArgs) (name: {s:String | s != ""}) : String :=
     native "getattr(a, name)"
 
 # Reads an integer value by name.
-def getInt (a: ParsedArgs) (name: {s:String | s != ""}) : Int =
+def getInt (a: ParsedArgs) (name: {s:String | s != ""}) : Int :=
     native "getattr(a, name)"
 
 # Reads a float value by name.
-def getFloat (a: ParsedArgs) (name: {s:String | s != ""}) : Float =
+def getFloat (a: ParsedArgs) (name: {s:String | s != ""}) : Float :=
     native "getattr(a, name)"
 
 # Reads a boolean flag value by name.
-def getBool (a: ParsedArgs) (name: {s:String | s != ""}) : Bool =
+def getBool (a: ParsedArgs) (name: {s:String | s != ""}) : Bool :=
     native "getattr(a, name)"

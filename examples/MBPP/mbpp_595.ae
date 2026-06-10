@@ -3,7 +3,7 @@
 #
 # Synthesis target: min_Swaps : String -> String -> Int
 
-def mbpp_fitness (f:(x0:String) -> (x1:String) -> Int) : Float = native "float((0 if (f('1101')('1110') == 1) else 1) + (0 if (f('111')('000') == 'Not Possible') else 1) + (0 if (f('111')('110') == 'Not Possible') else 1))"
+def mbpp_fitness (f:(x0:String) -> (x1:String) -> Int) : Float := native "float((0 if (f('1101')('1110') == 1) else 1) + (0 if (f('111')('000') == 'Not Possible') else 1) + (0 if (f('111')('110') == 'Not Possible') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (str1:String) (str2:String) : Int = (let mbpp_fitness = unit in ?hole)
+def synth (str1:String) (str2:String) : Int := (let mbpp_fitness := unit in ?hole)

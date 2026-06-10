@@ -7,8 +7,8 @@
 open List
 
 inductive LPair a
-| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p == List.size fa && bsize p == List.size sb}
+| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p = List.size fa && bsize p = List.size sb}
 + asize (p: (LPair a)) : Int
 + bsize (p: (LPair a)) : Int
 
-def extractMin (xs: {l:(List a) | List.size l >= 1}) : {p:(LPair a) | bsize p == List.size xs - 1} = ?hole;
+def extractMin (xs: {l:(List a) | List.size l >= 1}) : {p:(LPair a) | bsize p = List.size xs - 1} := ?hole;

@@ -8,24 +8,24 @@
 open LearningCore
 
 def gaussian_nb
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_gaussian_nb(ds)"
 
 def multinomial_nb
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_multinomial_nb(ds)"
 
 # ComplementNB targets imbalanced data — refining out the balanced case
 # guides callers toward the right tool. Discharge with
 # ``if Learning.balanced ds then ... else Learning.complement_nb ds``.
 def complement_nb
-    (ds: {d: Dataset | is_balanced d == false && independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | is_balanced d = false && independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_complement_nb(ds)"
 
 def bernoulli_nb
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_bernoulli_nb(ds)"

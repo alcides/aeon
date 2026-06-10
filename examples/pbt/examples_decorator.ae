@@ -19,14 +19,14 @@
 # Absolute value of an integer.
 # x: the integer whose magnitude is taken
 # returns: x when non-negative, otherwise -x
-@example(my_abs (0 - 3) == 3)
-@example(my_abs 5 == 5)
-@example(my_abs 0 == 0)
-def my_abs (x : Int) : Int = if x < 0 then 0 - x else x;
+@example(my_abs (0 - 3) = 3)
+@example(my_abs 5 = 5)
+@example(my_abs 0 = 0)
+def my_abs (x : Int) : Int := if x < 0 then 0 - x else x;
 
 # The larger of two integers.
-@example(max2 2 7 == 7)
-@example(max2 9 4 == 9)
-def max2 (x : Int) (y : Int) : Int = if x > y then x else y;
+@example(max2 2 7 = 7)
+@example(max2 9 4 = 9)
+def max2 (x : Int) (y : Int) : Int := if x > y then x else y;
 
-def main (_ : Int) : Unit = print (my_abs (0 - 42))
+def main (_ : Int) : Unit := print (my_abs (0 - 42))

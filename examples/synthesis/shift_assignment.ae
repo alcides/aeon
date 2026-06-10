@@ -17,9 +17,9 @@ inductive Roster
      (x10:Int | 0 <= x10 && x10 <= 1) (x11:Int | 0 <= x11 && x11 <= 1) (x12:Int | 0 <= x12 && x12 <= 1)
      (x20:Int | 0 <= x20 && x20 <= 1) (x21:Int | 0 <= x21 && x21 <= 1) (x22:Int | 0 <= x22 && x22 <= 1) :
      {r:Roster |
-        (a00 r == x00) && (a01 r == x01) && (a02 r == x02) &&
-        (a10 r == x10) && (a11 r == x11) && (a12 r == x12) &&
-        (a20 r == x20) && (a21 r == x21) && (a22 r == x22)}
+        (a00 r = x00) && (a01 r = x01) && (a02 r = x02) &&
+        (a10 r = x10) && (a11 r = x11) && (a12 r = x12) &&
+        (a20 r = x20) && (a21 r = x21) && (a22 r = x22)}
 + a00 (r:Roster) : Int  + a01 (r:Roster) : Int  + a02 (r:Roster) : Int
 + a10 (r:Roster) : Int  + a11 (r:Roster) : Int  + a12 (r:Roster) : Int
 + a20 (r:Roster) : Int  + a21 (r:Roster) : Int  + a22 (r:Roster) : Int
@@ -28,16 +28,16 @@ inductive Roster
 @minimize_int(0)
 def roster_hole : {r:Roster |
     # each shift staffed by exactly one employee (column sums)
-    (a00 r + a10 r + a20 r == 1) && (a01 r + a11 r + a21 r == 1) && (a02 r + a12 r + a22 r == 1) &&
+    (a00 r + a10 r + a20 r = 1) && (a01 r + a11 r + a21 r = 1) && (a02 r + a12 r + a22 r = 1) &&
     # each employee works exactly one shift (row sums)
-    (a00 r + a01 r + a02 r == 1) && (a10 r + a11 r + a12 r == 1) && (a20 r + a21 r + a22 r == 1) &&
+    (a00 r + a01 r + a02 r = 1) && (a10 r + a11 r + a12 r = 1) && (a20 r + a21 r + a22 r = 1) &&
     # qualifications
-    (a02 r == 0) && (a20 r == 0)
-} = ?hole;
+    (a02 r = 0) && (a20 r = 0)
+} := ?hole;
 
 # (b) Verification: emp0->shift0, emp1->shift2, emp2->shift1 respects every rule.
 def roster_solution : {r:Roster |
-    (a00 r + a10 r + a20 r == 1) && (a01 r + a11 r + a21 r == 1) && (a02 r + a12 r + a22 r == 1) &&
-    (a00 r + a01 r + a02 r == 1) && (a10 r + a11 r + a12 r == 1) && (a20 r + a21 r + a22 r == 1) &&
-    (a02 r == 0) && (a20 r == 0)
-} = .mk 1 0 0  0 0 1  0 1 0
+    (a00 r + a10 r + a20 r = 1) && (a01 r + a11 r + a21 r = 1) && (a02 r + a12 r + a22 r = 1) &&
+    (a00 r + a01 r + a02 r = 1) && (a10 r + a11 r + a12 r = 1) && (a20 r + a21 r + a22 r = 1) &&
+    (a02 r = 0) && (a20 r = 0)
+} := .mk 1 0 0  0 0 1  0 1 0

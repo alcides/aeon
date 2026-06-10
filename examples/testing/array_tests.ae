@@ -10,71 +10,71 @@ open Array
 # ── Unit tests ───────────────────────────────────────────────────────────────
 
 @property(1)
-def test_new_is_empty : Bool =
+def test_new_is_empty : Bool :=
     both (assertTrue (empty new))
          (assertEqual (length new) 0);
 
 @property(1)
-def test_append_grows : Bool =
-    arr = append (append new 5) 9;
+def test_append_grows : Bool :=
+    arr := append (append new 5) 9;
     both (assertEqual (length arr) 2)
          (assertEqual (sum arr) 14);
 
 @property(1)
-def test_get : Bool =
-    arr = append (append new 5) 9;
+def test_get : Bool :=
+    arr := append (append new 5) 9;
     both (assertEqual (get arr 0) 5)
          (assertEqual (get arr 1) 9);
 
 @property(1)
-def test_cons_prepends : Bool =
-    arr = cons (append new 9) 5;
+def test_cons_prepends : Bool :=
+    arr := cons (append new 9) 5;
     both (assertEqual (get arr 0) 5)
          (assertEqual (get arr 1) 9);
 
 @property(1)
-def test_head : Bool = assertEqual (head (cons (append new 9) 5)) 5;
+def test_head : Bool := assertEqual (head (cons (append new 9) 5)) 5;
 
 @property(1)
-def test_set_preserves_length : Bool =
-    arr = set (append (append new 5) 9) 0 7;
+def test_set_preserves_length : Bool :=
+    arr := set (append (append new 5) 9) 0 7;
     both (assertEqual (length arr) 2)
          (assertEqual (get arr 0) 7);
 
 @property(1)
-def test_reversed : Bool =
-    arr = reversed (append (append new 5) 9);
+def test_reversed : Bool :=
+    arr := reversed (append (append new 5) 9);
     both (assertEqual (get arr 0) 9)
          (assertEqual (get arr 1) 5);
 
 @property(1)
-def test_map : Bool =
-    arr = map (fun x => x + 1) (append (append new 5) 9);
+def test_map : Bool :=
+    arr := map (fun x => x + 1) (append (append new 5) 9);
     assertEqual (sum arr) 16;
 
 @property(1)
-def test_sum : Bool = assertEqual (sum (append (append new 2) 3)) 5;
+def test_sum : Bool := assertEqual (sum (append (append new 2) 3)) 5;
 
 # ── Property-based tests (Int elements generated) ─────────────────────────────
 
 # A one-element array reads its element back.
 @property
-def prop_singleton_get (x : Int) : Bool =
+def prop_singleton_get (x : Int) : Bool :=
     assertEqual (get (append new x) 0) x;
 
 # append adds exactly one element.
 @property
-def prop_append_length (x : Int) (y : Int) : Bool =
+def prop_append_length (x : Int) (y : Int) : Bool :=
     assertEqual (length (append (append new x) y)) 2;
 
 # set overwrites the targeted slot and keeps the length.
 @property
-def prop_set_overwrites (x : Int) (y : Int) : Bool =
-    arr = set (append new x) 0 y;
+def prop_set_overwrites (x : Int) (y : Int) : Bool :=
+    arr := set (append new x) 0 y;
     both (assertEqual (get arr 0) y)
          (assertEqual (length arr) 1);
 
 # sum of a two-element array is the sum of its elements.
 @property
-def prop_sum_two (x : Int) (y : Int) : Bool =
+def prop_sum_two (x : Int) (y : Int) : Bool :=
     assertEqual (sum (append (append new x) y)) (x + y);

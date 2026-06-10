@@ -9,12 +9,12 @@ open LearningCore
 
 # Baseline (predicts the majority class).
 def dummy_classifier
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnClassifier | clf_features m == ds_features ds && clf_classes m == ds_classes ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_dummy_classifier(ds)"
 
 # Baseline (predicts the mean).
 def dummy_regressor
-    (ds: {d: Dataset | independent_target d == true && has_missing d == false}) :
-    {m: SklearnRegressor | reg_features m == ds_features ds} =
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_dummy_regressor(ds)"

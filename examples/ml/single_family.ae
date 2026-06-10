@@ -13,10 +13,10 @@
 open LearningTrees
 
 
-def main (_: Int) : Unit =
-    let 1 df = read_csv "examples/ml/data/iris.csv" in
-    let ds0 = target df "species" false false in
-    let ds = require_enough_data ds0 in
-    let parts = split ds 0.7 true in
-    let tree = decision_tree_classifier (train_of parts) in
+def main (_: Int) : Unit :=
+    let 1 df := read_csv "examples/ml/data/iris.csv" in
+    let ds0 := target df "species" false false in
+    let ds := require_enough_data ds0 in
+    let parts := split ds 0.7 true in
+    let tree := decision_tree_classifier (train_of parts) in
     print (f1 tree (test_of parts))

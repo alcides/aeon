@@ -2,90 +2,90 @@ open Array
 
 type Json
 
-def json : Unit = native_import "json"
+def json : Unit := native_import "json"
 
 # ── Parsing / serialization ────────────────────────────────────────────
 
 # Parses a JSON string. Raises at runtime on malformed input.
 # s: non-empty JSON source
-def parse (s: {x:String | x != ""}) : Json = native "json.loads(s)"
+def parse (s: {x:String | x != ""}) : Json := native "json.loads(s)"
 
 # Parses a JSON file at path.
 # path: non-empty file path
-def parseFile (path: {p:String | p != ""}) : Json =
+def parseFile (path: {p:String | p != ""}) : Json :=
     native "json.load(open(path))"
 
 # Serializes a Json value to its string form. The result is always
 # non-empty (json.dumps(None) yields "null").
-def stringify (j: Json) : {s:String | s != ""} = native "json.dumps(j)"
+def stringify (j: Json) : {s:String | s != ""} := native "json.dumps(j)"
 
 # Pretty-prints a Json value with 2-space indentation. Always non-empty.
-def stringifyPretty (j: Json) : {s:String | s != ""} = native "json.dumps(j, indent=2)"
+def stringifyPretty (j: Json) : {s:String | s != ""} := native "json.dumps(j, indent=2)"
 
 # Writes a Json value to a file.
 # path: non-empty file path
-def writeFile (path: {p:String | p != ""}) (j: Json) : Unit =
+def writeFile (path: {p:String | p != ""}) (j: Json) : Unit :=
     native "open(path, 'w').write(json.dumps(j))"
 
 # ── Type queries ───────────────────────────────────────────────────────
 
-def isNull   (j: Json) : Bool = native "j is None"
-def isBool   (j: Json) : Bool = native "isinstance(j, bool)"
-def isNumber (j: Json) : Bool = native "isinstance(j, (int, float)) and not isinstance(j, bool)"
-def isString (j: Json) : Bool = native "isinstance(j, str)"
-def isArray  (j: Json) : Bool = native "isinstance(j, list)"
-def isObject (j: Json) : Bool = native "isinstance(j, dict)"
+def isNull   (j: Json) : Bool := native "j is None"
+def isBool   (j: Json) : Bool := native "isinstance(j, bool)"
+def isNumber (j: Json) : Bool := native "isinstance(j, (int, float)) and not isinstance(j, bool)"
+def isString (j: Json) : Bool := native "isinstance(j, str)"
+def isArray  (j: Json) : Bool := native "isinstance(j, list)"
+def isObject (j: Json) : Bool := native "isinstance(j, dict)"
 
 # ── Coercion (runtime-typed) ───────────────────────────────────────────
 # Each asX raises at runtime if the value is not of that kind.
 
-def asBool (j: Json) : Bool =
+def asBool (j: Json) : Bool :=
     native "j if isinstance(j, bool) else (_ for _ in ()).throw(TypeError('not a bool'))"
 
-def asInt (j: Json) : Int =
+def asInt (j: Json) : Int :=
     native "j if (isinstance(j, int) and not isinstance(j, bool)) else (_ for _ in ()).throw(TypeError('not an int'))"
 
-def asFloat (j: Json) : Float =
+def asFloat (j: Json) : Float :=
     native "float(j) if (isinstance(j, (int, float)) and not isinstance(j, bool)) else (_ for _ in ()).throw(TypeError('not a number'))"
 
-def asString (j: Json) : String =
+def asString (j: Json) : String :=
     native "j if isinstance(j, str) else (_ for _ in ()).throw(TypeError('not a string'))"
 
 # ── Object access ──────────────────────────────────────────────────────
 
 # Returns true if j is an object containing key.
-def has (j: Json) (key: String) : Bool = native "isinstance(j, dict) and key in j"
+def has (j: Json) (key: String) : Bool := native "isinstance(j, dict) and key in j"
 
 # Looks up a key in a JSON object. Raises at runtime if j is not an
 # object or key is absent.
-def get (j: Json) (key: String) : Json = native "j[key]"
+def get (j: Json) (key: String) : Json := native "j[key]"
 
 # ── Array access ───────────────────────────────────────────────────────
 
 # Returns the length of an array (or string/object). Raises if j has no len.
-def length (j: Json) : {x:Int | x >= 0} = native "len(j)"
+def length (j: Json) : {x:Int | x >= 0} := native "len(j)"
 
 # Indexes into a JSON array. Raises at runtime if i is out of range.
-def at (j: Json) (i: {x:Int | x >= 0}) : Json = native "j[i]"
+def at (j: Json) (i: {x:Int | x >= 0}) : Json := native "j[i]"
 
 # ── Construction ───────────────────────────────────────────────────────
 
-def mkNull : Json = native "None"
+def mkNull : Json := native "None"
 
-def mkBool (b: Bool) : Json = native "b"
+def mkBool (b: Bool) : Json := native "b"
 
-def mkInt (i: Int) : Json = native "i"
+def mkInt (i: Int) : Json := native "i"
 
-def mkFloat (f: Float) : Json = native "f"
+def mkFloat (f: Float) : Json := native "f"
 
-def mkString (s: String) : Json = native "s"
+def mkString (s: String) : Json := native "s"
 
-def mkArray (xs: (Array Json)) : Json = native "list(xs)"
+def mkArray (xs: (Array Json)) : Json := native "list(xs)"
 
 # An empty JSON object. Use setKey to populate.
-def mkObject : Json = native "{}"
+def mkObject : Json := native "{}"
 
 # Returns a new object with key set to value. Raises at runtime if j is
 # not an object.
-def setKey (j: Json) (key: String) (value: Json) : Json =
+def setKey (j: Json) (key: String) (value: Json) : Json :=
     native "({**j, key: value} if isinstance(j, dict) else (_ for _ in ()).throw(TypeError('not an object')))"

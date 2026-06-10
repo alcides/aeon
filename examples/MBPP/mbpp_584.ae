@@ -3,7 +3,7 @@
 #
 # Synthesis target: find_adverbs : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float = native "float((0 if (f('Clearly, he has no excuse for such behavior.') == '0-7: Clearly') else 1) + (0 if (f('Please handle the situation carefuly') == '28-36: carefuly') else 1) + (0 if (f('Complete the task quickly') == '18-25: quickly') else 1))"
+def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f('Clearly, he has no excuse for such behavior.') == '0-7: Clearly') else 1) + (0 if (f('Please handle the situation carefuly') == '28-36: carefuly') else 1) + (0 if (f('Complete the task quickly') == '18-25: quickly') else 1))"
 
 @minimize_float(mbpp_fitness synth)
-def synth (text:String) : String = (let mbpp_fitness = unit in ?hole)
+def synth (text:String) : String := (let mbpp_fitness := unit in ?hole)

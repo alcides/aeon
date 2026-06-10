@@ -7,8 +7,8 @@
 open List
 
 inductive LPair a
-| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p == List.size fa && bsize p == List.size sb}
+| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p = List.size fa && bsize p = List.size sb}
 + asize (p: (LPair a)) : Int
 + bsize (p: (LPair a)) : Int
 
-def partition (pivot: a) (xs: (List a)) : {p:(LPair a) | asize p + bsize p == List.size xs} = ?hole;
+def partition (pivot: a) (xs: (List a)) : {p:(LPair a) | asize p + bsize p = List.size xs} := ?hole;

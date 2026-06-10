@@ -5,8 +5,8 @@
 # Element type left polymorphic (forall a), matching the Synquid original. Balance (height) invariant not encoded; node-count is.
 
 inductive Tree a
-| leaf : {t:(Tree a) | tsize t == 0}
-| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t == tsize left + tsize right + 1}
+| leaf : {t:(Tree a) | tsize t = 0}
+| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t = tsize left + tsize right + 1}
 + tsize (t: (Tree a)) : Int
 
-def balancedReplicate (n: {v:Int | v >= 0}) (x: a) : {t:(Tree a) | tsize t == n} = ?hole;
+def balancedReplicate (n: {v:Int | v >= 0}) (x: a) : {t:(Tree a) | tsize t = n} := ?hole;

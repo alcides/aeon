@@ -58,11 +58,11 @@ def test_find_holes_empty_source():
 
 
 def test_find_holes_no_holes():
-    assert find_holes_in_source("def x : Int = 42;") == []
+    assert find_holes_in_source("def x : Int := 42;") == []
 
 
 def test_find_holes_single():
-    source = "def x : Int = ?hole;"
+    source = "def x : Int := ?hole;"
     result = find_holes_in_source(source)
     assert len(result) == 1
     assert result[0].name == "hole"
@@ -80,7 +80,7 @@ def test_find_holes_multiple_same_line():
 
 
 def test_find_holes_multiple_lines():
-    source = "def x : Int = ?foo;\ndef y : Bool = ?bar;"
+    source = "def x : Int := ?foo;\ndef y : Bool := ?bar;"
     result = find_holes_in_source(source)
     assert len(result) == 2
     assert result[0].name == "foo"
@@ -205,7 +205,7 @@ def test_synthesizers_includes_defaults():
 
 
 def test_run_synthesis_basic_int():
-    source = "def synth : Int = ?hole;"
+    source = "def synth : Int := ?hole;"
     mock_ls = MockLS(source)
     driver = make_driver()
 
@@ -232,7 +232,7 @@ def test_run_synthesis_returns_none_on_parse_error():
 
 
 def test_run_synthesis_returns_none_when_hole_missing():
-    source = "def x : Int = 42;"
+    source = "def x : Int := 42;"
     mock_ls = MockLS(source)
     driver = make_driver()
 
@@ -242,7 +242,7 @@ def test_run_synthesis_returns_none_when_hole_missing():
 
 
 def test_run_synthesis_unknown_synthesizer():
-    source = "def synth : Int = ?hole;"
+    source = "def synth : Int := ?hole;"
     mock_ls = MockLS(source)
     driver = make_driver()
 
@@ -313,7 +313,7 @@ class _FakeOllamaResponse:
 
 @pytest.mark.parametrize("synthesizer", SYNTHESIZERS)
 def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
-    source = "def synth : Int = ?hole;"
+    source = "def synth : Int := ?hole;"
     mock_ls = MockLS(source)
     driver = make_driver()
 

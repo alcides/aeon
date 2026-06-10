@@ -7,7 +7,7 @@ inductive BTree
 | empty : BTree
 | node  (v: Int) (l: BTree) (r: BTree) : BTree
 
-def mirror (a: BTree) (b: BTree) : Bool =
+def mirror (a: BTree) (b: BTree) : Bool :=
     match a with
     | .empty =>
         (match b with
@@ -18,19 +18,19 @@ def mirror (a: BTree) (b: BTree) : Bool =
          | .empty => false
          | .node vb lb rb => mirror la rb && mirror ra lb)
 
-def isSymmetric (t: BTree) : Bool =
+def isSymmetric (t: BTree) : Bool :=
     match t with
     | .empty => true
     | .node v l r => mirror l r
 
-def sym_tree : BTree =
+def sym_tree : BTree :=
     .node 1 (.node 2 .empty (.node 4 .empty .empty))
             (.node 3 (.node 5 .empty .empty) .empty)
 
-def asym_tree : BTree =
+def asym_tree : BTree :=
     .node 1 (.node 2 .empty .empty)
             (.node 3 (.node 5 .empty .empty) .empty)
 
-def main (args:Int) : Unit =
-    _ = print (isSymmetric sym_tree);
+def main (args:Int) : Unit :=
+    _ := print (isSymmetric sym_tree);
     print (isSymmetric asym_tree)

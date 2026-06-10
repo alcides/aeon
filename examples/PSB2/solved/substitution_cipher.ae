@@ -2,17 +2,17 @@ import Array
 type Zip
 type Dict
 
-def Zip_String_String : (l1: String) -> (l2: String) -> Zip = fun xs => fun ys => native "zip(xs, ys)"
-def Dict_zip : (l: Zip) -> Dict = fun xs => native "dict(xs)"
-def String_list_to_String : (l:(Array Int)) -> String = fun l => native "''.join(l)"
-def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String = fun d => fun k => fun y => native "d.get(k, y)"
+def Zip_String_String : (l1: String) -> (l2: String) -> Zip := fun xs => fun ys => native "zip(xs, ys)"
+def Dict_zip : (l: Zip) -> Dict := fun xs => native "dict(xs)"
+def String_list_to_String : (l:(Array Int)) -> String := fun l => native "''.join(l)"
+def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String := fun d => fun k => fun y => native "d.get(k, y)"
 
 
-def Map_String_String: (function: (a:String) -> String) -> (l: String) -> (Array Int) = fun f => fun xs => native "map(f, xs)"
+def Map_String_String: (function: (a:String) -> String) -> (l: String) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
-def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String = cipher_dict: Dict = Dict_zip (Zip_String_String cipher_from cypher_to);
- mapper : (x:String) -> String = fun x => Dict_get cipher_dict x x;
- deciphered_chars: (Array Int) = Map_String_String mapper msg;
+def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String := cipher_dict: Dict := Dict_zip (Zip_String_String cipher_from cypher_to);
+ mapper : (x:String) -> String := fun x => Dict_get cipher_dict x x;
+ deciphered_chars: (Array Int) := Map_String_String mapper msg;
  String_list_to_String deciphered_chars;
 
-def main (args:Int) : Unit = print (cipher "e" "l" "eeeeeeeeeeee")
+def main (args:Int) : Unit := print (cipher "e" "l" "eeeeeeeeeeee")

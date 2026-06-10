@@ -7,11 +7,11 @@
 open Learning
 
 
-def train_multinomial (path: String) (target_col: String) : SklearnClassifier =
-    let 1 df = read_csv path in
-    let ds0 = target df target_col false false in
-    let ds = require_enough_data ds0 in
-    let parts = split ds 0.7 true in
-    let train0 = train_of parts in
-    let train = if is_multiclass train0 then smote train0 else train0 in
+def train_multinomial (path: String) (target_col: String) : SklearnClassifier :=
+    let 1 df := read_csv path in
+    let ds0 := target df target_col false false in
+    let ds := require_enough_data ds0 in
+    let parts := split ds 0.7 true in
+    let train0 := train_of parts in
+    let train := if is_multiclass train0 then smote train0 else train0 in
     multinomial_nb train ;

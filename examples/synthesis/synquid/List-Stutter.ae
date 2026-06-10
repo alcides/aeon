@@ -6,4 +6,4 @@
 
 open List
 
-def stutter (xs: (List a)) : {l:(List a) | List.size l == 2 * List.size xs} = ?hole;
+def stutter (xs: (List a)) : {l:(List a) | List.size l = 2 * List.size xs} := ?hole;

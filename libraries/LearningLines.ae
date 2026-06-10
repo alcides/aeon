@@ -34,28 +34,28 @@ type LDataset
 # ─── Uninterpreted per-line predicates (thesis §6.3.3) ──────────────────
 
 # ``l`` is one of the instances of dataset ``d``.
-def line_in : (l: Line) -> (d: LDataset) -> Bool = uninterpreted
+def line_in : (l: Line) -> (d: LDataset) -> Bool := uninterpreted
 # ``a`` precedes ``b`` in dataset ``d`` (chronological / positional order).
-def prec : (a: Line) -> (b: Line) -> (d: LDataset) -> Bool = uninterpreted
+def prec : (a: Line) -> (b: Line) -> (d: LDataset) -> Bool := uninterpreted
 # ``causality a b`` ≡ ``b`` causally depends on ``a`` (thesis lineCausality).
-def causality : (a: Line) -> (b: Line) -> Bool = uninterpreted
+def causality : (a: Line) -> (b: Line) -> Bool := uninterpreted
 # ``b`` is a clone of ``a`` (same column values).
-def clone : (a: Line) -> (b: Line) -> Bool = uninterpreted
+def clone : (a: Line) -> (b: Line) -> Bool := uninterpreted
 # ``l`` was synthesised (e.g. by SMOTE), not a real-world record.
-def synth : (l: Line) -> Bool = uninterpreted
+def synth : (l: Line) -> Bool := uninterpreted
 # ``d`` holds chronologically-ordered (time-stamped) data.
-def is_ts : (d: LDataset) -> Bool = uninterpreted
-def line_count : (d: LDataset) -> Int = uninterpreted
+def is_ts : (d: LDataset) -> Bool := uninterpreted
+def line_count : (d: LDataset) -> Int := uninterpreted
 
 # ─── Appendix A.4 — Causality ───────────────────────────────────────────
 
 # A line never causally depends on itself.
 axiom ax_causality_irreflexive :
-    (l: Line) -> {u: Unit | causality l l == false} ;
+    (l: Line) -> {u: Unit | causality l l = false} ;
 
 # Causality is antisymmetric.
 axiom ax_causality_antisym :
-    (a: Line) -> (b: Line) -> {u: Unit | causality a b --> (causality b a == false)} ;
+    (a: Line) -> (b: Line) -> {u: Unit | causality a b --> (causality b a = false)} ;
 
 # Causality is transitive (over distinct lines).
 axiom ax_causality_trans :
@@ -72,7 +72,7 @@ axiom ax_prec_membership :
 
 # A line never precedes itself.
 axiom ax_prec_irreflexive :
-    (l: Line) -> (d: LDataset) -> {u: Unit | prec l l d == false} ;
+    (l: Line) -> (d: LDataset) -> {u: Unit | prec l l d = false} ;
 
 # Precedence is transitive (over distinct lines).
 axiom ax_prec_trans :
@@ -88,7 +88,7 @@ axiom ax_clone_causality :
 
 # A clone shares the synthesised flag of its original.
 axiom ax_clone_synth :
-    (a: Line) -> (b: Line) -> {u: Unit | clone a b --> (synth a == synth b)} ;
+    (a: Line) -> (b: Line) -> {u: Unit | clone a b --> (synth a = synth b)} ;
 
 # ─── Appendix A.1 — Time-series law ─────────────────────────────────────
 
