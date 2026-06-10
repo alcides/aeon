@@ -1,0 +1,26 @@
+open Http
+open Json
+
+# Demonstrates the two compile-time guarantees of the Http binding without
+# performing a live request at module load. The body of `fetchTitle` is fully
+# type-checked — proving the API is used correctly — but `main` only prints a
+# constant, so the example stays hermetic in CI (mirroring socket_linear.ae).
+
+# `Http.get` *requires* a positive timeout: there is no way to spell a request
+# that hangs forever. `isSuccess` ties the boolean to the `status` measure, so
+# the branch reads the body only when the request actually succeeded.
+def fetchTitle (url: {u:String | u != ""}) : String :=
+    let r : Response := Http.get url 5.0 in
+    if Http.isSuccess r then
+        Http.body r
+    else
+        "request failed";
+
+# `raiseForStatus` turns a 4xx/5xx into an exception, and its result is
+# statically known to satisfy `status x < 400` — so callers downstream can
+# trust the response without re-checking.
+def fetchJson (url: {u:String | u != ""}) : Json :=
+    let r : Response := Http.raiseForStatus (Http.get url 5.0) in
+    Http.bodyJson r;
+
+def main (args: Int) : Unit := print "ok"
