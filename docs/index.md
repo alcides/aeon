@@ -405,6 +405,8 @@ let numpy := native_import "numpy";
 
 For a step-by-step guide to wrapping a whole Python package — covering opaque types, designing refinements, uninterpreted functions, and the axiom-by-`native` pattern — see [Writing FFI bindings for a Python package](ffi).
 
+For a worked case study of taming two especially error-prone modules — turning `KeyError`, ignored exit codes, and shell injection into compile-time errors — see [Typed bindings for `os` and `subprocess`](os-subprocess).
+
 ## Libraries
 
 There are a few libraries available, but unstable as they are under development:
@@ -414,6 +416,7 @@ There are a few libraries available, but unstable as they are under development:
 - List.ae
 - Map.ae
 - Math.ae
+- OS.ae
 - Plot.ae
 - PropTesting.ae
 - PSB2.ae
@@ -421,6 +424,7 @@ There are a few libraries available, but unstable as they are under development:
 - Set.ae
 - Statistics.ae
 - String.ae
+- Subprocess.ae
 - Table.ae
 - Testing.ae
 - Tuple.ae

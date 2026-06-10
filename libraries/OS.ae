@@ -1,0 +1,118 @@
+# Safe-by-construction bindings around Python's ``os`` module.
+#
+# ``os`` is full of *partial* operations — calls that look innocent but blow
+# up at runtime on a bad input:
+#
+#   * ``os.environ[k]``      raises ``KeyError`` when ``k`` is unset;
+#   * ``os._exit(code)``     silently truncates ``code`` to a single byte;
+#   * ``os.kill(pid, sig)``  needs a live PID and a real signal number;
+#   * ``os.path.getsize(p)`` raises ``OSError`` on a missing path.
+#
+# This library attaches Liquid Types so the common mistakes become *compile*
+# errors instead of runtime crashes. The headline is environment access:
+# ``getEnv`` is only callable once the solver knows — via ``hasEnv`` — that
+# the variable is set, mirroring the ``exists``/``read_text`` pattern in
+# ``Path.ae``.
+#
+# See ``Sys.ae`` for the ``sys``-module companion (argv, stdin/stdout, the
+# cleanup-running ``sys.exit``).
+
+open Array
+open Map
+open Maybe
+
+def os : Unit := native_import "os"
+
+# ── Environment variables (KeyError-safe) ──────────────────────────────
+#
+# ``envSet name`` is an uninterpreted predicate meaning "name is bound in the
+# current environment". The solver never computes it; it is only threaded
+# from the runtime witness ``hasEnv`` into the precondition of the unchecked
+# lookup ``getEnv``.
+
+def envSet : (name: String) -> Bool := uninterpreted
+
+# Runtime witness: lifts environment membership into the type system. In the
+# ``then`` branch of ``if hasEnv name then ...`` the solver learns
+# ``envSet name``, which is exactly what ``getEnv`` requires.
+def hasEnv (name: {s:String | s != ""}) : {b:Bool | b = envSet name} :=
+    native "name in os.environ"
+
+# Unchecked lookup. The precondition ``envSet name`` makes a ``KeyError``
+# unrepresentable — you can only reach this call after testing ``hasEnv``.
+def getEnv (name: {s:String | s != "" && envSet s}) : String :=
+    native "os.environ[name]"
+
+# Total lookup with an explicit fallback; always safe to call.
+def getEnvOr (name: {s:String | s != ""}) (fallback: String) : String :=
+    native "os.environ.get(name, fallback)"
+
+# Sets a variable and hands the value back so it can be threaded.
+def setEnv (name: {s:String | s != ""}) (value: String) : String :=
+    native "(os.environ.__setitem__(name, value), value)[1]"
+
+# Removes a variable if present; a no-op when it is unset (so, KeyError-safe).
+def unsetEnv (name: {s:String | s != ""}) : Unit :=
+    native "(os.environ.pop(name, None), None)[1]"
+
+# A snapshot of the whole environment as a Map.
+def environ (_: Unit) : (Map String String) := native "dict(os.environ)"
+
+# ── Process identity ───────────────────────────────────────────────────
+
+# The current process id. Always positive.
+def getPid (_: Unit) : {p:Int | p > 0} := native "os.getpid()"
+
+# The parent process id. Positive on every supported platform.
+def getParentPid (_: Unit) : {p:Int | p > 0} := native "os.getppid()"
+
+# ── CPU / scheduling ───────────────────────────────────────────────────
+
+# Number of CPUs in the system, if the OS can report it. ``os.cpu_count()``
+# may return ``None``, so the result is a ``Maybe`` rather than a bare ``Int``
+# — forcing callers to handle the unknown case instead of dividing by it.
+def cpuCount (_: Unit) : (Maybe Int) :=
+    native "(('Maybe_none',) if os.cpu_count() is None else ('Maybe_just', os.cpu_count()))"
+
+# ── Working directory ──────────────────────────────────────────────────
+
+# The current working directory. Always non-empty.
+def getCwd (_: Unit) : {s:String | s != ""} := native "os.getcwd()"
+
+# Changes the working directory. The path must be non-empty; raises if it
+# does not exist or is not a directory.
+def chdir (path: {s:String | s != ""}) : Unit :=
+    native "(os.chdir(path), None)[1]"
+
+# ── Filesystem queries ─────────────────────────────────────────────────
+
+# True if ``path`` refers to something that exists.
+def pathExists (path: {s:String | s != ""}) : Bool := native "os.path.exists(path)"
+
+# True if ``path`` is an existing regular file.
+def isFile (path: {s:String | s != ""}) : Bool := native "os.path.isfile(path)"
+
+# True if ``path`` is an existing directory.
+def isDir (path: {s:String | s != ""}) : Bool := native "os.path.isdir(path)"
+
+# Size of a file in bytes. Non-negative. Raises if the path is missing.
+def fileSize (path: {s:String | s != ""}) : {n:Int | n >= 0} :=
+    native "os.path.getsize(path)"
+
+# ── Signals ────────────────────────────────────────────────────────────
+
+# Sends signal ``sig`` to process ``pid``. ``pid`` must be positive and
+# ``sig`` a positive signal number. Raises if the process does not exist or
+# you lack permission.
+def kill (pid: {p:Int | p > 0}) (sig: {s:Int | s > 0}) : Unit :=
+    native "(os.kill(pid, sig), None)[1]"
+
+# ── Exit ───────────────────────────────────────────────────────────────
+
+# Immediately terminates the process with a status byte, skipping cleanup
+# handlers (the right call after ``fork()``). The portable status range is
+# 0..255; values outside it wrap around at the OS level, so the refinement
+# keeps the exit code honest. For a normal shutdown that runs ``atexit``
+# handlers, use ``Sys.exit`` instead.
+def exitNow (code: {x:Int | x >= 0 && x <= 255}) : Unit :=
+    native "os._exit(code)"
