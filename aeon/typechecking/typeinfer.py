@@ -269,11 +269,38 @@ def prim_litstring(t: str) -> RefinedType:
     )
 
 
-def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConstructor | TypeVar) -> Type:
-    """Creates the type of a binary operator"""
+def nonzero_refined(ty: TypeConstructor | TypeVar) -> RefinedType:
+    """Wraps ``ty`` in the refinement ``{v : ty | v != 0}``.
+
+    Used for the divisor parameter of ``/`` and ``%`` so that division by a
+    statically-zero value is rejected at typechecking. The literal ``0`` is an
+    ``Int``; when ``ty`` is ``Float`` (or a base type variable instantiated to
+    it) Z3 coerces the numeral into its sort, so the same refinement discharges
+    for both ``Int`` and ``Float`` divisors (see the Int/Float coercion in
+    ``aeon.typechecking.liquid._unify``)."""
+    vname = Name("v", fresh_counter.fresh())
+    return RefinedType(
+        vname,
+        ty,
+        LiquidApp(Name("!=", 0), [LiquidVar(vname), LiquidLiteralInt(0)]),
+    )
+
+
+def make_binary_app_type(
+    t: Name,
+    ity: TypeConstructor | TypeVar,
+    oty: TypeConstructor | TypeVar,
+    nonzero_divisor: bool = False,
+) -> Type:
+    """Creates the type of a binary operator.
+
+    When ``nonzero_divisor`` is set, the second parameter (the divisor) carries
+    a ``v != 0`` refinement so division/modulo by a statically-zero value is
+    rejected."""
     xname = Name("x", fresh_counter.fresh())
     yname = Name("y", fresh_counter.fresh())
     zname = Name("z", fresh_counter.fresh())
+    yty: Type = nonzero_refined(ity) if nonzero_divisor else ity
     output = RefinedType(
         zname,
         oty,
@@ -288,7 +315,7 @@ def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConst
             ],
         ),
     )
-    appt2 = AbstractionType(yname, ity, output)
+    appt2 = AbstractionType(yname, yty, output)
     appt1 = AbstractionType(xname, ity, appt2)
     return appt1
 
@@ -296,10 +323,14 @@ def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConst
 def prim_op(t: Name) -> Type:
     match t.name:
         case "%":
-            return make_binary_app_type(t, t_int, t_int)
+            return make_binary_app_type(t, t_int, t_int, nonzero_divisor=True)
         case "+" | "-" | "*" | "/":
             name_a = Name("a", fresh_counter.fresh())
-            return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a)))
+            return TypePolymorphism(
+                name_a,
+                Kind.BASE,
+                make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a), nonzero_divisor=t.name == "/"),
+            )
         case "==" | "!=" | ">" | ">=" | "<" | "<=":
             name_a = Name("a", fresh_counter.fresh())
             return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), t_bool))
