@@ -1,0 +1,81 @@
+# Safe-by-construction bindings around Python's ``subprocess`` module.
+#
+# ``subprocess`` is one of the most error-prone corners of the standard
+# library, in two distinct ways:
+#
+#   1. **Shell injection.** ``subprocess.run("rm " + name, shell=True)`` hands
+#      an attacker-controlled string to ``/bin/sh``. The fix is to pass an
+#      *argument vector* (a list) and never invoke a shell — so there is no
+#      shell grammar to inject into. This binding exposes *only* the argv form:
+#      every entry point takes an ``Array String`` and runs it directly. There
+#      is deliberately no ``shell=True`` escape hatch.
+#
+#   2. **Ignored exit codes.** ``subprocess.run`` does not raise on failure;
+#      callers routinely read ``stdout`` of a command that never ran. Here the
+#      return code is reflected into an uninterpreted ``exitCode`` measure, and
+#      ``checkRun`` carries the postcondition ``exitCode p = 0`` so downstream
+#      code can rely — at the type level — on the command having succeeded.
+#
+# An ``Array String`` is backed by a Python ``list[str]`` at runtime, so it
+# flows straight into ``subprocess.run`` with no marshalling.
+
+open Array
+
+type CompletedProcess
+
+def subprocess : Unit := native_import "subprocess"
+
+# ── Measures ───────────────────────────────────────────────────────────
+
+# The process exit status. Uninterpreted: the solver only relates it across
+# calls (e.g. a ``checkRun`` result is pinned to 0), it never computes it.
+# On POSIX a negative value means the process was killed by ``-exitCode``.
+def exitCode : (p: CompletedProcess) -> Int := uninterpreted
+
+# ── Running a command ──────────────────────────────────────────────────
+
+# Runs ``argv`` and captures its output. ``argv`` must be non-empty — its
+# first element is the program to execute. No shell is involved.
+def run (argv: {a: (Array String) | Array.size a >= 1}) : CompletedProcess :=
+    native "subprocess.run(argv, capture_output=True, text=True)"
+
+# Runs ``argv``, feeding ``stdin`` to the child's standard input.
+def runWithInput (argv: {a: (Array String) | Array.size a >= 1}) (stdin: String)
+    : CompletedProcess :=
+    native "subprocess.run(argv, capture_output=True, text=True, input=stdin)"
+
+# Runs ``argv`` but aborts the child after ``seconds``. Raises
+# ``TimeoutExpired`` if the deadline passes; ``seconds`` must be positive.
+def runWithTimeout (argv: {a: (Array String) | Array.size a >= 1})
+                   (seconds: {s:Float | s > 0.0}) : CompletedProcess :=
+    native "subprocess.run(argv, capture_output=True, text=True, timeout=seconds)"
+
+# Runs ``argv`` and raises ``CalledProcessError`` on a non-zero exit. Because
+# control only returns here on success, the result is statically known to have
+# ``exitCode p = 0`` — callers can read ``stdout`` without re-checking.
+def checkRun (argv: {a: (Array String) | Array.size a >= 1})
+    : {p: CompletedProcess | exitCode p = 0} :=
+    native "subprocess.run(argv, capture_output=True, text=True, check=True)"
+
+# Convenience: run ``argv``, require success, and return only ``stdout``.
+def checkOutput (argv: {a: (Array String) | Array.size a >= 1}) : String :=
+    native "subprocess.run(argv, capture_output=True, text=True, check=True).stdout"
+
+# ── Inspecting the result ──────────────────────────────────────────────
+
+# The exit code as a value, pinned to the ``exitCode`` measure so it can be
+# threaded into later refinements.
+def getExitCode (p: CompletedProcess) : {n:Int | n = exitCode p} :=
+    native "p.returncode"
+
+# True exactly when the command succeeded (exit code 0). The result is tied to
+# the ``exitCode`` measure, so the ``then`` branch of a test on it can satisfy
+# preconditions phrased as ``exitCode p = 0``.
+def succeeded (p: CompletedProcess) : {b:Bool | b = (exitCode p = 0)} :=
+    native "p.returncode == 0"
+
+# Captured standard output (decoded text).
+def stdout (p: CompletedProcess) : String := native "p.stdout"
+
+# Captured standard error (decoded text).
+def stderr (p: CompletedProcess) : String := native "p.stderr"

@@ -1,0 +1,19 @@
+open OS
+
+# KeyError-safe environment access. `getEnv` carries the precondition
+# `envSet name`, so it is only well-typed inside the branch where `hasEnv`
+# has proven the variable is set. Calling `OS.getEnv "HOME"` directly —
+# without the guard — is a *compile* error, not a runtime KeyError.
+
+def homeDir : String :=
+    if OS.hasEnv "HOME" then
+        OS.getEnv "HOME"      # OK: this branch refines `envSet "HOME"`
+    else
+        "/"
+
+# When you don't care to branch, the total `getEnvOr` always has a value.
+def editor : String := OS.getEnvOr "EDITOR" "vi"
+
+def main (_:Int) : Unit :=
+    _ : Unit := print homeDir;
+    print editor
