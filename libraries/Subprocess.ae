@@ -22,6 +22,7 @@
 open Array
 
 type CompletedProcess
+type Process
 
 def subprocess : Unit := native_import "subprocess"
 
@@ -79,3 +80,38 @@ def stdout (p: CompletedProcess) : String := native "p.stdout"
 
 # Captured standard error (decoded text).
 def stderr (p: CompletedProcess) : String := native "p.stderr"
+
+# ── Linear (QTT) process handles ───────────────────────────────────────
+#
+# `run`/`checkRun` above are the safe all-in-one path: spawn, wait, and capture
+# in a single call. When you need a *long-running* child you start now and reap
+# later, use the linear `Process` API below.
+#
+# A `Process` is a multiplicity-1 resource: bound to a linear binder
+# (`let 1 p := Subprocess.spawn argv in ...`), the type checker forces every
+# spawned child to be reaped exactly once — via `wait`, `terminate`, or `kill`.
+# A forgotten reap (a zombie / leaked pipe) leaves the binder unconsumed
+# (`LinearUnusedError`); a double-wait reuses a consumed handle
+# (`LinearUsedTooManyTimesError`). Both are compile errors.
+
+# Spawns a child running `argv` and returns immediately, without waiting. Bind
+# the result to a linear binder. `argv` must be non-empty; no shell is involved.
+def spawn (argv: {a: (Array String) | Array.size a >= 1}) : Process :=
+    native "subprocess.Popen(argv)"
+
+# Blocks until the child exits, reaps it, and returns its exit code. Consumes
+# the handle, so the same process cannot be waited on twice or leaked.
+def wait (1 p: Process) : Int := native "p.wait()"
+
+# Like `wait` but gives up after `seconds` (> 0), raising `TimeoutExpired`.
+def waitFor (seconds: {s:Float | s > 0.0}) (1 p: Process) : Int :=
+    native "p.wait(timeout=seconds)"
+
+# Sends SIGTERM, waits for the child to exit, and returns its exit code.
+# Consumes the handle.
+def terminate (1 p: Process) : Int :=
+    native "(p.terminate(), p.wait())[1]"
+
+# Sends SIGKILL, waits, and returns the exit code. Consumes the handle.
+def kill (1 p: Process) : Int :=
+    native "(p.kill(), p.wait())[1]"
