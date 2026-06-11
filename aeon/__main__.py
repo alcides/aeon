@@ -6,19 +6,24 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
+from lark.exceptions import UnexpectedInput
+
 from aeon.facade.api import (
     AeonError,
     CoreTypeCheckingError,
     ImportError as AeonImportError,
     InstanceResolutionError,
     LinearityError,
+    MethodResolutionError,
     NonOrderableComparisonError,
     UnificationFailedError,
     UnificationKindError,
     UnificationSubtypingError,
     UnificationUnknownTypeError,
 )
+from aeon.facade.exit_codes import ExitCode, error_exit_code
 from aeon.facade.driver import AeonConfig, AeonDriver
+from aeon.sugar.lowering import LiquefactionException
 from aeon.synthesis.api import SynthesisNotSuccessful
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
@@ -191,6 +196,8 @@ def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
             return "Missing instance", "Define a typeclass instance for this type, or add it as a constraint."
         case NonOrderableComparisonError():
             return "Non-orderable comparison", "Use Int, Float or String, or define an Ord instance for this type."
+        case MethodResolutionError():
+            return "Method resolution error", "No method with this name is defined for the receiver's type."
         case LinearityError():
             return "Linearity error", "A binding's usage does not match its declared multiplicity."
         case CoreTypeCheckingError():
@@ -261,7 +268,26 @@ def main() -> None:
         print(f"Documentation generated: {output_path}")
         sys.exit(0)
 
-    errors = driver.parse(args.filename)
+    try:
+        errors = driver.parse(args.filename)
+    except UnexpectedInput as e:
+        # Lark's parse errors carry their own position rendering.
+        print(">>> Syntax error:")
+        print(f"    {e}")
+        sys.exit(ExitCode.SYNTAX_ERROR)
+    except LiquefactionException as e:
+        print(">>> Invalid refinement predicate:")
+        print(f"    {e}")
+        print("    hint: refinement predicates are restricted to liquid terms (no method calls or binders).")
+        sys.exit(ExitCode.INVALID_REFINEMENT)
+    except NameError as e:
+        # Name-resolution failures (e.g. ``Module.unknown``) surface as NameError.
+        print(">>> Unknown name:")
+        print(f"    {e}")
+        sys.exit(ExitCode.UNKNOWN_NAME)
+    except AeonError as e:
+        handle_error(e)
+        sys.exit(error_exit_code(e))
 
     match errors:
         case []:
@@ -270,7 +296,7 @@ def main() -> None:
                     print("No @property functions found.")
                     sys.exit(0)
                 failures = driver.run_tests(seed=args.seed)
-                sys.exit(1 if failures else 0)
+                sys.exit(ExitCode.TESTS_FAILED_OR_CRASH if failures else ExitCode.SUCCESS)
             match (args.format, driver.has_synth()):
                 case (True, _):
                     driver.pretty_print(args.filename, args.fix)
@@ -280,7 +306,7 @@ def main() -> None:
                     except SynthesisNotSuccessful as e:
                         message = str(e) or f"Cannot find a suitable expression within {args.budget} seconds."
                         print(message, file=sys.stderr)
-                        sys.exit(2)
+                        sys.exit(ExitCode.SYNTHESIS_NOT_SUCCESSFUL)
                     print("Synthesized:")
                     print("#str")
                     print(str(term))
@@ -288,9 +314,10 @@ def main() -> None:
                     print(pretty_print_sterm(term))
                 case (False, False):
                     driver.run()
-        case [*_]:
+        case [first, *_]:
             for err in errors:
                 handle_error(err)
+            sys.exit(error_exit_code(first))
 
 
 if __name__ == "__main__":

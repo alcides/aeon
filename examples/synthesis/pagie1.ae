@@ -16,9 +16,11 @@
 # Run with, e.g.:
 #   uv run python -m aeon --budget 60 -s gp examples/synthesis/pagie1.ae
 
-# Reference specification.  1 / (1 + x^-4) == 1 / (1 + 1/x^4).
+# Reference specification.  1 / (1 + x^-4) is written in its algebraically
+# equivalent total form x^4 / (x^4 + 1), whose denominator is provably
+# non-zero for every x (x^4 >= 0), so the division obligations discharge.
 def pagie1_spec (x:Float) (y:Float) : Float :=
-    1.0 / (1.0 + 1.0 / (x * x * x * x)) + 1.0 / (1.0 + 1.0 / (y * y * y * y));
+    (x * x * x * x) / (x * x * x * x + 1.0) + (y * y * y * y) / (y * y * y * y + 1.0);
 
 # Mean absolute error of a candidate `func` against Pagie-1 over the 100-point
 # grid (the two list comprehensions drop x == 0 / y == 0).
