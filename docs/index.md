@@ -405,12 +405,13 @@ let numpy := native_import "numpy";
 
 For a step-by-step guide to wrapping a whole Python package — covering opaque types, designing refinements, uninterpreted functions, and the axiom-by-`native` pattern — see [Writing FFI bindings for a Python package](ffi).
 
-For a worked case study of taming two especially error-prone modules — turning `KeyError`, ignored exit codes, and shell injection into compile-time errors — see [Typed bindings for `os` and `subprocess`](os-subprocess). The same treatment for HTTP — mandatory timeouts, status codes you can't ignore — is in [Typed bindings for `requests`](http).
+For a worked case study of taming two especially error-prone modules — turning `KeyError`, ignored exit codes, and shell injection into compile-time errors — see [Typed bindings for `os` and `subprocess`](os-subprocess). The same treatment for HTTP — mandatory timeouts, status codes you can't ignore — is in [Typed bindings for `requests`](http). For combining refinements with **linear types** (QTT) to make resource lifecycles state-safe — commit-xor-rollback, close exactly once — see [State-safe sqlite3 with `Database`](database).
 
 ## Libraries
 
 There are a few libraries available, but unstable as they are under development:
 
+- Database.ae
 - Http.ae
 - Image.ae
 - Learning.ae

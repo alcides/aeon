@@ -161,6 +161,45 @@ def checkRun (argv: {a: (Array String) | Array.size a >= 1})
     native "subprocess.run(argv, capture_output=True, text=True, check=True)"
 ```
 
+### 3. Long-running children must be reaped — exactly once (QTT)
+
+`run`/`checkRun` spawn, wait, and capture in one call. But when you start a child
+now and reap it later (`subprocess.Popen`), a new bug class appears: forget to
+`wait` and you leak a zombie / open pipes; `wait` twice and you misuse a spent
+handle. That is a *linear-resource* discipline, so `Subprocess` also exposes a
+multiplicity-1 `Process` handle — the same Quantitative Type Theory machinery as
+[`Socket.ae`](https://github.com/alcides/aeon/blob/master/libraries/Socket.ae):
+
+```aeon
+type Process
+
+def spawn  (argv: {a: (Array String) | Array.size a >= 1}) : Process
+def wait   (1 p: Process) : Int     # blocks, reaps, returns exit code
+def waitFor (seconds: {s:Float | s > 0.0}) (1 p: Process) : Int
+def terminate (1 p: Process) : Int  # SIGTERM + wait
+def kill      (1 p: Process) : Int  # SIGKILL + wait
+```
+
+Every consumer takes the handle at multiplicity 1, so a child bound with `let 1`
+must be reaped exactly once via one of `wait` / `waitFor` / `terminate` / `kill`:
+
+```aeon
+def runDetached (argv: {a: (Array String) | Array.size a >= 1}) : Int :=
+    let 1 p := Subprocess.spawn argv in
+    Subprocess.wait p;
+```
+
+Drop the `wait` and the binder is left unconsumed:
+
+```
+>>> Linearity error: Linear binding p … is declared with multiplicity 1 but is never used.
+```
+
+— and waiting twice reports `… is used 2 times`. The leaked-process / zombie bug
+becomes a compile error. For the full transactional version of this pattern
+(commit-xor-rollback, close exactly once), see
+[`Database`](database).
+
 ### Quick reference
 
 | Function | Notes |
@@ -170,7 +209,9 @@ def checkRun (argv: {a: (Array String) | Array.size a >= 1})
 | `runWithTimeout argv seconds` | `seconds > 0`; raises `TimeoutExpired` |
 | `checkRun argv` | result refined `exitCode p = 0` |
 | `checkOutput argv` | success required; returns `stdout` only |
-| `getExitCode p`, `succeeded p`, `stdout p`, `stderr p` | inspect a result |
+| `getExitCode p`, `succeeded p`, `stdout p`, `stderr p` | inspect a `CompletedProcess` |
+| `spawn argv` → `Process` | **linear** handle; reap with one of below |
+| `wait p`, `waitFor s p`, `terminate p`, `kill p` | consume the `Process` exactly once |
 
 ---
 

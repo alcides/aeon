@@ -1,0 +1,12 @@
+open Subprocess
+open Array
+
+# Linear process lifecycle: a spawned child MUST be reaped exactly once (here
+# via `wait`). Forgetting it — a zombie / leaked pipe — would leave the linear
+# binder unconsumed and fail to type-check; waiting twice would reuse a consumed
+# handle. Wrapped in a function so CI spawns nothing (mirrors socket_linear.ae).
+def runDetached (argv: {a: (Array String) | Array.size a >= 1}) : Int :=
+    let 1 p := Subprocess.spawn argv in
+    Subprocess.wait p;
+
+def main (args: Int) : Unit := print "ok"
