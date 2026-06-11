@@ -4,8 +4,8 @@ open Table
 
 def tx : Table := native "[{'d':1,'amt':10},{'d':2,'amt':-3},{'d':3,'amt':5}]";
 
-def withbal : Table := Table.cumsum tx "amt" "balance";
+def withbal : Table := tx.cumsum "amt" "balance";
 
-def final_balance : Int := Table.cell withbal 2 "balance";  # 10 - 3 + 5 = 12
+def final_balance : Int := withbal.cell 2 "balance";  # 10 - 3 + 5 = 12
 
 def main (x:Int) : Unit := print final_balance;

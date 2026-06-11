@@ -449,16 +449,20 @@ def resolve_qualified_names_in_sterm(
             # ``val`` is in the outer scope; ``name`` is bound only in ``body``.
             return SLet(name, rec(val), rec(body, frozenset({name.name})), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, val, body, decreasing_by, loc):
-            # ``name`` is recursively bound in its own value and the body.
+            # ``name`` is recursively bound in its own value and the body. Its
+            # type ascription can carry refinements that mention imports
+            # (``a : {x:_ | Array.size x = 5} := ...``), so resolve it too.
             inner = frozenset({name.name})
             nd = tuple(rec(m, inner) for m in decreasing_by)
+            nty = resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, bound)
             return SRec(
-                name, ty, rec(val, inner), rec(body, inner), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity
+                name, nty, rec(val, inner), rec(body, inner), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity
             )
         case SIf(cond, then, otherwise, loc):
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case SAnnotation(expr, ty, loc):
-            return SAnnotation(rec(expr), ty, loc=loc)
+            nty = resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, bound)
+            return SAnnotation(rec(expr), nty, loc=loc)
         case STypeApplication(body, ty, loc):
             return STypeApplication(rec(body), ty, loc=loc)
         case SRefinementApplication(body, refinement, loc):

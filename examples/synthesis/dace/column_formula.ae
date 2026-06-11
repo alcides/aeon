@@ -6,9 +6,9 @@ open Table
 def orders : Table :=
     native "[{'item':'a','qty':2,'price':3},{'item':'b','qty':5,'price':4},{'item':'c','qty':1,'price':7}]";
 
-def completed : Table := Table.mutate orders "total" (fun row => native "row['qty'] * row['price']");
+def completed : Table := orders.mutate "total" (fun row => native "row['qty'] * row['price']");
 
 # 2*3 + 5*4 + 1*7 = 33
-def grand_total : Int := Table.sum_col completed "total";
+def grand_total : Int := completed.sum_col "total";
 
 def main (x:Int) : Unit := print grand_total;

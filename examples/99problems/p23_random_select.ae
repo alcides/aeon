@@ -5,12 +5,12 @@ open Array
 
 def random : Unit := native_import "random"
 
-def rndSelect (l: (Array Int)) (n: {k:Int | k >= 0 && k <= Array_size l}) :
-        {r:(Array Int) | Array_size r = n} :=
+def rndSelect (l: (Array Int)) (n: {k:Int | k >= 0 && k <= Array.size l}) :
+        {r:(Array Int) | Array.size r = n} :=
     native "random.sample(l, n)"
 
 def main (args:Int) : Unit :=
     _ := native "random.seed(42)";
-    a : {x:(Array Int) | Array_size x = 6} :=
-        Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5) 6;
+    a : {x:(Array Int) | Array.size x = 6} :=
+        ((((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5).append 6;
     print (rndSelect a 3)

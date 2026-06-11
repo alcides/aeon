@@ -33,10 +33,10 @@ def argvOutFile : (Array String) := native "['--out', 'file.txt']"
 def argvNum99 : (Array String) := native "['--num', '99']"
 def argvModeSlow : (Array String) := native "['--mode', 'slow']"
 
-# Built via Array.append so its size (2 > 0) is provable — addChoice requires
+# Built by chaining .append so its size (2 > 0) is provable — addChoice requires
 # a statically non-empty list of options.
 def choicesModes : {l : (Array String) | Array.size l > 0} :=
-    Array.append (Array.append Array.new "fast") "slow"
+    ((Array.new[String]).append "fast").append "slow"
 
 def singleton (x : String) : (Array String) := native "[x]"
 
@@ -75,7 +75,7 @@ def prop_int_positional_roundtrips (d : {v : Int | v >= 0}) : Bool :=
 def getName (argv : (Array String)) : Bool :=
     p : Parser := Args.addArg (Args.newParser "t") "name" "";
     a : ParsedArgs := Args.parseList p argv;
-    String.equal (Args.getString a "name") "alice";
+    (Args.getString a "name").equal "alice";
 
 # Required int positional.
 @example(getCount argv42 = 42)

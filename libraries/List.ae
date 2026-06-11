@@ -56,12 +56,12 @@ def reverse_acc (xs: (List a)) (acc: (List a)) : (List a) :=
 
 # Reverse a list.
 def reversed (l: (List a)) : (List a) :=
-    reverse_acc l nil;
+    l.reverse_acc nil;
 
 
 # Append a value at the back of the list (snoc).
 def snoc (l: (List a)) (x: a) : (List a) :=
-    append l (cons x nil);
+    l.append (cons x nil);
 
 
 # Sum of a list of integers.

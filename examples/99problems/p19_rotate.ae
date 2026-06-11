@@ -3,9 +3,9 @@
 
 open Array
 
-def rotate (l: (Array Int)) (n: Int) : {r:(Array Int) | Array_size r = Array_size l} :=
+def rotate (l: (Array Int)) (n: Int) : {r:(Array Int) | Array.size r = Array.size l} :=
     native "l[n % len(l):] + l[:n % len(l)] if l else l"
 
 def main (args:Int) : Unit :=
-    a : (Array Int) := Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5) 6) 7) 8;
+    a : (Array Int) := ((((((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5).append 6).append 7).append 8;
     print (rotate a 3)

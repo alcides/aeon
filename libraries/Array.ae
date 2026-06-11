@@ -28,7 +28,7 @@ def new : {arr:(Array a) | size arr = 0} :=
 
 # True when the array is empty.
 def empty (arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
-    (length arr) = 0
+    arr.length = 0
 
 
 # Append an element to the back; the value must satisfy the refinement ``p``.
