@@ -2,20 +2,20 @@ open Database
 
 # A linear write transaction. The type checker forces commit-XOR-rollback
 # exactly once and close exactly once, and the typestate (Conn vs Txn) forbids
-# illegal orderings — you cannot execSql before begin, nor close before commit.
+# illegal orderings — you cannot execute before begin, nor close before commit.
 #
 # Wrapped in a function so the lifecycle is fully type-checked without touching
 # a real database in CI (mirrors examples/ffi/socket_linear.ae).
 def writeEntry (path: {p:String | p != ""}) : Unit :=
     let 1 c0 := Database.connect path in
     let 1 t0 := Database.begin c0 in
-    let 1 t1 := Database.execSql "CREATE TABLE IF NOT EXISTS log (msg TEXT)" t0 in
-    let 1 t2 := Database.execSql "INSERT INTO log VALUES ('entry')" t1 in
+    let 1 t1 := Database.execute "CREATE TABLE IF NOT EXISTS log (msg TEXT)" t0 in
+    let 1 t2 := Database.execute "INSERT INTO log VALUES ('entry')" t1 in
     let 1 c1 := Database.commit t2 in
     Database.close c1;
 
 # A safe one-shot read needs no linear handle at all.
-def countRows (path: {p:String | p != ""}) : Int :=
-    Database.rowCount (Database.readAll path "SELECT * FROM log");
+def count_rows (path: {p:String | p != ""}) : Int :=
+    Database.num_rows (Database.read_all path "SELECT * FROM log");
 
 def main (args: Int) : Unit := print "ok"

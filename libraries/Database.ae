@@ -12,7 +12,7 @@
 #      use-after-commit / double-close (``LinearUsedTooManyTimesError``).
 #
 #   2. **State (typestate).** The *kind* of handle encodes the connection state.
-#      You cannot ``execSql`` on a plain ``Conn`` (you must ``begin`` a ``Txn``
+#      You cannot ``execute`` on a plain ``Conn`` (you must ``begin`` a ``Txn``
 #      first), nor ``close`` a ``Txn`` (you must ``commit``/``rollback`` back to
 #      a ``Conn``). Illegal orderings simply do not type-check.
 #
@@ -22,7 +22,7 @@
 #
 #     let 1 c0 := connect "app.db" in
 #     let 1 t0 := begin c0 in
-#     let 1 t1 := execSql "INSERT INTO log VALUES ('x')" t0 in
+#     let 1 t1 := execute "INSERT INTO log VALUES ('x')" t0 in
 #     let 1 c1 := commit t1 in        # MUST commit or rollback — exactly once
 #     close c1                        # MUST close — and t0/t1 are now unusable
 
@@ -43,15 +43,15 @@ def row_count : (r: Rows) -> Int := uninterpreted
 
 # Runs a SELECT against `path` and returns every row. Both arguments must be
 # non-empty.
-def readAll (path: {p:String | p != ""}) (sql: {s:String | s != ""}) :
+def read_all (path: {p:String | p != ""}) (sql: {s:String | s != ""}) :
     {r: Rows | row_count r >= 0} :=
     native "__import__('aeon.bindings.database').bindings.database.read_all(path, sql)"
 
 # Number of rows returned. Pinned to the `row_count` measure; non-negative.
-def rowCount (r: Rows) : {n:Int | n = row_count r && n >= 0} := native "len(r)"
+def num_rows (r: Rows) : {n:Int | n = row_count r && n >= 0} := native "len(r)"
 
 # True exactly when the result set is empty. Tied to `row_count`.
-def isEmpty (r: Rows) : {b:Bool | b = (row_count r = 0)} := native "len(r) == 0"
+def is_empty (r: Rows) : {b:Bool | b = (row_count r = 0)} := native "len(r) == 0"
 
 # ── Linear write transactions (QTT) ─────────────────────────────────────
 #
@@ -71,7 +71,7 @@ def begin (1 c: Conn) : Txn :=
 
 # Executes one statement inside the transaction and threads the `Txn` onward.
 # `sql` must be non-empty.
-def execSql (sql: {s:String | s != ""}) (1 t: Txn) : Txn :=
+def execute (sql: {s:String | s != ""}) (1 t: Txn) : Txn :=
     native "(t.execute(sql), t)[1]"
 
 # Commits the transaction and returns the connection (now outside any txn) so
