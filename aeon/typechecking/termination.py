@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidTerm, LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidTerm, LiquidVar, liquid_free_vars
 from aeon.core.liquid_ops import mk_liquid_and, mk_liquid_or
 from aeon.core.substitutions import inline_lets, liquefy, substitution, substitution_in_liquid
 from aeon.core.terms import (
@@ -115,8 +115,45 @@ def collect_recursive_calls_with_paths(
     term_formals: list[Name],
     type_formals: list[Name],
 ) -> list[tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...]]]:
-    """Self-calls with ``arity`` args, ``If`` path guards, and nested binder refinements (e.g. match)."""
+    """Self-calls with ``arity`` args, ``If`` path guards, and nested binder refinements.
+
+    The walk traverses the *original* body — ``let`` bindings are not inlined
+    away beforehand. Each ``let`` contributes:
+
+    * a substitution (binder → inlined value) applied to recorded call
+      arguments and path guards, so obligations stay phrased over the
+      function's formals (what the former global ``inline_lets`` achieved);
+    * a path-scoped hypothesis: the binder's synthesised refinement, opened at
+      the liquefied value (issue #378). This is what lets an instantiated
+      axiom (``b := fdiv_bounds n 10``) or a refined native's return type
+      guard the termination obligation of a recursive call under it. Facts are
+      attached at the let's position in the walk, never hoisted, so a fact
+      established under one branch cannot leak into another.
+    """
     found: list[tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...]]] = []
+    base_vars = set(term_formals) | {fn}
+    if typing_ctx is not None:
+        base_vars |= {n for n, _ in typing_ctx.vars()}
+
+    def apply_env(term: Term, env: tuple[tuple[Name, Term], ...]) -> Term:
+        for n, v in reversed(env):
+            term = substitution(term, v, n)
+        return inline_lets(term)
+
+    def let_fact(name: Name, val: Term, ty_v: Type | None, env: tuple[tuple[Name, Term], ...]) -> LiquidTerm | None:
+        """The let binder's refinement, opened at the binder's (inlined) value."""
+        match ty_v:
+            case RefinedType(bname, _, ref):
+                if any(v == bname for v in liquid_free_vars(ref)):
+                    lv = liquefy(apply_env(val, env))
+                    if lv is None:
+                        return None
+                    ref = substitution_in_liquid(ref, lv, bname)
+                if any(v not in base_vars for v in liquid_free_vars(ref)):
+                    return None
+                return align_liquid_to_type_formals(ref, term_formals, type_formals)
+            case _:
+                return None
 
     def walk(
         tt: Term,
@@ -124,57 +161,67 @@ def collect_recursive_calls_with_paths(
         nested_refs: tuple[LiquidTerm, ...],
         ctx: TypingContext | None,
         expect_ty: Type | None,
+        env: tuple[tuple[Name, Term], ...],
     ) -> None:
         match tt:
             case Application(_, _, _):
                 head, args = peel_application_chain(tt)
                 if isinstance(head, Var) and head.name == fn and len(args) == arity:
-                    found.append((args, tt.loc, path, nested_refs))
+                    found.append(([apply_env(a, env) for a in args], tt.loc, path, nested_refs))
             case _:
                 pass
         match tt:
+            case Application(Abstraction(bname, abody, _), arg, _):
+                # Beta redex: bind like a let so recorded terms stay closed.
+                walk(arg, path, nested_refs, ctx, None, env)
+                walk(abody, path, nested_refs, ctx, expect_ty, env + ((bname, apply_env(arg, env)),))
             case Application(fun, arg, _):
                 f_ty = _synth_type(ctx, fun) if ctx is not None else None
-                walk(fun, path, nested_refs, ctx, f_ty)
+                walk(fun, path, nested_refs, ctx, f_ty, env)
                 arg_ty: Type | None = None
                 match f_ty:
                     case AbstractionType(_, vt, _):
                         arg_ty = vt
-                walk(arg, path, nested_refs, ctx, arg_ty)
+                walk(arg, path, nested_refs, ctx, arg_ty, env)
             case Abstraction(name, body, _):
                 if isinstance(expect_ty, AbstractionType):
                     vty = expect_ty.var_type
                     new_ctx = ctx.with_var(name, vty) if ctx is not None else None
                     ref_l = _opened_refinement_liquid(vty, name, term_formals, type_formals)
                     nrefs = nested_refs + (ref_l,) if ref_l is not None else nested_refs
-                    walk(body, path, nrefs, new_ctx, expect_ty.type)
+                    walk(body, path, nrefs, new_ctx, expect_ty.type, env)
                 else:
-                    walk(body, path, nested_refs, ctx, None)
-            case Let(_, val, body, _):
-                walk(val, path, nested_refs, ctx, None)
-                walk(body, path, nested_refs, ctx, None)
-            case Rec(_, _, val, body, _, _):
-                walk(val, path, nested_refs, ctx, None)
-                walk(body, path, nested_refs, ctx, None)
+                    walk(body, path, nested_refs, ctx, None, env)
+            case Let(name, val, body, _):
+                walk(val, path, nested_refs, ctx, None, env)
+                ty_v = _synth_type(ctx, val) if ctx is not None else None
+                fact = let_fact(name, val, ty_v, env)
+                nrefs = nested_refs + (fact,) if fact is not None else nested_refs
+                new_ctx = ctx.with_var(name, ty_v) if ctx is not None and ty_v is not None else ctx
+                walk(body, path, nrefs, new_ctx, expect_ty, env + ((name, apply_env(val, env)),))
+            case Rec(name, _, val, body, _, _):
+                walk(val, path, nested_refs, ctx, None, env)
+                walk(body, path, nested_refs, ctx, expect_ty, env + ((name, apply_env(val, env)),))
             case Annotation(expr, _, _):
-                walk(expr, path, nested_refs, ctx, expect_ty)
+                walk(expr, path, nested_refs, ctx, expect_ty, env)
             case If(cond, then, otherwise, _):
-                walk(cond, path, nested_refs, ctx, None)
-                walk(then, path + (cond,), nested_refs, ctx, expect_ty)
-                walk(otherwise, path + (_term_bool_not(cond),), nested_refs, ctx, expect_ty)
+                cond_s = apply_env(cond, env)
+                walk(cond, path, nested_refs, ctx, None, env)
+                walk(then, path + (cond_s,), nested_refs, ctx, expect_ty, env)
+                walk(otherwise, path + (_term_bool_not(cond_s),), nested_refs, ctx, expect_ty, env)
             case TypeApplication(body, _, _):
-                walk(body, path, nested_refs, ctx, expect_ty)
+                walk(body, path, nested_refs, ctx, expect_ty, env)
             case TypeAbstraction(_, _, body, _):
-                walk(body, path, nested_refs, ctx, expect_ty)
+                walk(body, path, nested_refs, ctx, expect_ty, env)
             case RefinementApplication(body, refinement, _):
-                walk(body, path, nested_refs, ctx, expect_ty)
-                walk(refinement, path, nested_refs, ctx, None)
+                walk(body, path, nested_refs, ctx, expect_ty, env)
+                walk(refinement, path, nested_refs, ctx, None, env)
             case RefinementAbstraction(_, _, body, _):
-                walk(body, path, nested_refs, ctx, expect_ty)
+                walk(body, path, nested_refs, ctx, expect_ty, env)
             case _:
                 pass
 
-    walk(t, (), (), typing_ctx, inner_expect_ty)
+    walk(t, (), (), typing_ctx, inner_expect_ty, ())
     return found
 
 
@@ -320,10 +367,9 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
     if len(type_formals) != len(formals):
         return LiquidConstraint(LiquidLiteralBool(False))
     entry_refs = entry_refinement_liquids(rec.var_type, formals, type_formals)
-    # Inline let-bindings so call arguments are expressed in terms of the
-    # function's parameters; otherwise liquefy would mention intermediate
-    # let-bound temporaries instead.
-    inner = inline_lets(inner)
+    # Let-bindings are NOT inlined away here: the walk substitutes them into
+    # recorded call arguments and path guards itself, and additionally turns
+    # each binder's refinement into a path-scoped hypothesis (issue #378).
     arity = len(formals)
     inner_ctx: TypingContext | None = None
     inner_expect: Type | None = None

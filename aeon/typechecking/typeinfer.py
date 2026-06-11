@@ -73,6 +73,7 @@ from aeon.typechecking.well_formed import wellformed
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
+from aeon.verification.sub import is_first_order_function
 from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
@@ -200,6 +201,85 @@ def _reflected_impl_for(
         # whose runtime body is independent of the refinement predicate symbol.
         return None
     return (tuple(ty_params), liq)
+
+
+def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
+    """Liquid encoding of an application term for selfification (issue #378).
+
+    Returns the ``LiquidTerm`` for ``t`` when the whole term is expressible in
+    the liquid fragment and every applied symbol will exist on the SMT side:
+    a primitive operator, or a context-bound function that
+    ``implication_constraint`` / ``entailment_context`` declares (first-order,
+    and for polymorphic functions, with a concrete base result). Otherwise
+    ``None`` — the caller simply skips selfification.
+
+    Note: encoding an application as an SMT function term identifies
+    syntactically equal calls (congruence). This is the purity assumption the
+    liquid fragment already makes everywhere applications appear in
+    refinements and termination metrics; selfification adds no new trust.
+    """
+    liq = liquefy(t)
+    if liq is None:
+        return None
+    if any(v.name in {"native", "native_import", "uninterpreted"} for v in liquid_free_vars(liq)):
+        return None
+
+    op_names = {op.name for op in ops} | {"ite"}
+
+    def heads_declarable(lt: LiquidTerm) -> bool:
+        match lt:
+            case LiquidHornApplication():
+                return False
+            case LiquidApp(fun, args):
+                if fun.name not in op_names:
+                    # Only monomorphic first-order functions are reliably
+                    # declared on the SMT side (``implication_constraint`` for
+                    # let-chain binders, ``entailment_context`` for prelude
+                    # entries — the latter skips polymorphic binders entirely).
+                    fun_ty = ctx.type_of(fun)
+                    if not (isinstance(fun_ty, AbstractionType) and is_first_order_function(fun_ty)):
+                        return False
+                return all(heads_declarable(a) for a in args)
+            case _:
+                return True
+
+    if not heads_declarable(liq):
+        return None
+    return liq
+
+
+def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
+    """Strengthen an application's synthesised type with ``v == ⟦t⟧``.
+
+    Only fires when the result type carries no information of its own — a bare
+    base type or a trivially-refined one. Refined codomains (primitive
+    operators, refined natives) already state their contract; adding the
+    equality there would only grow VCs. This is what lets facts proved about
+    the *application term* (e.g. an instantiated axiom about ``fdiv n 10``)
+    reach obligations phrased about its *result* (issue #378).
+    """
+
+    def selfifiable_base(base: Type) -> bool:
+        # Non-parametric constructors only: scalars (Int, Float, Bool, String)
+        # and opaque user types map to one SMT sort each. Unit carries no
+        # information, and parametric constructors go through per-instantiation
+        # sort mangling that selfification should not interfere with.
+        return isinstance(base, TypeConstructor) and not base.args and base.name.name != "Unit"
+
+    match ty:
+        case TypeConstructor(_, _) if selfifiable_base(ty):
+            liq = _selfification_liquid(ctx, t)
+            if liq is None:
+                return ty
+            v = Name("_self", fresh_counter.fresh())
+            return RefinedType(v, ty, LiquidApp(Name("==", 0), [LiquidVar(v), liq]))
+        case RefinedType(name, base, LiquidLiteralBool(True)) if selfifiable_base(base):
+            liq = _selfification_liquid(ctx, t)
+            if liq is None:
+                return ty
+            return RefinedType(name, base, LiquidApp(Name("==", 0), [LiquidVar(name), liq]))
+        case _:
+            return ty
 
 
 def is_compatible(a: Kind, b: Kind):
@@ -521,6 +601,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     c0: Constraint = Conjunction(c, cp)
                     for bn, bt in reversed(fun_binders):
                         c0 = implication_constraint(bn, bt, c0, t.loc)
+                    # Selfify uninformative result types so the value stays
+                    # connected to the call that produced it (issue #378).
+                    t_subs = _selfify_application_type(ctx_inner, t, t_subs)
                     return (c0, with_binders(outer_binders, t_subs))
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
