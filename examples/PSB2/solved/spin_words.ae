@@ -5,8 +5,8 @@ def map_String_String_List : (function:(a: String) -> String) -> (l: (Array Int)
 def String_split : (i:String) -> (j:String) -> (Array Int) := fun i => fun j => native "i.split(j)"
 def String_reverse : (i:String) -> String := fun i => native "i[::-1]"
 
-def spin_words (phrase: String) : String := words: (Array Int) := String_split phrase " ";
-    rev : (x:String) -> String := fun x => if String_len(x) >= 5 then String_reverse x else x;
+def spin_words (phrase: String) : String := words: (Array Int) := phrase.split " ";
+    rev : (x:String) -> String := fun x => if x.len >= 5 then x.reverse else x;
     reversed_words : (Array Int) := map_String_String_List rev words;
     String_list_to_String reversed_words;
 

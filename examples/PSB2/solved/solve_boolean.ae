@@ -12,19 +12,19 @@ def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String := fun s => f
 def String_length: (s:String) -> Int := fun s => native "len(s)"
 def List_get: (l:(Array Int)) -> (i:Int) -> String := fun xs => fun i => native "xs[i]"
 
-def solve_boolean ( s : String ) : Bool := if (String_equal s "t") then
+def solve_boolean ( s : String ) : Bool := if (s.equal "t") then
         true
     else
-        if (String_equal s "f") then
+        if (s.equal "f") then
             false
         else
-             if (String_equal (String_get s (-2))  "&") then
-                operand1: String := String_slice s 0 (-2);
-                operand2: String := String_slice s (-1) (String_length s);
+             if ((s.get (-2)).equal "&") then
+                operand1: String := s.slice 0 (-2);
+                operand2: String := s.slice (-1) (s.length);
                 solve_boolean operand1 && solve_boolean operand2
              else
-                operand1: String := String_slice s 0 (-2);
-                operand2: String := String_slice s (-1) (String_length s);
+                operand1: String := s.slice 0 (-2);
+                operand2: String := s.slice (-1) (s.length);
                 solve_boolean operand1 || solve_boolean operand2;
 
 

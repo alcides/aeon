@@ -5,10 +5,10 @@ open Array
 
 def itertools : Unit := native_import "itertools"
 
-def combinations (k: {n:Int | n >= 0}) (l: {x:(Array Int) | Array_size x >= k}) : (Array (Array Int)) :=
+def combinations (k: {n:Int | n >= 0}) (l: {x:(Array Int) | Array.size x >= k}) : (Array (Array Int)) :=
     native "[list(c) for c in itertools.combinations(l, k)]"
 
 def main (args:Int) : Unit :=
     a : {x:(Array Int) | Array_size x = 5} :=
-        Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5;
+        (((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5;
     print (combinations 3 a)

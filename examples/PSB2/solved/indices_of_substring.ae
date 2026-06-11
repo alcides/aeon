@@ -10,10 +10,10 @@ def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native 
 def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
 
 def indices_of_substring ( text :String) (target: String) : (Array Int) := start: Int := 0;
-    end: Int := ((String_len text) - (String_len target)) + 1 ;
+    end: Int := ((text.len) - (target.len)) + 1 ;
     step: Int := 1;
     indices : (Array Int) := Range start end step;
-    matching_indices : (Array Int) := Filter ((fun i => String_equal (String_slice text i (i + (String_len target))) target):(s:Int) -> Bool)  indices;
+    matching_indices : (Array Int) := Filter ((fun i => (text.slice i (i + (target.len))).equal target):(s:Int) -> Bool)  indices;
     matching_indices;
 
 def main (args:Int) : Unit := print(indices_of_substring "hello world" "lo" )

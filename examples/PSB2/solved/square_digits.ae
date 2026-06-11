@@ -14,6 +14,6 @@ def square_digits ( n : Int) : String := if n = 0 then
         if floor = 0 then
             String_intToString(square)
         else
-            String_concat (square_digits(Math_floor_division n 10)) (String_intToString(square));
+            (square_digits(Math_floor_division n 10)).concat (String_intToString(square));
 
 def main (n : Int) : Unit := print (square_digits 44 )

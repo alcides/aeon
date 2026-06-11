@@ -14,10 +14,10 @@ def filter :  (f: (s:String) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f
 def List_sum: (l:(Array Int)) -> Int := fun xs => native "sum(xs)"
 def List_map_String_Int: (function:(a: String) -> Int) -> (l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
-def paired_digits (nums: String) : Int := pairs: (Array Int) := String_to_List (String_zip (nums) (String_slice nums 1 (String_len nums)));
+def paired_digits (nums: String) : Int := pairs: (Array Int) := (nums.zip (nums.slice 1 (nums.len))).to_List;
     pred : (x:String) -> Bool := fun x => (get_fst x) = (get_snd x);
     matching_pairs : (Array Int) := filter pred pairs;
-    mapper : (x: String) -> Int := fun x => String_to_Int (get_fst x);
+    mapper : (x: String) -> Int := fun x => (get_fst x).to_Int;
     total_sum : Int := List_sum (List_map_String_Int mapper matching_pairs);
     total_sum;
 

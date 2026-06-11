@@ -37,11 +37,11 @@ def synth_key : { img : Image | (width img = target_w) && (height img = target_h
 # Human-readable reference for the shape (matches the historical hand-written key program).
 def reference_key : Image :=
     image0 := Image.mk target_w target_h white;
-    image1 := Image.draw_rectangle image0 170 256 256 256 key_grey;
-    image2 := Image.draw_rectangle image1 255 341 85 83 white;
-    image3 := Image.draw_rectangle image2 426 341 509 83 key_grey;
-    image4 := Image.draw_rectangle image3 836 424 100 68 key_grey;
-    image5 := Image.draw_rectangle image4 686 424 100 48 key_grey;
+    image1 := image0.draw_rectangle 170 256 256 256 key_grey;
+    image2 := image1.draw_rectangle 255 341 85 83 white;
+    image3 := image2.draw_rectangle 426 341 509 83 key_grey;
+    image4 := image3.draw_rectangle 836 424 100 68 key_grey;
+    image5 := image4.draw_rectangle 686 424 100 48 key_grey;
     image5;
 
-# def dump_reference : Unit = Image.save reference_key "examples/image/key.jpg"
+# def dump_reference : Unit = reference_key.save "examples/image/key.jpg"

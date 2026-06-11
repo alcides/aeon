@@ -28,8 +28,8 @@ def ratio (a:Int) (b:Int) : Float := native "a/b"
 def forAllInts (func:(a: Int) -> Bool) : Float :=
     n := 1000;
     vs := repeat random n;
-    rds := Array.map generateInt vs;
-    rs := Array.map func rds;
+    rds := vs.map generateInt;
+    rs := rds.map func;
     positive := (countTrues rs);
     ratio positive n
 
@@ -37,8 +37,8 @@ def forAllInts (func:(a: Int) -> Bool) : Float :=
 def forAllFloats (func:(a: Float) -> Bool) : Float :=
     n := 1000;
     vs := repeat random n;
-    rds := Array.map generateFloat vs;
-    rs := Array.map func rds;
+    rds := vs.map generateFloat;
+    rs := rds.map func;
     positive := (countTrues rds);
     ratio positive n
 
@@ -46,7 +46,7 @@ def forAllFloats (func:(a: Float) -> Bool) : Float :=
 def forAllLists (func:(a: List) -> Bool) : Float :=
     n := 1000;
     vs := repeat random n;
-    rds := Array.map generateList vs;
-    rs := Array.map func rds;
+    rds := vs.map generateList;
+    rs := rds.map func;
     positive := (countTrues rds);
     ratio positive n

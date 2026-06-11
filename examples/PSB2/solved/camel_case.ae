@@ -13,20 +13,18 @@ def String_get : (s:String) -> (i:Int) -> String := fun s => fun i => native "s[
 def String_tail:(l:String) -> String := fun xs => native "xs[1:]"
 
 
-def camel_case (s:String) : String := groups: (Array Int) := String_split s " ";
+def camel_case (s:String) : String := groups: (Array Int) := s.split " ";
 
     camel_case_groups : (Array Int) := (Map_string_list
-        ((fun group =>  (String_concat
-                           (String_get group 0)
-                           (String_join
-                                  (Map_string_string ((fun x => String_capitalize x):(s:String) -> String) (String_tail group))
-                                  ""
+        ((fun group =>  ((group.get 0).concat
+                           ("".join
+                                  (Map_string_string ((fun x => x.capitalize):(s:String) -> String) (group.tail))
                            )
                      )
          ) : (s:String) -> String)
-        (Map_list_list ((fun g => (String_split g "-")):(s:String) -> (Array Int)) groups)
+        (Map_list_list ((fun g => (g.split "-")):(s:String) -> (Array Int)) groups)
     );
-    result : String := String_join camel_case_groups " ";
+    result : String := " ".join camel_case_groups;
     result;
 
 

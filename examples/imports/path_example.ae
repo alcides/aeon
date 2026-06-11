@@ -4,11 +4,11 @@ open Path
 # query it. Pure operations only — no filesystem mutations so the
 # example is reproducible.
 
-def projectFile : Path := Path.join (Path.cwd unit) "pyproject.toml"
+def projectFile : Path := (Path.cwd unit).join "pyproject.toml"
 
-def fileName : String := Path.name projectFile
+def fileName : String := projectFile.name
 
-def fileSuffix : String := Path.suffix projectFile
+def fileSuffix : String := projectFile.suffix
 
 def main (_:Int) : Unit :=
     _ : Unit := print fileName;

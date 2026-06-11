@@ -8,10 +8,10 @@ def accent : Color := Color.mk 220 90 50
 def demo : Image :=
     base := Image.mk 400 300 white;
     stamp := Image.mk 80 60 accent;
-    layered := Image.paste base stamp 40 30;
-    region := Image.crop layered 20 20 200 120;
-    thumb := Image.resize region 100 60;
+    layered := base.paste stamp 40 30;
+    region := layered.crop 20 20 200 120;
+    thumb := region.resize 100 60;
     thumb;
 
 # Writing to disk is side-effecting; keep as a named unit if you add a main later.
-# def _save : Unit = Image.save demo "examples/image/pil_style_out.png"
+# def _save : Unit = demo.save "examples/image/pil_style_out.png"

@@ -7,16 +7,16 @@ def black : Color := Color.mk 0 0 0
 
 def line_scan : Color :=
     canvas := Image.mk 32 1 white;
-    c0 := Image.get_pixel canvas 0 0;
-    dotted := Image.put_pixel canvas 16 0 black;
-    c1 := Image.get_pixel dotted 16 0;
+    c0 := canvas.get_pixel 0 0;
+    dotted := canvas.put_pixel 16 0 black;
+    c1 := dotted.get_pixel 16 0;
     # A tiny pipeline: read default white, then read after painting black
     c1;
 
 def negated : Image :=
     small := Image.mk 64 64 white;
-    Image.invert small;
+    small.invert;
 
 def softened : Image :=
     small := Image.mk 64 64 white;
-    Image.blur small 2.0;
+    small.blur 2.0;

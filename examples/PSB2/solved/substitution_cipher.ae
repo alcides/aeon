@@ -11,7 +11,7 @@ def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String := fun d 
 def Map_String_String: (function: (a:String) -> String) -> (l: String) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
 def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String := cipher_dict: Dict := Dict_zip (Zip_String_String cipher_from cypher_to);
- mapper : (x:String) -> String := fun x => Dict_get cipher_dict x x;
+ mapper : (x:String) -> String := fun x => cipher_dict.get x x;
  deciphered_chars: (Array Int) := Map_String_String mapper msg;
  String_list_to_String deciphered_chars;
 

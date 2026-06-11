@@ -3,8 +3,8 @@ open Table
 
 def t : Table := native "[{'ok':1,'v':10},{'ok':0,'v':20},{'ok':1,'v':5}]";
 
-def kept : Table := Table.filter t (fun row => native "row['ok'] == 1");
+def kept : Table := t.filter (fun row => native "row['ok'] == 1");
 
-def total : Int := Table.sum_col kept "v";  # 10 + 5 = 15
+def total : Int := kept.sum_col "v";  # 10 + 5 = 15
 
 def main (x:Int) : Unit := print total;

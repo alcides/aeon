@@ -21,12 +21,12 @@ def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter := fun c1 => 
 def Counter_values : (c:Counter) -> (Array Int) := fun c => native "list(c.values())"
 def Tuple : (a:Int) -> (b:Int) -> (Array Int) := fun a => fun b => native "[a,b]"
 
-def mastermind ( code : String) (guess: String ) : (Array Int) := items_eq : (x:(Array Int)) -> Int := fun x => if String_eq (List_get_fst x) (List_get_snd x) then 1 else 0;
-    black_map : (Array Int) := Map_bool items_eq (String_Zip code guess);
+def mastermind ( code : String) (guess: String ) : (Array Int) := items_eq : (x:(Array Int)) -> Int := fun x => if (List_get_fst x).eq (List_get_snd x) then 1 else 0;
+    black_map : (Array Int) := Map_bool items_eq (code.Zip guess);
     black_pegs : Int := List_sum black_map;
 
-    paired: (Array Int) := Zip (String_toList code) (String_toList guess);
-    unmatched: (Array Int) := Filter ((fun z => String_neq (List_get_fst z) (List_get_snd z)):(s:(Array Int)) -> Bool) paired;
+    paired: (Array Int) := Zip (code.toList) (guess.toList);
+    unmatched: (Array Int) := Filter ((fun z => (List_get_fst z).neq (List_get_snd z)):(s:(Array Int)) -> Bool) paired;
 
     code_unmatched: (Array Int) := Map List_get_fst unmatched;
     guess_unmatched: (Array Int) := Map List_get_snd unmatched;

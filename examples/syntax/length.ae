@@ -1,5 +1,5 @@
 import List
 
-def create (i:Int) : {l:(List Int) | List_size l = 0} := List.nil
+def create (i:Int) : {l:(List Int) | List.size l = 0} := List.nil
 
 def main (args:Int) : Unit := print "Hello World"

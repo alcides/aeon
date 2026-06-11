@@ -6,7 +6,7 @@ open Array
 # `Array.size` postconditions of `append` discharge that automatically.
 
 def echoArgs : {a: (Array String) | Array.size a >= 1} :=
-    Array.append (Array.append (Array.new[String]) "echo") "hello"
+    ((Array.new[String]).append "echo").append "hello"
 
 # Inspect the exit code before trusting the output. `succeeded` ties the
 # boolean to the `exitCode` measure, so the branch reads cleanly.

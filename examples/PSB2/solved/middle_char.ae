@@ -10,7 +10,7 @@ def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j =
 
 def equal_int : (a: Int) -> (b: Int) -> Bool := fun x => fun y => native "x == y";
 
-def middle_char  (s: String) : String := str_len : Int := String_len s;
+def middle_char  (s: String) : String := str_len : Int := s.len;
     a : Int := (str_len % 2);
     b : Bool := equal_int a 0;
     if (b) then
@@ -18,13 +18,13 @@ def middle_char  (s: String) : String := str_len : Int := String_len s;
         y: Float := (x / 2.0);
         snd_mid_char_index : Int := (Math_floor y) + 1;
         fst_mid_char_index : Int := snd_mid_char_index - 2 ;
-        mid_chars := String_slice s fst_mid_char_index snd_mid_char_index;
+        mid_chars := s.slice fst_mid_char_index snd_mid_char_index;
         mid_chars
     else
         x: Float := Math_toFloat str_len;
         y: Float := (x / 2.0);
         mid_char_index: Int := (Math_floor y);
-        m_char := String_slice s mid_char_index (mid_char_index+1);
+        m_char := s.slice mid_char_index (mid_char_index+1);
         m_char;
 
 
