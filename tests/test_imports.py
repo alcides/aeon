@@ -224,3 +224,25 @@ def main (args: Int): Unit :=
         assert len(program.imports) == 1
         assert program.imports[0].module_path == "Math"
         assert program.imports[0].selected_names == ["abs", "pow"]
+
+
+class TestQualifiedNamesInBodyAnnotations:
+    """Qualified imports resolve inside type ascriptions written in bodies.
+
+    ``Array.size`` already resolved in parameter and return-type refinements;
+    the same predicate in a body-level ascription (``a : {x:_ | Array.size x
+    = 2} := ...``) used to be skipped by ``resolve_qualified_names_in_sterm``
+    and died in liquefaction (issue #363 follow-up).
+    """
+
+    def test_qualified_name_in_body_annotation_refinement(self):
+        from aeon.sugar.ast_helpers import st_top
+        from tests.driver import check_compile
+
+        source = (
+            "import Array;\n"
+            "def main (i:Int) : Int :=\n"
+            "    a : {x:(Array Int) | Array.size x = 2} := ((Array.new[Int]).append 1).append 2;\n"
+            "    a.length;\n"
+        )
+        assert check_compile(source, st_top, 2)

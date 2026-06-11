@@ -7,6 +7,6 @@ def split (l: (Array Int)) (n: {k:Int | k >= 0 && k <= Array.size l}) : (Array (
     native "[l[:n], l[n:]]"
 
 def main (args:Int) : Unit :=
-    a : {x:(Array Int) | Array_size x = 5} :=
+    a : {x:(Array Int) | Array.size x = 5} :=
         (((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5;
     print (split a 2)

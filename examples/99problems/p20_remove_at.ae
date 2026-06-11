@@ -8,6 +8,6 @@ def remove_at (l: (Array Int)) (k: {x:Int | x >= 0 && x < Array.size l}) :
     native "l[:k] + l[k+1:]"
 
 def main (args:Int) : Unit :=
-    a : {x:(Array Int) | Array_size x = 5} :=
+    a : {x:(Array Int) | Array.size x = 5} :=
         (((((Array.new[Int]).append 10).append 20).append 30).append 40).append 50;
     print (remove_at a 2)

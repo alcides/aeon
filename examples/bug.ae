@@ -1,6 +1,6 @@
 import List
 
 def main (args:Int) : Unit :=
-    e : {x:(List Int) | List_size x = 0} := List.nil;
+    e : {x:(List Int) | List.size x = 0} := List.nil;
     b : Bool := e.empty;
     print b
