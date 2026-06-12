@@ -1,6 +1,13 @@
-"""Tests for the Rust-based random-enumerative synthesizer with Pareto front."""
+"""Tests for the Rust-based random-enumerative synthesizer with Pareto front.
+
+Both Rust entry points (``synthesize`` and ``synthesize_with_front``)
+duck-type the typing context — any object with a ``vars()`` method works —
+so they accept the pipeline's :class:`aeon.typechecking.context.TypingContext`
+directly.
+"""
 
 from __future__ import annotations
+
 
 from aeon_rs import RustEnumSynthesizer
 from aeon.synthesis.modules.rust_enum import RustEnumSynthesizerWrapper
