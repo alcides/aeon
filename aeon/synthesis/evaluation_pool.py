@@ -38,8 +38,26 @@ OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
 def set_program_tail(term: Term, new_tail: Term) -> Term:
     """Replace the innermost body of a chain of top-level ``let``/``rec``
     bindings with ``new_tail`` (the bindings, and so everything in scope, stay)."""
-    if isinstance(term, (Let, Rec)):
-        return dataclasses.replace(term, body=set_program_tail(term.body, new_tail))
+    # Explicit reconstruction: the core Term classes are Rust pyclasses,
+    # not dataclasses, so ``dataclasses.replace`` does not apply to them.
+    if isinstance(term, Let):
+        return Let(
+            term.var_name,
+            term.var_value,
+            set_program_tail(term.body, new_tail),
+            loc=term.loc,
+            multiplicity=term.multiplicity,
+        )
+    if isinstance(term, Rec):
+        return Rec(
+            term.var_name,
+            term.var_type,
+            term.var_value,
+            set_program_tail(term.body, new_tail),
+            decreasing_by=term.decreasing_by,
+            loc=term.loc,
+            multiplicity=term.multiplicity,
+        )
     return new_tail
 
 

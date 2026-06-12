@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import aeon.core.pickling  # noqa: F401  — registers pickle reducers for the Rust AST.
+
 from aeon_rs import Abstraction as Abstraction
 from aeon_rs import Annotation as Annotation
 from aeon_rs import Application as Application

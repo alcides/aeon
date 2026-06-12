@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import signal
 import threading
-from dataclasses import dataclass, replace as dc_replace
+from dataclasses import dataclass
 
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
 from aeon.core.substitutions import substitution_in_type
@@ -74,13 +74,29 @@ def _replace_tail(program: Term, new_tail: Term) -> Term:
     its innermost body and swaps it out. This is robust regardless of whether the
     tail is a synthesised ``main`` hole or a user-defined ``main`` application —
     unlike substituting a fixed ``Name("main", 0)``, which only matches the hole."""
+    # Explicit reconstruction: the core Term classes are Rust pyclasses,
+    # not dataclasses, so ``dataclasses.replace`` does not apply to them.
     match program:
         case Rec():
-            return dc_replace(program, body=_replace_tail(program.body, new_tail))
+            return Rec(
+                program.var_name,
+                program.var_type,
+                program.var_value,
+                _replace_tail(program.body, new_tail),
+                decreasing_by=program.decreasing_by,
+                loc=program.loc,
+                multiplicity=program.multiplicity,
+            )
         case Let():
-            return dc_replace(program, body=_replace_tail(program.body, new_tail))
+            return Let(
+                program.var_name,
+                program.var_value,
+                _replace_tail(program.body, new_tail),
+                loc=program.loc,
+                multiplicity=program.multiplicity,
+            )
         case Annotation():
-            return dc_replace(program, expr=_replace_tail(program.expr, new_tail))
+            return Annotation(_replace_tail(program.expr, new_tail), program.type, loc=program.loc)
         case _:
             return new_tail
 

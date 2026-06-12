@@ -29,15 +29,15 @@ def _span(loc) -> Optional[Span]:
 
 
 def iter_terms(t: Term) -> Iterator[Term]:
-    """Yield ``t`` and every ``Term`` reachable from it (pre-order)."""
-    import dataclasses
-    from typing import Any, cast
+    """Yield ``t`` and every ``Term`` reachable from it (pre-order).
 
+    Children are discovered through ``__match_args__``, which both Python
+    dataclasses and the Rust core pyclasses expose (``dataclasses.fields``
+    would see nothing on the Rust classes).
+    """
     yield t
-    if not dataclasses.is_dataclass(t):
-        return
-    for f in dataclasses.fields(cast(Any, t)):
-        v = getattr(t, f.name)
+    for fname in getattr(type(t), "__match_args__", ()):
+        v = getattr(t, fname, None)
         if isinstance(v, Term):
             yield from iter_terms(v)
         elif isinstance(v, (list, tuple)):

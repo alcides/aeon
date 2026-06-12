@@ -4,6 +4,8 @@ and ``aeon-rs/src/core_types_helpers.rs``).
 
 from __future__ import annotations
 
+import aeon.core.pickling  # noqa: F401  — registers pickle reducers for the Rust AST.
+
 # Type hierarchy + Kind, all from Rust.
 from aeon_rs import AbstractionType as AbstractionType
 from aeon_rs import ExistentialType as ExistentialType

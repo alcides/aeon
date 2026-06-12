@@ -2,6 +2,7 @@
 (``aeon-rs/src/typeinfer.rs``)."""
 
 from __future__ import annotations
+from typing import Iterable
 
 from loguru import logger
 
