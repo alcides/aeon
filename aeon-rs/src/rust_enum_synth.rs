@@ -19,7 +19,6 @@ use std::time::Instant;
 use crate::name::Name;
 use crate::terms::{Abstraction, Application, If, Literal, Term, TypeApplication, Var};
 use crate::substitutions::substitute_vartype;
-use crate::typectx::TypingContext;
 use crate::types::{
     AbstractionType, RefinedType, RefinementPolymorphism, Type, TypeConstructor, TypePolymorphism,
     TypeVar,
@@ -695,7 +694,7 @@ impl RustEnumSynthesizer {
     fn synthesize_with_front(
         &self,
         py: Python<'_>,
-        ctx: Py<TypingContext>,
+        ctx: PyObject,
         ty: PyObject,
         validate: PyObject,
         evaluate: PyObject,
@@ -706,10 +705,10 @@ impl RustEnumSynthesizer {
     ) -> PyResult<(PyObject, PyObject)> {
         let _ = (fun_name, metadata);
 
-        let ctx_b = ctx.borrow(py);
-        let vars_list = ctx_b.vars(py)?;
-        drop(ctx_b);
-        let vars_b = vars_list.bind(py);
+        // Duck-typed like `synthesize`: any context with a `vars()` method
+        // works (the Rust TypingContext or the Python-side TypingContext).
+        let vars_list = ctx.call_method0(py, "vars")?;
+        let vars_b = vars_list.bind(py).downcast::<PyList>()?;
         let mut ctx_vars: Vec<(Py<Name>, PyObject)> = Vec::with_capacity(vars_b.len());
         for i in 0..vars_b.len() {
             let item = vars_b.get_item(i)?;
