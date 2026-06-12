@@ -412,7 +412,7 @@ pub fn get_builtin_core_types(py: Python<'_>) -> PyResult<Py<PyList>> {
 
 #[pyfunction]
 pub fn get_top(py: Python<'_>) -> PyResult<PyObject> {
-    Ok(Py::new(py, (Top, Type))?.into_any())
+    Ok(Py::new(py, (Top { loc: crate::loc::default_location(py) }, Type))?.into_any())
 }
 
 #[pyfunction]

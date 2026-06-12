@@ -420,7 +420,7 @@ impl Abstraction {
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
         let vn = self.var_name.borrow(py).__str__();
         let b = self.body.bind(py).str()?.to_string();
-        Ok(format!("(\\{} -> {})", vn, b))
+        Ok(format!("(fun {} => {})", vn, b))
     }
 
     fn __eq__(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<bool> {

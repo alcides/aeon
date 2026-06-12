@@ -31,7 +31,7 @@ pub fn name_eq(py: Python<'_>, a: &Py<Name>, b: &Py<Name>) -> bool {
 // -- Type constructors -------------------------------------------------------
 
 pub fn new_top(py: Python<'_>) -> PyResult<PyObject> {
-    Ok(Py::new(py, (Top, Type))?.into_any())
+    Ok(Py::new(py, (Top { loc: crate::loc::default_location(py) }, Type))?.into_any())
 }
 
 pub fn new_type_var(py: Python<'_>, name: Py<Name>, loc: PyObject) -> PyResult<PyObject> {

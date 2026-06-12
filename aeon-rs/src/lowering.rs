@@ -408,7 +408,7 @@ pub fn type_to_core(
         if n.id == 0 && n.name == "Top" {
             drop(n);
             drop(stc_b);
-            let top = Py::new(py, (Top, Type))?;
+            let top = Py::new(py, (Top { loc: crate::loc::default_location(py) }, Type))?;
             return Ok(top.into_any());
         }
     }

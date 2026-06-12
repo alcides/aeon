@@ -102,7 +102,7 @@ fn bind_type(py: Python<'_>, ty: PyObject, subs: &mut Subs) -> PyResult<PyObject
     let b = ty.bind(py);
 
     if b.downcast::<Top>().is_ok() {
-        return Ok(Py::new(py, (Top, Type))?.into_any());
+        return Ok(Py::new(py, (Top { loc: crate::loc::default_location(py) }, Type))?.into_any());
     }
 
     if let Ok(tv) = b.downcast::<TypeVar>() {
