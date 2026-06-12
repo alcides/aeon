@@ -26,13 +26,22 @@ impl Type {
 // ---------- Top ----------
 
 #[pyclass(module = "aeon_rs", extends = Type, frozen)]
-pub struct Top;
+pub struct Top {
+    #[pyo3(get)]
+    pub loc: PyObject,
+}
 
 #[pymethods]
 impl Top {
     #[new]
-    fn py_new() -> (Self, Type) {
-        (Top, Type)
+    #[pyo3(signature = (loc = None))]
+    fn py_new(py: Python<'_>, loc: Option<PyObject>) -> (Self, Type) {
+        (Top { loc: resolve_loc(py, loc) }, Type)
+    }
+
+    #[classattr]
+    fn __match_args__<'py>(py: Python<'py>) -> Bound<'py, PyTuple> {
+        PyTuple::new_bound(py, &["loc"])
     }
 
     fn __repr__(&self) -> &'static str {
@@ -410,7 +419,7 @@ impl RefinementPolymorphism {
         let n = self.name.borrow(py).__str__();
         let s = self.sort.bind(py).repr()?.to_string();
         let b = self.body.bind(py).repr()?.to_string();
-        Ok(format!("forall <{}:{} -> Bool>, {}", n, s, b))
+        Ok(format!("forall <{}:{}>, {}", n, s, b))
     }
 
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
