@@ -54,7 +54,8 @@ class RustEnumSynthesizerWrapper(Synthesizer):
         fun_name: Name,
         metadata: Metadata,
         budget: float = 60,
-        ui: SynthesisUI | None = None,
+        ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         result = self._core.synthesize(
             ctx,
