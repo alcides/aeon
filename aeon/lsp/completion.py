@@ -483,11 +483,7 @@ def _resolve_receiver(dot: DotContext, line: int, typing_ctx, type_index, scope_
                 bn = base_type_name(ty)
                 if bn is not None:
                     ctx = scope_ctx if scope_ctx is not None else typing_ctx
-                    obs = (
-                        TypeObservation(SynthesizedLocation("receiver-var"), ctx, ty)
-                        if ctx is not None
-                        else None
-                    )
+                    obs = TypeObservation(SynthesizedLocation("receiver-var"), ctx, ty) if ctx is not None else None
                     return bn, obs
     return None, None
 
