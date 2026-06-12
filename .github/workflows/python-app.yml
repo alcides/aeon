@@ -9,10 +9,19 @@ on:
   pull_request:
     branches: [master]
 
+env:
+  # Harden the aeon-rs (cargo) build against transient crates.io download
+  # failures: curl's HTTP/2 multiplexing on the runners intermittently dies
+  # with "Error in the HTTP2 framing layer"; plain HTTP/1.1 + retries is the
+  # standard mitigation.
+  CARGO_HTTP_MULTIPLEXING: "false"
+  CARGO_NET_RETRY: "10"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
