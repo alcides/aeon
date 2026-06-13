@@ -66,6 +66,12 @@ SYNTHESIZERS = [
 ]
 SYNTHESIZE_COMMAND = "aeon.synthesize"
 
+# Custom (non-standard) request backing the editor's Lean-style info view
+# panel. Params: {"textDocument": {"uri": ...}, "position": {"line": ..., "character": ...}}
+# (0-indexed, LSP convention). Response: the JSON form of
+# :class:`aeon.lsp.infoview.InfoViewData`.
+INFOVIEW_REQUEST = "aeon/infoView"
+
 
 class AeonLanguageServer(LanguageServer):
     def __init__(self, aeon_driver: AeonDriver):
@@ -277,6 +283,33 @@ class AeonLanguageServer(LanguageServer):
                     )
                 )
             return out
+
+        @self.feature(INFOVIEW_REQUEST)
+        async def info_view(
+            ls: AeonLanguageServer,
+            params,
+        ) -> dict:
+            from . import aeon_adapter
+            from aeon.lsp.infoview import InfoViewData, compute_info_view
+
+            # Custom method: params arrive as a generic pygls ``Object`` with
+            # the wire-format (camelCase) attribute names.
+            uri = params.textDocument.uri
+            line = params.position.line
+            character = params.position.character
+
+            # Make sure the document has been analysed at least once (cached).
+            await aeon_adapter.parse(ls, uri)
+
+            document = ls.workspace.get_text_document(uri)
+            index = aeon_adapter.get_type_index(uri)
+            typing_ctx = aeon_adapter.get_typing_ctx(uri) or getattr(ls.aeon_driver, "typing_ctx", None)
+            core = aeon_adapter.get_core(uri)
+            try:
+                data = compute_info_view(document.source, line, character, typing_ctx, index, core)
+            except Exception:
+                return InfoViewData().to_dict()
+            return data.to_dict()
 
         @self.feature(
             TEXT_DOCUMENT_CODE_ACTION,
