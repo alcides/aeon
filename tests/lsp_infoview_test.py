@@ -71,6 +71,16 @@ def test_globals_include_top_level_defs_but_not_locals():
     assert "x" not in global_names
 
 
+def test_globals_include_operators_and_builtins():
+    # "All variables in context": operators (non-identifier binders like `+`)
+    # and the rest of the prelude are reported in the globals section, not
+    # filtered out.
+    info = info_at(SRC, 3, col_of(SRC, 3, "x"))
+    global_names = {e.name for e in info.globals}
+    assert "+" in global_names
+    assert "==" in global_names
+
+
 def test_local_types_are_refined():
     info = info_at(SRC, 3, col_of(SRC, 3, "x"))
     x = next(e for e in info.locals if e.name == "x")

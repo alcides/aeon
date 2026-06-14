@@ -22,11 +22,15 @@ from typing import Optional
 
 from aeon.core.types import Type
 from aeon.lsp.completion import format_type
-from aeon.typechecking.context import TypingContext, VariableBinder
+from aeon.typechecking.context import ReflectedBinder, TypingContext, UninterpretedBinder, VariableBinder
 from aeon.utils.name import Name
 
 _HOLE_PATTERN = re.compile(r"\?([a-zA-Z_][a-zA-Z0-9_]*)")
-_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
+
+# Term-level binders that introduce a usable ``name : type`` value into scope.
+# Type-level binders (``TypeBinder``/``TypeConstructorBinder``) are deliberately
+# excluded — they bind types, not variables.
+_VALUE_BINDERS = (VariableBinder, UninterpretedBinder, ReflectedBinder)
 
 
 @dataclass(frozen=True)
@@ -89,7 +93,7 @@ def _dedup_innermost(vars_: list[tuple[Name, Type]]) -> list[tuple[Name, Type]]:
 
 
 def _entries_to_vars(entries) -> list[tuple[Name, Type]]:
-    return [(e.name, e.type) for e in entries if isinstance(e, VariableBinder)]
+    return [(e.name, e.type) for e in entries if isinstance(e, _VALUE_BINDERS)]
 
 
 def _to_info_entries(vars_: list[tuple[Name, Type]]) -> list[InfoEntry]:
@@ -119,8 +123,9 @@ def _split_scope(
     scope's entry list has the prelude as a prefix; everything after it was
     bound while checking — the program's top-level definitions (the ``Rec``
     spine, reported as globals) and the true locals (parameters, ``let``s,
-    lambdas). Globals are filtered to plain identifiers — operator binders like
-    ``+`` would only add noise."""
+    lambdas). Every in-scope value binding is reported, including operators and
+    the rest of the prelude; the client keeps the globals section collapsed so
+    the large builtin set stays out of the way."""
     n_prelude = len(typing_ctx.entries) if typing_ctx is not None else 0
     if scope_ctx is None:
         scope_ctx = typing_ctx
@@ -138,7 +143,7 @@ def _split_scope(
     global_vars = _dedup_innermost(_entries_to_vars(prelude_entries)) + [
         (n, t) for n, t in inner_vars if n.pretty() in top_level
     ]
-    globals_ = [e for e in _to_info_entries(global_vars) if _IDENTIFIER.match(e.name) and e.name not in local_names]
+    globals_ = [e for e in _to_info_entries(global_vars) if e.name not in local_names]
     return locals_, globals_
 
 
