@@ -1,12 +1,13 @@
-"""Tests for the Lean-style info view: expression-at-cursor type, hole goals,
-and the local/global context split backing the ``aeon/infoView`` request."""
+"""Tests for the Lean-style info view: the turnstile target (expression type /
+hole goal), the local/global context split, the base/predicate rendering and the
+hiding of anonymous binders backing the ``aeon/infoView`` request."""
 
 from __future__ import annotations
 
 import pytest
 
 from aeon.facade.driver import AeonConfig, AeonDriver
-from aeon.lsp.infoview import compute_info_view, _hole_at
+from aeon.lsp.infoview import _hole_at, _is_hidden, _pp_liquid, compute_info_view
 from aeon.lsp.typeindex import build_type_index
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
@@ -34,21 +35,22 @@ SRC = "def inc (n:Int) : Int := n + 1;\ndef main (u:Int) : Int :=\n    let x := 
 
 
 # --------------------------------------------------------------------------- #
-# Expression under the cursor
+# Turnstile target (expression type / hole goal)
 # --------------------------------------------------------------------------- #
 
 
-def test_expression_type_at_literal():
+def test_target_type_at_literal():
     info = info_at(SRC, 2, col_of(SRC, 2, "41"))
-    assert info.expression is not None
-    assert "41" in info.expression.type
-    assert info.expression.range[0] == 2  # 0-indexed line of the literal
+    assert info.target is not None
+    # The literal's singleton type ``{ν:Int | ν == 41}`` splits into base + pred.
+    assert info.target.type == "Int"
+    assert info.target.predicate is not None and "41" in info.target.predicate
 
 
-def test_expression_none_outside_any_node():
+def test_target_none_outside_any_node():
     # Line 0 column 0 is the `def` keyword: no synthesized expression there.
     info = info_at(SRC, 0, 0)
-    assert info.expression is None
+    assert info.target is None
 
 
 # --------------------------------------------------------------------------- #
@@ -73,18 +75,20 @@ def test_globals_include_top_level_defs_but_not_locals():
 
 def test_globals_include_operators_and_builtins():
     # "All variables in context": operators (non-identifier binders like `+`)
-    # and the rest of the prelude are reported in the globals section, not
-    # filtered out.
+    # and the rest of the prelude are reported in the globals section.
     info = info_at(SRC, 3, col_of(SRC, 3, "x"))
     global_names = {e.name for e in info.globals}
     assert "+" in global_names
     assert "==" in global_names
 
 
-def test_local_types_are_refined():
+def test_local_types_are_refined_with_outer_name():
     info = info_at(SRC, 3, col_of(SRC, 3, "x"))
     x = next(e for e in info.locals if e.name == "x")
-    assert "41" in x.type  # singleton refinement from `let x := 41`
+    assert x.type == "Int"
+    # singleton refinement from `let x := 41`, renamed to the outer name `x`.
+    assert x.predicate is not None
+    assert "x" in x.predicate and "41" in x.predicate
 
 
 def test_inner_scope_not_leaked_to_outer_position():
@@ -93,6 +97,53 @@ def test_inner_scope_not_leaked_to_outer_position():
     local_names = [e.name for e in info.locals]
     assert "n" in local_names
     assert "x" not in local_names
+
+
+# --------------------------------------------------------------------------- #
+# Refinement rendering: outer name, pretty predicate, anonymous hiding
+# --------------------------------------------------------------------------- #
+
+REFINED_SRC = "def f (x:{k:Int | k > 0 && k < 10}) : Int := x + 0;\n"
+
+
+def test_refinement_uses_outer_name_and_pretty_print():
+    # `x:{k:Int | k > 0 && k < 10}` is shown as `x : Int` | `x > 0 && x < 10`:
+    # bound variable renamed to the outer name, no redundant parentheses.
+    info = info_at(REFINED_SRC, 0, col_of(REFINED_SRC, 0, "x + 0"))
+    x = next(e for e in info.locals if e.name == "x")
+    assert x.type == "Int"
+    assert x.predicate == "x > 0 && x < 10"
+
+
+def test_anonymous_binders_are_hidden():
+    assert _is_hidden("_")
+    assert _is_hidden("_cond")
+    assert _is_hidden("_inner_x")
+    assert not _is_hidden("x")
+    assert not _is_hidden("+")
+    # No context entry is ever anonymous.
+    info = info_at(REFINED_SRC, 0, col_of(REFINED_SRC, 0, "x + 0"))
+    assert all(not e.name.startswith("_") for e in info.locals + info.globals)
+
+
+# --------------------------------------------------------------------------- #
+# Predicate pretty-printer
+# --------------------------------------------------------------------------- #
+
+
+def test_pp_liquid_minimal_parens():
+    from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
+    from aeon.utils.name import Name
+
+    def app(op, a, b):
+        return LiquidApp(Name(op, 0), [a, b])
+
+    x = LiquidVar(Name("x", 0))
+    zero = LiquidLiteralInt(0)
+    ten = LiquidLiteralInt(10)
+    # (x > 0) && (x < 10) -> comparisons bind tighter than &&, so no parens.
+    expr = app("&&", app(">", x, zero), app("<", x, ten))
+    assert _pp_liquid(expr) == "x > 0 && x < 10"
 
 
 # --------------------------------------------------------------------------- #
@@ -110,13 +161,10 @@ def test_hole_at_detects_cursor_on_hole():
     assert _hole_at(HOLE_SRC, 2, 0) is None
 
 
-def test_goal_shown_for_hole():
+def test_goal_target_shown_for_hole():
     info = info_at(HOLE_SRC, 2, col_of(HOLE_SRC, 2, "?h") + 1)
-    assert info.goal is not None
-    assert info.goal.name == "h"
-    assert "Int" in info.goal.type
-    # The checker's polymorphic placeholder for the hole is suppressed.
-    assert info.expression is None
+    assert info.target is not None
+    assert "Int" in info.target.type
 
 
 def test_goal_context_includes_locals():
@@ -126,11 +174,6 @@ def test_goal_context_includes_locals():
     assert "u" in local_names
 
 
-def test_no_goal_away_from_hole():
-    info = info_at(HOLE_SRC, 1, col_of(HOLE_SRC, 1, "41"))
-    assert info.goal is None
-
-
 # --------------------------------------------------------------------------- #
 # Robustness and serialisation
 # --------------------------------------------------------------------------- #
@@ -138,19 +181,21 @@ def test_no_goal_away_from_hole():
 
 def test_graceful_without_analysis_state():
     info = compute_info_view(SRC, 2, 5, None, None, None)
-    assert info.expression is None and info.goal is None
+    assert info.target is None
     assert info.locals == [] and info.globals == []
 
 
 def test_to_dict_is_json_serialisable():
     import json
 
-    info = info_at(HOLE_SRC, 2, col_of(HOLE_SRC, 2, "?h") + 1)
+    info = info_at(REFINED_SRC, 0, col_of(REFINED_SRC, 0, "x + 0"))
     payload = info.to_dict()
     text = json.dumps(payload)
-    assert '"goal"' in text
-    assert payload["goal"]["name"] == "h"
+    assert '"target"' in text
     assert isinstance(payload["locals"], list)
+    x = next(e for e in payload["locals"] if e["name"] == "x")
+    assert x["type"] == "Int"
+    assert x["predicate"] == "x > 0 && x < 10"
 
 
 if __name__ == "__main__":

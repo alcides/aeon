@@ -1,10 +1,17 @@
 """Lean-style info view for the Aeon LSP.
 
 Computes the information shown in the editor's "Aeon Info View" panel for a
-cursor position: the inferred (refined) type of the expression under the
-cursor, the goal type of a hole the cursor sits on, and the typing context
-(locals and globals) in scope at that point — the same kind of contextual
-panel Lean's infoview and LiquidJava's refinement view provide.
+cursor position: the typing context in scope (locals prominently, globals
+collapsed) and the *target* — the goal type of a hole under the cursor, or
+otherwise the inferred type of the expression under the cursor — rendered
+turnstile-style (``⊢ T``) the way Lean's infoview and LiquidJava's refinement
+view present a goal.
+
+Each context entry is split into a base type and an optional refinement
+predicate, so ``v:{k:Int | k > 0}`` is reported as ``v : Int`` with predicate
+``v > 0`` — the refinement's bound variable is renamed to the *outer* binding
+name and the predicate is pretty-printed (minimal parentheses). Anonymous and
+compiler-internal binders (``_``, ``_cond``, ``_inner_…``) are hidden.
 
 This module is deliberately free of any ``lsprotocol`` import so the logic is
 unit-testable in isolation; the server serialises :class:`InfoViewData` to the
@@ -20,7 +27,18 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Optional
 
-from aeon.core.types import Type
+from aeon.core.liquid import (
+    LiquidApp,
+    LiquidLiteralBool,
+    LiquidLiteralFloat,
+    LiquidLiteralInt,
+    LiquidLiteralString,
+    LiquidLiteralUnit,
+    LiquidTerm,
+    LiquidVar,
+)
+from aeon.core.substitutions import substitution_in_liquid
+from aeon.core.types import ExistentialType, RefinedType, Type
 from aeon.lsp.completion import format_type
 from aeon.typechecking.context import ReflectedBinder, TypingContext, UninterpretedBinder, VariableBinder
 from aeon.utils.name import Name
@@ -32,35 +50,52 @@ _HOLE_PATTERN = re.compile(r"\?([a-zA-Z_][a-zA-Z0-9_]*)")
 # excluded — they bind types, not variables.
 _VALUE_BINDERS = (VariableBinder, UninterpretedBinder, ReflectedBinder)
 
+# Fallback refinement binder when there is no outer name to rename to (a goal or
+# bare expression target), matching the convention used by ``format_type``.
+_NU = Name("ν", 0)
+
+# Precedence of the operators that appear in refinement predicates (higher binds
+# tighter). Used by ``_pp_liquid`` to drop redundant parentheses.
+_LIQUID_PREC = {
+    "||": 1,
+    "-->": 1,
+    "&&": 2,
+    "==": 3,
+    "!=": 3,
+    "<": 3,
+    "<=": 3,
+    ">": 3,
+    ">=": 3,
+    "+": 4,
+    "-": 4,
+    "*": 5,
+    "/": 5,
+    "%": 5,
+}
+
 
 @dataclass(frozen=True)
 class InfoEntry:
-    """One ``name : type`` line of the context section."""
+    """One context line: ``name : type`` with an optional refinement predicate
+    (already rendered with the outer name, e.g. ``("x", "Int", "x > 0")``)."""
 
     name: str
     type: str
+    predicate: Optional[str] = None
 
 
 @dataclass(frozen=True)
-class ExpressionInfo:
-    """The tightest expression containing the cursor and its inferred type."""
+class TargetInfo:
+    """The turnstile target: a hole's goal type, or the type of the expression
+    under the cursor, split into base type and optional refinement predicate."""
 
     type: str
-    range: tuple[int, int, int, int]  # 0-indexed (start line, start col, end line, end col)
-
-
-@dataclass(frozen=True)
-class GoalInfo:
-    """A synthesis hole the cursor sits on: its name and goal (expected) type."""
-
-    name: str
-    type: str
+    predicate: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class InfoViewData:
-    expression: Optional[ExpressionInfo] = None
-    goal: Optional[GoalInfo] = None
+    target: Optional[TargetInfo] = None
     locals: list[InfoEntry] = field(default_factory=list)
     globals: list[InfoEntry] = field(default_factory=list)
 
@@ -82,6 +117,71 @@ def _hole_at(source: str, line: int, character: int) -> Optional[str]:
     return None
 
 
+def _is_hidden(name: str) -> bool:
+    """Anonymous (``_``) and compiler-internal (``_cond``, ``_self``,
+    ``_inner_…``) binders are noise — hide them from the context."""
+    return name.startswith("_")
+
+
+def _is_operator(fun: str) -> bool:
+    """Whether ``fun`` is a symbolic infix/prefix operator (``+``, ``&&``,
+    ``-->``) rather than an alphanumeric function name (``Set_mem``)."""
+    return bool(fun) and all(not c.isalnum() and c != "_" for c in fun)
+
+
+def _pp_liquid(term: LiquidTerm, parent_prec: int = 0) -> str:
+    """Pretty-print a refinement predicate with minimal parentheses, using
+    surface (``pretty``) names so the user sees ``x > 0 && x < 10`` rather than
+    the checker's ``((x⁷ > 0) && (x⁷ < 10))``."""
+    if isinstance(term, LiquidVar):
+        return term.name.pretty()
+    if isinstance(term, LiquidLiteralBool):
+        return "true" if term.value else "false"
+    if isinstance(term, (LiquidLiteralInt, LiquidLiteralFloat)):
+        return str(term.value)
+    if isinstance(term, LiquidLiteralString):
+        return '"' + str(term.value) + '"'
+    if isinstance(term, LiquidLiteralUnit):
+        return "()"
+    if isinstance(term, LiquidApp):
+        fun = term.fun.pretty()
+        if _is_operator(fun) and len(term.args) == 2:
+            prec = _LIQUID_PREC.get(fun, 0)
+            left = _pp_liquid(term.args[0], prec)
+            right = _pp_liquid(term.args[1], prec + 1)
+            s = f"{left} {fun} {right}"
+            return f"({s})" if prec < parent_prec else s
+        if _is_operator(fun) and len(term.args) == 1:
+            return f"{fun}{_pp_liquid(term.args[0], 100)}"
+        args = ", ".join(_pp_liquid(a, 0) for a in term.args)
+        return f"{fun}({args})"
+    return repr(term)
+
+
+def _split_type(ty: Type, display_name: Optional[Name]) -> tuple[str, Optional[str]]:
+    """Render ``ty`` as ``(base, predicate)``.
+
+    For a refined type the refinement's bound variable is renamed to
+    ``display_name`` (the outer binding name) so ``v:{k:Int | k > 0}`` reads as
+    ``v : Int`` with predicate ``v > 0``; an unrefined or trivially-true type
+    has predicate ``None``. ``display_name`` of ``None`` (a goal or bare
+    expression target with no outer name) falls back to ``ν``."""
+    try:
+        t = ty
+        while isinstance(t, ExistentialType):
+            t = t.body
+        if isinstance(t, RefinedType):
+            ref = t.refinement
+            if isinstance(ref, LiquidLiteralBool) and ref.value is True:
+                return format_type(t.type), None
+            repl = LiquidVar(display_name if display_name is not None else _NU)
+            pred = substitution_in_liquid(ref, repl, t.name)
+            return format_type(t.type), _pp_liquid(pred)
+        return format_type(t), None
+    except Exception:
+        return format_type(ty), None
+
+
 def _dedup_innermost(vars_: list[tuple[Name, Type]]) -> list[tuple[Name, Type]]:
     """Keep the innermost binding per surface name, preserving binding order
     (``with_var`` appends, so the last occurrence shadows earlier ones)."""
@@ -93,11 +193,16 @@ def _dedup_innermost(vars_: list[tuple[Name, Type]]) -> list[tuple[Name, Type]]:
 
 
 def _entries_to_vars(entries) -> list[tuple[Name, Type]]:
-    return [(e.name, e.type) for e in entries if isinstance(e, _VALUE_BINDERS)]
+    """The value bindings of ``entries``, excluding anonymous/internal binders."""
+    return [(e.name, e.type) for e in entries if isinstance(e, _VALUE_BINDERS) and not _is_hidden(e.name.pretty())]
 
 
 def _to_info_entries(vars_: list[tuple[Name, Type]]) -> list[InfoEntry]:
-    return [InfoEntry(name=n.pretty(), type=format_type(t)) for n, t in vars_]
+    out: list[InfoEntry] = []
+    for n, t in vars_:
+        base, predicate = _split_type(t, n)
+        out.append(InfoEntry(name=n.pretty(), type=base, predicate=predicate))
+    return out
 
 
 def _top_level_names(core) -> set[str]:
@@ -125,7 +230,8 @@ def _split_scope(
     spine, reported as globals) and the true locals (parameters, ``let``s,
     lambdas). Every in-scope value binding is reported, including operators and
     the rest of the prelude; the client keeps the globals section collapsed so
-    the large builtin set stays out of the way."""
+    the large builtin set stays out of the way. Anonymous and internal binders
+    (``_``…) are dropped by :func:`_entries_to_vars`."""
     n_prelude = len(typing_ctx.entries) if typing_ctx is not None else 0
     if scope_ctx is None:
         scope_ctx = typing_ctx
@@ -147,7 +253,7 @@ def _split_scope(
     return locals_, globals_
 
 
-def _goal_for_hole(hole_name: str, typing_ctx, core) -> Optional[tuple[GoalInfo, Optional[TypingContext]]]:
+def _goal_for_hole(hole_name: str, typing_ctx, core) -> Optional[tuple[Type, Optional[TypingContext]]]:
     """The goal type (and typing context) of the hole named ``hole_name``,
     recovered the same way the synthesiser sees it. Returns ``None`` when the
     hole cannot be typed (e.g. the last good core no longer contains it)."""
@@ -160,7 +266,7 @@ def _goal_for_hole(hole_name: str, typing_ctx, core) -> Optional[tuple[GoalInfo,
         return None
     for name, (ty, ctx) in holes.items():
         if name.pretty() == hole_name or name.name == hole_name:
-            return GoalInfo(name=hole_name, type=format_type(ty)), ctx
+            return ty, ctx
     return None
 
 
@@ -178,32 +284,31 @@ def compute_info_view(
     :class:`~aeon.lsp.typeindex.TypeIndex` for the document; ``typing_ctx`` is
     the top-level context and ``core`` the last good core program (both used to
     recover hole goals)."""
-    expression: Optional[ExpressionInfo] = None
-    goal: Optional[GoalInfo] = None
+    target_ty: Optional[Type] = None
     scope_ctx: Optional[TypingContext] = None
 
     if type_index is not None:
         scope_ctx = type_index.scope_at(line, character)
         result = type_index.type_at(line, character)
         if result is not None:
-            ty, loc = result
-            (sl, sc), (el, ec) = loc.get_start(), loc.get_end()
-            expression = ExpressionInfo(
-                type=format_type(ty),
-                range=(max(sl - 1, 0), max(sc - 1, 0), max(el - 1, 0), max(ec - 1, 0)),
-            )
+            target_ty = result[0]
 
     hole_name = _hole_at(source, line, character)
     if hole_name is not None and typing_ctx is not None and core is not None:
         found = _goal_for_hole(hole_name, typing_ctx, core)
         if found is not None:
-            goal, hole_ctx = found
+            goal_ty, hole_ctx = found
+            # The goal supersedes the polymorphic placeholder the checker
+            # synthesises for a bare hole, which is meaningless to the user.
+            target_ty = goal_ty
             # The hole's own context is the most faithful scope to display.
             if hole_ctx is not None:
                 scope_ctx = hole_ctx
-            # The polymorphic placeholder type the checker synthesises for a
-            # bare hole is meaningless to the user; the goal supersedes it.
-            expression = None
+
+    target: Optional[TargetInfo] = None
+    if target_ty is not None:
+        base, predicate = _split_type(target_ty, None)
+        target = TargetInfo(type=base, predicate=predicate)
 
     locals_, globals_ = _split_scope(typing_ctx, scope_ctx, _top_level_names(core))
-    return InfoViewData(expression=expression, goal=goal, locals=locals_, globals=globals_)
+    return InfoViewData(target=target, locals=locals_, globals=globals_)
