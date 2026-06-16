@@ -177,10 +177,10 @@ def _pp_liquid(term: LiquidTerm, parent_prec: int = 0) -> str:
         if _is_operator(fun) and len(term.args) == 1:
             return f"{fun}{_pp_liquid(term.args[0], 100)}"
         args = ", ".join(_pp_liquid(a, 0) for a in term.args)
-        return f"{fun}({args})"
+        return f"{fun} ({args})"
     if isinstance(term, LiquidHornApplication):
         args = ", ".join(_pp_liquid(a, 0) for a, _ in term.argtypes)
-        return f"{term.name.pretty()}({args})"
+        return f"{term.name.pretty()} ({args})"
     if isinstance(term, LiquidHole):
         return "?"
     return _strip_ids(repr(term))
@@ -188,6 +188,118 @@ def _pp_liquid(term: LiquidTerm, parent_prec: int = 0) -> str:
 
 def _is_trivial(ref: LiquidTerm) -> bool:
     return isinstance(ref, LiquidLiteralBool) and ref.value is True
+
+
+# --- refinement → CNF (a conjunction of disjunctions) ----------------------- #
+# So the info view can present a refinement as a flat list of conditions.
+
+_BOOL_BINARY = ("&&", "||", "-->")
+_CNF_SIZE_LIMIT = 40  # above this, skip distribution (worst-case exponential)
+
+
+def _mk(op: str, args: list[LiquidTerm]) -> LiquidTerm:
+    return LiquidApp(Name(op, 0), args)
+
+
+def _bool_op(t: LiquidTerm) -> Optional[str]:
+    """The boolean connective of ``t`` (``&&``/``||``/``-->``/``!``), or ``None``
+    if ``t`` is an atom (comparison, application, literal, variable)."""
+    if isinstance(t, LiquidApp):
+        op = t.fun.pretty()
+        if op in _BOOL_BINARY and len(t.args) == 2:
+            return op
+        if op == "!" and len(t.args) == 1:
+            return op
+    return None
+
+
+def _elim_impl(t: LiquidTerm) -> LiquidTerm:
+    """Rewrite ``a --> b`` to ``!a || b`` throughout."""
+    if isinstance(t, LiquidApp):
+        op = _bool_op(t)
+        if op == "-->":
+            return _mk("||", [_mk("!", [_elim_impl(t.args[0])]), _elim_impl(t.args[1])])
+        if op in ("&&", "||"):
+            return _mk(op, [_elim_impl(t.args[0]), _elim_impl(t.args[1])])
+        if op == "!":
+            return _mk("!", [_elim_impl(t.args[0])])
+    return t
+
+
+def _nnf(t: LiquidTerm, neg: bool = False) -> LiquidTerm:
+    """Negation normal form: push ``!`` down to the atoms (implications must be
+    eliminated first). A negated atom is kept as ``!atom``."""
+    if isinstance(t, LiquidApp):
+        op = _bool_op(t)
+        if op == "!":
+            return _nnf(t.args[0], not neg)
+        if op == "&&":
+            return _mk("||" if neg else "&&", [_nnf(t.args[0], neg), _nnf(t.args[1], neg)])
+        if op == "||":
+            return _mk("&&" if neg else "||", [_nnf(t.args[0], neg), _nnf(t.args[1], neg)])
+    return _mk("!", [t]) if neg else t
+
+
+def _distribute(t: LiquidTerm) -> LiquidTerm:
+    """Distribute ``||`` over ``&&`` (input in NNF) so the result is a
+    conjunction of disjunctions."""
+    if not isinstance(t, LiquidApp):
+        return t
+    op = _bool_op(t)
+    if op == "&&":
+        return _mk("&&", [_distribute(t.args[0]), _distribute(t.args[1])])
+    if op == "||":
+        a, b = _distribute(t.args[0]), _distribute(t.args[1])
+        if isinstance(a, LiquidApp) and _bool_op(a) == "&&":
+            return _distribute(_mk("&&", [_mk("||", [a.args[0], b]), _mk("||", [a.args[1], b])]))
+        if isinstance(b, LiquidApp) and _bool_op(b) == "&&":
+            return _distribute(_mk("&&", [_mk("||", [a, b.args[0]]), _mk("||", [a, b.args[1]])]))
+        return _mk("||", [a, b])
+    return t
+
+
+def _flatten_and(t: LiquidTerm) -> list[LiquidTerm]:
+    if isinstance(t, LiquidApp) and _bool_op(t) == "&&":
+        return _flatten_and(t.args[0]) + _flatten_and(t.args[1])
+    return [t]
+
+
+def _bool_size(t: LiquidTerm) -> int:
+    if isinstance(t, LiquidApp) and _bool_op(t) is not None:
+        return 1 + sum(_bool_size(a) for a in t.args)
+    return 1
+
+
+def _cnf_conjuncts(refinement: LiquidTerm) -> list[LiquidTerm]:
+    """The top-level conjuncts of ``refinement`` in CNF — a list of conditions,
+    each a disjunction of literals or a single literal. Falls back to the
+    formula's existing top-level conjuncts if it is large enough that CNF
+    distribution risks blowing up, or if anything goes wrong."""
+    try:
+        if _bool_size(refinement) > _CNF_SIZE_LIMIT:
+            return _flatten_and(refinement)
+        return _flatten_and(_distribute(_nnf(_elim_impl(refinement))))
+    except Exception:
+        return _flatten_and(refinement)
+
+
+def _pp_refinement(refinement: LiquidTerm) -> str:
+    """Render a refinement as its CNF conditions joined by ``&&``: each
+    condition pretty-printed (disjunctions parenthesised when there is more than
+    one, so the ``&&`` split is unambiguous), trivially-true conditions dropped,
+    duplicates removed."""
+    terms = [c for c in _cnf_conjuncts(refinement) if not _is_trivial(c)]
+    if not terms:
+        return _pp_liquid(refinement)
+    prec = _LIQUID_PREC["&&"] if len(terms) > 1 else 0
+    seen: set[str] = set()
+    out: list[str] = []
+    for c in terms:
+        s = _pp_liquid(c, prec)
+        if s not in seen:
+            seen.add(s)
+            out.append(s)
+    return " && ".join(out)
 
 
 def _pp_type_atom(ty: Type) -> str:
@@ -215,7 +327,7 @@ def _pp_type(ty: Type) -> str:
         if isinstance(ty, RefinedType):
             if _is_trivial(ty.refinement):
                 return _pp_type(ty.type)
-            pred = _pp_liquid(substitution_in_liquid(ty.refinement, LiquidVar(_NU), ty.name))
+            pred = _pp_refinement(substitution_in_liquid(ty.refinement, LiquidVar(_NU), ty.name))
             return f"{{{_NU.pretty()}:{_pp_type(ty.type)} | {pred}}}"
         if isinstance(ty, AbstractionType):
             dom, cod = _pp_type(ty.var_type), _pp_type(ty.type)
@@ -248,7 +360,7 @@ def _split_type(ty: Type, display_name: Optional[Name]) -> tuple[str, Optional[s
         if isinstance(t, RefinedType) and not _is_trivial(t.refinement):
             repl = LiquidVar(display_name if display_name is not None else _NU)
             pred = substitution_in_liquid(t.refinement, repl, t.name)
-            return _strip_ids(_pp_type(t.type)), _strip_ids(_pp_liquid(pred))
+            return _strip_ids(_pp_type(t.type)), _strip_ids(_pp_refinement(pred))
         if isinstance(t, RefinedType):
             return _strip_ids(_pp_type(t.type)), None
         return _strip_ids(_pp_type(t)), None
