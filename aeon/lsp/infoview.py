@@ -29,6 +29,7 @@ from typing import Optional
 
 from aeon.core.liquid import (
     LiquidApp,
+    LiquidHole,
     LiquidLiteralBool,
     LiquidLiteralFloat,
     LiquidLiteralInt,
@@ -38,12 +39,34 @@ from aeon.core.liquid import (
     LiquidVar,
 )
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.types import ExistentialType, RefinedType, Type
+from aeon.core.types import (
+    AbstractionType,
+    ExistentialType,
+    LiquidHornApplication,
+    RefinedType,
+    RefinementPolymorphism,
+    Top,
+    Type,
+    TypeConstructor,
+    TypePolymorphism,
+    TypeVar,
+    type_free_term_vars,
+)
 from aeon.lsp.completion import format_type
 from aeon.typechecking.context import ReflectedBinder, TypingContext, UninterpretedBinder, VariableBinder
 from aeon.utils.name import Name
 
 _HOLE_PATTERN = re.compile(r"\?([a-zA-Z_][a-zA-Z0-9_]*)")
+
+# Internal name ids render as superscript digits (``v⁴⁴⁸``); ``.pretty()`` drops
+# them. This strips any that slip through a fallback rendering path so the user
+# never sees a checker-internal id in a type, predicate or context entry.
+_SUPERSCRIPT_DIGITS = str.maketrans("", "", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def _strip_ids(s: str) -> str:
+    return s.translate(_SUPERSCRIPT_DIGITS)
+
 
 # Term-level binders that introduce a usable ``name : type`` value into scope.
 # Type-level binders (``TypeBinder``/``TypeConstructorBinder``) are deliberately
@@ -155,11 +178,63 @@ def _pp_liquid(term: LiquidTerm, parent_prec: int = 0) -> str:
             return f"{fun}{_pp_liquid(term.args[0], 100)}"
         args = ", ".join(_pp_liquid(a, 0) for a in term.args)
         return f"{fun}({args})"
-    return repr(term)
+    if isinstance(term, LiquidHornApplication):
+        args = ", ".join(_pp_liquid(a, 0) for a, _ in term.argtypes)
+        return f"{term.name.pretty()}({args})"
+    if isinstance(term, LiquidHole):
+        return "?"
+    return _strip_ids(repr(term))
+
+
+def _is_trivial(ref: LiquidTerm) -> bool:
+    return isinstance(ref, LiquidLiteralBool) and ref.value is True
+
+
+def _pp_type_atom(ty: Type) -> str:
+    """Like :func:`_pp_type` but parenthesises compound types used as arguments."""
+    inner = _pp_type(ty)
+    if isinstance(ty, (AbstractionType, TypeConstructor)) and " " in inner:
+        return f"({inner})"
+    return inner
+
+
+def _pp_type(ty: Type) -> str:
+    """Pretty-print a full type id-free, rendering nested refinements with the
+    minimal-parenthesis :func:`_pp_liquid` so every part — including globals'
+    function types — reads cleanly (``∀a. a -> a -> Bool``, ``{ν:Int | ν > 0}``)
+    rather than carrying the checker's internal name ids."""
+    try:
+        if isinstance(ty, Top):
+            return "⊤"
+        if isinstance(ty, TypeVar):
+            return ty.name.pretty()
+        if isinstance(ty, TypeConstructor):
+            if not ty.args:
+                return ty.name.pretty()
+            return ty.name.pretty() + " " + " ".join(_pp_type_atom(a) for a in ty.args)
+        if isinstance(ty, RefinedType):
+            if _is_trivial(ty.refinement):
+                return _pp_type(ty.type)
+            pred = _pp_liquid(substitution_in_liquid(ty.refinement, LiquidVar(_NU), ty.name))
+            return f"{{{_NU.pretty()}:{_pp_type(ty.type)} | {pred}}}"
+        if isinstance(ty, AbstractionType):
+            dom, cod = _pp_type(ty.var_type), _pp_type(ty.type)
+            if ty.var_name in type_free_term_vars(ty.type):
+                return f"({ty.var_name.pretty()}:{dom}) -> {cod}"
+            return f"{dom} -> {cod}"
+        if isinstance(ty, TypePolymorphism):
+            return f"∀{ty.name.pretty()}. {_pp_type(ty.body)}"
+        if isinstance(ty, RefinementPolymorphism):
+            return f"∀<{ty.name.pretty()}:{_pp_type(ty.sort)}>. {_pp_type(ty.body)}"
+        if isinstance(ty, ExistentialType):
+            return _pp_type(ty.body)
+        return _strip_ids(format_type(ty))
+    except Exception:
+        return _strip_ids(format_type(ty))
 
 
 def _split_type(ty: Type, display_name: Optional[Name]) -> tuple[str, Optional[str]]:
-    """Render ``ty`` as ``(base, predicate)``.
+    """Render ``ty`` as ``(base, predicate)``, both id-free.
 
     For a refined type the refinement's bound variable is renamed to
     ``display_name`` (the outer binding name) so ``v:{k:Int | k > 0}`` reads as
@@ -170,16 +245,15 @@ def _split_type(ty: Type, display_name: Optional[Name]) -> tuple[str, Optional[s
         t = ty
         while isinstance(t, ExistentialType):
             t = t.body
-        if isinstance(t, RefinedType):
-            ref = t.refinement
-            if isinstance(ref, LiquidLiteralBool) and ref.value is True:
-                return format_type(t.type), None
+        if isinstance(t, RefinedType) and not _is_trivial(t.refinement):
             repl = LiquidVar(display_name if display_name is not None else _NU)
-            pred = substitution_in_liquid(ref, repl, t.name)
-            return format_type(t.type), _pp_liquid(pred)
-        return format_type(t), None
+            pred = substitution_in_liquid(t.refinement, repl, t.name)
+            return _strip_ids(_pp_type(t.type)), _strip_ids(_pp_liquid(pred))
+        if isinstance(t, RefinedType):
+            return _strip_ids(_pp_type(t.type)), None
+        return _strip_ids(_pp_type(t)), None
     except Exception:
-        return format_type(ty), None
+        return _strip_ids(format_type(ty)), None
 
 
 def _dedup_innermost(vars_: list[tuple[Name, Type]]) -> list[tuple[Name, Type]]:

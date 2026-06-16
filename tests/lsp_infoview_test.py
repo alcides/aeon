@@ -7,7 +7,7 @@ from __future__ import annotations
 import pytest
 
 from aeon.facade.driver import AeonConfig, AeonDriver
-from aeon.lsp.infoview import _hole_at, _is_hidden, _pp_liquid, compute_info_view
+from aeon.lsp.infoview import _hole_at, _is_hidden, _pp_liquid, _pp_type, _strip_ids, compute_info_view
 from aeon.lsp.typeindex import build_type_index
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
@@ -124,6 +124,61 @@ def test_anonymous_binders_are_hidden():
     # No context entry is ever anonymous.
     info = info_at(REFINED_SRC, 0, col_of(REFINED_SRC, 0, "x + 0"))
     assert all(not e.name.startswith("_") for e in info.locals + info.globals)
+
+
+# --------------------------------------------------------------------------- #
+# Pretty printing never shows internal name ids
+# --------------------------------------------------------------------------- #
+
+# Internal name ids render as superscript digits (``v⁴⁴⁸``, ``p⁷²``).
+SUPERSCRIPT_DIGITS = "⁰¹²³⁴⁵⁶⁷⁸⁹"
+
+
+def _has_id(s) -> bool:
+    return s is not None and any(ch in SUPERSCRIPT_DIGITS for ch in s)
+
+
+def test_strip_ids_removes_superscript_digits():
+    assert _strip_ids("v⁴⁴⁸") == "v"
+    assert _strip_ids("p⁷²(ν)") == "p(ν)"
+    assert _strip_ids("Int") == "Int"
+
+
+def test_pp_type_strips_ids_of_terms():
+    from aeon.core.liquid import LiquidApp, LiquidVar
+    from aeon.core.types import RefinedType, t_int
+    from aeon.utils.name import Name
+
+    # A refinement whose bound and free variables carry non-zero ids.
+    k = Name("k", 7)
+    x = Name("x", 12)
+    ref = LiquidApp(Name(">", 0), [LiquidVar(k), LiquidVar(x)])
+    ty = RefinedType(k, t_int, ref)
+    rendered = _pp_type(ty)
+    assert not _has_id(rendered), rendered
+    # the free variable keeps its surface name, without the id
+    assert "x" in rendered and "x¹²" not in rendered
+
+
+def test_pp_liquid_uses_surface_names_without_ids():
+    from aeon.core.liquid import LiquidApp, LiquidVar
+    from aeon.utils.name import Name
+
+    expr = LiquidApp(Name(">", 0), [LiquidVar(Name("v", 448)), LiquidVar(Name("y", 3))])
+    assert _pp_liquid(expr) == "v > y"
+
+
+def test_no_ids_anywhere_in_context_or_target():
+    # The prelude binds polymorphic operators (e.g. `$`) whose types carry
+    # horn-application ids like `p⁷²(ν)`; none must reach the rendered output.
+    info = info_at(SRC, 3, col_of(SRC, 3, "x"))
+    for e in info.locals + info.globals:
+        assert not _has_id(e.name), e.name
+        assert not _has_id(e.type), (e.name, e.type)
+        assert not _has_id(e.predicate), (e.name, e.predicate)
+    if info.target is not None:
+        assert not _has_id(info.target.type)
+        assert not _has_id(info.target.predicate)
 
 
 # --------------------------------------------------------------------------- #
