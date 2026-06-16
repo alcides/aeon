@@ -7,7 +7,15 @@ from __future__ import annotations
 import pytest
 
 from aeon.facade.driver import AeonConfig, AeonDriver
-from aeon.lsp.infoview import _hole_at, _is_hidden, _pp_liquid, _pp_type, _strip_ids, compute_info_view
+from aeon.lsp.infoview import (
+    _hole_at,
+    _is_hidden,
+    _pp_liquid,
+    _pp_refinement,
+    _pp_type,
+    _strip_ids,
+    compute_info_view,
+)
 from aeon.lsp.typeindex import build_type_index
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
@@ -199,6 +207,60 @@ def test_pp_liquid_minimal_parens():
     # (x > 0) && (x < 10) -> comparisons bind tighter than &&, so no parens.
     expr = app("&&", app(">", x, zero), app("<", x, ten))
     assert _pp_liquid(expr) == "x > 0 && x < 10"
+
+
+def test_function_application_has_space_before_args():
+    from aeon.core.liquid import LiquidApp, LiquidVar
+    from aeon.utils.name import Name
+
+    def v(n):
+        return LiquidVar(Name(n, 0))
+
+    # `f(a && b)` reads as `f (a && b)`.
+    expr = LiquidApp(Name("f", 0), [LiquidApp(Name("&&", 0), [v("a"), v("b")])])
+    assert _pp_liquid(expr) == "f (a && b)"
+
+
+# --------------------------------------------------------------------------- #
+# Refinements are presented in CNF (a list of conditions)
+# --------------------------------------------------------------------------- #
+
+
+def _v(n):
+    from aeon.core.liquid import LiquidVar
+    from aeon.utils.name import Name
+
+    return LiquidVar(Name(n, 0))
+
+
+def _app(op, *args):
+    from aeon.core.liquid import LiquidApp
+    from aeon.utils.name import Name
+
+    return LiquidApp(Name(op, 0), list(args))
+
+
+def test_cnf_distributes_or_over_and():
+    # a || (b && c)  ->  (a || b) && (a || c)
+    expr = _app("||", _v("a"), _app("&&", _v("b"), _v("c")))
+    assert _pp_refinement(expr) == "(a || b) && (a || c)"
+
+
+def test_cnf_eliminates_implication():
+    # a --> b  ->  !a || b  (single condition, so no surrounding parens)
+    assert _pp_refinement(_app("-->", _v("a"), _v("b"))) == "!a || b"
+
+
+def test_cnf_pushes_negation_inwards():
+    # !(a && b)  ->  !a || !b
+    assert _pp_refinement(_app("!", _app("&&", _v("a"), _v("b")))) == "!a || !b"
+
+
+def test_cnf_keeps_conjunction_as_condition_list():
+    from aeon.core.liquid import LiquidLiteralInt
+
+    expr = _app("&&", _app(">", _v("x"), LiquidLiteralInt(0)), _app("<", _v("x"), LiquidLiteralInt(10)))
+    assert _pp_refinement(expr) == "x > 0 && x < 10"
 
 
 # --------------------------------------------------------------------------- #
