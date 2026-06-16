@@ -26,26 +26,26 @@ inductive Shoe
 + shoe_size  (s:Shoe) : Int
 
 # Positive examples: blue adult-size shoes.
-def blue_40 : Shoe := .mk .sc_blue 40
-def blue_42 : Shoe := .mk .sc_blue 42
-def blue_45 : Shoe := .mk .sc_blue 45
+def __internal__blue_40 : Shoe := .mk .sc_blue 40
+def __internal__blue_42 : Shoe := .mk .sc_blue 42
+def __internal__blue_45 : Shoe := .mk .sc_blue 45
 
 # Negative examples: red shoes (any size) and blue child-size shoes.
-def red_40    : Shoe := .mk .sc_red 40
-def red_30    : Shoe := .mk .sc_red 30
-def blue_28   : Shoe := .mk .sc_blue 28
-def blue_30   : Shoe := .mk .sc_blue 30
+def __internal__red_40    : Shoe := .mk .sc_red 40
+def __internal__red_30    : Shoe := .mk .sc_red 30
+def __internal__blue_28   : Shoe := .mk .sc_blue 28
+def __internal__blue_30   : Shoe := .mk .sc_blue 30
 
-def cost_pos (b:Bool) : Int := if b then 0 else 1
-def cost_neg (b:Bool) : Int := if b then 1 else 0
+def __internal__cost_pos (b:Bool) : Int := if b then 0 else 1
+def __internal__cost_neg (b:Bool) : Int := if b then 1 else 0
 
 @minimize_int(
-    cost_pos (recolor blue_40)
-  + cost_pos (recolor blue_42)
-  + cost_pos (recolor blue_45)
-  + cost_neg (recolor red_40)
-  + cost_neg (recolor red_30)
-  + cost_neg (recolor blue_28)
-  + cost_neg (recolor blue_30)
+    __internal__cost_pos (recolor __internal__blue_40)
+  + __internal__cost_pos (recolor __internal__blue_42)
+  + __internal__cost_pos (recolor __internal__blue_45)
+  + __internal__cost_neg (recolor __internal__red_40)
+  + __internal__cost_neg (recolor __internal__red_30)
+  + __internal__cost_neg (recolor __internal__blue_28)
+  + __internal__cost_neg (recolor __internal__blue_30)
 )
-def recolor (s:Shoe) : Bool := (let blue_40 := unit in let blue_42 := unit in let blue_45 := unit in let red_40 := unit in let red_30 := unit in let blue_28 := unit in let blue_30 := unit in let mk := unit in let cost_pos := unit in let cost_neg := unit in ?hole)
+def recolor (s:Shoe) : Bool := ?hole

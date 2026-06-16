@@ -8,7 +8,7 @@ type List
 inductive Tuple
 | mk (a0:String) (a1:Int) (a2:List) (a3:Bool) : Tuple
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> (x2:Int) -> Tuple) : Float := native "float((0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(50) == ('Tuple_mk', 'HELLO', 5, [50], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(100) == ('Tuple_mk', 'HELLO', 5, [100], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(500) == ('Tuple_mk', 'HELLO', 5, [500], True)) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (tuplex:Tuple) (m:Int) (n:Int) : Tuple := (let mbpp_fitness := unit in ?hole)
+@minimize_float(
+    let mbpp_fitness : (f:(x0:Tuple) -> (x1:Int) -> (x2:Int) -> Tuple) -> Float := fun f => native "float((0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(50) == ('Tuple_mk', 'HELLO', 5, [50], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(100) == ('Tuple_mk', 'HELLO', 5, [100], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(500) == ('Tuple_mk', 'HELLO', 5, [500], True)) else 1))"
+    in mbpp_fitness synth)
+def synth (tuplex:Tuple) (m:Int) (n:Int) : Tuple := ?hole

@@ -14,13 +14,16 @@
 #   uv run python -m aeon --budget 30 -s gp examples/synthesis/koza_quartic.ae
 
 # Reference specification (the function we want synthesis to rediscover).
-def koza_quartic_spec (x:Float) : Float := x * x * x * x + x * x * x + x * x + x;
+# Named with the `__internal__` prefix so it stays out of the synthesizer's
+# grammar; kept as machine-checked documentation of the target.
+def __internal__koza_quartic_spec (x:Float) : Float := x * x * x * x + x * x * x + x * x + x;
 
 # Mean absolute error of a candidate `func` against the quartic, sampled over
-# 21 evenly spaced points in [-1, 1].
-def sr_errors : (func: (x:Float) -> Float) -> Float :=
-    fun func => native "sum(abs(func(x) - (x**4 + x**3 + x**2 + x)) for i in range(21) for x in [-1.0 + 0.1 * i]) / 21.0";
-
-@minimize_float(sr_errors synth)
-def synth (x:Float) : Float :=
-    (let koza_quartic_spec := unit in let sr_errors := unit in ?hole)
+# 21 evenly spaced points in [-1, 1]. The scorer is defined locally, inside the
+# `@minimize_float` expression, so it never enters the synthesizer's grammar
+# (replacing the old `let sr_errors = unit` shadow).
+@minimize_float(
+    let sr_errors : (func: (x:Float) -> Float) -> Float :=
+        fun func => native "sum(abs(func(x) - (x**4 + x**3 + x**2 + x)) for i in range(21) for x in [-1.0 + 0.1 * i]) / 21.0"
+    in sr_errors synth)
+def synth (x:Float) : Float := ?hole

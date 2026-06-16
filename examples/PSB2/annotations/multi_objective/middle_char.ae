@@ -12,11 +12,11 @@ def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j =
 def equal_int : (a: Int) -> (b: Int) -> Bool := fun x => fun y => native "x == y";
 
 
-def train: TrainData := extract_train_data (load_dataset "middle-character" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "middle-character" 200 200)
 
 
-def calculate_middle_char_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
+def __internal__calculate_middle_char_errors : (__internal__train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
 
-@multi_minimize_float(calculate_middle_char_errors train synth, 1)
-def synth(s: String) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_middle_char_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_middle_char_errors __internal__train synth, 1)
+def synth(s: String) : String := (let extract_train_data := unit in let load_dataset := unit in ?hole)

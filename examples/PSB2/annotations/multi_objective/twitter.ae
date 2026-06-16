@@ -11,11 +11,11 @@ def const3 : String := "Your tweet has "
 def const4 : String := " characters"
 
 
-def train: TrainData := extract_train_data (load_dataset "twitter" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "twitter" 200 200)
 
 
-def calculate_twitter_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
+def __internal__calculate_twitter_errors : (__internal__train : TrainData) -> (f:(a: String) -> String)  -> List  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
 
-@multi_minimize_float(calculate_twitter_errors train synth, 1)
-def synth (tweet: String) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_twitter_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_twitter_errors __internal__train synth, 1)
+def synth (tweet: String) : String := (let extract_train_data := unit in let load_dataset := unit in ?hole)

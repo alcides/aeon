@@ -7,9 +7,9 @@ def Math_round : (f:Float) -> (i:Int) -> Float := fun f => fun i => native "roun
 
 # PSB2  functions
 
-def train: TrainData := extract_train_data (load_dataset "dice-game" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "dice-game" 200 200)
 
-def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]"
+def __internal__calculate_dice_game_errors : (__internal__train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]"
 
-@multi_minimize_float(calculate_dice_game_errors train synth, 1)
-def synth (n:Int) (m: Int) : Float := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_dice_game_errors := unit in ?hole)
+@multi_minimize_float(__internal__calculate_dice_game_errors __internal__train synth, 1)
+def synth (n:Int) (m: Int) : Float := (let extract_train_data := unit in let load_dataset := unit in ?hole)

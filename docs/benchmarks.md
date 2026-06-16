@@ -98,11 +98,12 @@ Constructive Solid Geometry program that draws it, reproducing the benchmark of
 Feser, Dillig & Solar-Lezama, *Metric Program Synthesis for Inverse CSG*
 ([arXiv:2206.06164](https://arxiv.org/abs/2206.06164), the SyMetric tool). A
 `Csg` inductive type (`Circle`, `Rect`, `Union`, `Diff`, `Repeat`) is searched
-with `@minimize_float(jaccard shape)`, the paper's Jaccard-distance metric;
-per-pixel rasterisation and the distance run natively in `csg_metric.py` (via
-Pillow), since a full bitmap is too large to evaluate in-language. Each file
-hides its helper functions and reference solution from the grammar with
-`let … := unit in` shadowing so the search is genuine.
+with `@minimize_float(__internal__jaccard shape)`, the paper's Jaccard-distance
+metric; per-pixel rasterisation and the distance run natively in `csg_metric.py`
+(via Pillow), since a full bitmap is too large to evaluate in-language. Each
+file's helper functions and reference solution carry the `__internal__` prefix,
+which keeps them out of the synthesizer's grammar (they are excluded from
+`concrete_vars`) so the search is genuine.
 
 The 47 instances span sizes `tiny` (2), `small` (13), `medium` (6), `large`
 (1), plus 25 `generated` cases (`generate.py`, catalogued in `benchmarks.tsv`),

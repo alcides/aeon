@@ -23,8 +23,8 @@ def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> (Array Int) := f
 def const1 : String := "X"
 def const2 : String := "/"
 
-def train: TrainData := extract_train_data (load_dataset "bowling" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "bowling" 200 200)
 
 
-@multi_minimize_float(calculate_bowling_errors train synth, 1)
-def synth (scores: String) : Int := (let extract_train_data := unit in let unpack_train_data := unit in let load_dataset := unit in let train := unit in let calculate_bowling_errors := unit in ?hole)
+@multi_minimize_float(calculate_bowling_errors __internal__train synth, 1)
+def synth (scores: String) : Int := (let extract_train_data := unit in let unpack_train_data := unit in let load_dataset := unit in let calculate_bowling_errors := unit in ?hole)

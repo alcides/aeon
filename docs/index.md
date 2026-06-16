@@ -596,15 +596,43 @@ aeon --test examples/testing/image_tests.ae
 - `@error_fitness(value)` — set the fitness value to use when an exception occurs during synthesis
 - `@prompt("description")` — provide a prompt for LLM-based synthesis
 
-#### Hiding a binding from synthesis
+#### Keeping fitness/oracle helpers out of synthesis
 
-To keep a function or variable (such as a fitness/oracle helper) out of the
-synthesizer's grammar, shadow it with a `Unit` binding in the hole's scope:
+A fitness or oracle helper must not enter the synthesizer's grammar, or the
+search could "cheat" by calling the scorer (or returning a reference solution)
+instead of solving the problem. There are two complementary ways to keep such a
+helper out, depending on whether it can be made local to the quality function:
+
+**1. Define the helper *locally*, inside the optimization expression.** Because
+the helper is bound by a `let` inside the `@minimize`/`@maximize` argument, it is
+simply not in scope at the hole — nothing special is needed:
 
 ```aeon
-def synth (x: Int) : Int := (let oracle := unit in (?hole : Int))
+@minimize_float(
+    let oracle : (f:(x:Int) -> Int) -> Float := fun f => native "..."
+    in oracle synth)
+def synth (x: Int) : Int := ?hole
 ```
 
-Inside the hole, `oracle` now has type `Unit`, so the type-directed grammar
-never builds it into a candidate. This relies on ordinary lexical shadowing and
-replaces the former `@hide` / `@hide_types` decorators.
+This is the preferred form for the common case of a single scorer.
+
+**2. Give a *top-level* helper a context-dependent `__internal__` name.** Some
+helpers must stay top-level — recursive functions (Aeon's `let` is
+non-recursive), reference specifications, or scorers shared by several
+objectives. Prefix their name with `__internal__` (optionally encoding the
+context, e.g. `__internal__board_conflicts`): bindings with this prefix are
+excluded from `TypingContext.concrete_vars`, so no synthesis backend ever builds
+them into a candidate, while they remain fully usable inside the
+`@minimize`/`@maximize` expression.
+
+```aeon
+def __internal__board_conflicts (b: Board) : Int := ...;   -- recursive scorer
+@minimize_int(__internal__board_conflicts nqueens)
+def nqueens : Board := ?hole;
+```
+
+Both techniques replace the former `@hide` / `@hide_types` decorators (and the
+interim `let oracle = unit in <hole>` Unit-shadowing). Shadowing is still useful
+for one residual case — an *imported* library function that cannot be renamed or
+localized — where `let imported_fn := unit in <hole>` keeps it out of the
+grammar.

@@ -22,22 +22,22 @@ inductive Apple
 + color_of (a:Apple) : AppleColor
 
 # Positive examples: green apples to recolor.
-def green1 : Apple := .mk .ac_green
-def green2 : Apple := .mk .ac_green
+def __internal__green1 : Apple := .mk .ac_green
+def __internal__green2 : Apple := .mk .ac_green
 
 # Negative examples: leave other apples untouched.
-def red1    : Apple := .mk .ac_red
-def red2    : Apple := .mk .ac_red
-def yellow1 : Apple := .mk .ac_yellow
+def __internal__red1    : Apple := .mk .ac_red
+def __internal__red2    : Apple := .mk .ac_red
+def __internal__yellow1 : Apple := .mk .ac_yellow
 
-def cost_pos (b:Bool) : Int := if b then 0 else 1
-def cost_neg (b:Bool) : Int := if b then 1 else 0
+def __internal__cost_pos (b:Bool) : Int := if b then 0 else 1
+def __internal__cost_neg (b:Bool) : Int := if b then 1 else 0
 
 @minimize_int(
-    cost_pos (recolor_target green1)
-  + cost_pos (recolor_target green2)
-  + cost_neg (recolor_target red1)
-  + cost_neg (recolor_target red2)
-  + cost_neg (recolor_target yellow1)
+    __internal__cost_pos (recolor_target __internal__green1)
+  + __internal__cost_pos (recolor_target __internal__green2)
+  + __internal__cost_neg (recolor_target __internal__red1)
+  + __internal__cost_neg (recolor_target __internal__red2)
+  + __internal__cost_neg (recolor_target __internal__yellow1)
 )
-def recolor_target (a:Apple) : Bool := (let green1 := unit in let green2 := unit in let red1 := unit in let red2 := unit in let yellow1 := unit in let mk := unit in let cost_pos := unit in let cost_neg := unit in ?hole)
+def recolor_target (a:Apple) : Bool := ?hole

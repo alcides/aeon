@@ -14,10 +14,10 @@ def String_length: (s:String) -> Int := fun s => native "len(s)"
 def List_get: (l:(Array Int)) -> (i:Int) -> String := fun xs => fun i => native "xs[i]"
 
 
-def train: TrainData := extract_train_data (load_dataset "solve-boolean" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "solve-boolean" 200 200)
 
 
-def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bool)  -> (Array Int)  :=  fun data => fun func => native "[0 if func(x[0]) == y[0] else 1 for x ,y  in data]";
+def __internal__calculate_solve_boolean_errors : (__internal__train : TrainData) -> (f:(a: String) -> Bool)  -> (Array Int)  :=  fun data => fun func => native "[0 if func(x[0]) == y[0] else 1 for x ,y  in data]";
 
-@multi_minimize_float(calculate_solve_boolean_errors train synth, 1)
-def synth ( s : String ) : Bool := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_solve_boolean_errors := unit in ?hole)
+@multi_minimize_float(__internal__calculate_solve_boolean_errors __internal__train synth, 1)
+def synth ( s : String ) : Bool := (let extract_train_data := unit in let load_dataset := unit in ?hole)

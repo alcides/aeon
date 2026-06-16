@@ -20,15 +20,15 @@ def List_new : {x:(Array Int) | List_size x = 0} := native "[]" ;
 def List_append_float (l:(Array Int)) (i: Float) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
 
 
-def train: TrainData := extract_train_data (load_dataset "vector-distance" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "vector-distance" 200 200)
 
-def input_list : (Array Int) := get_input_list (unpack_train_data train)
+def input_list : (Array Int) := get_input_list (unpack_train_data __internal__train)
 
-def expected_values : (Array Int) := get_output_list (unpack_train_data train)
+def expected_values : (Array Int) := get_output_list (unpack_train_data __internal__train)
 def flatten_list : (t:(Array Int)) -> (Array Int) := fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"
 
-def calculate_vector_distance_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (b: (Array Int)) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0])(x[1]) - y[0]) for x , y in data]"
+def __internal__calculate_vector_distance_errors : (__internal__train : TrainData) -> (f:(a: (Array Int)) -> (b: (Array Int)) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0])(x[1]) - y[0]) for x , y in data]"
 
 
-@multi_minimize_float(calculate_vector_distance_errors train synth, 1)
-def synth  (vector1: (Array Int)) (vector2: (Array Int)) : Float := (let extract_train_data := unit in let load_dataset := unit in let calculate_vector_distance_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_vector_distance_errors __internal__train synth, 1)
+def synth  (vector1: (Array Int)) (vector2: (Array Int)) : Float := (let extract_train_data := unit in let load_dataset := unit in ?hole)

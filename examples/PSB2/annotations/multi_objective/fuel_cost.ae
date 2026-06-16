@@ -12,17 +12,17 @@ def Math_floor_division : (i:Int) -> (j:Int)-> Int := fun i => fun j => native "
 
 def List_map_Int_Int: (function:(a: Int) -> Int) -> (l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
-def train: TrainData := extract_train_data (load_dataset "fuel-cost" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "fuel-cost" 200 200)
 
-def input_list : (Array Int) := get_input_list (unpack_train_data train)
+def input_list : (Array Int) := get_input_list (unpack_train_data __internal__train)
 
-def expected_values : (Array Int) := get_output_list (unpack_train_data train)
+def expected_values : (Array Int) := get_output_list (unpack_train_data __internal__train)
 def flatten_list : (t:(Array Int)) -> (Array Int) := fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"
 
 
-def calculate_fuel_cost_errors : (train : TrainData) -> (f:(a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+def __internal__calculate_fuel_cost_errors : (__internal__train : TrainData) -> (f:(a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
 
-@multi_minimize_float(calculate_fuel_cost_errors train synth, 1)
-def synth  (xs: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let calculate_fuel_cost_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_fuel_cost_errors __internal__train synth, 1)
+def synth  (xs: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in ?hole)

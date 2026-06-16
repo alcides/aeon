@@ -3,7 +3,7 @@
 #
 # Synthesis target: remove_whitespaces : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f(' Google    Flutter ') == 'GoogleFlutter') else 1) + (0 if (f(' Google    Dart ') == 'GoogleDart') else 1) + (0 if (f(' iOS    Swift ') == 'iOSSwift') else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (text1:String) : String := (let mbpp_fitness := unit in ?hole)
+@minimize_float(
+    let mbpp_fitness : (f:(x0:String) -> String) -> Float := fun f => native "float((0 if (f(' Google    Flutter ') == 'GoogleFlutter') else 1) + (0 if (f(' Google    Dart ') == 'GoogleDart') else 1) + (0 if (f(' iOS    Swift ') == 'iOSSwift') else 1))"
+    in mbpp_fitness synth)
+def synth (text1:String) : String := ?hole

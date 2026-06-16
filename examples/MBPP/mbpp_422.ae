@@ -3,7 +3,7 @@
 #
 # Synthesis target: find_Average_Of_Cube : Int -> Float
 
-def mbpp_fitness (f:(x0:Int) -> Float) : Float := native "float((0 if (f(2) == 4.5) else 1) + (0 if (f(3) == 12) else 1) + (0 if (f(1) == 1) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Float := (let mbpp_fitness := unit in ?hole)
+@minimize_float(
+    let mbpp_fitness : (f:(x0:Int) -> Float) -> Float := fun f => native "float((0 if (f(2) == 4.5) else 1) + (0 if (f(3) == 12) else 1) + (0 if (f(1) == 1) else 1))"
+    in mbpp_fitness synth)
+def synth (n:Int) : Float := ?hole

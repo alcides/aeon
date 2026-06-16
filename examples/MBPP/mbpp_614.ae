@@ -9,7 +9,7 @@ inductive Tuple
 | tnil  : Tuple
 | tcons (hd:Int) (tl:Tuple) : Tuple
 
-def mbpp_fitness (f:(x0:List) -> Int) : Float := native "float((0 if (f([(1, 3), (5, 6, 7), (2, 6)]) == 30) else 1) + (0 if (f([(2, 4), (6, 7, 8), (3, 7)]) == 37) else 1) + (0 if (f([(3, 5), (7, 8, 9), (4, 8)]) == 44) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_list:List) : Int := (let mbpp_fitness := unit in ?hole)
+@minimize_float(
+    let mbpp_fitness : (f:(x0:List) -> Int) -> Float := fun f => native "float((0 if (f([(1, 3), (5, 6, 7), (2, 6)]) == 30) else 1) + (0 if (f([(2, 4), (6, 7, 8), (3, 7)]) == 37) else 1) + (0 if (f([(3, 5), (7, 8, 9), (4, 8)]) == 44) else 1))"
+    in mbpp_fitness synth)
+def synth (test_list:List) : Int := ?hole

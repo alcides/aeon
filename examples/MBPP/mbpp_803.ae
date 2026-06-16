@@ -3,7 +3,7 @@
 #
 # Synthesis target: is_perfect_square : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (not f(10)) else 1) + (0 if (f(36)) else 1) + (0 if (not f(14)) else 1) + (0 if (f(14 * 14)) else 1) + (0 if (not f(125)) else 1) + (0 if (f(125 * 125)) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@minimize_float(
+    let mbpp_fitness : (f:(x0:Int) -> Bool) -> Float := fun f => native "float((0 if (not f(10)) else 1) + (0 if (f(36)) else 1) + (0 if (not f(14)) else 1) + (0 if (f(14 * 14)) else 1) + (0 if (not f(125)) else 1) + (0 if (f(125 * 125)) else 1))"
+    in mbpp_fitness synth)
+def synth (n:Int) : Bool := ?hole

@@ -12,17 +12,17 @@
 import PSB2 (extract_train_data, load_dataset)
 open List
 
-def train : TrainData := extract_train_data (load_dataset "snow-day" 200 200)
+def __internal__train : TrainData := extract_train_data (load_dataset "snow-day" 200 200)
 
-def calculate_snow_day_errors : (train: TrainData) -> (f: (a: {x:Int   |  0   <= x && x <= 20})
+def __internal__calculate_snow_day_errors : (__internal__train: TrainData) -> (f: (a: {x:Int   |  0   <= x && x <= 20})
                                                        -> (b: {y:Float |  0.0 <= y && y <= 20.0})
                                                        -> (c: {z:Float |  0.0 <= z && z <= 10.0})
                                                        -> (d: {w:Float |  0.0 <= w && w <= 1.0})
                                                        -> Float) -> (List Float) :=
     fun data => fun func => native "[abs(func(x[0][0])(x[0][1])(x[0][2])(x[0][3]) - x[1][0]) for x in data]"
 
-@multi_minimize_float(calculate_snow_day_errors train synth, 1)
+@multi_minimize_float(__internal__calculate_snow_day_errors __internal__train synth, 1)
 def synth (n : {x:Int   |  0   <= x && x <= 20})
           (m : {a:Float |  0.0 <= a && a <= 20.0})
           (t : {b:Float |  0.0 <= b && b <= 10.0})
-          (p : {c:Float |  0.0 <= c && c <= 1.0}) : {r:Float | 0.0 <= r} := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_snow_day_errors := unit in ?hole);
+          (p : {c:Float |  0.0 <= c && c <= 1.0}) : {r:Float | 0.0 <= r} := (let extract_train_data := unit in let load_dataset := unit in ?hole)

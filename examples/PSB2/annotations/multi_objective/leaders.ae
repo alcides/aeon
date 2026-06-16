@@ -13,11 +13,11 @@ def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) := fun xs => fun y
 def Map : (f: (s:(Array Int)) -> Int) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
 
 #PSB2 functions
-def train: TrainData := extract_train_data (load_dataset "leaders" 50 50)
+def __internal__train: TrainData := extract_train_data (load_dataset "leaders" 50 50)
 
 
-def calculate_leaders_errors : (train : TrainData) -> (f:(a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]"
+def __internal__calculate_leaders_errors : (__internal__train : TrainData) -> (f:(a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]"
 
 
-@multi_minimize_float(calculate_leaders_errors train synth, 1)
-def synth ( vector : (Array Int) ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_leaders_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_leaders_errors __internal__train synth, 1)
+def synth ( vector : (Array Int) ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in ?hole)

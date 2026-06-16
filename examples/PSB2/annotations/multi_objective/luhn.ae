@@ -30,11 +30,11 @@ def map_digit (x:Int) (i:Int) : Int := if (i % 2) = 0 then ( if (x * 2) > 9 then
 
 
 #PSB2
-def train: TrainData := extract_train_data (load_dataset "luhn" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "luhn" 200 200)
 
-def calculate_luhn_errors : (train : TrainData) -> (f:(a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0]) - y[0]) for x , y  in data]"
+def __internal__calculate_luhn_errors : (__internal__train : TrainData) -> (f:(a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0]) - y[0]) for x , y  in data]"
 
 
-@multi_minimize_float(calculate_luhn_errors train synth, 1)
+@multi_minimize_float(__internal__calculate_luhn_errors __internal__train synth, 1)
 @disable_control_flow
-def synth (digits: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let calculate_luhn_errors := unit in let train := unit in ?hole)
+def synth (digits: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in ?hole)

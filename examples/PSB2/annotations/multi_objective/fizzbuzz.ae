@@ -11,9 +11,9 @@ def const1 : String := "Fizz"
 def const2 : String := "Buzz"
 def const3 : String := "FizzBuzz"
 
-def train: TrainData := extract_train_data (load_dataset "fizz-buzz" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "fizz-buzz" 200 200)
 
-def calculate_fizzbuzz_errors : (train : TrainData) -> (f:(a: Int) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
+def __internal__calculate_fizzbuzz_errors : (__internal__train : TrainData) -> (f:(a: Int) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
 
-@multi_minimize_float(calculate_fizzbuzz_errors train synth, 1)
-def synth (n:Int) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_fizzbuzz_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_fizzbuzz_errors __internal__train synth, 1)
+def synth (n:Int) : String := (let extract_train_data := unit in let load_dataset := unit in ?hole)

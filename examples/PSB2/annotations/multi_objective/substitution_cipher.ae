@@ -12,11 +12,11 @@ def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String := fun d 
 def Map_String_String: (function: (a:String) -> String) -> (l: String) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
 
-def train: TrainData := extract_train_data (load_dataset "substitution-cipher" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "substitution-cipher" 200 200)
 
-def calculate_cipher_errors : (train : TrainData) -> (f:(a: String) ->(a: String) ->(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0])(x[1])(x[2]), y[0]) for x , y in data]"
+def __internal__calculate_cipher_errors : (__internal__train : TrainData) -> (f:(a: String) ->(a: String) ->(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0])(x[1])(x[2]), y[0]) for x , y in data]"
 
 
 
-@multi_minimize_float(calculate_cipher_errors train synth, 1)
-def synth (cipher_from: String) (cypher_to: String) (msg: String) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_square_digits_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_cipher_errors __internal__train synth, 1)
+def synth (cipher_from: String) (cypher_to: String) (msg: String) : String := (let extract_train_data := unit in let load_dataset := unit in ?hole)

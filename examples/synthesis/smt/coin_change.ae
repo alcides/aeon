@@ -21,12 +21,15 @@ inductive Change
 + fives (c:Change) : Int
 + tens  (c:Change) : Int
 
-def total (c:Change) : Int :=
+# The `total` scorer carries the `__internal__` prefix so it stays out of the
+# synthesizer's grammar (it should build a `Change`, not call the scorer),
+# replacing the old `let total = unit` shadowing.
+def __internal__total (c:Change) : Int :=
     match c with
     | mk c1 c5 c10 => c1 + c5 + c10;
 
-@minimize_int(total change_hole)
+@minimize_int(__internal__total change_hole)
 def change_hole : {c:Change |
     (ones c >= 0) && (fives c >= 0) && (tens c >= 0) &&
     (ones c + 5 * fives c + 10 * tens c = 37)
-} := (let total := unit in ?hole)
+} := ?hole

@@ -20,12 +20,12 @@ Every file follows the same `native`-fitness convention used by the PSB2
 examples (e.g. `examples/PSB2/.../gcd.ae`):
 
 ```aeon
-def sr_errors : (func: (a0:Float) -> ... -> Float) -> Float :=
-    fun func => native "...mean absolute error of func vs the true equation
-                      over sampled points, computed with numpy...";
-
-@minimize_float(sr_errors synth)
-def synth (<vars>:Float) ... : Float := (let sr_errors := unit in ?hole)
+@minimize_float(
+    let sr_errors : (func: (a0:Float) -> ... -> Float) -> Float :=
+        fun func => native "...mean absolute error of func vs the true equation
+                          over sampled points, computed with numpy..."
+    in sr_errors synth)
+def synth (<vars>:Float) ... : Float := ?hole
 ```
 
 - The true equation and the sampling are computed inside a self-contained
@@ -34,9 +34,11 @@ def synth (<vars>:Float) ... : Float := (let sr_errors := unit in ?hole)
   dependency (e.g. numpy) or external data file is needed.
 - Fitness is the mean absolute error over 30 sampled points (`0.0` is a perfect
   fit), minimized.
-- `sr_errors` is shadowed inside the hole so the synthesizer builds the
-  expression from float primitives (`+`, `-`, `*`, `/`, constants, inputs)
-  rather than calling the scorer.
+- The `sr_errors` scorer is defined *locally*, inside the `@minimize_float`
+  expression, so it never enters the synthesizer's grammar: the engine builds
+  the body from float primitives (`+`, `-`, `*`, `/`, constants, inputs) rather
+  than calling the scorer. (Previously the scorer was a top-level binding kept
+  out of scope by `let sr_errors = unit in <hole>` shadowing.)
 
 ## Running
 

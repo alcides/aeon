@@ -12,11 +12,11 @@ def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native 
 def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
 
 
-def train: TrainData := extract_train_data (load_dataset "indices-of-substring" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "indices-of-substring" 200 200)
 
 
-def calculate_indices_of_substring_errors : (train : TrainData) -> (f:(a: String) -> (b: String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(str(x[0]))(str(x[1])), y[0]) for x, y in data ]"
+def __internal__calculate_indices_of_substring_errors : (__internal__train : TrainData) -> (f:(a: String) -> (b: String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(str(x[0]))(str(x[1])), y[0]) for x, y in data ]"
 
 
-@multi_minimize_float(calculate_indices_of_substring_errors train synth, 1)
-def synth ( text :String) (target: String) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_indices_of_substring_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_indices_of_substring_errors __internal__train synth, 1)
+def synth ( text :String) (target: String) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in ?hole)

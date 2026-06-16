@@ -3,7 +3,7 @@
 #
 # Synthesis target: all_Bits_Set_In_The_Given_Range : Int -> Int -> Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> (x2:Int) -> Bool) : Float := native "float((0 if (f(4)(1)(2) == True) else 1) + (0 if (f(17)(2)(4) == True) else 1) + (0 if (f(39)(4)(6) == False) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) (l:Int) (r:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@minimize_float(
+    let mbpp_fitness : (f:(x0:Int) -> (x1:Int) -> (x2:Int) -> Bool) -> Float := fun f => native "float((0 if (f(4)(1)(2) == True) else 1) + (0 if (f(17)(2)(4) == True) else 1) + (0 if (f(39)(4)(6) == False) else 1))"
+    in mbpp_fitness synth)
+def synth (n:Int) (l:Int) (r:Int) : Bool := ?hole

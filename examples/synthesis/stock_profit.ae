@@ -15,7 +15,10 @@ inductive Trade
 + sell_idx (t:Trade) : Int
 
 # Price table for the array [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8].
-def price_at (i:Int) : Int :=
+# The fitness helpers below carry the `__internal__` prefix so they stay out of
+# the synthesizer's grammar (it should build a `Trade`, not call the scorer),
+# replacing the old `let price_at = unit in let profit = unit` shadowing.
+def __internal__price_at (i:Int) : Int :=
     if i = 0  then 3
     else if i = 1  then 1
     else if i = 2  then 4
@@ -30,13 +33,13 @@ def price_at (i:Int) : Int :=
     else 8;
 
 # Match-based profit calculation: extract buy and sell indices via pattern matching.
-def profit (t:Trade) : Int :=
+def __internal__profit (t:Trade) : Int :=
     match t with
-    | mk b s => price_at s - price_at b;
+    | mk b s => __internal__price_at s - __internal__price_at b;
 
 # Synthesize a valid trade that maximizes profit.
-@maximize_int(profit trade_hole)
-def trade_hole : {t:Trade | buy_idx t < sell_idx t} := (let price_at := unit in let profit := unit in ?hole)
+@maximize_int(__internal__profit trade_hole)
+def trade_hole : {t:Trade | buy_idx t < sell_idx t} := ?hole
 
 # Verification: the known optimal trade (buy=1, sell=5) should type-check.
 def trade_known : {t:Trade | buy_idx t < sell_idx t} := .mk 1 5

@@ -9,8 +9,8 @@ def List_get (l:(Array Int)) (i: Int) : Int := native "l[i]"
 
 #PSB2 functions
 
-def train: TrainData := extract_train_data (load_dataset "basement" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "basement" 200 200)
 
 @allow_recursion
-@multi_minimize_float(calculate_basement_errors train synth, 1)
-def synth (nums: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_basement_errors := unit in ?hole)
+@multi_minimize_float(calculate_basement_errors __internal__train synth, 1)
+def synth (nums: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let calculate_basement_errors := unit in ?hole)

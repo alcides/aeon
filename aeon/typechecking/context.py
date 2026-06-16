@@ -169,10 +169,20 @@ class TypingContext:
         synthesis consumer wants — the set of variables actually reachable at a
         program point — and it is what lets a shadowing ``let`` hide an outer
         binding from the synthesizer's grammar.
+
+        Bindings whose name carries the ``__internal__`` prefix are excluded
+        unconditionally. Those names are compiler-internal — the nullary
+        fitness/cluster/example functions lifted from optimization decorators,
+        and benchmark oracle/reference helpers a program keeps out of the
+        synthesizer's vocabulary by naming them ``__internal__<context>_<role>``
+        (a "context-dependent name"). They are never part of the synthesizable
+        vocabulary, so filtering them here keeps every synthesis consumer
+        consistent rather than each one re-deriving the rule (several already
+        special-cased the ``__internal__`` prefix individually).
         """
         latest: dict[str, tuple[Name, Type]] = {}
         for e in self.entries:
-            if isinstance(e, VariableBinder):
+            if isinstance(e, VariableBinder) and not e.name.name.startswith("__internal__"):
                 latest[e.name.name] = (e.name, e.type)
         return list(latest.values())
 

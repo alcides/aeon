@@ -24,26 +24,26 @@ inductive StreetObject
 + class_of (o:StreetObject) : ObjectClass
 
 # Positive examples (vehicles to blur).
-def car1   : StreetObject := .mk .oc_car
-def car2   : StreetObject := .mk .oc_car
-def truck1 : StreetObject := .mk .oc_truck
-def bike1  : StreetObject := .mk .oc_motorbike
+def __internal__car1   : StreetObject := .mk .oc_car
+def __internal__car2   : StreetObject := .mk .oc_car
+def __internal__truck1 : StreetObject := .mk .oc_truck
+def __internal__bike1  : StreetObject := .mk .oc_motorbike
 
 # Negative examples (non-vehicles to keep).
-def ped1  : StreetObject := .mk .oc_pedestrian
-def ped2  : StreetObject := .mk .oc_pedestrian
-def sign1 : StreetObject := .mk .oc_sign
+def __internal__ped1  : StreetObject := .mk .oc_pedestrian
+def __internal__ped2  : StreetObject := .mk .oc_pedestrian
+def __internal__sign1 : StreetObject := .mk .oc_sign
 
-def cost_pos (b:Bool) : Int := if b then 0 else 1
-def cost_neg (b:Bool) : Int := if b then 1 else 0
+def __internal__cost_pos (b:Bool) : Int := if b then 0 else 1
+def __internal__cost_neg (b:Bool) : Int := if b then 1 else 0
 
 @minimize_int(
-    cost_pos (blur_plate car1)
-  + cost_pos (blur_plate car2)
-  + cost_pos (blur_plate truck1)
-  + cost_pos (blur_plate bike1)
-  + cost_neg (blur_plate ped1)
-  + cost_neg (blur_plate ped2)
-  + cost_neg (blur_plate sign1)
+    __internal__cost_pos (blur_plate __internal__car1)
+  + __internal__cost_pos (blur_plate __internal__car2)
+  + __internal__cost_pos (blur_plate __internal__truck1)
+  + __internal__cost_pos (blur_plate __internal__bike1)
+  + __internal__cost_neg (blur_plate __internal__ped1)
+  + __internal__cost_neg (blur_plate __internal__ped2)
+  + __internal__cost_neg (blur_plate __internal__sign1)
 )
-def blur_plate (o:StreetObject) : Bool := (let car1 := unit in let car2 := unit in let truck1 := unit in let bike1 := unit in let ped1 := unit in let ped2 := unit in let sign1 := unit in let mk := unit in let cost_pos := unit in let cost_neg := unit in ?hole)
+def blur_plate (o:StreetObject) : Bool := ?hole

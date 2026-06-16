@@ -23,10 +23,10 @@ def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter := fun c1 => 
 def Counter_values : (c:Counter) -> (Array Int) := fun c => native "list(c.values())"
 def Tuple : (a:Int) -> (b:Int) -> (Array Int) := fun a => fun b => native "[a,b]"
 
-def train: TrainData := extract_train_data (load_dataset "mastermind" 200 200)
+def __internal__train: TrainData := extract_train_data (load_dataset "mastermind" 200 200)
 
-def calculate_mastermind_errors : (train : TrainData) -> (f:(a: String) -> (b:String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]"
+def __internal__calculate_mastermind_errors : (__internal__train : TrainData) -> (f:(a: String) -> (b:String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]"
 
 
-@multi_minimize_float(calculate_mastermind_errors train synth, 2)
-def synth ( code : String) (guess: String ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_mastermind_errors := unit in let train := unit in ?hole)
+@multi_minimize_float(__internal__calculate_mastermind_errors __internal__train synth, 2)
+def synth ( code : String) (guess: String ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in ?hole)

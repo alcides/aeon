@@ -27,15 +27,18 @@ inductive Archery
 + t39 (s:Archery) : Int
 + t40 (s:Archery) : Int
 
-def abs (x:Int) : {r:Int | r >= 0} := if x >= 0 then x else 0 - x;
+# The scoring helpers carry the `__internal__` prefix so they stay out of the
+# synthesizer's grammar (it should build an `Archery`, not call the scorer),
+# replacing the old `let score = unit in let abs = unit` shadowing.
+def __internal__abs (x:Int) : {r:Int | r >= 0} := if x >= 0 then x else 0 - x;
 
-def score (s:Archery) : Int :=
+def __internal__score (s:Archery) : Int :=
     match s with
     | mk a b c d e f =>
         a * 16 + b * 17 + c * 23 + d * 24 + e * 39 + f * 40;
 
-@minimize_int(abs (100 - score archery_hole))
+@minimize_int(__internal__abs (100 - __internal__score archery_hole))
 def archery_hole : {s:Archery |
     (t16 s >= 0) && (t17 s >= 0) && (t23 s >= 0) &&
     (t24 s >= 0) && (t39 s >= 0) && (t40 s >= 0)
-} := (let score := unit in let abs := unit in ?hole)
+} := ?hole
