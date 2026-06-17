@@ -8,6 +8,7 @@ Beyond refinement types, Aeon also offers:
 
 - **Python FFI** — call any Python function natively, giving you access to the full Python ecosystem.
 - **Program synthesis** — leave `?hole`s in your program and let Aeon fill them in using genetic programming, enumerative search, or LLM-backed synthesis.
+- **Export to Python** — `--export=fun` prints a stand-alone, pure-Python version of any function (with its dependencies and FFI bundled, and holes synthesized first).
 - **A growing standard library** — modules for `List`, `Math`, `Array`, `Image`, and more.
 
 Aeon is implemented as a Python interpreter and is under active development.

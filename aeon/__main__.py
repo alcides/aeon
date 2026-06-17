@@ -138,6 +138,14 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument(
+        "--export",
+        type=str,
+        default=None,
+        metavar="FUN_NAME",
+        help="Print a stand-alone, pure-Python version of the named function to stdout",
+    )
+
+    parser.add_argument(
         "--doc",
         action="store_true",
         help="Generate HTML documentation from the source file",
@@ -234,9 +242,10 @@ def main() -> None:
         synthesis_ui=select_synthesis_ui(),
         synthesis_budget=args.budget,
         timings=args.timings,
-        # Property evaluation splices the call into the program's main slot, so
-        # the slot must exist — force the main hole even if --no-main was passed.
-        no_main=args.no_main and not run_tests,
+        # ``--export`` forces ``no_main`` (no synthesis hole in main), but
+        # property evaluation splices the call into the program's main slot, so
+        # under ``--test`` the slot must exist even if ``--no-main`` was passed.
+        no_main=(args.no_main or bool(getattr(args, "export", None))) and not run_tests,
         synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
     )
     driver = AeonDriver(cfg)
@@ -264,6 +273,17 @@ def main() -> None:
     errors = driver.parse(args.filename)
 
     match errors:
+        case [] if args.export:
+            from aeon.backend.python_export import PythonExportError
+
+            try:
+                print(driver.export(args.export))
+            except SynthesisNotSuccessful:
+                print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
+                sys.exit(2)
+            except PythonExportError as e:
+                print(f">>> Export error: {e}", file=sys.stderr)
+                sys.exit(2)
         case []:
             if run_tests:
                 if not driver.has_tests():
