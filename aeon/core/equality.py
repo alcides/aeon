@@ -36,6 +36,29 @@ from aeon.core.types import (
 )
 
 
+def _rename_liquid_parallel(lq: LiquidTerm, mapping: dict[Name, Name]) -> LiquidTerm:
+    """Simultaneously rename every variable occurrence in a liquid term.
+
+    Each ``LiquidVar``/application head is rewritten according to ``mapping`` in a
+    single pass, so a name introduced by one entry is never re-substituted by
+    another (unlike chained single-variable substitutions). This is what makes
+    ``canonicalize_type`` safe to apply to an already-canonical type.
+    """
+    match lq:
+        case LiquidVar(name):
+            return LiquidVar(mapping.get(name, name))
+        case LiquidApp(fun, args):
+            return LiquidApp(mapping.get(fun, fun), [_rename_liquid_parallel(a, mapping) for a in args])
+        case LiquidHornApplication(fun, argtypes, loc):
+            return LiquidHornApplication(
+                mapping.get(fun, fun),
+                [(_rename_liquid_parallel(a, mapping), t) for (a, t) in argtypes],
+                loc=loc,
+            )
+        case _:
+            return lq
+
+
 def core_liquid_equality(lq1: LiquidTerm, lq2: LiquidTerm, rename_left: dict[Name, Name] | None = None) -> bool:
     "Equality of liquid terms up to alpha renaming"
     rename_left = rename_left or {}
@@ -100,8 +123,6 @@ def canonicalize_type(
     (and so compare equal / hash equal via the structural ``__eq__``/``__hash__``
     in ``aeon/core/types.py``).
     """
-    from aeon.core.substitutions import substitution_in_liquid
-
     rename = rename or {}
     if counter is None:
         counter = [0]
@@ -110,11 +131,6 @@ def canonicalize_type(
         n = Name(f"__c{counter[0]}__", 0)
         counter[0] += 1
         return n
-
-    def rename_liquid(lq: LiquidTerm, mapping: dict[Name, Name]) -> LiquidTerm:
-        for old, new in mapping.items():
-            lq = substitution_in_liquid(lq, LiquidVar(new), old)
-        return lq
 
     match ty:
         case TypeVar(name):
@@ -129,10 +145,17 @@ def canonicalize_type(
         case RefinedType(name, inner, refinement):
             c_inner = canonicalize_type(inner, rename, counter)
             fresh_name = fresh()
-            # Rebind the refinement's own bound variable to the fresh canonical name,
-            # then rewrite any free variables captured by enclosing binders.
-            c_ref = substitution_in_liquid(refinement, LiquidVar(fresh_name), name)
-            c_ref = rename_liquid(c_ref, rename)
+            # Rebind the refinement's own bound variable to the fresh canonical name
+            # and rewrite free variables captured by enclosing binders in a single
+            # parallel pass. The bound variable shadows any enclosing binder of the
+            # same name, so its mapping takes precedence. Doing this as two sequential
+            # substitutions is unsafe when the type is re-canonicalized: a freshly
+            # allocated ``__cN__`` name can collide with a stale ``__cN__`` key still
+            # present in ``rename``, chaining the bound variable through an unrelated
+            # rewrite and producing a refinement whose binder and body disagree.
+            body_map = {old: new for (old, new) in rename.items() if old != name}
+            body_map[name] = fresh_name
+            c_ref = _rename_liquid_parallel(refinement, body_map)
             assert isinstance(c_inner, (TypeConstructor, TypeVar))
             return RefinedType(fresh_name, c_inner, c_ref)
         case TypePolymorphism(name, kind, body):
