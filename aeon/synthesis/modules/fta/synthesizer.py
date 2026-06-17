@@ -50,12 +50,25 @@ from aeon.backend.evaluator import eval as aeon_eval
 from aeon.core.substitutions import substitution
 from dataclasses import dataclass, field
 
-from aeon.core.terms import Application, Literal, Term, TypeApplication, Var
+from aeon.core.terms import (
+    Abstraction,
+    Application,
+    If,
+    Let,
+    Literal,
+    Rec,
+    RefinementAbstraction,
+    Term,
+    TypeAbstraction,
+    TypeApplication,
+    Var,
+)
 from aeon.core.types import (
     AbstractionType,
     Type,
     TypeConstructor,
     TypePolymorphism,
+    t_bool,
     t_float,
     t_int,
 )
@@ -87,22 +100,24 @@ class _MonoComponent:
     arg_keys: tuple[str, ...]
     ret_key: str
     type_apps: tuple[Type, ...] = field(default_factory=tuple)
+    is_if: bool = False  # build If(cond, then, else) rather than an application
 
 
 class FTASynthesizer(Synthesizer):
     """Component-based synthesis by building a finite tree automaton bottom-up
     and extracting the smallest spec-consistent program from it."""
 
-    # Evaluation context, stashed in ``computations`` (called before ``synthesize``)
-    # so example-driven runs can evaluate candidates on concrete @example/@csv inputs.
+    # Stashed in ``computations`` (called before ``synthesize``) so example-driven
+    # runs can evaluate candidate sub-programs on concrete @example/@csv inputs,
+    # in the program's context (top-level defs / library primitives in scope).
     _ectx: Optional[EvaluationContext] = None
+    _replace: Optional[Callable[[Term], Term]] = None
 
     def computations(self, primitives: Any) -> dict[str, Any]:
         # The automaton keys states by each candidate's concrete *output*; the
         # pool computes it (a ``@cluster`` featuriser, else the candidate value).
-        # Stash the evaluation context so example-driven runs can observe a
-        # candidate's output on concrete @example/@csv inputs (paper-faithful FTA).
         self._ectx = primitives.ectx
+        self._replace = primitives.replace
         return {"output": primitives.feature}
 
     def __init__(
@@ -113,6 +128,8 @@ class FTASynthesizer(Synthesizer):
         rounds: int = 3,
         combo_cap: int = 4096,
         max_bank: int = 512,
+        if_branch_cap: int = 20,
+        enable_if: bool = True,
     ):
         self.seed = seed
         self.int_lo = int_lo
@@ -120,18 +137,28 @@ class FTASynthesizer(Synthesizer):
         self.rounds = rounds
         self.combo_cap = combo_cap
         self.max_bank = max_bank
+        # Whether to offer the conditional builder. Off avoids its cost/overfit
+        # when the target is known to be branch-free.
+        self.enable_if = enable_if
+        # then/else branches are restricted to the smallest reps so the
+        # conditional builder enumerates a bounded space (the condition pool is
+        # already tiny after observational compression).
+        self.if_branch_cap = if_branch_cap
 
     # -- components -----------------------------------------------------------
 
     def _collect(
-        self, ctx: TypingContext, inst_types: set[TypeConstructor]
+        self, ctx: TypingContext, inst_types: set[TypeConstructor], fun_name: Name
     ) -> tuple[dict[str, list[_MonoComponent]], dict[str, list[Var]]]:
         """Index the in-scope bindings as builders (functions/constructors, the
         automaton's ranked alphabet) and atoms (nullary leaves). Polymorphic
         operators (``+``/``*``/… : ``∀a. a -> a -> a``) are monomorphized at
-        ``inst_types`` so the search can build functions of the input over them."""
+        ``inst_types`` so the search can build functions of the input over them.
+        The function being synthesized (no self-recursion) and the ``native``
+        intrinsics are skipped, as in the grammar backend."""
         from aeon.synthesis.grammar.grammar_generation import monomorphize_poly_type
 
+        skip_names = {fun_name.name, "native", "native_import", "print"}
         builders: dict[str, list[_MonoComponent]] = {}
         atoms: dict[str, list[Var]] = {}
 
@@ -148,6 +175,8 @@ class FTASynthesizer(Synthesizer):
                 atoms.setdefault(ret_key, []).append(Var(name))
 
         for name, ty in ctx.concrete_vars():
+            if name.name in skip_names:
+                continue
             if isinstance(ty, TypePolymorphism):
                 for body, type_apps in monomorphize_poly_type(ty, inst_types):
                     arg_types, ret = _peel(body)
@@ -170,29 +199,41 @@ class FTASynthesizer(Synthesizer):
         arguments are drawn from the current bank (per argument type). Enumerates
         the full product when small, else samples ``combo_cap`` of it."""
         pools: list[list[Term]] = []
-        for ak in comp.arg_keys:
+        for idx, ak in enumerate(comp.arg_keys):
             pool = bank.get(ak, [])
             if not pool:
                 return []
+            if comp.is_if and idx >= 1:
+                # then/else: only the smallest representatives, so the product
+                # stays bounded and is enumerated exhaustively (below).
+                pool = sorted(pool, key=_term_size)[: self.if_branch_cap]
             pools.append(pool)
         total = 1
         for p in pools:
             total *= len(p)
+        # The conditional's space is already bounded by the branch cap, so
+        # enumerate it fully rather than sampling.
+        cap = max(self.combo_cap, total) if comp.is_if else self.combo_cap
+
+        def build(choice: tuple[Term, ...]) -> Term:
+            # If(cond, then, else) for the conditional builder; otherwise an
+            # application of the (possibly type-applied) component to its args.
+            if comp.is_if:
+                return If(choice[0], choice[1], choice[2])
+            term = self._head(comp)
+            for a in choice:
+                term = Application(term, a)
+            return term
+
         out: list[Term] = []
-        if total <= self.combo_cap:
+        if total <= cap:
             for choice in itertools.product(*pools):
                 if time.time() >= deadline:
                     break
-                term = self._head(comp)
-                for a in choice:
-                    term = Application(term, a)
-                out.append(term)
+                out.append(build(choice))
         else:
-            for _ in range(self.combo_cap):
-                term = self._head(comp)
-                for p in pools:
-                    term = Application(term, rnd.choice(p))
-                out.append(term)
+            for _ in range(cap):
+                out.append(build(tuple(rnd.choice(p) for p in pools)))
         return out
 
     # -- entry point ----------------------------------------------------------
@@ -214,17 +255,32 @@ class FTASynthesizer(Synthesizer):
         rnd = random.Random(self.seed)
         ui.register(None, None, 0, True)
 
-        # Instantiate polymorphic operators at the numeric base types plus the
-        # goal type, so the bottom-up search can build arithmetic over the input.
-        inst_types: set[TypeConstructor] = {t_int, t_float}
+        # Instantiate polymorphic operators at the goal type (so arithmetic over
+        # the input can be built) plus Int (for indices/literals). Keeping the set
+        # minimal avoids a blow-up of useless cross-type builders.
+        inst_types: set[TypeConstructor] = {t_int}
         _gret = _peel(type)[1]
         if isinstance(_gret, TypeConstructor):
             inst_types.add(_gret)
 
-        builders, atoms = self._collect(ctx, inst_types)
+        builders, atoms = self._collect(ctx, inst_types, fun_name)
         goal_key = base_key(type)
         int_key = base_key(t_int)
         float_key = base_key(t_float)
+        bool_key = base_key(t_bool)
+
+        # A conditional builder: If(cond:Bool, then:T, else:T) -> T at the goal
+        # type. Lets the FTA synthesize branching programs (the paper's switch /
+        # fallback), keyed by the branch's observed output like any other state.
+        # Prepended so it is explored first each round, before the wide arithmetic.
+        if self.enable_if:
+            builders.setdefault(goal_key, []).insert(
+                0, _MonoComponent(Name("if", 0), (bool_key, goal_key, goal_key), goal_key, is_if=True)
+            )
+        else:
+            # Without the conditional, Bool sub-programs have no consumer at the
+            # goal type, so don't waste the search generating them.
+            builders.pop(bool_key, None)
 
         # Example-driven (paper-faithful) mode: when @example/@csv give concrete
         # input/output rows for this function, key each state by the candidate's
@@ -242,6 +298,28 @@ class FTASynthesizer(Synthesizer):
             and len(arg_binders) == len(rows[0]) - 1
             and all(_example_literal(0.0, ty) is not None for _n, ty in arg_binders)
         )
+
+        # In example mode, restrict the symbolic operators to the additive and
+        # boolean ones (data-completion formulas are SUM/MINUS/COUNT-shaped);
+        # dropping ``*``/``/``/``%``/… curbs the bottom-up combinatorial blow-up
+        # while leaving the table primitives (alphabetic names) untouched.
+        if example_mode:
+            allowed_ops = {"+", "-", "==", "!=", "<", "<=", ">", ">=", "&&", "||", "-->", "!"}
+            for _k in list(builders.keys()):
+                builders[_k] = [
+                    c
+                    for c in builders[_k]
+                    if not (_is_symbolic_op(c.name.pretty()) and c.name.pretty() not in allowed_ops)
+                ]
+        # Evaluation context with the program's top-level defs (library
+        # primitives, table globals) bound once, so candidate sub-programs are
+        # observed in the program's context. Falls back to the bare context.
+        eval_ectx = self._ectx
+        if example_mode and self._replace is not None and self._ectx is not None:
+            try:
+                eval_ectx = _bound_context(self._replace(Literal(0, t_int)), self._ectx)
+            except Exception:
+                eval_ectx = self._ectx
 
         # The automaton, materialised at the goal type: each observational state
         # keeps its smallest representative; the spec is checked once per state.
@@ -279,8 +357,10 @@ class FTASynthesizer(Synthesizer):
                     lit = _example_literal(v, ty)
                     assert lit is not None  # guaranteed by example_mode
                     sub = substitution(sub, lit, nm)
+                # Evaluate in the program's context (top-level defs pre-bound in
+                # eval_ectx), the param already substituted away.
                 try:
-                    outs.append(_freeze(aeon_eval(sub, self._ectx)))
+                    outs.append(_freeze(aeon_eval(sub, eval_ectx)))
                 except Exception:
                     return ("term", str(term))
             return ("vec", tuple(outs))
@@ -303,12 +383,13 @@ class FTASynthesizer(Synthesizer):
             if cur is None or _term_size(term) < _term_size(cur):
                 rep[st] = term
             if st not in validated:
-                ok = _safe(validate, rep[st])
                 if example_mode:
-                    # The examples are part of the spec: a candidate must both
-                    # type-check (refinement, if any) and reproduce every example.
-                    ok = ok and matches_examples(st)
-                validated[st] = ok
+                    # Examples are the spec: check the cheap observational match
+                    # first, and only run the (SMT-backed) type check on the few
+                    # candidates that already reproduce every example.
+                    validated[st] = matches_examples(st) and _safe(validate, rep[st])
+                else:
+                    validated[st] = _safe(validate, rep[st])
             if validated[st]:
                 cand = rep[st]
                 if best is None or _term_size(cand) < _term_size(best):
@@ -316,10 +397,34 @@ class FTASynthesizer(Synthesizer):
                     ui.register(best, [0.0], time.time() - start, True)
 
         bank: dict[str, list[Term]] = {}
-        seen: dict[str, set[str]] = {}
+        seen: dict[str, set[str]] = {}  # non-example mode: syntactic dedup
+        bank_states: dict[str, dict[Any, Term]] = {}  # example mode: state -> rep
 
         def add_bank(key: str, terms: list[Term]) -> None:
             b = bank.setdefault(key, [])
+            if example_mode:
+                # Observational-equivalence compression at *every* type (the FTA's
+                # core idea): keep one representative per distinct output vector
+                # over the examples, so the version space stays small. Sub-terms
+                # that cannot be evaluated cannot be a state, so are dropped.
+                states = bank_states.setdefault(key, {})
+                for t in terms:
+                    if time.time() >= deadline:
+                        break
+                    st = obs_examples(t)
+                    if st[0] != "vec":
+                        continue
+                    vec = st[1]
+                    prev = states.get(vec)
+                    if prev is None:
+                        states[vec] = t
+                        b.append(t)
+                    elif _term_size(t) < _term_size(prev):
+                        states[vec] = t
+                        b[b.index(prev)] = t
+                    if key == goal_key:
+                        insert_goal(t)
+                return
             s = seen.setdefault(key, set())
             for t in terms:
                 k = str(t)
@@ -332,11 +437,13 @@ class FTASynthesizer(Synthesizer):
             if len(b) > self.max_bank:
                 del b[self.max_bank :]
 
-        # Round 0 -- nullary leaves: the in-scope atoms, plus the integer range
-        # (available both as candidate answers and as numeric arguments).
+        # Round 0 -- nullary leaves: the in-scope atoms, plus a literal range.
+        # In example mode a small set suffices (and stays observationally compact);
+        # constant-refinement mode needs the wide range to hit a specific value.
+        int_lits: Any = (0, 1, 2) if example_mode else range(self.int_lo, self.int_hi)
         for key, vs in atoms.items():
             add_bank(key, list(vs))
-        add_bank(int_key, [Literal(v, t_int) for v in range(self.int_lo, self.int_hi)])
+        add_bank(int_key, [Literal(v, t_int) for v in int_lits])
         add_bank(float_key, [Literal(v, t_float) for v in (0.0, 1.0, 2.0, -1.0)])
 
         # Rounds 1..k -- apply every transition to the bank built so far, growing
@@ -431,6 +538,43 @@ def _example_rows(metadata: Metadata, fun_name: Name) -> list[list[float]]:
         if isinstance(entry, dict) and getattr(key, "name", None) == fun_name.name:
             return [list(r) for r in (entry.get("training_data") or [])]
     return []
+
+
+def _is_symbolic_op(name: str) -> bool:
+    """Whether ``name`` is a symbolic operator (``+``, ``*``, ``&&``) rather than
+    an alphanumeric identifier (a library primitive like ``prev_nonmissing``)."""
+    return bool(name) and all(not c.isalnum() and c != "_" for c in name)
+
+
+def _bound_context(prog: Term, ectx):
+    """Bind every top-level ``let``/``rec`` of ``prog`` into ``ectx`` *once*,
+    mirroring the evaluator, so candidate sub-programs can then be evaluated in
+    a single step (with library primitives and table globals already in scope)
+    instead of re-binding the whole chain per evaluation."""
+    cur = prog
+    e = ectx
+    while isinstance(cur, (Let, Rec)):
+        if isinstance(cur, Let):
+            e = e.with_var(cur.var_name, aeon_eval(cur.var_value, e))
+        else:
+            inner = cur.var_value
+            while isinstance(inner, (TypeAbstraction, RefinementAbstraction)):
+                inner = inner.body
+            if isinstance(inner, Abstraction):
+                # Recursion-tying closure (as in the evaluator): captures the
+                # context at this binding plus itself.
+                def make(fun: Abstraction, base, name: Name):
+                    def v(x):
+                        return aeon_eval(fun.body, base.with_var(name, v).with_var(fun.var_name, x))
+
+                    return v
+
+                e = e.with_var(cur.var_name, make(inner, e, cur.var_name))
+            else:
+                rec_ctx = e.with_var(cur.var_name, None)
+                e = rec_ctx.with_var(cur.var_name, aeon_eval(cur.var_value, rec_ctx))
+        cur = cur.body
+    return e
 
 
 def _example_literal(value: float, ty: Type) -> Optional[Term]:

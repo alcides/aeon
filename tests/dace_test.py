@@ -58,3 +58,25 @@ def test_table_pipeline_runs(example: str, expected: str):
 def test_fta_completes_cell(example: str, value: str):
     out = _run(["--no-main", "-s", "fta", "--budget", "10", f"examples/synthesis/dace/synth/{example}.ae"])
     assert f"?hole: {value}" in out, out[-1500:]
+
+
+# Programming-by-example completions: the paper's actual mechanism. Each hole is
+# a *function of the missing-cell index* specified by @example input/output rows;
+# the FTA keys states by the output vector over those examples and composes the
+# table primitives (and a conditional) to reproduce them. ``token`` is a
+# primitive the intended completion must use, evidence it reads the table.
+@pytest.mark.parametrize(
+    "example,token",
+    [
+        ("locf", "prev_nonmissing"),  # 2.1: previous non-missing + 1
+        ("prev_sameid", "prev_sameid"),  # 2.2: previous with same id (relational)
+        ("turns", "down_first_nonzero"),  # 2.3: up to value 1, then down to non-zero
+        ("group_count", "group_count"),  # 2.4: COUNT of the group
+        ("fallback", "if"),  # 2.5: previous else next (conditional)
+    ],
+)
+def test_fta_pbe_completion(example: str, token: str):
+    out = _run(["--no-main", "-s", "fta", "--budget", "60", f"examples/synthesis/dace/pbe/{example}.ae"])
+    assert "no spec-consistent program" not in out, out[-1500:]
+    assert "?hole:" in out, out[-1500:]
+    assert token in out, out[-1500:]

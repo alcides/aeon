@@ -1,0 +1,15 @@
+# DACE Example 2.3 ("making turns"): go up column B to the row whose value is 1,
+# then turn and go down column C to the first non-zero value. The FTA composes
+# the two directional path primitives.
+#
+#   uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/turns.ae
+#
+import Dace (Column, up_find_value, down_first_nonzero)
+
+def colB : Column := native "[0, 1, 0, 0, 1, 0]";
+def colC : Column := native "[0, 5, 0, 7, 0, 9]";
+
+@example(fill 2 = 5)
+@example(fill 3 = 5)
+@example(fill 5 = 9)
+def fill (i:Int) : Int := ?hole;

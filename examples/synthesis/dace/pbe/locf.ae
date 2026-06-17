@@ -1,0 +1,17 @@
+# DACE Example 2.1 (Wang, Dillig & Singh, "Synthesis of Data Completion Scripts
+# using Finite Tree Automata", OOPSLA 2017): last-observation-carried-forward
+# imputation -- replace a missing cell with the previous non-missing value,
+# incremented by 1. The FTA composes prev_nonmissing with the sketch's `+ 1`.
+#
+#   uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/locf.ae
+#
+import Dace (Column, prev_nonmissing)
+
+def col1 : Column := native "[2, 2, -999999, -999999, 8, -999999, 5, -999999, -999999, 10]";
+
+@example(fill 2 = 3)
+@example(fill 3 = 3)
+@example(fill 5 = 9)
+@example(fill 7 = 6)
+@example(fill 8 = 6)
+def fill (i:Int) : Int := ?hole;

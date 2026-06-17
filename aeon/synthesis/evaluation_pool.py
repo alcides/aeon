@@ -18,7 +18,7 @@ per-task timeout kills and replaces its worker.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import multiprocess as mp
 
@@ -47,10 +47,17 @@ class EvalPrimitives:
     """The building blocks a backend composes its requested computations from,
     without ever touching the raw evaluation context directly."""
 
-    def __init__(self, evaluators: list[Callable[[Term], float]], ectx: EvaluationContext, feature_fun: Name):
+    def __init__(
+        self,
+        evaluators: list[Callable[[Term], float]],
+        ectx: EvaluationContext,
+        feature_fun: Name,
+        replace: Optional[Callable[[Term], Term]] = None,
+    ):
         self._evaluators = evaluators
         self._ectx = ectx
         self._feature_fun = feature_fun
+        self._replace = replace
 
     @property
     def ectx(self) -> EvaluationContext:
@@ -58,6 +65,14 @@ class EvalPrimitives:
         backend can evaluate candidate sub-programs directly — e.g. the FTA
         backend observing a candidate's output on concrete example inputs."""
         return self._ectx
+
+    @property
+    def replace(self) -> Optional[Callable[[Term], Term]]:
+        """Fills the hole in the whole program with a given term. Exposed so a
+        backend can evaluate a sub-program *in the program's context* (with all
+        top-level definitions, e.g. library primitives, in scope) by replacing
+        the program tail — see the FTA backend's example-driven observation."""
+        return self._replace
 
     @property
     def fitness(self) -> Computation:
