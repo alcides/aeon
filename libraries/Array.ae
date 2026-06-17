@@ -80,3 +80,30 @@ def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (arr: (Array a)) : b :=
 # Sum of an Int array.
 def sum (arr: (Array Int)) : Int :=
     native "sum(arr)"
+
+
+# The array [0, 1, ..., n-1].
+def range (n: {p:Int | p >= 0}) : {r:(Array Int) | size r = n} :=
+    native "list(range(n))"
+
+
+# Build an ``h`` x ``w`` Int matrix (array of rows) from a per-cell function
+# ``cell row col``. O(h*w), one native pass -- the efficient way to materialise
+# a grid in-language (element-by-element ``cons`` would be quadratic per row).
+def build_grid
+    (h: {p:Int | p >= 0})
+    (w: {p:Int | p >= 0})
+    (cell: (r: Int) -> (col: Int) -> Int) :
+    {g:(Array (Array Int)) | size g = h} :=
+    native "[[cell(r)(c) for c in range(w)] for r in range(h)]"
+
+
+# Number of elements that are at least ``t``.
+def count_ge (arr: (Array Int)) (t: Int) : {n:Int | n >= 0 && n <= size arr} :=
+    native "sum(1 for x in arr if x >= t)"
+
+
+# Element-wise sum of two Int arrays, truncating to the shorter one:
+# ``zip_plus [1,2,3] [10,20] == [11, 22]``.
+def zip_plus (a: (Array Int)) (b: (Array Int)) : (Array Int) :=
+    native "[x + y for (x, y) in zip(a, b)]"

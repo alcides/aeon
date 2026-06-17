@@ -1,6 +1,14 @@
 open Color
+open Array
 
 type Image
+
+# Builds a black & white image from a 2D array (an array of equal-length rows of
+# ints): a nonzero cell is drawn black, a zero cell white. ``grid[r][c]`` is the
+# pixel at column c, row r (row 0 at the top). Handy for rendering an occupancy
+# grid / bitmap produced in-language.
+def from_grid (grid: (Array (Array Int))) : Image :=
+    native "__import__('aeon.bindings.image').bindings.image.Image_from_grid(grid)"
 
 # The image's height in pixels, as an uninterpreted measure. It carries the
 # size contracts of every operation (`mk`, `crop`, `resize`, ...) through the

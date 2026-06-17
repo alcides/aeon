@@ -40,6 +40,26 @@ def Image_mk(w, h, c):
 
 
 @curried
+def Image_from_grid(grid):
+    """Render a 2D array (a list of equal-length rows of ints) to a black & white
+    RGB image: a nonzero cell becomes black, a zero cell white. ``grid[r][c]`` is
+    the pixel at column c, row r (row 0 at the top). An empty grid yields a 1x1
+    white image so the result is always a valid PIL image."""
+    h = len(grid)
+    w = len(grid[0]) if h else 0
+    if h == 0 or w == 0:
+        return Image.new("RGB", (1, 1), (255, 255, 255))
+    black, white = (0, 0, 0), (255, 255, 255)
+    im = Image.new("RGB", (w, h), white)
+    px = im.load()
+    for r, row in enumerate(grid):
+        for c, cell in enumerate(row):
+            if cell:
+                px[c, r] = black
+    return im
+
+
+@curried
 def Image_open(path):
     """Open an image and normalize to RGB so Color / pixel helpers stay consistent."""
     im = Image.open(path)
