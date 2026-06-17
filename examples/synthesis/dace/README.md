@@ -67,14 +67,40 @@ The FTA backend enumerates candidate cells bottom-up, keys each by its value
 (observational equivalence), checks the refinement once per value, and extracts
 the smallest accepted cell.
 
+## Programming-by-example completions (`pbe/`)
+
+These reproduce the **five motivating examples of Section 2** with the paper's
+*actual* mechanism — **programming-by-example**. The hole is a *function of the
+missing-cell index*; the spec is concrete input/output rows given with
+`@example` (or `@csv_data`). The FTA keys each automaton state by the candidate's
+**output vector over the examples** (observational equivalence over the example
+set, exactly as in the paper) and composes the DACE primitives — and a
+conditional — to reproduce them. The table is a `Column` global (a native list
+with a `-999999` missing sentinel); the primitives live in
+[`libraries/Dace.ae`](../../../libraries/Dace.ae).
+
+```bash
+uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/<file>.ae
+```
+
+| File | Paper example | Synthesised completion |
+|---|---|---|
+| `pbe/locf.ae` | 2.1 LOCF +1 | `1 + prev_nonmissing(col1, i)` |
+| `pbe/prev_sameid.ae` | 2.2 previous with same id (relational) | `prev_sameid(ids, vals, i)` |
+| `pbe/turns.ae` | 2.3 up to value 1, then down to first non-zero | `down_first_nonzero(colC, up_find_value(colB, i, 1))` |
+| `pbe/group_count.ae` | 2.4 group total = COUNT | `group_count(groups, i)` |
+| `pbe/fallback.ae` | 2.5 previous else next (switch) | `if … then prev_nonmissing(col, i) else next_nonmissing(col, i)` |
+
+The conditional (Example 2.5) uses the FTA's `If` builder; the others are
+branch-free. Covered by `tests/dace_test.py::test_fta_pbe_completion`.
+
 ## Scope / faithfulness
 
 - The worked pipelines are *executed*, not synthesised — they demonstrate the
-  DSL exactly. Synthesising a full table-transformation **script** from I/O
-  examples would need example-based (PBE) acceptance over opaque table values,
-  which the current FTA backend (refinement/`validate` acceptance) does not do;
-  the `synth/` tasks therefore complete at the **cell** level, where the spec is
-  SMT-decidable. Adding example-based acceptance to the FTA backend (so it can
-  synthesise whole pipelines over `Table`) is a natural follow-up.
-- Run on demand; not swept by `run_examples.sh`. A subset is covered by
-  `tests/dace_test.py`.
+  DSL exactly. The `synth/` tasks complete at the **cell** level against a
+  refinement spec. The `pbe/` tasks complete a **function of the cell index**
+  from input/output **examples** — the paper's programming-by-example mechanism,
+  now supported by the FTA backend (it keys states by the output vector over the
+  examples). Cell extraction over the relational `Table` value (rather than a
+  numeric `Column`) is the remaining step toward whole-pipeline PBE.
+- Run on demand; not swept by `run_examples.sh`. Covered by `tests/dace_test.py`.

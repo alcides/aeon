@@ -1,0 +1,9 @@
+# Example-driven FTA fed by @csv_data -- a CSV is just a bunch of input/output
+# examples (last column is the expected output). The FTA observes each
+# candidate's outputs over the rows and accepts the function reproducing them,
+# synthesizing `x + x` (i.e. 2 * x) for this data.
+#
+#   uv run python -m aeon --no-main -s fta --budget 25 examples/synthesis/fta/input_from_csv.ae
+#
+@csv_data("1.0,2.0\n3.0,6.0\n4.0,8.0")
+def double (x:Float) : Float := ?hole;

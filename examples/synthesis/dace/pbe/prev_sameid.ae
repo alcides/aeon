@@ -1,0 +1,15 @@
+# DACE Example 2.2: replace a missing value with the previous non-missing value
+# that shares the same id (a relational predicate over cells).
+#
+#   uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/prev_sameid.ae
+#
+import Dace (Column, prev_sameid)
+
+def ids  : Column := native "[1, 2, 1, 1, 2, 2, 1]";
+def vals : Column := native "[10, 20, -999999, -999999, 50, -999999, -999999]";
+
+@example(fill 2 = 10)
+@example(fill 3 = 10)
+@example(fill 5 = 50)
+@example(fill 6 = 10)
+def fill (i:Int) : Int := ?hole;

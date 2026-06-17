@@ -1,0 +1,49 @@
+# DACE: a minimal table/column DSL for reproducing the data-completion examples
+# of Wang, Dillig & Singh, "Synthesis of Data Completion Scripts using Finite
+# Tree Automata" (OOPSLA 2017), with aeon's FTA backend.
+#
+# A table is modeled as one or more Column globals (native Python lists); a
+# missing cell holds the sentinel -999999. A synthesis task fills a missing cell
+# given its index: the hole is `def fill (i:Int) : Int := ?` and the FTA composes
+# the navigation/relational primitives below (plus arithmetic and conditionals)
+# to reproduce the @example / @csv input-output rows.
+
+type Column
+
+# Value of cell i.
+def col_at (c: Column) (i: Int) : Int := native "c[i]";
+
+# Whether a value is the missing-cell sentinel.
+def is_missing (x: Int) : Bool := native "x == -999999";
+
+# Previous non-missing value strictly before index i (sentinel if none).
+def prev_nonmissing (c: Column) (i: Int) : Int :=
+    native "next((c[j] for j in range(i - 1, -1, -1) if c[j] != -999999), -999999)";
+
+# Next non-missing value strictly after index i (sentinel if none).
+def next_nonmissing (c: Column) (i: Int) : Int :=
+    native "next((c[j] for j in range(i + 1, len(c)) if c[j] != -999999), -999999)";
+
+# Whether any non-missing cell exists strictly before index i.
+def has_prev_nonmissing (c: Column) (i: Int) : Bool :=
+    native "any(c[j] != -999999 for j in range(0, i))";
+
+# Previous non-missing value (before i) in `vals` whose row has the same id as
+# row i in `ids` (sentinel if none) -- a relational predicate over cells.
+def prev_sameid (ids: Column) (vals: Column) (i: Int) : Int :=
+    native "next((vals[j] for j in range(i - 1, -1, -1) if ids[j] == ids[i] and vals[j] != -999999), -999999)";
+
+# Index of the nearest cell at-or-above i whose value is v (-1 if none) -- the
+# upward spatial path of Example 2.3.
+def up_find_value (c: Column) (i: Int) (v: Int) : Int :=
+    native "next((j for j in range(i, -1, -1) if c[j] == v), -1)";
+
+# First non-zero value at-or-below index k (0 if none) -- the downward path that
+# Example 2.3 turns onto after the upward search.
+def down_first_nonzero (c: Column) (k: Int) : Int :=
+    native "next((c[j] for j in range(k, len(c)) if c[j] != 0), 0)";
+
+# Number of entries sharing row i's group id -- the COUNT-over-a-range of
+# Example 2.4.
+def group_count (groups: Column) (i: Int) : Int :=
+    native "sum(1 for g in groups if g == groups[i])";

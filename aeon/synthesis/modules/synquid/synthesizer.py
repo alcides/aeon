@@ -50,8 +50,6 @@ class SynquidSynthesizer(Synthesizer):
         def skip(name: Name) -> bool:
             if name == fun_name:
                 return not is_recursion_allowed
-            elif name.name.startswith("__internal__"):
-                return True
             elif name.name in ["native", "native_import", "print"]:
                 return True
             else:

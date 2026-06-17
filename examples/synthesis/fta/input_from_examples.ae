@@ -1,0 +1,13 @@
+# Example-driven FTA (paper-faithful PBE), Wang/Dillig/Singh OOPSLA 2017.
+#
+# Unlike a constant refinement hole, here the answer must be a FUNCTION OF THE
+# INPUT. @example gives concrete input/output rows; the FTA keys each automaton
+# state by the candidate's output *vector* across those inputs and accepts the
+# one matching the expected outputs -- so it synthesizes `x + 1`.
+#
+#   uv run python -m aeon --no-main -s fta --budget 25 examples/synthesis/fta/input_from_examples.ae
+#
+@example(succ 1 = 2)
+@example(succ 4 = 5)
+@example(succ 9 = 10)
+def succ (x:Int) : Int := ?hole;
