@@ -46,6 +46,29 @@ def test_solves_conjoined_refinement():
     assert isinstance(t, Literal) and t.value == 5
 
 
+# Example-driven mode (paper-faithful PBE): @example / @csv give concrete
+# input/output rows; FTA keys states by the candidate's output vector over those
+# inputs and accepts the one matching the expected outputs. With distinct
+# expected outputs, no constant can satisfy them, so any solution must read the
+# input -- i.e. FTA synthesizes a function *of its input*.
+
+
+def test_solves_input_dependent_from_examples():
+    t = _solve(
+        "@example(succ 1 = 2)\n@example(succ 4 = 5)\n@example(succ 9 = 10)\ndef succ (x:Int) : Int := ?hole;",
+        budget=25.0,
+    )
+    assert t is not None and not isinstance(t, Literal)  # reads x (it's x + 1)
+
+
+def test_solves_input_dependent_from_csv():
+    t = _solve(
+        '@csv_data("1.0,2.0\\n3.0,6.0\\n4.0,8.0")\ndef double (x:Float) : Float := ?hole;',
+        budget=25.0,
+    )
+    assert t is not None and not isinstance(t, Literal)  # reads x (it's x + x)
+
+
 def test_cli_runs_fta_backend():
     # End-to-end through the real driver: the hole is filled with the value that
     # satisfies the refinement, with no objective decorator required.

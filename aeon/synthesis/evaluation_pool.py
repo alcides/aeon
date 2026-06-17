@@ -53,6 +53,13 @@ class EvalPrimitives:
         self._feature_fun = feature_fun
 
     @property
+    def ectx(self) -> EvaluationContext:
+        """The evaluation context (prelude + program bindings). Exposed so a
+        backend can evaluate candidate sub-programs directly — e.g. the FTA
+        backend observing a candidate's output on concrete example inputs."""
+        return self._ectx
+
+    @property
     def fitness(self) -> Computation:
         """Evaluate the objective(s): the list of per-goal distances."""
         evaluators = self._evaluators
