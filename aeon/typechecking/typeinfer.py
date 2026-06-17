@@ -240,6 +240,19 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
                     if not (isinstance(fun_ty, AbstractionType) and is_first_order_function(fun_ty)):
                         return False
                 return all(heads_declarable(a) for a in args)
+            case LiquidVar(name):
+                # A leaf variable is only safe to embed if it will be declared
+                # on the SMT side. Both ``implication_constraint`` (let-chain
+                # binders) and ``entailment_context`` (context binders) declare
+                # value binders of base/refined type but *skip polymorphic
+                # binders* — notably nullary inductive constructor constants such
+                # as ``List_nil : forall a. {l: List a | len l = 0}``. Embedding
+                # one would leave it undeclared in Z3 (a ``KeyError`` at
+                # translation time), so bail out of this optional selfification.
+                var_ty = ctx.type_of(name)
+                if isinstance(var_ty, (TypePolymorphism, RefinementPolymorphism)):
+                    return False
+                return True
             case _:
                 return True
 

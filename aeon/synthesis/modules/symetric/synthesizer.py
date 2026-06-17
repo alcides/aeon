@@ -62,10 +62,13 @@ from typing import Any, Callable, Optional
 
 from loguru import logger
 
-from aeon.core.terms import Application, Literal, Term, Var
+from aeon.core.terms import Application, Literal, Term, TypeApplication, Var
+from aeon.core.instantiation import type_substitution
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
 from aeon.core.types import (
     AbstractionType,
     RefinedType,
+    RefinementPolymorphism,
     Type,
     TypeConstructor,
     TypePolymorphism,
@@ -87,10 +90,18 @@ INF = float("inf")
 
 
 def base_key(ty: Type) -> str:
-    """A coarse, refinement-agnostic key identifying a type's base shape."""
+    """A refinement-agnostic key identifying a type's base shape.
+
+    Type arguments are included so that distinct instantiations of a parametric
+    type constructor get distinct keys (``List Chunk`` -> ``List<Chunk>`` vs
+    ``List Enemy`` -> ``List<Enemy>``). This keeps the bottom-up enumerator from
+    feeding, say, a ``List Chunk`` where a ``List Enemy`` is expected and lets
+    monomorphised constructors (see ``_monomorphise``) be keyed precisely."""
     while isinstance(ty, RefinedType):
         ty = ty.type
     if isinstance(ty, TypeConstructor):
+        if ty.args:
+            return f"{ty.name.name}<{','.join(base_key(a) for a in ty.args)}>"
         return ty.name.name
     if isinstance(ty, TypeVar):
         return ty.name.name
@@ -99,11 +110,18 @@ def base_key(ty: Type) -> str:
 
 @dataclass(frozen=True)
 class Component:
-    """A library function/constructor usable to build candidate terms."""
+    """A library function/constructor usable to build candidate terms.
+
+    ``type_args`` are the concrete types a *polymorphic* constructor is
+    instantiated at (in ``forall`` order); empty for ordinary monomorphic
+    bindings. They are emitted as leading ``TypeApplication``s when the term is
+    built (e.g. ``(List_cons)[Chunk] hd tl``)."""
 
     name: Name
     arg_keys: tuple[str, ...]
     ret_key: str
+    type_args: tuple[Type, ...] = ()
+    arg_types: tuple[Type, ...] = ()
 
     @property
     def is_recursive_in(self) -> Callable[[str], bool]:
@@ -118,6 +136,113 @@ def _peel(ty: Type) -> tuple[list[Type], Type]:
         args.append(cur.var_type)
         cur = cur.type
     return args, cur
+
+
+def _strip(ty: Type) -> Type:
+    """Peel surrounding refinements, exposing the bare base type."""
+    while isinstance(ty, RefinedType):
+        ty = ty.type
+    return ty
+
+
+def _has_typevar(ty: Type) -> bool:
+    ty = _strip(ty)
+    if isinstance(ty, TypeVar):
+        return True
+    if isinstance(ty, TypeConstructor):
+        return any(_has_typevar(a) for a in ty.args)
+    return False
+
+
+def _ground_parametric(ty: Type, out: list[TypeConstructor]) -> None:
+    """Collect every ground (type-variable-free) *parametric* constructor — one
+    with type arguments, e.g. ``List Chunk`` — appearing anywhere inside ``ty``.
+    These are the instantiations the bottom-up enumerator needs to be able to
+    build, so they drive demand-directed monomorphisation."""
+    ty = _strip(ty)
+    if isinstance(ty, AbstractionType):
+        _ground_parametric(ty.var_type, out)
+        _ground_parametric(ty.type, out)
+        return
+    if isinstance(ty, TypeConstructor):
+        for a in ty.args:
+            _ground_parametric(a, out)
+        if ty.args and not _has_typevar(ty):
+            out.append(ty)
+
+
+def _int_bounds(ty: Type, default_lo: int, default_hi: int) -> tuple[int, int]:
+    """Extract ``[lo, hi)`` integer bounds from a refined ``Int`` argument type,
+    e.g. ``{y:Int | y >= 3 && y <= 5}`` -> ``(3, 6)``. ``hi`` is exclusive (ready
+    for ``randrange``/``range``). Only literal comparisons against the refinement
+    variable are read; anything else (or a contradictory result) falls back to
+    the configured default range, so generation degrades gracefully rather than
+    excluding valid values. This is what lets symetric hit the narrow constant
+    bands that refined ADT constructors demand."""
+    if not isinstance(ty, RefinedType):
+        return default_lo, default_hi
+    if not (isinstance(ty.type, TypeConstructor) and ty.type.name.name == "Int"):
+        return default_lo, default_hi
+    var = ty.name
+    lo, hi = default_lo, default_hi
+
+    def walk(t: object) -> None:
+        nonlocal lo, hi
+        if not isinstance(t, LiquidApp) or len(t.args) != 2:
+            return
+        op = t.fun.name
+        if op == "&&":
+            walk(t.args[0])
+            walk(t.args[1])
+            return
+        a, b = t.args
+        # Normalise to ``var OP k`` (k a literal), flipping the operator when the
+        # literal is on the left.
+        if isinstance(a, LiquidVar) and a.name == var and isinstance(b, LiquidLiteralInt):
+            k, flip = b.value, False
+        elif isinstance(b, LiquidVar) and b.name == var and isinstance(a, LiquidLiteralInt):
+            k, flip = a.value, True
+        else:
+            return
+        if flip:
+            op = {">=": "<=", "<=": ">=", ">": "<", "<": ">"}.get(op, op)
+        if op == ">=":
+            lo = max(lo, k)
+        elif op == ">":
+            lo = max(lo, k + 1)
+        elif op == "<=":
+            hi = min(hi, k + 1)
+        elif op == "<":
+            hi = min(hi, k)
+        elif op == "==":
+            lo, hi = max(lo, k), min(hi, k + 1)
+
+    walk(ty.refinement)
+    return (lo, hi) if lo < hi else (default_lo, default_hi)
+
+
+def _match_type(pattern: Type, concrete: Type, tyvars: set[Name]) -> Optional[dict[Name, Type]]:
+    """Unify ``pattern`` (which may mention the bound ``tyvars``) against the
+    ground ``concrete`` type, returning the type-variable assignment or ``None``
+    when the heads are incompatible."""
+    p = _strip(pattern)
+    c = _strip(concrete)
+    if isinstance(p, TypeVar) and p.name in tyvars:
+        return {p.name: c}
+    if isinstance(p, TypeConstructor) and isinstance(c, TypeConstructor):
+        if p.name.name != c.name.name or len(p.args) != len(c.args):
+            return None
+        sub: dict[Name, Type] = {}
+        for pa, ca in zip(p.args, c.args):
+            s = _match_type(pa, ca, tyvars)
+            if s is None:
+                return None
+            for k, v in s.items():
+                if k in sub and base_key(sub[k]) != base_key(v):
+                    return None
+                sub[k] = v
+        return sub
+    return {} if base_key(p) == base_key(c) else None
 
 
 class SymetricSynthesizer(Synthesizer):
@@ -140,6 +265,7 @@ class SymetricSynthesizer(Synthesizer):
         max_arg_depth: int = 2,
         construct_fraction: float = 0.3,
         epsilon: float = 0.0,
+        sample_attempts: int = 4000,
     ):
         self.seed = seed
         self.int_lo = int_lo
@@ -153,28 +279,122 @@ class SymetricSynthesizer(Synthesizer):
         self.max_arg_depth = max_arg_depth
         self.construct_fraction = construct_fraction
         self.epsilon = epsilon
+        self.sample_attempts = sample_attempts
 
     # -- term construction ----------------------------------------------------
 
-    def _collect(self, ctx: TypingContext) -> tuple[dict[str, list[Component]], dict[str, list[Var]]]:
-        """Index the in-scope bindings as constructors (functions) and atoms."""
+    def _collect(self, ctx: TypingContext, goal_type: Type) -> tuple[dict[str, list[Component]], dict[str, list[Term]]]:
+        """Index the in-scope bindings as constructors (functions) and atoms.
+
+        Monomorphic bindings are taken directly. Polymorphic constructors (e.g.
+        ``List_cons : forall a. (hd:a) -> (tl:List a) -> List a``) are
+        *monomorphised on demand*: each ground parametric type the program needs
+        — ``List Chunk``, ``List Enemy``, … gathered from the goal and from every
+        builder's argument/result types — is matched against each polymorphic
+        constructor's result, and a type-instantiated ``Component`` is emitted
+        for every match. Instantiating a constructor can itself demand new
+        parametric types (its arguments), so this runs to a fixpoint."""
         builders: dict[str, list[Component]] = {}
-        atoms: dict[str, list[Var]] = {}
+        atoms: dict[str, list[Term]] = {}
+        polys: list[tuple[Name, list[Name], list[Type], Type]] = []
+        demands: list[TypeConstructor] = []
+        _ground_parametric(goal_type, demands)
+
         for name, ty in ctx.concrete_vars():
-            if isinstance(ty, TypePolymorphism):
-                continue  # recursors / polymorphic library functions
+            if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+                tyvars, body = self._peel_foralls(ty)
+                if tyvars is None:
+                    continue  # refinement-polymorphic: cannot instantiate with a type
+                arg_types, ret = _peel(body)
+                if any(isinstance(a, (AbstractionType, TypePolymorphism)) for a in arg_types):
+                    continue  # no higher-order arguments
+                if isinstance(_strip(ret), (AbstractionType, TypePolymorphism)):
+                    continue
+                # Only constructors whose result is a parametric type carrying
+                # the bound variables can be driven by concrete demands.
+                if isinstance(_strip(ret), TypeConstructor):
+                    polys.append((name, tyvars, arg_types, ret))
+                continue
             arg_types, ret = _peel(ty)
             if any(isinstance(a, (AbstractionType, TypePolymorphism)) for a in arg_types):
                 continue  # no higher-order arguments
             if isinstance(ret, (AbstractionType, TypePolymorphism)):
                 continue
+            for a in arg_types:
+                _ground_parametric(a, demands)
+            _ground_parametric(ret, demands)
             ret_key = base_key(ret)
             if arg_types:
-                comp = Component(name, tuple(base_key(a) for a in arg_types), ret_key)
+                comp = Component(name, tuple(base_key(a) for a in arg_types), ret_key, (), tuple(arg_types))
                 builders.setdefault(ret_key, []).append(comp)
             else:
                 atoms.setdefault(ret_key, []).append(Var(name))
+
+        self._monomorphise(polys, demands, builders, atoms)
         return builders, atoms
+
+    @staticmethod
+    def _peel_foralls(ty: Type) -> tuple[Optional[list[Name]], Type]:
+        """Peel ``forall`` type binders, returning their names (in declaration
+        order) and the body. Returns ``(None, ty)`` if a refinement-polymorphic
+        binder is found, which cannot be instantiated with a type."""
+        tyvars: list[Name] = []
+        cur = ty
+        while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
+            if isinstance(cur, RefinementPolymorphism):
+                return None, ty
+            tyvars.append(cur.name)
+            cur = cur.body
+        return tyvars, cur
+
+    def _monomorphise(
+        self,
+        polys: list[tuple[Name, list[Name], list[Type], Type]],
+        demands: list[TypeConstructor],
+        builders: dict[str, list[Component]],
+        atoms: dict[str, list[Term]],
+    ) -> None:
+        """Instantiate polymorphic constructors against the demanded ground
+        parametric types, to a fixpoint (each instantiation may demand more)."""
+        worklist = list(demands)
+        seen: set[str] = set()
+        while worklist:
+            demand = worklist.pop()
+            dkey = base_key(demand)
+            if dkey in seen:
+                continue
+            seen.add(dkey)
+            for name, tyvars, arg_types, ret in polys:
+                sub = _match_type(ret, demand, set(tyvars))
+                if sub is None or any(tv not in sub for tv in tyvars):
+                    continue
+                inst_args = [self._apply_sub(a, sub) for a in arg_types]
+                type_args = tuple(sub[tv] for tv in tyvars)
+                arg_keys = tuple(base_key(a) for a in inst_args)
+                comp = Component(name, arg_keys, dkey, type_args, tuple(inst_args))
+                if inst_args:
+                    if comp not in builders.setdefault(dkey, []):
+                        builders[dkey].append(comp)
+                    for a in inst_args:
+                        _ground_parametric(a, worklist)
+                else:
+                    atom = self._comp_head(comp)
+                    if str(atom) not in {str(t) for t in atoms.get(dkey, [])}:
+                        atoms.setdefault(dkey, []).append(atom)
+
+    @staticmethod
+    def _apply_sub(ty: Type, sub: dict[Name, Type]) -> Type:
+        for alpha, beta in sub.items():
+            ty = type_substitution(ty, alpha, beta)
+        return ty
+
+    def _comp_head(self, comp: Component) -> Term:
+        """The head term of a component: its ``Var`` wrapped in the leading
+        ``TypeApplication``s that instantiate a polymorphic constructor."""
+        term: Term = Var(comp.name)
+        for ta in comp.type_args:
+            term = TypeApplication(term, ta)
+        return term
 
     def _gen(self, key: str, depth: int, rnd: random.Random) -> Optional[Term]:
         """Sample a well-typed term of base type ``key`` (or None if impossible)."""
@@ -198,10 +418,22 @@ class SymetricSynthesizer(Synthesizer):
             return rnd.choice(atoms)
         return self._apply(rnd.choice(builders), depth, rnd)
 
+    def _int_arg_type(self, comp: Component, idx: int) -> Optional[Type]:
+        """The refined type of ``comp``'s ``idx``-th argument when it is an
+        ``Int`` (so its bounds can steer literal generation), else ``None``."""
+        if idx < len(comp.arg_types) and comp.arg_keys[idx] == base_key(t_int):
+            return comp.arg_types[idx]
+        return None
+
+    def _sample_int(self, ty: Optional[Type], rnd: random.Random) -> Term:
+        lo, hi = _int_bounds(ty, self.int_lo, self.int_hi) if ty is not None else (self.int_lo, self.int_hi)
+        return Literal(rnd.randrange(lo, hi), t_int)
+
     def _apply(self, comp: Component, depth: int, rnd: random.Random) -> Optional[Term]:
-        term: Term = Var(comp.name)
-        for ak in comp.arg_keys:
-            arg = self._gen(ak, depth - 1, rnd)
+        term: Term = self._comp_head(comp)
+        for idx, ak in enumerate(comp.arg_keys):
+            ity = self._int_arg_type(comp, idx)
+            arg = self._sample_int(ity, rnd) if ity is not None else self._gen(ak, depth - 1, rnd)
             if arg is None:
                 return None
             term = Application(term, arg)
@@ -213,12 +445,22 @@ class SymetricSynthesizer(Synthesizer):
         """A coarse, evenly-spaced grid of integer constants. Enumerating the
         full range for every numeric argument explodes combinatorially; the grid
         covers the space, and repair tunes constants off it."""
-        lo, hi = self.int_lo, self.int_hi
+        return self._grid_over(self.int_lo, self.int_hi)
+
+    def _grid_over(self, lo: int, hi: int) -> list[int]:
+        """An evenly-spaced grid of at most ``grid_size`` integers in ``[lo, hi)``."""
         n = max(1, min(self.grid_size, hi - lo))
         if n == 1:
             return [lo]
         step = (hi - 1 - lo) / (n - 1)
         return sorted({lo + round(i * step) for i in range(n)})
+
+    def _int_grid_for(self, ty: Optional[Type]) -> list[Term]:
+        """Integer-literal pool for a (possibly refined) ``Int`` argument, drawn
+        from the argument's own ``[lo, hi)`` range so bounded fields are filled
+        with valid constants."""
+        lo, hi = _int_bounds(ty, self.int_lo, self.int_hi) if ty is not None else (self.int_lo, self.int_hi)
+        return [Literal(v, t_int) for v in self._grid_over(lo, hi)]
 
     @staticmethod
     def _vectorize(value: object) -> Optional[tuple[float, ...]]:
@@ -304,8 +546,15 @@ class SymetricSynthesizer(Synthesizer):
         Enumerates the full product when small, otherwise samples ``cap``."""
         int_key = base_key(t_int)
         pools: list[list[Term]] = []
-        for ak in comp.arg_keys:
-            pool = ints if ak == int_key else bank.get(ak, [])
+        for idx, ak in enumerate(comp.arg_keys):
+            if ak == int_key:
+                ity = self._int_arg_type(comp, idx)
+                # Draw integers from the argument's refined range when known, so
+                # tightly-bounded constructor fields (``y in [3,5]``) are filled
+                # with valid constants instead of the wider default grid.
+                pool = self._int_grid_for(ity) if ity is not None else ints
+            else:
+                pool = bank.get(ak, [])
             if not pool:
                 return []
             pools.append(pool)
@@ -317,13 +566,13 @@ class SymetricSynthesizer(Synthesizer):
             import itertools
 
             for choice in itertools.product(*pools):
-                term: Term = Var(comp.name)
+                term: Term = self._comp_head(comp)
                 for a in choice:
                     term = Application(term, a)
                 out.append(term)
         else:
             for _ in range(self.combo_cap):
-                term = Var(comp.name)
+                term = self._comp_head(comp)
                 for p in pools:
                     term = Application(term, rnd.choice(p))
                 out.append(term)
@@ -425,12 +674,23 @@ class SymetricSynthesizer(Synthesizer):
         if isinstance(term, Literal):
             return base_key(term.type)
         head, _ = _decompose(term)
+        # Peel the leading type applications of an instantiated polymorphic
+        # constructor, recovering its concrete type arguments for a precise
+        # lookup (``List_cons@Chunk`` and ``List_cons@Enemy`` differ only here).
+        type_arg_keys: list[str] = []
+        while isinstance(head, TypeApplication):
+            type_arg_keys.append(base_key(head.type))
+            head = head.body
         if isinstance(head, Var):
+            if type_arg_keys:
+                comp = self._by_inst.get((head.name, tuple(type_arg_keys)))
+                if comp is not None:
+                    return comp.ret_key
             comp = self._by_name.get(head.name)
             if comp is not None:
                 return comp.ret_key
             for k, vs in self._atoms.items():
-                if any(v.name == head.name for v in vs):
+                if any(isinstance(v, Var) and v.name == head.name for v in vs):
                     return k
         return "?"
 
@@ -541,8 +801,17 @@ class SymetricSynthesizer(Synthesizer):
         goals = _goals_for(metadata, fun_name)
         minimize_flags = [g.minimize for g in goals for _ in range(g.length)]
 
-        self._builders, self._atoms = self._collect(ctx)
+        self._builders, self._atoms = self._collect(ctx, type)
         self._by_name: dict[Name, Component] = {c.name: c for cs in self._builders.values() for c in cs}
+        # Precise lookup for instantiated polymorphic constructors, keyed by
+        # ``(name, type-argument keys)`` so ``List_cons@Chunk`` and
+        # ``List_cons@Enemy`` stay distinct.
+        self._by_inst: dict[tuple[Name, tuple[str, ...]], Component] = {
+            (c.name, tuple(base_key(t) for t in c.type_args)): c
+            for cs in self._builders.values()
+            for c in cs
+            if c.type_args
+        }
         # Components grouped by argument signature, for operator-swap rewrites.
         self._sig_alts: dict[tuple[str, ...], list[Name]] = {}
         for cs in self._builders.values():
@@ -565,7 +834,12 @@ class SymetricSynthesizer(Synthesizer):
             if term is None:
                 return INF
             s = score(term)
-            if s < best_score:
+            # ``score`` ranks by *evaluation* (cheap, and lets repair cross
+            # type-invalid plateaus), but a candidate may evaluate well yet fail
+            # refinement type-checking — e.g. a ``Chunk`` whose ``y`` is outside
+            # ``[3,5]``. Only crown a new best once it actually validates, so the
+            # returned term is always well-typed while the search stays cheap.
+            if s < best_score and _safe(validate, term):
                 best_score = s
                 best_term = term
                 ui.register(term, [s], time.time() - start, True)
@@ -582,10 +856,28 @@ class SymetricSynthesizer(Synthesizer):
         construct_deadline = start + budget * self.construct_fraction
         bank = self._bottom_up(goal_key, bool(minimize_flags), consider, output_value, rnd, construct_deadline)
 
-        # A few random terms as a safety net if the bank missed the goal type.
-        while goal_key not in bank and not out_of_time() and time.time() < construct_deadline:
-            consider(self._gen(goal_key, rnd.randint(0, self.max_arg_depth + 1), rnd))
-            break
+        # Top-down sampling. The bottom-up bank only retains goal-typed terms
+        # (every candidate is scored by substitution into the hole), so on a
+        # *multi-sorted* goal — an ADT whose valid sub-terms have non-goal types,
+        # like ``Level`` built from ``List Chunk``/``List Enemy`` — it can come up
+        # empty. Monomorphised constructors let ``_gen`` assemble complete
+        # goal-typed terms directly; sample them to seed the bank (and the repair
+        # phase below) until we have a handful or the construct window closes.
+        seeds_needed = self.beam
+        attempts = 0
+        while (
+            len([t for t in bank.get(goal_key, [])]) < seeds_needed
+            and attempts < self.sample_attempts
+            and not out_of_time()
+            and time.time() < construct_deadline
+        ):
+            attempts += 1
+            cand = self._gen(goal_key, rnd.randint(1, self.max_arg_depth + 1), rnd)
+            if cand is None or consider(cand) == INF:
+                continue
+            slot = bank.setdefault(goal_key, [])
+            if str(cand) not in {str(t) for t in slot}:
+                slot.append(cand)
 
         if best_term is None:
             raise SynthesisNotSuccessful("symetric: could not build any valid candidate")

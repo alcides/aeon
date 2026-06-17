@@ -1,5 +1,17 @@
 # Super Mario Level Generator - Pure Aeon version
 # Uses inductive types with a parametric List for all collections.
+#
+# The level-generation logic below is pure Aeon. The one exception is the
+# `scene` featuriser used by `@cluster`: like the inverse-CSG benchmark's
+# `scene` (examples/synthesis/csg), it draws a candidate level into a 2D
+# occupancy matrix and flattens it to a 1D 0/1 vector (examples/synthesis/
+# mario_metric.py). The SyMetric backend (`-s symetric`) clusters candidates by
+# the distance between these vectors, so two levels are "close" when their drawn
+# layouts overlap -- the spatial feature a raw `Level` value lacks. Other
+# backends (gp, hc, 1p1, random_search, ...) ignore `@cluster` and just optimise
+# the @maximize/@minimize objectives.
+
+open Array
 
 # --- Generic list with length measure ---
 
@@ -123,9 +135,19 @@ def level_chunks (level: Level) : (List Chunk) :=
     match level with
     | mk_level cs es => cs;
 
-# --- Synthesis target ---
-# Maximize map coverage, minimize spatial conflicts between chunks.
+# --- Cluster feature (SyMetric) ---
+# Draw the level into a 2D occupancy matrix and flatten it to a 1D 0/1 vector,
+# the spatial feature `-s symetric` clusters candidates by. The drawing is
+# native (examples/synthesis/mario_metric.py); a full bitmap is too large to
+# build as an in-language expression, exactly as in the inverse-CSG benchmark.
+def scene (l: Level) : (Array Int) :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis'), __import__('mario_metric').scene_vector(l))[1]";
 
+# --- Synthesis target ---
+# Maximize map coverage, minimize spatial conflicts between chunks; cluster
+# candidates by their drawn scene.
+
+@cluster(scene new_map)
 @maximize_int(coverage (level_chunks new_map))
 @minimize_int(conflicts (level_chunks new_map))
-def new_map : Level := (let chunk_width := unit in let coverage := unit in let chunk_x := unit in let max := unit in let min := unit in let overlap := unit in let conflicts_one := unit in let conflicts := unit in let level_chunks := unit in ?hole)
+def new_map : Level := (let chunk_width := unit in let coverage := unit in let chunk_x := unit in let max := unit in let min := unit in let overlap := unit in let conflicts_one := unit in let conflicts := unit in let level_chunks := unit in let scene := unit in ?hole)
