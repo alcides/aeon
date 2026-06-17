@@ -75,3 +75,33 @@ def test_pbe_uppercase(tmp_path):
     )
     assert "def h" in out, out[-2000:]
     assert "upper" in out, out[-2000:]
+
+
+# --- Matrix / tensor domain (BLAZE Fig.17) --------------------------------
+
+
+def test_pbe_matrix_reshape(tmp_path):
+    """The paper's running matrix example: reshape a length-6 vector row-wise
+    into a 2x3 matrix (matrices encoded MATLAB-style as strings)."""
+    out = _run_pbe(
+        "open Matrix\n"
+        '@example(f "1,2,3,4,5,6" = "1,2,3;4,5,6")\n'
+        '@example(f "7,8,9,10,11,12" = "7,8,9;10,11,12")\n'
+        "def f (m: String) : String := (?hole : String);\n",
+        tmp_path,
+        budget=40,
+    )
+    assert "reshape" in out, out[-2000:]
+
+
+def test_pbe_matrix_fliplr(tmp_path):
+    """A single Fig.17 operator: flip a matrix left-right."""
+    out = _run_pbe(
+        "open Matrix\n"
+        '@example(f "1,2,3;4,5,6" = "3,2,1;6,5,4")\n'
+        '@example(f "7,8,9;10,11,12" = "9,8,7;12,11,10")\n'
+        "def f (m: String) : String := (?hole : String);\n",
+        tmp_path,
+        budget=30,
+    )
+    assert "fliplr" in out, out[-2000:]
