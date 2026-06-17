@@ -391,8 +391,8 @@ class SMTSynthesizer(Synthesizer):
             # Skip the function being synthesized (no self-recursion)
             if var_name == fun_name:
                 continue
-            # Skip internal/system names
-            if var_name.name.startswith("__internal__") or var_name.name in _SYSTEM_NAMES:
+            # Skip system names (fitness helpers are shadowed to Unit upstream)
+            if var_name.name in _SYSTEM_NAMES:
                 continue
             # Try to instantiate polymorphic functions
             effective_ty: Type = var_ty

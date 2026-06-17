@@ -17,6 +17,7 @@ from aeon.core.terms import Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
+from aeon.synthesis.scope import shadow_fitness_helpers
 from aeon.backend.evaluator import eval
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.identification import get_holes_info
@@ -227,6 +228,10 @@ def synthesize_holes(
 
         hole_name = holes_names[0]
         ty, tyctx = program_holes[hole_name]
+        assert isinstance(tyctx, TypingContext)
+        # Let-shadow the fitness/example/cluster helpers to Unit at the hole, so
+        # the synthesizer never builds them (replaces the __internal__ filter).
+        tyctx = shadow_fitness_helpers(tyctx, metadata)
         ui.start(tyctx, ectx, hole_name.name, ty, budget)
 
         replace = make_program(term, hole_name)
