@@ -1,0 +1,13 @@
+import String (concat, charAt, substr, replace, indexOfFrom, len, startsWith, endsWith);
+
+# Auto-generated from a SyGuS PBE-Strings benchmark (BLAZE/SYNGAR suite,
+# Wang, Dillig & Singh, POPL'18). Solve with:
+#   uv run python -m aeon --no-main -s afta examples/synthesis/afta/sygus/<file>.ae
+
+@example(f "University of Pennsylvania" "Phialdelphia, PA, USA" = "University of Pennsylvania, Phialdelphia, PA, USA")
+@example(f "UCLA" "Los Angeles, CA" = "UCLA, Los Angeles, CA, USA")
+@example(f "Cornell University" "Ithaca, New York, USA" = "Cornell University, Ithaca, New York, USA")
+@example(f "Penn" "Philadelphia, PA, USA" = "Penn, Philadelphia, PA, USA")
+@example(f "University of Maryland College Park" "College Park, MD" = "University of Maryland College Park, College Park, MD, USA")
+@example(f "University of Michigan" "Ann Arbor, MI, USA" = "University of Michigan, Ann Arbor, MI, USA")
+def f (col1: String) (col2: String) : String := (?hole : String);

@@ -1,0 +1,9 @@
+open String
+
+# PBE: extract the first 3 characters (area code) of a phone number.
+# A BLAZE/SYNGAR-style string-transformation benchmark: the spec is given as
+# input/output examples, synthesised under --synthesizer afta.
+@example(f "938-242-504" = "938")
+@example(f "308-916-545" = "308")
+@example(f "623-599-749" = "623")
+def f (name: String) : String := (?hole : String);

@@ -1,0 +1,13 @@
+import String (concat, charAt, substr, replace, indexOfFrom, len, startsWith, endsWith, contains, stringToInt, intToString);
+
+# Auto-generated from a SyGuS PBE-Strings benchmark (BLAZE/SYNGAR suite,
+# Wang, Dillig & Singh, POPL'18). Solve with:
+#   uv run python -m aeon --no-main -s afta examples/synthesis/afta/sygus/<file>.ae
+
+@example(f "Launa" "Withers" = "Withers Launa")
+@example(f "Lakenya" "Edison" = "Edison Lakenya")
+@example(f "Brendan" "Hage" = "Hage Brendan")
+@example(f "Bradford" "Lango" = "Lango Bradford")
+@example(f "Rudolf" "Akiyama" = "Akiyama Rudolf")
+@example(f "Lara" "Constable" = "Constable Lara")
+def f (firstname: String) (lastname: String) : String := (?hole : String);

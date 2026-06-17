@@ -1,0 +1,14 @@
+import String (concat, charAt, substr, replace, indexOfFrom, len, startsWith, endsWith, contains);
+
+# Auto-generated from a SyGuS PBE-Strings benchmark (BLAZE/SYNGAR suite,
+# Wang, Dillig & Singh, POPL'18). Solve with:
+#   uv run python -m aeon --no-main -s afta examples/synthesis/afta/sygus/<file>.ae
+
+@example(f "+106 769-858-438" = "858")
+@example(f "+83 973-757-831" = "757")
+@example(f "+62 647-787-775" = "787")
+@example(f "+172 027-507-632" = "507")
+@example(f "+72 001-050-856" = "050")
+@example(f "+95 310-537-401" = "537")
+@example(f "+6 775-969-238" = "969")
+def f (name: String) : String := (?hole : String);
