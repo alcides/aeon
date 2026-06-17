@@ -24,6 +24,7 @@ from aeon.core.liquid import (
 from itertools import product
 
 from aeon.core.equality import canonicalize_type
+from aeon.synthesis.scope import close_synthesis_context
 from aeon.core.substitutions import substitute_vartype, substitution_in_type, substitution_liquid_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, TypeApplication
 from aeon.core.terms import Var
@@ -954,6 +955,10 @@ def gen_grammar_nodes(
     if grammar_nodes is None:
         grammar_nodes = []
 
+    # Close the scope over the fitness/example/cluster helpers so they are not
+    # offered as building blocks (they remain in the program for evaluation).
+    ctx = close_synthesis_context(ctx, metadata)
+
     # Clean context to remove non-interpreted functions from the context.
     # Simple refinements like 0 < n && n < 10 are kept.
     ctx, _ = propagate_constants(ctx)
@@ -966,8 +971,6 @@ def gen_grammar_nodes(
     def skip(name: Name) -> bool:
         if name == synth_func_name:
             return not is_recursion_allowed
-        elif name.name.startswith("__internal__"):
-            return True
         elif name.name in ["native", "native_import", "print"]:
             return True
         else:

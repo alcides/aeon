@@ -74,7 +74,7 @@ def make_optimizer(
     """
     current_goals = metadata.get(fun.name, {}).get("goals", [])
     minimize_name = "minimize" if minimize else "maximize"
-    function_name = Name(f"__internal__{minimize_name}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
+    function_name = Name(f"_fitness_{minimize_name}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
     function = Definition(
         name=function_name,
         foralls=[],
@@ -145,7 +145,7 @@ def cluster(
     ``cluster`` metadata key. Other backends ignore it.
     """
     assert len(decorator.macro_args) == 1, "cluster decorator expects a single argument"
-    function_name = Name(f"__internal__cluster_{fun.name}", fresh_counter.fresh())
+    function_name = Name(f"_cluster_{fun.name}", fresh_counter.fresh())
     function = Definition(
         name=function_name,
         foralls=[],
@@ -317,7 +317,7 @@ def example(
     # (1) An internal nullary Bool binding holding the raw assertion. The
     # ``--test`` runner locates it by name and requires it to evaluate to True.
     current = metadata.get(fun.name, {}).get("examples", [])
-    test_name = Name(f"__internal__example_{fun.name}_{len(current)}", fresh_counter.fresh())
+    test_name = Name(f"_example_{fun.name}_{len(current)}", fresh_counter.fresh())
     test_fn = Definition(name=test_name, foralls=[], args=[], type=st_bool, body=assertion)
 
     try:

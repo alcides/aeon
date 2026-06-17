@@ -17,6 +17,7 @@ from aeon.core.terms import Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
+from aeon.synthesis.scope import close_synthesis_context
 from aeon.backend.evaluator import eval
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.identification import get_holes_info
@@ -227,6 +228,10 @@ def synthesize_holes(
 
         hole_name = holes_names[0]
         ty, tyctx = program_holes[hole_name]
+        # Search in a scope closed over the fitness/example/cluster helpers, so
+        # they never appear as building blocks (replaces the __internal__ filter).
+        assert isinstance(tyctx, TypingContext)
+        tyctx = close_synthesis_context(tyctx, metadata)
         ui.start(tyctx, ectx, hole_name.name, ty, budget)
 
         replace = make_program(term, hole_name)
