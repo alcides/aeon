@@ -4,6 +4,7 @@ from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
+from aeon.backend.python_export import export_function
 from aeon.core.bind import bind_ids
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
@@ -23,7 +24,7 @@ from aeon.sugar.program import Program, STerm
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
-from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
+from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI, SynthesisFormat
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_node
@@ -126,6 +127,17 @@ class AeonDriver:
         with RecordTime("Evaluation"):
             return eval(self.core, self.evaluation_ctx)
 
+    def export(self, fun_name: str) -> str:
+        """Return a stand-alone, pure-Python definition of ``fun_name``.
+
+        Synthesis runs first when the program still has holes, so an exported
+        function that contains a hole is rendered with the synthesized result
+        substituted in. Synthesis is silent here to keep stdout pure Python."""
+        if self.has_synth():
+            self._run_synthesis(SilentSynthesisUI())
+        with RecordTime("Export"):
+            return export_function(self.core, fun_name)
+
     def has_tests(self) -> bool:
         """Whether the program declares any ``@property`` functions or
         ``@example`` assertions."""
@@ -170,30 +182,34 @@ class AeonDriver:
             )
             return bool(self.incomplete_functions)
 
+    def _run_synthesis(self, ui: SynthesisUI) -> dict[Name, STerm]:
+        """Synthesize the open holes, substitute the results into ``self.core``
+        in place, and return the per-hole solutions lifted to sugar terms."""
+        synthesizer = make_synthesizer(self.cfg.synthesizer)
+        mapping: dict[Name, Term] = synthesize_holes(
+            self.typing_ctx,
+            self.evaluation_ctx,
+            self.core,
+            self.incomplete_functions,
+            self.metadata,
+            synthesizer,
+            self.cfg.synthesis_budget,
+            ui,
+        )
+
+        synthesized_core: Term = self.core
+        for k, v in mapping.items():
+            if v is not None:
+                synthesized_core = substitution(synthesized_core, v, k)
+        self.core = synthesized_core
+
+        return {k: lift(v) for k, v in mapping.items() if v is not None}
+
     def synth(self) -> STerm:
         with RecordTime("Synthesis"):
-            synthesizer = make_synthesizer(self.cfg.synthesizer)
-            mapping: dict[Name, Term] = synthesize_holes(
-                self.typing_ctx,
-                self.evaluation_ctx,
-                self.core,
-                self.incomplete_functions,
-                self.metadata,
-                synthesizer,
-                self.cfg.synthesis_budget,
-                self.cfg.synthesis_ui,
-            )
-
-            synthesized_core: Term = self.core
-            for k, v in mapping.items():
-                if v is not None:
-                    synthesized_core = substitution(synthesized_core, v, k)
-
-            sterm_mapping: dict[Name, STerm] = {k: lift(v) for k, v in mapping.items() if v is not None}
-
-            self.cfg.synthesis_ui.display_results(synthesized_core, sterm_mapping, self.cfg.synthesis_format)
-
-            return lift(synthesized_core)
+            sterm_mapping = self._run_synthesis(self.cfg.synthesis_ui)
+            self.cfg.synthesis_ui.display_results(self.core, sterm_mapping, self.cfg.synthesis_format)
+            return lift(self.core)
 
     def pretty_print(self, filename: str = None, should_be_fixed: bool = False) -> None:
         aeon_code = read_file(filename)

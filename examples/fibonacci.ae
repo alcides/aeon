@@ -1,0 +1,9 @@
+# Naive recursive Fibonacci. `fib` is unary, so Aeon auto-infers the
+# termination metric on `n`; in the `else` branch `n >= 2`, so both `n - 1`
+# and `n - 2` decrease and stay non-negative.
+@example(fib 0 = 0)
+@example(fib 1 = 1)
+@example(fib 10 = 55)
+def fib (n:Int) : Int := if n < 2 then n else (fib (n-1) + fib (n-2));
+
+def main (_:Int) : Unit := print (fib 10)

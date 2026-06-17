@@ -465,6 +465,7 @@ The generated files are gitignored; they are produced from source by the
 | --budget | Time budget for synthesis in seconds (default: 60)                          |
 | --format | Prints a pretty-printed version of the code to stdout                       |
 | --fix | Reformats the source file in place using the pretty printer                    |
+| --export | Prints a stand-alone, pure-Python version of the named function — see [Exporting to Python](#exporting-to-python) |
 | -lsp, --language-server-mode | Runs aeon in Language Server Protocol mode               |
 | --tcp | Specifies the TCP port or hostname:port for the LSP server                     |
 
@@ -608,3 +609,62 @@ def synth (x: Int) : Int := (let oracle := unit in (?hole : Int))
 Inside the hole, `oracle` now has type `Unit`, so the type-directed grammar
 never builds it into a candidate. This relies on ordinary lexical shadowing and
 replaces the former `@hide` / `@hide_types` decorators.
+
+## Exporting to Python
+
+The `--export=FUN_NAME` flag prints a stand-alone, pure-Python version of a top-level
+function to stdout. Aeon evaluates the function body to weak-head normal form (stripping
+the type-level machinery that elaboration introduces) and then renders it as Python,
+mirroring the choices the interpreter makes at runtime:
+
+- `native "..."` strings are **inlined verbatim**, so the FFI code runs directly;
+- operators, `if`/`then`/`else`, `let`, and currying are rendered to their Python equivalents.
+
+```bash
+uv run python -m aeon examples/fibonacci.ae --export=fib
+```
+
+```python
+def fib(n):
+    return (n if (n < 2) else ((fib)((n - 1)) + (fib)((n - 2))))
+```
+
+### Dependencies are bundled
+
+The export includes every top-level binding the function transitively depends on, and
+drops the rest — **except** `native_import` bindings, which are always kept (the `native`
+strings that use them reference the imported modules by name, which is invisible to the
+dependency analysis). Value bindings — constants, `native`, and `native_import` — are
+emitted as module-level assignments so references resolve to the value itself, exactly as
+the interpreter binds them. This makes FFI-backed exports runnable as-is:
+
+```bash
+uv run python -m aeon examples/ml/linear_regression.ae --export=predict
+```
+
+```python
+numpy = __import__('numpy')
+
+sklearn = __import__('sklearn')
+
+def predict(model):
+    return lambda x: (float(model.predict(numpy.array([[x]]))[0]))
+```
+
+### Holes are synthesized first
+
+If the program still contains a `?hole`, synthesis runs **before** the export, so an
+exported function whose body contains a hole is rendered with the synthesized result
+substituted in. Given:
+
+```
+def f (x:Int) : {y:Int | y = x} := ?h;
+```
+
+```bash
+uv run python -m aeon file.ae --export=f --budget 5
+```
+
+prints a fully concrete Python function — the hole is gone, replaced by whatever the
+synthesizer found to satisfy `y == x` (e.g. `x + (x - x)`). Synthesis output is kept
+off stdout so the printed result is pure Python.
