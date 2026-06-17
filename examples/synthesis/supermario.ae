@@ -1,5 +1,15 @@
 # Super Mario Level Generator - Pure Aeon version
 # Uses inductive types with a parametric List for all collections.
+#
+# This includes the `scene` featuriser used by `@cluster` (see near the bottom):
+# it draws a candidate level into a 2D occupancy matrix and projects it to a 1D
+# vector -- entirely in Aeon. The SyMetric backend (`-s symetric`) clusters
+# candidates by the distance between these vectors, so two levels are "close"
+# when their drawn layouts overlap -- the spatial feature a raw `Level` value
+# lacks. Other backends (gp, hc, 1p1, random_search, ...) ignore `@cluster` and
+# just optimise the @maximize/@minimize objectives.
+
+open Array
 
 # --- Generic list with length measure ---
 
@@ -123,9 +133,87 @@ def level_chunks (level: Level) : (List Chunk) :=
     match level with
     | mk_level cs es => cs;
 
-# --- Synthesis target ---
-# Maximize map coverage, minimize spatial conflicts between chunks.
+# --- Cluster feature (SyMetric): pure-Aeon scene rasteriser ---
+# Draw the level into a 2D occupancy matrix and project it onto a 1D vector by
+# summing each bin: scene[b] = number of filled cells in the b-th column bin.
+# This is the spatial feature `-s symetric` clusters candidates by. The result
+# is an `Array Int` (a flat native sequence) so the backend can vectorise it --
+# a `List` would carry constructor tags and not vectorise. Building the full 2D
+# bitmap would be quadratic per candidate, so we accumulate the bin sums
+# directly: drawn-into-a-matrix, downsized to one value per bin.
 
+# The x-axis is split into `scene_width` bins of `scene_step` columns each,
+# spanning level x in [0, scene_width * scene_step) -- the full [5, 95] range. A
+# coarse grid keeps the per-candidate cost low (the feature is evaluated
+# in-language, once per clustered candidate); raise scene_width for a finer
+# scene at the cost of speed.
+def scene_width : Int := 8
+def scene_step : Int := 12
+
+# 1 if the span [lo, lo + w) overlaps the bin [bx, bx + scene_step), else 0.
+# Using overlap (not point sampling) means no chunk falls between bins.
+def overlaps (bx: Int) (lo: Int) (w: Int) : Int :=
+    if bx < lo + w && lo < bx + scene_step then 1 else 0
+
+# X position of a box / enemy.
+def box_x (b: Box) : Int :=
+    match b with
+    | mk_box bt x y => x;
+def enemy_x (e: Enemy) : Int :=
+    match e with
+    | mk_enemy m x => x;
+
+# Boxes / enemies overlapping bin bx.
+def boxes_at (bs: (List Box)) (bx: Int) : Int :=
+    match bs with
+    | nil => 0
+    | cons b rest => overlaps bx (box_x b) 1 + boxes_at rest bx;
+def enemies_at (es: (List Enemy)) (bx: Int) : Int :=
+    match es with
+    | nil => 0
+    | cons e rest => overlaps bx (enemy_x e) 1 + enemies_at rest bx;
+
+# Filled cells a single chunk contributes to bin bx (its column footprint:
+# a platform/coin is one row, a hill/cannon/tube fills up from the ground).
+def chunk_cells_at (c: Chunk) (bx: Int) : Int :=
+    match c with
+    | gap_chunk x0 y wg wBefore wAfter =>
+        overlaps bx x0 wBefore + overlaps bx (x0 + wBefore + wg) wAfter
+    | platform_chunk x0 y w => overlaps bx x0 w
+    | hill_chunk x0 y w => (y + 1) * overlaps bx x0 w
+    | canon_chunk x0 y h wBefore wAfter => (h + 1) * overlaps bx x0 2
+    | tube_chunk x0 y h wBefore wAfter => (h + 1) * overlaps bx x0 2
+    | coin_chunk x0 y wc => overlaps bx x0 wc
+    | boxes_chunk bs => boxes_at bs bx;
+
+# Filled cells from all chunks in bin bx.
+def chunks_col (cs: (List Chunk)) (bx: Int) : Int :=
+    match cs with
+    | nil => 0
+    | cons c rest => chunk_cells_at c bx + chunks_col rest bx;
+
+# Extract the enemies of a level.
+def level_enemies (level: Level) : (List Enemy) :=
+    match level with
+    | mk_level cs es => es;
+
+# Total filled cells in bin bx (the 2D matrix projected onto that bin).
+def column_value (level: Level) (x: Int) : Int :=
+    chunks_col (level_chunks level) x + enemies_at (level_enemies level) x;
+
+# Build the sampled-column vector for the last n columns, recursing down on n.
+def scene_cols (level: Level) (n: Int) : (Array Int) :=
+    if n <= 0 then Array.new
+    else Array.cons (scene_cols level (n - 1)) (column_value level ((scene_width - n) * scene_step));
+
+# The level drawn as a 1D column-occupancy vector (length scene_width).
+def scene (level: Level) : (Array Int) := scene_cols level scene_width;
+
+# --- Synthesis target ---
+# Maximize map coverage, minimize spatial conflicts between chunks; cluster
+# candidates by their drawn scene.
+
+@cluster(scene new_map)
 @maximize_int(coverage (level_chunks new_map))
 @minimize_int(conflicts (level_chunks new_map))
-def new_map : Level := (let chunk_width := unit in let coverage := unit in let chunk_x := unit in let max := unit in let min := unit in let overlap := unit in let conflicts_one := unit in let conflicts := unit in let level_chunks := unit in ?hole)
+def new_map : Level := (let chunk_width := unit in let coverage := unit in let chunk_x := unit in let max := unit in let min := unit in let overlap := unit in let conflicts_one := unit in let conflicts := unit in let level_chunks := unit in let scene_width := unit in let scene_step := unit in let overlaps := unit in let box_x := unit in let enemy_x := unit in let boxes_at := unit in let enemies_at := unit in let chunk_cells_at := unit in let chunks_col := unit in let level_enemies := unit in let column_value := unit in let scene_cols := unit in let scene := unit in ?hole)
