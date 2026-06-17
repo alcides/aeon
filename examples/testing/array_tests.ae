@@ -74,7 +74,73 @@ def prop_set_overwrites (x : Int) (y : Int) : Bool :=
     both (assertEqual (get arr 0) y)
          (assertEqual (length arr) 1);
 
-# sum of a two-element array is the sum of its elements.
+# sum of a two-element array is the sum of its elements. Bounded to the 64-bit
+# domain of the NumPy-backed numeric ops (their speed comes from int64; values
+# beyond it wrap, as in NumPy / C).
 @property
-def prop_sum_two (x : Int) (y : Int) : Bool :=
+def prop_sum_two
+    (x : {v:Int | v >= 0 && v <= 1000000000})
+    (y : {v:Int | v >= 0 && v <= 1000000000}) : Bool :=
     assertEqual (sum (append (append new x) y)) (x + y);
+
+# ── NumPy-backed numeric ops ─────────────────────────────────────────────────
+
+# [3, 1, 2] reused across the unit tests below.
+@property(1)
+def test_dot : Bool := assertEqual (dot (append (append (append new 3) 1) 2) (append (append (append new 3) 1) 2)) 14;
+
+@property(1)
+def test_max_min_element : Bool :=
+    a := append (append (append new 3) 1) 2;
+    both (assertEqual (max_element a) 3) (assertEqual (min_element a) 1);
+
+@property(1)
+def test_index_of_extrema : Bool :=
+    a := append (append (append new 3) 1) 2;
+    both (assertEqual (index_of_max a) 0) (assertEqual (index_of_min a) 1);
+
+@property(1)
+def test_scale_offset : Bool :=
+    a := append (append (append new 3) 1) 2;
+    both (assertEqual (sum (scale a 2)) 12) (assertEqual (sum (offset a 1)) 9);
+
+@property(1)
+def test_prefix_sums : Bool :=
+    p := prefix_sums (append (append (append new 3) 1) 2);
+    both (assertEqual (get p 0) 3) (assertEqual (get p 2) 6);
+
+@property(1)
+def test_sorted_ascending : Bool :=
+    s := sorted_ascending (append (append (append new 3) 1) 2);
+    both (assertEqual (get s 0) 1) (assertEqual (get s 2) 3);
+
+@property(1)
+def test_counts : Bool :=
+    a := append (append (append new 3) 1) 2;
+    both (assertEqual (count_ge a 2) 2)
+         (both (assertEqual (count_le a 1) 1) (assertEqual (count_eq a 1) 1));
+
+@property(1)
+def test_zip_ops : Bool :=
+    a := append (append (append new 3) 1) 2;
+    both (assertEqual (sum (zip_minus a a)) 0) (assertEqual (sum (zip_mul a a)) 14);
+
+@property(1)
+def test_elementwise_extrema : Bool :=
+    a := append (append (append new 3) 1) 2;
+    both (assertEqual (sum (elementwise_max a a)) 6) (assertEqual (sum (elementwise_min a a)) 6);
+
+@property(1)
+def test_zeros_replicate : Bool :=
+    both (assertEqual (sum (zeros 4)) 0)
+         (both (assertEqual (length (zeros 4)) 4)
+               (both (assertEqual (sum (replicate 3 5)) 15) (assertEqual (length (replicate 3 5)) 3)));
+
+@property(1)
+def test_concat_take_drop : Bool :=
+    a := append (append (append new 3) 1) 2;
+    both (assertEqual (length (concat a a)) 6)
+         (both (assertEqual (sum (take a 2)) 4) (assertEqual (sum (drop a 1)) 3));
+
+@property(1)
+def test_mean : Bool := assertEqual (mean (replicate 4 5)) 5.0;

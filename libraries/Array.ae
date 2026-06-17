@@ -5,8 +5,16 @@
 #  * an abstract refinement ``p`` (Liquid Haskell-style ``data Array a <p>``)
 #    that every element of the array satisfies.
 #
-# The underlying storage is a Python list, so operations are O(1) for
-# indexed access and O(n) for prepend.
+# Storage is a plain Python list (O(1) indexed access, O(n) prepend), which is
+# what the structural, polymorphic operations below use. The *numeric* section
+# at the bottom is accelerated with NumPy (vectorised in ``aeon/bindings/
+# array.py``): those operations ingest the list, compute in NumPy, and hand back
+# a plain Python value, so the array stays a uniform list and the two halves
+# compose freely. Names favour readability over NumPy's terse spellings
+# (``index_of_max`` not ``argmax``, ``offset`` not ``add``), and the signatures
+# are refined with the size relationships and bounds NumPy leaves implicit.
+# The numeric ops compute over 64-bit integers (that is where the speed comes
+# from); values outside the int64 range wrap, exactly as in NumPy / C.
 type Array a forall <p : a -> Bool>
 
 def functools : Unit := native_import "functools"
@@ -77,11 +85,6 @@ def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (arr: (Array a)) : b :=
     native "functools.reduce(lambda acc, curr: f(curr)(acc), reversed(arr), z)"
 
 
-# Sum of an Int array.
-def sum (arr: (Array Int)) : Int :=
-    native "sum(arr)"
-
-
 # The array [0, 1, ..., n-1].
 def range (n: {p:Int | p >= 0}) : {r:(Array Int) | size r = n} :=
     native "list(range(n))"
@@ -98,12 +101,103 @@ def build_grid
     native "[[cell(r)(c) for c in range(w)] for r in range(h)]"
 
 
-# Number of elements that are at least ``t``.
+# ── Generic slicing / joining (structural; element type preserved) ──────────
+
+# Concatenate two arrays: the result holds all of ``xs`` then all of ``ys``.
+def concat (xs: (Array a)) (ys: (Array a)) : {r:(Array a) | size r = size xs + size ys} :=
+    native "xs + ys"
+
+# The first ``k`` elements.
+def take (arr: (Array a)) (k: {n:Int | n >= 0 && n <= size arr}) : {r:(Array a) | size r = k} :=
+    native "arr[:k]"
+
+# All but the first ``k`` elements.
+def drop (arr: (Array a)) (k: {n:Int | n >= 0 && n <= size arr}) : {r:(Array a) | size r = size arr - k} :=
+    native "arr[k:]"
+
+
+# ══ NumPy-accelerated numeric operations ════════════════════════════════════
+# Backed by ``aeon/bindings/array.py`` (vectorised NumPy); each returns a plain
+# Python value so the array stays an ordinary list and chains with the ops above.
+
+# --- Reductions: collapse an array to a single number ---
+
+# Sum of all elements.
+def sum (arr: (Array Int)) : Int :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_sum(arr)"
+
+# Inner (dot) product of two equal-length arrays.
+def dot (a: (Array Int)) (b: {bb:(Array Int) | size bb = size a}) : Int :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_dot(a, b)"
+
+# Arithmetic mean (requires a non-empty array).
+def mean (arr: {a:(Array Int) | size a > 0}) : Float :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_mean(arr)"
+
+# Largest / smallest element (require a non-empty array).
+def max_element (arr: {a:(Array Int) | size a > 0}) : Int :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_max_element(arr)"
+def min_element (arr: {a:(Array Int) | size a > 0}) : Int :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_min_element(arr)"
+
+# Index of the largest / smallest element -- provably a valid index.
+def index_of_max (arr: {a:(Array Int) | size a > 0}) : {n:Int | n >= 0 && n < size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_argmax(arr)"
+def index_of_min (arr: {a:(Array Int) | size a > 0}) : {n:Int | n >= 0 && n < size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_argmin(arr)"
+
+# --- Counting: how many elements satisfy a threshold (result is bounded) ---
+
 def count_ge (arr: (Array Int)) (t: Int) : {n:Int | n >= 0 && n <= size arr} :=
-    native "sum(1 for x in arr if x >= t)"
+    native "__import__('aeon.bindings.array').bindings.array.Array_count_ge(arr, t)"
+def count_le (arr: (Array Int)) (t: Int) : {n:Int | n >= 0 && n <= size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_count_le(arr, t)"
+def count_eq (arr: (Array Int)) (v: Int) : {n:Int | n >= 0 && n <= size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_count_eq(arr, v)"
 
+# --- Builders: make a numeric array of a known length ---
 
-# Element-wise sum of two Int arrays, truncating to the shorter one:
-# ``zip_plus [1,2,3] [10,20] == [11, 22]``.
-def zip_plus (a: (Array Int)) (b: (Array Int)) : (Array Int) :=
-    native "[x + y for (x, y) in zip(a, b)]"
+# ``n`` copies of 0.
+def zeros (n: {p:Int | p >= 0}) : {r:(Array Int) | size r = n} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_zeros(n)"
+# ``n`` copies of ``x``.
+def replicate (n: {p:Int | p >= 0}) (x: Int) : {r:(Array Int) | size r = n} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_replicate(n, x)"
+
+# --- Element-wise maps: same length out as in ---
+
+# Multiply / add a scalar to every element.
+def scale (arr: (Array Int)) (k: Int) : {r:(Array Int) | size r = size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_scale(arr, k)"
+def offset (arr: (Array Int)) (k: Int) : {r:(Array Int) | size r = size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_offset(arr, k)"
+
+# Clamp every element into ``[lo, hi]``.
+def clamp (arr: (Array Int)) (lo: Int) (hi: Int) : {r:(Array Int) | size r = size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_clamp(arr, lo, hi)"
+
+# Running totals: ``prefix_sums [a,b,c] == [a, a+b, a+b+c]``.
+def prefix_sums (arr: (Array Int)) : {r:(Array Int) | size r = size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_prefix_sums(arr)"
+
+# A copy sorted in ascending order.
+def sorted_ascending (arr: (Array Int)) : {r:(Array Int) | size r = size arr} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_sorted_ascending(arr)"
+
+# --- Element-wise combinations of two arrays ---
+
+# Element-wise sum, truncating to the shorter input.
+def zip_plus (a: (Array Int)) (b: (Array Int)) : {r:(Array Int) | size r <= size a && size r <= size b} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_zip_plus(a, b)"
+
+# Element-wise difference / product of two equal-length arrays.
+def zip_minus (a: (Array Int)) (b: {bb:(Array Int) | size bb = size a}) : {r:(Array Int) | size r = size a} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_zip_minus(a, b)"
+def zip_mul (a: (Array Int)) (b: {bb:(Array Int) | size bb = size a}) : {r:(Array Int) | size r = size a} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_zip_mul(a, b)"
+
+# Element-wise max / min of two equal-length arrays.
+def elementwise_max (a: (Array Int)) (b: {bb:(Array Int) | size bb = size a}) : {r:(Array Int) | size r = size a} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_elementwise_max(a, b)"
+def elementwise_min (a: (Array Int)) (b: {bb:(Array Int) | size bb = size a}) : {r:(Array Int) | size r = size a} :=
+    native "__import__('aeon.bindings.array').bindings.array.Array_elementwise_min(a, b)"
