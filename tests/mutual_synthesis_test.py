@@ -141,23 +141,32 @@ def test_instrumented_trace_records_mutual_calls():
     assert names[-1][0] == "even" and names[-1][1] == (2,)
 
 
-def test_backpropagate_blames_tail_callee():
-    """The unsat-core step blames the tail callee of a failing top-level call and
-    propagates the expected output to it."""
-    from aeon.synthesis.entrypoint import _backpropagate
+def test_smt_unsat_core_blames_unspecified_callee():
+    """z3 unsat-core refinement (Algorithm 2, lines 11-16): only ``even`` is
+    specified; a candidate ``even(n) = if n=0 then T else odd(n-1)`` with ``odd``
+    stubbed to ``False`` makes ``even(2)`` wrong. The structure fact
+    ``even(2)=odd(1)`` plus the spec ``even(2)=True`` forces ``odd(1)=True``,
+    which contradicts the observed ``odd(1)=False`` — so z3 blames ``odd(1)`` and
+    the derived obligation propagates the spec to the unspecified callee."""
+    from aeon.synthesis.entrypoint import _smt_unsat_core_obligations
     from aeon.utils.name import Name
 
     even, odd = Name("even", 6), Name("odd", 7)
-    # even(2) returned False via its tail call odd(1)=False, but we expected True.
-    trace = [(odd, (1,), False), (even, (2,), False)]
-    assert _backpropagate(trace, True) == [(odd, (1,), True)]
+    spec = [(even, (0,), True), (even, (1,), False), (even, (2,), True)]
+    observed = [(odd, (0,), False), (odd, (1,), False)]  # even-on-spec-inputs is pinned
+    symbolic = [((even, (1,)), (odd, (0,))), ((even, (2,)), (odd, (1,)))]
+    obligations = _smt_unsat_core_obligations(spec, observed, symbolic, {"even", "odd"})
+    assert (odd, (1,), True) in [(f, a, o) for f, a, o in obligations]
 
 
-def test_backpropagate_no_blame_when_correct():
-    """No obligation is derived when the call already matches the expectation."""
-    from aeon.synthesis.entrypoint import _backpropagate
+def test_smt_consistent_no_obligation():
+    """When the candidate's observed behaviour is consistent with the spec, z3
+    finds the conjunction satisfiable and derives no obligation."""
+    from aeon.synthesis.entrypoint import _smt_unsat_core_obligations
     from aeon.utils.name import Name
 
     even, odd = Name("even", 6), Name("odd", 7)
-    trace = [(odd, (1,), True), (even, (2,), True)]
-    assert _backpropagate(trace, True) == []
+    spec = [(even, (0,), True), (even, (2,), True)]
+    observed = [(odd, (1,), True)]
+    symbolic = [((even, (2,)), (odd, (1,)))]
+    assert _smt_unsat_core_obligations(spec, observed, symbolic, {"even", "odd"}) == []

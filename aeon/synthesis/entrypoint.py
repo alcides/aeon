@@ -335,29 +335,142 @@ def _value_literal(v: Any) -> Optional[Term]:
     return None
 
 
-def _backpropagate(trace: list, expected: Any) -> list[tuple[Name, tuple, Any]]:
-    """Contata's unsat-core refinement (Algorithm 2, lines 14-16) over a concrete
-    call trace.
+def _z3_value(v: Any, val_sort, consts: dict, rev: dict):
+    """Encode a concrete scalar/opaque value as a z3 term. Ints/bools/reals map to
+    their native sorts; everything else (lists, ADTs, ...) maps to distinct
+    constants of an uninterpreted sort, with ``rev`` recording the inverse so a
+    model value can be decoded back."""
+    import z3
 
-    ``trace`` is the post-order list of ``(name, args, result)`` facts from
-    instrumented evaluation; its last entry is the top-level call whose expected
-    output is ``expected``. If that call's actual result disagrees with
-    ``expected``, blame its *tail callee* — the nested call whose result became
-    the parent's result — and propagate ``expected`` to it. That derived
-    ``(callee, args, expected)`` fact is the refinement: the callee must produce
-    ``expected`` on those args, which constrains its next-round search. Returns
-    ``[]`` when the call already agrees or no tail callee can be blamed (a
-    non-tail-position call would need output inversion, which we do not attempt).
-    """
-    if not trace:
+    if isinstance(v, bool):
+        return z3.BoolVal(v)
+    if isinstance(v, int):
+        return z3.IntVal(v)
+    if isinstance(v, float):
+        return z3.RealVal(v)
+    key = ("str", v) if isinstance(v, str) else ("repr", repr(v))
+    if key not in consts:
+        c = z3.Const(f"v{len(consts)}", val_sort)
+        consts[key] = c
+        rev[c.get_id()] = v
+    return consts[key]
+
+
+def _z3_sort(v: Any, val_sort):
+    import z3
+
+    if isinstance(v, bool):
+        return z3.BoolSort()
+    if isinstance(v, int):
+        return z3.IntSort()
+    if isinstance(v, float):
+        return z3.RealSort()
+    return val_sort
+
+
+def _smt_unsat_core_obligations(
+    spec_facts: list[tuple[Name, tuple, Any]],
+    observed_facts: list[tuple[Name, tuple, Any]],
+    symbolic_eqs: list[tuple[tuple[Name, tuple], tuple[Name, tuple]]],
+    member_names: set[str],
+) -> list[tuple[Name, tuple, Any]]:
+    """Contata's joint validity check + unsat-core refinement (Algorithm 2,
+    lines 11-16), discharged by z3.
+
+    The functions under synthesis are modelled as **uninterpreted functions**.
+    We assert (with tracking literals) the ground spec ``ψ`` (``spec_facts``),
+    the candidate's observed calls ``θ`` on inputs *not* pinned by the spec
+    (``observed_facts``), and the symbolic relations the candidate's structure
+    induces between calls (``symbolic_eqs``, e.g. ``even(2) = odd(1)``). If
+    ``ψ ∧ θ ∧ structure`` is satisfiable the joint candidate is consistent
+    (no refinement). Otherwise z3's **unsat core** names the conflicting calls;
+    for each blamed call to a function under synthesis we read its
+    spec-consistent output from a model of ``ψ ∧ structure`` and return it as a
+    new obligation — the constraint to add to that callee's next-round search."""
+    import z3
+
+    val_sort = z3.DeclareSort("Val")
+    consts: dict = {}
+    rev: dict = {}
+
+    funcs: dict[str, Any] = {}
+
+    def func_of(fname: Name, args: tuple, out: Any):
+        key = fname.name
+        if key not in funcs:
+            arg_sorts = [_z3_sort(a, val_sort) for a in args]
+            funcs[key] = z3.Function(key, *arg_sorts, _z3_sort(out, val_sort))
+        return funcs[key]
+
+    def app(fname: Name, args: tuple):
+        f = funcs[fname.name]
+        return f(*[_z3_value(a, val_sort, consts, rev) for a in args])
+
+    for fname, args, out in list(spec_facts) + list(observed_facts):
+        func_of(fname, args, out)
+
+    pinned = {(f.name, args) for f, args, _ in spec_facts}
+
+    solver = z3.Solver()
+    solver.set(unsat_core=True)
+    label_of: dict = {}
+    n = 0
+
+    def track(formula, tag):
+        nonlocal n
+        lit = z3.Bool(f"p{n}")
+        n += 1
+        solver.assert_and_track(formula, lit)
+        label_of[lit.get_id()] = tag
+
+    for fname, args, out in spec_facts:
+        track(app(fname, args) == _z3_value(out, val_sort, consts, rev), ("spec", fname, args, out))
+    for fname, args, out in observed_facts:
+        if (fname.name, args) in pinned:
+            continue  # the spec is the ground truth for these calls
+        track(app(fname, args) == _z3_value(out, val_sort, consts, rev), ("obs", fname, args, out))
+    for (f, fa), (g, ga) in symbolic_eqs:
+        if f.name in funcs and g.name in funcs:
+            track(app(f, fa) == app(g, ga), ("sym", f, fa, g, ga))
+
+    if solver.check() != z3.unsat:
+        return []  # consistent (or unknown): nothing to refine
+
+    core_ids = {c.get_id() for c in solver.unsat_core()}
+    blamed = [label_of[i] for i in core_ids if i in label_of and label_of[i][0] == "obs"]
+    if not blamed:
         return []
-    _f, _fargs, factual = trace[-1]
-    if factual == expected:
+
+    # Read the spec-consistent intended outputs from a model of ψ ∧ structure.
+    model_solver = z3.Solver()
+    for fname, args, out in spec_facts:
+        model_solver.add(app(fname, args) == _z3_value(out, val_sort, consts, rev))
+    for (f, fa), (g, ga) in symbolic_eqs:
+        if f.name in funcs and g.name in funcs:
+            model_solver.add(app(f, fa) == app(g, ga))
+    if model_solver.check() != z3.sat:
         return []
-    for name, args, result in reversed(trace[:-1]):
-        if result == factual:
-            return [(name, args, expected)]
-    return []
+    model = model_solver.model()
+
+    def decode(z3val):
+        if z3.is_int_value(z3val):
+            return z3val.as_long()
+        if z3.is_true(z3val):
+            return True
+        if z3.is_false(z3val):
+            return False
+        if z3.is_rational_value(z3val):
+            return float(z3val.as_fraction())
+        return rev.get(z3val.get_id())
+
+    obligations: list[tuple[Name, tuple, Any]] = []
+    for _tag, fname, args, obs in blamed:
+        if fname.name not in member_names:
+            continue
+        required = decode(model.eval(app(fname, args), model_completion=False))
+        if required is not None and required != obs:
+            obligations.append((fname, args, required))
+    return obligations
 
 
 def _trivial_stub(ty: Type) -> Optional[Term]:
@@ -451,12 +564,25 @@ def _refine_obligations(
     learn). Only group members are refined."""
     from aeon.backend.evaluator import eval_with_trace
 
-    member_names = {fun_name for fun_name, _ in members}
-    added = 0
+    member_name_strs = {fun_name.name for fun_name, _ in members}
+    name_to_fun = {fun_name.name: fun_name for fun_name, _ in members}
+
+    # ψ: the ground spec, as f(args)=out facts.
+    spec_facts: list[tuple[Name, tuple, Any]] = []
     for fun_name, _hole in members:
-        entry = metadata.get(fun_name, {})
-        examples = list(entry.get("io_examples", []))
-        for args, expected in examples:
+        for args, out in metadata.get(fun_name, {}).get("io_examples", []):
+            spec_facts.append((fun_name, tuple(args), out))
+
+    # θ + structure: run the joint candidate on every spec input under the
+    # instrumented semantics, recording observed calls and the per-call symbolic
+    # relations (each call's result equals the nearest enclosing earlier call
+    # with the same result — the executed tail edge).
+    observed: list[tuple[Name, tuple, Any]] = []
+    symbolic: list[tuple[tuple[Name, tuple], tuple[Name, tuple]]] = []
+    seen_obs: set = set()
+    seen_sym: set = set()
+    for fun_name, _hole in members:
+        for args, _out in metadata.get(fun_name, {}).get("io_examples", []):
             call: Term = Var(fun_name)
             ok = True
             for v in args:
@@ -471,15 +597,32 @@ def _refine_obligations(
                 _actual, trace = eval_with_trace(set_program_tail(filled_core, call), ectx)
             except Exception:
                 continue
-            for callee, c_args, c_expected in _backpropagate(trace, expected):
-                if callee not in member_names:
-                    continue
-                callee_entry = metadata.setdefault(callee, {})
-                callee_examples = callee_entry.setdefault("io_examples", [])
-                obligation = (list(c_args), c_expected)
-                if obligation not in callee_examples:
-                    callee_examples.append(obligation)
-                    added += 1
+            for nm, a, res in trace:
+                k = (nm.name, repr(a), repr(res))
+                if k not in seen_obs:
+                    seen_obs.add(k)
+                    observed.append((nm, a, res))
+            for i in range(len(trace)):
+                nm_i, a_i, res_i = trace[i]
+                for j in range(i - 1, -1, -1):
+                    nm_j, a_j, res_j = trace[j]
+                    if res_j == res_i and (nm_j.name, repr(a_j)) != (nm_i.name, repr(a_i)):
+                        key = (nm_i.name, repr(a_i), nm_j.name, repr(a_j))
+                        if key not in seen_sym:
+                            seen_sym.add(key)
+                            symbolic.append(((nm_i, a_i), (nm_j, a_j)))
+                        break
+
+    obligations = _smt_unsat_core_obligations(spec_facts, observed, symbolic, member_name_strs)
+
+    added = 0
+    for fname, args, out in obligations:
+        target = name_to_fun.get(fname.name, fname)
+        callee_examples = metadata.setdefault(target, {}).setdefault("io_examples", [])
+        obligation = (list(args), out)
+        if obligation not in callee_examples:
+            callee_examples.append(obligation)
+            added += 1
     return added
 
 
