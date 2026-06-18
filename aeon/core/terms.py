@@ -176,6 +176,11 @@ class MutualCompanion:
     type: Type
     decreasing_by: tuple[Term, ...] = field(default_factory=tuple)
     formals: tuple[Name, ...] = field(default_factory=tuple)
+    # The sibling's definition body, so a relational refinement that applies the
+    # sibling to a result binder (e.g. ``{r | g r = x}``) can reflect ``g``'s
+    # definition into SMT rather than treating it as uninterpreted. ``None`` when
+    # the sibling is still a hole (synthesis) — then it stays uninterpreted.
+    value: Term | None = None
 
 
 @dataclass(frozen=True)

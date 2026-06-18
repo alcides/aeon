@@ -100,6 +100,31 @@ def test_mutual_typechecks_without_refinements():
     assert _typechecks(src)
 
 
+def test_mutual_relational_refinement_reflects_sibling():
+    """A member's refinement may apply a sibling to its result binder
+    (``{r | g r = x}``): the sibling's definition is reflected into SMT, so the
+    relation is checked precisely (issue #397, RC category)."""
+    src = """
+    mutual
+      def f (x: {n:Int | n >= 0}) : {r:Int | g r = x} decreasing_by [x] := x;
+      def g (x: {n:Int | n >= 0}) : {r:Int | r >= 0} decreasing_by [x] := x;
+    end
+    """
+    assert _typechecks(src)
+
+
+def test_mutual_relational_refinement_false_rejected():
+    """The reflected sibling is precise, not vacuous: a relational spec that does
+    not hold (``g r = x + 1`` when ``g`` is the identity) is rejected."""
+    src = """
+    mutual
+      def f (x: {n:Int | n >= 0}) : {r:Int | g r = x + 1} decreasing_by [x] := x;
+      def g (x: {n:Int | n >= 0}) : {r:Int | r >= 0} decreasing_by [x] := x;
+    end
+    """
+    assert not _typechecks(src)
+
+
 def test_mutual_nonterminating_absurd_refinement_rejected():
     """A non-terminating group must not be able to inhabit ``{b:Bool | false}``:
     the cross-function termination obligation (n < n) is unsatisfiable."""

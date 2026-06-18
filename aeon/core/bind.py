@@ -240,7 +240,9 @@ def populate_mutual_companions(t: Term) -> Term:
         spine.append(cur)
         if cur.mutual_group_id is not None:
             groups.setdefault(cur.mutual_group_id, []).append(
-                MutualCompanion(cur.var_name, cur.var_type, cur.decreasing_by, _peel_formals(cur.var_value))
+                MutualCompanion(
+                    cur.var_name, cur.var_type, cur.decreasing_by, _peel_formals(cur.var_value), cur.var_value
+                )
             )
         cur = cur.body
     if not groups:

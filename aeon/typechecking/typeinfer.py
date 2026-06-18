@@ -697,11 +697,19 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, term_ctx)
             term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl)
-            # Declare mutually-recursive siblings as uninterpreted SMT functions
-            # so calls to them inside this member's value (e.g. selfified
-            # applications ``v == odd (n - 1)``) translate.
+            # Declare mutually-recursive siblings so calls to them inside this
+            # member's value (e.g. selfified applications ``v == odd (n - 1)``)
+            # translate. When the whole group is well-founded and a sibling's
+            # body reflects (it doesn't itself call another sibling), reflect its
+            # definition so relational refinements like ``{r | g r = x}`` can use
+            # it; otherwise declare it uninterpreted.
             for comp in t.companions:
-                c1 = implication_constraint(comp.name, comp.type, c1, var_value.loc)
+                comp_reflected = (
+                    _reflected_impl_for(comp.name, comp.type, comp.value, has_termination_metric=group_has_metric)
+                    if (group_has_metric and comp.value is not None)
+                    else None
+                )
+                c1 = implication_constraint(comp.name, comp.type, c1, var_value.loc, reflected_impl=comp_reflected)
             # Form B introduction: if the body's type still mentions `var_name`,
             # wrap it in an existential so the scope leak is preserved as a
             # binder when the type flows outward.
@@ -904,11 +912,18 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             c2 = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, term_ctx)
             term_c = implication_constraint(var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl)
-            # Declare mutually-recursive siblings as uninterpreted SMT functions
-            # so calls to them inside this member's value translate (selfified
-            # applications such as ``v == odd (n - 1)``).
-            for cname, ctype in comp_types:
-                c1 = implication_constraint(cname, ctype, c1, var_value.loc)
+            # Declare mutually-recursive siblings so calls to them inside this
+            # member's value translate (selfified applications such as
+            # ``v == odd (n - 1)``). Reflect a sibling's definition when the group
+            # is well-founded and its body reflects, so relational refinements
+            # like ``{r | g r = x}`` can use it; otherwise declare it uninterpreted.
+            for comp, (cname, ctype) in zip(t.companions, comp_types, strict=True):
+                comp_reflected = (
+                    _reflected_impl_for(cname, ctype, comp.value, has_termination_metric=group_has_metric)
+                    if (group_has_metric and comp.value is not None)
+                    else None
+                )
+                c1 = implication_constraint(cname, ctype, c1, var_value.loc, reflected_impl=comp_reflected)
             return Conjunction(Conjunction(c1, c2), term_c)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
