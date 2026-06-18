@@ -17,27 +17,27 @@ inductive Nucleus
    : {n:Nucleus | (radius_of n = radius)}
 + radius_of (n:Nucleus) : Int
 
-# Positive examples: healthy-range nuclei.
-def healthy1 : Nucleus := .mk 14
-def healthy2 : Nucleus := .mk 18
-def healthy3 : Nucleus := .mk 22
-
-# Negative examples: too small (debris) or too large (abnormal).
-def debris1 : Nucleus := .mk 4
-def debris2 : Nucleus := .mk 9
-def abn1    : Nucleus := .mk 32
-def abn2    : Nucleus := .mk 48
-
 def cost_pos (b:Bool) : Int := if b then 0 else 1
 def cost_neg (b:Bool) : Int := if b then 1 else 0
 
-@minimize_int(
-    cost_pos (highlight healthy1)
-  + cost_pos (highlight healthy2)
-  + cost_pos (highlight healthy3)
-  + cost_neg (highlight debris1)
-  + cost_neg (highlight debris2)
-  + cost_neg (highlight abn1)
-  + cost_neg (highlight abn2)
-)
-def highlight (n:Nucleus) : Bool := (let healthy1 := unit in let healthy2 := unit in let healthy3 := unit in let debris1 := unit in let debris2 := unit in let abn1 := unit in let abn2 := unit in let mk := unit in let cost_pos := unit in let cost_neg := unit in ?hole)
+def cost (highlight: (n:Nucleus) → Bool ) : Int :=
+  # Positive examples: healthy-range nuclei.
+  let healthy1 := .mk 14 in
+  let healthy2 := .mk 18 in
+  let healthy3 := .mk 22 in
+  # Negative examples: too small (debris) or too large (abnormal).
+  let debris1 := .mk 4 in
+  let debris2 := .mk 9 in
+  let abn1 := .mk 32 in
+  let abn2:= .mk 48 in
+  cost_pos (highlight healthy1)
+    + cost_pos (highlight healthy2)
+    + cost_pos (highlight healthy3)
+    + cost_neg (highlight debris1)
+    + cost_neg (highlight debris2)
+    + cost_neg (highlight abn1)
+    + cost_neg (highlight abn2)
+
+@minimize_int(cost highlight)
+def highlight (n:Nucleus) : Bool :=
+  ?hole
