@@ -331,10 +331,12 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
         assert result is None or isinstance(result, tuple)
         return
 
-    if synthesizer == "decision_tree":
+    # These backends need a spec the plain ``Int`` hole does not provide:
+    # decision_tree needs @csv_data/@example rows; symetric needs a @minimize
+    # objective; sygus needs an SMT-expressible constraint. They legitimately
+    # produce no term here — just verify they complete without raising.
+    if synthesizer in ("decision_tree", "sygus", "symetric"):
         result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
-        # decision_tree requires @csv_data training examples; without them it
-        # cannot synthesize a plain hole — just verify it doesn't raise.
         assert result is None or isinstance(result, tuple)
         return
 

@@ -61,8 +61,14 @@ SYNTHESIZERS = [
     "hc",
     "1p1",
     "smt",
+    "sygus",
     "decision_tree",
     "llm",
+    "fta",
+    "afta",
+    "cata",
+    "lta",
+    "symetric",
 ]
 SYNTHESIZE_COMMAND = "aeon.synthesize"
 
