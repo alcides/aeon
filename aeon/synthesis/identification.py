@@ -109,8 +109,16 @@ def get_holes_info(
             return hs1 | hs2
         case Rec(var_name=vname, var_type=vtype, var_value=value, body=body, decreasing_by=_):
             vtype = vtype if refined_types else refined_to_unrefined_type(vtype)
+            # A ``mutual`` member's value may call its siblings; bring their
+            # signatures into scope so a hole there is synthesised against a
+            # context that knows the (co-synthesised) callees — the declared
+            # refined type over-approximates each sibling's behaviour.
+            value_ctx = ctx.with_var(vname, vtype)
+            for comp in t.companions:
+                ctype = comp.type if refined_types else refined_to_unrefined_type(comp.type)
+                value_ctx = value_ctx.with_var(comp.name, ctype)
             if isinstance(vtype, AbstractionType) or isinstance(vtype, TypePolymorphism):
-                hs1 = get_holes_info(ctx.with_var(vname, vtype), value, vtype, targets, refined_types)
+                hs1 = get_holes_info(value_ctx, value, vtype, targets, refined_types)
             else:
                 hs1 = get_holes_info(ctx, value, vtype, targets, refined_types)
             hs2 = get_holes_info(ctx.with_var(vname, vtype), body, ty, targets, refined_types)

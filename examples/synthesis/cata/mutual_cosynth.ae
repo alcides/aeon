@@ -1,0 +1,15 @@
+# Co-synthesis of a Lean-style ``mutual`` group (issue #397, MR category).
+#
+# Both members are holes. aeon synthesizes one hole at a time, but the mutual
+# machinery keeps each sibling in scope (as its declared, refined type) while
+# the other is synthesized — so a candidate for one member may call the other,
+# and the liquid typechecker discharges the whole group against its spec. This
+# is the refinement-typed reading of CATA's "over-approximate the unknown
+# callee by its contract".
+#
+#   uv run python -m aeon --no-main -s enumerative --budget 20 examples/synthesis/cata/mutual_cosynth.ae
+
+mutual
+  def f (n: {x:Int | x >= 0}) : {r:Int | r >= 0} decreasing_by [n] := ?hf;
+  def g (n: {x:Int | x >= 0}) : {r:Int | r >= 0} decreasing_by [n] := ?hg;
+end
