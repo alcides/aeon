@@ -1,0 +1,16 @@
+# A mutual group of three functions cycling through one another. Demonstrates
+# that ``mutual ... end`` groups are not limited to two members and that the
+# shared termination metric covers every member of the cycle.
+
+mutual
+  def m0 (n: {x:Int | x >= 0}) : Int decreasing_by [n] =
+    if n == 0 then 0 else m1 (n - 1);
+
+  def m1 (n: {x:Int | x >= 0}) : Int decreasing_by [n] =
+    if n == 0 then 1 else m2 (n - 1);
+
+  def m2 (n: {x:Int | x >= 0}) : Int decreasing_by [n] =
+    if n == 0 then 2 else m0 (n - 1);
+end
+
+def main (_:Int) : Int = m0 7

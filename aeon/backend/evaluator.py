@@ -98,6 +98,38 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             # Phase 4 — same erasure for ``Rec``. ``var_value`` may be a
             # recursive lambda that's only meaningful at type level.
             return eval(body, ctx.with_var(var_name, None))
+        case Rec(_, _, _, _, _, _) if t.mutual_group_id is not None:
+            # Mutually-recursive group: collect the contiguous run of members
+            # sharing this group id, then tie all their knots over a single
+            # shared context so each member's body can call any sibling.
+            gid = t.mutual_group_id
+            members: list[Rec] = []
+            cur: Term = t
+            while isinstance(cur, Rec) and cur.mutual_group_id == gid:
+                members.append(cur)
+                cur = cur.body
+            final_body = cur
+
+            group_ctx = EvaluationContext(ctx.variables, metadata=ctx.metadata, pipeline=ctx.pipeline)
+            for m in members:
+                inner_value = m.var_value
+                while isinstance(inner_value, (TypeAbstraction, RefinementAbstraction)):
+                    inner_value = inner_value.body
+                if isinstance(inner_value, Abstraction):
+
+                    def make_closure(fun: Abstraction):
+                        def v(x):
+                            return eval(fun.body, group_ctx.with_var(fun.var_name, x))
+
+                        return v
+
+                    group_ctx.variables[m.var_name] = make_closure(inner_value)
+                else:
+                    # Non-lambda mutual binding: evaluate in the shared context
+                    # (closures resolve siblings lazily) and patch the cell.
+                    group_ctx.variables[m.var_name] = None
+                    group_ctx.variables[m.var_name] = eval(m.var_value, group_ctx)
+            return eval(final_body, group_ctx)
         case Rec(var_name, _, var_value, body, _, _):
             found_llvm = False
             if ctx.pipeline and ctx.metadata:

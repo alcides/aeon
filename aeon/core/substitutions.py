@@ -100,6 +100,8 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
                 decreasing_by=decreasing_by,
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=t.companions,
             )
         case Annotation(expr, type, loc):
             n_type = substitute_vartype(type, rep, name)
@@ -423,6 +425,8 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
                 decreasing_by=decreasing_by,
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=t.companions,
             )
         case Annotation(expr, ty, loc):
             n_type = substitution_liquid_in_type(ty, rep, name)
@@ -528,6 +532,8 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
                 decreasing_by=decreasing_by,
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=t.companions,
             )
         case Annotation(body, ty, loc):
             return Annotation(rec(body), ty, loc=loc)

@@ -143,8 +143,19 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
                 return SLet(vname, rec(vvalue), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(vname, vty, vvalue, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
+            ncomp = tuple((cn, rect(ct)) for (cn, ct) in t.companions)
             if vname == alpha:
-                return SRec(vname, rect(vty), rec(vvalue), body, decreasing_by=nd, loc=loc, multiplicity=t.multiplicity)
+                return SRec(
+                    vname,
+                    rect(vty),
+                    rec(vvalue),
+                    body,
+                    decreasing_by=nd,
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                    mutual_group_id=t.mutual_group_id,
+                    companions=ncomp,
+                )
             else:
                 return SRec(
                     vname,
@@ -154,6 +165,8 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
                     decreasing_by=nd,
                     loc=loc,
                     multiplicity=t.multiplicity,
+                    mutual_group_id=t.mutual_group_id,
+                    companions=ncomp,
                 )
         case SAnnotation(expr, ty, loc):
             return SAnnotation(rec(expr), rect(ty), loc=loc)
@@ -240,6 +253,7 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
             return SLet(vname, rec(vvalue), rec(body), loc=loc, multiplicity=t.multiplicity)
         case SRec(vname, vtype, vvalue, body, decreasing_by, loc):
             nd = tuple(rec(m) for m in decreasing_by)
+            ncomp = tuple((cn, substitute_svartype_in_stype(ct, rep, name)) for (cn, ct) in t.companions)
             return SRec(
                 vname,
                 substitute_svartype_in_stype(vtype, rep, name),
@@ -248,6 +262,8 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
                 decreasing_by=nd,
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=ncomp,
             )
         case SAnnotation(expr, ty, loc):
             return SAnnotation(rec(expr), substitute_svartype_in_stype(ty, rep, name), loc=loc)

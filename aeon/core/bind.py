@@ -203,6 +203,7 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
                 decreasing_by=tuple(bind_term(m, subs) for m in decreasing_by),
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
             )
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"
@@ -211,3 +212,64 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
 def bind_ids(ctx: TypingContext, t: Term) -> tuple[TypingContext, Term]:
     ctx, subs = bind_ctx(ctx, [])
     return ctx, bind_term(t, subs)
+
+
+def _peel_formals(value: Term) -> tuple[Name, ...]:
+    """Value-parameter names of a (possibly polymorphic) definition body — i.e.
+    the lambda binders its ``decreasing_by`` metrics refer to."""
+    cur = value
+    while isinstance(cur, (TypeAbstraction, RefinementAbstraction)):
+        cur = cur.body
+    formals: list[Name] = []
+    while isinstance(cur, Abstraction):
+        formals.append(cur.var_name)
+        cur = cur.body
+    return tuple(formals)
+
+
+def populate_mutual_companions(t: Term) -> Term:
+    """Fill each ``mutual``-group ``Rec``'s ``companions`` with the (now fully
+    bound) signatures of its siblings. Run after :func:`bind_ids`. Mutual groups
+    are always contiguous on the top-level ``Rec`` spine."""
+    from aeon.core.terms import MutualCompanion
+
+    spine: list[Rec] = []
+    cur: Term = t
+    groups: dict[int, list[MutualCompanion]] = {}
+    while isinstance(cur, Rec):
+        spine.append(cur)
+        if cur.mutual_group_id is not None:
+            groups.setdefault(cur.mutual_group_id, []).append(
+                MutualCompanion(cur.var_name, cur.var_type, cur.decreasing_by, _peel_formals(cur.var_value))
+            )
+        cur = cur.body
+    if not groups:
+        return t
+    rebuilt: Term = cur
+    for rec in reversed(spine):
+        if rec.mutual_group_id is not None:
+            comps = tuple(c for c in groups[rec.mutual_group_id] if c.name != rec.var_name)
+            rebuilt = Rec(
+                rec.var_name,
+                rec.var_type,
+                rec.var_value,
+                rebuilt,
+                decreasing_by=rec.decreasing_by,
+                loc=rec.loc,
+                multiplicity=rec.multiplicity,
+                mutual_group_id=rec.mutual_group_id,
+                companions=comps,
+            )
+        else:
+            rebuilt = Rec(
+                rec.var_name,
+                rec.var_type,
+                rec.var_value,
+                rebuilt,
+                decreasing_by=rec.decreasing_by,
+                loc=rec.loc,
+                multiplicity=rec.multiplicity,
+                mutual_group_id=rec.mutual_group_id,
+                companions=rec.companions,
+            )
+    return rebuilt

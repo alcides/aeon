@@ -37,7 +37,7 @@ fi
 EOF
 
 status=0
-for folder in ffi image imports list syntax synthesis synthesis/image_edits "PSB2/solved" 99problems;
+for folder in ffi image imports list mutual syntax synthesis synthesis/image_edits "PSB2/solved" 99problems;
 do
     for entry in examples/$folder/*.ae
     do

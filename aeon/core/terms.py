@@ -166,6 +166,19 @@ class Let(Term):
 
 
 @dataclass(frozen=True)
+class MutualCompanion:
+    """Signature of a sibling in a ``mutual`` group, attached to each member's
+    ``Rec`` node so the typechecker can bring siblings into scope and reason about
+    cross-function termination. ``formals`` are the sibling value-parameter names
+    that its ``decreasing_by`` metrics refer to (its lambda binders)."""
+
+    name: Name
+    type: Type
+    decreasing_by: tuple[Term, ...] = field(default_factory=tuple)
+    formals: tuple[Name, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class Rec(Term):
     var_name: Name
     var_type: Type
@@ -174,6 +187,11 @@ class Rec(Term):
     decreasing_by: tuple[Term, ...] = field(default_factory=tuple)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
     multiplicity: Multiplicity = MOmega
+    # Mutual recursion: the shared group id (``None`` when not mutual) and the
+    # signatures of the *other* members of the group. ``companions`` is populated
+    # by ``populate_mutual_companions`` after binding so the names are final.
+    mutual_group_id: int | None = None
+    companions: tuple[MutualCompanion, ...] = field(default_factory=tuple)
 
     def __repr__(self):
         return str(self)
@@ -197,6 +215,7 @@ class Rec(Term):
             and self.body == other.body
             and self.decreasing_by == other.decreasing_by
             and self.multiplicity is other.multiplicity
+            and self.mutual_group_id == other.mutual_group_id
         )
 
 

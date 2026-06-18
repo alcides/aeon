@@ -399,13 +399,43 @@ class TreeToSugar(Transformer):
     def list(self, args):
         return args
 
+    def mutual_block(self, args):
+        # A ``mutual ... end`` block contributes a list of Definitions all sharing
+        # one fresh group id. Returned as a list; flattened in ``program``.
+        gid = fresh_counter.fresh()
+        defs = [d for d in args if isinstance(d, Definition)]
+        return [
+            Definition(
+                d.name,
+                d.foralls,
+                d.args,
+                d.type,
+                d.body,
+                d.decorators,
+                d.rforalls,
+                decreasing_by=d.decreasing_by,
+                loc=d.loc,
+                mutual_group_id=gid,
+                arg_multiplicities=d.arg_multiplicities,
+                instance_flags=d.instance_flags,
+            )
+            for d in defs
+        ]
+
     def program(self, args):
         type_section, def_section = args[1], args[2]
+        # ``mutual`` blocks arrive as nested lists of Definitions; flatten them.
+        flat_defs: list = []
+        for el in def_section:
+            if isinstance(el, list):
+                flat_defs.extend(el)
+            else:
+                flat_defs.append(el)
         inductive = [el for el in type_section if isinstance(el, InductiveDecl)]
         classes = [el for el in type_section if isinstance(el, ClassDecl)]
         type_decls = [el for el in type_section if isinstance(el, TypeDecl)]
-        definitions = [el for el in def_section if isinstance(el, Definition)]
-        instances = [el for el in def_section if isinstance(el, InstanceDecl)]
+        definitions = [el for el in flat_defs if isinstance(el, Definition)]
+        instances = [el for el in flat_defs if isinstance(el, InstanceDecl)]
         return Program(args[0], type_decls, inductive, definitions, classes, instances)
 
     # ------- Typeclasses -------

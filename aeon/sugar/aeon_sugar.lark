@@ -46,6 +46,19 @@ measure_rule : "+" ID args ":" type                        -> def_ind_cons
 def : soft_constraint "def" ID ":" type "=" expression ";"?                  -> def_cons
     | soft_constraint "def" ID  args ":" type decreasing_by_opt "=" expression ";"?     -> def_fun_eq
     | instance_decl                                                          -> same
+    | mutual_block                                                           -> same
+
+// Lean-style mutual recursion block. Groups several ``def``s that may
+// reference one another. Each contained definition is tagged with a shared
+// ``mutual_group_id`` so the rest of the pipeline can co-bind, co-typecheck
+// (with a shared well-founded termination metric) and co-evaluate them.
+//   mutual
+//     def even (n: Int) : Bool = if n == 0 then true else odd (n - 1) ;
+//     def odd  (n: Int) : Bool = if n == 0 then false else even (n - 1) ;
+//   end
+mutual_block : "mutual" mutual_def+ "end"                                    -> mutual_block
+mutual_def : soft_constraint "def" ID ":" type "=" expression ";"?                  -> def_cons
+           | soft_constraint "def" ID args ":" type decreasing_by_opt "=" expression ";"?  -> def_fun_eq
 
 // Lean-style instance declaration. ``inst_constraints`` are instance-implicit
 // requirements written ``[Eq a]``; each member is ``name binders := body ;``.

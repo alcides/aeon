@@ -4,7 +4,7 @@ from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
-from aeon.core.bind import bind_ids
+from aeon.core.bind import bind_ids, populate_mutual_companions
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.core.types import top
@@ -82,6 +82,7 @@ class AeonDriver:
             typing_ctx = lower_to_core_context(desugared.elabcontext)
             core_ast = lower_to_core(sterm)
             typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
+            core_ast = populate_mutual_companions(core_ast)
 
         with RecordTime("TypeChecking"):
             type_errors = check_type_errors(typing_ctx, core_ast, top)

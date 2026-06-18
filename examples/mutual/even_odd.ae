@@ -1,0 +1,16 @@
+# Lean-style mutual recursion (``mutual ... end``).
+#
+# ``even`` and ``odd`` reference one another. Each carries a well-founded
+# termination metric ``decreasing_by [n]``; every cross-call decreases it
+# (``n - 1 < n``) and the refinement ``n >= 0`` keeps it non-negative, so the
+# whole group is accepted as terminating.
+
+mutual
+  def even (n: {x:Int | x >= 0}) : Bool decreasing_by [n] =
+    if n == 0 then true else odd (n - 1);
+
+  def odd (n: {x:Int | x >= 0}) : Bool decreasing_by [n] =
+    if n == 0 then false else even (n - 1);
+end
+
+def main (_:Int) : Int = if even 10 then 1 else 0

@@ -281,6 +281,7 @@ def lower_to_core(t: STerm) -> Term:
                 decreasing_by=tuple(lower_to_core(m) for m in decreasing_by),
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
             )
         case SAnnotation(expr, ty, loc):
             return Annotation(lower_to_core(expr), type_to_core(ty), loc=loc)
