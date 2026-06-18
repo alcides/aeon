@@ -64,9 +64,13 @@ def : soft_constraint "def" def_name ":" type ":=" expression ";"?              
 //     def even (n: Int) : Bool := if n == 0 then true else odd (n - 1) ;
 //     def odd  (n: Int) : Bool := if n == 0 then false else even (n - 1) ;
 //   end
+// The trailing ``;`` on a ``mutual`` member is REQUIRED (unlike a top-level
+// ``def``): it keeps the ``end`` terminator out of ``FOLLOW(expression)``, so
+// ``end`` stays usable as an ordinary identifier everywhere else (LALR would
+// otherwise merge the after-body states and lex any ``end`` as the keyword).
 mutual_block : "mutual" mutual_def+ "end"                                    -> mutual_block
-mutual_def : soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
-           | soft_constraint "def" def_name args ":" type decreasing_by_opt ":=" expression ";"?  -> def_fun_eq
+mutual_def : soft_constraint "def" def_name ":" type ":=" expression ";"                  -> def_cons
+           | soft_constraint "def" def_name args ":" type decreasing_by_opt ":=" expression ";"  -> def_fun_eq
 
 def_name : ID                                                -> same
          | QUALIFIED_ID                                      -> same
