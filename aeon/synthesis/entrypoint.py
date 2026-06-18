@@ -205,6 +205,254 @@ def _cluster_function(metadata: Metadata, fun_name: Name) -> Optional[Name]:
     return None
 
 
+def _synthesize_one(
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    prog: Term,
+    fun_name: Name,
+    hole_name: Name,
+    ty: Type,
+    tyctx: TypingContext,
+    metadata: Metadata,
+    synthesizer: Synthesizer,
+    budget: float,
+    ui: SynthesisUI,
+    budget_eval: float,
+) -> Term:
+    """Synthesize a single hole in ``prog``.
+
+    ``prog`` is the whole program with this hole still open but with any sibling
+    holes already filled by their current candidates (co-synthesis): so the
+    candidate search sees its callees, both for the liquid-type oracle and for
+    example evaluation."""
+    # Let-shadow the fitness/example/cluster helpers to Unit at the hole, so
+    # the synthesizer never builds them (replaces the __internal__ filter).
+    tyctx = shadow_fitness_helpers(tyctx, metadata)
+    ui.start(tyctx, ectx, hole_name.name, ty, budget)
+
+    replace = make_program(prog, hole_name)
+    validator = make_validator(ctx, replace)
+    evaluators = make_evaluators(ectx, fun_name, metadata)
+    assert isinstance(tyctx, TypingContext)
+    assert isinstance(ty, Type)
+    tac_map = metadata.get(fun_name, {}).get("tactic_scripts")
+    steps = None
+    if isinstance(tac_map, dict):
+        raw = tac_map.get(hole_name)
+        if raw is not None:
+            steps = tuple(raw)
+        elif len(tac_map) == 1:
+            steps = tuple(next(iter(tac_map.values())))
+    syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
+
+    # Evaluate every candidate on a persistent worker pool. The backend
+    # declares which computations it wants run per candidate (the objective
+    # ``fitness`` always; an ``output`` feature if it clusters by one, etc.);
+    # the pool runs exactly those, in one round-trip, knowing nothing about
+    # what they mean. A `@cluster(f shape)` decorator names the output
+    # featuriser `f` (e.g. a rasterised scene), else the output is the
+    # candidate's own value.
+    feature_fun = _cluster_function(metadata, fun_name) or fun_name
+    primitives = EvalPrimitives(evaluators, ectx, feature_fun, replace)
+    pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
+    evaluator, output_evaluator = _pool_backed(pool)
+
+    # Example-driven (PBE) probe: evaluate a candidate body on a concrete
+    # list of input values *in process*, returning the value the synthesised
+    # function produces. Unlike ``output_evaluator`` (which crosses a process
+    # boundary and so can only return a candidate's repr for function-typed
+    # outputs), this stays in-process, so a String -> String candidate can be
+    # applied to each example's inputs. This is what lets ``afta`` build a
+    # tree automaton keyed by per-example outputs (the BLAZE construction).
+    if metadata.get(fun_name, {}).get("io_examples"):
+        io_params: list[Name] = metadata.get(fun_name, {}).get("io_params", [])
+        # Fill the hole with a harmless dummy so building the program's
+        # def-environment (which includes the @example test bindings that
+        # *call* the synthesised function) never reaches the unfilled hole
+        # and blocks on the interactive prompt. The dummy body is irrelevant:
+        # the sub-terms we probe are built from the DSL components and the
+        # parameters, not from the function under synthesis.
+        from aeon.core.types import t_string as _t_string
+
+        _dummy_prog = replace(Literal("", _t_string))
+        # Build the evaluation environment (all in-scope DSL bindings) ONCE,
+        # rather than re-evaluating the whole def-chain for every probed
+        # sub-term. Each binding is bound by evaluating it with its own name
+        # as the tail, which reuses ``eval``'s Let/Rec (incl. recursion-tying)
+        # handling without duplicating it.
+        _base_ctx = ectx
+        _t: Term = _dummy_prog
+        while isinstance(_t, (Let, Rec)):
+            _bound = eval(dataclasses.replace(_t, body=Var(_t.var_name)), _base_ctx)
+            _base_ctx = _base_ctx.with_var(_t.var_name, _bound)
+            _t = _t.body
+
+        def _pbe_probe(sub_term: Term, input_values: list, _params=tuple(io_params), _ctx=_base_ctx) -> Any:
+            # Evaluate a sub-term (open in the hole's parameters) on one
+            # example's inputs, directly in the precomputed DSL environment.
+            e = _ctx
+            for pname, v in zip(_params, input_values):
+                e = e.with_var(pname, v)
+            return eval(sub_term, e)
+
+        metadata.setdefault(fun_name, {})["pbe_probe"] = _pbe_probe
+
+    try:
+        t = syn_impl.synthesize(
+            ctx=tyctx,
+            type=ty,
+            validate=validator,
+            evaluate=evaluator,
+            fun_name=fun_name,
+            metadata=metadata,
+            budget=budget,
+            ui=ui,
+            output_value=output_evaluator,
+        )
+    except Exception as e:
+        ui.end(None, None)
+        raise e
+    finally:
+        pool.close()
+
+    ui.end(t, None)
+    return t
+
+
+def _trivial_stub(ty: Type) -> Optional[Term]:
+    """A constant value of ``ty``'s base carrier, used to stand in for a not-yet-
+    synthesised sibling during co-synthesis so example evaluation never reaches a
+    raw hole (the executable analog of Contata's initial accept-all CATA). The
+    hole's goal type is its *body* type (abstractions already peeled), so a base
+    constant suffices. Returns ``None`` for non-base carriers (no obvious stub)."""
+    from aeon.core.types import RefinedType, TypeConstructor, t_bool, t_float, t_int, t_string
+
+    base = ty.type if isinstance(ty, RefinedType) else ty
+    if isinstance(base, TypeConstructor):
+        defaults = {
+            t_int.name: (0, t_int),
+            t_bool.name: (False, t_bool),
+            t_float.name: (0.0, t_float),
+            t_string.name: ("", t_string),
+        }
+        if base.name in defaults:
+            value, vty = defaults[base.name]
+            return Literal(value, vty)
+    return None
+
+
+def _mutual_group_ids(term: Term) -> dict[Name, Optional[int]]:
+    """Map each top-level function name to its ``mutual`` group id (``None`` if
+    not part of a mutual block)."""
+    from aeon.synthesis.identification import iterate_top_level
+
+    return {rec.var_name: rec.mutual_group_id for rec in iterate_top_level(term)}
+
+
+def _partition_targets(
+    term: Term, targets: list[tuple[Name, list[Name]]]
+) -> tuple[list[tuple[Name, list[Name]]], list[list[tuple[Name, list[Name]]]]]:
+    """Split synthesis targets into independent ones and mutual groups (2+
+    members sharing a ``mutual_group_id``)."""
+    gid_of = _mutual_group_ids(term)
+    groups: dict[int, list[tuple[Name, list[Name]]]] = {}
+    singles: list[tuple[Name, list[Name]]] = []
+    for fun_name, holes in targets:
+        gid = gid_of.get(fun_name)
+        if gid is None:
+            singles.append((fun_name, holes))
+        else:
+            groups.setdefault(gid, []).append((fun_name, holes))
+    mutual: list[list[tuple[Name, list[Name]]]] = []
+    for members in groups.values():
+        if len(members) > 1:
+            mutual.append(members)
+        else:
+            singles.extend(members)
+    return singles, mutual
+
+
+def _joint_accepts(
+    ctx: TypingContext, ectx: EvaluationContext, term: Term, fills: dict[Name, Term], metadata: Metadata
+) -> bool:
+    """Contata Algorithm 2, lines 11-13: does the *joint* candidate assignment
+    satisfy the spec? Fill every group hole, then (a) the whole program type
+    checks (the relational/refinement oracle), and (b) any ``@example``
+    assertions on the group's members all pass (the executable oracle)."""
+    filled = term
+    for hole_name, cand in fills.items():
+        filled = substitution(filled, cand, hole_name)
+    if not check_type(ctx, filled, Top()):
+        return False
+    from aeon.synthesis.pbt.runner import run_examples
+
+    try:
+        results = run_examples(ectx, filled, metadata)
+    except Exception:
+        return False
+    return all(r.passed for r in results)
+
+
+def _cosynthesize_group(
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    term: Term,
+    group: list[tuple[Name, list[Name]]],
+    program_holes: dict[Name, tuple[Type, TypingContext]],
+    metadata: Metadata,
+    synthesizer: Synthesizer,
+    budget: float,
+    ui: SynthesisUI,
+    budget_eval: float,
+    rounds: int = 3,
+) -> dict[Name, Optional[Term]]:
+    """Co-synthesize a mutual group, following Contata's lazy synthesis
+    (Algorithm 2): each round pops a candidate for *every* member (with its
+    siblings filled by the round's current candidates) and then checks the
+    *joint* assignment against the spec. The per-member candidate search plays
+    the role of ``MinTree(Ω(f))``; ``validate`` (the liquid typechecker) and the
+    ``@example`` runner together play the acceptance oracle. Re-search across
+    rounds stands in for the paper's unsat-core CATA refinement (lines 14-16):
+    once siblings are filled, a member's PBE/relational search is constrained by
+    their concrete behaviour, so a failing joint check drives the next round
+    toward a consistent assignment."""
+    members = [(fun_name, holes[0]) for fun_name, holes in group]
+    # Initialise each sibling to a trivial stub (the executable analog of the
+    # accept-all CATA): keeps example evaluation total during the first round.
+    fills: dict[Name, Optional[Term]] = {h: _trivial_stub(program_holes[h][0]) for _, h in members}
+    # Track which fills are real (synthesised) vs. stubs, so the joint check only
+    # accepts a fully-synthesised assignment.
+    synthesised: set[Name] = set()
+    per_budget = max(budget / max(rounds * len(members), 1), 1.0)
+
+    for _round in range(rounds):
+        for fun_name, hole_name in members:
+            # Fill the *other* members with their current candidates so this
+            # member is synthesised against concrete callees.
+            prog = term
+            for other_hole, cand in fills.items():
+                if other_hole != hole_name and cand is not None:
+                    prog = substitution(prog, cand, other_hole)
+            ty, tyctx = program_holes[hole_name]
+            assert isinstance(tyctx, TypingContext)
+            try:
+                fills[hole_name] = _synthesize_one(
+                    ctx, ectx, prog, fun_name, hole_name, ty, tyctx, metadata, synthesizer, per_budget, ui, budget_eval
+                )
+                synthesised.add(hole_name)
+            except Exception:
+                synthesised.discard(hole_name)
+        # Joint acceptance check: only when every member is genuinely synthesised
+        # (no stubs left), and the joint assignment satisfies the spec.
+        if synthesised == {h for _, h in members}:
+            chosen = {h: fills[h] for _, h in members}
+            if all(c is not None for c in chosen.values()) and _joint_accepts(ctx, ectx, term, chosen, metadata):
+                return dict(fills)
+    # No jointly-valid assignment found: return only genuinely-synthesised members
+    # (stubs are not solutions), so the caller leaves the rest as holes.
+    return {h: (fills[h] if h in synthesised else None) for _, h in members}
+
+
 def synthesize_holes(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -216,113 +464,37 @@ def synthesize_holes(
     ui: SynthesisUI = SynthesisUI(),
     budget_eval: Optional[float] = None,
 ) -> dict[Name, Optional[Term]]:
-    """Synthesizes code for multiple functions, each with multiple holes."""
+    """Synthesizes code for multiple functions, each with one hole.
+
+    Independent functions are synthesised one at a time. Members of a Lean
+    ``mutual ... end`` block are co-synthesised together (Contata's relational
+    recursive synthesis), so a candidate for one member may call its siblings."""
 
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_types=True)
 
-    mapping = {}
+    mapping: dict[Name, Optional[Term]] = {}
 
-    for fun_name, holes_names in targets:
+    singles, mutual_groups = _partition_targets(term, targets)
+
+    for fun_name, holes_names in singles:
         assert len(holes_names) == 1, "Currently, we only support 1 hole per function"
-
         hole_name = holes_names[0]
         ty, tyctx = program_holes[hole_name]
         assert isinstance(tyctx, TypingContext)
-        # Let-shadow the fitness/example/cluster helpers to Unit at the hole, so
-        # the synthesizer never builds them (replaces the __internal__ filter).
-        tyctx = shadow_fitness_helpers(tyctx, metadata)
-        ui.start(tyctx, ectx, hole_name.name, ty, budget)
+        mapping[hole_name] = _synthesize_one(
+            ctx, ectx, term, fun_name, hole_name, ty, tyctx, metadata, synthesizer, budget, ui, budget_eval
+        )
 
-        replace = make_program(term, hole_name)
-        validator = make_validator(ctx, replace)
-        evaluators = make_evaluators(ectx, fun_name, metadata)
-        assert isinstance(tyctx, TypingContext)
-        assert isinstance(ty, Type)
-        tac_map = metadata.get(fun_name, {}).get("tactic_scripts")
-        steps = None
-        if isinstance(tac_map, dict):
-            raw = tac_map.get(hole_name)
-            if raw is not None:
-                steps = tuple(raw)
-            elif len(tac_map) == 1:
-                steps = tuple(next(iter(tac_map.values())))
-        syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
+    for group in mutual_groups:
+        for fun_name, holes_names in group:
+            assert len(holes_names) == 1, "Currently, we only support 1 hole per function"
+        mapping.update(
+            _cosynthesize_group(ctx, ectx, term, group, program_holes, metadata, synthesizer, budget, ui, budget_eval)
+        )
 
-        # Evaluate every candidate on a persistent worker pool. The backend
-        # declares which computations it wants run per candidate (the objective
-        # ``fitness`` always; an ``output`` feature if it clusters by one, etc.);
-        # the pool runs exactly those, in one round-trip, knowing nothing about
-        # what they mean. A `@cluster(f shape)` decorator names the output
-        # featuriser `f` (e.g. a rasterised scene), else the output is the
-        # candidate's own value.
-        feature_fun = _cluster_function(metadata, fun_name) or fun_name
-        primitives = EvalPrimitives(evaluators, ectx, feature_fun, replace)
-        pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
-        evaluator, output_evaluator = _pool_backed(pool)
-
-        # Example-driven (PBE) probe: evaluate a candidate body on a concrete
-        # list of input values *in process*, returning the value the synthesised
-        # function produces. Unlike ``output_evaluator`` (which crosses a process
-        # boundary and so can only return a candidate's repr for function-typed
-        # outputs), this stays in-process, so a String -> String candidate can be
-        # applied to each example's inputs. This is what lets ``afta`` build a
-        # tree automaton keyed by per-example outputs (the BLAZE construction).
-        if metadata.get(fun_name, {}).get("io_examples"):
-            io_params: list[Name] = metadata.get(fun_name, {}).get("io_params", [])
-            # Fill the hole with a harmless dummy so building the program's
-            # def-environment (which includes the @example test bindings that
-            # *call* the synthesised function) never reaches the unfilled hole
-            # and blocks on the interactive prompt. The dummy body is irrelevant:
-            # the sub-terms we probe are built from the DSL components and the
-            # parameters, not from the function under synthesis.
-            from aeon.core.types import t_string as _t_string
-
-            _dummy_prog = replace(Literal("", _t_string))
-            # Build the evaluation environment (all in-scope DSL bindings) ONCE,
-            # rather than re-evaluating the whole def-chain for every probed
-            # sub-term. Each binding is bound by evaluating it with its own name
-            # as the tail, which reuses ``eval``'s Let/Rec (incl. recursion-tying)
-            # handling without duplicating it.
-            _base_ctx = ectx
-            _t: Term = _dummy_prog
-            while isinstance(_t, (Let, Rec)):
-                _bound = eval(dataclasses.replace(_t, body=Var(_t.var_name)), _base_ctx)
-                _base_ctx = _base_ctx.with_var(_t.var_name, _bound)
-                _t = _t.body
-
-            def _pbe_probe(sub_term: Term, input_values: list, _params=tuple(io_params), _ctx=_base_ctx) -> Any:
-                # Evaluate a sub-term (open in the hole's parameters) on one
-                # example's inputs, directly in the precomputed DSL environment.
-                e = _ctx
-                for pname, v in zip(_params, input_values):
-                    e = e.with_var(pname, v)
-                return eval(sub_term, e)
-
-            metadata.setdefault(fun_name, {})["pbe_probe"] = _pbe_probe
-
-        try:
-            t = syn_impl.synthesize(
-                ctx=tyctx,
-                type=ty,
-                validate=validator,
-                evaluate=evaluator,
-                fun_name=fun_name,
-                metadata=metadata,
-                budget=budget,
-                ui=ui,
-                output_value=output_evaluator,
-            )
-        except Exception as e:
-            ui.end(None, None)
-            raise e
-        finally:
-            pool.close()
-
-        ui.end(t, None)
-        mapping[hole_name] = t
     return mapping
 
 
