@@ -42,6 +42,13 @@ class SynthesisUI(abc.ABC):
         is_best: bool,
     ): ...
 
+    def progress(self, created: int, assessed: int, elapsed_time: float) -> None:
+        """Optional: report cumulative search counts so far -- ``created`` is the
+        number of candidate programs generated, ``assessed`` the number actually
+        evaluated/validated. Backends call this periodically; UIs that do not
+        surface counts (terminal, silent) ignore it (the default is a no-op)."""
+        return None
+
     def end(self, solution: Term, quality: Any): ...
 
     def display_results(

@@ -324,6 +324,8 @@ class CATASynthesizer(Synthesizer):
             # Conditionals at the goal type, using the bank grown so far.
             conds = self._cond_combos(bank.get(bool_key, []), bank.get(goal_key, []), deadline, rnd)
             add_bank(goal_key, conds)
+            # created = candidate terms banked; assessed = candidates discharged.
+            ui.progress(sum(len(v) for v in bank.values()), validated_count, time.time() - start)
 
         if best is not None:
             shape = []

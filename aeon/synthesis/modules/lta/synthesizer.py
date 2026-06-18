@@ -142,6 +142,7 @@ class LTASynthesizer(Synthesizer):
         # Enumerate: explore-reduce-check loop.
         equiv_set: set[tuple[int, int]] = set()
         depth = 1
+        created = 0
         while depth < self.max_depth and (time.time() - start) < budget:
             new_states = _transition_step(lta, tctx, inner_ctx)
             if not new_states:
@@ -149,6 +150,9 @@ class LTASynthesizer(Synthesizer):
             lta = prune(lta, inner_ctx)
             equiv_set = similarity(lta, inner_ctx, equiv_set)
             lta, equiv_set = minimize(lta, equiv_set)
+            # created = automaton states materialised; assessed = transition passes.
+            created += len(new_states)
+            ui.progress(created, depth, time.time() - start)
 
             if _try_goal(lta, tctx, inner_type, inner_ctx):
                 term = _extract_solution(lta, abs_names)

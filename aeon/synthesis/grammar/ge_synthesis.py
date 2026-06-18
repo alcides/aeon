@@ -131,14 +131,21 @@ class GESynthesizer(Synthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
+        counter = [0]  # individuals generated/evaluated so far
+
         class UIBackendRecorder(SearchRecorder):
             def register(self, tracker: Any, individual: Individual, problem: Problem, is_best=False):
+                counter[0] += 1
+                elapsed = tracker.get_elapsed_time()
                 ui.register(
                     individual.get_phenotype().get_core(),
                     individual.get_fitness(problem),
-                    tracker.get_elapsed_time(),
+                    elapsed,
                     is_best,
                 )
+                # Each individual is generated and then evaluated, so created and
+                # assessed advance together for this population-based search.
+                ui.progress(counter[0], counter[0], elapsed)
 
         grammar = create_grammar(ctx, type, fun_name, metadata)
         problem = create_problem(validate, evaluate, fun_name, metadata)
