@@ -52,6 +52,44 @@ from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from aeon.bindings.binding_utils import curried
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.dummy import DummyClassifier, DummyRegressor
+from sklearn.ensemble import (
+    AdaBoostClassifier,
+    AdaBoostRegressor,
+    BaggingClassifier,
+    BaggingRegressor,
+    ExtraTreesClassifier,
+    ExtraTreesRegressor,
+    HistGradientBoostingClassifier,
+    HistGradientBoostingRegressor,
+)
+from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.linear_model import (
+    ARDRegression,
+    BayesianRidge,
+    GammaRegressor,
+    HuberRegressor,
+    Lars,
+    LassoLars,
+    OrthogonalMatchingPursuit,
+    PassiveAggressiveClassifier,
+    PassiveAggressiveRegressor,
+    Perceptron,
+    PoissonRegressor,
+    QuantileRegressor,
+    RANSACRegressor,
+    RidgeClassifier,
+    SGDClassifier,
+    SGDRegressor,
+    TheilSenRegressor,
+    TweedieRegressor,
+)
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.neighbors import NearestCentroid, RadiusNeighborsClassifier, RadiusNeighborsRegressor
+from sklearn.svm import LinearSVC, LinearSVR, NuSVC, NuSVR
+from sklearn.tree import ExtraTreeClassifier, ExtraTreeRegressor
 
 
 # ─── helpers (not exposed to Aeon) ───────────────────────────────────────
@@ -99,25 +137,66 @@ def Learning_read_csv(path):
 
 
 @curried
-def Learning_target(df, column):
-    """Designate ``column`` as the target; return the ``(X, y)`` Dataset."""
+def Learning_target(df, column, temporal, missing):
+    """Designate ``column`` as the target; return the ``(X, y)`` Dataset.
+
+    ``temporal`` / ``missing`` are modelling facts consumed only by the
+    static analyser (they carry the chronological-order and
+    missing-value flags into the refinement); the runtime ignores them.
+    """
     y = df[column].tolist()
     X = df.drop(columns=[column]).values.tolist()
     return _xy(X, y)
 
 
 @curried
-def Learning_target_at(df, index):
+def Learning_target_at(df, index, temporal, missing):
     """Designate the column at ``index`` (0-based) as the target."""
     column = df.columns[index]
-    return Learning_target(df, column)
+    return Learning_target(df, column, temporal, missing)
 
 
 @curried
-def Learning_load(path):
+def Learning_load(path, temporal, missing):
     """Convenience: read a CSV and use the *last* column as the target."""
     df = pd.read_csv(path)
-    return Learning_target_at(df, len(df.columns) - 1)
+    return Learning_target_at(df, len(df.columns) - 1, temporal, missing)
+
+
+@curried
+def Learning_create_dataset(rows, features, balanced, temporal, missing):
+    """Build a synthetic Dataset with a declared shape and balance.
+
+    Used for thesis-style static modelling of pipelines: the concrete
+    row/feature counts make shape-dependent refinements (minimum data,
+    metric suitability) statically decidable. ``temporal`` / ``missing``
+    are modelling-only and do not change the generated data.
+    """
+    n = int(rows)
+    f = max(int(features), 1)
+    X = np.random.rand(n, f).tolist()
+    if balanced:
+        y = [i % 2 for i in range(n)]
+    else:
+        # Skew toward the majority class so the result is imbalanced.
+        cutoff = max(n - n // 5, 0)
+        y = [0 if i < cutoff else 1 for i in range(n)]
+    return _xy(X, y)
+
+
+@curried
+def Learning_require_enough_data(ds):
+    """Trusted cast: assert ``rows > features * 10`` and return ``ds``.
+
+    Lets the CSV path discharge a trainer's minimum-data precondition,
+    where the static counts are unknown. Raises if the assertion fails.
+    """
+    X, _ = _as_xy(ds)
+    nrows = len(X)
+    ncols = len(X[0]) if nrows else 0
+    if not (nrows > ncols * 10):
+        raise ValueError(f"require_enough_data: {nrows} rows is not > 10 * {ncols} features")
+    return ds
 
 
 @curried
@@ -167,21 +246,25 @@ def Learning_class_counts(ds):
 
 
 @curried
-def Learning_split(ds, fraction):
-    """Split into (training, testing). ``fraction`` is the training share."""
+def Learning_split(ds, fraction, shuffle):
+    """Split into (training, testing). ``fraction`` is the training share.
+
+    ``shuffle`` randomises the rows before partitioning; pass ``False``
+    to keep chronological order for time-series data.
+    """
     X, y = _as_xy(ds)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=1 - fraction)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=1 - fraction, shuffle=shuffle)
     return (_xy(X_train, y_train), _xy(X_test, y_test))
 
 
 @curried
 def Learning_split_training(ds, fraction):
-    return Learning_split(ds, fraction)[0]
+    return Learning_split(ds, fraction, True)[0]
 
 
 @curried
 def Learning_split_testing(ds, fraction):
-    return Learning_split(ds, fraction)[1]
+    return Learning_split(ds, fraction, True)[1]
 
 
 # ─── Resampling / balancing ─────────────────────────────────────────────
@@ -402,6 +485,224 @@ def Learning_mlp_regressor(ds):
     return _fit(MLPRegressor(max_iter=500), ds)
 
 
+# ─── Full sklearn estimator family (auto-added) ─────────────────────────
+
+
+@curried
+def Learning_adaboost_classifier(ds):
+    return _fit(AdaBoostClassifier(), ds)
+
+
+@curried
+def Learning_bagging_classifier(ds):
+    return _fit(BaggingClassifier(), ds)
+
+
+@curried
+def Learning_extra_trees_classifier(ds):
+    return _fit(ExtraTreesClassifier(), ds)
+
+
+@curried
+def Learning_hist_gradient_boosting_classifier(ds):
+    return _fit(HistGradientBoostingClassifier(), ds)
+
+
+@curried
+def Learning_extra_tree_classifier(ds):
+    return _fit(ExtraTreeClassifier(), ds)
+
+
+@curried
+def Learning_bernoulli_nb(ds):
+    return _fit(BernoulliNB(), ds)
+
+
+@curried
+def Learning_ridge_classifier(ds):
+    return _fit(RidgeClassifier(), ds)
+
+
+@curried
+def Learning_sgd_classifier(ds):
+    return _fit(SGDClassifier(), ds)
+
+
+@curried
+def Learning_perceptron(ds):
+    return _fit(Perceptron(), ds)
+
+
+@curried
+def Learning_passive_aggressive_classifier(ds):
+    return _fit(PassiveAggressiveClassifier(), ds)
+
+
+@curried
+def Learning_linear_discriminant_analysis(ds):
+    return _fit(LinearDiscriminantAnalysis(), ds)
+
+
+@curried
+def Learning_quadratic_discriminant_analysis(ds):
+    return _fit(QuadraticDiscriminantAnalysis(), ds)
+
+
+@curried
+def Learning_linear_svc(ds):
+    return _fit(LinearSVC(), ds)
+
+
+@curried
+def Learning_nu_svc(ds):
+    return _fit(NuSVC(probability=True), ds)
+
+
+@curried
+def Learning_nearest_centroid(ds):
+    return _fit(NearestCentroid(), ds)
+
+
+@curried
+def Learning_radius_neighbors_classifier(ds):
+    return _fit(RadiusNeighborsClassifier(), ds)
+
+
+@curried
+def Learning_gaussian_process_classifier(ds):
+    return _fit(GaussianProcessClassifier(), ds)
+
+
+@curried
+def Learning_dummy_classifier(ds):
+    return _fit(DummyClassifier(), ds)
+
+
+@curried
+def Learning_adaboost_regressor(ds):
+    return _fit(AdaBoostRegressor(), ds)
+
+
+@curried
+def Learning_bagging_regressor(ds):
+    return _fit(BaggingRegressor(), ds)
+
+
+@curried
+def Learning_extra_trees_regressor(ds):
+    return _fit(ExtraTreesRegressor(), ds)
+
+
+@curried
+def Learning_hist_gradient_boosting_regressor(ds):
+    return _fit(HistGradientBoostingRegressor(), ds)
+
+
+@curried
+def Learning_extra_tree_regressor(ds):
+    return _fit(ExtraTreeRegressor(), ds)
+
+
+@curried
+def Learning_bayesian_ridge(ds):
+    return _fit(BayesianRidge(), ds)
+
+
+@curried
+def Learning_ard_regression(ds):
+    return _fit(ARDRegression(), ds)
+
+
+@curried
+def Learning_sgd_regressor(ds):
+    return _fit(SGDRegressor(), ds)
+
+
+@curried
+def Learning_huber_regressor(ds):
+    return _fit(HuberRegressor(), ds)
+
+
+@curried
+def Learning_passive_aggressive_regressor(ds):
+    return _fit(PassiveAggressiveRegressor(), ds)
+
+
+@curried
+def Learning_theil_sen_regressor(ds):
+    return _fit(TheilSenRegressor(), ds)
+
+
+@curried
+def Learning_ransac_regressor(ds):
+    return _fit(RANSACRegressor(), ds)
+
+
+@curried
+def Learning_orthogonal_matching_pursuit(ds):
+    return _fit(OrthogonalMatchingPursuit(), ds)
+
+
+@curried
+def Learning_lars(ds):
+    return _fit(Lars(), ds)
+
+
+@curried
+def Learning_lasso_lars(ds):
+    return _fit(LassoLars(), ds)
+
+
+@curried
+def Learning_poisson_regressor(ds):
+    return _fit(PoissonRegressor(), ds)
+
+
+@curried
+def Learning_gamma_regressor(ds):
+    return _fit(GammaRegressor(), ds)
+
+
+@curried
+def Learning_tweedie_regressor(ds):
+    return _fit(TweedieRegressor(), ds)
+
+
+@curried
+def Learning_quantile_regressor(ds):
+    return _fit(QuantileRegressor(), ds)
+
+
+@curried
+def Learning_linear_svr(ds):
+    return _fit(LinearSVR(), ds)
+
+
+@curried
+def Learning_nu_svr(ds):
+    return _fit(NuSVR(), ds)
+
+
+@curried
+def Learning_radius_neighbors_regressor(ds):
+    return _fit(RadiusNeighborsRegressor(), ds)
+
+
+@curried
+def Learning_gaussian_process_regressor(ds):
+    return _fit(GaussianProcessRegressor(), ds)
+
+
+@curried
+def Learning_kernel_ridge(ds):
+    return _fit(KernelRidge(), ds)
+
+
+@curried
+def Learning_dummy_regressor(ds):
+    return _fit(DummyRegressor(), ds)
+
+
 # ─── Prediction ─────────────────────────────────────────────────────────
 
 
@@ -415,6 +716,19 @@ def Learning_predict(model, ds):
 def Learning_predict_proba(model, ds):
     X, _ = _as_xy(ds)
     return model.predict_proba(X).tolist()
+
+
+@curried
+def Learning_classify_one(model, x):
+    """Class-score vector for one feature row (for the ``Models`` typeclass).
+
+    ``predict_proba`` when available; otherwise a one-hot of the hard
+    prediction, so non-probabilistic classifiers still return a score vector.
+    """
+    if hasattr(model, "predict_proba"):
+        return np.asarray(model.predict_proba([x])[0], dtype=float)
+    pred = model.predict([x])[0]
+    return np.array([1.0 if c == pred else 0.0 for c in model.classes_], dtype=float)
 
 
 # ─── Classification metrics ─────────────────────────────────────────────

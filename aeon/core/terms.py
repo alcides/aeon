@@ -137,7 +137,7 @@ class Abstraction(Term):
         assert isinstance(self.var_name, Name)
 
     def __repr__(self):
-        return f"(\\{self.var_name} -> {self.body})"
+        return f"(fun {self.var_name} => {self.body})"
 
     def __eq__(self, other):
         return isinstance(other, Abstraction) and self.var_name == other.var_name and self.body == other.body

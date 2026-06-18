@@ -1,0 +1,9 @@
+# List-Foldr: generic right fold.
+#
+# Synquid benchmark List-Foldr (pldi16).
+#
+# Polymorphic in (a, b); spec weakened to the signature as in a generic fold.
+
+open List
+
+def foldrL (f: (x:a) -> (acc:b) -> b) (z: b) (xs: (List a)) : b := ?hole;

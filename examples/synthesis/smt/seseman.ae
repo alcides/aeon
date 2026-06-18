@@ -28,8 +28,8 @@ inductive Seseman
      (g: Int | g >= 0 && g <= 9)
      (h: Int | h >= 0 && h <= 9)
    : {s:Seseman |
-        (s_a s == a) && (s_b s == b) && (s_c s == c) && (s_d s == d) &&
-        (s_e s == e) && (s_f s == f) && (s_g s == g) && (s_h s == h)}
+        (s_a s = a) && (s_b s = b) && (s_c s = c) && (s_d s = d) &&
+        (s_e s = e) && (s_f s = f) && (s_g s = g) && (s_h s = h)}
 + s_a (s:Seseman) : Int
 + s_b (s:Seseman) : Int
 + s_c (s:Seseman) : Int
@@ -41,10 +41,10 @@ inductive Seseman
 
 @minimize_int(1)
 def seseman_hole : {s:Seseman |
-    (s_a s + s_b s + s_c s == 9) &&
-    (s_a s + s_d s + s_f s == 9) &&
-    (s_c s + s_e s + s_h s == 9) &&
-    (s_f s + s_g s + s_h s == 9) &&
+    (s_a s + s_b s + s_c s = 9) &&
+    (s_a s + s_d s + s_f s = 9) &&
+    (s_c s + s_e s + s_h s = 9) &&
+    (s_f s + s_g s + s_h s = 9) &&
     (s_a s + s_b s + s_c s + s_d s +
-     s_e s + s_f s + s_g s + s_h s == 24)
-} = ?hole
+     s_e s + s_f s + s_g s + s_h s = 24)
+} := ?hole

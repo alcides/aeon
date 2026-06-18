@@ -1,0 +1,25 @@
+# Property-based testing over algebraic datatypes (issue #37).
+#
+# Inputs of a custom datatype (here the standard `List`) are generated
+# automatically as constructor trees — `cons`/`nil` applications with randomly
+# generated element values — by reusing the datatype's own constructors. No
+# hand-written generators.
+#
+# Run with:  aeon --test examples/pbt/props_list.ae
+
+open List
+
+# Reversing a list preserves its length.
+@property(40)
+def prop_reverse_preserves_length (l : (List Int)) : Bool :=
+    length (reversed l) = length l;
+
+# The length of a concatenation is the sum of the lengths.
+@property(40)
+def prop_append_length_additive (xs : (List Int)) (ys : (List Int)) : Bool :=
+    length (append xs ys) = length xs + length ys;
+
+# Length is never negative.
+@property(40)
+def prop_length_nonneg (l : (List Int)) : Bool :=
+    length l >= 0;

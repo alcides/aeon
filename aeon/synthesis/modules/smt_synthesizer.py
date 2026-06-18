@@ -252,9 +252,9 @@ class SMTSynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         current_meta = metadata.get(fun_name, {})
-        hidden: set[str] = {n.name for n in current_meta.get("hide", [])}
         uninterp_ctx = _build_uninterp_ctx(ctx)
 
         # Build z3 context variables (shared across attempts — only depends on ctx)
@@ -294,7 +294,6 @@ class SMTSynthesizer(Synthesizer):
                 ctx=ctx,
                 target_type=type,
                 fun_name=fun_name,
-                hidden=hidden,
                 solver=solver,
                 holes=holes,
                 ctx_z3_vars=ctx_z3_vars,
@@ -348,7 +347,6 @@ class SMTSynthesizer(Synthesizer):
         ctx: TypingContext,
         target_type: Type,
         fun_name: Name,
-        hidden: set[str],
         solver: z3.Solver,
         holes: dict[Name, tuple[object, TypeConstructor]],
         ctx_z3_vars: dict[str, object],
@@ -390,14 +388,11 @@ class SMTSynthesizer(Synthesizer):
             rng.shuffle(ctx_vars)
 
         for var_name, var_ty in ctx_vars:
-            # Skip hidden variables (compare by base name string, not id)
-            if var_name.name in hidden:
-                continue
             # Skip the function being synthesized (no self-recursion)
             if var_name == fun_name:
                 continue
-            # Skip internal/system names
-            if var_name.name.startswith("__internal__") or var_name.name in _SYSTEM_NAMES:
+            # Skip system names (fitness helpers are shadowed to Unit upstream)
+            if var_name.name in _SYSTEM_NAMES:
                 continue
             # Try to instantiate polymorphic functions
             effective_ty: Type = var_ty
@@ -435,7 +430,6 @@ class SMTSynthesizer(Synthesizer):
                     ctx=ctx,
                     target_type=param_type,
                     fun_name=fun_name,
-                    hidden=hidden,
                     solver=solver,
                     holes=holes,
                     ctx_z3_vars=ctx_z3_vars,

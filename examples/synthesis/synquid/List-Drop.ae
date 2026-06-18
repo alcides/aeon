@@ -1,0 +1,9 @@
+# List-Drop: drop the first n elements.
+#
+# Synquid benchmark List-Drop (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def drop (n: {v:Int | v >= 0}) (xs: {l:(List a) | List.size l >= n}) : {r:(List a) | List.size r = List.size xs - n} := ?hole;

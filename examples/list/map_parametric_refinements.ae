@@ -4,9 +4,9 @@
 #     (f : (x : t) -> t<p>) ->
 #     (l1 : (List t)) ->
 #     {l2 : (List t<p>) | List_size l1 == List_size l2} =
-#     \f -> \l -> native "list(map(f, l))"
+#     fun f => fun l => native "list(map(f, l))"
 
-# def pos : (n: Int) -> {v : Int | v >= 0} = \n -> n * n
+# def pos : (n: Int) -> {v : Int | v >= 0} = fun n => n * n
 
 # def main (args : Int) : Unit {
 #     empty = List_new[Int]

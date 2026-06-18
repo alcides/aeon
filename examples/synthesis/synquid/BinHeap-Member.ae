@@ -1,0 +1,12 @@
+# BinHeap-Member: membership in a binary heap.
+#
+# Synquid benchmark BinHeap-Member (pldi16).
+#
+# Element type polymorphic. Heap ORDER invariant (parent <= children) NOT encoded (needs #1); only node-count. Structural/size port.
+
+inductive Heap a
+| hleaf : {h:(Heap a) | hsz h = 0}
+| hnode (left: (Heap a)) (key: a) (right: (Heap a)) : {h:(Heap a) | hsz h = hsz left + hsz right + 1}
++ hsz (h: (Heap a)) : Int
+
+def hmember (x: a) (h: (Heap a)) : Bool := ?hole;

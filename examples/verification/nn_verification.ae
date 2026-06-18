@@ -1,0 +1,49 @@
+# Verification of a (tiny) Neural Network with refinement types.
+#
+# Inspired by https://arxiv.org/abs/2605.02790 and the broader line of work on
+# neural-network verification (Reluplex / Marabou / alpha-beta-CROWN): given a
+# network and a bounded input region, *prove* the output stays in a safe range.
+#
+# Aeon does this for free: encode ReLU and the (fixed-weight) layers as refined
+# functions, and let Z3 discharge the reachability bound at every call site.
+# Because the weights are constants, every constraint stays in linear real
+# arithmetic, which Z3 decides exactly — no abstraction or bound propagation
+# needed.
+
+# ── ReLU ───────────────────────────────────────────────────────────────
+# The postcondition is the *exact* semantics of ReLU, not an approximation:
+#   y >= 0           (output is non-negative)
+#   y == x || y == 0 (output is either the input or zero)
+# Z3 uses this disjunction to reason about reachable outputs downstream.
+def relu (x: Float) : {y: Float | y >= 0.0 && (y = x || y = 0.0)} :=
+    if x >= 0.0 then x else 0.0;
+
+# ── A single neuron:  relu(w1*x1 + w2*x2 + b) ──────────────────────────
+# Inputs are constrained to the box [0, 1]^2 (a normalised input region).
+# Weights w1 = 2, w2 = 3, bias b = -1 are baked in.
+#
+#   pre-activation  z = 2*x1 + 3*x2 - 1   ranges over [-1, 4]
+#   relu(z)                               ranges over [ 0, 4]
+#
+# We *claim* the output lies in [0, 5] and Z3 verifies the claim. Tighten the
+# upper bound to 3 and the file is correctly rejected (4 > 3 is reachable).
+def neuron
+    (x1: {v: Float | 0.0 <= v && v <= 1.0})
+    (x2: {v: Float | 0.0 <= v && v <= 1.0})
+    : {y: Float | 0.0 <= y && y <= 5.0} :=
+    relu (2.0 * x1 + 3.0 * x2 - 1.0);
+
+# ── A safety property over a 2-layer network ───────────────────────────
+# Layer 1 has two neurons h1, h2; the output neuron combines them.
+# We prove the network never outputs more than 30 on the whole input box —
+# the kind of "output never enters the unsafe set" property NN verifiers check.
+def network
+    (x1: {v: Float | 0.0 <= v && v <= 1.0})
+    (x2: {v: Float | 0.0 <= v && v <= 1.0})
+    : {y: Float | 0.0 <= y && y <= 30.0} :=
+    let h1 : {v: Float | 0.0 <= v && v <= 4.0} := relu (2.0 * x1 + 3.0 * x2 - 1.0) in
+    let h2 : {v: Float | 0.0 <= v && v <= 5.0} := relu (5.0 * x1 - 1.0 * x2 + 0.0) in
+    relu (3.0 * h1 + 2.0 * h2 + 1.0);
+
+def main (_: Int) : Unit :=
+    print (network 1.0 0.5)

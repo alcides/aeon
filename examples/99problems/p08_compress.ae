@@ -3,9 +3,9 @@
 
 open Array
 
-def compress (l: (Array Int)) : {r:(Array Int) | Array.size r <= Array.size l} =
+def Array.compress (l: (Array Int)) : {r:(Array Int) | Array.size r <= Array.size l} :=
     native "[x for i, x in enumerate(l) if i == 0 or x != l[i-1]]"
 
-def main (args:Int) : Unit =
-    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 1) 2) 3) 3;
-    print (compress a)
+def main (args:Int) : Unit :=
+    a : (Array Int) := (((((Array.new[Int]).append 1).append 1).append 2).append 3).append 3;
+    print a.compress

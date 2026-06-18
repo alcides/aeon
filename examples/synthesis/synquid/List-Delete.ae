@@ -1,0 +1,9 @@
+# List-Delete: remove occurrences of x; result no longer.
+#
+# Synquid benchmark List-Delete (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Element equality (Synquid's Eq) is not in the spec; only the length bound.
+
+open List
+
+def deleteL (x: a) (xs: (List a)) : {l:(List a) | List.size l <= List.size xs} := ?hole;

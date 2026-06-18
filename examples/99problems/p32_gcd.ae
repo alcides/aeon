@@ -1,12 +1,16 @@
 # Problem 32: Determine the greatest common divisor using Euclid's algorithm.
 # Implemented recursively in Aeon, using a decreasing metric for termination.
 
-def absInt (n: Int) : {v:Int | v >= 0} = if n >= 0 then n else 0 - n
+@example(absInt 7 = 7)
+@example(absInt (0 - 5) = 5)
+def absInt (n: Int) : {v:Int | v >= 0} := if n >= 0 then n else 0 - n
 
-def myGcd (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : {v:Int | v >= 0} decreasing_by [b] =
-    if b == 0 then a else myGcd b (a % b)
+@example(myGcd 36 63 = 9)
+@example(myGcd 17 13 = 1)
+def myGcd (a: {x:Int | x >= 0}) (b: {y:Int | y >= 0}) : {v:Int | v >= 0} decreasing_by [b] :=
+    if b = 0 then a else myGcd b (a % b)
 
-def main (args:Int) : Unit =
-    _ = print (myGcd 36 63);
-    _ = print (myGcd 1071 462);
+def main (args:Int) : Unit :=
+    _ := print (myGcd 36 63);
+    _ := print (myGcd 1071 462);
     print (myGcd 17 13)

@@ -19,7 +19,7 @@ from aeon.sugar.ast_helpers import st_int, st_bool
 
 
 def test_elaboration_foralls():
-    t = parse_expression("let x : a = 3; x")
+    t = parse_expression("let x : a := 3; x")
     elab_t = elaborate_foralls(t)
     assert isinstance(elab_t, SRec)
     match elab_t.var_type:
@@ -30,32 +30,32 @@ def test_elaboration_foralls():
 
 
 def test_elaboration_foralls2():
-    t = parse_expression("let x : Int = 3; x")
+    t = parse_expression("let x : Int := 3; x")
     elab_t = elaborate_foralls(t)
     assert isinstance(elab_t, SRec)
     assert elab_t.var_type == parse_type("Int")
 
 
 def test_rec_refined_sugar():
-    verbose = parse_expression("let x : {x:Int | x > 0} = 5; x")
-    short = parse_expression("let x : Int | x > 0 = 5; x")
+    verbose = parse_expression("let x : {x:Int | x > 0} := 5; x")
+    short = parse_expression("let x : Int | x > 0 := 5; x")
     assert term_equality(verbose, short)
 
 
 def test_rec_refined_sugar_no_let():
-    verbose = parse_expression("x : {x:Int | x > 0} = 5; x")
-    short = parse_expression("x : Int | x > 0 = 5; x")
+    verbose = parse_expression("x : {x:Int | x > 0} := 5; x")
+    short = parse_expression("x : Int | x > 0 := 5; x")
     assert term_equality(verbose, short)
 
 
 def test_elaboration_unification():
-    t = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x 3; 1")
+    t = parse_expression("let x : forall a:B, (x:a) -> a := (Λ a:B => (fun x => x)); let y:Int := x 3; 1")
     ectx = ElaborationTypingContext()
     ectx, subs = bind_ectx(ectx, [])
     t = bind_sterm(t, subs)
     v = elaborate_check(ectx, t, parse_type("Int"))
     v2 = elaborate_remove_unification(ectx, v)
-    expected = parse_expression("let x : forall a:B, (x:a) -> a = (Λ a:B => (\\x -> x)); let y:Int = x[Int] 3; 1")
+    expected = parse_expression("let x : forall a:B, (x:a) -> a := (Λ a:B => (fun x => x)); let y:Int := x[Int] 3; 1")
     expected = bind_sterm(expected, subs)
     assert term_equality(v2, expected)
 

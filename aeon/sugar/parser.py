@@ -5,6 +5,8 @@ import pathlib
 from typing import Callable
 
 from lark import Lark, Transformer, v_args
+from lark.lark import PostLex
+from lark.lexer import Token
 
 from aeon.core.multiplicity import from_token, Multiplicity, MOmega
 from aeon.core.types import Kind
@@ -19,6 +21,7 @@ from aeon.sugar.program import (
     SRefinementApplication,
     SMatch,
     SMatchBranch,
+    SMethodSelector,
     SHole,
     SBy,
     SIf,
@@ -88,6 +91,55 @@ def _split_arg_multiplicities(fn_args):
     return plain, tuple(mults), tuple(flags)
 
 
+# Token types that can end a method-call *receiver*. An immediately-following
+# ``.name`` (no intervening whitespace) is then a method dot, Lean-style — not an
+# anonymous constructor. (Bare ``x.name`` never reaches here: the lexer already
+# fuses it into a single ``QUALIFIED_ID``.)
+_RECEIVER_END_TOKENS = frozenset(
+    {
+        "RPAR",  # (e).m
+        "INTLIT",  # 1.m
+        "FLOATLIT",  # 1.5.m
+        "BOOLLIT",
+        "ESCAPED_STRING",
+        "ID",  # ?x.m (hole) and any bare ident not fused into QUALIFIED_ID
+        "QUALIFIED_ID",  # x.a.m  -> (x.a).m
+        "METHOD_DOT",  # 1.a.b chains
+    }
+)
+
+
+class MethodDotPostLex(PostLex):
+    """Distinguish a method/projection dot from an anonymous-constructor dot by
+    whitespace, mirroring Lean (issue #27).
+
+    A ``DOT_ID`` (``.name``) that is *attached* to the previous token — no
+    whitespace, and that token can end a receiver — is retagged ``METHOD_DOT``
+    and binds tighter than application (``f 1.toString`` ≡ ``f (1.toString)``).
+    A leading or space-separated ``.name`` stays a ``DOT_ID`` anonymous
+    constructor (``.mk .sc_blue 40``)."""
+
+    # Ensure the contextual LALR lexer always offers ``DOT_ID`` (``METHOD_DOT``
+    # has no pattern; it is produced only here), so attached dots are lexable in
+    # states that expect a method dot.
+    always_accept = ("DOT_ID",)
+
+    def process(self, stream):
+        prev: Token | None = None
+        for tok in stream:
+            if (
+                tok.type == "DOT_ID"
+                and prev is not None
+                and prev.type in _RECEIVER_END_TOKENS
+                and prev.end_pos is not None
+                and tok.start_pos is not None
+                and prev.end_pos == tok.start_pos
+            ):
+                tok.type = "METHOD_DOT"
+            prev = tok
+            yield tok
+
+
 class AnnotatedStr(str):
     loc: Location
 
@@ -118,6 +170,18 @@ class TreeToSugar(Transformer):
 
     def polymorphism_t(self, args):
         return STypePolymorphism(Name(args[0]), args[1], args[2])
+
+    def pred_sort(self, args):
+        # The sort of an abstract-refinement parameter, parsed as a bare arrow
+        # chain ``d1 -> d2 -> ... -> Bool``. Fold it (right-associatively) into
+        # the curried predicate type, which is stored directly as the
+        # refinement's ``sort``. Unary ``d -> Bool`` yields ``SAbstractionType(d,
+        # Bool)``; binary ``d -> d -> Bool`` yields ``d -> (d -> Bool)``; etc.
+        domains = list(args[:-1])
+        sort: SType = args[-1]
+        for d in reversed(domains):
+            sort = SAbstractionType(Name("_"), d, sort)
+        return sort
 
     def refinement_polymorphism_t(self, args):
         return SRefinementPolymorphism(Name(args[0]), args[1], args[2])
@@ -336,6 +400,17 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def application_e(self, meta, args):
         return SApplication(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def method_access(self, meta, args):
+        # ``receiver.method`` (issue #27). ``args[0]`` is the receiver expression
+        # and ``args[1]`` is the ``DOT_ID`` token ``.method``. The receiver is the
+        # *argument* of the selector so existing ``SApplication``-recursing passes
+        # walk into it without needing a dedicated case.
+        receiver = args[0]
+        method = str(args[1])[1:]  # strip leading dot
+        loc = self._loc(meta)
+        return SApplication(SMethodSelector(Name(method), loc=loc), receiver, loc=loc)
 
     @v_args(meta=True)
     def abstraction_e(self, meta, args):
@@ -606,6 +681,50 @@ class TreeToSugar(Transformer):
     def def_fun_eq(self, meta, args):
         return self.def_fun(meta, args)
 
+    @v_args(meta=True)
+    def axiom_decl(self, meta, args):
+        # ``axiom name : <type> ;`` — Lean-style trusted declaration. The type
+        # may be a dependent, refined arrow; we peel its leading binders into a
+        # Definition's foralls / refinement-foralls / value args so that the
+        # usual lambda-wrapping makes the axiom *callable* (it is instantiated
+        # by application, ghost-lemma style). The body is a trusted ``native``
+        # token: never checked against the refinement, and — like a Lean axiom
+        # — not meant to be computed (applying it yields an opaque value).
+        name, ty = args[0], args[1]
+        loc = self._loc(meta)
+        foralls: list = []
+        rforalls: list = []
+        fn_args: list = []
+        mults: list = []
+        flags: list = []
+        while isinstance(ty, STypePolymorphism):
+            foralls.append((ty.name, ty.kind))
+            ty = ty.body
+        while isinstance(ty, SRefinementPolymorphism):
+            rforalls.append((ty.name, ty.sort))
+            ty = ty.body
+        while isinstance(ty, SAbstractionType):
+            fn_args.append((ty.var_name, ty.var_type))
+            mults.append(ty.multiplicity)
+            flags.append(ty.is_instance)
+            ty = ty.type
+        body = SApplication(
+            SVar(Name("native"), loc=loc),
+            SLiteral("()", type=st_string, loc=loc),
+            loc=loc,
+        )
+        return Definition(
+            Name(name),
+            foralls,
+            fn_args,
+            ty,
+            body,
+            rforalls=rforalls,
+            arg_multiplicities=tuple(mults),
+            instance_flags=tuple(flags),
+            loc=loc,
+        )
+
     def macros(self, args):
         return args
 
@@ -686,6 +805,7 @@ def _get_cached_parser(rule: str) -> Lark:
             start=rule,
             import_paths=[pathlib.Path(__file__).parent.parent.absolute() / "frontend"],
             propagate_positions=True,
+            postlex=MethodDotPostLex(),
         )
     return _parser_cache[rule]
 

@@ -1,0 +1,14 @@
+# List-ExtractMin: minimum and the remaining list.
+#
+# Synquid benchmark List-ExtractMin (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Returns (singleton-min, rest); minimality needs an order on `a` (arrives with #1).
+
+open List
+
+inductive LPair a
+| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p = List.size fa && bsize p = List.size sb}
++ asize (p: (LPair a)) : Int
++ bsize (p: (LPair a)) : Int
+
+def extractMin (xs: {l:(List a) | List.size l >= 1}) : {p:(LPair a) | bsize p = List.size xs - 1} := ?hole;

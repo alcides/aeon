@@ -134,7 +134,7 @@ class RefinementPolymorphism(Type):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"forall <{self.name}:{self.sort} -> Bool>, {self.body}"
+        return f"forall <{self.name}:{self.sort}>, {self.body}"
 
     def __hash__(self) -> int:
         return hash(self.name) + hash(self.sort) + hash(self.body)

@@ -252,23 +252,45 @@ def type_infer_liquid(
                 of a TypeConstructor, the return type ``a`` would never
                 be bound to the concrete type at the call site.
                 """
+
+                def _is_numeric(ty: Type) -> bool:
+                    return isinstance(ty, TypeConstructor) and ty.name.name in ("Int", "Float")
+
                 match (actual, expected):
                     case (_, TypeVar(name)):
                         resolved = resolve_type(actual) if isinstance(actual, (TypeConstructor, TypeVar)) else actual
                         if name in equalities:
-                            if resolve_type(TypeVar(name)) != resolved:
-                                raise LiquidTypeCheckException(
-                                    f"Argument {arg} in {liq} is expected to be of type "
-                                    f"{exp_t} ({equalities[name]}), but {k} was found instead."
-                                )
+                            bound = resolve_type(TypeVar(name))
+                            if bound != resolved:
+                                # An integer literal (typed ``Int``) may stand in
+                                # for a ``Float`` operand: Z3 coerces numerals
+                                # across the Int/Real tower, so e.g. the divisor
+                                # refinement ``{v:a | v != 0}`` instantiated at
+                                # ``Float`` still discharges. Widen to ``Float``.
+                                if _is_numeric(bound) and _is_numeric(resolved):
+                                    equalities[name] = t_float
+                                else:
+                                    raise LiquidTypeCheckException(
+                                        f"Argument {arg} in {liq} is expected to be of type "
+                                        f"{exp_t} ({equalities[name]}), but {k} was found instead."
+                                    )
                         else:
                             assert isinstance(resolved, (TypeConstructor, TypeVar))
-                            equalities[name] = resolved
+                            # Skip a self-referential binding ``a := a``: it is
+                            # vacuous and would make ``resolve_type`` loop. This
+                            # arises when a function reuses a type variable across
+                            # argument positions, e.g. an n-ary abstract-refinement
+                            # relation ``r : a -> a -> Bool``.
+                            if not (isinstance(resolved, TypeVar) and resolved.name == name):
+                                equalities[name] = resolved
                     case (TypeConstructor(t, a_args), TypeConstructor(e, e_args)) if t == e and len(a_args) == len(
                         e_args
                     ):
                         for a_in, e_in in zip(a_args, e_args):
                             _unify(a_in, e_in)
+                    case (TypeConstructor(_), TypeConstructor(_)) if _is_numeric(actual) and _is_numeric(expected):
+                        # Int/Float mismatch: tolerated as numeric coercion (see above).
+                        pass
                     case (TypeConstructor(t), TypeConstructor(e)):
                         raise LiquidTypeCheckException(
                             f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."

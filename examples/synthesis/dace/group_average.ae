@@ -1,0 +1,13 @@
+# DACE category: group-by aggregate -- the average within a group. `group_by`
+# returns one sub-table per group; here we aggregate a single group via
+# filter + mean (the per-group average a completion would fill in).
+open Table
+
+def sales : Table :=
+    native "[{'region':'N','v':10},{'region':'N','v':20},{'region':'S','v':6}]";
+
+def north : Table := sales.filter (fun row => native "row['region'] == 'N'");
+
+def north_avg : Int := north.mean_col "v";  # (10 + 20) / 2 = 15
+
+def main (x:Int) : Unit := print north_avg;

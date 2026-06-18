@@ -25,9 +25,9 @@ inductive Books
      (y0: Int | y0 >= 1 && y0 <= 8)
      (y1: Int | y1 >= 1 && y1 <= 8)
    : {b:Books |
-        (which b == w)  &&
-        (peter b == x0) && (paul b == x1) &&
-        (tom   b == y0) && (dick b == y1)}
+        (which b = w)  &&
+        (peter b = x0) && (paul b = x1) &&
+        (tom   b = y0) && (dick b = y1)}
 + which (b:Books) : Int
 + peter (b:Books) : Int
 + paul  (b:Books) : Int
@@ -40,10 +40,10 @@ def books_hole : {b:Books |
     (peter b >= 1) && (peter b <= 8) &&
     (paul  b >= 1) && (paul  b <= 8) &&
     (tom   b >= 1) && (tom   b <= 8) &&
-    (dick b == 1) &&
-    (peter b == tom b + 1) &&
+    (dick b = 1) &&
+    (peter b = tom b + 1) &&
     (peter b * peter b + which b * tom b * tom b +
-        (1 - which b) * dick b * dick b == 65) &&
+        (1 - which b) * dick b * dick b = 65) &&
     (paul  b * paul  b + (1 - which b) * tom b * tom b +
-        which b * dick b * dick b == 65)
-} = ?hole
+        which b * dick b * dick b = 65)
+} := ?hole

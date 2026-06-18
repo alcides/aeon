@@ -2,18 +2,11 @@ open String
 open Math
 import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_sd_synth_values, unpack_train_data, load_dataset, join_string_list, String_distance)
 
-def train: TrainData = extract_train_data (load_dataset "square-digits" 200 200)
+def train: TrainData := extract_train_data (load_dataset "square-digits" 200 200)
 
-def input_list : List = get_input_list (unpack_train_data train)
+def input_list : List := get_input_list (unpack_train_data train)
 
-def expected_values : List = get_output_list (unpack_train_data train)
+def expected_values : List := get_output_list (unpack_train_data train)
 
-@hide(extract_train_data,
-            get_input_list,
-            get_output_list,
-            unpack_train_data,
-            load_dataset,
-            get_sd_synth_values,
-            calculate_list_errors)
 @minimize_float(String_distance (join_string_list(get_sd_synth_values input_list synth)) (join_string_list(  expected_values)))
-def synth ( n : Int) : String = (?hole:String)
+def synth ( n : Int) : String := (let extract_train_data := unit in let get_input_list := unit in let get_output_list := unit in let unpack_train_data := unit in let load_dataset := unit in let get_sd_synth_values := unit in let calculate_list_errors := unit in ?hole)

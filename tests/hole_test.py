@@ -9,12 +9,30 @@ def extract_target_functions(source):
     return incomplete_functions_and_holes(ctx, core_ast_anf)
 
 
+def test_bare_hole_in_argument_position_typechecks():
+    """A bare hole used as a function argument needs no type annotation.
+
+    The hole is `check`ed against the parameter type, so it has that type even
+    though `synth` alone would default a hole to a polymorphic type variable.
+    Regression: previously the argument was re-synthesised, the hole became a
+    polymorphic var (not an SMT base type), and the dependent-result binder
+    `_y` was left undeclared in the solver -> KeyError during verification.
+    """
+    source = r"""
+        def func (i:Int) : Int := i * ?hole
+        def main (x:Int) : Int := func 10
+    """
+    # Should typecheck without a `(?hole : Int)` annotation.
+    holes = extract_target_functions(source)
+    assert any(fn.name == "func" for (fn, _) in holes)
+
+
 def test_hole_identification():
     code = """
-            def year : Int = 2023;
-            def minus : (a:Int) -> (b:Int) -> Int = \\x -> \\y -> x - y;
+            def year : Int := 2023;
+            def minus : (a:Int) -> (b:Int) -> Int := fun x => fun y => x - y;
             @minimize_int( year - (synth 7) )
-            def synth(a: Int) : Int = (?hole:Int) * a
+            def synth(a: Int) : Int := (?hole:Int) * a
         """
     holes = extract_target_functions(code)
     match holes:
@@ -26,7 +44,7 @@ def test_hole_identification():
 
 def test_hole1():
     source = r"""
-        def test (x:{k:Int | k > 0}) : {z:Int | z < 0} =
+        def test (x:{k:Int | k > 0}) : {z:Int | z < 0} :=
         ?r
     """
     holes = extract_target_functions(source)
@@ -40,7 +58,7 @@ def test_hole1():
 def test_hole2():
     source = r"""
         type Example;
-        def test: Example = ?r ;
+        def test: Example := ?r ;
     """
     holes = extract_target_functions(source)
     match holes:
@@ -52,9 +70,9 @@ def test_hole2():
 
 def test_hole3():
     source = r"""
-        def d: Int = (?r:Int) + (?p:Int);
-        def g: Int = 1;
-        def e: Int = (?q:Int) + (?c:Int);
+        def d: Int := (?r:Int) + (?p:Int);
+        def g: Int := 1;
+        def e: Int := (?q:Int) + (?c:Int);
     """
     holes = extract_target_functions(source)
     match holes:

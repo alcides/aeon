@@ -8,36 +8,35 @@
 inductive Trade
 | mk (buy:Int | 0 <= buy && buy < 12)
      (sell:Int | 0 <= sell && sell < 12) :
-     {t:Trade | (buy_idx t == buy) && (sell_idx t == sell) &&
+     {t:Trade | (buy_idx t = buy) && (sell_idx t = sell) &&
                 (0 <= buy_idx t) && (buy_idx t < 12) &&
                 (0 <= sell_idx t) && (sell_idx t < 12)}
 + buy_idx  (t:Trade) : Int
 + sell_idx (t:Trade) : Int
 
 # Price table for the array [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8].
-def price_at (i:Int) : Int =
-    if i == 0  then 3
-    else if i == 1  then 1
-    else if i == 2  then 4
-    else if i == 3  then 1
-    else if i == 4  then 5
-    else if i == 5  then 9
-    else if i == 6  then 2
-    else if i == 7  then 6
-    else if i == 8  then 5
-    else if i == 9  then 3
-    else if i == 10 then 5
+def price_at (i:Int) : Int :=
+    if i = 0  then 3
+    else if i = 1  then 1
+    else if i = 2  then 4
+    else if i = 3  then 1
+    else if i = 4  then 5
+    else if i = 5  then 9
+    else if i = 6  then 2
+    else if i = 7  then 6
+    else if i = 8  then 5
+    else if i = 9  then 3
+    else if i = 10 then 5
     else 8;
 
 # Match-based profit calculation: extract buy and sell indices via pattern matching.
-def profit (t:Trade) : Int =
+def profit (t:Trade) : Int :=
     match t with
     | mk b s => price_at s - price_at b;
 
 # Synthesize a valid trade that maximizes profit.
-@hide(price_at, profit)
 @maximize_int(profit trade_hole)
-def trade_hole : {t:Trade | buy_idx t < sell_idx t} = ?hole
+def trade_hole : {t:Trade | buy_idx t < sell_idx t} := (let price_at := unit in let profit := unit in ?hole)
 
 # Verification: the known optimal trade (buy=1, sell=5) should type-check.
-def trade_known : {t:Trade | buy_idx t < sell_idx t} = .mk 1 5
+def trade_known : {t:Trade | buy_idx t < sell_idx t} := .mk 1 5

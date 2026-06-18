@@ -1,0 +1,13 @@
+import String (concat, charAt, substr, replace, indexOfFrom, len, startsWith, endsWith);
+
+# Auto-generated from a SyGuS PBE-Strings benchmark (BLAZE/SYNGAR suite,
+# Wang, Dillig & Singh, POPL'18). Solve with:
+#   uv run python -m aeon --no-main -s afta examples/synthesis/afta/sygus/<file>.ae
+
+@example(f "938-242-504" = "504")
+@example(f "308-916-545" = "545")
+@example(f "623-599-749" = "749")
+@example(f "981-424-843" = "843")
+@example(f "118-980-214" = "214")
+@example(f "244-655-094" = "094")
+def f (name: String) : String := (?hole : String);

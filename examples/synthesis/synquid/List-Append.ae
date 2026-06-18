@@ -1,0 +1,9 @@
+# List-Append: append two lists; sizes add.
+#
+# Synquid benchmark List-Append (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def appendL (xs: (List a)) (ys: (List a)) : {l:(List a) | List.size l = List.size xs + List.size ys} := ?hole;

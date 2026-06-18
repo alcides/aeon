@@ -1,0 +1,18 @@
+open Subprocess
+open Array
+
+# Build an argument vector — never a shell string, so there is nothing to
+# inject — and run it. `run` requires a non-empty `Array String`; the
+# `Array.size` postconditions of `append` discharge that automatically.
+
+def echoArgs : {a: (Array String) | Array.size a >= 1} :=
+    ((Array.new[String]).append "echo").append "hello"
+
+# Inspect the exit code before trusting the output. `succeeded` ties the
+# boolean to the `exitCode` measure, so the branch reads cleanly.
+def main (_:Int) : Unit :=
+    p : CompletedProcess := Subprocess.run echoArgs;
+    if Subprocess.succeeded p then
+        print (Subprocess.stdout p)
+    else
+        print (Subprocess.stderr p)

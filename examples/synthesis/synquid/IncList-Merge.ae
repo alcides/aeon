@@ -1,0 +1,13 @@
+# IncList-Merge: merge two sorted lists into one.
+#
+# Synquid benchmark IncList-Merge (pldi16).
+#
+# Element type kept Int: the type carries an ORDER invariant (icons requires hd <= min of the tail). Becomes `forall a` once n-ary abstract refinements (#1) provide the order relation.
+
+inductive IncList
+| inil : {l:IncList | ilen l = 0}
+| icons (hd: Int) (tl: {t:IncList | ilen t = 0 || hd <= imin t}) : {l:IncList | ilen l = ilen tl + 1 && imin l = hd}
++ ilen (l: IncList) : Int
++ imin (l: IncList) : Int
+
+def merge (xs: IncList) (ys: IncList) : {l:IncList | ilen l = ilen xs + ilen ys} := ?hole;

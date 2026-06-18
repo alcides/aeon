@@ -14,6 +14,7 @@ from aeon.sugar.program import (
     Program,
     SAbstraction,
     SAnonConstructor,
+    SMethodSelector,
     SAnnotation,
     SApplication,
     SHole,
@@ -148,6 +149,8 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return t  # Resolved during desugaring, not during binding
         case SAnonConstructor():
             return t  # Resolved during elaboration, not during binding
+        case SMethodSelector():
+            return t  # Leaf; resolved (with its receiver) during elaboration
         case SVar(name, loc=loc):
             return SVar(apply_subs_name(subs, name), loc=loc)
         case SHole(name, loc=loc):

@@ -1,0 +1,27 @@
+# Linear regression with scikit-learn, via Aeon's Python FFI.
+#
+# ``native_import`` pulls a Python module into scope so the ``native`` blocks
+# below can call into it — this example genuinely requires ``numpy`` and
+# ``scikit-learn`` to be installed. ``Model`` is an opaque native type that
+# wraps a fitted scikit-learn estimator.
+
+type Model
+
+def numpy : Unit := native_import "numpy"
+def sklearn : Unit := native_import "sklearn"
+
+
+# Fit an ordinary least-squares line to the four points
+# (1, 2), (2, 4), (3, 6), (4, 8) — a perfect ``y = 2x`` relationship.
+def train : Model :=
+    native "sklearn.linear_model.LinearRegression().fit(numpy.array([[1.0],[2.0],[3.0],[4.0]]), numpy.array([2.0,4.0,6.0,8.0]))"
+
+
+# Predict the response for a single feature value.
+def predict (model: Model) (x: Float) : Float :=
+    native "float(model.predict(numpy.array([[x]]))[0])"
+
+
+def main (_:Int) : Unit :=
+    let model := train in
+    print (predict model 10.0)

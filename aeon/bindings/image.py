@@ -141,7 +141,10 @@ def Image_diff(im1, im2):
 def Image_diff_mse(im1, im2):
     im1 = np.array(im1)
     im2 = np.array(im2)
-    return mse(im1, im2)
+    # Cast to a native float: skimage returns a numpy scalar, which would leak a
+    # numpy type into Aeon's Float (so e.g. `diff a b <= eps` yields numpy.bool_,
+    # which the --test runner rejects as "not a Bool"). Mirror the fitness_* fns.
+    return float(mse(im1, im2))
 
 
 _HUGE = 1e30

@@ -1,0 +1,29 @@
+# Even-N Parity --- a classic Boolean genetic-programming benchmark.
+#
+# Evolve a Boolean function over N inputs that returns `true` exactly when an
+# even number of the inputs are `true`. Parity is the canonical "hard" GP
+# benchmark (Koza, 1992): it has no short disjunctive-normal-form solution, so
+# the search must discover nested Boolean structure.
+#
+# This is the even-3-parity instance (2^3 = 8 truth-table rows). Because the
+# input space is small and fully enumerable, fitness is computed *exactly* over
+# the entire truth table rather than a sampled subset:
+#
+#   fitness = number of truth-table rows the candidate gets wrong  (0 == perfect)
+#
+# Synthesis target: discover the body of `synth` using {&&, ||, !, if-then-else}
+# and the three inputs. Run with, e.g.:
+#   uv run python -m aeon --budget 30 -s gp examples/synthesis/even_parity.ae
+
+# Reference specification (the function we want synthesis to rediscover).
+# Even parity == NOT(a XOR b XOR c); on Bool, `x != y` is exclusive-or.
+def even_parity_3_spec (a:Bool) (b:Bool) (c:Bool) : Bool := !((a != b) != c);
+
+# Exact fitness over the full 8-row truth table: count the disagreements
+# between the candidate `func` and the true even-parity predicate.
+def parity_errors : (func: (a:Bool) -> (b:Bool) -> (c:Bool) -> Bool) -> Int :=
+    fun func => native "sum(1 for a in (True, False) for b in (True, False) for c in (True, False) if func(a)(b)(c) != (((1 if a else 0) + (1 if b else 0) + (1 if c else 0)) % 2 == 0))";
+
+@minimize_int(parity_errors synth)
+def synth (a:Bool) (b:Bool) (c:Bool) : Bool :=
+    (let even_parity_3_spec := unit in let parity_errors := unit in ?hole)

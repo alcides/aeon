@@ -6,6 +6,7 @@ from aeon.elaboration.instantiation import type_substitution
 from aeon.facade.api import (
     AeonError,
     InstanceResolutionError,
+    MethodResolutionError,
     NonOrderableComparisonError,
     UnificationFailedError,
     UnificationKindError,
@@ -23,6 +24,7 @@ from aeon.sugar.program import (
     SInstanceHole,
     SLet,
     SLiteral,
+    SMethodSelector,
     SRec,
     SRefinementAbstraction,
     SRefinementApplication,
@@ -63,6 +65,93 @@ def _extract_base_type_name(ty: SType) -> str | None:
             return _extract_base_type_name(inner)
         case _:
             return None
+
+
+def _receiver_arg_index(fn_type: SType | None, type_name: str) -> int:
+    """Index (among *explicit* value parameters) of the first parameter whose
+    base type is ``type_name`` — i.e. where a method call's receiver should be
+    inserted, Lean-style. Type/refinement-polymorphism binders are peeled and
+    instance-implicit parameters are skipped (they are auto-filled). Falls back
+    to ``0`` (insert first) when no parameter matches or the type is unknown."""
+    idx = 0
+    ty = fn_type
+    while ty is not None:
+        match ty:
+            case STypePolymorphism(_, _, body) | SRefinementPolymorphism(_, _, body):
+                ty = body
+            case SAbstractionType(_, var_type, rtype):
+                if ty.is_instance:
+                    ty = rtype
+                    continue
+                if _extract_base_type_name(var_type) == type_name:
+                    return idx
+                idx += 1
+                ty = rtype
+            case _:
+                break
+    return 0
+
+
+def _method_call_spine(t: STerm) -> tuple[Name, STerm, list[STerm]] | None:
+    """If ``t`` is the application spine of a method call, return
+    ``(method, receiver, call_args)``; otherwise ``None``.
+
+    ``receiver.method a1 ... an`` parses to nested applications whose innermost
+    function is the ``SMethodSelector`` and whose first applied argument is the
+    receiver: ``App(... App(App(SMethodSelector(method), receiver), a1) ..., an)``.
+    We unwind that into the method name, the receiver, and the remaining call
+    arguments ``[a1, ..., an]`` (which may be empty)."""
+    args: list[STerm] = []
+    cur = t
+    while isinstance(cur, SApplication):
+        args.insert(0, cur.arg)
+        cur = cur.fun
+    if isinstance(cur, SMethodSelector) and args:
+        return (cur.method, args[0], args[1:])
+    return None
+
+
+def _build_method_call(
+    ctx: ElaborationTypingContext, method: Name, receiver: STerm, call_args: list[STerm], loc
+) -> STerm:
+    """Rewrite a method call ``receiver.method call_args...`` (issue #27) into a
+    plain application of the resolved method function with the receiver inserted.
+
+    The qualifier is the receiver's inferred base type. Following Lean, the
+    receiver is inserted at the first explicit parameter whose type matches the
+    receiver's type — not blindly first — so ``xs.map f`` becomes ``List.map f
+    xs`` even though ``List.map``'s list is its second argument. Because we have
+    the whole call spine here, the common case is a plain reordered application
+    (no lambda); only a *partial* call that omits arguments before the receiver
+    position needs eta-expansion.
+
+    The returned term is left *unelaborated* so the caller routes it through
+    normal synth/check (handling polymorphism, instance holes and the remaining
+    arguments uniformly)."""
+    (_, recv_ty) = elaborate_synth(ctx, receiver)
+    type_name = _extract_base_type_name(_resolve_uvars(recv_ty))
+    if type_name is None:
+        raise MethodResolutionError(method.name, None, loc)
+    resolved = ctx.resolve_method(method.name, type_name)
+    if resolved is None:
+        raise MethodResolutionError(method.name, type_name, loc)
+
+    k = _receiver_arg_index(ctx.type_of(resolved), type_name)
+    term: STerm = SVar(resolved, loc=loc)
+    if k <= len(call_args):
+        final_args = call_args[:k] + [receiver] + call_args[k:]
+        for a in final_args:
+            term = SApplication(term, a, loc=loc)
+        return term
+    # Partial call: the receiver sits past the supplied arguments, so eta-expand
+    # the missing pre-receiver parameters into a lambda.
+    fresh = [Name(f"_self{fresh_counter.fresh()}") for _ in range(k - len(call_args))]
+    final_args = call_args + [SVar(p, loc=loc) for p in fresh] + [receiver]
+    for a in final_args:
+        term = SApplication(term, a, loc=loc)
+    for p in reversed(fresh):
+        term = SAbstraction(p, term, loc=loc)
+    return term
 
 
 # Ordered comparison operators are restricted to ordered base types (issue
@@ -261,7 +350,15 @@ def _resolve_uvars(ty: SType) -> SType:
             return ty
 
 
-def unify_single(vname: str, xs: list[SType]) -> SType:
+def unify_single(origin: str, xs: list[SType]) -> SType:
+    """Collapse a union/intersection of inferred types into a single type.
+
+    All members must already agree (up to unification-variable resolution); if
+    two members resolve to incompatible types the collapse is impossible, so we
+    raise a ``UnificationFailedError`` naming where the conflict came from (the
+    ``origin`` describes the union/intersection being collapsed) and the two
+    concrete types that clashed.
+    """
     match [x for x in xs if x != st_top]:
         case []:
             return st_unit
@@ -271,17 +368,16 @@ def unify_single(vname: str, xs: list[SType]) -> SType:
             fst_original = other[0]
             for snd, snd_r in zip(other[1:], resolved[1:]):
                 if snd_r != fst_r:
-                    raise UnificationFailedError(vname, fst_original, snd)
+                    raise UnificationFailedError(origin, fst_original, snd)
             return fst_r
 
 
 def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) -> SType:
     match ty:
         case Union(united):
-            # TODO: raise better errors
-            return unify_single("?", united)
+            return unify_single(f"the union type {ty}", united)
         case Intersection(intersected):
-            return unify_single("?", intersected)
+            return unify_single(f"the intersection type {ty}", intersected)
         case SAbstractionType(name, vtype, rtype, loc):
             return SAbstractionType(
                 var_name=name,
@@ -368,7 +464,9 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             (inner, innert) = elaborate_synth(ctx, body)
             assert isinstance(innert, SRefinementPolymorphism)
 
-            ref_type = SAbstractionType(Name("_", fresh_counter.fresh()), innert.sort, st_bool)
+            # ``innert.sort`` is the full predicate type (``d1 -> ... -> Bool``,
+            # possibly n-ary), so the refinement is checked against it directly.
+            ref_type = innert.sort
             nrefinement = elaborate_check(ctx, refinement, ref_type)
 
             nty = substitution_sterm_in_stype(innert.body, nrefinement, innert.name)
@@ -405,6 +503,13 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             unify(ctx, nthen_type, u)
             unify(ctx, nelse_type, u)
             return SIf(ncond, nthen, nelse), u
+        case SApplication() if (_spine := _method_call_spine(t)) is not None:
+            method, receiver, call_args = _spine
+            return elaborate_synth(ctx, _build_method_call(ctx, method, receiver, call_args, t.loc))
+        case SMethodSelector(method, loc=loc):
+            # A selector only ever appears applied to its receiver; standalone
+            # is a parser/internal bug.
+            raise MethodResolutionError(method.name, None, loc)
         case SApplication(fun, arg):
             (nfun, nfun_type) = elaborate_synth(ctx, fun)
             while isinstance(nfun_type, STypePolymorphism):
@@ -496,6 +601,9 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
                 return elaborate_check(ctx, resolved, ty)
             # Fallback: raise error
             raise UnificationUnknownTypeError(t)
+        case (SApplication(), _) if (_spine := _method_call_spine(t)) is not None:
+            method, receiver, call_args = _spine
+            return elaborate_check(ctx, _build_method_call(ctx, method, receiver, call_args, t.loc), ty)
         case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
             nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
@@ -614,6 +722,36 @@ def remove_from_union_and_intersection(
         union.united = list(filter(rem, union.united))
 
 
+def _base_subtype(sub: SType, sup: SType) -> bool:
+    """Conservative, purely structural subtyping between *base* surface types.
+
+    Used by the unification-flattening step to decide when a variable sandwich
+    ``sub <: u <: sup`` can collapse. It is intentionally syntactic — it never
+    invokes the SMT solver — and treats refinements transparently (only the
+    underlying base type matters). It is a superset of structural equality, so
+    it preserves the previous equality-based behaviour while additionally
+    relating any type with ``Top``, equal type variables, and covariant
+    constructor arguments.
+    """
+    # Refinements are transparent: relate the underlying base types.
+    if isinstance(sub, SRefinedType):
+        return _base_subtype(sub.type, sup)
+    if isinstance(sup, SRefinedType):
+        return _base_subtype(sub, sup.type)
+    match (sub, sup):
+        case (_, STypeConstructor(Name("Top", _), _)):
+            return True
+        case (STypeVar(n1), STypeVar(n2)):
+            return n1 == n2
+        case (STypeConstructor(n1, args1), STypeConstructor(n2, args2)):
+            return n1 == n2 and len(args1) == len(args2) and all(_base_subtype(a1, a2) for a1, a2 in zip(args1, args2))
+        case (SAbstractionType(_, v1, r1), SAbstractionType(_, v2, r2)):
+            # Functions: contravariant in the argument, covariant in the result.
+            return _base_subtype(v2, v1) and _base_subtype(r1, r2)
+        case _:
+            return sub == sup
+
+
 def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> SType:
     # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
     nt, unions, intersections = replace_unification_variables(ctx, ty)
@@ -647,9 +785,11 @@ def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> STyp
         base_types_together_with_u_neg = [
             b for i in intersections if u in i.intersected for b in i.intersected if not isinstance(b, UnificationVar)
         ]
-        # TODO: I think we need subtyping here.
-
-        if any(bp in base_types_together_with_u_neg for bp in base_types_together_with_u_pos):
+        # The sandwich ``bp <: u <: bn`` collapses whenever some lower bound is a
+        # subtype of some upper bound. Using subtyping (rather than equality)
+        # also flattens variables squeezed between distinct-but-compatible types,
+        # e.g. ``T`` sandwiched against ``Top``.
+        if any(_base_subtype(bp, bn) for bp in base_types_together_with_u_pos for bn in base_types_together_with_u_neg):
             to_be_removed.append(u.name)
 
     remove_from_union_and_intersection(
@@ -665,15 +805,33 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
         case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SAnonConstructor():
             return t
         case SAnnotation(expr, ty, loc=loc):
-            return SAnnotation(elaborate_remove_unification(ctx, expr), ty, loc=loc)
-            # TODO NOW: what about ty?
+            # The annotation type is elaborated as well, mirroring ``SRec``: any
+            # unification variables/unions/intersections introduced while
+            # checking the annotation are resolved here instead of leaking into
+            # lowering. For a fully concrete user annotation this is a no-op.
+            nty = handle_unification_in_type(ctx, ty)
+            return SAnnotation(elaborate_remove_unification(ctx, expr), nty, loc=loc)
         case SAbstraction(name, body, loc=loc):
             return SAbstraction(name, elaborate_remove_unification(ctx, body), loc=loc)
         case SLet(name, val, body, loc=loc):
-            nctx = ctx.with_var(t.var_name, st_unit)  # TODO poly: Unit??
+            nval = elaborate_remove_unification(ctx, val)
+            # Bind the let variable to its actual (resolved) type in the body's
+            # context instead of a ``Unit`` placeholder. The type is recovered by
+            # re-synthesising the bound value and resolving its unification
+            # variables. This is best-effort — the value may contain holes or
+            # reference locally-bound names this pass does not track — so on
+            # failure we fall back to ``Top``: an honest "unknown" type, unlike
+            # ``Unit``, which previously claimed a concrete type and could mask
+            # type errors when the binding was polymorphic.
+            try:
+                _, vty = elaborate_synth(ctx, val)
+                vty = handle_unification_in_type(ctx, vty)
+            except (AeonError, AssertionError):
+                vty = st_top
+            nctx = ctx.with_var(t.var_name, vty)
             return SLet(
                 name,
-                elaborate_remove_unification(ctx, val),
+                nval,
                 elaborate_remove_unification(nctx, body),
                 loc=loc,
                 multiplicity=t.multiplicity,
@@ -747,17 +905,23 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                             if should_be_refined:
                                 nv = Name("self", fresh_counter.fresh())
                                 nh = Name("k", fresh_counter.fresh())
-                                # TODO NOW: liquidhornapp
-                                # ref = LiquidHornApplication("k", [(LiquidVar(new_var), str(nt))])
-                                new_type = SRefinedType(nv, nt, SHole(nh))
+                                # The refinement is a Liquid horn application
+                                # ``k(self)``: an unknown predicate over the
+                                # refined variable, to be solved by the Horn
+                                # solver. At the sugar level it is encoded as the
+                                # hole applied to ``self``; ``liquefy_app`` lowers
+                                # this to ``LiquidHornApplication(k, ...)``.
+                                ref = SApplication(SHole(nh), SVar(nv), loc=loc)
+                                new_type = SRefinedType(nv, nt, ref)
                             else:
                                 new_type = nt
                             return STypeApplication(body, new_type, loc=loc)
-                        case SRefinedType(name, ity, ref):
-                            # TODO NOW: liquidhornapp
-                            # ref = LiquidHornApplication("k", [(LiquidVar(nt.name), str(nt.type))])
+                        case SRefinedType(name, ity, _ref):
+                            # Replace the existing refinement with a fresh horn
+                            # application ``k(name)`` over the already-bound
+                            # variable, lowered to a ``LiquidHornApplication``.
                             nh = Name("k", fresh_counter.fresh())
-                            ref = SHole(nh)
+                            ref = SApplication(SHole(nh), SVar(name), loc=loc)
                             new_type = SRefinedType(name, ity, ref)
                             return STypeApplication(body, new_type, loc=loc)
                         case SAbstractionType(_, _, _):

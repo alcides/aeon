@@ -1,0 +1,71 @@
+# Part 3 — Local robustness as a refinement, verified by z3.
+#
+# This is the property the NN-verification field actually targets (CROWN,
+# DeepPoly, alpha-beta-CROWN, Reluplex/Marabou): given a network N, a
+# point x0, and a radius eps, prove that for *every* input x with
+# ||x - x0||_inf <= eps the predicted class does not change — i.e. the
+# winning logit stays ahead, ``margin(x) > 0``.
+#
+# In a refinement-typed language we state exactly that. A function
+# parameter with an interval refinement IS a universally-quantified input
+# over the L-infinity box, and the ``{m | m > 0}`` return type is the
+# robustness specification. If the function type-checks, z3 has proved the
+# margin positive over the whole box — the same SMT-based reasoning that
+# makes Reluplex/Marabou (and beta-CROWN's bound+branch) *complete* for
+# piecewise-linear networks.
+#
+# The network: 2 inputs -> 2 ReLU hidden units -> 2 logits, fixed weights.
+#   h1 = relu(x1 + x2)      h2 = relu(x1 - x2)
+#   logit0 = h1 + h2        logit1 = 0.5*h1 + 0.2*h2
+# Nominal input x0 = (1, 0): h1 = h2 = 1, logit0 = 2, logit1 = 0.7, so
+# class 0 wins by margin 1.3. We verify the margin stays positive within
+# an L-infinity ball.
+
+open Certify
+
+
+# VERIFIED robust at eps = 0.5. Type-checking this *is* the proof: for all
+# x1 in [0.5, 1.5] and x2 in [-0.5, 0.5], margin > 0. The ReLUs are kept
+# exact (Certify.relu), so z3 reasons through every activation pattern in
+# the box, not an over-approximation.
+def robust_eps_0_5
+    (x1: {v: Float | 0.5 <= v && v <= 1.5})
+    (x2: {v: Float | (0.0 - 0.5) <= v && v <= 0.5}) :
+    {margin: Float | margin > 0.0} :=
+    let h1 := relu (x1 + x2) in
+    let h2 := relu (x1 - x2) in
+    let logit0 := h1 + h2 in
+    let logit1 := (0.5 * h1) + (0.2 * h2) in
+    logit0 - logit1 ;
+
+
+# NOT robust at eps = 1.2 (kept commented because it is a deliberate type
+# error — the verifier's job is to reject it). The box now includes
+# x1 = -0.2, x2 = 0, where both pre-activations are negative, so both
+# ReLUs output 0 and the margin collapses to exactly 0 — not > 0. z3 finds
+# this and refuses the proof. Uncomment to see the rejection:
+#
+# def robust_eps_1_2
+#     (x1: {v: Float | (1.0 - 1.2) <= v && v <= (1.0 + 1.2)})
+#     (x2: {v: Float | (0.0 - 1.2) <= v && v <= 1.2}) :
+#     {margin: Float | margin > 0.0} =
+#     let h1 = relu (x1 + x2) in
+#     let h2 = relu (x1 - x2) in
+#     let logit0 = h1 + h2 in
+#     let logit1 = (0.5 * h1) + (0.2 * h2) in
+#     logit0 - logit1 ;
+
+
+# The proof also composes with a stricter spec: not just "class 0 wins"
+# but "wins by at least 0.4" over the eps = 0.5 box.
+def robust_with_confidence
+    (x1: {v: Float | 0.5 <= v && v <= 1.5})
+    (x2: {v: Float | (0.0 - 0.5) <= v && v <= 0.5}) :
+    {margin: Float | margin >= 0.4} :=
+    let h1 := relu (x1 + x2) in
+    let h2 := relu (x1 - x2) in
+    (h1 + h2) - ((0.5 * h1) + (0.2 * h2)) ;
+
+
+def main (_: Int) : Unit :=
+    print (robust_eps_0_5 1.0 0.0)

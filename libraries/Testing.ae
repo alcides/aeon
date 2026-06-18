@@ -1,0 +1,101 @@
+# Testing — a small unit-testing vocabulary for Aeon.
+#
+# In Aeon a *test* is just a `Bool`-returning function marked with `@property`:
+# the `--test` runner evaluates it and a `True` result is a pass. A function
+# with arguments is a *property* (inputs are generated automatically from the
+# argument types); a function with no arguments is a *unit test* (one concrete
+# case). This library provides readable assertion combinators — every one
+# returns `Bool` — so unit tests and property-based tests share the same
+# vocabulary and the same runner.
+#
+#     open Testing
+#     open Image
+#
+#     # Unit test: one concrete case. `@property(1)` evaluates it exactly once.
+#     @property(1)
+#     def test_mk_dimensions : Bool =
+#         img = Image.mk 4 3 (Color.mk 255 0 0);
+#         assertEqual (Image.width img) 4;
+#
+#     # Property: dimensions are generated; the assertion must hold for all of them.
+#     @property
+#     def prop_mk_width (w : {v:Int | v > 0 && v < 64}) : Bool =
+#         assertEqual (Image.width (Image.mk w 8 (Color.mk 0 0 0))) w;
+#
+# Run with:  aeon --test yourfile.ae
+#
+# Notes
+# -----
+# * Assertions are plain `Bool` values, so you compose them with the built-in
+#   `&&` / `||` / `!`, or with the `allOf*` helpers below to group several
+#   checks into one test.
+# * Because an assertion is just a `Bool`, the same helpers work inside the
+#   `@example(...)` decorator (machine-checked documentation) as well.
+
+open Math
+
+# ── Boolean assertions ───────────────────────────────────────────────────
+
+# Passes when the condition holds. Use it to wrap any boolean expression that
+# this library has no dedicated assertion for (e.g. `assertThat (mem x s)`).
+def assertThat (condition : Bool) : Bool := condition;
+
+# Passes when the condition holds (alias of `assertThat`, reads well on a raw
+# boolean: `assertTrue (isEmpty xs)`).
+def assertTrue (condition : Bool) : Bool := condition;
+
+# Passes when the condition is false.
+def assertFalse (condition : Bool) : Bool := !condition;
+
+# ── Equality assertions (any base type, including ADTs like Color) ─────────
+
+# Passes when `actual` equals `expected`.
+def assertEqual (actual : a) (expected : a) : Bool := actual = expected;
+
+# Passes when `actual` differs from `expected`.
+def assertNotEqual (actual : a) (expected : a) : Bool := actual != expected;
+
+# ── Ordering assertions (Int, Float, String — any orderable type) ──────────
+# Calling these at a non-orderable type is rejected at the call site, mirroring
+# the language's own restriction on `<` / `<=` / `>` / `>=`.
+
+# Passes when `actual < bound`.
+def assertLess (actual : a) (bound : a) : Bool := actual < bound;
+
+# Passes when `actual <= bound`.
+def assertLessEqual (actual : a) (bound : a) : Bool := actual <= bound;
+
+# Passes when `actual > bound`.
+def assertGreater (actual : a) (bound : a) : Bool := actual > bound;
+
+# Passes when `actual >= bound`.
+def assertGreaterEqual (actual : a) (bound : a) : Bool := actual >= bound;
+
+# ── Approximate equality (floating point) ──────────────────────────────────
+
+# Passes when `actual` and `expected` are within `eps` of each other. Use this
+# instead of `assertEqual` for any value produced by floating-point arithmetic.
+def assertClose
+    (actual : Float)
+    (expected : Float)
+    (eps : {v:Float | v >= 0.0}) :
+    Bool :=
+    absf (actual - expected) <= eps;
+
+# ── Combinators: group several checks into a single test ───────────────────
+# A test is one `Bool`, so to assert several things at once combine them. These
+# are short-circuiting (they reuse `&&`), so the first failing check stops the
+# rest.
+
+# Passes when both checks pass.
+def both (a : Bool) (b : Bool) : Bool := a && b;
+
+# Passes when all three checks pass.
+def allOf3 (a : Bool) (b : Bool) (c : Bool) : Bool := a && b && c;
+
+# Passes when all four checks pass.
+def allOf4 (a : Bool) (b : Bool) (c : Bool) (d : Bool) : Bool := a && b && c && d;
+
+# Passes when all five checks pass.
+def allOf5 (a : Bool) (b : Bool) (c : Bool) (d : Bool) (e : Bool) : Bool :=
+    a && b && c && d && e;

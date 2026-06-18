@@ -1,0 +1,140 @@
+# Linear and generalised-linear models.
+#
+# Trainers in the scikit-learn Linear family, behind Learning's typed
+# contract. Each requires a clean training set (``independent_target`` and
+# no missing values) and stamps the model with the dataset's feature/class
+# count. ``open LearningLinear`` brings the core types in scope too.
+
+open LearningCore
+
+def logistic_regression
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_logistic_regression(ds)"
+
+# No predict_proba; classify_one falls back to a one-hot of predict.
+def ridge_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_ridge_classifier(ds)"
+
+# Default hinge loss has no predict_proba; one-hot fallback applies.
+def sgd_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_sgd_classifier(ds)"
+
+# No predict_proba; one-hot fallback.
+def perceptron
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_perceptron(ds)"
+
+# No predict_proba; one-hot fallback.
+def passive_aggressive_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_passive_aggressive_classifier(ds)"
+
+def linear_regression
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_linear_regression(ds)"
+
+def ridge
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_ridge(ds)"
+
+def ridge_alpha (alpha: {a: Float | a >= 0.0})
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_ridge_alpha(alpha, ds)"
+
+def lasso
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_lasso(ds)"
+
+def lasso_alpha (alpha: {a: Float | a >= 0.0})
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_lasso_alpha(alpha, ds)"
+
+def elastic_net
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_elastic_net(ds)"
+
+def bayesian_ridge
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_bayesian_ridge(ds)"
+
+def ard_regression
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_ard_regression(ds)"
+
+def sgd_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_sgd_regressor(ds)"
+
+def huber_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_huber_regressor(ds)"
+
+def passive_aggressive_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_passive_aggressive_regressor(ds)"
+
+def theil_sen_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_theil_sen_regressor(ds)"
+
+def ransac_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_ransac_regressor(ds)"
+
+def orthogonal_matching_pursuit
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_orthogonal_matching_pursuit(ds)"
+
+def lars
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_lars(ds)"
+
+def lasso_lars
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_lasso_lars(ds)"
+
+# Requires a non-negative target.
+def poisson_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_poisson_regressor(ds)"
+
+# Requires a strictly-positive target.
+def gamma_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_gamma_regressor(ds)"
+
+def tweedie_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_tweedie_regressor(ds)"
+
+# Predicts the median by default.
+def quantile_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_quantile_regressor(ds)"

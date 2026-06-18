@@ -1,0 +1,9 @@
+# DACE per-cell completion (maximum), synthesised by the FTA backend.
+#
+# Two input cells 8 and 7; complete the cell holding their maximum: it is >= both
+# and equal to one of them.
+#
+#   uv run python -m aeon --no-main -s fta --budget 10 examples/synthesis/dace/synth/complete_max.ae
+#
+# Expected: ?hole: 8
+def max_cell : {v:Int | v >= 8 && v >= 7 && (v = 8 || v = 7)} := ?hole;

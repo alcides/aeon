@@ -7,7 +7,7 @@ def test_partial_operator_application_is_eta_expanded():
     # (* x) is a partially applied operator and must render as a lambda.
     term = Application(fun=Var(Name("*", 0)), arg=Var(Name("x", 0)))
     result, _ = custom_preludes_ops_representation(term)
-    assert result == "(\\__mul_1__ -> x * __mul_1__)"
+    assert result == "(fun __mul_1__ => x * __mul_1__)"
 
 
 def test_full_operator_application_renders_infix_in_source_order():

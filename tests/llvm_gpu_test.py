@@ -13,15 +13,15 @@ def test_gpu_fallback():
     aeon_code = """
         open Vector
 
-        @gpu(target="cuda", debug=false, cache=false, block_size=32, thread_count=1024)
-        def multiply_by_two (v:(Vector Int)) (size:Int) : (Vector Int) =
-            Vector.map[Int][Int] (\\x:Int -> x * 2) v size;
+        @gpu(target:="cuda", debug:=false, cache:=false, block_size:=32, thread_count:=1024)
+        def multiply_by_two (v:(Vector Int)) (size:Int) : (Vector Int) :=
+            Vector.map[Int][Int] (fun (x : Int) => x * 2) v size;
 
-        def main (args:Int) : Int =
-            let v : (Vector Int) = Vector.new[Int] in
-            let v2 : (Vector Int) = Vector.append[Int] v 10 in
-            let v3 : (Vector Int) = Vector.append[Int] v2 20 in
-            let res : (Vector Int) = multiply_by_two v3 2 in
+        def main (args:Int) : Int :=
+            let v : (Vector Int) := Vector.new[Int] in
+            let v2 : (Vector Int) := Vector.append[Int] v 10 in
+            let v3 : (Vector Int) := Vector.append[Int] v2 20 in
+            let res : (Vector Int) := multiply_by_two v3 2 in
             Vector.get[Int] res 0;
     """
     config = AeonConfig(synthesizer="none", synthesis_ui=SynthesisUI(), synthesis_budget=0)
@@ -37,9 +37,9 @@ def test_gpu_sum():
     # will fall back to cpu if not executed in a CUDA env
     aeon_code = """
         @gpu
-        def gpu_add (a:Int) (b:Int) : Int = a + b;
+        def gpu_add (a:Int) (b:Int) : Int := a + b;
 
-        def main (args:Int) : Int = gpu_add 5 7;
+        def main (args:Int) : Int := gpu_add 5 7;
     """
     config = AeonConfig(synthesizer="none", synthesis_ui=SynthesisUI(), synthesis_budget=0)
     driver = AeonDriver(config)

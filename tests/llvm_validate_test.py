@@ -8,7 +8,7 @@ from aeon.utils.name import Name
 
 
 def test_validate_valid_cpu():
-    # let f = \x -> \y -> x + y in f
+    # let f = fun x => fun y => x + y in f
     body = Application(Application(Var(Name("+")), Var(Name("x"))), Var(Name("y")))
     func = Abstraction(Name("x"), Abstraction(Name("y"), body))
     term = Let(Name("f"), func, Var(Name("f")))
@@ -28,7 +28,7 @@ def test_validate_invalid_type():
 
 
 def test_validate_invalid_call_non_llvm():
-    # let f = \x -> external_func x in f
+    # let f = fun x => external_func x in f
     body = Application(Var(Name("external_func")), Var(Name("x")))
     func = Abstraction(Name("x"), body)
     term = Let(Name("f"), func, Var(Name("f")))

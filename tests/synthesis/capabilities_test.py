@@ -27,7 +27,7 @@ def synthesis_and_return(code):
 
 @pytest.mark.parametrize("ty", [t_bool, t_int, t_float, t_string])
 def test_e2e_synthesis_basic_types(ty):
-    code = f"""def synth : {ty} = ?hole;"""
+    code = f"""def synth : {ty} := ?hole;"""
     t, ctx = synthesis_and_return(code)
 
     assert isinstance(t, Term)
@@ -35,7 +35,7 @@ def test_e2e_synthesis_basic_types(ty):
 
 
 def test_e2e_synthesis_var():
-    code = """type A; def a : A = native "42";  def synth : A = ?hole;"""
+    code = """type A; def a : A := native "42";  def synth : A := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     assert isinstance(t, Term)
@@ -48,14 +48,14 @@ def test_e2e_synthesis_var():
 
 
 def test_e2e_synthesis_abs():
-    code = """def synth : (x:Int) -> Bool = ?hole;"""
+    code = """def synth : (x:Int) -> Bool := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     assert isinstance(t, Term)
 
 
 def test_e2e_synthesis_app():
-    code = """type A; def f : (x:Int) -> A = \\x -> native "42";  def synth : A = ?hole;"""
+    code = """type A; def f : (x:Int) -> A := fun x => native "42";  def synth : A := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     assert isinstance(t, Term)
@@ -68,7 +68,7 @@ def test_e2e_synthesis_app():
 
 
 def test_e2e_synthesis_ref1():
-    code = """def synth : {x:Int | x == 3} = ?hole;"""
+    code = """def synth : {x:Int | x = 3} := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     if t is None:
@@ -80,7 +80,7 @@ def test_e2e_synthesis_ref1():
 
 
 def test_e2e_synthesis_ref2():
-    code = """def synth : {x:Int | x > 3} = ?hole;"""
+    code = """def synth : {x:Int | x > 3} := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     if t is None:
@@ -92,7 +92,7 @@ def test_e2e_synthesis_ref2():
 
 
 def test_e2e_synthesis_ref3():
-    code = """def synth : {x:Int | x > 3 && x < 10} = ?hole;"""
+    code = """def synth : {x:Int | x > 3 && x < 10} := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     if t is None:
@@ -104,7 +104,7 @@ def test_e2e_synthesis_ref3():
 
 
 def test_e2e_synthesis_ref4():
-    code = """def synth : {x:Int | (x > 3 && x < 10) || (x > 20 && x < 30)} = ?hole;"""
+    code = """def synth : {x:Int | (x > 3 && x < 10) || (x > 20 && x < 30)} := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     if t is None:
@@ -117,7 +117,7 @@ def test_e2e_synthesis_ref4():
 
 @pytest.mark.skip(reason="Synthesis-only")
 def test_e2e_synthesis_ref5():
-    code = """def synth : {x:Float | x > 3 && x < 10} = ?hole;"""
+    code = """def synth : {x:Float | x > 3 && x < 10} := ?hole;"""
     t, _ = synthesis_and_return(code)
 
     if t is None:
@@ -145,7 +145,7 @@ def test_enumerative_halts_within_budget():
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(10)
     try:
-        code = """def n : {y:Int | 0 < y && y < 100} = ?hole;"""
+        code = """def n : {y:Int | 0 < y && y < 100} := ?hole;"""
         t, ctx = synthesis_and_return(code)
     finally:
         signal.alarm(0)

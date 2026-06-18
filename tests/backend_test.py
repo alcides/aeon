@@ -25,13 +25,13 @@ def test_literal():
 
 
 def test_application():
-    assert weval(parse_term("(\\x -> x) 1")) == 1
-    assert weval(parse_term("(\\x -> (\\y -> x)) 1 2")) == 1
-    assert weval(parse_term("(\\x -> (\\y -> y)) 1 2")) == 2
+    assert weval(parse_term("(fun x => x) 1")) == 1
+    assert weval(parse_term("(fun x => (fun y => x)) 1 2")) == 1
+    assert weval(parse_term("(fun x => (fun y => y)) 1 2")) == 2
 
     assert (
         weval(
-            parse_term("(\\x -> (\\y -> y)) 1 a"),
+            parse_term("(fun x => (fun y => y)) 1 a"),
             EvaluationContext({Name("a"): 2}),
         )
         == 2
@@ -58,7 +58,7 @@ def test_rec():
     assert (
         weval(
             parse_term(
-                "let fact : (x:Int) -> Int = (\\n -> (if n > 0 then 1 * fact (n-1) else 1)) in fact 3",
+                "let fact : (x:Int) -> Int = (fun n => (if n > 0 then 1 * fact (n-1) else 1)) in fact 3",
             ),
             EvaluationContext(
                 {

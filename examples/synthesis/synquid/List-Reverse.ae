@@ -1,0 +1,9 @@
+# List-Reverse: reverse, preserving length.
+#
+# Synquid benchmark List-Reverse (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def reverse (xs: (List a)) : {l:(List a) | List.size l = List.size xs} := ?hole;

@@ -8,8 +8,7 @@ type List
 inductive Tuple
 | mk (a0:Bool) (a1:Int) : Tuple
 
-def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Tuple) : Float = native "float((0 if (f([11, 23, 58, 31, 56, 77, 43, 12, 65, 19])(31) == ('Tuple_mk', True, 3)) else 1) + (0 if (f([12, 32, 45, 62, 35, 47, 44, 61])(61) == ('Tuple_mk', True, 7)) else 1) + (0 if (f([9, 10, 17, 19, 22, 39, 48, 56])(48) == ('Tuple_mk', True, 6)) else 1))"
+def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Tuple) : Float := native "float((0 if (f([11, 23, 58, 31, 56, 77, 43, 12, 65, 19])(31) == ('Tuple_mk', True, 3)) else 1) + (0 if (f([12, 32, 45, 62, 35, 47, 44, 61])(61) == ('Tuple_mk', True, 7)) else 1) + (0 if (f([9, 10, 17, 19, 22, 39, 48, 56])(48) == ('Tuple_mk', True, 6)) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (dlist:List) (item:Int) : Tuple = (?hole : Tuple)
+def synth (dlist:List) (item:Int) : Tuple := (let mbpp_fitness := unit in ?hole)

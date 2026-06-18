@@ -1,0 +1,6 @@
+open Matrix
+
+# BLAZE/SYNGAR matrix domain (Fig.17): transpose a 2x3 matrix (Permute on a 2-D tensor).
+@example(f "1,2,3;4,5,6" = "1,4;2,5;3,6")
+@example(f "7,8,9;10,11,12" = "7,10;8,11;9,12")
+def f (m: String) : String := (?hole : String);

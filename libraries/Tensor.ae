@@ -1,0 +1,263 @@
+# Dimension-indexed linear algebra: the numeric foundation for ``NN``.
+#
+# Design goals:
+#
+#   * Tensor *shape* lives in the types. ``Vector`` and ``Matrix`` are
+#     opaque, numpy-backed handles whose dimensions are described by the
+#     uninterpreted measures ``dim`` / ``rows`` / ``cols``. The SMT
+#     solver reasons about these symbolically, so the classic shape bugs
+#     are rejected at compile time rather than blowing up at runtime:
+#
+#       - ``vadd`` / ``vsub`` / ``hadamard`` require both operands to
+#         have the *same* length; ``dot`` likewise.
+#       - ``matmul`` requires the inner dimensions to agree
+#         (``rows b == cols a``) and stamps the product's shape
+#         (``rows a`` by ``cols b``).
+#       - ``matvec`` requires the vector's length to match the matrix's
+#         column count and yields a vector of length ``rows m``.
+#       - ``transpose`` swaps ``rows`` and ``cols`` at the type level.
+#
+#   * "Other requirements on values" beyond shape are refinements too:
+#     constructors take non-negative / positive sizes, ``get`` indices
+#     are bounds-checked (``0 <= i < dim v``), and ``normalize`` demands
+#     a non-zero-length vector.
+#
+#   * Runtime *witnesses* (``vdim``, ``mrows``, ``mcols``) refine their
+#     ``Int`` result back to the measure, so a length read at runtime can
+#     discharge a static dimension precondition.
+
+open Math
+open List
+
+# ─── Opaque, numpy-backed tensor handles ───────────────────────────────
+
+# A 1-D tensor (numpy 1-D float array).
+type Vector
+
+# A 2-D tensor (numpy 2-D float array).
+type Matrix
+
+# Side-effecting import; ``np`` is then in scope for every native body.
+def np : Unit := native_import "numpy"
+
+# ─── Uninterpreted shape measures ──────────────────────────────────────
+
+# Length of a vector.
+def dim : (v: Vector) -> Int := uninterpreted
+
+# Row / column counts of a matrix.
+def rows : (m: Matrix) -> Int := uninterpreted
+def cols : (m: Matrix) -> Int := uninterpreted
+
+# ─── Parametric element-domain refinement ──────────────────────────────
+#
+# Beyond shape, each tensor is refined by the *interval its elements live
+# in*: ``lower``/``upper`` are uninterpreted measures denoting a lower and
+# upper bound shared by every entry. This is the value-content analogue of
+# ``dim`` — a per-tensor parameter the SMT solver reasons about. ``vget``
+# returns an element known to lie in ``[lower v, upper v]``, and producers
+# (constructors, activations) pin the interval to their actual codomain:
+# ``relu`` sets ``lower >= 0``, ``sigmoid`` sets ``[0, 1]``, ``tanh`` sets
+# ``[-1, 1]``, and so on. A tensor whose bounds were never constrained
+# simply has symbolic bounds — sound, but uninformative.
+#
+# Soundness rests, as with ``dim``/``size`` elsewhere, on the native
+# witnesses being faithful: ``vlower``/``vupper`` return the true min/max.
+
+def lower : (v: Vector) -> Float := uninterpreted
+def upper : (v: Vector) -> Float := uninterpreted
+
+def mlower : (m: Matrix) -> Float := uninterpreted
+def mupper : (m: Matrix) -> Float := uninterpreted
+
+# ─── Vector construction ───────────────────────────────────────────────
+
+# All-zeros vector of the requested length; every element is exactly 0.
+def vzeros (n: {k: Int | k >= 0}) :
+    {v: Vector | dim v = n && lower v = 0.0 && upper v = 0.0} :=
+    native "np.zeros(n)"
+
+# All-ones vector of the requested length; every element is exactly 1.
+def vones (n: {k: Int | k >= 0}) :
+    {v: Vector | dim v = n && lower v = 1.0 && upper v = 1.0} :=
+    native "np.ones(n)"
+
+# Constant vector: ``n`` copies of ``x`` — so the element interval is
+# exactly ``[x, x]``.
+def vfull (n: {k: Int | k >= 0}) (x: Float) :
+    {v: Vector | dim v = n && lower v = x && upper v = x} :=
+    native "np.full(n, x)"
+
+# Build a vector from an Aeon ``List`` of floats. The vector's length is
+# tied to the list's ``size`` measure, so a statically-known list length
+# carries through to ``dim``.
+def from_list (xs: (List Float)) : {v: Vector | dim v = size xs} :=
+    native "__import__('aeon.bindings.tensor').bindings.tensor.Tensor_from_list(xs)"
+
+# ─── Vector inspection — runtime witnesses ─────────────────────────────
+
+# Length of a vector, refined back to the ``dim`` measure so it can
+# discharge a static dimension obligation.
+def vdim (v: Vector) : {n: Int | n = dim v && n >= 0} :=
+    native "len(v)"
+
+# Bounds-checked indexed read. The element is known to lie in the
+# vector's value interval ``[lower v, upper v]`` — so reading a ``relu``
+# output gives a ``{x | x >= 0.0}`` directly.
+def vget (v: Vector) (i: {k: Int | k >= 0 && k < dim v}) :
+    {x: Float | lower v <= x && x <= upper v} :=
+    native "float(v[i])"
+
+# Runtime witnesses for the value bounds (require a non-empty vector).
+def vlower (v: {x: Vector | dim x > 0}) : {f: Float | f = lower v} :=
+    native "float(np.min(v))"
+
+def vupper (v: {x: Vector | dim x > 0}) : {f: Float | f = upper v} :=
+    native "float(np.max(v))"
+
+# ─── Vector arithmetic ─────────────────────────────────────────────────
+#
+# Where it is sound, these ops propagate the element interval too. The
+# bounds are the interval-arithmetic images and hold for the *actual*
+# min/max because, e.g., ``min(a + b) >= min a + min b``: the claimed
+# bounds are always at least as wide as the true ones, so the refinement
+# stays a sound over-approximation.
+
+# Element-wise sum. Interval: ``[la + lb, ua + ub]``.
+def vadd (a: Vector) (b: {x: Vector | dim x = dim a}) :
+    {r: Vector | dim r = dim a
+              && lower r >= lower a + lower b
+              && upper r <= upper a + upper b} :=
+    native "a + b"
+
+# Element-wise difference. Interval: ``[la - ub, ua - lb]``.
+def vsub (a: Vector) (b: {x: Vector | dim x = dim a}) :
+    {r: Vector | dim r = dim a
+              && lower r >= lower a - upper b
+              && upper r <= upper a - lower b} :=
+    native "a - b"
+
+# Element-wise (Hadamard) product. General signs make the product
+# interval sign-dependent (not simply expressible), so the unrestricted
+# version propagates only the shape; use ``hadamard_nonneg`` when both
+# operands are known non-negative.
+def hadamard (a: Vector) (b: {x: Vector | dim x = dim a}) : {r: Vector | dim r = dim a} :=
+    native "a * b"
+
+# Hadamard product of two non-negative vectors. With ``la, lb >= 0`` the
+# product is monotone in both factors, so the interval is ``[la*lb,
+# ua*ub]`` and the result stays non-negative.
+def hadamard_nonneg
+    (a: {x: Vector | lower x >= 0.0})
+    (b: {x: Vector | dim x = dim a && lower x >= 0.0}) :
+    {r: Vector | dim r = dim a
+              && lower r >= lower a * lower b
+              && upper r <= upper a * upper b} :=
+    native "a * b"
+
+# Scalar multiple; preserves length. Sign of ``s`` makes the scaled
+# interval sign-dependent, so the unrestricted version keeps only the
+# shape; use ``scale_nonneg`` for a non-negative factor.
+def scale (s: Float) (v: Vector) : {r: Vector | dim r = dim v} :=
+    native "s * v"
+
+# Scale by a non-negative factor: the interval is just ``[s*lv, s*uv]``.
+def scale_nonneg (s: {f: Float | f >= 0.0}) (v: Vector) :
+    {r: Vector | dim r = dim v
+              && lower r >= s * lower v
+              && upper r <= s * upper v} :=
+    native "s * v"
+
+# Inner product; both operands must share a length.
+def dot (a: Vector) (b: {x: Vector | dim x = dim a}) : Float :=
+    native "float(np.dot(a, b))"
+
+# Inner product of two non-negative vectors is non-negative.
+def dot_nonneg
+    (a: {x: Vector | lower x >= 0.0})
+    (b: {x: Vector | dim x = dim a && lower x >= 0.0}) :
+    {f: Float | f >= 0.0} :=
+    native "float(np.dot(a, b))"
+
+# Euclidean (L2) norm; always non-negative.
+def norm (v: Vector) : {f: Float | f >= 0.0} :=
+    native "float(np.linalg.norm(v))"
+
+# Unit vector in the direction of ``v``; requires a non-empty vector so
+# the norm is non-zero. Length is preserved.
+def normalize (v: {x: Vector | dim x > 0}) : {r: Vector | dim r = dim v} :=
+    native "v / np.linalg.norm(v)"
+
+# Sum of all entries.
+def vsum (v: Vector) : Float :=
+    native "float(np.sum(v))"
+
+# ─── Matrix construction ───────────────────────────────────────────────
+
+# Zero matrix of the requested shape; every entry is exactly 0.
+def mzeros (r: {k: Int | k >= 0}) (c: {k: Int | k >= 0}) :
+    {m: Matrix | rows m = r && cols m = c && mlower m = 0.0 && mupper m = 0.0} :=
+    native "np.zeros((r, c))"
+
+# ``n`` by ``n`` identity matrix; every entry lies in ``[0, 1]``.
+def eye (n: {k: Int | k >= 0}) :
+    {m: Matrix | rows m = n && cols m = n && mlower m >= 0.0 && mupper m <= 1.0} :=
+    native "np.eye(n)"
+
+# ─── Matrix inspection — runtime witnesses ─────────────────────────────
+
+def mrows (m: Matrix) : {n: Int | n = rows m && n >= 0} :=
+    native "m.shape[0]"
+
+def mcols (m: Matrix) : {n: Int | n = cols m && n >= 0} :=
+    native "m.shape[1]"
+
+# Bounds-checked element read; the entry lies in ``[mlower m, mupper m]``.
+def mget
+    (m: Matrix)
+    (i: {k: Int | k >= 0 && k < rows m})
+    (j: {k: Int | k >= 0 && k < cols m}) :
+    {x: Float | mlower m <= x && x <= mupper m} :=
+    native "float(m[i, j])"
+
+# Runtime witnesses for the matrix value bounds (require a non-empty matrix).
+def mlower_of (m: {x: Matrix | rows x > 0 && cols x > 0}) : {f: Float | f = mlower m} :=
+    native "float(np.min(m))"
+
+def mupper_of (m: {x: Matrix | rows x > 0 && cols x > 0}) : {f: Float | f = mupper m} :=
+    native "float(np.max(m))"
+
+# ─── Matrix arithmetic ─────────────────────────────────────────────────
+
+# Element-wise sum; both operands must share a shape, which the result
+# inherits. Value interval: ``[la + lb, ua + ub]``.
+def madd
+    (a: Matrix)
+    (b: {x: Matrix | rows x = rows a && cols x = cols a}) :
+    {r: Matrix | rows r = rows a && cols r = cols a
+              && mlower r >= mlower a + mlower b
+              && mupper r <= mupper a + mupper b} :=
+    native "a + b"
+
+# Matrix product. The inner dimensions must agree (``rows b == cols a``)
+# and the product's shape is ``rows a`` by ``cols b``.
+def matmul
+    (a: Matrix)
+    (b: {x: Matrix | rows x = cols a}) :
+    {r: Matrix | rows r = rows a && cols r = cols b} :=
+    native "a @ b"
+
+# Matrix-vector product. The vector length must match the column count;
+# the result has length ``rows m``.
+def matvec
+    (m: Matrix)
+    (v: {x: Vector | dim x = cols m}) :
+    {r: Vector | dim r = rows m} :=
+    native "m @ v"
+
+# Transpose swaps the two dimensions; the entries are unchanged, so the
+# value interval is preserved exactly.
+def transpose (m: Matrix) :
+    {r: Matrix | rows r = cols m && cols r = rows m
+              && mlower r = mlower m && mupper r = mupper m} :=
+    native "m.T"

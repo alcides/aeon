@@ -37,7 +37,7 @@ fi
 EOF
 
 status=0
-for folder in ffi image imports list mutual syntax synthesis synthesis/image_edits "PSB2/solved" 99problems;
+for folder in ffi image imports list mutual syntax synthesis synthesis/image_edits verification "PSB2/solved" 99problems;
 do
     for entry in examples/$folder/*.ae
     do
@@ -49,3 +49,18 @@ if [ "$status" -ne 0 ]; then
     echo "Some examples failed."
     exit 111
 fi
+
+# Property-based testing examples (issue #37), @example assertions, and the
+# Testing-library unit/property suites: run with --test; every property and
+# example must pass (exit code 0).
+for entry in examples/pbt/props_*.ae examples/pbt/examples_*.ae examples/testing/*.ae
+do
+    printf "Running (pbt) %s ..." "$entry"
+    if uv run python -m aeon --test "$entry" > /dev/null 2>&1; then
+        printf "(success)\n"
+    else
+        printf "(failed)\n"
+        echo "Some property-based tests failed."
+        exit 111
+    fi
+done

@@ -3,12 +3,12 @@
 
 open Array
 
-def random : Unit = native_import "random"
+def random : Unit := native_import "random"
 
 def lotto (n: {k:Int | k >= 0}) (m: {x:Int | x >= n}) :
-        {r:(Array Int) | Array_size r == n} =
+        {r:(Array Int) | Array.size r = n} :=
     native "random.sample(range(1, m + 1), n)"
 
-def main (args:Int) : Unit =
-    _ = native "random.seed(42)";
+def main (args:Int) : Unit :=
+    _ := native "random.seed(42)";
     print (lotto 6 49)

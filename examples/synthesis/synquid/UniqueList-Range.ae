@@ -1,0 +1,9 @@
+# UniqueList-Range: the distinct integers in [lo, hi).
+#
+# Synquid benchmark UniqueList-Range (pldi16).
+#
+# Monomorphic Int: it enumerates an integer range. Uniqueness not encoded.
+
+open List
+
+def range (lo: Int) (hi: {v:Int | v >= lo}) : {l:(List Int) | List.size l = hi - lo} := ?hole;

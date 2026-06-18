@@ -1,0 +1,14 @@
+# AddressBook-Merge: merge two address books.
+#
+# Synquid benchmark AddressBook-Merge (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+inductive AddrBook a
+| mkAB (biz: (List a)) (per: (List a)) : {ab:(AddrBook a) | bcount ab = List.size biz && pcount ab = List.size per}
++ bcount (ab: (AddrBook a)) : Int
++ pcount (ab: (AddrBook a)) : Int
+
+def mergeAB (x: (AddrBook a)) (y: (AddrBook a)) : {c:(AddrBook a) | bcount c = bcount x + bcount y && pcount c = pcount x + pcount y} := ?hole;

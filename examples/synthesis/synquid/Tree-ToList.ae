@@ -1,0 +1,14 @@
+# Tree-ToList: flatten a tree; |list| == #nodes.
+#
+# Synquid benchmark Tree-ToList (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+inductive Tree a
+| leaf : {t:(Tree a) | tsize t = 0}
+| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t = tsize left + tsize right + 1}
++ tsize (t: (Tree a)) : Int
+
+def toList (t: (Tree a)) : {l:(List a) | List.size l = tsize t} := ?hole;

@@ -1,0 +1,32 @@
+# Worked, machine-checked examples with the @example decorator.
+#
+# A single @example(assertion) attached to a function plays three roles:
+#
+#   * Documentation  - it is rendered next to the function by `aeon --doc`,
+#                      giving every function a concrete, worked example.
+#   * Test case      - `aeon --test` evaluates each assertion and requires it
+#                      to hold, like a unit test.
+#   * Synthesis goal - when the body is a hole `?`, each example becomes a
+#                      fitness objective, so the synthesizer is driven to
+#                      satisfy the examples (programming-by-example).
+#
+# The assertion is any Bool expression about the function; an equality between
+# a fully-applied call and its expected result is the common case.
+#
+# Run the tests with:  aeon --test examples/pbt/examples_decorator.ae
+# Generate docs with:  aeon --doc  examples/pbt/examples_decorator.ae
+
+# Absolute value of an integer.
+# x: the integer whose magnitude is taken
+# returns: x when non-negative, otherwise -x
+@example(my_abs (0 - 3) = 3)
+@example(my_abs 5 = 5)
+@example(my_abs 0 = 0)
+def my_abs (x : Int) : Int := if x < 0 then 0 - x else x;
+
+# The larger of two integers.
+@example(max2 2 7 = 7)
+@example(max2 9 4 = 9)
+def max2 (x : Int) (y : Int) : Int := if x > y then x else y;
+
+def main (_ : Int) : Unit := print (my_abs (0 - 42))

@@ -2,35 +2,29 @@ import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list
 
 
 import Array
-#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  =  \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+#def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  =  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
-def List_sum : (l:(Array Int)) -> Int = \x -> native "sum(x)"
+def List_sum : (l:(Array Int)) -> Int := fun x => native "sum(x)"
 
 def List_map: (function: (a: Int) -> Int) ->
                                (l: (Array Int)) ->
-                               (Array Int) =
-    \f -> \xs -> native "list(map(f, xs))";
+                               (Array Int) :=
+    fun f => fun xs => native "list(map(f, xs))";
 
 
-def String_replace : (s:String) -> (t:String) -> (rep:String) -> String = \x -> \y -> \z -> native "x.replace(y, z)"
-def String_length: (l:String) -> Int = \list -> native "len(list)"
-def String_get : (l:String) -> (i:Int) -> String = \l -> \i -> native "l[i]"
-def String_to_int : (s:String) -> Int = \s -> native "int(s)"
-def String_eq : (s:String) -> (s2:String) -> Bool = \s -> \s2 -> native "s == s2";
+def String_replace : (s:String) -> (t:String) -> (rep:String) -> String := fun x => fun y => fun z => native "x.replace(y, z)"
+def String_length: (l:String) -> Int := fun list => native "len(list)"
+def String_get : (l:String) -> (i:Int) -> String := fun l => fun i => native "l[i]"
+def String_to_int : (s:String) -> Int := fun s => native "int(s)"
+def String_eq : (s:String) -> (s2:String) -> Bool := fun s => fun s2 => native "s == s2";
 
-def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> (Array Int) = \s -> \e -> \st -> native "list(range(s, e, st))"
+def List_range_step : (start:Int) -> (end:Int) -> (step:Int) -> (Array Int) := fun s => fun e => fun st => native "list(range(s, e, st))"
 
-def const1 : String = "X"
-def const2 : String = "/"
+def const1 : String := "X"
+def const2 : String := "/"
 
-def train: TrainData = extract_train_data (load_dataset "bowling" 200 200)
+def train: TrainData := extract_train_data (load_dataset "bowling" 200 200)
 
 
-@hide(extract_train_data,
-            unpack_train_data,
-            load_dataset,
-            train,
-            calculate_bowling_errors)
-@hide_types(TrainData)
 @multi_minimize_float(calculate_bowling_errors train synth, 1)
-def synth (scores: String) : Int = (?hole: Int)
+def synth (scores: String) : Int := (let extract_train_data := unit in let unpack_train_data := unit in let load_dataset := unit in let train := unit in let calculate_bowling_errors := unit in ?hole)

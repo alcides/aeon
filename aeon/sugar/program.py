@@ -191,7 +191,7 @@ class SAbstraction(STerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"(\\{self.var_name} -> {self.body})"
+        return f"(fun {self.var_name} => {self.body})"
 
     def __eq__(self, other):
         return isinstance(other, SAbstraction) and self.var_name == other.var_name and self.body == other.body
@@ -207,7 +207,7 @@ class SLet(STerm):
 
     def __str__(self):
         prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
-        return f"(let {prefix}{self.var_name} = {self.var_value} in\n\t{self.body})"
+        return f"(let {prefix}{self.var_name} := {self.var_value} in\n\t{self.body})"
 
     def __eq__(self, other):
         return (
@@ -239,7 +239,7 @@ class SRec(STerm):
 
     def __str__(self):
         prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
-        return "(let {}{} : {} = {} in\n\t{})".format(
+        return "(let {}{} : {} := {} in\n\t{})".format(
             prefix,
             self.var_name,
             self.var_type,
@@ -295,6 +295,35 @@ class SAnonConstructor(STerm):
 
 
 @dataclass(frozen=True)
+class SMethodSelector(STerm):
+    """Deferred, type-directed method lookup (issue #27, *method call* syntax).
+
+    The surface form ``receiver.method`` parses to
+    ``SApplication(SMethodSelector(method), receiver)``. Keeping the selector a
+    *leaf* (it carries only the method name, never the receiver) means every
+    ``SApplication``-recursing pass already walks into the receiver for free, so
+    no desugar/bind/substitution pass needs a bespoke case — only elaboration,
+    which has the receiver's type and rewrites the node to a plain reference to
+    the resolved ``Type.method`` function applied to the receiver.
+
+    A selector never stands alone: it is always the ``fun`` of the application
+    the parser builds around it.
+    """
+
+    method: Name
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    def __str__(self):
+        return f".{self.method}"
+
+    def __repr__(self):
+        return f"MethodSelector(.{self.method})"
+
+    def __eq__(self, other):
+        return isinstance(other, SMethodSelector) and self.method == other.method
+
+
+@dataclass(frozen=True)
 class SMatchBranch:
     constructor: Name
     binders: list[Name]
@@ -337,7 +366,8 @@ class STypeAbstraction(STerm):
 
 @dataclass(frozen=True)
 class SRefinementAbstraction(STerm):
-    """Binds a refinement parameter ρ with sort (domain type) ρ : sort -> Bool."""
+    """Binds a refinement parameter ρ whose sort is the full (possibly n-ary)
+    predicate type ρ : d1 -> ... -> Bool."""
 
     name: Name
     sort: SType
@@ -345,7 +375,7 @@ class SRefinementAbstraction(STerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"Λ<{self.name}:{self.sort} -> Bool>=> ({self.body})"
+        return f"Λ<{self.name}:{self.sort}>=> ({self.body})"
 
 
 @dataclass()  # frozen=True
@@ -456,7 +486,7 @@ class Decorator(Node):
 
     def __repr__(self):
         macro_args = ", ".join([f"{term}" for term in self.macro_args])
-        named_args = ", ".join([f"{n}={t}" for n, t in self.named_args.items()])
+        named_args = ", ".join([f"{n} := {t}" for n, t in self.named_args.items()])
         all_args = ", ".join(filter(None, [macro_args, named_args]))
         return f"@{self.name}({all_args})"
 
@@ -499,7 +529,7 @@ class Definition(Node):
 
     def __str__(self):
         if not self.args:
-            return f"def {self.name} : {self.type} = {self.body};"
+            return f"def {self.name} : {self.type} := {self.body};"
         else:
             args = ", ".join(
                 [

@@ -212,7 +212,7 @@ class LLVMFunction(LLVMTerm):
 
     def __str__(self):
         args = ", ".join(f"{n.name}:{t}" for n, t in zip(self.arg_names, self.arg_types))
-        return f"\\{args} -> {self.body}"
+        return f"fun {args} => {self.body}"
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_function(self)

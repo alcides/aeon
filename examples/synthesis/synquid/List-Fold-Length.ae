@@ -1,0 +1,9 @@
+# List-Fold-Length: length of the list as an Int.
+#
+# Synquid benchmark List-Fold-Length (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def lengthL (xs: (List a)) : {r:Int | r = List.size xs} := ?hole;

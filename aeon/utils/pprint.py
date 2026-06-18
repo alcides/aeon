@@ -137,6 +137,12 @@ def get_operation_associativity(operation: Operation) -> Associativity:
 INFIX_MULTIPLICATIVE = {"*", "/", "%", "*.", "/.", "%."}
 INFIX_ADDITIVE = {"+", "-", "+.", "-."}
 INFIX_RELATIONAL = {"<", "<=", ">", ">=", "==", "!="}
+
+# Surface spelling of internal operator names that differ from how they are
+# stored as functions. Following Lean, the pretty-printer emits the Unicode
+# spelling: equality is ``=`` (builtin ``==``), and the ordered comparisons /
+# inequality use their Unicode glyphs.
+INFIX_DISPLAY = {"==": "=", "!=": "≠", "<=": "≤", ">=": "≥"}
 INFIX_AND = {"&&"}
 INFIX_OR = {"||"}
 
@@ -265,7 +271,8 @@ def format_infix_application(left: STerm, right: STerm, op_name: Name, depth: in
     infix_precedence = get_operation_precedence(infix_op)
     pretty_left = pretty_sterm_with_parens(left, ParenthesisContext(infix_precedence, Side.LEFT), depth + 1)
     pretty_right = pretty_sterm_with_parens(right, ParenthesisContext(infix_precedence, Side.RIGHT), depth + 1)
-    return group(concat([pretty_left, line(), text(op_name.pretty()), line(), pretty_right]))
+    op_text = INFIX_DISPLAY.get(op_name.pretty(), op_name.pretty())
+    return group(concat([pretty_left, line(), text(op_text), line(), pretty_right]))
 
 
 def pretty_param_doc(param_name: Name, param_type: SType) -> Doc:
@@ -383,7 +390,7 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
 
             right_doc = pretty_stype_with_parens(_type, ParenthesisContext(Precedence.ARROW, Side.RIGHT))
 
-            return group(concat([left_doc, text(" ->"), line(), right_doc]))
+            return group(concat([left_doc, text(" →"), line(), right_doc]))
 
         case STypePolymorphism(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
@@ -490,7 +497,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
 
         case SAbstraction(var_name=var_name, body=body):
             pretty_var_name = text(var_name.pretty())
-            _left = concat([text("\\"), pretty_var_name, text(" ->")])
+            _left = concat([text("fun "), pretty_var_name, text(" ↦")])
 
             _pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.ARROW, Side.RIGHT), depth + 1)
 
@@ -509,7 +516,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                         [
                             text("def "),
                             pretty_var_name,
-                            text(" ="),
+                            text(" :="),
                             nest(DEFAULT_TAB_SIZE, concat([line(), pretty_var_value])),
                             hard_line(),
                             hard_line(),
@@ -518,7 +525,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                     )
                 )
             else:
-                binding = concat([pretty_var_name, text(" = "), pretty_var_value])
+                binding = concat([pretty_var_name, text(" := "), pretty_var_value])
                 return group(concat([text("let "), binding, text(" in"), line(), pretty_body]))
 
         case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=_):  # refazer rec
@@ -530,7 +537,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.LET, Side.NONE), depth)
 
             if depth != 0:
-                pretty_binding = concat([pretty_var_name, text(" : "), pretty_var_type, text(" = "), pretty_var_value])
+                pretty_binding = concat([pretty_var_name, text(" : "), pretty_var_type, text(" := "), pretty_var_value])
                 return group(concat([text("let "), pretty_binding, text(" in"), line(), pretty_body]))
 
             match var_type:
@@ -551,7 +558,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                         concat(
                             [
                                 pretty_func_definition,
-                                text(" ="),
+                                text(" :="),
                                 nest(DEFAULT_TAB_SIZE, concat([line(), pretty_var_value])),
                             ]
                         )
@@ -565,7 +572,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                                 def_line,
                                 nest(len("def ") + len(var_name.pretty()) + DEFAULT_TAB_SIZE, pretty_var_type),
                                 line(),
-                                text("= "),
+                                text(":= "),
                                 nest(DEFAULT_TAB_SIZE, pretty_var_value),
                             ]
                         )
@@ -595,7 +602,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                         text(name.pretty()),
                         text(" : "),
                         pretty_sort,
-                        text(" -> Bool>=> "),
+                        text(" → Bool>↦ "),
                         pretty_body,
                     ]
                 )
@@ -732,7 +739,7 @@ def _free_value_vars(term: STerm) -> set[Name]:
 def rename_unused_variables(term: STerm) -> STerm:
     """Replace value-level binders that are never referenced with ``_``.
 
-    Example: ``\\x -> 3`` becomes ``\\_ -> 3``. Applies to ``SAbstraction``,
+    Example: ``fun x => 3`` becomes ``fun _ => 3``. Applies to ``SAbstraction``,
     ``SLet`` and ``SRec``. Type and refinement abstractions are traversed
     but not renamed (their binders live in a separate namespace).
     """
@@ -832,7 +839,7 @@ def node_pretty(node: Node) -> Doc:
                                 text(rho.pretty()),
                                 text(" : "),
                                 stype_pretty(sort),
-                                text(" -> Bool>"),
+                                text(" → Bool>"),
                             ]
                         )
                         for rho, sort in rforalls
@@ -893,7 +900,7 @@ def node_pretty(node: Node) -> Doc:
                         concat(
                             [
                                 pretty_func_definition,
-                                text(" ="),
+                                text(" :="),
                                 nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body])),
                             ]
                         )
@@ -912,7 +919,7 @@ def node_pretty(node: Node) -> Doc:
                                 def_line,
                                 nest(len("def ") + len(pretty_var_name) + DEFAULT_TAB_SIZE, pretty_var_type),
                                 line(),
-                                text("= "),
+                                text(":= "),
                                 nest(DEFAULT_TAB_SIZE, pretty_body),
                             ]
                         )

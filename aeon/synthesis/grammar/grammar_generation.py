@@ -37,6 +37,7 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.decorators import Metadata
+from aeon.synthesis.scope import shadow_fitness_helpers
 from aeon.synthesis.grammar.mangling import mangle_name, mangle_var, mangle_type
 from aeon.synthesis.grammar.refinements import refined_type_to_metahandler
 from aeon.synthesis.grammar.utils import prelude_ops, aeon_to_python
@@ -136,7 +137,12 @@ def extract_all_types(
     if instantiation_types is None:
         instantiation_types = set()
     data: dict[Type, TypingType] = {_key(Top()): ae_top}
-    for ty in {_key(t) for t in types}:
+    # Iterate ``types`` in the given order (deduplicating via ``data``) rather
+    # than through a set comprehension: the class-creation order here determines
+    # ``__subclasses__()`` order, and hence the grammar's production order, so a
+    # set would make seeded generation non-deterministic across processes.
+    for t in types:
+        ty = _key(t)
         if ty not in data:
             match ty:
                 case TypeConstructor(_, args):
@@ -544,7 +550,7 @@ def create_var_node(name: Name, ty: Type, python_ty: TypingType) -> TypingType:
     return dc
 
 
-def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
+def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
     """Creates a python type for a given variable in context that is a function."""
 
     # Collect arguments
@@ -558,6 +564,12 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
     # matching the storage convention used by `extract_all_types`.
     for aname, _ in args:
         rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
+    # Skip functions whose argument or return types cannot be represented as
+    # grammar nodes (e.g. a dependent refinement mentioning a sibling binder,
+    # such as ``clamp``'s ``hi: {v:Int | v >= lo}``). Such a function simply
+    # does not become a synthesis building block, instead of crashing.
+    if not _has(type_info, rtype) or any(not _has(type_info, aty) for (_, aty) in args):
+        return None
     python_ty = _get(type_info, rtype)
 
     vname = mangle_var(name)
@@ -579,17 +591,23 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
 
 def create_var_nodes(vars: list[Tuple[Name, Type]], type_info: dict[Type, TypingType]) -> list[TypingType]:
     """Creates a list of python types for all variables in context."""
-    return [create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)] + [
+    var_nodes = [create_var_node(var_name, ty, _get(type_info, ty)) for (var_name, ty) in vars if _has(type_info, ty)]
+    app_nodes = [
         create_var_apps_node(var_name, ty, type_info)
         for (var_name, ty) in vars
         if _has(type_info, ty) and isinstance(ty, AbstractionType)
     ]
+    return var_nodes + [n for n in app_nodes if n is not None]
 
 
-def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
-    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+def create_abstraction_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
+    """Creates a dataclass to represent an abstraction (fun _0 => x) of type sth_arrow_X."""
     vname = f"lambda_{mangle_type(ty)}"
     return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    # Skip arrow types whose own or body representation is unavailable (e.g. the
+    # function arguments of abstract-refinement-polymorphic library functions).
+    if not _has(type_info, ty) or not _has(type_info, return_type):
+        return None
     dc = make_dataclass(vname, [("body", _get(type_info, return_type))], bases=(_get(type_info, ty),))
 
     def get_core(_self):
@@ -616,18 +634,23 @@ def collect_all_abstractions(t: Type) -> Generator[AbstractionType]:
 
 
 def create_abstraction_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
-    return [
+    nodes = [
         create_abstraction_node(ity, type_info)
         for ty in type_info
         for ity in collect_all_abstractions(ty)
         if isinstance(ity, AbstractionType)
     ]
+    return [n for n in nodes if n is not None]
 
 
-def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> TypingType:
-    """Creates a dataclass to represent an abstraction (\\_0 -> x) of type sth_arrow_X."""
+def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingType]) -> Optional[TypingType]:
+    """Creates a dataclass to represent an abstraction (fun _0 => x) of type sth_arrow_X."""
     vname = f"app_{mangle_type(ty)}"
     return_type = substitution_in_type(ty.type, Var(Name("__self__", 0)), ty.var_name)
+    # Skip applications whose function, argument, or result type cannot be
+    # represented as grammar nodes.
+    if not all(_has(type_info, t) for t in (ty, ty.var_type, return_type)):
+        return None
     dc = make_dataclass(
         vname,
         [("fun", _get(type_info, ty)), ("arg", _get(type_info, ty.var_type))],
@@ -645,7 +668,8 @@ def create_application_node(ty: AbstractionType, type_info: dict[Type, TypingTyp
 
 
 def create_application_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
-    return [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
+    nodes = [create_application_node(ty, type_info) for ty in type_info if isinstance(ty, AbstractionType)]
+    return [n for n in nodes if n is not None]
 
 
 def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
@@ -827,7 +851,8 @@ def monomorphize_poly_type(
     if isinstance(current, RefinementPolymorphism):
         return []
 
-    base_types = list(instantiation_types)
+    # Sorted for reproducibility (set iteration order is id-dependent).
+    base_types = sorted(instantiation_types, key=repr)
     if not base_types:
         return []
 
@@ -910,6 +935,7 @@ def gen_grammar_nodes(
     synth_func_name: Name,
     metadata: Metadata,
     grammar_nodes: list[type] | None = None,
+    start_override: Type | None = None,
 ) -> tuple[list[type], type]:
     """Generate grammar nodes from the variables in the given TypingContext.
 
@@ -929,6 +955,10 @@ def gen_grammar_nodes(
     if grammar_nodes is None:
         grammar_nodes = []
 
+    # Let-shadow the fitness/example/cluster helpers to Unit so they are not
+    # offered as building blocks (they stay in the program for evaluation).
+    ctx = shadow_fitness_helpers(ctx, metadata)
+
     # Clean context to remove non-interpreted functions from the context.
     # Simple refinements like 0 < n && n < 10 are kept.
     ctx, _ = propagate_constants(ctx)
@@ -937,17 +967,10 @@ def gen_grammar_nodes(
 
     current_metadata = metadata.get(synth_func_name, {})
     is_recursion_allowed = current_metadata.get("recursion", False)
-    vars_to_ignore = current_metadata.get("hide", [])
-    vars_to_ignore_names = {v.name for v in vars_to_ignore}
-    types_to_ignore = current_metadata.get("hide_types", [])
 
     def skip(name: Name) -> bool:
         if name == synth_func_name:
             return not is_recursion_allowed
-        elif name.name in vars_to_ignore_names:
-            return True
-        elif name.name.startswith("__internal__"):
-            return True
         elif name.name in ["native", "native_import", "print"]:
             return True
         else:
@@ -1000,9 +1023,14 @@ def gen_grammar_nodes(
     types_to_consider = (
         set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty]) | mono_extra_types
     )
-    types_to_consider = types_to_consider - set(TypeConstructor(t) for t in types_to_ignore)
-    type_info = extract_all_types(list(types_to_consider), ctx, instantiation_types)
-    type_nodes = list(set(type_info.values()))
+    if start_override is not None:
+        types_to_consider = types_to_consider | {start_override}
+    # Sort by a stable string key so grammar construction is reproducible across
+    # processes: ``set`` iteration order over types / node classes otherwise
+    # depends on object ``id()`` (and hence allocation order), which makes
+    # seeded generation non-deterministic between runs.
+    type_info = extract_all_types(sorted(types_to_consider, key=repr), ctx, instantiation_types)
+    type_nodes = sorted(set(type_info.values()), key=lambda c: c.__name__)
 
     literals = create_literals_nodes(type_info)
     vars = create_var_nodes(ctx_vars_unrefined, type_info)
@@ -1022,7 +1050,15 @@ def gen_grammar_nodes(
     # register the forall node itself, so for a polymorphic synthesis target we
     # derive the starting node from its first monomorphized body.
     # TODO: synthesize across all instantiations of a polymorphic target.
-    if isinstance(ty, TypePolymorphism):
+    if start_override is not None:
+        # Property-based testing starts generation from a refined node so the
+        # metahandler enforces the refinement at generation time (no discards),
+        # instead of the unrefined base used for synthesis (which relies on a
+        # separate validator). The refined node's only alternatives are
+        # in-range literals, so this also avoids generating arbitrary
+        # value-producing expressions.
+        start_ty = start_override
+    elif isinstance(ty, TypePolymorphism):
         mono = monomorphize_poly_type(ty, instantiation_types)
         start_ty = refined_to_unrefined_type(mono[0][0]) if mono else refined_to_unrefined_type(ty)
     else:
@@ -1050,8 +1086,30 @@ def print_grammar_nodes(grammar_nodes: list[type]) -> None:
         # print("---------------------------------------------------")
 
 
-def create_grammar(ctx: TypingContext, ty: Type, fun_name: Name, metadata: Metadata) -> Grammar:
-    grammar_nodes, starting_node = gen_grammar_nodes(ctx, ty, fun_name, metadata, [])
+def _determinize_grammar(g: Grammar) -> Grammar:
+    """Sort a grammar's productions and their alternatives by class name so the
+    seed -> choice mapping is reproducible across processes.
+
+    ``Grammar.usable_grammar`` rebuilds the grammar from a ``set`` of reachable
+    symbols (``list(set(...))``), whose order depends on object ``id()`` and thus
+    on allocation order. Sampling chooses among ``alternatives[symbol]``, so
+    making that ordering deterministic is sufficient for reproducible generation.
+    Weights are stored per production class, so reordering does not change them."""
+    g.alternatives = {
+        key: sorted(g.alternatives[key], key=lambda c: c.__name__)
+        for key in sorted(g.alternatives, key=lambda c: c.__name__)
+    }
+    return g
+
+
+def create_grammar(
+    ctx: TypingContext,
+    ty: Type,
+    fun_name: Name,
+    metadata: Metadata,
+    start_override: Type | None = None,
+) -> Grammar:
+    grammar_nodes, starting_node = gen_grammar_nodes(ctx, ty, fun_name, metadata, [], start_override=start_override)
     g = extract_grammar(grammar_nodes, starting_node)
     g = g.usable_grammar()
-    return g
+    return _determinize_grammar(g)

@@ -1,0 +1,78 @@
+# Ensemble models (forests, boosting, bagging).
+#
+# Trainers in the scikit-learn Ensembles family, behind Learning's typed
+# contract. Each requires a clean training set (``independent_target`` and
+# no missing values) and stamps the model with the dataset's feature/class
+# count. ``open LearningEnsembles`` brings the core types in scope too.
+
+open LearningCore
+
+def random_forest_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_classifier(ds)"
+
+def random_forest_classifier_n (n: {k: Int | k > 0})
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_classifier_n(n, ds)"
+
+def gradient_boosting_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_gradient_boosting_classifier(ds)"
+
+def adaboost_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_adaboost_classifier(ds)"
+
+def bagging_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_bagging_classifier(ds)"
+
+def extra_trees_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_extra_trees_classifier(ds)"
+
+def hist_gradient_boosting_classifier
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnClassifier | clf_features m = ds_features ds && clf_classes m = ds_classes ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_hist_gradient_boosting_classifier(ds)"
+
+def random_forest_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_regressor(ds)"
+
+def random_forest_regressor_n (n: {k: Int | k > 0})
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_random_forest_regressor_n(n, ds)"
+
+def gradient_boosting_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_gradient_boosting_regressor(ds)"
+
+def adaboost_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_adaboost_regressor(ds)"
+
+def bagging_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_bagging_regressor(ds)"
+
+def extra_trees_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_extra_trees_regressor(ds)"
+
+def hist_gradient_boosting_regressor
+    (ds: {d: Dataset | independent_target d = true && has_missing d = false}) :
+    {m: SklearnRegressor | reg_features m = ds_features ds} :=
+    native "__import__('aeon.bindings.learning').bindings.learning.Learning_hist_gradient_boosting_regressor(ds)"

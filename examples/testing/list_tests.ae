@@ -1,0 +1,78 @@
+# Tests for the List library (inductive linked list), written with the Testing
+# vocabulary. Unit tests use concrete lists; property tests have the runner
+# generate `(List Int)` values as constructor trees.
+#
+# Run with:  aeon --test examples/testing/list_tests.ae
+
+open Testing
+open List
+
+# ── Unit tests ───────────────────────────────────────────────────────────────
+
+@property(1)
+def test_length : Bool := assertEqual (length (cons 1 (cons 2 (cons 3 nil)))) 3;
+
+@property(1)
+def test_empty : Bool :=
+    both (assertTrue (empty nil))
+         (assertFalse (empty (cons 1 nil)));
+
+@property(1)
+def test_sum : Bool := assertEqual (sum (cons 1 (cons 2 (cons 3 nil)))) 6;
+
+@property(1)
+def test_append : Bool :=
+    xs := append (cons 1 (cons 2 nil)) (cons 3 nil);
+    both (assertEqual (length xs) 3)
+         (assertEqual (sum xs) 6);
+
+@property(1)
+def test_reversed : Bool :=
+    assertEqual (reversed (cons 1 (cons 2 (cons 3 nil))))
+                (cons 3 (cons 2 (cons 1 nil)));
+
+@property(1)
+def test_snoc : Bool :=
+    assertEqual (snoc (cons 1 nil) 2) (cons 1 (cons 2 nil));
+
+@property(1)
+def test_map : Bool :=
+    doubled := map (fun x => x * 2) (cons 1 (cons 2 (cons 3 nil)));
+    assertEqual (sum doubled) 12;
+
+@property(1)
+def test_foldr : Bool :=
+    assertEqual (foldr (fun x => fun acc => x + acc) 0 (cons 1 (cons 2 (cons 3 nil)))) 6;
+
+# ── Property-based tests (inputs generated as List Int) ───────────────────────
+
+# Reversing preserves length.
+@property(40)
+def prop_reverse_preserves_length (l : (List Int)) : Bool :=
+    assertEqual (length (reversed l)) (length l);
+
+# Reversing preserves the sum of elements.
+@property(40)
+def prop_reverse_preserves_sum (l : (List Int)) : Bool :=
+    assertEqual (sum (reversed l)) (sum l);
+
+# Length of a concatenation is the sum of the lengths.
+@property(40)
+def prop_append_length_additive (xs : (List Int)) (ys : (List Int)) : Bool :=
+    assertEqual (length (append xs ys)) (length xs + length ys);
+
+# Sum of a concatenation is the sum of the sums.
+@property(40)
+def prop_append_sum_additive (xs : (List Int)) (ys : (List Int)) : Bool :=
+    assertEqual (sum (append xs ys)) (sum xs + sum ys);
+
+# Length is never negative, and is zero exactly when the list is empty.
+@property(40)
+def prop_length_nonneg_and_empty (l : (List Int)) : Bool :=
+    both (assertGreaterEqual (length l) 0)
+         (assertEqual (empty l) (length l = 0));
+
+# snoc increases the length by exactly one.
+@property(40)
+def prop_snoc_increments_length (l : (List Int)) (x : Int) : Bool :=
+    assertEqual (length (snoc l x)) (length l + 1);

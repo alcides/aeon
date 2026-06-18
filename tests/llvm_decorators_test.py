@@ -18,8 +18,8 @@ def _metadata_from_driver(source: str):
 def test_gpu_decorator_defaults():
     source = """
     @gpu
-    def max(a:Int) (b:Int) : Int = if a > b then a else b;
-    def main (x:Int) : Int = max 1 2;
+    def max(a:Int) (b:Int) : Int := if a > b then a else b;
+    def main (x:Int) : Int := max 1 2;
     """
     metadata = _metadata_from_driver(source)
     gpu_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("gpu")]
@@ -36,8 +36,8 @@ def test_gpu_decorator_defaults():
 def test_gpu_decorator_with_args():
     source = r"""
     @gpu("cuda", true, true, 256, 128)
-    def max(a:Int) (b:Int) : Int = if a > b then a else b;
-    def main (x:Int) : Int = max 1 2;
+    def max(a:Int) (b:Int) : Int := if a > b then a else b;
+    def main (x:Int) : Int := max 1 2;
     """
     metadata = _metadata_from_driver(source)
     gpu_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("gpu")]
@@ -54,8 +54,8 @@ def test_gpu_decorator_with_args():
 def test_llvm_decorator_defaults():
     source = """
     @llvm
-    def max(a:Int) (b:Int) : Int = if a > b then a else b;
-    def main (x:Int) : Int = max 1 2;
+    def max(a:Int) (b:Int) : Int := if a > b then a else b;
+    def main (x:Int) : Int := max 1 2;
     """
     metadata = _metadata_from_driver(source)
     llvm_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("llvm")]
@@ -68,9 +68,9 @@ def test_llvm_decorator_defaults():
 
 def test_gpu_decorator_with_named_args():
     source = r"""
-    @gpu(target="cuda", debug=true, cache=true, block_size=256, thread_count=128)
-    def max(a:Int) (b:Int) : Int = if a > b then a else b;
-    def main (x:Int) : Int = max 1 2;
+    @gpu(target:="cuda", debug:=true, cache:=true, block_size:=256, thread_count:=128)
+    def max(a:Int) (b:Int) : Int := if a > b then a else b;
+    def main (x:Int) : Int := max 1 2;
     """
     metadata = _metadata_from_driver(source)
     gpu_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("gpu")]
@@ -86,9 +86,9 @@ def test_gpu_decorator_with_named_args():
 
 def test_llvm_decorator_with_named_args():
     source = r"""
-    @llvm(cache=true, debug=true)
-    def max(a:Int) (b:Int) : Int = if a > b then a else b;
-    def main (x:Int) : Int = max 1 2;
+    @llvm(cache:=true, debug:=true)
+    def max(a:Int) (b:Int) : Int := if a > b then a else b;
+    def main (x:Int) : Int := max 1 2;
     """
     metadata = _metadata_from_driver(source)
     llvm_funcs = [k for k, v in metadata.items() if isinstance(v, dict) and v.get("llvm")]
@@ -103,8 +103,8 @@ def test_core_queue_cleared_after_typecheck():
     """Queued ``@llvm`` metadata is applied in core phase (not left on sugar-only desugar)."""
     source = """
     @llvm
-    def f(x:Int) : Int = x + 1;
-    def main (x:Int) : Int = f x;
+    def f(x:Int) : Int := x + 1;
+    def main (x:Int) : Int := f x;
     """
     _, _, _, metadata = check_and_return_core(source)
     from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY

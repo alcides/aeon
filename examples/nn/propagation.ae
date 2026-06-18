@@ -1,0 +1,44 @@
+# Sound interval propagation through tensor arithmetic.
+#
+# Each tensor carries a value interval [lower, upper]. The arithmetic ops
+# propagate it where it is sound to do so:
+#
+#   vadd : [la+lb, ua+ub]          vsub : [la-ub, ua-lb]
+#   scale_nonneg s : [s*lv, s*uv]  hadamard_nonneg : [la*lb, ua*ub]
+#   transpose : unchanged          madd : [la+lb, ua+ub]
+#
+# So a derived value's domain is tracked through a computation and can
+# discharge a downstream refinement with no runtime check.
+
+open Tensor
+open NN
+
+
+def use_nonneg (x: {f: Float | f >= 0.0}) : Float := x ;
+def use_unit (x: {f: Float | 0.0 <= f && f <= 1.0}) : Float := x ;
+
+
+# relu output is >= 0 and vones is >= 0, so their element-wise sum is
+# >= 0 — propagated through vadd, read back via vget.
+def relu_plus_ones_nonneg (v: {w: Vector | dim w = 4}) : Float :=
+    use_nonneg (vget (vadd (relu v) (vones 4)) 0) ;
+
+
+# A convex-combination-style step: 0.5 * sigmoid(v) keeps elements in
+# [0, 0.5] ⊆ [0, 1]. scale_nonneg propagates [s*lower, s*upper], and the
+# sigmoid codomain [0, 1] gives the bounds it scales.
+def half_sigmoid_is_unit (v: {w: Vector | dim w = 4}) : Float :=
+    use_unit (vget (scale_nonneg 0.5 (sigmoid v)) 0) ;
+
+
+# Hadamard of two non-negative vectors stays non-negative: both sigmoid
+# outputs have lower >= 0, so hadamard_nonneg applies and the product's
+# lower bound is la*lb >= 0. (The tighter [0,1] claim needs nonlinear
+# reasoning the solver does not attempt, so we keep the robust >= 0 one.)
+def product_of_probs_nonneg (v: {w: Vector | dim w = 4}) : Float :=
+    use_nonneg (vget (hadamard_nonneg (sigmoid v) (sigmoid v)) 0) ;
+
+
+def main (_: Int) : Unit :=
+    let v := vzeros 4 in
+    print (relu_plus_ones_nonneg v)

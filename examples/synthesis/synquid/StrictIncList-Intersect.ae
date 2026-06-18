@@ -1,0 +1,13 @@
+# StrictIncList-Intersect: intersection of two strict lists.
+#
+# Synquid benchmark StrictIncList-Intersect (pldi16).
+#
+# Element type kept Int: the type carries a STRICT order invariant (scons requires hd < min of the tail). Becomes `forall a` with #1.
+
+inductive SList
+| snil : {l:SList | slen l = 0}
+| scons (hd: Int) (tl: {t:SList | slen t = 0 || hd < smin t}) : {l:SList | slen l = slen tl + 1 && smin l = hd}
++ slen (l: SList) : Int
++ smin (l: SList) : Int
+
+def sintersect (xs: SList) (ys: SList) : {l:SList | slen l <= slen xs && slen l <= slen ys} := ?hole;

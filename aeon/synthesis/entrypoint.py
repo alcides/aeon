@@ -12,10 +12,14 @@ import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTHESIZE
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
-from aeon.core.terms import Term, Var
+
+import dataclasses
+
+from aeon.core.terms import Let, Literal, Rec, Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
+from aeon.synthesis.scope import shadow_fitness_helpers
 from aeon.backend.evaluator import eval
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.identification import get_holes_info
@@ -24,6 +28,7 @@ from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 from aeon.synthesis.api import ErrorInSynthesis, InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool, set_program_tail
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
 from aeon.synthesis.decorators import Goal
@@ -52,7 +57,13 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
     """Build a fitness function for a single goal, dispatching on ``goal.kind``."""
 
     def fitness(v: Term) -> float:
-        program_for_fitness = substitution(v, Var(goal.function), Name("main", 0))
+        # Evaluate the goal's objective function (a nullary top-level binding,
+        # e.g. ``jaccard shape``) by making it the program's result. Replacing
+        # the program tail works whether or not a ``main`` entry point is
+        # present -- under ``--no-main`` there is none, and the previous
+        # ``main``-substitution silently left the metric uncomputed (the program
+        # evaluated to its placeholder tail instead of the objective).
+        program_for_fitness = set_program_tail(v, Var(goal.function))
         try:
             if goal.kind == "cputime":
                 return measure_cputime(lambda: eval(program_for_fitness, ectx))
@@ -119,9 +130,13 @@ def make_evaluator(
         eval_process.start()
         eval_process.join(timeout=timeout)
         if eval_process.is_alive():
-            eval_process.close()
+            # Order matters: ``Process.close()`` raises
+            # ``ValueError: Cannot close a process while it is still running``
+            # unless the process has already exited. Terminate and join first,
+            # then release its resources.
             eval_process.terminate()
             eval_process.join()
+            eval_process.close()
             raise TimeoutInEvaluationException()
         kind, payload = result_queue.get()
         if kind == "ok":
@@ -131,6 +146,63 @@ def make_evaluator(
         raise ErrorInSynthesis(Exception(payload), msg=str(payload))
 
     return evaluate
+
+
+def make_output_evaluator(
+    ectx: EvaluationContext,
+    replace: Callable[[Term], Term],
+    hole_fun: Name,
+    budget_eval: float = 1.0,
+) -> Callable[[Term], Any]:
+    """Build a function that evaluates a candidate to its raw *output value*.
+
+    Where ``make_evaluator`` returns the goal's distance, this returns the value
+    the candidate itself denotes (the program's "scene"/output), by setting the
+    program tail to the synthesised function and evaluating it. Metric
+    synthesisers use it to cluster candidates by their actual output
+    (observational equivalence) rather than only by distance-to-goal. Returns
+    ``None`` when the candidate cannot be evaluated (so callers can skip it).
+    """
+
+    def run(program: Term, result_queue: mp.Queue) -> None:
+        try:
+            value = eval(set_program_tail(program, Var(hole_fun)), ectx)
+            try:
+                result_queue.put(("ok", value))
+            except Exception:
+                # Unpicklable output: fall back to its repr so it is still
+                # usable as an equivalence key across the process boundary.
+                result_queue.put(("ok", repr(value)))
+        except Exception as e:  # noqa: BLE001 — any failure means "no output"
+            result_queue.put(("error", f"{type(e).__name__}: {e}"))
+
+    def output(candidate: Term, timeout: float = budget_eval) -> Any:
+        prog = replace(candidate)
+        result_queue: mp.Queue = mp.Queue()
+        proc = mp.Process(target=run, args=(prog, result_queue))
+        proc.start()
+        proc.join(timeout=timeout)
+        if proc.is_alive():
+            proc.terminate()
+            proc.join()
+            return None
+        kind, payload = result_queue.get()
+        return payload if kind == "ok" else None
+
+    return output
+
+
+def _cluster_function(metadata: Metadata, fun_name: Name) -> Optional[Name]:
+    """The ``@cluster`` featuriser function for this hole, if any (robust to
+    Name identity, like the goals lookup)."""
+    entry = metadata.get(fun_name, {})
+    c = entry.get("cluster") if isinstance(entry, dict) else None
+    if c is not None:
+        return c
+    for _, v in metadata.items():
+        if isinstance(v, dict) and v.get("cluster"):
+            return v["cluster"]
+    return None
 
 
 def synthesize_holes(
@@ -158,12 +230,15 @@ def synthesize_holes(
 
         hole_name = holes_names[0]
         ty, tyctx = program_holes[hole_name]
+        assert isinstance(tyctx, TypingContext)
+        # Let-shadow the fitness/example/cluster helpers to Unit at the hole, so
+        # the synthesizer never builds them (replaces the __internal__ filter).
+        tyctx = shadow_fitness_helpers(tyctx, metadata)
         ui.start(tyctx, ectx, hole_name.name, ty, budget)
 
         replace = make_program(term, hole_name)
         validator = make_validator(ctx, replace)
         evaluators = make_evaluators(ectx, fun_name, metadata)
-        evaluator = make_evaluator(ectx, replace, evaluators, budget_eval)
         assert isinstance(tyctx, TypingContext)
         assert isinstance(ty, Type)
         tac_map = metadata.get(fun_name, {}).get("tactic_scripts")
@@ -175,6 +250,59 @@ def synthesize_holes(
             elif len(tac_map) == 1:
                 steps = tuple(next(iter(tac_map.values())))
         syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
+
+        # Evaluate every candidate on a persistent worker pool. The backend
+        # declares which computations it wants run per candidate (the objective
+        # ``fitness`` always; an ``output`` feature if it clusters by one, etc.);
+        # the pool runs exactly those, in one round-trip, knowing nothing about
+        # what they mean. A `@cluster(f shape)` decorator names the output
+        # featuriser `f` (e.g. a rasterised scene), else the output is the
+        # candidate's own value.
+        feature_fun = _cluster_function(metadata, fun_name) or fun_name
+        primitives = EvalPrimitives(evaluators, ectx, feature_fun, replace)
+        pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
+        evaluator, output_evaluator = _pool_backed(pool)
+
+        # Example-driven (PBE) probe: evaluate a candidate body on a concrete
+        # list of input values *in process*, returning the value the synthesised
+        # function produces. Unlike ``output_evaluator`` (which crosses a process
+        # boundary and so can only return a candidate's repr for function-typed
+        # outputs), this stays in-process, so a String -> String candidate can be
+        # applied to each example's inputs. This is what lets ``afta`` build a
+        # tree automaton keyed by per-example outputs (the BLAZE construction).
+        if metadata.get(fun_name, {}).get("io_examples"):
+            io_params: list[Name] = metadata.get(fun_name, {}).get("io_params", [])
+            # Fill the hole with a harmless dummy so building the program's
+            # def-environment (which includes the @example test bindings that
+            # *call* the synthesised function) never reaches the unfilled hole
+            # and blocks on the interactive prompt. The dummy body is irrelevant:
+            # the sub-terms we probe are built from the DSL components and the
+            # parameters, not from the function under synthesis.
+            from aeon.core.types import t_string as _t_string
+
+            _dummy_prog = replace(Literal("", _t_string))
+            # Build the evaluation environment (all in-scope DSL bindings) ONCE,
+            # rather than re-evaluating the whole def-chain for every probed
+            # sub-term. Each binding is bound by evaluating it with its own name
+            # as the tail, which reuses ``eval``'s Let/Rec (incl. recursion-tying)
+            # handling without duplicating it.
+            _base_ctx = ectx
+            _t: Term = _dummy_prog
+            while isinstance(_t, (Let, Rec)):
+                _bound = eval(dataclasses.replace(_t, body=Var(_t.var_name)), _base_ctx)
+                _base_ctx = _base_ctx.with_var(_t.var_name, _bound)
+                _t = _t.body
+
+            def _pbe_probe(sub_term: Term, input_values: list, _params=tuple(io_params), _ctx=_base_ctx) -> Any:
+                # Evaluate a sub-term (open in the hole's parameters) on one
+                # example's inputs, directly in the precomputed DSL environment.
+                e = _ctx
+                for pname, v in zip(_params, input_values):
+                    e = e.with_var(pname, v)
+                return eval(sub_term, e)
+
+            metadata.setdefault(fun_name, {})["pbe_probe"] = _pbe_probe
+
         try:
             t = syn_impl.synthesize(
                 ctx=tyctx,
@@ -185,11 +313,45 @@ def synthesize_holes(
                 metadata=metadata,
                 budget=budget,
                 ui=ui,
+                output_value=output_evaluator,
             )
         except Exception as e:
             ui.end(None, None)
             raise e
+        finally:
+            pool.close()
 
         ui.end(t, None)
         mapping[hole_name] = t
     return mapping
+
+
+def _pool_backed(pool: EvaluationPool) -> tuple[Callable[[Term], list[float]], Callable[[Term], Any]]:
+    """Adapt a pool to the ``(evaluate, output_value)`` callables the synthesiser
+    interface expects: ``evaluate`` reads the ``fitness`` computation, and
+    ``output_value`` the ``output`` one. Each candidate is run once (all its
+    computations together) and the results cached, so the two callables share
+    that single round-trip."""
+    cache: dict[str, dict[str, tuple[str, Any]]] = {}
+
+    def results(term: Term) -> dict[str, tuple[str, Any]]:
+        key = str(term)
+        if key not in cache:
+            cache[key] = pool.run(term)
+        return cache[key]
+
+    def evaluate(term: Term) -> list[float]:
+        status, value = results(term).get("fitness", ("ok", []))
+        if status == "invalid":
+            raise InvalidIndividualException()
+        if status == "timeout":
+            raise TimeoutInEvaluationException()
+        if status == "error":
+            raise ErrorInSynthesis(Exception(value), msg=str(value))
+        return value if value is not None else []
+
+    def output_value(term: Term) -> Any:
+        status, value = results(term).get("output", ("error", None))
+        return value if status == "ok" else None
+
+    return evaluate, output_value

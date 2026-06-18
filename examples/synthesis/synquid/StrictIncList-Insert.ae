@@ -1,0 +1,13 @@
+# StrictIncList-Insert: insert keeping strictly increasing order.
+#
+# Synquid benchmark StrictIncList-Insert (pldi16).
+#
+# Element type kept Int: the type carries a STRICT order invariant (scons requires hd < min of the tail). Becomes `forall a` with #1. Length grows by 0 or 1 (x may already be present).
+
+inductive SList
+| snil : {l:SList | slen l = 0}
+| scons (hd: Int) (tl: {t:SList | slen t = 0 || hd < smin t}) : {l:SList | slen l = slen tl + 1 && smin l = hd}
++ slen (l: SList) : Int
++ smin (l: SList) : Int
+
+def sinsert (x: Int) (xs: SList) : {l:SList | slen l >= slen xs} := ?hole;

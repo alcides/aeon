@@ -3,8 +3,8 @@
 
 open Array
 
-def intRange (low: Int) (high: {n:Int | n >= low}) : {r:(Array Int) | Array_size r == high - low + 1} =
+def intRange (low: Int) (high: {n:Int | n >= low}) : {r:(Array Int) | Array.size r = high - low + 1} :=
     native "list(range(low, high + 1))"
 
-def main (args:Int) : Unit =
+def main (args:Int) : Unit :=
     print (intRange 4 9)

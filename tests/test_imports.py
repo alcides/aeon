@@ -59,7 +59,7 @@ class TestImportResolution:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a test module in tmpdir
             test_module = Path(tmpdir) / "TestMod.ae"
-            test_module.write_text("def test_func : Int = 42;")
+            test_module.write_text("def test_func : Int := 42;")
 
             # Change to tmpdir and try to import
             old_cwd = os.getcwd()
@@ -80,7 +80,7 @@ class TestImportResolution:
             libs_dir = Path(tmpdir) / "libraries"
             libs_dir.mkdir()
             test_module = libs_dir / "LocalLib.ae"
-            test_module.write_text("def local_func : Int = 123;")
+            test_module.write_text("def local_func : Int := 123;")
 
             old_cwd = os.getcwd()
             try:
@@ -97,7 +97,7 @@ class TestImportResolution:
         """Test importing from AEONPATH environment variable."""
         with tempfile.TemporaryDirectory() as tmpdir:
             custom_lib = Path(tmpdir) / "CustomLib.ae"
-            custom_lib.write_text("def custom_func : Int = 999;")
+            custom_lib.write_text("def custom_func : Int := 999;")
 
             old_aeonpath = os.environ.get("AEONPATH")
             try:
@@ -118,7 +118,7 @@ class TestImportResolution:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a local Math.ae that shadows the standard library
             local_math = Path(tmpdir) / "Math.ae"
-            local_math.write_text("def shadow_func : Int = 555;")
+            local_math.write_text("def shadow_func : Int := 555;")
 
             old_cwd = os.getcwd()
             try:
@@ -148,7 +148,7 @@ class TestImportResolution:
             foo_dir = Path(tmpdir) / "Foo"
             foo_dir.mkdir()
             bar_module = foo_dir / "Bar.ae"
-            bar_module.write_text("def nested_func : Int = 777;")
+            bar_module.write_text("def nested_func : Int := 777;")
 
             old_cwd = os.getcwd()
             try:
@@ -186,7 +186,7 @@ class TestEndToEndImports:
         source = """
 import Math;
 
-def main (args: Int): Unit =
+def main (args: Int): Unit :=
     print (Math.abs (0 - 5));
 """
         parser = mk_parser("program")
@@ -200,7 +200,7 @@ def main (args: Int): Unit =
         source = """
 open Math
 
-def main (args: Int): Unit =
+def main (args: Int): Unit :=
     print (abs 5);
 """
         parser = mk_parser("program")
@@ -215,7 +215,7 @@ def main (args: Int): Unit =
         source = """
 import Math (abs, pow)
 
-def main (args: Int): Unit =
+def main (args: Int): Unit :=
     print (abs (0 - 5));
 """
         parser = mk_parser("program")
@@ -224,3 +224,25 @@ def main (args: Int): Unit =
         assert len(program.imports) == 1
         assert program.imports[0].module_path == "Math"
         assert program.imports[0].selected_names == ["abs", "pow"]
+
+
+class TestQualifiedNamesInBodyAnnotations:
+    """Qualified imports resolve inside type ascriptions written in bodies.
+
+    ``Array.size`` already resolved in parameter and return-type refinements;
+    the same predicate in a body-level ascription (``a : {x:_ | Array.size x
+    = 2} := ...``) used to be skipped by ``resolve_qualified_names_in_sterm``
+    and died in liquefaction (issue #363 follow-up).
+    """
+
+    def test_qualified_name_in_body_annotation_refinement(self):
+        from aeon.sugar.ast_helpers import st_top
+        from tests.driver import check_compile
+
+        source = (
+            "import Array;\n"
+            "def main (i:Int) : Int :=\n"
+            "    a : {x:(Array Int) | Array.size x = 2} := ((Array.new[Int]).append 1).append 2;\n"
+            "    a.length;\n"
+        )
+        assert check_compile(source, st_top, 2)

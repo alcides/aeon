@@ -73,6 +73,7 @@ from aeon.typechecking.well_formed import wellformed
 from aeon.verification.horn import fresh
 from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
+from aeon.verification.sub import is_first_order_function
 from aeon.verification.sub import sub
 from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
@@ -202,6 +203,98 @@ def _reflected_impl_for(
     return (tuple(ty_params), liq)
 
 
+def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
+    """Liquid encoding of an application term for selfification (issue #378).
+
+    Returns the ``LiquidTerm`` for ``t`` when the whole term is expressible in
+    the liquid fragment and every applied symbol will exist on the SMT side:
+    a primitive operator, or a context-bound function that
+    ``implication_constraint`` / ``entailment_context`` declares (first-order,
+    and for polymorphic functions, with a concrete base result). Otherwise
+    ``None`` — the caller simply skips selfification.
+
+    Note: encoding an application as an SMT function term identifies
+    syntactically equal calls (congruence). This is the purity assumption the
+    liquid fragment already makes everywhere applications appear in
+    refinements and termination metrics; selfification adds no new trust.
+    """
+    liq = liquefy(t)
+    if liq is None:
+        return None
+    if any(v.name in {"native", "native_import", "uninterpreted"} for v in liquid_free_vars(liq)):
+        return None
+
+    op_names = {op.name for op in ops} | {"ite"}
+
+    def heads_declarable(lt: LiquidTerm) -> bool:
+        match lt:
+            case LiquidHornApplication():
+                return False
+            case LiquidApp(fun, args):
+                if fun.name not in op_names:
+                    # Only monomorphic first-order functions are reliably
+                    # declared on the SMT side (``implication_constraint`` for
+                    # let-chain binders, ``entailment_context`` for prelude
+                    # entries — the latter skips polymorphic binders entirely).
+                    fun_ty = ctx.type_of(fun)
+                    if not (isinstance(fun_ty, AbstractionType) and is_first_order_function(fun_ty)):
+                        return False
+                return all(heads_declarable(a) for a in args)
+            case LiquidVar(name):
+                # A leaf variable is only safe to embed if it will be declared
+                # on the SMT side. Both ``implication_constraint`` (let-chain
+                # binders) and ``entailment_context`` (context binders) declare
+                # value binders of base/refined type but *skip polymorphic
+                # binders* — notably nullary inductive constructor constants such
+                # as ``List_nil : forall a. {l: List a | len l = 0}``. Embedding
+                # one would leave it undeclared in Z3 (a ``KeyError`` at
+                # translation time), so bail out of this optional selfification.
+                var_ty = ctx.type_of(name)
+                if isinstance(var_ty, (TypePolymorphism, RefinementPolymorphism)):
+                    return False
+                return True
+            case _:
+                return True
+
+    if not heads_declarable(liq):
+        return None
+    return liq
+
+
+def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
+    """Strengthen an application's synthesised type with ``v == ⟦t⟧``.
+
+    Only fires when the result type carries no information of its own — a bare
+    base type or a trivially-refined one. Refined codomains (primitive
+    operators, refined natives) already state their contract; adding the
+    equality there would only grow VCs. This is what lets facts proved about
+    the *application term* (e.g. an instantiated axiom about ``fdiv n 10``)
+    reach obligations phrased about its *result* (issue #378).
+    """
+
+    def selfifiable_base(base: Type) -> bool:
+        # Non-parametric constructors only: scalars (Int, Float, Bool, String)
+        # and opaque user types map to one SMT sort each. Unit carries no
+        # information, and parametric constructors go through per-instantiation
+        # sort mangling that selfification should not interfere with.
+        return isinstance(base, TypeConstructor) and not base.args and base.name.name != "Unit"
+
+    match ty:
+        case TypeConstructor(_, _) if selfifiable_base(ty):
+            liq = _selfification_liquid(ctx, t)
+            if liq is None:
+                return ty
+            v = Name("_self", fresh_counter.fresh())
+            return RefinedType(v, ty, LiquidApp(Name("==", 0), [LiquidVar(v), liq]))
+        case RefinedType(name, base, LiquidLiteralBool(True)) if selfifiable_base(base):
+            liq = _selfification_liquid(ctx, t)
+            if liq is None:
+                return ty
+            return RefinedType(name, base, LiquidApp(Name("==", 0), [LiquidVar(name), liq]))
+        case _:
+            return ty
+
+
 def is_compatible(a: Kind, b: Kind):
     """Returns whether kind a is a subkind of kind b"""
     return (a == b) or b == Kind.STAR
@@ -269,11 +362,38 @@ def prim_litstring(t: str) -> RefinedType:
     )
 
 
-def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConstructor | TypeVar) -> Type:
-    """Creates the type of a binary operator"""
+def nonzero_refined(ty: TypeConstructor | TypeVar) -> RefinedType:
+    """Wraps ``ty`` in the refinement ``{v : ty | v != 0}``.
+
+    Used for the divisor parameter of ``/`` and ``%`` so that division by a
+    statically-zero value is rejected at typechecking. The literal ``0`` is an
+    ``Int``; when ``ty`` is ``Float`` (or a base type variable instantiated to
+    it) Z3 coerces the numeral into its sort, so the same refinement discharges
+    for both ``Int`` and ``Float`` divisors (see the Int/Float coercion in
+    ``aeon.typechecking.liquid._unify``)."""
+    vname = Name("v", fresh_counter.fresh())
+    return RefinedType(
+        vname,
+        ty,
+        LiquidApp(Name("!=", 0), [LiquidVar(vname), LiquidLiteralInt(0)]),
+    )
+
+
+def make_binary_app_type(
+    t: Name,
+    ity: TypeConstructor | TypeVar,
+    oty: TypeConstructor | TypeVar,
+    nonzero_divisor: bool = False,
+) -> Type:
+    """Creates the type of a binary operator.
+
+    When ``nonzero_divisor`` is set, the second parameter (the divisor) carries
+    a ``v != 0`` refinement so division/modulo by a statically-zero value is
+    rejected."""
     xname = Name("x", fresh_counter.fresh())
     yname = Name("y", fresh_counter.fresh())
     zname = Name("z", fresh_counter.fresh())
+    yty: Type = nonzero_refined(ity) if nonzero_divisor else ity
     output = RefinedType(
         zname,
         oty,
@@ -288,7 +408,7 @@ def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConst
             ],
         ),
     )
-    appt2 = AbstractionType(yname, ity, output)
+    appt2 = AbstractionType(yname, yty, output)
     appt1 = AbstractionType(xname, ity, appt2)
     return appt1
 
@@ -296,10 +416,14 @@ def make_binary_app_type(t: Name, ity: TypeConstructor | TypeVar, oty: TypeConst
 def prim_op(t: Name) -> Type:
     match t.name:
         case "%":
-            return make_binary_app_type(t, t_int, t_int)
+            return make_binary_app_type(t, t_int, t_int, nonzero_divisor=True)
         case "+" | "-" | "*" | "/":
             name_a = Name("a", fresh_counter.fresh())
-            return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a)))
+            return TypePolymorphism(
+                name_a,
+                Kind.BASE,
+                make_binary_app_type(t, TypeVar(name_a), TypeVar(name_a), nonzero_divisor=t.name == "/"),
+            )
         case "==" | "!=" | ">" | ">=" | "<" | "<=":
             name_a = Name("a", fresh_counter.fresh())
             return TypePolymorphism(name_a, Kind.BASE, make_binary_app_type(t, TypeVar(name_a), t_bool))
@@ -363,6 +487,19 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
 
     refinement = rename_liquid_term(ty.refinement, old_name, new_name)
     return RefinedType(new_name, ty.type, refinement)
+
+
+def _as_predicate_type(sort: Type) -> AbstractionType:
+    """The full predicate type of an abstract-refinement sort.
+
+    Refinement sorts now carry the full (possibly n-ary) predicate type
+    ``d1 -> ... -> Bool``. Legacy callers (and a few unit tests that build core
+    nodes directly) may still pass a bare domain ``d``, which is wrapped as
+    ``d -> Bool`` so downstream code always sees an ``AbstractionType``.
+    """
+    if isinstance(sort, AbstractionType):
+        return sort
+    return AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
 
 
 # patterm matching term
@@ -446,7 +583,17 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                         # binder name into the result type. Any binders
                         # already on the argument's type lift to the outer
                         # scope (binders are always flat).
-                        (_, ty_arg) = synth(ctx_inner, arg)
+                        #
+                        # A bare Hole has no synthesisable type (synth defaults
+                        # it to a polymorphic type variable), which is not an SMT
+                        # base type and would leave the `_y` binder undeclared in
+                        # the solver. But the hole was just `check`ed against the
+                        # domain type `atype`, so that is its type here — use it
+                        # so a hole in argument position needs no annotation.
+                        if isinstance(arg, Hole):
+                            ty_arg = atype
+                        else:
+                            (_, ty_arg) = synth(ctx_inner, arg)
                         if isinstance(ty_arg, ExistentialType):
                             outer_binders = outer_binders + ty_arg.binders
                             ty_arg = ty_arg.body
@@ -467,6 +614,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     c0: Constraint = Conjunction(c, cp)
                     for bn, bt in reversed(fun_binders):
                         c0 = implication_constraint(bn, bt, c0, t.loc)
+                    # Selfify uninformative result types so the value stays
+                    # connected to the call that produced it (issue #378).
+                    t_subs = _selfify_application_type(ctx_inner, t, t_subs)
                     return (c0, with_binders(outer_binders, t_subs))
                 case _:
                     raise CoreInvalidApplicationError(t, ty)
@@ -547,6 +697,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, term_ctx)
             term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl)
+            # Declare mutually-recursive siblings as uninterpreted SMT functions
+            # so calls to them inside this member's value (e.g. selfified
+            # applications ``v == odd (n - 1)``) translate.
+            for comp in t.companions:
+                c1 = implication_constraint(comp.name, comp.type, c1, var_value.loc)
             # Form B introduction: if the body's type still mentions `var_name`,
             # wrap it in an existential so the scope leak is preserved as a
             # binder when the type flows outward.
@@ -586,7 +741,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
                 return (c, nty)
             assert isinstance(refinement, Abstraction)
-            pred_type = AbstractionType(Name("_", fresh_counter.fresh()), rp.sort, t_bool)
+            # ``rp.sort`` is the full (possibly n-ary) predicate type.
+            pred_type = rp.sort
             c_ref = check(ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
             return (Conjunction(c, c_ref), nty)
@@ -595,7 +751,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # Synth-mode Λρ: mirror Chk-RAbs (lines 505-512) but without an expected type.
             # Introduce fκ : psort -> bool, synth the body, wrap the resulting type with
             # RefinementPolymorphism and gate the constraint behind the UF declaration.
-            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), psort, t_bool)
+            # ``psort`` is the full (possibly n-ary) predicate type.
+            fk_type = _as_predicate_type(psort)
             ctx_ext = ctx.with_var(pname, fk_type)
             (c_body, body_ty) = synth(ctx_ext, inner)
             return (
@@ -747,6 +904,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             c2 = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
             term_c = termination_metric_constraints(t, term_ctx)
             term_c = implication_constraint(var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl)
+            # Declare mutually-recursive siblings as uninterpreted SMT functions
+            # so calls to them inside this member's value translate (selfified
+            # applications such as ``v == odd (n - 1)``).
+            for cname, ctype in comp_types:
+                c1 = implication_constraint(cname, ctype, c1, var_value.loc)
             return Conjunction(Conjunction(c1, c2), term_c)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
@@ -808,7 +970,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
         case RefinementAbstraction(pname, psort, inner), RefinementPolymorphism(rname, rsort, rbody):
             c_sort = sub(ctx, psort, rsort, t.loc)
-            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), rsort, t_bool)
+            # ``rsort`` is the full (possibly n-ary) predicate type.
+            fk_type = _as_predicate_type(rsort)
             ctx_ext = ctx.with_var(pname, fk_type)
             body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
             inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
@@ -817,10 +980,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
         # per tutorial fig 8.4 Chk-RAbs
         case _, RefinementPolymorphism(name, sort, body):
-            # ρ = κ : sort → bool; φ = λx.fκ(x)
+            # ρ = κ : sort; φ = λx.fκ(x). ``sort`` is the full (possibly n-ary)
+            # predicate type ``d1 -> ... -> Bool``.
             fk_name = Name("_f" + name.name, fresh_counter.fresh())
-            fk_type = AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
-            # Γ' = Γ; fκ : sort → bool
+            fk_type = _as_predicate_type(sort)
+            # Γ' = Γ; fκ : sort
             ctx_ext = ctx.with_var(fk_name, fk_type)
             # s[ρ := fκ] — substitute κ → fk in the body type
             body_sub = substitution_liquid_in_type(body, LiquidVar(fk_name), name)

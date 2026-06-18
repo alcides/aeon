@@ -15,18 +15,18 @@
 # So we need: d * 21900 >= 10_000_000  (since target = 10000 dollars
 # scaled by 1000), giving d_min = 457 dollars/year (with rounding slack).
 
-def TARGET_SCALED : {n:Int | n == 10000000} = 10000000   # $10,000 * 1000
-def FACTOR_SCALED : {n:Int | n == 21900} = 21900          # ((1.01^20 - 1) / 0.01) * 1000 ≈ 21.9
+def TARGET_SCALED : {n:Int | n = 10000000} := 10000000   # $10,000 * 1000
+def FACTOR_SCALED : {n:Int | n = 21900} := 21900          # ((1.01^20 - 1) / 0.01) * 1000 ≈ 21.9
 
 # Find the minimum annual deposit that reaches the goal.
 @minimize_int(deposit_hole)
 def deposit_hole : {d:Int |
     d > 0 &&
     d * FACTOR_SCALED >= TARGET_SCALED
-} = ?hole
+} := ?hole
 
 # Verification: 457 should satisfy the constraint (457 * 21900 == 10_008_300).
 def deposit_known : {d:Int |
     d > 0 &&
     d * FACTOR_SCALED >= TARGET_SCALED
-} = 457
+} := 457

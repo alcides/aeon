@@ -1,0 +1,12 @@
+# RBT-BalanceR: right-balancing constructor.
+#
+# Synquid benchmark RBT-BalanceR (pldi16).
+#
+# Element type polymorphic. Red-black COLOUR / black-height (and BST order) NOT encoded (needs #1); node-count only. Structural/size port.
+
+inductive Rbt a
+| rleaf : {t:(Rbt a) | rsz t = 0}
+| rnode (left: (Rbt a)) (key: a) (right: (Rbt a)) : {t:(Rbt a) | rsz t = rsz left + rsz right + 1}
++ rsz (t: (Rbt a)) : Int
+
+def balanceRR (left: (Rbt a)) (x: a) (right: (Rbt a)) : {r:(Rbt a) | rsz r = rsz left + rsz right + 1} := ?hole;

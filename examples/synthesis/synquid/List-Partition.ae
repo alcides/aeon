@@ -1,0 +1,14 @@
+# List-Partition: split around a pivot; halves cover the input.
+#
+# Synquid benchmark List-Partition (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. The <=/> pivot predicate needs an order on `a` (arrives with #1); only the length partition for now.
+
+open List
+
+inductive LPair a
+| mkLP (fa: (List a)) (sb: (List a)) : {p:(LPair a) | asize p = List.size fa && bsize p = List.size sb}
++ asize (p: (LPair a)) : Int
++ bsize (p: (LPair a)) : Int
+
+def partition (pivot: a) (xs: (List a)) : {p:(LPair a) | asize p + bsize p = List.size xs} := ?hole;

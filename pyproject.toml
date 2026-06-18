@@ -1,6 +1,6 @@
 [project]
 name = "AeonLang"
-version = "4.1.0"
+version = "4.1.5"
 description = "Language with Refinement Types"
 authors = [
     { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
@@ -40,6 +40,7 @@ dependencies = [
     'scikit-image',
     'sympy',
     'textdistance',
+    'cvc5 >= 1.1',
     'z3-solver >= 4',
     'zstandard==0.25.0',
     'zss',

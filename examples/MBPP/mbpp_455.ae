@@ -3,8 +3,7 @@
 #
 # Synthesis target: check_monthnumb_number : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float = native "float((0 if (f(5) == True) else 1) + (0 if (f(2) == False) else 1) + (0 if (f(6) == False) else 1))"
+def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (f(5) == True) else 1) + (0 if (f(2) == False) else 1) + (0 if (f(6) == False) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (monthnum2:Int) : Bool = (?hole : Bool)
+def synth (monthnum2:Int) : Bool := (let mbpp_fitness := unit in ?hole)

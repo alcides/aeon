@@ -1,0 +1,101 @@
+# Per-line (instance-level) model from Pedro Silva's MSc thesis
+# *"Static Analysis for Detection of Defects in Machine Learning
+# Pipelines"* (ULisboa 2024), Appendix A — with the relational axioms
+# stated using the Lean-style ``axiom`` keyword.
+#
+# ─── Axioms ─────────────────────────────────────────────────────────────
+#
+# ``axiom name : <type> ;`` introduces a constant of the given (dependent,
+# refined) type without a proof; its refinements are assumed (trusted).
+# Aeon's liquid refinements are quantifier-free, so there is no global
+# quantifier: an axiom is brought into a proof by **instantiating** it —
+# applying it to concrete arguments adds its fact to the context
+# (ghost-lemma style, as in F*/Dafny/Lean's ``exact``). Each axiom below
+# states one Appendix-A law, parameterised over the lines / dataset it
+# quantifies over; instantiate the ones a proof needs (see
+# ``examples/ml/temporal_leakage_proof.ae``).
+#
+# This is the finer-grained counterpart to the dataset-level summary flags
+# in ``Learning.ae``: those are *determined* by component post-conditions
+# so they need no instantiation, whereas these per-line relations are
+# genuinely relational (transitivity, antisymmetry, the time-series law)
+# and cannot be made determined — so they are stated as axioms here.
+#
+# CAUTION: an axiom is only as sound as the fact it states. A false
+# refinement becomes a false axiom and unsoundens everything downstream —
+# these must be read as the trusted core, exactly like the thesis loads
+# its axioms into the solver unconditionally.
+
+# ─── Sorts ──────────────────────────────────────────────────────────────
+
+type Line
+type LDataset
+
+# ─── Uninterpreted per-line predicates (thesis §6.3.3) ──────────────────
+
+# ``l`` is one of the instances of dataset ``d``.
+def line_in : (l: Line) -> (d: LDataset) -> Bool := uninterpreted
+# ``a`` precedes ``b`` in dataset ``d`` (chronological / positional order).
+def prec : (a: Line) -> (b: Line) -> (d: LDataset) -> Bool := uninterpreted
+# ``causality a b`` ≡ ``b`` causally depends on ``a`` (thesis lineCausality).
+def causality : (a: Line) -> (b: Line) -> Bool := uninterpreted
+# ``b`` is a clone of ``a`` (same column values).
+def clone : (a: Line) -> (b: Line) -> Bool := uninterpreted
+# ``l`` was synthesised (e.g. by SMOTE), not a real-world record.
+def synth : (l: Line) -> Bool := uninterpreted
+# ``d`` holds chronologically-ordered (time-stamped) data.
+def is_ts : (d: LDataset) -> Bool := uninterpreted
+def line_count : (d: LDataset) -> Int := uninterpreted
+
+# ─── Appendix A.4 — Causality ───────────────────────────────────────────
+
+# A line never causally depends on itself.
+axiom ax_causality_irreflexive :
+    (l: Line) -> {u: Unit | causality l l = false} ;
+
+# Causality is antisymmetric.
+axiom ax_causality_antisym :
+    (a: Line) -> (b: Line) -> {u: Unit | causality a b --> (causality b a = false)} ;
+
+# Causality is transitive (over distinct lines).
+axiom ax_causality_trans :
+    (a: Line) -> (b: Line) -> (c: Line)
+    -> {u: Unit | (a != b && b != c && a != c && causality a b && causality b c)
+                  --> causality a c} ;
+
+# ─── Appendix A.5 — Precedence ──────────────────────────────────────────
+
+# Precedence relates lines that are both in the dataset.
+axiom ax_prec_membership :
+    (a: Line) -> (b: Line) -> (d: LDataset)
+    -> {u: Unit | prec a b d --> (line_in a d && line_in b d)} ;
+
+# A line never precedes itself.
+axiom ax_prec_irreflexive :
+    (l: Line) -> (d: LDataset) -> {u: Unit | prec l l d = false} ;
+
+# Precedence is transitive (over distinct lines).
+axiom ax_prec_trans :
+    (a: Line) -> (b: Line) -> (c: Line) -> (d: LDataset)
+    -> {u: Unit | (a != b && b != c && a != c && prec a b d && prec b c d)
+                  --> prec a c d} ;
+
+# ─── Appendix A.3 — Line clone ──────────────────────────────────────────
+
+# A clone causally depends on its original.
+axiom ax_clone_causality :
+    (a: Line) -> (b: Line) -> {u: Unit | clone a b --> causality a b} ;
+
+# A clone shares the synthesised flag of its original.
+axiom ax_clone_synth :
+    (a: Line) -> (b: Line) -> {u: Unit | clone a b --> (synth a = synth b)} ;
+
+# ─── Appendix A.1 — Time-series law ─────────────────────────────────────
+
+# In a chronologically-ordered dataset with more than one line, a later
+# line causally depends on an earlier one: if ``a`` precedes ``b`` then
+# ``b`` causally depends on ``a``.
+axiom ax_timeseries :
+    (a: Line) -> (b: Line) -> (d: LDataset)
+    -> {u: Unit | (line_count d > 1 && is_ts d && a != b && prec a b d)
+                  --> causality a b} ;

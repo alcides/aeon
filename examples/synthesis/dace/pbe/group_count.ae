@@ -1,0 +1,12 @@
+# DACE Example 2.4: a group-total cell is the COUNT of entries in its group.
+#
+#   uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/group_count.ae
+#
+import Dace (Column, group_count)
+
+def groups : Column := native "[1, 1, 2, 2, 2, 3]";
+
+@example(fill 0 = 2)
+@example(fill 2 = 3)
+@example(fill 5 = 1)
+def fill (i:Int) : Int := ?hole;

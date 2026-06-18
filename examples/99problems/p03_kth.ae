@@ -3,8 +3,8 @@
 
 open Array
 
-def kth (l: (Array a)) (k: {n:Int | n >= 0 && n < Array.size l}) : a = native "l[k]"
+def kth (l: (Array a)) (k: {n:Int | n >= 0 && n < Array.size l}) : a := native "l[k]"
 
-def main (args:Int) : Unit =
-    xs = Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 10) 20) 30) 40;
+def main (args:Int) : Unit :=
+    xs := ((((Array.new[Int]).append 10).append 20).append 30).append 40;
     print (kth xs 2);

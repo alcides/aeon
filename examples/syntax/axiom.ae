@@ -1,0 +1,32 @@
+# Lean-style `axiom` declarations.
+#
+# `axiom name : <type> ;` introduces a constant of the given type without a
+# proof. The type may be a dependent, refined arrow; its refinements are
+# *assumed* (trusted, never checked). Like a Lean axiom it is noncomputable —
+# it carries logical content, not a runtime value.
+#
+# Because Aeon's refinements are quantifier-free, an axiom is brought into a
+# proof by *instantiating* it: applying it to concrete arguments adds its fact
+# to the context (ghost-lemma style, as in F*/Dafny/Lean's `exact`).
+
+# An uninterpreted relation we want to reason about.
+def reaches : (a: Int) -> (b: Int) -> Bool := uninterpreted
+
+# Axioms about it — no `native "()"` boilerplate, just the stated facts.
+axiom reaches_refl : (x: Int) -> {u: Unit | reaches x x} ;
+axiom reaches_trans :
+    (a: Int) -> (b: Int) -> (c: Int)
+    -> {u: Unit | (reaches a b && reaches b c) --> reaches a c} ;
+
+# A proof that uses the axioms by instantiating them at the needed points.
+def two_hops
+    (a: Int) (b: Int) (c: Int)
+    (h: {x: Int | reaches a b && reaches b c}) :
+    {r: Int | reaches a c} :=
+    let step := reaches_trans a b c in
+    h ;
+
+# Reflexivity, instantiated.
+def self_reaches (a: Int) (h: Int) : {r: Int | reaches a a} :=
+    let step := reaches_refl a in
+    h ;

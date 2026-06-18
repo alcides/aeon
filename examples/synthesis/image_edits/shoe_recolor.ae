@@ -21,23 +21,23 @@ inductive ShoeColor
 inductive Shoe
 | mk (shade : ShoeColor)
      (size  : {n:Int | n >= 20 && n <= 50})
-   : {s:Shoe | (shoe_shade s == shade) && (shoe_size s == size)}
+   : {s:Shoe | (shoe_shade s = shade) && (shoe_size s = size)}
 + shoe_shade (s:Shoe) : ShoeColor
 + shoe_size  (s:Shoe) : Int
 
 # Positive examples: blue adult-size shoes.
-def blue_40 : Shoe = .mk .sc_blue 40
-def blue_42 : Shoe = .mk .sc_blue 42
-def blue_45 : Shoe = .mk .sc_blue 45
+def blue_40 : Shoe := .mk .sc_blue 40
+def blue_42 : Shoe := .mk .sc_blue 42
+def blue_45 : Shoe := .mk .sc_blue 45
 
 # Negative examples: red shoes (any size) and blue child-size shoes.
-def red_40    : Shoe = .mk .sc_red 40
-def red_30    : Shoe = .mk .sc_red 30
-def blue_28   : Shoe = .mk .sc_blue 28
-def blue_30   : Shoe = .mk .sc_blue 30
+def red_40    : Shoe := .mk .sc_red 40
+def red_30    : Shoe := .mk .sc_red 30
+def blue_28   : Shoe := .mk .sc_blue 28
+def blue_30   : Shoe := .mk .sc_blue 30
 
-def cost_pos (b:Bool) : Int = if b then 0 else 1
-def cost_neg (b:Bool) : Int = if b then 1 else 0
+def cost_pos (b:Bool) : Int := if b then 0 else 1
+def cost_neg (b:Bool) : Int := if b then 1 else 0
 
 @minimize_int(
     cost_pos (recolor blue_40)
@@ -48,6 +48,4 @@ def cost_neg (b:Bool) : Int = if b then 1 else 0
   + cost_neg (recolor blue_28)
   + cost_neg (recolor blue_30)
 )
-@hide(blue_40, blue_42, blue_45, red_40, red_30, blue_28, blue_30,
-      mk, cost_pos, cost_neg)
-def recolor (s:Shoe) : Bool = ?hole
+def recolor (s:Shoe) : Bool := (let blue_40 := unit in let blue_42 := unit in let blue_45 := unit in let red_40 := unit in let red_30 := unit in let blue_28 := unit in let blue_30 := unit in let mk := unit in let cost_pos := unit in let cost_neg := unit in ?hole)

@@ -1,27 +1,23 @@
 import PSB2 (extract_train_data, load_dataset)
 import Array
-def String_split : (s:String) -> (sep:String) -> (Array Int) = \s -> \sep -> native "s.split(sep, 1)"
-def String_concat : (i:String) -> (j:String) -> String = \i -> \j -> native "i + j"
+def String_split : (s:String) -> (sep:String) -> (Array Int) := fun s => fun sep => native "s.split(sep, 1)"
+def String_concat : (i:String) -> (j:String) -> String := fun i => fun j => native "i + j"
 
-def Map_string : (f: (s:String) -> String) -> (l:String) -> String = \f -> \xs -> native "str(map(f, xs))"
-def String_join : (l:(Array Int)) -> (s:String) -> String = \l -> \s -> native "s.join(l)"
-def String_tail:(l:String) -> String = \xs -> native "xs[1:]"
-def String_contains:(s:String) -> (c:String) -> Bool = \s -> \c -> native "c in s"
-def String_equal : (i:String) -> (j:String) -> Bool = \i -> \j -> native "i == j";
-def String_get: (l:String) -> (i:Int) -> String = \xs -> \i -> native "xs[i]"
-def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String = \s -> \start -> \end -> native "s[start:end]"
-def String_length: (s:String) -> Int = \s -> native "len(s)"
-def List_get: (l:(Array Int)) -> (i:Int) -> String = \xs -> \i -> native "xs[i]"
-
-
-def train: TrainData = extract_train_data (load_dataset "solve-boolean" 200 200)
+def Map_string : (f: (s:String) -> String) -> (l:String) -> String := fun f => fun xs => native "str(map(f, xs))"
+def String_join : (l:(Array Int)) -> (s:String) -> String := fun l => fun s => native "s.join(l)"
+def String_tail:(l:String) -> String := fun xs => native "xs[1:]"
+def String_contains:(s:String) -> (c:String) -> Bool := fun s => fun c => native "c in s"
+def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
+def String_get: (l:String) -> (i:Int) -> String := fun xs => fun i => native "xs[i]"
+def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String := fun s => fun start => fun end => native "s[start:end]"
+def String_length: (s:String) -> Int := fun s => native "len(s)"
+def List_get: (l:(Array Int)) -> (i:Int) -> String := fun xs => fun i => native "xs[i]"
 
 
-def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bool)  -> (Array Int)  =  \data -> \func -> native "[0 if func(x[0]) == y[0] else 1 for x ,y  in data]";
+def train: TrainData := extract_train_data (load_dataset "solve-boolean" 200 200)
 
-@hide(extract_train_data,
-            load_dataset,
-            train,
-            calculate_solve_boolean_errors)
+
+def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bool)  -> (Array Int)  :=  fun data => fun func => native "[0 if func(x[0]) == y[0] else 1 for x ,y  in data]";
+
 @multi_minimize_float(calculate_solve_boolean_errors train synth, 1)
-def synth ( s : String ) : Bool = (?hole:Bool)
+def synth ( s : String ) : Bool := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_solve_boolean_errors := unit in ?hole)

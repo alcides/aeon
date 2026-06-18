@@ -1,0 +1,9 @@
+# List-QuickSort: length preserved.
+#
+# Synquid benchmark List-QuickSort (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Sortedness needs an order on `a` (arrives with #1); length preservation only for now.
+
+open List
+
+def quickSort (xs: (List a)) : {l:(List a) | List.size l = List.size xs} := ?hole;

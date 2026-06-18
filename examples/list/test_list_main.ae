@@ -1,14 +1,14 @@
 open List
 
-def consume : (l:(List Int)) -> Int = \n -> 0;
+def consume : (l:(List Int)) -> Int := fun n => 0;
 
-def pos : Int = consume (List.snoc (List.nil[Int]) 1)
+def pos : Int := consume (List.snoc (List.nil[Int]) 1)
 
-def main (x:Int) : Unit =
-    nil0 : (List Int) = List.nil[Int];
-    one : (List Int) = List.snoc nil0 3;
-    two : (List Int) = List.snoc one 2;
-    three : (List Int) = List.snoc two 1;
-    plus : (x:Int) -> (y: Int) -> Int = (\x -> \y -> x + y);
-    v : Int = (List.foldr plus 0 three);
+def main (x:Int) : Unit :=
+    nil0 : (List Int) := List.nil[Int];
+    one : (List Int) := nil0.snoc 3;
+    two : (List Int) := one.snoc 2;
+    three : (List Int) := two.snoc 1;
+    plus : (x:Int) -> (y: Int) -> Int := (fun x => fun y => x + y);
+    v : Int := (three.foldr plus 0);
     print v;

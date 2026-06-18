@@ -1,0 +1,9 @@
+# List-Nub: remove duplicates; no longer than input.
+#
+# Synquid benchmark List-Nub (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Set-of-elements preservation omitted; only the length bound.
+
+open List
+
+def nub (xs: (List a)) : {l:(List a) | List.size l <= List.size xs} := ?hole;

@@ -1,0 +1,235 @@
+# Testing the Image library with the Testing vocabulary and `--test`.
+#
+# This file shows both kinds of test the `--test` runner understands, written
+# with the assertion combinators from the `Testing` library:
+#
+#   * Unit tests     — a zero-argument `@property(1)` function: one concrete
+#                      case, evaluated exactly once.
+#   * Property tests — a `@property` function with arguments: the runner
+#                      generates the arguments (here pixel coordinates and
+#                      colour channels) from their refinement types and checks
+#                      the assertion holds for every generated input.
+#
+# The image *dimensions* are also guaranteed statically: in Aeon `width` /
+# `height` are uninterpreted measures the type system uses to prove the size
+# contracts (`mk w h c` has type `{i:Image | width i == w && height i == h}`,
+# `crop`/`resize` produce exactly the requested size, `rotate`/`flip`/`invert`
+# preserve it, ...). This file would not typecheck if those guarantees were
+# wrong. The runtime accessors `get_width` / `get_height` read those same
+# dimensions back (their return type is refined to equal the measure), so the
+# tests below double-check them dynamically too. The remaining tests cover what
+# the types do *not* capture: the actual pixel content produced by each
+# operation, observed through `get_pixel` and the whole-image `diff`
+# (mean-squared error).
+#
+# Run with:  aeon --test examples/testing/image_tests.ae
+
+open Testing
+open Image
+
+# ── Unit tests: dimensions (via the runtime accessors) ───────────────────────
+
+# `mk w h c` produces an image of exactly that size.
+@property(1)
+def test_mk_dimensions : Bool :=
+    img := Image.mk 4 3 (Color.mk 255 0 0);
+    both (assertEqual (img.get_width) 4)
+         (assertEqual (img.get_height) 3);
+
+# `crop` returns an image of the requested size.
+@property(1)
+def test_crop_dimensions : Bool :=
+    cropped := (Image.mk 10 10 (Color.mk 0 0 0)).crop 2 2 5 4;
+    both (assertEqual (cropped.get_width) 5)
+         (assertEqual (cropped.get_height) 4);
+
+# `resize` resamples to an exact width and height.
+@property(1)
+def test_resize_dimensions : Bool :=
+    resized := (Image.mk 8 8 (Color.mk 0 0 0)).resize 32 16;
+    both (assertEqual (resized.get_width) 32)
+         (assertEqual (resized.get_height) 16);
+
+# `flip` and `invert` preserve dimensions.
+@property(1)
+def test_transforms_preserve_size : Bool :=
+    img := Image.mk 6 4 (Color.mk 7 7 7);
+    flipped := img.flip_horizontal;
+    inverted := img.invert;
+    allOf4 (assertEqual (flipped.get_width) 6)
+           (assertEqual (flipped.get_height) 4)
+           (assertEqual (inverted.get_width) 6)
+           (assertEqual (inverted.get_height) 4);
+
+# ── Unit tests: pixel content ────────────────────────────────────────────────
+
+# A freshly-made solid image has the fill colour at every pixel.
+@property(1)
+def test_mk_is_solid : Bool :=
+    img := Image.mk 4 4 (Color.mk 10 20 30);
+    both (assertEqual (img.get_pixel 0 0) (Color.mk 10 20 30))
+         (assertEqual (img.get_pixel 3 3) (Color.mk 10 20 30));
+
+# `copy` is content-preserving: an exact copy differs from the original by 0.
+@property(1)
+def test_copy_is_identical : Bool :=
+    img := Image.mk 8 8 (Color.mk 1 2 3);
+    assertClose ((img.copy).diff img) 0.0 0.0001;
+
+# `put_pixel` writes the pixel you asked for and leaves the rest alone.
+@property(1)
+def test_put_pixel_writes_and_isolates : Bool :=
+    img := Image.mk 4 4 (Color.mk 0 0 0);
+    painted := img.put_pixel 1 2 (Color.mk 9 8 7);
+    allOf3 (assertEqual (painted.get_pixel 1 2) (Color.mk 9 8 7))
+           (assertEqual (painted.get_pixel 0 0) (Color.mk 0 0 0))
+           (assertEqual (painted.get_pixel 3 3) (Color.mk 0 0 0));
+
+# `crop` returns the requested sub-region's content at the new origin.
+@property(1)
+def test_crop_content : Bool :=
+    base := Image.mk 4 4 (Color.mk 0 0 0);
+    img := base.put_pixel 2 2 (Color.mk 1 2 3);
+    cropped := img.crop 2 2 2 2;
+    assertEqual (cropped.get_pixel 0 0) (Color.mk 1 2 3);
+
+# Resampling a solid image leaves it the same solid colour.
+@property(1)
+def test_resize_solid_keeps_colour : Bool :=
+    red := Image.mk 8 8 (Color.mk 200 10 10);
+    small := red.resize 4 4;
+    assertEqual (small.get_pixel 0 0) (Color.mk 200 10 10);
+
+# Rotating a full turn is the identity.
+@property(1)
+def test_rotate_full_turn_identity : Bool :=
+    base := Image.mk 4 4 (Color.mk 0 0 0);
+    img := base.put_pixel 0 0 (Color.mk 255 255 255);
+    assertClose ((img.rotate 360.0).diff img) 0.0 0.0001;
+
+# Flipping horizontally moves a pixel from column 0 to the last column, and is
+# its own inverse.
+@property(1)
+def test_flip_horizontal_swaps_and_involution : Bool :=
+    base := Image.mk 4 4 (Color.mk 0 0 0);
+    img := base.put_pixel 0 1 (Color.mk 255 255 255);
+    flipped := img.flip_horizontal;
+    twice := flipped.flip_horizontal;
+    allOf3 (assertEqual (flipped.get_pixel 3 1) (Color.mk 255 255 255))
+           (assertEqual (flipped.get_pixel 0 1) (Color.mk 0 0 0))
+           (assertClose (twice.diff img) 0.0 0.0001);
+
+# Flipping vertically twice is the identity.
+@property(1)
+def test_flip_vertical_involution : Bool :=
+    base := Image.mk 4 4 (Color.mk 0 0 0);
+    img := base.put_pixel 1 0 (Color.mk 255 255 255);
+    twice := (img.flip_vertical).flip_vertical;
+    assertClose (twice.diff img) 0.0 0.0001;
+
+# Inverting black yields white, and inverting white yields black.
+@property(1)
+def test_invert_endpoints : Bool :=
+    black := Image.mk 4 4 (Color.mk 0 0 0);
+    white := Image.mk 4 4 (Color.mk 255 255 255);
+    both (assertEqual ((black.invert).get_pixel 0 0) (Color.mk 255 255 255))
+         (assertEqual ((white.invert).get_pixel 0 0) (Color.mk 0 0 0));
+
+# Inverting twice is the identity.
+@property(1)
+def test_invert_involution : Bool :=
+    img := Image.mk 4 4 (Color.mk 30 90 200);
+    twice := (img.invert).invert;
+    assertClose (twice.diff img) 0.0 0.0001;
+
+# Grayscaling an already-grey image (R = G = B) leaves it (essentially) unchanged.
+@property(1)
+def test_grayscale_of_grey_is_stable : Bool :=
+    grey := Image.mk 8 8 (Color.mk 100 100 100);
+    assertClose ((grey.grayscale).diff grey) 0.0 4.0;
+
+# `diff` is zero for equal images and strictly positive for different ones.
+@property(1)
+def test_diff_detects_difference : Bool :=
+    black := Image.mk 8 8 (Color.mk 0 0 0);
+    white := Image.mk 8 8 (Color.mk 255 255 255);
+    both (assertClose (black.diff black) 0.0 0.0001)
+         (assertGreater (black.diff white) 0.0);
+
+# `paste` drops the source at the given origin and keeps the rest of the
+# destination intact.
+@property(1)
+def test_paste_places_source : Bool :=
+    dest := Image.mk 8 8 (Color.mk 0 0 0);
+    src := Image.mk 4 4 (Color.mk 255 255 255);
+    pasted := dest.paste src 0 0;
+    both (assertEqual (pasted.get_pixel 0 0) (Color.mk 255 255 255))
+         (assertEqual (pasted.get_pixel 7 7) (Color.mk 0 0 0));
+
+# ── Property-based tests ─────────────────────────────────────────────────────
+# The coordinates and colour channels are generated from their refinement types,
+# so each property is checked across many valid inputs rather than a single case.
+
+# `mk` honours the requested width and height for any positive dimensions.
+@property
+def prop_mk_dimensions
+    (w : {v : Int | v > 0 && v < 64})
+    (h : {v : Int | v > 0 && v < 64}) :
+    Bool :=
+    img := Image.mk w h (Color.mk 0 0 0);
+    both (assertEqual (img.get_width) w)
+         (assertEqual (img.get_height) h);
+
+# `resize` always produces exactly the requested size.
+@property
+def prop_resize_dimensions
+    (w : {v : Int | v > 0 && v < 64})
+    (h : {v : Int | v > 0 && v < 64}) :
+    Bool :=
+    resized := (Image.mk 8 8 (Color.mk 1 2 3)).resize w h;
+    both (assertEqual (resized.get_width) w)
+         (assertEqual (resized.get_height) h);
+
+# A solid image reads back its fill colour at the origin, whatever the colour.
+@property
+def prop_solid_pixel_is_fill
+    (r : {v : Int | v >= 0 && v < 256})
+    (g : {v : Int | v >= 0 && v < 256})
+    (b : {v : Int | v >= 0 && v < 256}) :
+    Bool :=
+    col := Color.mk r g b;
+    assertEqual ((Image.mk 8 8 col).get_pixel 0 0) col;
+
+# put_pixel / get_pixel round-trip: whatever colour you write at an in-bounds
+# coordinate, you read the same colour back.
+@property
+def prop_put_get_roundtrip
+    (x : {v : Int | v >= 0 && v < 16})
+    (y : {v : Int | v >= 0 && v < 16})
+    (r : {v : Int | v >= 0 && v < 256})
+    (g : {v : Int | v >= 0 && v < 256})
+    (b : {v : Int | v >= 0 && v < 256}) :
+    Bool :=
+    col := Color.mk r g b;
+    painted := (Image.mk 16 16 (Color.mk 0 0 0)).put_pixel x y col;
+    assertEqual (painted.get_pixel x y) col;
+
+# Invert is its own inverse for any fill colour.
+@property
+def prop_invert_involution
+    (r : {v : Int | v >= 0 && v < 256})
+    (g : {v : Int | v >= 0 && v < 256})
+    (b : {v : Int | v >= 0 && v < 256}) :
+    Bool :=
+    img := Image.mk 6 6 (Color.mk r g b);
+    assertClose (((img.invert).invert).diff img) 0.0 0.0001;
+
+# Every image is identical to itself: diff with self is always zero.
+@property
+def prop_diff_self_is_zero
+    (r : {v : Int | v >= 0 && v < 256})
+    (g : {v : Int | v >= 0 && v < 256})
+    (b : {v : Int | v >= 0 && v < 256}) :
+    Bool :=
+    img := Image.mk 8 8 (Color.mk r g b);
+    assertClose (img.diff img) 0.0 0.0001;

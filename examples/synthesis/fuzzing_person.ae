@@ -1,0 +1,36 @@
+# Constraint-based fuzzing: a consistent person record.
+#
+# Fandango (https://fandango-fuzzer.github.io/) generates structured records
+# (its faker/person case studies) whose fields must agree with one another. Here
+# a record has an age, an "is adult" flag and a birth year, and the fields must
+# be mutually consistent:
+#
+#   * is_adult is true exactly when age >= 18
+#   * birth_year + age is the current year (2026) or the year before
+#     (depending on whether this year's birthday has happened yet)
+#
+# This uses Aeon's implication operator `-->` (a --> b means "a implies b").
+
+inductive Person
+| mk (age:Int        | 0 <= age && age <= 120)
+     (is_adult:Int   | 0 <= is_adult && is_adult <= 1)
+     (birth_year:Int | 1900 <= birth_year && birth_year <= 2026) :
+     {p:Person | (p_age p = age) && (p_adult p = is_adult) && (p_byear p = birth_year)}
++ p_age   (p:Person) : Int
++ p_adult (p:Person) : Int
++ p_byear (p:Person) : Int
+
+# (a) Fuzzing: synthesise a consistent person.
+@minimize_int(0)
+def fuzz_person : {p:Person |
+    (p_age p >= 18 --> p_adult p = 1) &&
+    (p_age p <= 17 --> p_adult p = 0) &&
+    (p_byear p + p_age p = 2026 || p_byear p + p_age p = 2025)
+} := ?hole;
+
+# (b) Verification: a 30-year-old adult born in 1996 (1996 + 30 == 2026).
+def a_person : {p:Person |
+    (p_age p >= 18 --> p_adult p = 1) &&
+    (p_age p <= 17 --> p_adult p = 0) &&
+    (p_byear p + p_age p = 2026 || p_byear p + p_age p = 2025)
+} := .mk 30 1 1996

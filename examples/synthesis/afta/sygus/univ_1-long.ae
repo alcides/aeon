@@ -1,0 +1,27 @@
+import String (concat, charAt, substr, replace, indexOfFrom, len, startsWith, endsWith, contains, stringToInt, intToString);
+
+# Auto-generated from a SyGuS PBE-Strings benchmark (BLAZE/SYNGAR suite,
+# Wang, Dillig & Singh, POPL'18). Solve with:
+#   uv run python -m aeon --no-main -s afta examples/synthesis/afta/sygus/<file>.ae
+
+@example(f "University of Pennsylvania" "Phialdelphia, PA, USA" = "University of Pennsylvania, Phialdelphia, PA, USA")
+@example(f "UCLA" "Los Angeles, CA" = "UCLA, Los Angeles, CA")
+@example(f "Cornell University" "Ithaca, New York, USA" = "Cornell University, Ithaca, New York, USA")
+@example(f "Penn" "Philadelphia, PA, USA" = "Penn, Philadelphia, PA, USA")
+@example(f "University of Maryland College Park" "College Park, MD" = "University of Maryland College Park, College Park, MD")
+@example(f "University of Michigan" "Ann Arbor, MI, USA" = "University of Michigan, Ann Arbor, MI, USA")
+@example(f "UC Berkeley" "Berkeley, CA" = "UC Berkeley, Berkeley, CA")
+@example(f "MIT" "Cambridge, MA" = "MIT, Cambridge, MA")
+@example(f "Rice University" "Houston, TX" = "Rice University, Houston, TX")
+@example(f "Yale University" "New Haven, CT, USA" = "Yale University, New Haven, CT, USA")
+@example(f "Columbia University" "New York, NY, USA" = "Columbia University, New York, NY, USA")
+@example(f "NYU" "New York, New York, USA" = "NYU, New York, New York, USA")
+@example(f "UC Berkeley" "Berkeley, CA" = "UC Berkeley, Berkeley, CA")
+@example(f "UIUC" "Urbana, IL" = "UIUC, Urbana, IL")
+@example(f "Temple University" "Philadelphia, PA" = "Temple University, Philadelphia, PA")
+@example(f "Harvard University" "Cambridge, MA, USA" = "Harvard University, Cambridge, MA, USA")
+@example(f "University of Connecticut" "Storrs, CT, USA" = "University of Connecticut, Storrs, CT, USA")
+@example(f "Drexel University" "Philadelphia, PA" = "Drexel University, Philadelphia, PA")
+@example(f "New Haven University" "New Haven, CT, USA" = "New Haven University, New Haven, CT, USA")
+@example(f "University of California, Santa Barbara" "Santa Barbara, CA, USA" = "University of California, Santa Barbara, Santa Barbara, CA, USA")
+def f (col1: String) (col2: String) : String := (?hole : String);

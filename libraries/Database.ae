@@ -1,0 +1,89 @@
+# Linear (QTT) + refinement bindings for sqlite3 — a state-safe database API.
+#
+# Raw sqlite3 is error-prone in two ways this library closes:
+#
+#   1. **Transaction discipline (linearity).** A transaction must be committed
+#      XOR rolled back — exactly once — and the connection closed exactly once.
+#      Forget the commit and your writes silently vanish; touch the connection
+#      after close and you get ``ProgrammingError: Cannot operate on a closed
+#      database``. These are linear-resource rules, so ``Conn`` and ``Txn`` are
+#      multiplicity-1 handles: the type checker forces a complete, well-ordered
+#      lifecycle and rejects a forgotten commit (``LinearUnusedError``) or a
+#      use-after-commit / double-close (``LinearUsedTooManyTimesError``).
+#
+#   2. **State (typestate).** The *kind* of handle encodes the connection state.
+#      You cannot ``execute`` on a plain ``Conn`` (you must ``begin`` a ``Txn``
+#      first), nor ``close`` a ``Txn`` (you must ``commit``/``rollback`` back to
+#      a ``Conn``). Illegal orderings simply do not type-check.
+#
+# Plus ordinary refinements: non-empty paths and SQL, non-negative row counts.
+#
+# The lifecycle threads a linear handle exactly like libraries/Socket.ae:
+#
+#     let 1 c0 := connect "app.db" in
+#     let 1 t0 := begin c0 in
+#     let 1 t1 := execute "INSERT INTO log VALUES ('x')" t0 in
+#     let 1 c1 := commit t1 in        # MUST commit or rollback — exactly once
+#     close c1                        # MUST close — and t0/t1 are now unusable
+
+open Array
+
+type Conn      # an open connection            (linear)
+type Txn       # a connection inside a txn      (linear)
+type Rows      # a materialized SELECT result   (unrestricted)
+
+def sqlite3 : Unit := native_import "sqlite3"
+
+# ── One-shot reads (safe, non-linear) ──────────────────────────────────
+#
+# A read that needs no transaction: open, SELECT, close — all internal to the
+# helper, so no handle escapes and there is nothing to leak.
+
+def row_count : (r: Rows) -> Int := uninterpreted
+
+# Runs a SELECT against `path` and returns every row. Both arguments must be
+# non-empty.
+def read_all (path: {p:String | p != ""}) (sql: {s:String | s != ""}) :
+    {r: Rows | row_count r >= 0} :=
+    native "__import__('aeon.bindings.database').bindings.database.read_all(path, sql)"
+
+# Number of rows returned. Pinned to the `row_count` measure; non-negative.
+def num_rows (r: Rows) : {n:Int | n = row_count r && n >= 0} := native "len(r)"
+
+# True exactly when the result set is empty. Tied to `row_count`.
+def is_empty (r: Rows) : {b:Bool | b = (row_count r = 0)} := native "len(r) == 0"
+
+# ── Linear write transactions (QTT) ─────────────────────────────────────
+#
+# Each operation consumes its linear handle at multiplicity 1 and returns the
+# next state, so downstream `let 1` binders enforce the same discipline. Bind
+# every result to a linear binder (`let 1 ... := ... in`).
+
+# Opens a connection to `path`. `isolation_level=None` puts sqlite3 in
+# autocommit mode so the explicit BEGIN / COMMIT / ROLLBACK below are honored
+# exactly as written. Each call yields a fresh connection.
+def connect (path: {p:String | p != ""}) : Conn :=
+    native "sqlite3.connect(path, isolation_level=None)"
+
+# Begins a transaction, advancing the connection from `Conn` to `Txn`.
+def begin (1 c: Conn) : Txn :=
+    native "(c.execute('BEGIN'), c)[1]"
+
+# Executes one statement inside the transaction and threads the `Txn` onward.
+# `sql` must be non-empty.
+def execute (sql: {s:String | s != ""}) (1 t: Txn) : Txn :=
+    native "(t.execute(sql), t)[1]"
+
+# Commits the transaction and returns the connection (now outside any txn) so
+# it can be reused or closed. Consumes the `Txn`.
+def commit (1 t: Txn) : Conn :=
+    native "(t.execute('COMMIT'), t)[1]"
+
+# Rolls the transaction back, discarding its writes, and returns the
+# connection. Consumes the `Txn`.
+def rollback (1 t: Txn) : Conn :=
+    native "(t.execute('ROLLBACK'), t)[1]"
+
+# Closes the connection. Consumes the `Conn`, so it cannot be used afterward.
+def close (1 c: Conn) : Unit :=
+    native "c.close() or None"

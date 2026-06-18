@@ -1,0 +1,10 @@
+# DACE per-cell completion, synthesised by the FTA backend.
+#
+# The input column holds a = 8 and b = 7; complete the total cell so that
+# total == a + b. The fta backend enumerates integer cells, keys each by its
+# value (observational equivalence), and accepts the one the refinement admits.
+#
+#   uv run python -m aeon --no-main -s fta --budget 10 examples/synthesis/dace/synth/complete_total.ae
+#
+# Expected: ?hole: 15
+def total_cell : {v:Int | v = 8 + 7} := ?hole;

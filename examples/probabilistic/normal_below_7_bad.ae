@@ -4,7 +4,7 @@ open Math
 # ─── Probabilistic refinement scaffolding ──────────────────────────────
 
 # Uninterpreted symbol: fraction of xs strictly below threshold t.
-def fracBelow : (xs: (Array Float)) -> (t: Float) -> Float = uninterpreted
+def fracBelow : (xs: (Array Float)) -> (t: Float) -> Float := uninterpreted
 
 # Monotonicity axiom for fracBelow.  Runtime no-op; the return refinement
 # is the postulate Z3 uses (correctly: t1 <= t2 ⇒ frac(t1) <= frac(t2)).
@@ -13,7 +13,7 @@ def widenThreshold
     (t1: Float)
     (t2: {t: Float | t >= t1})
     : {r: (Array Float) | Array.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
-    = native "xs"
+    := native "xs"
 
 # ─── Producer: normal samples around (a, b) ────────────────────────────
 
@@ -24,7 +24,7 @@ def normalSample
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracBelow xs (a + 2.33 * b) >= 0.99 }
-    = native "list(__import__('numpy').random.normal(a, b, n))"
+    := native "list(__import__('numpy').random.normal(a, b, n))"
 
 # ─── Consumer: requires 99% below 7 ────────────────────────────────────
 
@@ -33,12 +33,12 @@ def expectMostlyBelow7
          | Array.size ys > 0
            && fracBelow ys 7.0 >= 0.99})
     : Unit
-    = print "ok: list satisfies P(< 7) >= 0.99"
+    := print "ok: list satisfies P(< 7) >= 0.99"
 
 # ─── Driver: BAD case  (a=6, b=1  ⇒  threshold=8.33 > 7) ───────────────
 # widenThreshold requires t2 >= t1; here t1 = 8.33, t2 = 7.0  →  fails.
 
-def main (_: Int) : Unit =
-    let bad = normalSample 6.0 1.0 100 in
-    let widened = widenThreshold bad 8.33 7.0 in
+def main (_: Int) : Unit :=
+    let bad := normalSample 6.0 1.0 100 in
+    let widened := widenThreshold bad 8.33 7.0 in
     expectMostlyBelow7 widened

@@ -3,10 +3,10 @@
 
 open Array
 
-def gray (n: {x:Int | x >= 1 && x <= 20}) : (Array String) =
+def gray (n: {x:Int | x >= 1 && x <= 20}) : (Array String) :=
     native "[bin(i ^ (i >> 1))[2:].zfill(n) for i in range(2 ** n)]"
 
-def main (args:Int) : Unit =
-    _ = print (gray 1);
-    _ = print (gray 2);
+def main (args:Int) : Unit :=
+    _ := print (gray 1);
+    _ := print (gray 2);
     print (gray 3)

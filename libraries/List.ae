@@ -7,65 +7,65 @@
 #    that every element of the list satisfies. The refinement flows through
 #    every constructor: a value can only enter the list if it satisfies ``p``.
 inductive List a forall <p : a -> Bool>
-| nil : {l: (List a) | size l == 0}
-| cons (hd: {v:a | p v}) (tl: (List a)) : {l: (List a) | size l == size tl + 1}
+| nil : {l: (List a) | size l = 0}
+| cons (hd: {v:a | p v}) (tl: (List a)) : {l: (List a) | size l = size tl + 1}
 + size (l: (List a)) : Int
 
 
 # Length of the list (counted by recursion).
-def length (l: (List a)) : Int =
+def length (l: (List a)) : Int :=
     match l with
     | nil => 0
     | cons hd tl => 1 + (length tl);
 
 
 # True when the list is empty.
-def empty (l: (List a)) : Bool =
+def empty (l: (List a)) : Bool :=
     match l with
     | nil => true
     | cons hd tl => false;
 
 
 # Append two lists.
-def append (xs: (List a)) (ys: (List a)) : (List a) =
+def append (xs: (List a)) (ys: (List a)) : (List a) :=
     match xs with
     | nil => ys
     | cons hd tl => cons hd (append tl ys);
 
 
 # Map a function over the list.
-def map (f: (x:a) -> b) (l: (List a)) : (List b) =
+def map (f: (x:a) -> b) (l: (List a)) : (List b) :=
     match l with
     | nil => nil
     | cons hd tl => cons (f hd) (map f tl);
 
 
 # Right fold: ``foldr f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.
-def foldr (f: (x:a) -> (acc:b) -> b) (z: b) (l: (List a)) : b =
+def foldr (f: (x:a) -> (acc:b) -> b) (z: b) (l: (List a)) : b :=
     match l with
     | nil => z
     | cons hd tl => f hd (foldr f z tl);
 
 
 # Reverse helper: prepends elements of ``xs`` onto ``acc``.
-def reverse_acc (xs: (List a)) (acc: (List a)) : (List a) =
+def reverse_acc (xs: (List a)) (acc: (List a)) : (List a) :=
     match xs with
     | nil => acc
     | cons hd tl => reverse_acc tl (cons hd acc);
 
 
 # Reverse a list.
-def reversed (l: (List a)) : (List a) =
-    reverse_acc l nil;
+def reversed (l: (List a)) : (List a) :=
+    l.reverse_acc nil;
 
 
 # Append a value at the back of the list (snoc).
-def snoc (l: (List a)) (x: a) : (List a) =
-    append l (cons x nil);
+def snoc (l: (List a)) (x: a) : (List a) :=
+    l.append (cons x nil);
 
 
 # Sum of a list of integers.
-def sum (l: (List Int)) : Int =
+def sum (l: (List Int)) : Int :=
     match l with
     | nil => 0
     | cons hd tl => hd + (sum tl);

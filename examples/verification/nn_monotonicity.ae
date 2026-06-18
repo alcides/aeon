@@ -1,0 +1,21 @@
+# Verification of a neural network: monotonicity.
+#
+# Inspired by https://arxiv.org/abs/2605.02790 and NN verification more broadly.
+# Many models must be *monotone* in a feature (e.g. risk should not decrease as
+# debt increases). We prove it: a network with non-negative weights is monotone
+# increasing in its input.
+#
+# Key idea: the ReLU postcondition below pins y == max(x, 0) exactly
+#   y >= 0 && y >= x && (y == x || y == 0)
+# so Z3 can reason that relu(b) >= relu(a) whenever b >= a.
+def relu (x: Float) : {y: Float | y >= 0.0 && y >= x && (y = x || y = 0.0)} :=
+    if x >= 0.0 then x else 0.0;
+
+# f(x) = relu(2*x + 1). Given xp >= x, prove f(xp) - f(x) >= 0 (monotone up).
+# The dependent type on `xp` carries the hypothesis xp >= x; the result type is
+# the monotonicity conclusion.
+def monotone (x: Float) (xp: {v: Float | v >= x}) : {d: Float | d >= 0.0} :=
+    relu (2.0 * xp + 1.0) - relu (2.0 * x + 1.0);
+
+def main (_: Int) : Unit :=
+    print (monotone 1.0 3.0)

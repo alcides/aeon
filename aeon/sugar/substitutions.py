@@ -23,6 +23,7 @@ from aeon.sugar.program import (
     SLet,
     SLiteral,
     SQualifiedVar,
+    SMethodSelector,
     SRec,
     SRefinementAbstraction,
     SRefinementApplication,
@@ -122,7 +123,15 @@ def substitution_sterm_in_sterm(t: STerm, beta: STerm, alpha: Name) -> STerm:
         return substitution_sterm_in_stype(x, beta, alpha)
 
     match t:
-        case SLiteral(_, _) | SHole(_) | SImplicitRefinementHole(_) | SBy() | SQualifiedVar() | SAnonConstructor():
+        case (
+            SLiteral(_, _)
+            | SHole(_)
+            | SImplicitRefinementHole(_)
+            | SBy()
+            | SQualifiedVar()
+            | SAnonConstructor()
+            | SMethodSelector()
+        ):
             return t
         case SVar(name):
             if name == alpha:
@@ -241,7 +250,15 @@ def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
         return substitution_svartype_in_sterm(x, rep, name)
 
     match t:
-        case SVar(_) | SHole(_) | SImplicitRefinementHole(_) | SBy() | SQualifiedVar() | SAnonConstructor():
+        case (
+            SVar(_)
+            | SHole(_)
+            | SImplicitRefinementHole(_)
+            | SBy()
+            | SQualifiedVar()
+            | SAnonConstructor()
+            | SMethodSelector()
+        ):
             return t
         case SLiteral(v, ty, loc):
             return SLiteral(v, substitute_svartype_in_stype(ty, rep, name), loc=loc)

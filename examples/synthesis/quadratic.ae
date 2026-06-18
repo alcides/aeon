@@ -3,8 +3,8 @@
 # Find x such that x * x == 4.
 # Expected solutions: x = 2 or x = -2.
 
-def x_solution : {n:Int | n * n == 4} = ?hole
+def x_solution : {n:Int | n * n = 4} := ?hole
 
 # Verification: both known integer solutions should type-check.
-def x_pos : {n:Int | n * n == 4} = 2
-def x_neg : {n:Int | n * n == 4} = 0 - 2
+def x_pos : {n:Int | n * n = 4} := 2
+def x_neg : {n:Int | n * n = 4} := 0 - 2

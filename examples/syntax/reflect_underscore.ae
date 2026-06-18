@@ -6,25 +6,25 @@
 # and that equation is visible to the SMT solver at every call site.
 
 # `_` expands to `y == x + x`.
-def double (x:Int) : {y:Int | _} = x + x;
+def double (x:Int) : {y:Int | _} := x + x;
 
 # `_` expands to `y == x + 1`.
-def inc (x:Int) : {y:Int | _} = x + 1;
+def inc (x:Int) : {y:Int | _} := x + 1;
 
 # if-then-else bodies are reflected too, lowering to `ite` in the predicate:
 # `_` expands to `y == ite(x < 0, 0 - x, x)`.
-def abs (x:Int) : {y:Int | _} = if x < 0 then (0 - x) else x;
+def abs (x:Int) : {y:Int | _} := if x < 0 then (0 - x) else x;
 
 # `_` can be combined with manual conjuncts. With a non-negative input,
 # the reflected `y == x + x` plus `y >= 0` both hold.
-def double_nat (x:{v:Int | v >= 0}) : {y:Int | _ && y >= 0} = x + x;
+def double_nat (x:{v:Int | v >= 0}) : {y:Int | _ && y >= 0} := x + x;
 
 # Because the bodies are reflected, these post-conditions are proven
 # automatically — no manual lemmas, no annotations at the call site.
-def c1 : {b:Bool | b} = double 5 == 10;
-def c2 : {b:Bool | b} = inc (double 3) == 7;
-def c3 : {b:Bool | b} = abs (0 - 8) == 8;
-def c4 : {b:Bool | b} = abs 8 == 8;
-def c5 : {b:Bool | b} = double_nat 4 == 8;
+def c1 : {b:Bool | b} := double 5 = 10;
+def c2 : {b:Bool | b} := inc (double 3) = 7;
+def c3 : {b:Bool | b} := abs (0 - 8) = 8;
+def c4 : {b:Bool | b} := abs 8 = 8;
+def c5 : {b:Bool | b} := double_nat 4 = 8;
 
-def main (_:Int) : Unit = print "reflected post-conditions verified";
+def main (_:Int) : Unit := print "reflected post-conditions verified";

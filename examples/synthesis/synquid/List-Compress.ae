@@ -1,0 +1,9 @@
+# List-Compress: drop adjacent duplicates; no longer than input.
+#
+# Synquid benchmark List-Compress (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Element-set preservation omitted; only the length bound.
+
+open List
+
+def compress (xs: (List a)) : {l:(List a) | List.size l <= List.size xs} := ?hole;

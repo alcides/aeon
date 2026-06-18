@@ -1,27 +1,26 @@
-# Train a random-forest classifier on a balanced dataset.
+# Train a random-forest classifier, balancing the training set with SMOTE.
 #
-# The source dataframe is bound linearly, the split returns a refined
-# ``Pair Dataset Dataset`` whose halves preserve the source's feature /
-# class / balance invariants, and the ``train_of`` / ``test_of`` runtime
-# accessors propagate those invariants to the let-bound halves.
+# SMOTE runs on the training half *after* the split, so the held-out test
+# set stays untouched (no synthetic instances leak into evaluation). The
+# split's minimum-data precondition is discharged with
+# ``require_enough_data`` on the CSV path.
 
 open Learning
 
 
-def generate_model_smote (path: String) (target_col: String) : Classifier =
-    let 1 df = Learning.read_csv path in
-    let ds = Learning.target df target_col in
-    if Learning.is_multiclass ds then
-        let bds = Learning.smote ds in
-        let parts = Learning.split bds 0.7 in
-        Learning.random_forest_classifier (Learning.train_of parts)
-    else
-        let parts = Learning.split ds 0.7 in
-        Learning.random_forest_classifier (Learning.train_of parts) ;
+def generate_model_smote (path: String) (target_col: String) : SklearnClassifier :=
+    let 1 df := read_csv path in
+    let ds0 := target df target_col false false in
+    let ds := require_enough_data ds0 in
+    let parts := split ds 0.7 true in
+    let train0 := train_of parts in
+    let train := if is_multiclass train0 then smote train0 else train0 in
+    random_forest_classifier train ;
 
 
-def generate_model_plain (path: String) (target_col: String) : Classifier =
-    let 1 df = Learning.read_csv path in
-    let ds = Learning.target df target_col in
-    let parts = Learning.split ds 0.7 in
-    Learning.random_forest_classifier (Learning.train_of parts) ;
+def generate_model_plain (path: String) (target_col: String) : SklearnClassifier :=
+    let 1 df := read_csv path in
+    let ds0 := target df target_col false false in
+    let ds := require_enough_data ds0 in
+    let parts := split ds 0.7 true in
+    random_forest_classifier (train_of parts) ;

@@ -10,7 +10,7 @@
 #}
 
 # def size (l:(MList a)) : {n:Int | n == len l} {
-#     MList_rec l 0 (\hd -> \tl -> 1 + (size tl))
+#     MList_rec l 0 (fun hd => fun tl => 1 + (size tl))
 # }
 
 inductive IntList
@@ -19,10 +19,10 @@ inductive IntList
 
 
 #def size (l:IntList) : Int {
-#    IntList_rec l 0 (\hd -> \tl -> 1 + (size tl))
+#    IntList_rec l 0 (fun hd => fun tl => 1 + (size tl))
 #}
 
 
-def main (args:Int) : Unit =
+def main (args:Int) : Unit :=
     #a : {x:(IntList) | len x > 0} = .cons 3 .empty;
     print "Hello World";

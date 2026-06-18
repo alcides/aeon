@@ -16,18 +16,18 @@ inductive Box a
 
 class Eq (a : B) where
     eq : (x : a) -> (y : a) -> Bool;
-    neq : (x : a) -> (y : a) -> Bool := \x -> \y -> if eq x y then false else true;
+    neq : (x : a) -> (y : a) -> Bool := fun x => fun y => if eq x y then false else true;
 
 instance : Eq Int where
-    eq x y := x == y;
+    eq x y := x = y;
 
 # Constrained instance: equality on boxes delegates to the element's equality
 # via the `[Eq a]` given constraint.
 instance [Eq a] : Eq (Box a) where
-    eq x y := eq (Box_rec x (\v -> v)) (Box_rec y (\v -> v));
+    eq x y := eq (Box_rec x (fun v => v)) (Box_rec y (fun v => v));
 
-def main (args : Int) : Int =
-    let a : Bool = eq 3 3 in            # Eq Int
-    let b : Bool = neq 3 4 in           # default method
-    let c : Bool = eq (.box 3) (.box 3) in  # Eq (Box Int), recurses to Eq Int
+def main (args : Int) : Int :=
+    let a : Bool := eq 3 3 in            # Eq Int
+    let b : Bool := neq 3 4 in           # default method
+    let c : Bool := eq (.box 3) (.box 3) in  # Eq (Box Int), recurses to Eq Int
     if a then (if b then (if c then 0 else 1) else 2) else 3;

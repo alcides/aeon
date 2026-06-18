@@ -87,6 +87,19 @@ def _parse_common_arguments(parser: ArgumentParser):
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
 
     parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Run property-based tests: check every @property function on random inputs",
+    )
+
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Random seed for property-based testing (--test). Generation is reproducible for a fixed seed.",
+    )
+
+    parser.add_argument(
         "-s",
         "--synthesizer",
         type=str,
@@ -94,8 +107,13 @@ def _parse_common_arguments(parser: ArgumentParser):
         help=(
             "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
             "tdsyn_random (type-directed random walk), tactics (random tactic search), gp, synquid, "
-            "random_search, enumerative (grammar enumeration), hc, 1p1, smt, decision_tree, llm, "
-            "lta (Liquid Tree Automata, arXiv:2605.13456)"
+            "random_search, enumerative (grammar enumeration), hc, 1p1, smt, "
+            "sygus (reduce to SyGuS and solve with cvc5), decision_tree, llm, "
+            "lta (Liquid Tree Automata, arXiv:2605.13456), "
+            "fta (Finite Tree Automata, OOPSLA'17), "
+            "afta (abstraction-refinement FTA, POPL'18), "
+            "cata (constraint-annotated tree automata, recursive/relational), "
+            "symetric / xfta (metric program synthesis, arXiv:2206.06164)"
         ),
     )
 
@@ -117,6 +135,14 @@ def _parse_common_arguments(parser: ArgumentParser):
         "--fix",
         action="store_true",
         help="Uses a pretty print version of the code to reformat it",
+    )
+
+    parser.add_argument(
+        "--export",
+        type=str,
+        default=None,
+        metavar="FUN_NAME",
+        help="Print a stand-alone, pure-Python version of the named function to stdout",
     )
 
     parser.add_argument(
@@ -208,12 +234,18 @@ def main() -> None:
     if args.timings:
         logger.add(sys.stderr, level="TIME")
 
+    run_tests = getattr(args, "test", False)
+    if run_tests and args.no_main:
+        print("warning: --no-main is ignored under --test (a main slot is needed to evaluate properties).")
     cfg = AeonConfig(
         synthesizer=args.synthesizer,
         synthesis_ui=select_synthesis_ui(),
         synthesis_budget=args.budget,
         timings=args.timings,
-        no_main=args.no_main,
+        # ``--export`` forces ``no_main`` (no synthesis hole in main), but
+        # property evaluation splices the call into the program's main slot, so
+        # under ``--test`` the slot must exist even if ``--no-main`` was passed.
+        no_main=(args.no_main or bool(getattr(args, "export", None))) and not run_tests,
         synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
     )
     driver = AeonDriver(cfg)
@@ -241,15 +273,33 @@ def main() -> None:
     errors = driver.parse(args.filename)
 
     match errors:
+        case [] if args.export:
+            from aeon.backend.python_export import PythonExportError
+
+            try:
+                print(driver.export(args.export))
+            except SynthesisNotSuccessful:
+                print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
+                sys.exit(2)
+            except PythonExportError as e:
+                print(f">>> Export error: {e}", file=sys.stderr)
+                sys.exit(2)
         case []:
+            if run_tests:
+                if not driver.has_tests():
+                    print("No @property functions found.")
+                    sys.exit(0)
+                failures = driver.run_tests(seed=args.seed)
+                sys.exit(1 if failures else 0)
             match (args.format, driver.has_synth()):
                 case (True, _):
                     driver.pretty_print(args.filename, args.fix)
                 case (False, True):
                     try:
                         term = driver.synth()
-                    except SynthesisNotSuccessful:
-                        print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
+                    except SynthesisNotSuccessful as e:
+                        message = str(e) or f"Cannot find a suitable expression within {args.budget} seconds."
+                        print(message, file=sys.stderr)
                         sys.exit(2)
                     print("Synthesized:")
                     print("#str")

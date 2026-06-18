@@ -1,0 +1,6 @@
+# CATA -- relational comparator (RC category, BLAZE/Contata paper). The
+# refinement `v < x` relates the result to the parameter; CATA builds the
+# monomorphised `-` and integer grid and the liquid typechecker confirms the
+# candidate satisfies the relation for all x. Solves to `x - 1` (here x + -2,
+# also a valid witness of v < x).
+def pred (x : Int) : {v:Int | v < x} := ?hole;

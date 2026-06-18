@@ -3,8 +3,7 @@
 #
 # Synthesis target: is_octagonal : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float = native "float((0 if (f(5) == 65) else 1) + (0 if (f(10) == 280) else 1) + (0 if (f(15) == 645) else 1))"
+def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(5) == 65) else 1) + (0 if (f(10) == 280) else 1) + (0 if (f(15) == 645) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Int = (?hole : Int)
+def synth (n:Int) : Int := (let mbpp_fitness := unit in ?hole)

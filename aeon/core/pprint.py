@@ -97,13 +97,13 @@ def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[st
             arg_str, counter = custom_preludes_ops_representation(arg, counter)
             return f"(!{arg_str})", counter
 
-        # Partially applied binary operator: (op left) -> (\v -> left op v)
+        # Partially applied binary operator: (op left) -> (fun v => left op v)
         case Application(fun=opfun, arg=left) if (op := operator_name(opfun)) is not None and op != "!":
             left_str, counter = custom_preludes_ops_representation(left, counter)
             counter += 1
             assert op is not None
             new_var_name = f"__{aeon_prelude_ops_to_text[op]}_{counter}__"
-            return f"(\\{new_var_name} -> {left_str} {op} {new_var_name})", counter
+            return f"(fun {new_var_name} => {left_str} {op} {new_var_name})", counter
 
         case Application(fun=fun, arg=arg):
             fun_str, counter = custom_preludes_ops_representation(fun, counter)
@@ -116,7 +116,7 @@ def custom_preludes_ops_representation(term: Term, counter: int = 0) -> tuple[st
 
         case Abstraction(var_name=var_name, body=body):
             body_str, counter = custom_preludes_ops_representation(body, counter)
-            return f"""(\\{var_name} -> {body_str})""", counter
+            return f"""(fun {var_name} => {body_str})""", counter
 
         case Let(var_name=var_name, var_value=var_value, body=body):
             var_value_str, counter = custom_preludes_ops_representation(var_value, counter)

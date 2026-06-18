@@ -31,6 +31,7 @@ from aeon.sugar.program import (
     SLiteral,
     SIf,
     SQualifiedVar,
+    SMethodSelector,
     SRec,
     SLet,
     SMatch,
@@ -60,7 +61,7 @@ from aeon.sugar.stypes import (
 )
 from aeon.sugar.substitutions import substitute_svartype_in_stype, substitution_svartype_in_sterm
 from aeon.utils.name import Name, fresh_counter
-from aeon.sugar.ast_helpers import st_int, st_string, st_unit
+from aeon.sugar.ast_helpers import st_int, st_string, st_unit, st_bool
 from aeon.sugar.instance_registry import InstanceInfo, register_instance
 
 from aeon.facade.api import ImportError
@@ -238,7 +239,7 @@ def reflect_underscore_in_definitions(defs: list[Definition]) -> list[Definition
         if _mentions_function(d.body, d.name):
             raise TypeError(
                 f"Cannot reflect the recursive body of '{d.name.name}' with `_`: "
-                "self-referential reflection would require inductive reasoning (see issue #291). "
+                "self-referential reflection would require inductive reasoning (see issue #328). "
                 "Instead, state the recurrence explicitly in the return refinement "
                 "(e.g. `: {r:Int | r == n + n} decreasing_by [n]`), which the recursive "
                 "call's declared type discharges soundly."
@@ -288,7 +289,15 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
         case SBy(steps, loc=loc):
             h = Name("_by", fresh_counter.fresh())
             return SHole(h, loc=loc), {h: tuple(steps)}
-        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SQualifiedVar() | SAnonConstructor():
+        case (
+            SLiteral()
+            | SVar()
+            | SHole()
+            | SImplicitRefinementHole()
+            | SQualifiedVar()
+            | SAnonConstructor()
+            | SMethodSelector()
+        ):
             return t, {}
         case SAnnotation(expr, ty, loc=loc):
             ne, s1 = lower_by_blocks_in_sterm(expr)
@@ -393,11 +402,23 @@ def resolve_qualified_names_in_sterm(
     qualified_scope: QualifiedScope,
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
+    bound: frozenset[str] = frozenset(),
 ) -> STerm:
-    """Replace SQualifiedVar nodes with SVar, and resolve unqualified bare names."""
+    """Replace SQualifiedVar nodes with SVar, and resolve unqualified bare names.
 
-    def rec(node: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(node, qualified_scope, unqualified_scope, constructor_defs)
+    ``bound`` is the set of names bound by an enclosing binder (function
+    parameter, ``let``, ``fun``, ``match`` pattern, ...). A bare variable that
+    is locally bound is *never* rewritten to an imported definition — so a
+    library's own parameter (e.g. ``NN``'s ``target``) cannot be captured by a
+    same-named export of another imported module (e.g. ``Learning.target``).
+    Together with the module-prefixing of each library's own top-level
+    references, this keeps imported modules from interfering with one another.
+    """
+
+    def rec(node: STerm, extra: frozenset[str] = frozenset()) -> STerm:
+        return resolve_qualified_names_in_sterm(
+            node, qualified_scope, unqualified_scope, constructor_defs, bound | extra
+        )
 
     match t:
         case SAnonConstructor(cname, loc=loc):
@@ -408,22 +429,40 @@ def resolve_qualified_names_in_sterm(
             key = (qualifier, name.name)
             if key in qualified_scope:
                 return SVar(qualified_scope[key], loc=loc)
+            # ``qualifier.name`` where ``qualifier`` names no module or type:
+            # treat it as a method call ``qualifier.name`` on a (local)
+            # variable ``qualifier`` (issue #27). Since the lexer collapses
+            # ``x.m`` into a single QUALIFIED_ID, this is the only place a
+            # variable-receiver method call can be recovered. Elaboration
+            # resolves it against the receiver's type; if ``qualifier`` is not a
+            # bound variable either, it raises there.
+            if qualifier not in {q for (q, _) in qualified_scope}:
+                return SApplication(SMethodSelector(name, loc=loc), SVar(Name(qualifier), loc=loc), loc=loc)
             raise NameError(f"Name '{name.name}' not found in module '{qualifier}'")
-        case SVar(name, loc) if name.name in unqualified_scope:
+        case SVar(name, loc) if name.name in unqualified_scope and name.name not in bound:
             return SVar(unqualified_scope[name.name], loc=loc)
         case SApplication(fun, arg, loc):
             return SApplication(rec(fun), rec(arg), loc=loc)
         case SAbstraction(name, body, loc):
-            return SAbstraction(name, rec(body), loc=loc)
+            return SAbstraction(name, rec(body, frozenset({name.name})), loc=loc)
         case SLet(name, val, body, loc):
-            return SLet(name, rec(val), rec(body), loc=loc, multiplicity=t.multiplicity)
+            # ``val`` is in the outer scope; ``name`` is bound only in ``body``.
+            return SLet(name, rec(val), rec(body, frozenset({name.name})), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, val, body, decreasing_by, loc):
-            nd = tuple(rec(m) for m in decreasing_by)
-            return SRec(name, ty, rec(val), rec(body), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity)
+            # ``name`` is recursively bound in its own value and the body. Its
+            # type ascription can carry refinements that mention imports
+            # (``a : {x:_ | Array.size x = 5} := ...``), so resolve it too.
+            inner = frozenset({name.name})
+            nd = tuple(rec(m, inner) for m in decreasing_by)
+            nty = resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, bound)
+            return SRec(
+                name, nty, rec(val, inner), rec(body, inner), decreasing_by=nd, loc=loc, multiplicity=t.multiplicity
+            )
         case SIf(cond, then, otherwise, loc):
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case SAnnotation(expr, ty, loc):
-            return SAnnotation(rec(expr), ty, loc=loc)
+            nty = resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, bound)
+            return SAnnotation(rec(expr), nty, loc=loc)
         case STypeApplication(body, ty, loc):
             return STypeApplication(rec(body), ty, loc=loc)
         case SRefinementApplication(body, refinement, loc):
@@ -439,7 +478,7 @@ def resolve_qualified_names_in_sterm(
                     SMatchBranch(
                         constructor=br.constructor,
                         binders=br.binders,
-                        body=rec(br.body),
+                        body=rec(br.body, frozenset(b.name for b in br.binders)),
                         qualifier=br.qualifier,
                         loc=br.loc,
                     )
@@ -456,21 +495,34 @@ def resolve_qualified_names_in_stype(
     qualified_scope: QualifiedScope,
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
+    bound: frozenset[str] = frozenset(),
 ) -> SType:
-    """Resolve qualified names inside refinement predicates within types."""
+    """Resolve qualified names inside refinement predicates within types.
 
-    def rec_ty(t: SType) -> SType:
-        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope, constructor_defs)
+    ``bound`` carries the names bound by enclosing refinement binders and
+    dependent-function parameters, so a refinement variable (e.g. ``v`` in
+    ``{v: T | ...}`` or the ``rows`` parameter of a dependent type) is never
+    rewritten to a same-named import.
+    """
 
-    def rec_term(t: STerm) -> STerm:
-        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope, constructor_defs)
+    def rec_ty(t: SType, extra: frozenset[str] = frozenset()) -> SType:
+        return resolve_qualified_names_in_stype(t, qualified_scope, unqualified_scope, constructor_defs, bound | extra)
+
+    def rec_term(t: STerm, extra: frozenset[str] = frozenset()) -> STerm:
+        return resolve_qualified_names_in_sterm(t, qualified_scope, unqualified_scope, constructor_defs, bound | extra)
 
     match ty:
         case SRefinedType(name, inner_ty, refinement, loc):
-            return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement), loc=loc)
+            # ``name`` is the refinement's self binder, in scope in the predicate.
+            return SRefinedType(name, rec_ty(inner_ty), rec_term(refinement, frozenset({name.name})), loc=loc)
         case SAbstractionType(var_name, var_type, body_type, loc):
+            # Dependent: ``var_name`` is bound in the codomain.
             return SAbstractionType(
-                var_name, rec_ty(var_type), rec_ty(body_type), loc=loc, multiplicity=ty.multiplicity
+                var_name,
+                rec_ty(var_type),
+                rec_ty(body_type, frozenset({var_name.name})),
+                loc=loc,
+                multiplicity=ty.multiplicity,
             )
         case STypePolymorphism(name, kind, body, loc):
             return STypePolymorphism(name, kind, rec_ty(body), loc=loc)
@@ -489,13 +541,24 @@ def resolve_qualified_names_in_definition(
     unqualified_scope: UnqualifiedScope,
     constructor_defs: dict[str, Name] | None = None,
 ) -> Definition:
-    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope, constructor_defs)
-    new_args = [
-        (name, resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs))
-        for name, ty in d.args
-    ]
+    # The parameters bind names in the body and the return type; an argument
+    # type sees the *preceding* parameters (dependent function types). Seeding
+    # ``bound`` here is what stops a parameter name from being captured by a
+    # same-named import (e.g. ``NN``'s ``target`` vs ``Learning.target``).
+    arg_names = frozenset(name.name for name, _ in d.args)
+    new_body = resolve_qualified_names_in_sterm(d.body, qualified_scope, unqualified_scope, constructor_defs, arg_names)
+    new_args = []
+    seen_args: frozenset[str] = frozenset()
+    for name, ty in d.args:
+        new_args.append(
+            (
+                name,
+                resolve_qualified_names_in_stype(ty, qualified_scope, unqualified_scope, constructor_defs, seen_args),
+            )
+        )
+        seen_args = seen_args | {name.name}
     new_type = (
-        resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope, constructor_defs)
+        resolve_qualified_names_in_stype(d.type, qualified_scope, unqualified_scope, constructor_defs, arg_names)
         if d.type
         else d.type
     )
@@ -589,6 +652,18 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
         file_imports, defs, type_decls
     )
 
+    # ``native_import`` definitions bind a global Python symbol (e.g. ``np``)
+    # that *other* modules' native bodies reference by bare name. The runtime
+    # builds a let-chain from ``defs`` (first entry = outermost binding), and a
+    # closure only captures bindings introduced before it. When a third module
+    # re-imports a provider (e.g. ``Learning`` selectively imports ``Tensor``),
+    # the import walk can place a consumer (``NN.dense_relu``, whose native uses
+    # ``np``) ahead of its provider (``Tensor``'s ``np``), so the consumer's
+    # closure would not see it. Hoisting every ``native_import`` to the front —
+    # they are side-effecting, dependency-free imports — makes those globals
+    # available to every definition regardless of import order.
+    defs = [d for d in defs if _is_native_import_def(d)] + [d for d in defs if not _is_native_import_def(d)]
+
     # Folded snapshot used to lower `match` expressions everywhere — main module's
     # inductives plus inductives discovered via imports.
     combined_inductives = list(inductive_decls_snapshot) + list(imported_inductives)
@@ -613,6 +688,14 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
             # "open IntList" brings constructors into bare scope
             if decl.name.name in open_inductives:
                 unqualified_scope[cons.name.name] = prefixed
+
+    # Register dotted definition names ``def Type.method`` for qualified access
+    # (issue #27), so ``Type.method`` resolves to the same binder that a method
+    # call ``recv.method`` dispatches to during elaboration.
+    for d in defs:
+        if "." in d.name.name:
+            qualifier, _, bare = d.name.name.rpartition(".")
+            qualified_scope[(qualifier, bare)] = d.name
 
     # Resolve qualified names (Math.pow -> pow) and unqualified bare names from open/selective imports
     defs = [
@@ -656,7 +739,7 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
 def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDecl]) -> STerm:
     """
     Rewrite `match scrutinee with | C x y => e | ...` into:
-        <Inductive>_rec scrutinee (\\x -> \\y -> e) ...
+        <Inductive>_rec scrutinee (fun x => fun y => e) ...
     using the generated `<Inductive>_rec` eliminator introduced by `expand_inductive_decls`.
     """
 
@@ -824,16 +907,18 @@ def _collect_implicit_refinement_params_for_inductive(
             rec(base, bound_rho)
             match ref:
                 case SApplication(SVar(p), SVar(b)) if b == binder and p not in bound_rho:
+                    # The inferred sort is the full predicate type ``base -> Bool``.
+                    pred_ty = SAbstractionType(Name("_"), base, st_bool)
                     if not _eligible_refinement_base_for_inductive(ind, base):
                         pass
                     elif p in acc:
-                        if not type_equality(acc[p], base):
+                        if not type_equality(acc[p], pred_ty):
                             raise TypeError(
                                 f"Inconsistent sorts for inferred datatype refinement {p.name} "
-                                f"on {ind.name.name}: {acc[p]} vs {base}"
+                                f"on {ind.name.name}: {acc[p]} vs {pred_ty}"
                             )
                     else:
-                        acc[p] = base
+                        acc[p] = pred_ty
                 case _:
                     pass
         case STypeConstructor(_, ty_args):
@@ -968,10 +1053,42 @@ def expand_typeclasses(p: Program) -> Program:
                 )
             )
 
+    def _concretize_head(ty: SType, bound: set[str]) -> SType:
+        """Resolve a bare type name in an instance head to a constructor.
+
+        The parser turns every non-builtin bare identifier into an
+        ``STypeVar`` (it has no type registry), so ``instance : C Network``
+        would otherwise be read as polymorphic over a variable *named*
+        ``Network`` — making the method bodies see an abstract ``'Network``
+        that won't unify with the concrete imported type. By Aeon's naming
+        convention type variables are lower-case; an upper-case head name
+        that is not bound by the instance's own constraints denotes a
+        concrete type, so promote it to a (nullary) ``STypeConstructor``.
+        Constraint-bound variables (e.g. ``a`` in ``instance [Eq a] : Eq
+        (Box a)``) are preserved.
+        """
+        match ty:
+            case STypeVar(name):
+                if name.name not in bound and name.name[:1].isupper():
+                    return STypeConstructor(name, [])
+                return ty
+            case STypeConstructor(name, args):
+                return STypeConstructor(name, [_concretize_head(a, bound) for a in args], loc=ty.loc)
+            case _:
+                return ty
+
     for inst in p.instance_decls:
         methods = class_methods.get(inst.class_name.name)
         if methods is None:
             raise TypeClassError(f"Instance for unknown class '{inst.class_name.name}'")
+
+        # Variables genuinely bound by the instance (those appearing in its
+        # constraints) stay variables; other upper-case head names are
+        # concrete types. Rewrite the head args once and use throughout.
+        constraint_vars: set[str] = set()
+        for c in inst.constraints:
+            constraint_vars |= {tv.name.name for tv in get_type_vars(c)}
+        inst_type_args = [_concretize_head(ta, constraint_vars) for ta in inst.type_args]
 
         provided: dict[str, InstanceMethod] = {m.name.name: m for m in inst.methods}
 
@@ -992,15 +1109,15 @@ def expand_typeclasses(p: Program) -> Program:
         # lambdas whose parameter types are unknown until ``a`` is fixed, so
         # argument-driven inference alone cannot recover it.
         dict_body: STerm = SQualifiedVar(inst.class_name.name, Name("mk"))
-        for ta in inst.type_args:
+        for ta in inst_type_args:
             dict_body = STypeApplication(dict_body, ta)
         for impl in impls:
             dict_body = SApplication(dict_body, impl)
 
-        dict_type: SType = STypeConstructor(inst.class_name, list(inst.type_args))
+        dict_type: SType = STypeConstructor(inst.class_name, list(inst_type_args))
 
         tyvars = set()
-        for ta in inst.type_args:
+        for ta in inst_type_args:
             tyvars |= get_type_vars(ta)
         for c in inst.constraints:
             tyvars |= get_type_vars(c)
@@ -1013,7 +1130,7 @@ def expand_typeclasses(p: Program) -> Program:
         if inst.name is not None:
             dict_def_name = inst.name
         else:
-            dict_def_name = Name(f"__inst_{inst.class_name.name}_{'_'.join(_mangle_stype(t) for t in inst.type_args)}")
+            dict_def_name = Name(f"__inst_{inst.class_name.name}_{'_'.join(_mangle_stype(t) for t in inst_type_args)}")
 
         gen_defs.append(
             Definition(
@@ -1027,8 +1144,8 @@ def expand_typeclasses(p: Program) -> Program:
             )
         )
 
-        if inst.type_args:
-            head = _stype_head_name(inst.type_args[0])
+        if inst_type_args:
+            head = _stype_head_name(inst_type_args[0])
             if head is not None:
                 register_instance(
                     inst.class_name.name,
@@ -1037,7 +1154,7 @@ def expand_typeclasses(p: Program) -> Program:
                         dict_name=dict_def_name,
                         foralls=tuple(n for (n, _) in inst_foralls),
                         num_constraints=len(constraint_args),
-                        type_args=tuple(inst.type_args),
+                        type_args=tuple(inst_type_args),
                         constraints=tuple(inst.constraints),
                     ),
                 )
@@ -1510,13 +1627,15 @@ def _collect_implicit_refinement_params(ty: SType, bound_rho: set[Name], acc: di
             rec(base, bound_rho)
             match ref:
                 case SApplication(SVar(p), SVar(b)) if b == binder and p not in bound_rho:
+                    # The inferred sort is the full predicate type ``base -> Bool``.
+                    pred_ty = SAbstractionType(Name("_"), base, st_bool)
                     if p in acc:
-                        if acc[p] != base:
+                        if acc[p] != pred_ty:
                             raise TypeError(
-                                f"Inconsistent sorts for implicit refinement parameter {p.name}: {acc[p]} vs {base}"
+                                f"Inconsistent sorts for implicit refinement parameter {p.name}: {acc[p]} vs {pred_ty}"
                             )
                     else:
-                        acc[p] = base
+                        acc[p] = pred_ty
                 case _:
                     pass
         case STypeConstructor(_, ty_args):

@@ -43,13 +43,13 @@ def test_socket_open_bind_listen_close_ok():
     src = """
 open Socket
 
-def lifecycle (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit =
-    let 1 s0 = stream_socket in
-    let 1 s1 = stream_bind (ipv4_addr "127.0.0.1" port) s0 in
-    let 1 s2 = stream_listen 5 s1 in
+def lifecycle (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit :=
+    let 1 s0 := stream_socket unit in
+    let 1 s1 := stream_bind (ipv4_addr "127.0.0.1" port) s0 in
+    let 1 s2 := stream_listen 5 s1 in
     stream_close s2;
 
-def main (args: Int) : Unit = print "ok";
+def main (args: Int) : Unit := print "ok";
 """
     assert _linearity_errors(src) == []
 
@@ -65,11 +65,11 @@ def test_socket_unclosed_errors():
     src = """
 open Socket
 
-def leak (args: Int) : Unit =
-    let 1 s = stream_socket in
+def leak (args: Int) : Unit :=
+    let 1 s := stream_socket unit in
     print "ignored s";
 
-def main (args: Int) : Unit = print "ok";
+def main (args: Int) : Unit := print "ok";
 """
     errs = _linearity_errors(src)
     assert any(isinstance(e, LinearUnusedError) for e in errs), errs
@@ -86,12 +86,12 @@ def test_socket_double_close_errors():
     src = """
 open Socket
 
-def double_close (args: Int) : Unit =
-    let 1 s = stream_socket in
-    let _ = stream_close s in
+def double_close (args: Int) : Unit :=
+    let 1 s := stream_socket unit in
+    let _ := stream_close s in
     stream_close s;
 
-def main (args: Int) : Unit = print "ok";
+def main (args: Int) : Unit := print "ok";
 """
     errs = _linearity_errors(src)
     assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
@@ -109,14 +109,14 @@ def test_socket_use_after_consume_errors():
     src = """
 open Socket
 
-def stale (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit =
-    let 1 s0 = stream_socket in
-    let 1 s1 = stream_bind (ipv4_addr "127.0.0.1" port) s0 in
-    let 1 s2 = stream_listen 5 s1 in
-    let _ = stream_close s2 in
+def stale (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit :=
+    let 1 s0 := stream_socket unit in
+    let 1 s1 := stream_bind (ipv4_addr "127.0.0.1" port) s0 in
+    let 1 s2 := stream_listen 5 s1 in
+    let _ := stream_close s2 in
     stream_close s1;
 
-def main (args: Int) : Unit = print "ok";
+def main (args: Int) : Unit := print "ok";
 """
     errs = _linearity_errors(src)
     assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
@@ -133,13 +133,13 @@ def test_socket_alias_then_double_close_errors():
     src = """
 open Socket
 
-def alias_double (args: Int) : Unit =
-    let 1 s = stream_socket in
-    let g = s in
-    let _ = stream_close s in
+def alias_double (args: Int) : Unit :=
+    let 1 s := stream_socket unit in
+    let g := s in
+    let _ := stream_close s in
     stream_close g;
 
-def main (args: Int) : Unit = print "ok";
+def main (args: Int) : Unit := print "ok";
 """
     errs = _linearity_errors(src)
     assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs

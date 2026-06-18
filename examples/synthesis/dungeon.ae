@@ -1,0 +1,142 @@
+# Dungeon Generator - Pure Aeon version
+# A procedural-content-generation example in the same spirit as supermario.ae:
+# nested inductive types with refined fields, a parametric List with a length
+# measure, match-based fitness helpers, and a multi-objective synthesis goal.
+
+# --- Generic list with length measure ---
+
+inductive List a
+| nil : {l: (List a) | len l = 0}
+| cons (hd: a) (tl: (List a)) : {l: (List a) | len l = len tl + 1}
++ len (l: (List a)) : Int
+
+# --- Atomic enumerations ---
+
+inductive FloorType
+| stone : FloorType
+| cave  : FloorType
+| crypt : FloorType
+
+inductive LootType
+| gold   : LootType
+| gem    : LootType
+| potion : LootType
+
+inductive MonsterType
+| rat      : MonsterType
+| skeleton : MonsterType
+| dragon   : MonsterType
+
+# --- Positioned elements ---
+# A 64 x 64 dungeon grid; rooms keep a margin from the border.
+
+inductive Loot
+| mk_loot (lt: LootType)
+          (x: Int | x >= 2 && x <= 62)
+          (y: Int | y >= 2 && y <= 62) : Loot
+
+inductive Monster
+| mk_monster (m: MonsterType)
+             (x: Int | x >= 2 && x <= 62)
+             (y: Int | y >= 2 && y <= 62) : Monster
+
+# --- Feature types (dungeon geometry) ---
+
+inductive Feature
+| room_feature (ft: FloorType)
+               (x: Int | x >= 2 && x <= 56)
+               (y: Int | y >= 2 && y <= 56)
+               (w: Int | w >= 4 && w <= 12)
+               (h: Int | h >= 4 && h <= 12) : Feature
+| corridor_feature (x: Int | x >= 2 && x <= 60)
+                   (y: Int | y >= 2 && y <= 60)
+                   (length: Int | length >= 3 && length <= 20) : Feature
+| treasure_feature (ls: (List Loot) | len ls >= 1 && len ls <= 5) : Feature
+| trap_feature (x: Int | x >= 2 && x <= 62)
+               (y: Int | y >= 2 && y <= 62)
+               (damage: Int | damage >= 1 && damage <= 10) : Feature
+
+# --- Dungeon ---
+# Minimum feature/monster counts are enforced by the fitness, not the type,
+# so that partial candidates can still be evaluated by the synthesizer.
+
+inductive Dungeon
+| mk_dungeon (fs: (List Feature)) (ms: (List Monster)) : Dungeon
+
+# --- Fitness helpers (pure Aeon, using match on inductive types) ---
+
+def max (a: Int) (b: Int) : Int := if a > b then a else b
+def min (a: Int) (b: Int) : Int := if a < b then a else b
+
+# Floor area occupied by a feature (proxy for explorable space)
+def feature_area (f: Feature) : Int :=
+    match f with
+    | room_feature ft x y w h => w * h
+    | corridor_feature x y length => length
+    | treasure_feature ls => 1
+    | trap_feature x y damage => 1;
+
+# Total explorable area across all features
+def coverage (fs: (List Feature)) : Int :=
+    match fs with
+    | nil => 0
+    | cons f rest => feature_area f + coverage rest;
+
+# Width of a feature's bounding box on the x-axis
+def feature_w (f: Feature) : Int :=
+    match f with
+    | room_feature ft x y w h => w
+    | corridor_feature x y length => length
+    | treasure_feature ls => 1
+    | trap_feature x y damage => 1;
+
+# X position of a feature
+def feature_x (f: Feature) : Int :=
+    match f with
+    | room_feature ft x y w h => x
+    | corridor_feature x y length => x
+    | treasure_feature ls => 0
+    | trap_feature x y damage => x;
+
+# 1-D overlap of two features projected on the x-axis (0 if disjoint)
+def overlap (f1: Feature) (f2: Feature) : Int :=
+    lo := max (feature_x f1) (feature_x f2);
+    hi := min (feature_x f1 + feature_w f1) (feature_x f2 + feature_w f2);
+    max 0 (hi - lo);
+
+# Total overlap of one feature against the rest
+def conflicts_one (f: Feature) (fs: (List Feature)) : Int :=
+    match fs with
+    | nil => 0
+    | cons f2 rest => overlap f f2 + conflicts_one f rest;
+
+# Total pairwise overlap across all features (cramped-layout penalty)
+def conflicts (fs: (List Feature)) : Int :=
+    match fs with
+    | nil => 0
+    | cons f rest => conflicts_one f rest + conflicts rest;
+
+# Extract features from a dungeon
+def dungeon_features (d: Dungeon) : (List Feature) :=
+    match d with
+    | mk_dungeon fs ms => fs;
+
+# --- Synthesis target ---
+# Maximize explorable area, minimize spatial conflicts between features.
+# The fitness helpers are shadowed by `unit` inside the hole so they are not
+# offered as synthesis building blocks (lexical shadowing replaced @hide).
+
+@maximize_int(coverage (dungeon_features new_dungeon))
+@minimize_int(conflicts (dungeon_features new_dungeon))
+def new_dungeon : Dungeon :=
+    (let max := unit in
+     let min := unit in
+     let feature_area := unit in
+     let coverage := unit in
+     let feature_w := unit in
+     let feature_x := unit in
+     let overlap := unit in
+     let conflicts_one := unit in
+     let conflicts := unit in
+     let dungeon_features := unit in
+     ?hole)

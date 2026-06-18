@@ -6,15 +6,11 @@ from typing import NamedTuple
 from aeon.decorators.api import Metadata, metadata_update
 from aeon.sugar.program import Decorator, Definition, SApplication, STerm, SVar
 from aeon.sugar.stypes import SType
-from aeon.sugar.ast_helpers import st_int, st_float, st_top
+from aeon.sugar.ast_helpers import st_int, st_float, st_top, st_bool
 from aeon.sugar.parser import parse_type
 from aeon.utils.name import Name, fresh_counter
 
-from aeon.sugar.program import SLiteral
-
-
-def raise_decorator_error(name: str) -> None:
-    raise Exception(f"Exception in decorator named {name}.")
+from aeon.sugar.program import SIf, SLiteral
 
 
 class Goal(NamedTuple):
@@ -28,6 +24,18 @@ class Goal(NamedTuple):
     # consumed evaluating it (via RAPL when available, otherwise a CPU-time
     # proxy). See ``aeon/synthesis/entrypoint.py``.
     kind: str = "expression"
+
+
+class Example(NamedTuple):
+    """A single ``@example(...)`` assertion attached to a function.
+
+    ``function`` is the name of an internal nullary ``Bool`` binding that
+    evaluates the assertion (used by the ``--test`` runner); ``text`` is a
+    surface rendering kept for human-readable test reports.
+    """
+
+    function: Name
+    text: str
 
 
 def multi_objective_type(element: str, number_of_objectives: int) -> SType:
@@ -46,7 +54,7 @@ def multi_objective_type(element: str, number_of_objectives: int) -> SType:
     ``bind_ids`` rather than the surface qualified-name pass (which runs before
     decorators expand).
     """
-    return parse_type(f"{{v:(Array {element}) | Array_size v == {number_of_objectives}}}")
+    return parse_type(f"{{v:(Array {element}) | Array_size v = {number_of_objectives}}}")
 
 
 def make_optimizer(
@@ -66,7 +74,7 @@ def make_optimizer(
     """
     current_goals = metadata.get(fun.name, {}).get("goals", [])
     minimize_name = "minimize" if minimize else "maximize"
-    function_name = Name(f"__internal__{minimize_name}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
+    function_name = Name(f"_fitness_{minimize_name}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
     function = Definition(
         name=function_name,
         foralls=[],
@@ -122,6 +130,33 @@ def maximize_float(
     return make_optimizer(decorator.macro_args, fun, metadata, st_float, minimize=False)
 
 
+def cluster(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Name a function that maps a candidate to its *vector representation*.
+
+    Used only by the metric (``symetric``) backend: it clusters individuals --
+    and measures the goal-independent distance between them -- by these vectors
+    rather than by the candidates' raw outputs. The argument is an expression in
+    the same form as ``@minimize_int`` (e.g. ``@cluster(scene shape)``); it is
+    lifted into an internal nullary function whose name is recorded under the
+    ``cluster`` metadata key. Other backends ignore it.
+    """
+    assert len(decorator.macro_args) == 1, "cluster decorator expects a single argument"
+    function_name = Name(f"_cluster_{fun.name}", fresh_counter.fresh())
+    function = Definition(
+        name=function_name,
+        foralls=[],
+        args=[],
+        type=st_top,
+        body=decorator.macro_args[0],
+    )
+    metadata = metadata_update(metadata, fun, {"cluster": function_name})
+    return fun, [function], metadata
+
+
 def multi_minimize_float(
     decorator: Decorator,
     fun: Definition,
@@ -160,58 +195,6 @@ def multi_minimize_int(
         minimize=True,
         length=number_of_objectives,
     )
-
-
-def hide(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects more than zero arguments.
-
-    It does not modify the original definition. It makes sure that no
-    grammar nodes are generated from the var names passed as arguments.
-    """
-    assert len(decorator.macro_args) != 0
-
-    # TODO How can I verify if the function is in the context?
-    def get_var_name(arg):
-        if isinstance(arg, SVar):
-            return arg.name
-        else:
-            raise_decorator_error("hide")
-
-    # rethink this
-    aux_dict = {"hide": [get_var_name(arg) for arg in decorator.macro_args]}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
-
-
-def hide_types(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
-    """This decorator expects more than zero arguments.
-
-    It does not modify the original definition. It makes sure that no
-    grammar nodes are generated from the var names passed as arguments.
-    """
-    assert len(decorator.macro_args) != 0
-
-    # TODO How can I verify if the function is in the context?
-    def get_var_name(arg):
-        if isinstance(arg, SVar):
-            return arg.name
-        else:
-            raise_decorator_error("hide_types")
-
-    # rethink this
-    aux_dict = {"hide_types": [get_var_name(arg) for arg in decorator.macro_args]}
-    metadata = metadata_update(metadata, fun, aux_dict)
-
-    return fun, [], metadata
 
 
 def error_fitness(
@@ -262,6 +245,118 @@ def allow_recursion(
     metadata = metadata_update(metadata, fun, aux_dict)
 
     return fun, [], metadata
+
+
+def property_test(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Marks a ``Bool``-returning function as a property to be checked by the
+    property-based testing runner (``--test``).
+
+    The function's arguments are the universally-quantified inputs; their types
+    (including refinements, which act as preconditions) drive automatic input
+    generation by reusing the synthesis grammar machinery. The definition is
+    left unchanged — this decorator only records metadata.
+
+    Usage::
+
+        @property
+        def prop_rev (l : List) : Bool { eq (reverse (reverse l)) l }
+
+        @property(1000)            # optional: number of random samples
+        def prop_abs (x : Int) : Bool { abs x >= 0 }
+    """
+    samples: int | None = None
+    if decorator.macro_args:
+        assert len(decorator.macro_args) == 1, "property decorator expects at most one (integer) argument"
+        arg = decorator.macro_args[0]
+        assert isinstance(arg, SLiteral) and isinstance(arg.value, int), (
+            "property decorator's argument must be an integer literal (the number of samples)"
+        )
+        samples = arg.value
+    metadata = metadata_update(metadata, fun, {"property": {"samples": samples}})
+    return fun, [], metadata
+
+
+def example(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Attach a concrete input/output ``example`` to a function.
+
+    The single argument is a ``Bool``-valued assertion about the decorated
+    function — typically an equality between a fully-applied call and its
+    expected result::
+
+        # Absolute value of an integer.
+        @example(abs (0 - 3) == 3)
+        @example(abs 5 == 5)
+        def abs (x : Int) : Int { if x < 0 then 0 - x else x }
+
+    A single ``@example`` plays three roles:
+
+    * **Documentation** — it is rendered alongside the function in the HTML
+      docs (``--doc``), giving every function a worked, machine-checked example.
+    * **Test case** (``--test``) — the assertion is evaluated and must hold;
+      a false (or crashing) example is reported as a failure, like a unit test.
+    * **Synthesis goal** — it contributes a fitness objective minimizing
+      ``if assertion then 0 else 1``, so a fitness-based synthesizer searching
+      for a body (a ``?`` hole) is driven to satisfy every example
+      (programming-by-example). Examples compose with each other and with the
+      other ``@minimize``/``@maximize`` objectives.
+
+    The decorated definition is left unchanged; the decorator only records
+    metadata and appends internal helper bindings.
+    """
+    assert len(decorator.macro_args) == 1, "example decorator expects a single Bool expression"
+    assertion = decorator.macro_args[0]
+
+    # (1) An internal nullary Bool binding holding the raw assertion. The
+    # ``--test`` runner locates it by name and requires it to evaluate to True.
+    current = metadata.get(fun.name, {}).get("examples", [])
+    test_name = Name(f"_example_{fun.name}_{len(current)}", fresh_counter.fresh())
+    test_fn = Definition(name=test_name, foralls=[], args=[], type=st_bool, body=assertion)
+
+    try:
+        from aeon.utils.pprint import pretty_print_sterm
+
+        text = pretty_print_sterm(assertion)
+    except Exception:
+        text = repr(assertion)
+
+    metadata = metadata_update(metadata, fun, {"examples": current + [Example(test_name, text)]})
+
+    # (2) If the assertion is a numeric ``f(lits) == lit``, also record it as a
+    # training-data point so the decision-tree synthesizer (``-s decision_tree``)
+    # can learn a function from the examples directly.
+    point = _extract_example_point(assertion, fun.name)
+    if point is not None:
+        current_data = metadata.get(fun.name, {}).get("training_data", [])
+        metadata = metadata_update(metadata, fun, {"training_data": current_data + [point]})
+
+    # (2b) If the assertion is an I/O equality ``f(lits) == lit`` over scalar
+    # literals (int/string/bool, in any order), record the concrete input/output
+    # pair so example-driven (PBE) synthesizers -- e.g. ``afta`` over a string
+    # DSL -- can build a tree automaton consistent with all the examples. Unlike
+    # ``training_data`` (numeric only, for the decision tree) this keeps string
+    # I/O, which is what the BLAZE-style string/matrix benchmarks need.
+    io = _extract_io_example(assertion, fun.name)
+    if io is not None:
+        current_io = metadata.get(fun.name, {}).get("io_examples", [])
+        metadata = metadata_update(metadata, fun, {"io_examples": current_io + [io]})
+        # The positional value-parameter names, so the synthesizer can bind each
+        # example's inputs when it evaluates a candidate body.
+        if "io_params" not in metadata.get(fun.name, {}):
+            metadata = metadata_update(metadata, fun, {"io_params": [n for (n, _t) in fun.args]})
+
+    # (3) A synthesis goal: minimize (if assertion then 0 else 1), so a
+    # fitness-based synthesizer is rewarded for satisfying the example.
+    goal_body = SIf(assertion, SLiteral(0, st_int), SLiteral(1, st_int))
+    fun, extra, metadata = make_optimizer([goal_body], fun, metadata, st_int, minimize=True)
+    return fun, [test_fn] + extra, metadata
 
 
 def prompt(
@@ -384,6 +479,26 @@ def csv_file(
     return make_optimizer([body], fun, metadata, st_float, minimize=True)
 
 
+def _call_arg_literals(term: STerm, fun_name: Name) -> list[float] | None:
+    """If ``term`` is a fully-applied call ``fun_name(lit1)...(litN)`` with numeric
+    literal arguments, return ``[lit1, ..., litN]`` (left-to-right); else ``None``.
+
+    Bool literals are rejected (``True``/``False`` are ``int`` instances in
+    Python but are not numeric training features)."""
+    args: list[float] = []
+    current = term
+    while isinstance(current, SApplication):
+        arg = current.arg
+        if not isinstance(arg, SLiteral) or isinstance(arg.value, bool) or not isinstance(arg.value, (int, float)):
+            return None
+        args.append(float(arg.value))
+        current = current.fun
+    if not isinstance(current, SVar) or current.name.name != fun_name.name:
+        return None
+    args.reverse()
+    return args
+
+
 def _extract_training_point(expr: STerm, fun_name: Name) -> list[float] | None:
     """Try to extract a training data point from a minimize expression.
 
@@ -403,26 +518,91 @@ def _extract_training_point(expr: STerm, fun_name: Name) -> list[float] | None:
     rhs = expr.arg  # expected
 
     # Extract expected value
-    if not isinstance(rhs, SLiteral) or not isinstance(rhs.value, (int, float)):
+    if not isinstance(rhs, SLiteral) or isinstance(rhs.value, bool) or not isinstance(rhs.value, (int, float)):
         return None
     expected = float(rhs.value)
 
-    # Extract function call arguments (built right-to-left via currying)
-    args: list[float] = []
-    current = lhs
-    while isinstance(current, SApplication):
-        arg = current.arg
-        if not isinstance(arg, SLiteral) or not isinstance(arg.value, (int, float)):
-            return None
-        args.append(float(arg.value))
-        current = current.fun
+    args = _call_arg_literals(lhs, fun_name)
+    if args is None:
+        return None
+    return args + [expected]
 
-    # Verify it's calling the right function
+
+def _extract_example_point(assertion: STerm, fun_name: Name) -> list[float] | None:
+    """Try to extract a training data point from an ``@example`` assertion.
+
+    Looks for an equality ``fun_name(lit1)...(litN) == expected_lit`` (in either
+    order) with numeric literals, and returns ``[lit1, ..., litN, expected_lit]``.
+    Any other shape (Bool examples, non-literal arguments, other operators)
+    yields ``None`` — so it composes with, but does not require, the decision-tree
+    synthesizer.
+    """
+    if not (isinstance(assertion, SApplication) and isinstance(assertion.fun, SApplication)):
+        return None
+    op = assertion.fun.fun
+    if not isinstance(op, SVar) or op.name.name != "==":
+        return None
+    lhs = assertion.fun.arg
+    rhs = assertion.arg
+    # The expected value may be on either side: (call == lit) or (lit == call).
+    for call_side, lit_side in ((lhs, rhs), (rhs, lhs)):
+        if not isinstance(lit_side, SLiteral) or isinstance(lit_side.value, bool):
+            continue
+        if not isinstance(lit_side.value, (int, float)):
+            continue
+        args = _call_arg_literals(call_side, fun_name)
+        if args is not None:
+            return args + [float(lit_side.value)]
+    return None
+
+
+def _scalar_literal(t: STerm):
+    """The Python value of a scalar ``SLiteral`` (int, float, str, bool), or
+    ``None`` if ``t`` is not such a literal. Bools are kept (unlike the numeric
+    training-data extractor) since PBE specs may have Bool outputs."""
+    if isinstance(t, SLiteral) and isinstance(t.value, (int, float, str, bool)):
+        return t.value
+    return None
+
+
+def _io_call_args(term: STerm, fun_name: Name):
+    """If ``term`` is a fully-applied call ``fun_name(lit1)...(litN)`` with scalar
+    literal arguments, return ``[v1, ..., vN]`` (left-to-right); else ``None``."""
+    args: list = []
+    current = term
+    while isinstance(current, SApplication):
+        v = _scalar_literal(current.arg)
+        if v is None:
+            return None
+        args.append(v)
+        current = current.fun
     if not isinstance(current, SVar) or current.name.name != fun_name.name:
         return None
-
     args.reverse()
-    return args + [expected]
+    return args
+
+
+def _extract_io_example(assertion: STerm, fun_name: Name):
+    """Extract a concrete I/O pair from an ``@example`` of the shape
+    ``fun_name(lit1)...(litN) == out_lit`` (in either order), where the arguments
+    and the output are scalar literals (int/string/bool). Returns
+    ``(inputs, output)`` or ``None``. This is the structured PBE specification
+    consumed by example-driven synthesizers."""
+    if not (isinstance(assertion, SApplication) and isinstance(assertion.fun, SApplication)):
+        return None
+    op = assertion.fun.fun
+    if not isinstance(op, SVar) or op.name.name != "==":
+        return None
+    lhs = assertion.fun.arg
+    rhs = assertion.arg
+    for call_side, lit_side in ((lhs, rhs), (rhs, lhs)):
+        out = _scalar_literal(lit_side)
+        if out is None:
+            continue
+        args = _io_call_args(call_side, fun_name)
+        if args is not None:
+            return (args, out)
+    return None
 
 
 def _store_training_point(expr: STerm, fun: Definition, metadata: Metadata) -> Metadata:
@@ -480,7 +660,7 @@ def minimize_cputime(
 ) -> tuple[Definition, list[Definition], Metadata]:
     """Adds CPU time of the given expression as a synthesis objective.
 
-    Usage: ``@minimize_cputime(fun 42)``.
+    Usage: ``@minimize_cputime(func 42)``.
 
     The expression is typically a call to the decorated function. During
     synthesis, the synthesizer evaluates the candidate program against this
@@ -499,7 +679,7 @@ def minimize_energy(
 ) -> tuple[Definition, list[Definition], Metadata]:
     """Adds energy consumption of the given expression as a synthesis objective.
 
-    Usage: @minimize_energy(fun 42)
+    Usage: @minimize_energy(func 42)
 
     The expression is typically a call to the decorated function. During
     synthesis, the synthesizer evaluates the candidate program against this

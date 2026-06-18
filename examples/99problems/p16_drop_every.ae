@@ -3,9 +3,9 @@
 
 open Array
 
-def drop_every (l: (Array Int)) (n: {k:Int | k >= 1}) : (Array Int) =
+def drop_every (l: (Array Int)) (n: {k:Int | k >= 1}) : (Array Int) :=
     native "[x for i, x in enumerate(l) if (i + 1) % n != 0]"
 
-def main (args:Int) : Unit =
-    a : (Array Int) = Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.append (Array.new[Int]) 1) 2) 3) 4) 5) 6) 7) 8;
+def main (args:Int) : Unit :=
+    a : (Array Int) := ((((((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5).append 6).append 7).append 8;
     print (drop_every a 3)

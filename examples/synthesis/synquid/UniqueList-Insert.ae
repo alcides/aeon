@@ -1,0 +1,9 @@
+# UniqueList-Insert: insert into a duplicate-free list.
+#
+# Synquid benchmark UniqueList-Insert (pldi16).
+#
+# Element type polymorphic. Uniqueness (a Set measure in Synquid) NOT encoded; the List length relation is.
+
+open List
+
+def uinsert (x: a) (xs: (List a)) : {l:(List a) | List.size l >= List.size xs && List.size l <= List.size xs + 1} := ?hole;

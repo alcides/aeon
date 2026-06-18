@@ -1,0 +1,18 @@
+# Property-based testing with the @property decorator (issue #37).
+#
+# Each @property function's arguments are universally quantified. Inputs are
+# generated automatically from the argument types by reusing the synthesis
+# grammar — no hand-written generators. Refinement types act as preconditions,
+# so the generator only ever produces valid inputs.
+#
+# Run with:  aeon --test examples/pbt/props_basic.ae
+
+@property
+def prop_add_commutes (x : Int) (y : Int) : Bool := x + y = y + x;
+
+@property
+def prop_square_nonneg (x : Int) : Bool := x * x >= 0;
+
+# The refinement {v:Int | v > 0} is a precondition: x is only ever drawn positive.
+@property
+def prop_positive_stays_positive (x : {v : Int | v > 0}) : Bool := x > 0;

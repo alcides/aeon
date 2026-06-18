@@ -35,7 +35,7 @@ mainstream languages:
 * `p03_kth.ae` — the index must be in range
   (`{n:Int | n >= 0 && n < List.size l}`)
 * `p04_length.ae` — the return value is provably equal to the list size
-  (`{n:Int | n == List.size l}`)
+  (`{n:Int | n = List.size l}`)
 * `p05_reverse.ae` — the result has the same size as the input
 * `p14_duplicate.ae`, `p15_replicate.ae` — the output size is exactly
   `n * size l`

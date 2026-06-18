@@ -39,22 +39,17 @@ class SynquidSynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
         current_metadata = metadata.get(fun_name, {})
         is_recursion_allowed = current_metadata.get("recursion", False)
-        vars_to_ignore = current_metadata.get("hide", [])
-        vars_to_ignore_names = {v.name for v in vars_to_ignore}
 
         def skip(name: Name) -> bool:
             if name == fun_name:
                 return not is_recursion_allowed
-            elif name.name in vars_to_ignore_names:
-                return True
-            elif name.name.startswith("__internal__"):
-                return True
             elif name.name in ["native", "native_import", "print"]:
                 return True
             else:

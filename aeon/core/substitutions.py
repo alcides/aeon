@@ -238,6 +238,21 @@ def instantiate_refinement_in_type(
             assert False, f"Unknown type {t} ({type(t)})"
 
 
+def predicate_domains(sort: Type) -> list[Type]:
+    """Domain types of an abstract-refinement predicate sort ``d1 -> ... -> Bool``.
+
+    ``sort`` is the full (possibly n-ary) predicate type; this returns
+    ``[d1, ..., dn]`` (the ``Bool`` codomain is dropped). A bare domain type
+    (degenerate case) yields a singleton.
+    """
+    domains: list[Type] = []
+    cur = sort
+    while isinstance(cur, AbstractionType):
+        domains.append(cur.var_type)
+        cur = cur.type
+    return domains if domains else [sort]
+
+
 def instantiate_refinement_with_horn_in_liquid(
     t: LiquidTerm,
     pred_name: Name,
@@ -262,8 +277,15 @@ def instantiate_refinement_with_horn_in_liquid(
             return t
         case LiquidApp(aname, args, loc):
             if aname == pred_name:
-                assert isinstance(sort, TypeConstructor) or isinstance(sort, TypeVar)
-                return LiquidHornApplication(horn_name, [(a, sort) for a in args], loc=loc)
+                # ``sort`` is the predicate's full (n-ary) type; pair each
+                # argument with its corresponding domain type.
+                domains = predicate_domains(sort)
+                paired: list[tuple[LiquidTerm, TypeConstructor | TypeVar]] = []
+                for i, a in enumerate(args):
+                    d = domains[i] if i < len(domains) else domains[-1]
+                    assert isinstance(d, (TypeConstructor, TypeVar))
+                    paired.append((a, d))
+                return LiquidHornApplication(horn_name, paired, loc=loc)
             return LiquidApp(aname, [rec(a) for a in args], loc=loc)
         case LiquidHornApplication(aname, argtypes, loc):
             return LiquidHornApplication(
@@ -612,7 +634,8 @@ def liquefy_rec(t: Rec) -> LiquidTerm | None:
     # recursive value is an abstraction and liquefies to None, dropping the
     # whole term. Sound reasoning about recursive functions flows through
     # termination-gated reflection instead. Full induction over recursive
-    # refinements remains open (issue #291).
+    # refinements is intentionally not done here — see the scope decision in
+    # docs/design/recursive-refinement-induction.md (issue #328).
     value = liquefy(t.var_value)
     body = liquefy(t.body)
     if value and body:

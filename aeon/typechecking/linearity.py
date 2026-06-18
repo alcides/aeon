@@ -196,7 +196,7 @@ def _find_var_uses(term: Term, name: Name, *, stop_at_shadow: bool = True) -> li
     Used purely for diagnostics — when the binder check trips, we replay
     a small AST walk over the body to surface concrete use sites the
     user can jump to. Skips into shadowing binders (``let n = …``,
-    ``\\n -> …``, ``Rec(n, …)``) since uses inside the shadow are not
+    ``fun n => …``, ``Rec(n, …)``) since uses inside the shadow are not
     references to the outer ``name``.
     """
     out: list[Location] = []

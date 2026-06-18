@@ -58,11 +58,11 @@ def test_find_holes_empty_source():
 
 
 def test_find_holes_no_holes():
-    assert find_holes_in_source("def x : Int = 42;") == []
+    assert find_holes_in_source("def x : Int := 42;") == []
 
 
 def test_find_holes_single():
-    source = "def x : Int = ?hole;"
+    source = "def x : Int := ?hole;"
     result = find_holes_in_source(source)
     assert len(result) == 1
     assert result[0].name == "hole"
@@ -80,7 +80,7 @@ def test_find_holes_multiple_same_line():
 
 
 def test_find_holes_multiple_lines():
-    source = "def x : Int = ?foo;\ndef y : Bool = ?bar;"
+    source = "def x : Int := ?foo;\ndef y : Bool := ?bar;"
     result = find_holes_in_source(source)
     assert len(result) == 2
     assert result[0].name == "foo"
@@ -205,7 +205,7 @@ def test_synthesizers_includes_defaults():
 
 
 def test_run_synthesis_basic_int():
-    source = "def synth : Int = ?hole;"
+    source = "def synth : Int := ?hole;"
     mock_ls = MockLS(source)
     driver = make_driver()
 
@@ -232,7 +232,7 @@ def test_run_synthesis_returns_none_on_parse_error():
 
 
 def test_run_synthesis_returns_none_when_hole_missing():
-    source = "def x : Int = 42;"
+    source = "def x : Int := 42;"
     mock_ls = MockLS(source)
     driver = make_driver()
 
@@ -242,7 +242,7 @@ def test_run_synthesis_returns_none_when_hole_missing():
 
 
 def test_run_synthesis_unknown_synthesizer():
-    source = "def synth : Int = ?hole;"
+    source = "def synth : Int := ?hole;"
     mock_ls = MockLS(source)
     driver = make_driver()
 
@@ -259,13 +259,16 @@ def test_run_synthesis_unknown_synthesizer():
 
 def _build_code_actions(hole: HolePosition, uri: str) -> list[CodeAction]:
     """Mirrors the action-building loop inside the code_action handler."""
+    from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
+
     actions = []
     for synthesizer in SYNTHESIZERS:
+        label = synthesizer_label(synthesizer)
         action = CodeAction(
-            title=f"Synthesize ?{hole.name} with {synthesizer}",
+            title=f"Synthesize ?{hole.name} with {label}",
             kind=CodeActionKind.RefactorRewrite,
             command=Command(
-                title=f"Synthesize ?{hole.name} with {synthesizer}",
+                title=f"Synthesize ?{hole.name} with {label}",
                 command=SYNTHESIZE_COMMAND,
                 arguments=[uri, hole.name, synthesizer],
             ),
@@ -281,13 +284,16 @@ def test_code_action_creates_one_action_per_synthesizer():
     assert len(actions) == len(SYNTHESIZERS)
 
 
-def test_code_action_titles_contain_synthesizer_names():
+def test_code_action_titles_use_readable_labels():
+    from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
+
     hole = HolePosition(name="hole", range=make_range(0, 14, 0, 19))
     actions = _build_code_actions(hole, "file:///test.ae")
 
     titles = [a.title for a in actions]
     for synthesizer in SYNTHESIZERS:
-        assert any(synthesizer in t for t in titles)
+        # The menu shows the human-readable label, not the internal id.
+        assert any(synthesizer_label(synthesizer) in t for t in titles)
 
 
 def test_code_action_commands_have_correct_arguments():
@@ -313,7 +319,7 @@ class _FakeOllamaResponse:
 
 @pytest.mark.parametrize("synthesizer", SYNTHESIZERS)
 def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
-    source = "def synth : Int = ?hole;"
+    source = "def synth : Int := ?hole;"
     mock_ls = MockLS(source)
     driver = make_driver()
 
@@ -325,10 +331,12 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
         assert result is None or isinstance(result, tuple)
         return
 
-    if synthesizer == "decision_tree":
+    # These backends need a spec the plain ``Int`` hole does not provide:
+    # decision_tree needs @csv_data/@example rows; symetric needs a @minimize
+    # objective; sygus needs an SMT-expressible constraint. They legitimately
+    # produce no term here — just verify they complete without raising.
+    if synthesizer in ("decision_tree", "sygus", "symetric"):
         result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
-        # decision_tree requires @csv_data training examples; without them it
-        # cannot synthesize a plain hole — just verify it doesn't raise.
         assert result is None or isinstance(result, tuple)
         return
 

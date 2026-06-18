@@ -12,7 +12,7 @@ Tasks outside this subset are returned with a rejection reason; nothing is
 emitted for them in v1.
 
 Implication `a ==> b` is rewritten as aeon's `(a) --> (b)`.
-Iff `a <==> b` is rewritten as `a == b` (valid for Bool operands).
+Iff `a <==> b` is rewritten as `a = b` (valid for Bool operands).
 Chained comparisons `a <= b <= c` are split into `(a <= b) && (b <= c)`.
 """
 
@@ -609,7 +609,7 @@ def _expand_var_bindings(s: str) -> str:
     body = s.strip()
     out = f"({body})"
     for name, rhs in reversed(bindings):
-        out = f"let {name} = {rhs} in {out}"
+        out = f"let {name} := {rhs} in {out}"
     return out
 
 
@@ -631,6 +631,10 @@ def translate_expression(expr: str) -> str:
     s = _expand_chained_comparison(s)
     s = _rewrite_calls(s)
     s = _wrap_negative_literals(s)
+    # Aeon now follows Lean: equality is written `=` (was `==`). At this point all
+    # `==>`/`<==>` have been consumed and let-bindings already emit `:=`, so every
+    # remaining `==` is an equality operator.
+    s = s.replace("==", "=")
     return s
 
 
@@ -644,7 +648,7 @@ def _aeon_args(args: list[tuple[str, str]]) -> str:
 DAFNY_BUILTINS_AEON = {
     # Dafny's `abs` is a polymorphic absolute-value function; here we provide an
     # Int specialization sufficient for the v1 subset.
-    "abs": "def abs (x:Int) : Int = if x >= 0 then x else 0 - x;",
+    "abs": "def abs (x:Int) : Int := if x >= 0 then x else 0 - x;",
 }
 
 
@@ -674,9 +678,9 @@ def emit_aeon(task: TaskSpec) -> str:
         params = _aeon_args(p.args) or "(_unit:Int)"  # aeon requires >=1 arg
         if not p.args:
             # Predicate with no args: emit as a `def` constant of type Bool.
-            lines.append(f"def {p.name} : Bool = {body};")
+            lines.append(f"def {p.name} : Bool := {body};")
         else:
-            lines.append(f"def {p.name} {params} : Bool = {body};")
+            lines.append(f"def {p.name} {params} : Bool := {body};")
     if task.predicates:
         lines.append("")
 
@@ -706,7 +710,7 @@ def emit_aeon(task: TaskSpec) -> str:
         args_str = "(_unit:Int)"
 
     return_aeon = DAFNY_TYPE_TO_AEON[task.return_type]
-    sig = f"def {task.method_name} {args_str} : {{{task.return_name}:{return_aeon} | {post}}} = ?hole;"
+    sig = f"def {task.method_name} {args_str} : {{{task.return_name}:{return_aeon} | {post}}} := ?hole;"
     lines.append(sig)
     return "\n".join(lines) + "\n"
 

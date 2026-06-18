@@ -1,0 +1,14 @@
+# DACE Example 2.5 (conditional / switch): impute with the previous non-missing
+# value if one exists, otherwise the next non-missing value. The FTA synthesizes
+# a branching program (the paper's switch) -- here an `if ... then ... else ...`.
+#
+#   uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/fallback.ae
+#
+import Dace (Column, prev_nonmissing, next_nonmissing, has_prev_nonmissing)
+
+def col : Column := native "[-999999, 3, -999999, 7, -999999]";
+
+@example(fill 0 = 3)
+@example(fill 2 = 3)
+@example(fill 4 = 7)
+def fill (i:Int) : Int := ?hole;

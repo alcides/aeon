@@ -8,8 +8,7 @@ type List
 inductive Tuple
 | mk (a0:String) (a1:Int) : Tuple
 
-def mbpp_fitness (f:(x0:List) -> Tuple) : Float = native "float((0 if (f([('Juan Whelan', 90), ('Sabah Colley', 88), ('Peter Nichols', 7), ('Juan Whelan', 122), ('Sabah Colley', 84)]) == ('Tuple_mk', 'Juan Whelan', 212)) else 1) + (0 if (f([('Juan Whelan', 50), ('Sabah Colley', 48), ('Peter Nichols', 37), ('Juan Whelan', 22), ('Sabah Colley', 14)]) == ('Tuple_mk', 'Juan Whelan', 72)) else 1) + (0 if (f([('Juan Whelan', 10), ('Sabah Colley', 20), ('Peter Nichols', 30), ('Juan Whelan', 40), ('Sabah Colley', 50)]) == ('Tuple_mk', 'Sabah Colley', 70)) else 1))"
+def mbpp_fitness (f:(x0:List) -> Tuple) : Float := native "float((0 if (f([('Juan Whelan', 90), ('Sabah Colley', 88), ('Peter Nichols', 7), ('Juan Whelan', 122), ('Sabah Colley', 84)]) == ('Tuple_mk', 'Juan Whelan', 212)) else 1) + (0 if (f([('Juan Whelan', 50), ('Sabah Colley', 48), ('Peter Nichols', 37), ('Juan Whelan', 22), ('Sabah Colley', 14)]) == ('Tuple_mk', 'Juan Whelan', 72)) else 1) + (0 if (f([('Juan Whelan', 10), ('Sabah Colley', 20), ('Peter Nichols', 30), ('Juan Whelan', 40), ('Sabah Colley', 50)]) == ('Tuple_mk', 'Sabah Colley', 70)) else 1))"
 
-@hide(mbpp_fitness)
 @minimize_float(mbpp_fitness synth)
-def synth (stdata:List) : Tuple = (?hole : Tuple)
+def synth (stdata:List) : Tuple := (let mbpp_fitness := unit in ?hole)

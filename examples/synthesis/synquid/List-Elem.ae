@@ -1,0 +1,9 @@
+# List-Elem: membership test.
+#
+# Synquid benchmark List-Elem (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original. Result not tied to an elems set measure.
+
+open List
+
+def elemL (x: a) (xs: (List a)) : Bool := ?hole;

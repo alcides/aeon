@@ -1,0 +1,19 @@
+# CATA -- Constraint-Annotated Tree Automata (relational/recursive synthesis).
+# "Relational Synthesis of Recursive Programs via Constraint Annotated Tree
+# Automata" (https://www.cs.utexas.edu/~isil/cata.pdf). Third backend on aeon's
+# tree-automata line, after fta (OOPSLA'17) and afta (POPL'18).
+#
+# CATA targets *relational* specs -- refinements relating a function's
+# parameters to its result -- and discharges each candidate with the liquid
+# typechecker (the SMT constraint-annotation oracle) instead of running it on a
+# ground example. It also makes aeon's polymorphic Num/Ord operators usable as
+# components by monomorphising them, so arithmetic terms can be built.
+#
+# Run with:
+#   uv run python -m aeon --no-main -s cata --budget 30 examples/synthesis/cata/operator_relational.ae
+#
+# The relational refinement v > x mentions the parameter x; CATA builds the
+# monomorphised `+` and the integer grid bottom-up and the typechecker confirms
+# x + 1 > x for all x.
+
+def succ (x : Int) : {v:Int | v > x} := ?hole;

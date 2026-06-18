@@ -84,6 +84,9 @@ class FunctionDoc:
     arg_docs: dict[str, str] = field(default_factory=dict)
     return_doc: str | None = None
     is_uninterpreted: bool = False
+    # Surface renderings of each ``@example(...)`` assertion attached to this
+    # function. Shown as worked, machine-checked examples in the docs.
+    examples: list[str] = field(default_factory=list)
     # Head name of this function's final return type (after peeling
     # arrows / refinements / quantifiers). ``None`` if the head isn't a named
     # type constructor — e.g. the function returns a polymorphic ``a``.
@@ -233,6 +236,11 @@ _BINARY_OPS: dict[str, int] = {
     "++": _PREC_ADD,
 }
 
+# Following Lean, equality is written ``=`` in surface syntax even though the
+# operator is stored internally as ``==``. Mirror ``aeon.utils.pprint`` so docs
+# render the same surface spelling.
+_INFIX_DISPLAY: dict[str, str] = {"==": "=", "!=": "≠", "<=": "≤", ">=": "≥"}
+
 
 def _flatten_app(term: STerm) -> tuple[STerm, list[STerm]]:
     """Flatten left-leaning ``SApplication`` chain into ``(head, [args left-to-right])``."""
@@ -263,8 +271,9 @@ def format_term(term: STerm, min_prec: int = _PREC_TOP) -> str:
     if binop is not None:
         op, lhs, rhs = binop
         p = _BINARY_OPS[op]
+        op_display = _INFIX_DISPLAY.get(op, op)
         # Left-associative: left side accepts equal precedence, right side requires strictly higher.
-        result = f"{format_term(lhs, p)} {op} {format_term(rhs, p + 1)}"
+        result = f"{format_term(lhs, p)} {op_display} {format_term(rhs, p + 1)}"
         return f"({result})" if p < min_prec else result
 
     if isinstance(term, SApplication):
@@ -288,14 +297,14 @@ def format_term(term: STerm, min_prec: int = _PREC_TOP) -> str:
         case SHole(name, _):
             return f"?{format_name(name)}"
         case SAbstraction(var_name, body, _):
-            inner = f"\\{format_name(var_name)} -> {format_term(body)}"
+            inner = f"fun {format_name(var_name)} ↦ {format_term(body)}"
             return f"({inner})" if min_prec > _PREC_TOP else inner
         case SLet(var_name, var_value, body, _, _):
-            inner = f"let {format_name(var_name)} = {format_term(var_value)} in {format_term(body)}"
+            inner = f"let {format_name(var_name)} := {format_term(var_value)} in {format_term(body)}"
             return f"({inner})" if min_prec > _PREC_TOP else inner
         case SRec():
             inner = (
-                f"let {format_name(term.var_name)} : {format_type(term.var_type)} = "
+                f"let {format_name(term.var_name)} : {format_type(term.var_type)} := "
                 f"{format_term(term.var_value)} in {format_term(term.body)}"
             )
             return f"({inner})" if min_prec > _PREC_TOP else inner
@@ -320,11 +329,11 @@ def format_type(stype: SType) -> str:
             return f"{{{format_name(name)} : {format_type(ty)} | {format_term(refinement)}}}"
         case SAbstractionType(var_name, var_type, body):
             prefix = "" if stype.multiplicity is MOmega else f"{stype.multiplicity} "
-            return f"({prefix}{format_name(var_name)} : {format_type(var_type)}) -> {format_type(body)}"
+            return f"({prefix}{format_name(var_name)} : {format_type(var_type)}) → {format_type(body)}"
         case STypePolymorphism(name, kind, body):
             return f"∀{format_name(name)}:{kind}. {format_type(body)}"
         case SRefinementPolymorphism(name, sort, body):
-            return f"∀<{format_name(name)}:{format_type(sort)} -> Bool>. {format_type(body)}"
+            return f"∀<{format_name(name)}:{format_type(sort)} → Bool>. {format_type(body)}"
         case STypeConstructor(name, args):
             if not args:
                 return format_name(name)
@@ -469,7 +478,12 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
         func_header_comment, arg_docs, return_doc = split_arg_docs(raw_comment)
 
         args_formatted = [(format_name(n), format_type(t)) for n, t in defn.args]
-        decorators_formatted = [format_decorator(dec) for dec in defn.decorators]
+        # ``@example(assertion)`` decorators are surfaced in their own block; the
+        # remaining decorators are shown as chips.
+        examples_formatted = [
+            format_term(dec.macro_args[0]) for dec in defn.decorators if dec.name.name == "example" and dec.macro_args
+        ]
+        decorators_formatted = [format_decorator(dec) for dec in defn.decorators if dec.name.name != "example"]
         foralls_formatted = [(format_name(n), str(k)) for n, k in defn.foralls]
         rforalls_formatted = [(format_name(n), format_type(s)) for n, s in defn.rforalls]
 
@@ -492,6 +506,7 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
                 return_doc=return_doc,
                 is_uninterpreted=is_uninterpreted,
                 returns_type_head=return_type_head(defn.type),
+                examples=examples_formatted,
             )
         )
 
@@ -785,6 +800,26 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
             font-size: 0.85em;
             font-family: 'Courier New', monospace;
         }}
+        .examples {{
+            margin: 12px 0;
+        }}
+        .examples-title {{
+            font-weight: 600;
+            color: #34495e;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }}
+        .example {{
+            font-family: 'Courier New', monospace;
+            background: #eef6ff;
+            border-left: 3px solid #2980b9;
+            padding: 6px 10px;
+            margin: 4px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }}
         .constructor {{
             margin-left: 20px;
             padding: 10px;
@@ -984,7 +1019,7 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
                 sig_parts.extend(type_doc.args)
             if type_doc.rforalls:
                 for name, sort in type_doc.rforalls:
-                    sig_parts.append(f"forall <{name}:{sort} -> Bool>")
+                    sig_parts.append(f"forall <{name}:{sort} → Bool>")
 
             html_parts.append(f'            <div class="signature">{html.escape(" ".join(sig_parts))}</div>\n')
 
@@ -1040,6 +1075,13 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
         if func.comment:
             html_parts.append(f'            <div class="comment">{html.escape(func.comment)}</div>\n')
 
+        if func.examples:
+            html_parts.append('            <div class="examples">\n')
+            html_parts.append('                <div class="examples-title">Examples</div>\n')
+            for ex in func.examples:
+                html_parts.append(f'                <div class="example">{html.escape(ex)}</div>\n')
+            html_parts.append("            </div>\n")
+
         sig_html_parts: list[str] = [html.escape(f"def {func.name}")]
 
         if func.foralls:
@@ -1048,7 +1090,7 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
 
         if func.rforalls:
             for rname, rsort in func.rforalls:
-                sig_html_parts.append(html.escape(f"∀<{rname}:{rsort} -> Bool>"))
+                sig_html_parts.append(html.escape(f"∀<{rname}:{rsort} → Bool>"))
 
         for idx, (arg_name, arg_type) in enumerate(func.args):
             doc_text = func.arg_docs.get(arg_name)

@@ -6,11 +6,10 @@
 import PSB2 (extract_train_data, load_dataset)
 open List
 
-def train : TrainData = extract_train_data (load_dataset "fuel-cost" 200 200)
+def train : TrainData := extract_train_data (load_dataset "fuel-cost" 200 200)
 
-def calculate_fuel_cost_errors : (train: TrainData) -> (f: (a: {l:(List Int) | 1 <= List.size l && List.size l <= 20}) -> Int) -> (List Int) =
-    \data -> \func -> native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+def calculate_fuel_cost_errors : (train: TrainData) -> (f: (a: {l:(List Int) | 1 <= List.size l && List.size l <= 20}) -> Int) -> (List Int) :=
+    fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
-@hide(extract_train_data, load_dataset, train, calculate_fuel_cost_errors)
 @multi_minimize_int(calculate_fuel_cost_errors train synth, 1)
-def synth (xs : {l:(List Int) | 1 <= List.size l && List.size l <= 20}) : {r:Int | 0 <= r} = (?hole: {r:Int | 0 <= r});
+def synth (xs : {l:(List Int) | 1 <= List.size l && List.size l <= 20}) : {r:Int | 0 <= r} := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_fuel_cost_errors := unit in ?hole);

@@ -1,0 +1,9 @@
+# List-Replicate: n copies of x; |result| == n.
+#
+# Synquid benchmark List-Replicate (pldi16).
+#
+# Element type left polymorphic (forall a), matching the Synquid original.
+
+open List
+
+def replicate (n: {v:Int | v >= 0}) (x: a) : {l:(List a) | List.size l = n} := ?hole;

@@ -18,10 +18,10 @@ from tests.driver import check_and_return_core, check_compile, extract_core
 
 def test_hole_minimize_int():
     code = """
-            def year : Int = 2023;
-            def minus : (a:Int) -> (b:Int) -> Int = \\x -> \\y -> x - y;
+            def year : Int := 2023;
+            def minus : (a:Int) -> (b:Int) -> Int := fun x => fun y => x - y;
             @minimize_int( year - (synth 7) )
-            def synth(a: Int) : Int = (?hole:Int) * a
+            def synth(a: Int) : Int := (?hole:Int) * a
         """
     core = extract_core(code)
     assert len(list(iterate_top_level(core))) == 3 + 1
@@ -29,11 +29,11 @@ def test_hole_minimize_int():
 
 def test_eq() -> None:
     aeon_code = """
-        def main(args:Int) : Unit =
-            x : String = "ola";
-            x1 : String = x;
-            x2 : String = x;
-            z3 : Bool = x1 == x2;
+        def main(args:Int) : Unit :=
+            x : String := "ola";
+            x1 : String := x;
+            x2 : String := x;
+            z3 : Bool := x1 = x2;
             print z3
 """
 
@@ -50,7 +50,7 @@ def _find_goals(metadata):
 def test_minimize_cputime_registers_goal():
     source = """
         @minimize_cputime(synth 7)
-        def synth (i:Int) : Int = i * (?hole: Int)
+        def synth (i:Int) : Int := i * (?hole: Int)
     """
     _, _, _, metadata = check_and_return_core(source)
     goals = _find_goals(metadata)
@@ -62,7 +62,7 @@ def test_minimize_cputime_registers_goal():
 def test_minimize_cputime_alias_registers_goal():
     source = """
         @minimize_cputime(synth 7)
-        def synth (i:Int) : Int = i * (?hole: Int)
+        def synth (i:Int) : Int := i * (?hole: Int)
     """
     _, _, _, metadata = check_and_return_core(source)
     goals = _find_goals(metadata)
@@ -74,7 +74,7 @@ def test_minimize_cputime_alias_registers_goal():
 def test_minimize_energy_registers_goal():
     source = """
         @minimize_energy(synth 7)
-        def synth (i:Int) : Int = i * (?hole: Int)
+        def synth (i:Int) : Int := i * (?hole: Int)
     """
     _, _, _, metadata = check_and_return_core(source)
     goals = _find_goals(metadata)
@@ -84,10 +84,10 @@ def test_minimize_energy_registers_goal():
 
 
 def test_cputime_and_other_objective_compose():
-    source = """def year : Int = 2023;
+    source = """def year : Int := 2023;
         @minimize_int( year - (synth 7) )
         @minimize_cputime(synth 7)
-        def synth (i:Int) : Int = i * (?hole: Int)
+        def synth (i:Int) : Int := i * (?hole: Int)
     """
     _, _, _, metadata = check_and_return_core(source)
     goals = _find_goals(metadata)
@@ -100,7 +100,7 @@ def test_cputime_and_energy_make_two_evaluators_and_minimize_problem():
     source = """
         @minimize_cputime(synth 7)
         @minimize_energy(synth 7)
-        def synth (i:Int) : Int = i * (?hole: Int)
+        def synth (i:Int) : Int := i * (?hole: Int)
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     # Use the metadata's actual Name key (the unbound one used during desugaring)
@@ -157,7 +157,7 @@ def test_cputime_synthesis_smoke():
     """Synthesis with a CPU-time objective completes and returns a hole filling."""
     source = """
         @minimize_cputime(synth 7)
-        def synth (i:Int) : Int = i * (?hole: Int)
+        def synth (i:Int) : Int := i * (?hole: Int)
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete = incomplete_functions_and_holes(ctx, core_ast_anf)

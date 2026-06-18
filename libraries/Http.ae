@@ -1,0 +1,109 @@
+# Safe-by-construction bindings around the ``requests`` HTTP library.
+#
+# ``requests`` is ergonomic but quietly dangerous, and almost always in the
+# same three ways:
+#
+#   1. **No timeout.** ``requests.get(url)`` with no ``timeout`` blocks
+#      *forever* if the peer never responds — the single most common
+#      ``requests`` production incident. Every entry point here therefore
+#      *requires* a positive ``timeout`` argument; there is no timeout-less
+#      overload to reach for.
+#
+#   2. **Ignored status codes.** ``requests`` does not raise on a 4xx/5xx;
+#      callers routinely parse the body of a failed request. The HTTP status
+#      is reflected into an uninterpreted ``status`` measure so ``isSuccess``
+#      can be reasoned about, and ``raiseForStatus`` carries the postcondition
+#      ``status r < 400`` for code that wants failure to be impossible to miss.
+#
+#   3. **``.json()`` on a non-JSON body** raises ``JSONDecodeError``. ``bodyJson``
+#      hands back a ``Json`` value (see ``Json.ae``) whose shape you then query
+#      with the runtime-typed ``Json`` coercions, rather than assuming a dict.
+#
+# Preconditions (non-empty URL, positive timeout) cost nothing at runtime and
+# turn what would have been a hang or a ``MissingSchema`` into a compile error.
+
+open Map
+open Json
+
+type Response
+
+def requests : Unit := native_import "requests"
+
+# ── Measures ───────────────────────────────────────────────────────────
+
+# The HTTP status code of a response (e.g. 200, 404, 503). Uninterpreted: the
+# solver only relates it across calls — ``raiseForStatus`` pins it below 400,
+# ``isSuccess`` tests the 2xx band — it never computes it.
+def status : (r: Response) -> Int := uninterpreted
+
+# ── Requests ───────────────────────────────────────────────────────────
+#
+# ``url`` must be non-empty and ``timeout`` strictly positive (seconds). A
+# non-positive timeout is itself a bug — ``requests`` treats ``0`` as "fail
+# immediately" and ``None`` as "wait forever" — so the refinement rules both
+# out.
+
+# Issues a GET request.
+def get (url: {u:String | u != ""}) (timeout: {t:Float | t > 0.0}) : Response :=
+    native "requests.get(url, timeout=timeout)"
+
+# Issues a GET request with request headers supplied as a string→string Map.
+def getWithHeaders (url: {u:String | u != ""}) (headers: (Map String String))
+                   (timeout: {t:Float | t > 0.0}) : Response :=
+    native "requests.get(url, headers=headers, timeout=timeout)"
+
+# Issues a POST request with a raw string body.
+def post (url: {u:String | u != ""}) (body: String) (timeout: {t:Float | t > 0.0})
+    : Response :=
+    native "requests.post(url, data=body, timeout=timeout)"
+
+# Issues a POST request whose body is a JSON value (serialized for you, with
+# the ``Content-Type: application/json`` header set).
+def postJson (url: {u:String | u != ""}) (payload: Json) (timeout: {t:Float | t > 0.0})
+    : Response :=
+    native "requests.post(url, json=payload, timeout=timeout)"
+
+# Issues a PUT request with a raw string body.
+def put (url: {u:String | u != ""}) (body: String) (timeout: {t:Float | t > 0.0})
+    : Response :=
+    native "requests.put(url, data=body, timeout=timeout)"
+
+# Issues a DELETE request.
+def delete (url: {u:String | u != ""}) (timeout: {t:Float | t > 0.0}) : Response :=
+    native "requests.delete(url, timeout=timeout)"
+
+# ── Inspecting a response ──────────────────────────────────────────────
+
+# The status code as a value, pinned to the ``status`` measure so it can be
+# threaded into later refinements.
+def statusCode (r: Response) : {n:Int | n = status r} := native "r.status_code"
+
+# True exactly when the status is in the 2xx success band. Tied to the
+# ``status`` measure, so the ``then`` branch of a test can discharge
+# preconditions phrased over ``status r``.
+def isSuccess (r: Response) : {b:Bool | b = (status r >= 200 && status r < 300)} :=
+    native "(200 <= r.status_code) and (r.status_code < 300)"
+
+# Raises ``HTTPError`` on a 4xx/5xx response. Because control only returns on a
+# non-error status, the result is statically known to satisfy ``status r < 400``
+# — downstream code can read the body trusting the request succeeded.
+def raiseForStatus (r: Response) : {x:Response | status x < 400} :=
+    native "(r.raise_for_status(), r)[1]"
+
+# The response body decoded as text.
+def body (r: Response) : String := native "r.text"
+
+# The response body parsed as JSON. Raises if the body is not valid JSON; the
+# result is a ``Json`` value to be queried with the ``Json`` coercions.
+def bodyJson (r: Response) : Json := native "r.json()"
+
+# Size of the raw response body in bytes. Non-negative.
+def contentLength (r: Response) : {n:Int | n >= 0} := native "len(r.content)"
+
+# Looks up a response header (case-insensitive), returning ``default`` when the
+# header is absent — so this is total, never a KeyError.
+def getHeader (r: Response) (name: {s:String | s != ""}) (default: String) : String :=
+    native "r.headers.get(name, default)"
+
+# The final URL of the response, after any redirects.
+def finalUrl (r: Response) : String := native "r.url"

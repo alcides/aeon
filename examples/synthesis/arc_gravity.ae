@@ -1,0 +1,39 @@
+# ARC Prize 2024: "gravity" — coloured cells fall to the bottom of each column.
+#
+# https://www.kaggle.com/competitions/arc-prize-2024/data
+# A common ARC dynamic: within each column, non-zero (coloured) cells drop down,
+# keeping their order, with background 0 filling the top.
+#
+#     input            output (gravity, per column)
+#     1 0 2            0 0 0
+#     0 0 0    --->    1 0 2
+#     3 0 4            3 0 4
+#
+#   col 0: [1,0,3] -> [0,1,3]    col 1: [0,0,0] -> [0,0,0]    col 2: [2,0,4] -> [0,2,4]
+
+inductive Grid
+| mk (g00:Int | 0 <= g00 && g00 <= 9) (g01:Int | 0 <= g01 && g01 <= 9) (g02:Int | 0 <= g02 && g02 <= 9)
+     (g10:Int | 0 <= g10 && g10 <= 9) (g11:Int | 0 <= g11 && g11 <= 9) (g12:Int | 0 <= g12 && g12 <= 9)
+     (g20:Int | 0 <= g20 && g20 <= 9) (g21:Int | 0 <= g21 && g21 <= 9) (g22:Int | 0 <= g22 && g22 <= 9) :
+     {g:Grid |
+        (c00 g = g00) && (c01 g = g01) && (c02 g = g02) &&
+        (c10 g = g10) && (c11 g = g11) && (c12 g = g12) &&
+        (c20 g = g20) && (c21 g = g21) && (c22 g = g22)}
++ c00 (g:Grid) : Int  + c01 (g:Grid) : Int  + c02 (g:Grid) : Int
++ c10 (g:Grid) : Int  + c11 (g:Grid) : Int  + c12 (g:Grid) : Int
++ c20 (g:Grid) : Int  + c21 (g:Grid) : Int  + c22 (g:Grid) : Int
+
+# (a) Synthesis: apply gravity to the input above.
+@minimize_int(0)
+def gravity_hole : {o:Grid |
+    (c00 o = 0) && (c01 o = 0) && (c02 o = 0) &&
+    (c10 o = 1) && (c11 o = 0) && (c12 o = 2) &&
+    (c20 o = 3) && (c21 o = 0) && (c22 o = 4)
+} := ?hole;
+
+# (b) Verification: the hand-written gravity result type-checks.
+def gravity_example : {o:Grid |
+    (c00 o = 0) && (c01 o = 0) && (c02 o = 0) &&
+    (c10 o = 1) && (c11 o = 0) && (c12 o = 2) &&
+    (c20 o = 3) && (c21 o = 0) && (c22 o = 4)
+} := .mk 0 0 0 1 0 2 3 0 4

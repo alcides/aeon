@@ -2,116 +2,116 @@ open Array
 
 type Path
 
-def pathlib : Unit = native_import "pathlib"
-def shutil  : Unit = native_import "shutil"
+def pathlib : Unit := native_import "pathlib"
+def shutil  : Unit := native_import "shutil"
 
 # ── Construction ───────────────────────────────────────────────────────
 
 # Builds a Path from a non-empty string.
-def mk (s: {x:String | x != ""}) : Path = native "pathlib.Path(s)"
+def mk (s: {x:String | x != ""}) : Path := native "pathlib.Path(s)"
 
 # Returns the current working directory. Thunked so each call returns
 # the cwd at call time (which can change after os.chdir).
-def cwd (_: Unit) : Path = native "pathlib.Path.cwd()"
+def cwd (_: Unit) : Path := native "pathlib.Path.cwd()"
 
 # Returns the current user's home directory.
-def home (_: Unit) : Path = native "pathlib.Path.home()"
+def home (_: Unit) : Path := native "pathlib.Path.home()"
 
 # Renders a Path to its string form.
-def toString (p: Path) : String = native "str(p)"
+def toString (p: Path) : String := native "str(p)"
 
 # ── Pure path operations ───────────────────────────────────────────────
 
 # The parent directory of p. The parent of a root path is itself.
-def parent (p: Path) : Path = native "p.parent"
+def parent (p: Path) : Path := native "p.parent"
 
 # The final path component (e.g. the filename).
-def name (p: Path) : String = native "p.name"
+def name (p: Path) : String := native "p.name"
 
 # The filename without its suffix (e.g. "report" for "report.txt").
-def stem (p: Path) : String = native "p.stem"
+def stem (p: Path) : String := native "p.stem"
 
 # The file suffix including the leading dot (e.g. ".txt"), or "" if none.
-def suffix (p: Path) : String = native "p.suffix"
+def suffix (p: Path) : String := native "p.suffix"
 
 # Appends a non-empty segment to p, producing a new Path.
-def join (p: Path) (segment: {s:String | s != ""}) : Path = native "p / segment"
+def join (p: Path) (segment: {s:String | s != ""}) : Path := native "p / segment"
 
 # Returns a copy of p with a different suffix. The new suffix must
 # start with "." or be empty (to strip).
-def withSuffix (p: Path) (newSuffix: String) : Path =
+def withSuffix (p: Path) (newSuffix: String) : Path :=
     native "p.with_suffix(newSuffix)"
 
 # Returns the absolute form of p, anchored at the current working dir.
-def absolute (p: Path) : Path = native "p.absolute()"
+def absolute (p: Path) : Path := native "p.absolute()"
 
 # Returns the canonical absolute path with symlinks resolved. Raises
 # if the path does not exist on Python 3.6+ when strict=True; here we
 # default to permissive (strict=False).
-def resolve (p: Path) : Path = native "p.resolve()"
+def resolve (p: Path) : Path := native "p.resolve()"
 
 # ── Predicates ─────────────────────────────────────────────────────────
 
 # True if p exists on the filesystem.
-def exists (p: Path) : Bool = native "p.exists()"
+def exists (p: Path) : Bool := native "p.exists()"
 
 # True if p exists and is a regular file.
-def isFile (p: Path) : Bool = native "p.is_file()"
+def isFile (p: Path) : Bool := native "p.is_file()"
 
 # True if p exists and is a directory.
-def isDir (p: Path) : Bool = native "p.is_dir()"
+def isDir (p: Path) : Bool := native "p.is_dir()"
 
 # True if p is anchored at a root (has a drive or starts with "/").
-def isAbsolute (p: Path) : Bool = native "p.is_absolute()"
+def isAbsolute (p: Path) : Bool := native "p.is_absolute()"
 
 # True if p is not absolute.
-def isRelative (p: Path) : Bool = native "not p.is_absolute()"
+def isRelative (p: Path) : Bool := native "not p.is_absolute()"
 
 # ── File I/O ───────────────────────────────────────────────────────────
 
 # Reads a text file as a String. Raises if p is not a readable file.
-def read (p: Path) : String = native "p.read_text()"
+def read (p: Path) : String := native "p.read_text()"
 
 # Writes content to p, overwriting any existing file.
-def write (p: Path) (content: String) : Unit = native "p.write_text(content)"
+def write (p: Path) (content: String) : Unit := native "p.write_text(content)"
 
 # Appends content to p. Creates the file if it does not exist.
-def appendTo (p: Path) (content: String) : Unit =
+def appendTo (p: Path) (content: String) : Unit :=
     native "open(str(p), 'a').write(content)"
 
 # ── Directory I/O ──────────────────────────────────────────────────────
 
 # Creates the directory at p. Raises if p already exists or its parent
 # is missing.
-def mkdir (p: Path) : Unit = native "p.mkdir()"
+def mkdir (p: Path) : Unit := native "p.mkdir()"
 
 # Creates the directory at p along with any missing parents. Does not
 # raise if p already exists. Equivalent to mkdir -p.
-def mkdirAll (p: Path) : Unit = native "p.mkdir(parents=True, exist_ok=True)"
+def mkdirAll (p: Path) : Unit := native "p.mkdir(parents=True, exist_ok=True)"
 
 # Lists immediate children of p as a list of names. Raises if p is not
 # a directory.
-def listDir (p: Path) : (Array String) =
+def listDir (p: Path) : (Array String) :=
     native "[child.name for child in p.iterdir()]"
 
 # Returns paths matching pattern relative to p (e.g. "*.py").
-def glob (p: Path) (pattern: {s:String | s != ""}) : (Array Path) =
+def glob (p: Path) (pattern: {s:String | s != ""}) : (Array Path) :=
     native "list(p.glob(pattern))"
 
 # ── Mutations ──────────────────────────────────────────────────────────
 
 # Deletes the file at p. Raises if p is a directory or does not exist.
-def remove (p: Path) : Unit = native "p.unlink()"
+def remove (p: Path) : Unit := native "p.unlink()"
 
 # Deletes an empty directory at p. Raises if p is not empty.
-def removeDir (p: Path) : Unit = native "p.rmdir()"
+def removeDir (p: Path) : Unit := native "p.rmdir()"
 
 # Recursively deletes a directory and its contents. Raises if p is
 # not a directory.
-def removeAll (p: Path) : Unit = native "shutil.rmtree(str(p))"
+def removeAll (p: Path) : Unit := native "shutil.rmtree(str(p))"
 
 # Renames or moves p to dst. Returns the new Path.
-def rename (p: Path) (dst: Path) : Path = native "p.rename(dst)"
+def rename (p: Path) (dst: Path) : Path := native "p.rename(dst)"
 
 # Copies a file from src to dst, preserving metadata.
-def copy (src: Path) (dst: Path) : Unit = native "shutil.copy2(str(src), str(dst))"
+def copy (src: Path) (dst: Path) : Unit := native "shutil.copy2(str(src), str(dst))"

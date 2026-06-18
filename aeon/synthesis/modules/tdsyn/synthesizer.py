@@ -74,10 +74,11 @@ class TDSynSynthesizer(Synthesizer):
     order on each iteration to explore different term structures.
     """
 
-    def __init__(self, mode: str = "enumerative"):
+    def __init__(self, mode: str = "enumerative", seed: int = 0):
         assert mode in ("enumerative", "random")
         self.mode = mode
-        self._rng = random.Random(42)
+        self.seed = seed
+        self._rng = random.Random(seed)
         self._iteration = 0
 
     def synthesize(
@@ -90,6 +91,7 @@ class TDSynSynthesizer(Synthesizer):
         metadata: Metadata,
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
@@ -272,7 +274,7 @@ class TDSynSynthesizer(Synthesizer):
         best: tuple[list[float], Term | None],
     ) -> tuple[list[float], Term | None]:
         """Random exploration search."""
-        rng = random.Random(42)
+        rng = random.Random(self.seed)
 
         while _get_elapsed_time(start_time) < budget:
             # Start fresh from initial each time for random search

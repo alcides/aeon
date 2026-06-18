@@ -31,7 +31,7 @@ def normalSample
         && fracAbove xs (mu - 1.282 * sigma) >= 0.90
         && fracAbove xs (mu - 1.645 * sigma) >= 0.95
         && fracAbove xs (mu - 2.33 * sigma)  >= 0.99 }
-    = native "list(__import__('numpy').random.normal(mu, sigma, n))"
+    := native "list(__import__('numpy').random.normal(mu, sigma, n))"
 
 # ─── Standard normal Z ~ N(0, 1) ───────────────────────────────────────
 
@@ -46,7 +46,7 @@ def standardNormalSample
         && fracAbove xs 0.0    >= 0.50
         && fracAbove xs (0.0 - 1.282) >= 0.90
         && fracAbove xs (0.0 - 2.33)  >= 0.99 }
-    = native "list(__import__('numpy').random.standard_normal(n))"
+    := native "list(__import__('numpy').random.standard_normal(n))"
 
 # ─── Uniform distribution U(a, b) ──────────────────────────────────────
 # Quantile p is exactly a + p*(b - a). Support is [a, b].
@@ -63,7 +63,7 @@ def uniformSample
         && fracBelow xs (a + 0.95 * (b - a)) >= 0.95
         && fracBelow xs (a + 0.50 * (b - a)) >= 0.50
         && fracBelow xs (a + 0.10 * (b - a)) >= 0.10 }
-    = native "list(__import__('numpy').random.uniform(a, b, n))"
+    := native "list(__import__('numpy').random.uniform(a, b, n))"
 
 # ─── Exponential distribution Exp(rate = lambda) ───────────────────────
 # Quantile p:  -ln(1 - p) / lambda.   Support [0, ∞).
@@ -79,7 +79,7 @@ def exponentialSample
         && fracBelow xs (2.9957 / lam) >= 0.95
         && fracBelow xs (2.3026 / lam) >= 0.90
         && fracBelow xs (0.6931 / lam) >= 0.50 }
-    = native "list(__import__('numpy').random.exponential(1.0 / lam, n))"
+    := native "list(__import__('numpy').random.exponential(1.0 / lam, n))"
 
 # ─── Beta distribution Beta(alpha, beta) ───────────────────────────────
 # Support is (0, 1). Mean = alpha / (alpha + beta).
@@ -92,8 +92,8 @@ def betaSample
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && fracBelow xs 1.0 >= 1.0
-        && ((sampleMean xs) == (alpha / (alpha + beta))) }
-    = native "list(__import__('numpy').random.beta(alpha, beta, n))"
+        && ((sampleMean xs) = (alpha / (alpha + beta))) }
+    := native "list(__import__('numpy').random.beta(alpha, beta, n))"
 
 # ─── Gamma distribution Gamma(shape k, scale theta) ────────────────────
 # Support [0, ∞). Mean = k * theta. Var = k * theta * theta.
@@ -105,9 +105,9 @@ def gammaSample
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
-        && ((sampleMean xs) == (k * theta))
-        && ((sampleVar  xs) == (k * (theta * theta))) }
-    = native "list(__import__('numpy').random.gamma(k, theta, n))"
+        && ((sampleMean xs) = (k * theta))
+        && ((sampleVar  xs) = (k * (theta * theta))) }
+    := native "list(__import__('numpy').random.gamma(k, theta, n))"
 
 # ─── Chi-squared distribution Chi²(k) ──────────────────────────────────
 # Support [0, ∞). Mean = k.  Var = 2k.
@@ -118,7 +118,7 @@ def chiSquaredSample
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0 }
-    = native "list(__import__('numpy').random.chisquare(k, n))"
+    := native "list(__import__('numpy').random.chisquare(k, n))"
 
 # ─── Bernoulli distribution Ber(p) ─────────────────────────────────────
 # Values are 0.0 or 1.0. Mean = p.
@@ -132,7 +132,7 @@ def bernoulliSample
         && fracAbove xs 0.5 >= p
         && fracBelow xs 1.5 >= 1.0
         && fracAbove xs (0.0 - 0.5) >= 1.0 }
-    = native "list(map(float, __import__('numpy').random.binomial(1, p, n)))"
+    := native "list(map(float, __import__('numpy').random.binomial(1, p, n)))"
 
 # ─── Binomial distribution Bin(trials, p) ──────────────────────────────
 # Support {0, 1, ..., trials}. Mean = trials * p.
@@ -144,7 +144,7 @@ def binomialSample
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0 }
-    = native "list(map(float, __import__('numpy').random.binomial(trials, p, n)))"
+    := native "list(map(float, __import__('numpy').random.binomial(trials, p, n)))"
 
 # ─── Poisson distribution Pois(lambda) ─────────────────────────────────
 # Support {0, 1, 2, ...}. Mean = Var = lambda.
@@ -155,5 +155,5 @@ def poissonSample
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0
-        && ((sampleMean xs) == lam) }
-    = native "list(map(float, __import__('numpy').random.poisson(lam, n)))"
+        && ((sampleMean xs) = lam) }
+    := native "list(map(float, __import__('numpy').random.poisson(lam, n)))"
