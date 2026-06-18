@@ -1,0 +1,3 @@
+# CATA -- relational comparator: the additive inverse. The relation v + x = 0
+# pins the result to -x; CATA discharges `0 - x` against it.
+def neg (x : Int) : {v:Int | v + x = 0} := ?hole;

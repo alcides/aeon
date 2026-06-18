@@ -67,6 +67,19 @@ def test_solves_conditional_select():
     assert "x" in str(t.then) and "y" in str(t.otherwise)
 
 
+def test_solves_relational_predecessor():
+    # RC-category relational comparator (Contata benchmark spirit): the relation
+    # v < x pins the result below the input; CATA discharges a witness (x - 1).
+    t = _solve("def pred (x:Int) : {v:Int | v < x} := ?hole;")
+    assert "-" in str(t) or "+" in str(t), str(t)
+
+
+def test_solves_relational_double():
+    # The relation v = x + x pins the result to twice the input.
+    t = _solve("def double (x:Int) : {v:Int | v = x + x} := ?hole;")
+    assert "+" in str(t) or "*" in str(t), str(t)
+
+
 def test_monomorphizes_polymorphic_operators():
     # The polymorphic Num/Ord operators must appear as first-order Int/Bool
     # components, otherwise no arithmetic/comparison term could be built.

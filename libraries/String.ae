@@ -115,3 +115,23 @@ def isEmpty(i: String): Bool := native "i == ''"
 # i: input string
 # returns: list of single-character strings
 def toCharList(i: String): (Array String) := native "list(i)"
+
+# --- SMT-LIB / SyGuS string operators (for the AFTA PBE benchmarks) --------
+# These mirror the SMT-LIB theory of strings used by the SyGuS PBE-Strings
+# suite (str.at, str.substr, str.indexof, str.to.int), with the same
+# total-by-clamping semantics, so BLAZE-style benchmarks are expressible.
+
+# Character at index i, or the empty string when i is out of range (str.at).
+def charAt(s: String) (i: Int): String := native "s[i] if 0 <= i < len(s) else ''"
+
+# Substring of length `length` starting at `start` (str.substr); clamps to the
+# empty string for negative arguments, like the SMT-LIB semantics.
+def substr(s: String) (start: Int) (length: Int): String :=
+    native "s[start:start+length] if start >= 0 and length >= 0 else ''"
+
+# First index of `sub` in `s` at or after `start`, or -1 (str.indexof).
+def indexOfFrom(s: String) (sub: String) (start: Int): Int := native "s.find(sub, start)"
+
+# Parse the string as an integer, or -1 when it is not a non-negative integer
+# literal (str.to.int).
+def stringToInt(s: String): Int := native "int(s) if s.isdigit() else -1"

@@ -1,0 +1,41 @@
+# Matrix / tensor transformation DSL (BLAZE/SYNGAR, Wang, Dillig & Singh,
+# POPL'18, Fig.17) for the AFTA example-driven (PBE) backend.
+#
+# A matrix is encoded as a MATLAB-style string -- rows separated by ";",
+# elements within a row by "," -- which is exactly the notation the paper uses
+# (e.g. the vector [1,2,3,4,5,6] reshaped row-wise to 2x3 is "1,2,3;4,5,6").
+# Encoding matrices as strings lets the AFTA PBE engine and the @example
+# input/output specification work unchanged: a benchmark is
+#
+#     open Matrix
+#     @example(f "1,2,3,4,5,6" = "1,2,3;4,5,6")
+#     def f (m: String) : String := (?hole : String);
+#
+# solved with:  uv run python -m aeon --no-main -s afta <file>.ae
+#
+# The operators below mirror Fig.17: Reshape(t, v), Permute(t)/transpose,
+# Fliplr(t), Flipud(t). All are total: a shape-incompatible reshape returns its
+# input unchanged.
+
+# Reshape the matrix's elements (row-major) into a `rows` x `cols` matrix
+# (Reshape with size vector [rows, cols]); identity if the element count does
+# not match rows*cols.
+def reshape(m: String) (rows: Int) (cols: Int): String :=
+    native "(';'.join(','.join([x for r in m.split(';') for x in r.split(',')][i*cols+j] for j in range(cols)) for i in range(rows)) if (rows>0 and cols>0 and len([x for r in m.split(';') for x in r.split(',')])==rows*cols) else m)"
+
+# Transpose the matrix (Permute on a 2-D tensor): rows become columns.
+def transpose(m: String): String :=
+    native "(lambda M: (';'.join(','.join(M[i][j] for i in range(len(M))) for j in range(len(M[0]))) if (M and M[0]) else m))([r.split(',') for r in m.split(';')])"
+
+# Flip left-right: reverse the order of elements within each row (Fliplr).
+def fliplr(m: String): String :=
+    native "';'.join(','.join(r.split(',')[::-1]) for r in m.split(';'))"
+
+# Flip up-down: reverse the order of rows (Flipud).
+def flipud(m: String): String :=
+    native "';'.join(m.split(';')[::-1])"
+
+# Flatten the matrix to a single row vector (row-major); useful as a building
+# block for reshape compositions.
+def flatten(m: String): String :=
+    native "','.join(x for r in m.split(';') for x in r.split(','))"

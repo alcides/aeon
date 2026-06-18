@@ -1,0 +1,6 @@
+open Matrix
+
+# BLAZE/SYNGAR matrix domain (Fig.17): reshape a length-6 vector into a 3x2 matrix (row-major).
+@example(f "1,2,3,4,5,6" = "1,2;3,4;5,6")
+@example(f "7,8,9,10,11,12" = "7,8;9,10;11,12")
+def f (m: String) : String := (?hole : String);

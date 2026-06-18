@@ -1,0 +1,11 @@
+import String (concat, charAt, substr, replace, indexOfFrom, len, startsWith, endsWith, contains, stringToInt, intToString);
+
+# Auto-generated from a SyGuS PBE-Strings benchmark (BLAZE/SYNGAR suite,
+# Wang, Dillig & Singh, POPL'18). Solve with:
+#   uv run python -m aeon --no-main -s afta examples/synthesis/afta/sygus/<file>.ae
+
+@example(f "Nancy" "FreeHafer" = "Nancy F.")
+@example(f "Andrew" "Cencici" = "Andrew C.")
+@example(f "Jan" "Kotas" = "Jan K.")
+@example(f "Mariya" "Sergienko" = "Mariya S.")
+def f (firstname: String) (lastname: String) : String := (?hole : String);

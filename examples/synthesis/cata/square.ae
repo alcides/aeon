@@ -1,0 +1,3 @@
+# CATA -- relational comparator: the relation v = x * x pins the result to the
+# square of the input; CATA discharges `x * x`.
+def square (x : Int) : {v:Int | v = x * x} := ?hole;

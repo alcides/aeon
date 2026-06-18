@@ -13,7 +13,9 @@ import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTHESIZE
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.substitutions import substitution
 
-from aeon.core.terms import Term, Var
+import dataclasses
+
+from aeon.core.terms import Let, Literal, Rec, Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
@@ -260,6 +262,46 @@ def synthesize_holes(
         primitives = EvalPrimitives(evaluators, ectx, feature_fun, replace)
         pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
         evaluator, output_evaluator = _pool_backed(pool)
+
+        # Example-driven (PBE) probe: evaluate a candidate body on a concrete
+        # list of input values *in process*, returning the value the synthesised
+        # function produces. Unlike ``output_evaluator`` (which crosses a process
+        # boundary and so can only return a candidate's repr for function-typed
+        # outputs), this stays in-process, so a String -> String candidate can be
+        # applied to each example's inputs. This is what lets ``afta`` build a
+        # tree automaton keyed by per-example outputs (the BLAZE construction).
+        if metadata.get(fun_name, {}).get("io_examples"):
+            io_params: list[Name] = metadata.get(fun_name, {}).get("io_params", [])
+            # Fill the hole with a harmless dummy so building the program's
+            # def-environment (which includes the @example test bindings that
+            # *call* the synthesised function) never reaches the unfilled hole
+            # and blocks on the interactive prompt. The dummy body is irrelevant:
+            # the sub-terms we probe are built from the DSL components and the
+            # parameters, not from the function under synthesis.
+            from aeon.core.types import t_string as _t_string
+
+            _dummy_prog = replace(Literal("", _t_string))
+            # Build the evaluation environment (all in-scope DSL bindings) ONCE,
+            # rather than re-evaluating the whole def-chain for every probed
+            # sub-term. Each binding is bound by evaluating it with its own name
+            # as the tail, which reuses ``eval``'s Let/Rec (incl. recursion-tying)
+            # handling without duplicating it.
+            _base_ctx = ectx
+            _t: Term = _dummy_prog
+            while isinstance(_t, (Let, Rec)):
+                _bound = eval(dataclasses.replace(_t, body=Var(_t.var_name)), _base_ctx)
+                _base_ctx = _base_ctx.with_var(_t.var_name, _bound)
+                _t = _t.body
+
+            def _pbe_probe(sub_term: Term, input_values: list, _params=tuple(io_params), _ctx=_base_ctx) -> Any:
+                # Evaluate a sub-term (open in the hole's parameters) on one
+                # example's inputs, directly in the precomputed DSL environment.
+                e = _ctx
+                for pname, v in zip(_params, input_values):
+                    e = e.with_var(pname, v)
+                return eval(sub_term, e)
+
+            metadata.setdefault(fun_name, {})["pbe_probe"] = _pbe_probe
 
         try:
             t = syn_impl.synthesize(

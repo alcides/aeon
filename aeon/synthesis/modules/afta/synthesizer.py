@@ -80,6 +80,7 @@ from aeon.synthesis.modules.symetric.synthesizer import (
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
+from aeon.synthesis.modules.afta.pbe import has_io_examples, synthesize_pbe
 
 
 class _Unevaluable(Exception):
@@ -197,6 +198,15 @@ class AFTASynthesizer(Synthesizer):
         deadline = start + budget
         rnd = random.Random(self.seed)
         ui.register(None, None, 0, True)
+
+        # Example-driven (PBE) mode: when the hole carries ``@example`` I/O pairs
+        # (and the entrypoint installed an in-process probe), synthesise a body
+        # consistent with every example by building the tree automaton over the
+        # example output vectors -- the original BLAZE/SYNGAR string/matrix
+        # construction. Pure-refinement holes fall through to the spec-guided
+        # path below.
+        if has_io_examples(metadata, fun_name):
+            return synthesize_pbe(self, ctx, type, fun_name, metadata, deadline, start, ui, validate)
 
         builders, atoms = self._collect(ctx)
         goal_key = base_key(type)

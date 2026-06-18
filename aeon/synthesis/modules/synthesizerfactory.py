@@ -50,7 +50,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return TacticRandomSynthesizer(seed=seed)
         case "lta":
             return LTASynthesizer()
-        case "symetric":
+        case "symetric" | "xfta":
             return SymetricSynthesizer()
         case "fta":
             return FTASynthesizer()

@@ -337,6 +337,21 @@ def example(
         current_data = metadata.get(fun.name, {}).get("training_data", [])
         metadata = metadata_update(metadata, fun, {"training_data": current_data + [point]})
 
+    # (2b) If the assertion is an I/O equality ``f(lits) == lit`` over scalar
+    # literals (int/string/bool, in any order), record the concrete input/output
+    # pair so example-driven (PBE) synthesizers -- e.g. ``afta`` over a string
+    # DSL -- can build a tree automaton consistent with all the examples. Unlike
+    # ``training_data`` (numeric only, for the decision tree) this keeps string
+    # I/O, which is what the BLAZE-style string/matrix benchmarks need.
+    io = _extract_io_example(assertion, fun.name)
+    if io is not None:
+        current_io = metadata.get(fun.name, {}).get("io_examples", [])
+        metadata = metadata_update(metadata, fun, {"io_examples": current_io + [io]})
+        # The positional value-parameter names, so the synthesizer can bind each
+        # example's inputs when it evaluates a candidate body.
+        if "io_params" not in metadata.get(fun.name, {}):
+            metadata = metadata_update(metadata, fun, {"io_params": [n for (n, _t) in fun.args]})
+
     # (3) A synthesis goal: minimize (if assertion then 0 else 1), so a
     # fitness-based synthesizer is rewarded for satisfying the example.
     goal_body = SIf(assertion, SLiteral(0, st_int), SLiteral(1, st_int))
@@ -538,6 +553,55 @@ def _extract_example_point(assertion: STerm, fun_name: Name) -> list[float] | No
         args = _call_arg_literals(call_side, fun_name)
         if args is not None:
             return args + [float(lit_side.value)]
+    return None
+
+
+def _scalar_literal(t: STerm):
+    """The Python value of a scalar ``SLiteral`` (int, float, str, bool), or
+    ``None`` if ``t`` is not such a literal. Bools are kept (unlike the numeric
+    training-data extractor) since PBE specs may have Bool outputs."""
+    if isinstance(t, SLiteral) and isinstance(t.value, (int, float, str, bool)):
+        return t.value
+    return None
+
+
+def _io_call_args(term: STerm, fun_name: Name):
+    """If ``term`` is a fully-applied call ``fun_name(lit1)...(litN)`` with scalar
+    literal arguments, return ``[v1, ..., vN]`` (left-to-right); else ``None``."""
+    args: list = []
+    current = term
+    while isinstance(current, SApplication):
+        v = _scalar_literal(current.arg)
+        if v is None:
+            return None
+        args.append(v)
+        current = current.fun
+    if not isinstance(current, SVar) or current.name.name != fun_name.name:
+        return None
+    args.reverse()
+    return args
+
+
+def _extract_io_example(assertion: STerm, fun_name: Name):
+    """Extract a concrete I/O pair from an ``@example`` of the shape
+    ``fun_name(lit1)...(litN) == out_lit`` (in either order), where the arguments
+    and the output are scalar literals (int/string/bool). Returns
+    ``(inputs, output)`` or ``None``. This is the structured PBE specification
+    consumed by example-driven synthesizers."""
+    if not (isinstance(assertion, SApplication) and isinstance(assertion.fun, SApplication)):
+        return None
+    op = assertion.fun.fun
+    if not isinstance(op, SVar) or op.name.name != "==":
+        return None
+    lhs = assertion.fun.arg
+    rhs = assertion.arg
+    for call_side, lit_side in ((lhs, rhs), (rhs, lhs)):
+        out = _scalar_literal(lit_side)
+        if out is None:
+            continue
+        args = _io_call_args(call_side, fun_name)
+        if args is not None:
+            return (args, out)
     return None
 
 
