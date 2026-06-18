@@ -111,3 +111,53 @@ def test_pbe_mutual_cosynthesis_terminates():
     assert d.has_synth()
     # Should return (solved or not) without hanging or raising.
     d.synth()
+
+
+# --- Instrumented semantics + unsat-core refinement (Contata Algorithm 2) ---
+
+
+def test_instrumented_trace_records_mutual_calls():
+    """Instrumented evaluation (Fig. 4) records every Rec-bound call, including
+    nested mutual calls, in post order."""
+    from aeon.backend.evaluator import eval_with_trace
+
+    src = """
+    mutual
+      def even (n: {x:Int | x >= 0}) : Bool decreasing_by [n] := if n = 0 then true else odd (n - 1);
+      def odd (n: {x:Int | x >= 0}) : Bool decreasing_by [n] := if n = 0 then false else even (n - 1);
+    end
+    def main (x: Int) : Int := if even 2 then 1 else 0;
+    """
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0, no_main=False)
+    d = AeonDriver(cfg)
+    assert d.parse(aeon_code=src, filename="<t>") == []
+    value, trace = eval_with_trace(d.core, d.evaluation_ctx)
+    assert value == 1  # even 2 == true
+    names = [(n.name, args, res) for (n, args, res) in trace]
+    # even(2) -> odd(1) -> even(0); recorded child-first (post order).
+    assert ("even", (0,), True) in names
+    assert ("odd", (1,), True) in names
+    assert ("even", (2,), True) in names
+    assert names[-1][0] == "even" and names[-1][1] == (2,)
+
+
+def test_backpropagate_blames_tail_callee():
+    """The unsat-core step blames the tail callee of a failing top-level call and
+    propagates the expected output to it."""
+    from aeon.synthesis.entrypoint import _backpropagate
+    from aeon.utils.name import Name
+
+    even, odd = Name("even", 6), Name("odd", 7)
+    # even(2) returned False via its tail call odd(1)=False, but we expected True.
+    trace = [(odd, (1,), False), (even, (2,), False)]
+    assert _backpropagate(trace, True) == [(odd, (1,), True)]
+
+
+def test_backpropagate_no_blame_when_correct():
+    """No obligation is derived when the call already matches the expectation."""
+    from aeon.synthesis.entrypoint import _backpropagate
+    from aeon.utils.name import Name
+
+    even, odd = Name("even", 6), Name("odd", 7)
+    trace = [(odd, (1,), True), (even, (2,), True)]
+    assert _backpropagate(trace, True) == []

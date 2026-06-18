@@ -15,7 +15,7 @@ from aeon.core.substitutions import substitution
 
 import dataclasses
 
-from aeon.core.terms import Let, Literal, Rec, Term, Var
+from aeon.core.terms import Application, Let, Literal, Rec, Term, Var
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
@@ -319,6 +319,47 @@ def _synthesize_one(
     return t
 
 
+def _value_literal(v: Any) -> Optional[Term]:
+    """Wrap a concrete scalar value back into a ``Literal`` term (for building a
+    call to probe in instrumented evaluation)."""
+    from aeon.core.types import t_bool, t_float, t_int, t_string
+
+    if isinstance(v, bool):
+        return Literal(v, t_bool)
+    if isinstance(v, int):
+        return Literal(v, t_int)
+    if isinstance(v, float):
+        return Literal(v, t_float)
+    if isinstance(v, str):
+        return Literal(v, t_string)
+    return None
+
+
+def _backpropagate(trace: list, expected: Any) -> list[tuple[Name, tuple, Any]]:
+    """Contata's unsat-core refinement (Algorithm 2, lines 14-16) over a concrete
+    call trace.
+
+    ``trace`` is the post-order list of ``(name, args, result)`` facts from
+    instrumented evaluation; its last entry is the top-level call whose expected
+    output is ``expected``. If that call's actual result disagrees with
+    ``expected``, blame its *tail callee* — the nested call whose result became
+    the parent's result — and propagate ``expected`` to it. That derived
+    ``(callee, args, expected)`` fact is the refinement: the callee must produce
+    ``expected`` on those args, which constrains its next-round search. Returns
+    ``[]`` when the call already agrees or no tail callee can be blamed (a
+    non-tail-position call would need output inversion, which we do not attempt).
+    """
+    if not trace:
+        return []
+    _f, _fargs, factual = trace[-1]
+    if factual == expected:
+        return []
+    for name, args, result in reversed(trace[:-1]):
+        if result == factual:
+            return [(name, args, expected)]
+    return []
+
+
 def _trivial_stub(ty: Type) -> Optional[Term]:
     """A constant value of ``ty``'s base carrier, used to stand in for a not-yet-
     synthesised sibling during co-synthesis so example evaluation never reaches a
@@ -393,6 +434,55 @@ def _joint_accepts(
     return all(r.passed for r in results)
 
 
+def _refine_obligations(
+    filled_core: Term,
+    members: list[tuple[Name, Name]],
+    ectx: EvaluationContext,
+    metadata: Metadata,
+) -> int:
+    """Contata's refinement phase (Algorithm 2, lines 11-16) for example specs.
+
+    Execute the current joint candidate (``filled_core``) on every member's I/O
+    examples under the instrumented semantics, blame the tail-callee of each
+    failing example, and add the propagated ``callee(args) = expected`` fact to
+    that callee's ``io_examples`` — the lazy refinement that constrains the
+    callee's next-round search on exactly the input implicated by the conflict.
+    Returns how many new obligations were added (0 ⇒ fixpoint / nothing to
+    learn). Only group members are refined."""
+    from aeon.backend.evaluator import eval_with_trace
+
+    member_names = {fun_name for fun_name, _ in members}
+    added = 0
+    for fun_name, _hole in members:
+        entry = metadata.get(fun_name, {})
+        examples = list(entry.get("io_examples", []))
+        for args, expected in examples:
+            call: Term = Var(fun_name)
+            ok = True
+            for v in args:
+                lit = _value_literal(v)
+                if lit is None:
+                    ok = False
+                    break
+                call = Application(call, lit)
+            if not ok:
+                continue
+            try:
+                _actual, trace = eval_with_trace(set_program_tail(filled_core, call), ectx)
+            except Exception:
+                continue
+            for callee, c_args, c_expected in _backpropagate(trace, expected):
+                if callee not in member_names:
+                    continue
+                callee_entry = metadata.setdefault(callee, {})
+                callee_examples = callee_entry.setdefault("io_examples", [])
+                obligation = (list(c_args), c_expected)
+                if obligation not in callee_examples:
+                    callee_examples.append(obligation)
+                    added += 1
+    return added
+
+
 def _cosynthesize_group(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -448,6 +538,14 @@ def _cosynthesize_group(
             chosen = {h: fills[h] for _, h in members}
             if all(c is not None for c in chosen.values()) and _joint_accepts(ctx, ectx, term, chosen, metadata):
                 return dict(fills)
+        # Refinement phase (Algorithm 2, lines 11-16): blame the failing examples'
+        # tail-callees and grow their per-function obligations, so the next round
+        # searches each member under the inputs implicated by the conflict.
+        filled = term
+        for h, cand in fills.items():
+            if cand is not None:
+                filled = substitution(filled, cand, h)
+        _refine_obligations(filled, members, ectx, metadata)
     # No jointly-valid assignment found: return only genuinely-synthesised members
     # (stubs are not solutions), so the caller leaves the rest as holes.
     return {h: (fills[h] if h in synthesised else None) for _, h in members}
