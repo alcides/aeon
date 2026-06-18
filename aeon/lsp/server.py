@@ -320,6 +320,7 @@ class AeonLanguageServer(LanguageServer):
             params: CodeActionParams,
         ) -> Optional[List[CodeAction]]:
             from . import aeon_adapter
+            from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
 
             uri = params.text_document.uri
             cursor_range = params.range
@@ -333,12 +334,14 @@ class AeonLanguageServer(LanguageServer):
                 if not ls._ranges_overlap(hole.range, cursor_range):
                     continue
                 for synthesizer in SYNTHESIZERS:
+                    label = synthesizer_label(synthesizer)
                     action = CodeAction(
-                        title=f"Synthesize ?{hole.name} with {synthesizer}",
+                        title=f"Synthesize ?{hole.name} with {label}",
                         kind=CodeActionKind.RefactorRewrite,
                         command=Command(
-                            title=f"Synthesize ?{hole.name} with {synthesizer}",
+                            title=f"Synthesize ?{hole.name} with {label}",
                             command=SYNTHESIZE_COMMAND,
+                            # The internal id is what make_synthesizer expects.
                             arguments=[uri, hole.name, synthesizer],
                         ),
                     )

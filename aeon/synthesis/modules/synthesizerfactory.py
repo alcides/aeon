@@ -16,6 +16,38 @@ from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
+# Human-readable names for the synthesizer backends, shown in tooling such as
+# the VS Code "Synthesize" refactor menu. Keys are the internal ``-s`` ids
+# accepted by :func:`make_synthesizer`.
+SYNTHESIZER_LABELS: dict[str, str] = {
+    "gp": "Genetic Programming",
+    "enumerative": "Enumerative Search",
+    "random_search": "Random Search",
+    "1p1": "(1+1) Evolutionary Strategy",
+    "hc": "Hill Climbing",
+    "synquid": "Synquid (type-directed)",
+    "llm": "LLM-based (Ollama)",
+    "decision_tree": "Decision Tree (from examples)",
+    "smt": "SMT-guided (z3)",
+    "sygus": "SyGuS (SMT)",
+    "tdsyn": "Type-directed Synthesis",
+    "tdsyn_enumerative": "Type-directed Synthesis (enumerative)",
+    "tdsyn_random": "Type-directed Synthesis (random)",
+    "tactics": "Tactic Search (Lean-style)",
+    "lta": "Liquid Tree Automata",
+    "symetric": "Metric Synthesis",
+    "fta": "Finite Tree Automata (FTA)",
+    "afta": "Abstraction-refinement FTA",
+    "cata": "Constraint-annotated Tree Automata",
+}
+
+
+def synthesizer_label(module: str) -> str:
+    """A readable display name for synthesizer id ``module`` (falls back to the
+    id itself for any backend without an explicit label)."""
+    return SYNTHESIZER_LABELS.get(module, module)
+
+
 def make_synthesizer(module: str) -> Synthesizer:
     # The random seed for stochastic backends is taken from the AEON_SEED
     # environment variable (default 0), so experiments can vary it across runs

@@ -259,13 +259,16 @@ def test_run_synthesis_unknown_synthesizer():
 
 def _build_code_actions(hole: HolePosition, uri: str) -> list[CodeAction]:
     """Mirrors the action-building loop inside the code_action handler."""
+    from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
+
     actions = []
     for synthesizer in SYNTHESIZERS:
+        label = synthesizer_label(synthesizer)
         action = CodeAction(
-            title=f"Synthesize ?{hole.name} with {synthesizer}",
+            title=f"Synthesize ?{hole.name} with {label}",
             kind=CodeActionKind.RefactorRewrite,
             command=Command(
-                title=f"Synthesize ?{hole.name} with {synthesizer}",
+                title=f"Synthesize ?{hole.name} with {label}",
                 command=SYNTHESIZE_COMMAND,
                 arguments=[uri, hole.name, synthesizer],
             ),
@@ -281,13 +284,16 @@ def test_code_action_creates_one_action_per_synthesizer():
     assert len(actions) == len(SYNTHESIZERS)
 
 
-def test_code_action_titles_contain_synthesizer_names():
+def test_code_action_titles_use_readable_labels():
+    from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
+
     hole = HolePosition(name="hole", range=make_range(0, 14, 0, 19))
     actions = _build_code_actions(hole, "file:///test.ae")
 
     titles = [a.title for a in actions]
     for synthesizer in SYNTHESIZERS:
-        assert any(synthesizer in t for t in titles)
+        # The menu shows the human-readable label, not the internal id.
+        assert any(synthesizer_label(synthesizer) in t for t in titles)
 
 
 def test_code_action_commands_have_correct_arguments():
