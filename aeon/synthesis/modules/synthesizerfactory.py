@@ -1,8 +1,9 @@
 import os
 
-from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.api import ProgramSynthesizer, Synthesizer
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
+from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm import LLMSynthesizer
@@ -38,6 +39,8 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "ng_cma": "Nevergrad grammatical-evolution (CMA-ES)",
     "ng_de": "Nevergrad grammatical-evolution (Differential Evolution)",
     "ng_pso": "Nevergrad grammatical-evolution (PSO)",
+    "ng_float": "Nevergrad joint Float-hole optimisation (NGOpt)",
+    "ng_float_cma": "Nevergrad joint Float-hole optimisation (CMA-ES)",
     "tactics": "Tactic Search (Lean-style)",
     "lta": "Liquid Tree Automata",
     "symetric": "Metric Synthesis",
@@ -53,7 +56,7 @@ def synthesizer_label(module: str) -> str:
     return SYNTHESIZER_LABELS.get(module, module)
 
 
-def make_synthesizer(module: str) -> Synthesizer:
+def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
     # The random seed for stochastic backends is taken from the AEON_SEED
     # environment variable (default 0), so experiments can vary it across runs
     # (e.g. multi-seed benchmarks) without a dedicated CLI flag.
@@ -77,6 +80,10 @@ def make_synthesizer(module: str) -> Synthesizer:
             return GenomicNGSynthesizer(optimizer="DE", seed=seed)
         case "ng_pso":
             return GenomicNGSynthesizer(optimizer="PSO", seed=seed)
+        case "ng_float" | "float_ng":
+            return FloatHoleNGSynthesizer(optimizer="NGOpt", seed=seed)
+        case "ng_float_cma":
+            return FloatHoleNGSynthesizer(optimizer="CMA", seed=seed)
         case "synquid":
             return SynquidSynthesizer()
         case "llm":

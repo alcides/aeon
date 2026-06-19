@@ -1,0 +1,7 @@
+# Nevergrad benchmark: Rosenbrock. f = 100*(y - x^2)^2 + (1 - x)^2,
+# global minimum 0 at (1, 1) — the classic curved valley.
+def x : Float := ?hx;
+def y : Float := ?hy;
+
+@minimize_float( (100.0 * ((y - (x * x)) * (y - (x * x)))) + ((1.0 - x) * (1.0 - x)) )
+def rosenbrock : Float := (100.0 * ((y - (x * x)) * (y - (x * x)))) + ((1.0 - x) * (1.0 - x));

@@ -1,0 +1,6 @@
+# Matyas function. f = 0.26*(x^2 + y^2) - 0.48*x*y, global minimum 0 at (0, 0).
+def x : Float := ?hx;
+def y : Float := ?hy;
+
+@minimize_float( (0.26 * ((x * x) + (y * y))) - (0.48 * (x * y)) )
+def matyas : Float := (0.26 * ((x * x) + (y * y))) - (0.48 * (x * y));

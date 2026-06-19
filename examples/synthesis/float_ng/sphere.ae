@@ -1,0 +1,7 @@
+# Nevergrad benchmark: Sphere. f(x) = sum x_i^2, global minimum 0 at the origin.
+def x0 : Float := ?h0;
+def x1 : Float := ?h1;
+def x2 : Float := ?h2;
+
+@minimize_float( (x0 * x0) + (x1 * x1) + (x2 * x2) )
+def sphere : Float := (x0 * x0) + (x1 * x1) + (x2 * x2);
