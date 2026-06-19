@@ -1,8 +1,9 @@
 from abc import ABC
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 from aeon.typechecking.context import TypingContext
 
+from aeon.backend.evaluator import EvaluationContext
 from aeon.core.types import Type
 from aeon.core.terms import Term
 from aeon.utils.name import Name
@@ -62,3 +63,26 @@ class Synthesizer(ABC):
         ui: SynthesisUI = SynthesisUI(),
         output_value: Callable[[Term], object] | None = None,
     ) -> Term: ...
+
+
+class ProgramSynthesizer(ABC):
+    """A synthesizer that fills *all* of a program's holes jointly.
+
+    The per-hole :class:`Synthesizer` interface sees one hole at a time, so it
+    cannot optimise holes that interact (e.g. several ``Float`` constants that
+    jointly minimise one objective). A ``ProgramSynthesizer`` instead receives
+    the whole program and the full list of hole targets and returns a mapping
+    from every hole name to its synthesised term. ``synthesize_holes``
+    dispatches to this entry point when the chosen synthesizer is one.
+    """
+
+    def synthesize_program(
+        self,
+        ctx: TypingContext,
+        ectx: EvaluationContext,
+        term: Term,
+        targets: list[tuple[Name, list[Name]]],
+        metadata: Metadata,
+        budget: float = 60,
+        ui: SynthesisUI = SynthesisUI(),
+    ) -> dict[Name, Optional[Term]]: ...

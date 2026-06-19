@@ -1,0 +1,10 @@
+# Nevergrad benchmark: Ackley (2D). Nearly flat outer region, deep central well; global minimum 0 at the origin.
+# Note: in Aeon `+`/`-` are right-associative, so `a - b + c` parses as `a - (b + c)`;
+# the (term1 - term2) group below is parenthesised explicitly to get a - b + c.
+import Math (cos, exp, sqrtf, absf, PI, E)
+
+def x : Float := ?hx;
+def y : Float := ?hy;
+
+@minimize_float( (((0.0 - 20.0) * exp ((0.0 - 0.2) * sqrtf (absf (0.5 * ((x * x) + (y * y)))))) - (exp (0.5 * ((cos ((2.0 * PI) * x)) + (cos ((2.0 * PI) * y)))))) + (20.0 + E) )
+def ackley : Float := (((0.0 - 20.0) * exp ((0.0 - 0.2) * sqrtf (absf (0.5 * ((x * x) + (y * y)))))) - (exp (0.5 * ((cos ((2.0 * PI) * x)) + (cos ((2.0 * PI) * y)))))) + (20.0 + E);

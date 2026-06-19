@@ -27,7 +27,13 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
-from aeon.synthesis.api import ErrorInSynthesis, InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.api import (
+    ErrorInSynthesis,
+    InvalidIndividualException,
+    ProgramSynthesizer,
+    Synthesizer,
+    TimeoutInEvaluationException,
+)
 from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool, set_program_tail
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
 
@@ -700,7 +706,7 @@ def synthesize_holes(
     term: Term,
     targets: list[tuple[Name, list[Name]]],
     metadata: Metadata,
-    synthesizer: Synthesizer,
+    synthesizer: Synthesizer | ProgramSynthesizer,
     budget: float = 60.0,
     ui: SynthesisUI = SynthesisUI(),
     budget_eval: Optional[float] = None,
@@ -710,6 +716,11 @@ def synthesize_holes(
     Independent functions are synthesised one at a time. Members of a Lean
     ``mutual ... end`` block are co-synthesised together (Contata's relational
     recursive synthesis), so a candidate for one member may call its siblings."""
+
+    # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
+    # hole at once rather than one function at a time.
+    if isinstance(synthesizer, ProgramSynthesizer):
+        return synthesizer.synthesize_program(ctx, ectx, term, targets, metadata, budget, ui)
 
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)

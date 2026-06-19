@@ -1,0 +1,6 @@
+# Booth function. f = (x + 2y - 7)^2 + (2x + y - 5)^2, global minimum 0 at (1, 3).
+def x : Float := ?hx;
+def y : Float := ?hy;
+
+@minimize_float( (((x + (2.0 * y)) - 7.0) * ((x + (2.0 * y)) - 7.0)) + ((((2.0 * x) + y) - 5.0) * (((2.0 * x) + y) - 5.0)) )
+def booth : Float := (((x + (2.0 * y)) - 7.0) * ((x + (2.0 * y)) - 7.0)) + ((((2.0 * x) + y) - 5.0) * (((2.0 * x) + y) - 5.0));
