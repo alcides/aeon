@@ -54,6 +54,22 @@ def : soft_constraint "def" def_name ":" type ":=" expression ";"?              
     | soft_constraint "def" def_name  args ":" type decreasing_by_opt ":=" expression ";"?     -> def_fun_eq
     | "axiom" def_name ":" type ";"?                                         -> axiom_decl
     | instance_decl                                                          -> same
+    | mutual_block                                                           -> same
+
+// Lean-style mutual recursion block. Groups several ``def``s that may
+// reference one another. Each contained definition is tagged with a shared
+// ``mutual_group_id`` so the rest of the pipeline can co-bind, co-typecheck
+// (with a shared well-founded termination metric) and co-evaluate them.
+//   mutual
+//     def even (n: Int) : Bool := if n = 0 then true else odd (n - 1)
+//     def odd  (n: Int) : Bool := if n = 0 then false else even (n - 1)
+//   end
+// Members are separated by layout as in Lean — the trailing ``;`` is optional,
+// like a top-level ``def``. Note this makes ``end`` a reserved keyword (it can
+// no longer be used as an identifier anywhere), matching Lean.
+mutual_block : "mutual" mutual_def+ "end"                                    -> mutual_block
+mutual_def : soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
+           | soft_constraint "def" def_name args ":" type decreasing_by_opt ":=" expression ";"?  -> def_fun_eq
 
 def_name : ID                                                -> same
          | QUALIFIED_ID                                      -> same

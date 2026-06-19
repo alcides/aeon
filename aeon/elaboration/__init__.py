@@ -233,7 +233,16 @@ def elaborate_foralls(e: STerm) -> STerm:
                         body=nv,
                     )
 
-                e1 = SRec(e.var_name, nt, nv, e.body, decreasing_by=e.decreasing_by, loc=loc)
+                e1 = SRec(
+                    e.var_name,
+                    nt,
+                    nv,
+                    e.body,
+                    decreasing_by=e.decreasing_by,
+                    loc=loc,
+                    mutual_group_id=e.mutual_group_id,
+                    companions=e.companions,
+                )
             return e1
         case _:
             assert False, f"Could not elaborate {e} ({type(e)})"
@@ -470,10 +479,20 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             return SLet(name, nval, nbody, multiplicity=t.multiplicity), nbody_type
         case SRec(name, vty, val, body, decreasing_by, loc=loc):
             nctx = ctx.with_var(name, vty)
-            nval = elaborate_check(nctx, val, vty)
+            nval = elaborate_check(_ctx_with_companions(nctx, t.companions), val, vty)
             (nbody, nbody_type) = elaborate_synth(nctx, body)
             return (
-                SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity),
+                SRec(
+                    name,
+                    vty,
+                    nval,
+                    nbody,
+                    decreasing_by=decreasing_by,
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                    mutual_group_id=t.mutual_group_id,
+                    companions=t.companions,
+                ),
                 nbody_type,
             )
         case SIf(cond, then, otherwise):
@@ -535,9 +554,19 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             return SLet(name, nval, nbody, loc=loc, multiplicity=t.multiplicity)
         case (SRec(name, vty, val, body, decreasing_by, loc=loc), _):
             nctx = ctx.with_var(name, vty)
-            nval = elaborate_check(nctx, val, vty)
+            nval = elaborate_check(_ctx_with_companions(nctx, t.companions), val, vty)
             nbody = elaborate_check(nctx, body, ty)
-            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity)
+            return SRec(
+                name,
+                vty,
+                nval,
+                nbody,
+                decreasing_by=decreasing_by,
+                loc=loc,
+                multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=t.companions,
+            )
         case (SIf(cond, then, otherwise, loc=loc), _):
             ncond = elaborate_check(ctx, cond, st_bool)
             nthen = elaborate_check(ctx, then, ty)
@@ -815,7 +844,7 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
             # binding's type into scope for its body, so method calls on the
             # constrained type variable resolve to the local dictionary
             # parameter (e.g. ``[_c : Eq a]`` of a constrained instance dict).
-            val_ctx = nctx
+            val_ctx = _ctx_with_companions(nctx, t.companions)
             for inst_name, inst_class in _collect_given_instances(t.var_type, val):
                 val_ctx = val_ctx.with_instance(inst_name, inst_class)
             return SRec(
@@ -826,6 +855,8 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                 decreasing_by=decreasing_by,
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=t.companions,
             )
 
         case SIf(cond, then, otherwise, loc=loc):
@@ -940,6 +971,16 @@ def _match_instance_type(pattern: SType, actual: SType, foralls: set[Name], subs
             return all(_match_instance_type(p, a, foralls, subst) for p, a in zip(pargs, actual.args))
         case _:
             return False
+
+
+def _ctx_with_companions(
+    ctx: ElaborationTypingContext, companions: tuple[tuple[Name, SType], ...]
+) -> ElaborationTypingContext:
+    """Bring the signatures of the other members of a ``mutual`` group into scope
+    so a member's value can reference its siblings during elaboration."""
+    for cname, ctype in companions:
+        ctx = ctx.with_var(cname, ctype)
+    return ctx
 
 
 def _collect_given_instances(var_type: SType, var_value: STerm) -> list[tuple[Name, SType]]:
@@ -1058,12 +1099,22 @@ def _elaborate_check_spine(ctx: ElaborationTypingContext, t: STerm, ty: SType, e
         case SRec(name, vty, val, body, decreasing_by, loc=loc):
             nctx = ctx.with_var(name, vty)
             try:
-                nval = elaborate_check(nctx, val, vty)
+                nval = elaborate_check(_ctx_with_companions(nctx, t.companions), val, vty)
             except AeonError as e:
                 errors.append(e)
                 nval = val
             nbody = _elaborate_check_spine(nctx, body, ty, errors)
-            return SRec(name, vty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity)
+            return SRec(
+                name,
+                vty,
+                nval,
+                nbody,
+                decreasing_by=decreasing_by,
+                loc=loc,
+                multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=t.companions,
+            )
         case _:
             try:
                 return elaborate_check(ctx, t, ty)
@@ -1085,7 +1136,7 @@ def _remove_unification_spine(ctx: ElaborationTypingContext, t: STerm, errors: l
             nctx = ctx.with_var(t.var_name, t.var_type)
             try:
                 nty = handle_unification_in_type(ctx, ty)
-                val_ctx = nctx
+                val_ctx = _ctx_with_companions(nctx, t.companions)
                 for inst_name, inst_class in _collect_given_instances(t.var_type, val):
                     val_ctx = val_ctx.with_instance(inst_name, inst_class)
                 nval = elaborate_remove_unification(val_ctx, val)
@@ -1094,7 +1145,17 @@ def _remove_unification_spine(ctx: ElaborationTypingContext, t: STerm, errors: l
                 nty = ty
                 nval = val
             nbody = _remove_unification_spine(nctx, body, errors)
-            return SRec(name, nty, nval, nbody, decreasing_by=decreasing_by, loc=loc, multiplicity=t.multiplicity)
+            return SRec(
+                name,
+                nty,
+                nval,
+                nbody,
+                decreasing_by=decreasing_by,
+                loc=loc,
+                multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=t.companions,
+            )
         case _:
             try:
                 return elaborate_remove_unification(ctx, t)

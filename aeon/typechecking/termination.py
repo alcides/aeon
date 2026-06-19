@@ -328,6 +328,31 @@ def _liquefy_metric_at(
     return align_liquid_to_type_formals(liq, formals, type_formals)
 
 
+def _liquefy_callee_metric_at(
+    callee_metric: Term,
+    callee_formals: list[Name],
+    call_args: list[Term],
+    caller_formals: list[Name],
+    caller_type_formals: list[Name],
+) -> LiquidTerm | None:
+    """The callee's metric evaluated at a call's arguments, expressed over the
+    *caller's* type formals.
+
+    ``call_args`` are written in terms of the caller's value parameters, so after
+    substituting them for the callee's formals the residual free variables are the
+    caller's value formals — align those to the caller's type formals (the names
+    the surrounding implication binds in the SMT context). For a self-call,
+    ``callee_*`` and ``caller_*`` coincide and this matches the single-function
+    behaviour."""
+    t = inline_lets(callee_metric)
+    t = substitute_formals(t, callee_formals, [inline_lets(a) for a in call_args])
+    t = inline_lets(t)
+    liq = liquefy(t)
+    if liq is None:
+        return None
+    return align_liquid_to_type_formals(liq, caller_formals, caller_type_formals)
+
+
 def _fold_or(terms: list[LiquidTerm]) -> LiquidTerm:
     acc = terms[0]
     for t in terms[1:]:
@@ -358,10 +383,16 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
     With ``typing_ctx`` (the context used to check ``rec.var_value``), also accumulate
     refinements from **nested** abstractions—typically pattern binders after ``match`` lowers
     to an eliminator—so constructor argument refinements guard termination obligations.
+
+    For a member of a ``mutual`` group, calls to *siblings* are recursive too: the
+    obligation for a call ``g a`` is ``g_metric(a) <* f_metric(entry)`` (and
+    ``g_metric(a) >= 0``), using the *callee's* metric at the call arguments and
+    the *caller's* metric at entry. This makes the whole group descend a single
+    well-founded lexicographic measure, so no infinite call chain exists.
     """
     if not rec.decreasing_by:
         return ctrue
-    metrics = list(rec.decreasing_by)
+    caller_metrics = list(rec.decreasing_by)
     formals, inner = peel_abstractions(rec.var_value)
     type_formals = peel_type_formal_names(rec.var_type)
     if len(type_formals) != len(formals):
@@ -370,38 +401,58 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
     # Let-bindings are NOT inlined away here: the walk substitutes them into
     # recorded call arguments and path guards itself, and additionally turns
     # each binder's refinement into a path-scoped hypothesis (issue #378).
-    arity = len(formals)
     inner_ctx: TypingContext | None = None
     inner_expect: Type | None = None
     if typing_ctx is not None:
         inner_ctx, inner_expect = _inner_ctx_and_expect_ty(typing_ctx, rec.var_type, formals)
-    calls = collect_recursive_calls_with_paths(
-        rec.var_name, arity, inner, inner_ctx, inner_expect, formals, type_formals
-    )
-    if not calls:
-        return ctrue
+
+    # Caller's entry measure (evaluated at its own parameters).
+    caller_entry_ms: list[LiquidTerm] = []
+    for metric in caller_metrics:
+        m_entry = _liquefy_metric_at(metric, formals, type_formals, None)
+        if m_entry is None:
+            return LiquidConstraint(LiquidLiteralBool(False))
+        caller_entry_ms.append(m_entry)
+
+    # Targets whose calls must decrease the caller's measure: the function itself
+    # plus each mutual-group sibling, each with its own metric/formals.
+    targets: list[tuple[Name, list[Term], list[Name], list[Name]]] = [
+        (rec.var_name, caller_metrics, formals, type_formals)
+    ]
+    for comp in rec.companions:
+        comp_type_formals = peel_type_formal_names(comp.type)
+        targets.append((comp.name, list(comp.decreasing_by), list(comp.formals), comp_type_formals))
 
     parts: list[Constraint] = []
-    for call_args, _loc, path, nested_refs in calls:
-        if len(call_args) != arity:
-            parts.append(LiquidConstraint(LiquidLiteralBool(False)))
+    for tname, tmetrics, tformals, ttype_formals in targets:
+        tarity = len(tformals)
+        # A sibling without a metric (or with a differing measure length) cannot
+        # be shown to descend the shared lexicographic order.
+        if not tmetrics or len(tmetrics) != len(caller_metrics) or len(ttype_formals) != tarity:
+            calls = collect_recursive_calls_with_paths(
+                tname, tarity, inner, inner_ctx, inner_expect, formals, type_formals
+            )
+            if calls:
+                parts.append(LiquidConstraint(LiquidLiteralBool(False)))
             continue
-        entry_ms: list[LiquidTerm] = []
-        call_ms: list[LiquidTerm] = []
-        bad = False
-        for metric in metrics:
-            m_entry = _liquefy_metric_at(metric, formals, type_formals, None)
-            m_call = _liquefy_metric_at(metric, formals, type_formals, call_args)
-            if m_entry is None or m_call is None:
-                bad = True
-                break
-            entry_ms.append(m_entry)
-            call_ms.append(m_call)
-        if bad:
-            parts.append(LiquidConstraint(LiquidLiteralBool(False)))
-            continue
-        lex = _lexicographic_less(call_ms, entry_ms)
-        parts.append(_termination_obligation(path, lex, call_ms, formals, type_formals, entry_refs, nested_refs))
+        calls = collect_recursive_calls_with_paths(tname, tarity, inner, inner_ctx, inner_expect, formals, type_formals)
+        for call_args, _loc, path, nested_refs in calls:
+            if len(call_args) != tarity:
+                parts.append(LiquidConstraint(LiquidLiteralBool(False)))
+                continue
+            call_ms: list[LiquidTerm] = []
+            bad = False
+            for metric in tmetrics:
+                m_call = _liquefy_callee_metric_at(metric, tformals, call_args, formals, type_formals)
+                if m_call is None:
+                    bad = True
+                    break
+                call_ms.append(m_call)
+            if bad:
+                parts.append(LiquidConstraint(LiquidLiteralBool(False)))
+                continue
+            lex = _lexicographic_less(call_ms, caller_entry_ms)
+            parts.append(_termination_obligation(path, lex, call_ms, formals, type_formals, entry_refs, nested_refs))
 
     if not parts:
         return ctrue

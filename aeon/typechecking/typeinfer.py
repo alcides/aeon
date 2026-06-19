@@ -658,6 +658,12 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             return r
         case Rec(var_name, var_type, var_value, body):
             has_metric = bool(t.decreasing_by)
+            # For a ``mutual`` group the inductive hypothesis (assuming the
+            # declared, refined types of self *and* siblings while checking the
+            # value) is only sound when the *whole* group is well-founded — every
+            # member must carry a termination metric, since one member's
+            # termination depends on its callees terminating too.
+            group_has_metric = has_metric and all(bool(c.decreasing_by) for c in t.companions)
             # The recursive occurrence may assume the declared (refined) return
             # type as an inductive hypothesis only when a well-founded
             # termination metric justifies the induction. Without one, weaken
@@ -666,10 +672,20 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # recursion_soundness_test.py). Non-recursive bindings are
             # unaffected: their body never references var_name, so the weaker
             # context binding is never consulted.
-            rec_var_type = var_type if has_metric else _erase_return_refinement(var_type)
+            rec_var_type = var_type if group_has_metric else _erase_return_refinement(var_type)
             rec_ctx: TypingContext = ctx.with_var(var_name, rec_var_type)
+            # Bring mutually-recursive siblings into scope for the value, under
+            # the same soundness gating.
+            for comp in t.companions:
+                comp_type = comp.type if group_has_metric else _erase_return_refinement(comp.type)
+                rec_ctx = rec_ctx.with_var(comp.name, comp_type)
             c1 = check(rec_ctx, var_value, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
+            # Termination obligations (including cross-function calls within the
+            # group) are synthesised under a context that knows the siblings.
+            term_ctx: TypingContext = nrctx
+            for comp in t.companions:
+                term_ctx = term_ctx.with_var(comp.name, comp.type)
             (c2, t2) = synth(nrctx, body)
             reflected_impl = _reflected_impl_for(
                 var_name,
@@ -679,8 +695,21 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             )
             c1 = implication_constraint(var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl)
             c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
-            term_c = termination_metric_constraints(t, nrctx)
+            term_c = termination_metric_constraints(t, term_ctx)
             term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl)
+            # Declare mutually-recursive siblings so calls to them inside this
+            # member's value (e.g. selfified applications ``v == odd (n - 1)``)
+            # translate. When the whole group is well-founded and a sibling's
+            # body reflects (it doesn't itself call another sibling), reflect its
+            # definition so relational refinements like ``{r | g r = x}`` can use
+            # it; otherwise declare it uninterpreted.
+            for comp in t.companions:
+                comp_reflected = (
+                    _reflected_impl_for(comp.name, comp.type, comp.value, has_termination_metric=group_has_metric)
+                    if (group_has_metric and comp.value is not None)
+                    else None
+                )
+                c1 = implication_constraint(comp.name, comp.type, c1, var_value.loc, reflected_impl=comp_reflected)
             # Form B introduction: if the body's type still mentions `var_name`,
             # wrap it in an existential so the scope leak is preserved as a
             # binder when the type flows outward.
@@ -849,6 +878,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             return Conjunction(c1, inner)
         case Rec(var_name, var_type, var_value, body), _:
             has_metric = bool(t.decreasing_by)
+            # See the ``synth`` Rec arm: a ``mutual`` group's inductive hypothesis
+            # is only sound when every member carries a termination metric.
+            group_has_metric = has_metric and all(bool(c.decreasing_by) for c in t.companions)
             t1 = fresh(ctx, var_type)
             # The recursive occurrence may assume the declared (refined) return
             # type as an inductive hypothesis only when a well-founded
@@ -857,10 +889,18 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             # definition cannot "prove" an absurd refinement (see
             # recursion_soundness_test.py). Non-recursive bindings are
             # unaffected: their body never references var_name.
-            rec_t1 = t1 if has_metric else _erase_return_refinement(t1)
+            rec_t1 = t1 if group_has_metric else _erase_return_refinement(t1)
             rec_ctx: TypingContext = ctx.with_var(var_name, rec_t1)
+            # Bring mutually-recursive siblings into scope for the value.
+            comp_types: list[tuple[Name, Type]] = [(c.name, fresh(ctx, c.type)) for c in t.companions]
+            for cname, ctype in comp_types:
+                rec_ctx = rec_ctx.with_var(cname, ctype if group_has_metric else _erase_return_refinement(ctype))
             c1 = check(rec_ctx, var_value, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
+            # Termination obligations (incl. cross-function calls) need siblings.
+            term_ctx: TypingContext = nrctx
+            for cname, ctype in comp_types:
+                term_ctx = term_ctx.with_var(cname, ctype)
             c2 = check(nrctx, body, ty)
             reflected_impl = _reflected_impl_for(
                 var_name,
@@ -870,8 +910,20 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             )
             c1 = implication_constraint(var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl)
             c2 = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
-            term_c = termination_metric_constraints(t, nrctx)
+            term_c = termination_metric_constraints(t, term_ctx)
             term_c = implication_constraint(var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl)
+            # Declare mutually-recursive siblings so calls to them inside this
+            # member's value translate (selfified applications such as
+            # ``v == odd (n - 1)``). Reflect a sibling's definition when the group
+            # is well-founded and its body reflects, so relational refinements
+            # like ``{r | g r = x}`` can use it; otherwise declare it uninterpreted.
+            for comp, (cname, ctype) in zip(t.companions, comp_types, strict=True):
+                comp_reflected = (
+                    _reflected_impl_for(cname, ctype, comp.value, has_termination_metric=group_has_metric)
+                    if (group_has_metric and comp.value is not None)
+                    else None
+                )
+                c1 = implication_constraint(cname, ctype, c1, var_value.loc, reflected_impl=comp_reflected)
             return Conjunction(Conjunction(c1, c2), term_c)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())

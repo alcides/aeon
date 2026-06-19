@@ -24,12 +24,18 @@ class EvaluationContext:
     variables: dict[Name, Any]
     metadata: Metadata | None
     pipeline: LLVMPipeline | None
+    # Optional call-trace sink (instrumented semantics, Fig. 4 of the Contata
+    # paper). When non-None, every ``Rec``-bound function call records a
+    # ``(name, args, result)`` fact here, so a synthesized candidate's behaviour
+    # can be observed and blamed. ``None`` (the default) means zero overhead.
+    trace: list | None
 
     def __init__(
         self,
         prev: dict[Name, Any] | None = None,
         metadata: Metadata | None = None,
         pipeline: LLVMPipeline | None = None,
+        trace: list | None = None,
     ):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
@@ -37,12 +43,13 @@ class EvaluationContext:
             self.variables = {}
         self.metadata = metadata
         self.pipeline = pipeline
+        self.trace = trace
 
     def with_var(self, name: Name, value: Any):
         assert isinstance(name, Name)
         v = self.variables.copy()
         v.update({name: value})
-        return EvaluationContext(v, metadata=self.metadata, pipeline=self.pipeline)
+        return EvaluationContext(v, metadata=self.metadata, pipeline=self.pipeline, trace=self.trace)
 
     def get(self, name: Name):
         return self.variables[name]
@@ -98,6 +105,41 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             # Phase 4 — same erasure for ``Rec``. ``var_value`` may be a
             # recursive lambda that's only meaningful at type level.
             return eval(body, ctx.with_var(var_name, None))
+        case Rec(_, _, _, _, _, _) if t.mutual_group_id is not None:
+            # Mutually-recursive group: collect the contiguous run of members
+            # sharing this group id, then tie all their knots over a single
+            # shared context so each member's body can call any sibling.
+            gid = t.mutual_group_id
+            members: list[Rec] = []
+            cur: Term = t
+            while isinstance(cur, Rec) and cur.mutual_group_id == gid:
+                members.append(cur)
+                cur = cur.body
+            final_body = cur
+
+            group_ctx = EvaluationContext(ctx.variables, metadata=ctx.metadata, pipeline=ctx.pipeline, trace=ctx.trace)
+            for m in members:
+                inner_value = m.var_value
+                while isinstance(inner_value, (TypeAbstraction, RefinementAbstraction)):
+                    inner_value = inner_value.body
+                if isinstance(inner_value, Abstraction):
+
+                    def make_closure(fun: Abstraction, fname: Name):
+                        def v(x):
+                            result = eval(fun.body, group_ctx.with_var(fun.var_name, x))
+                            if group_ctx.trace is not None and not callable(result):
+                                group_ctx.trace.append((fname, (x,), result))
+                            return result
+
+                        return v
+
+                    group_ctx.variables[m.var_name] = make_closure(inner_value, m.var_name)
+                else:
+                    # Non-lambda mutual binding: evaluate in the shared context
+                    # (closures resolve siblings lazily) and patch the cell.
+                    group_ctx.variables[m.var_name] = None
+                    group_ctx.variables[m.var_name] = eval(m.var_value, group_ctx)
+            return eval(final_body, group_ctx)
         case Rec(var_name, _, var_value, body, _, _):
             found_llvm = False
             if ctx.pipeline and ctx.metadata:
@@ -169,3 +211,14 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             return eval(body, ctx)
         case _:
             assert False, f"Unknown case {t}"
+
+
+def eval_with_trace(t: Term, ctx: EvaluationContext = EvaluationContext()) -> tuple[Any, list]:
+    """Instrumented evaluation (Contata, Fig. 4): evaluate ``t`` and return
+    ``(value, trace)`` where ``trace`` is the list of ``(name, args, result)``
+    facts for every ``Rec``-bound function call made during evaluation. Used by
+    co-synthesis to observe a candidate's behaviour and blame failing inputs."""
+    sink: list = []
+    traced = EvaluationContext(ctx.variables, metadata=ctx.metadata, pipeline=ctx.pipeline, trace=sink)
+    value = eval(t, traced)
+    return value, sink

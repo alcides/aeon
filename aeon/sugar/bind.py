@@ -205,6 +205,7 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
         case SRec(name, ty, body, cont, decreasing_by, loc=loc):
             name, subs = check_name(name, subs)
             nd = tuple(bind_sterm(m, subs) for m in decreasing_by)
+            ncomp = tuple((apply_subs_name(subs, cn), bind_stype(ct, subs)) for (cn, ct) in t.companions)
             return SRec(
                 name,
                 bind_stype(ty, subs),
@@ -213,15 +214,23 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
                 decreasing_by=nd,
                 loc=loc,
                 multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=ncomp,
             )
         case _:
             assert False, f"Unique not supported for {t} ({type(t)})"
 
 
 def _bind_definition(
-    df: Definition, nsubs: RenamingSubstitions, subs: RenamingSubstitions
+    df: Definition, nsubs: RenamingSubstitions, subs: RenamingSubstitions, prebound_name: Name | None = None
 ) -> tuple[Definition, RenamingSubstitions]:
-    name, nsubs = check_name(df.name, nsubs)
+    # ``prebound_name`` is supplied for members of a ``mutual`` group, whose names
+    # are all registered up front (so cross-references resolve) — re-checking here
+    # would mint a second, divergent id.
+    if prebound_name is not None:
+        name = prebound_name
+    else:
+        name, nsubs = check_name(df.name, nsubs)
     foralls = []
     for fname, kind in df.foralls:
         nname, nsubs = check_name(fname, nsubs)
@@ -257,6 +266,7 @@ def _bind_definition(
         rforalls,
         decreasing_by=decreasing,
         loc=df.loc,
+        mutual_group_id=df.mutual_group_id,
         arg_multiplicities=df.arg_multiplicities,
         instance_flags=df.instance_flags,
     ), nsubs
@@ -308,9 +318,31 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             measures.append(bound_meas)
         inductive_decls.append(InductiveDecl(name, iargs, drfs, constructors, measures, loc=ind.loc))
 
-    for df in p.definitions:
-        bound_df, nsubs = _bind_definition(df, nsubs, subs)
-        definitions.append(bound_df)
+    # Bind definitions, but pre-register the names of each ``mutual`` group so
+    # that a member's body can reference siblings declared later in the block and
+    # still resolve to the same id (forward references within the group).
+    i = 0
+    defs = p.definitions
+    while i < len(defs):
+        df = defs[i]
+        gid = df.mutual_group_id
+        if gid is None:
+            bound_df, nsubs = _bind_definition(df, nsubs, subs)
+            definitions.append(bound_df)
+            i += 1
+            continue
+        # Collect the contiguous run of members sharing this group id.
+        group = []
+        while i < len(defs) and defs[i].mutual_group_id == gid:
+            group.append(defs[i])
+            i += 1
+        prebound: list[Name] = []
+        for member in group:
+            nname, nsubs = check_name(member.name, nsubs)
+            prebound.append(nname)
+        for member, nname in zip(group, prebound, strict=True):
+            bound_df, nsubs = _bind_definition(member, nsubs, subs, prebound_name=nname)
+            definitions.append(bound_df)
 
     return Program(p.imports, type_decls, inductive_decls, definitions)
 

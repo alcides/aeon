@@ -228,6 +228,11 @@ class SRec(STerm):
     decreasing_by: tuple[STerm, ...] = field(default_factory=tuple)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
     multiplicity: Multiplicity = MOmega
+    # Mutual recursion: the shared group id (``None`` when not mutual) and the
+    # signatures of the *other* group members, brought into scope while
+    # elaborating/typechecking this binding's value so cross-references resolve.
+    mutual_group_id: int | None = None
+    companions: tuple[tuple[Name, SType], ...] = field(default_factory=tuple)
 
     def __repr__(self):
         return str(self)
@@ -251,6 +256,7 @@ class SRec(STerm):
             and self.body == other.body
             and self.decreasing_by == other.decreasing_by
             and self.multiplicity is other.multiplicity
+            and self.mutual_group_id == other.mutual_group_id
         )
 
 
@@ -496,6 +502,10 @@ class Definition(Node):
     rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     decreasing_by: list[STerm] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    # When this definition belongs to a Lean-style ``mutual ... end`` block, all
+    # members of that block share the same integer id (``None`` otherwise). Used
+    # to co-bind, co-typecheck and co-evaluate the group.
+    mutual_group_id: int | None = None
     # Parallel to ``args``: the QTT multiplicity declared for each parameter.
     # Empty tuple ⇔ all parameters default to ``MOmega`` (the value used by
     # callers that don't track multiplicities yet).

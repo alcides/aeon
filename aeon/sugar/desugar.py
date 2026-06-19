@@ -598,6 +598,12 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
 
+    # Snapshot ``mutual`` group membership by (stable, already-bound) name before
+    # the Definition-rewriting passes below, which do not preserve the field.
+    mutual_group_by_name: dict[Name, int] = {
+        d.name: d.mutual_group_id for d in p.definitions if d.mutual_group_id is not None
+    }
+
     # Pull class/instance declarations from imported modules into the main
     # program so they are expanded by the single ``expand_typeclasses`` pass
     # below. Typeclass methods resolve by type through the global instance
@@ -707,6 +713,17 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     defs = introduce_rforall_in_types(defs)
 
     defs, metadata = collect_core_decorator_queue(defs, metadata)
+
+    # The many Definition-rewriting passes above don't preserve ``mutual_group_id``;
+    # reattach it by name (names are stable after binding) so the SRec chain builder
+    # can recover each ``mutual`` group.
+    if mutual_group_by_name:
+        defs = [
+            d
+            if d.mutual_group_id is not None or d.name not in mutual_group_by_name
+            else replace(d, mutual_group_id=mutual_group_by_name[d.name])
+            for d in defs
+        ]
 
     etctx = build_typing_context(vs, type_decls, constructor_to_type, constructor_defs)
     etctx, prog = update_program_and_context(prog, defs, etctx)
@@ -827,6 +844,8 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                     decreasing_by=nd,
                     loc=loc,
                     multiplicity=t.multiplicity,
+                    mutual_group_id=t.mutual_group_id,
+                    companions=t.companions,
                 )
             case SIf(cond, then, otherwise, loc=loc):
                 return SIf(lower_term(cond), lower_term(then), lower_term(otherwise), loc=loc)
@@ -1911,12 +1930,22 @@ def update_program_and_context(
     defs: list[Definition],
     ctx: ElaborationTypingContext,
 ) -> tuple[ElaborationTypingContext, STerm]:
+    # Pre-compute the signature of every member of each mutual group so each
+    # member's SRec can carry its siblings' (name, type) as companions.
+    group_members: dict[int, list[tuple[Name, SType]]] = {}
+    for d in defs:
+        if d.mutual_group_id is not None:
+            group_members.setdefault(d.mutual_group_id, []).append((d.name, type_of_definition(d)))
+
     for d in defs[::-1]:
         match d.body:
             case SVar(Name("uninterpreted", _)):
                 ctx.entries.append(ElabUninterpretedBinder(d.name, type_of_definition(d)))
             case _:
-                prog = convert_definition_to_srec(prog, d)
+                companions: tuple[tuple[Name, SType], ...] = ()
+                if d.mutual_group_id is not None:
+                    companions = tuple((n, t) for (n, t) in group_members[d.mutual_group_id] if n != d.name)
+                prog = convert_definition_to_srec(prog, d, companions=companions)
     return ctx, prog
 
 
@@ -1965,7 +1994,7 @@ def type_of_definition(d: Definition) -> SType:
             assert False, f"{d} is not a definition"
 
 
-def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
+def convert_definition_to_srec(prog: STerm, d: Definition, companions: tuple[tuple[Name, SType], ...] = ()) -> STerm:
     d = definition_with_inferred_decreasing(d)
     match d:
         case Definition(dname, foralls, args, rtype, body, _, rforalls, decreasing_by, loc):
@@ -1985,7 +2014,16 @@ def convert_definition_to_srec(prog: STerm, d: Definition) -> STerm:
             for name, kind in reversed(foralls):
                 ntype = STypePolymorphism(name, kind, ntype, loc=loc)
                 nbody = STypeAbstraction(name, kind, nbody, loc=loc)
-            return SRec(dname, ntype, nbody, prog, decreasing_by=tuple(decreasing_by), loc=loc)
+            return SRec(
+                dname,
+                ntype,
+                nbody,
+                prog,
+                decreasing_by=tuple(decreasing_by),
+                loc=loc,
+                mutual_group_id=d.mutual_group_id,
+                companions=companions,
+            )
         case _:
             assert False, f"{d} is not a definition"
 
