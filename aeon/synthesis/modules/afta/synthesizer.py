@@ -356,6 +356,8 @@ class AFTASynthesizer(Synthesizer):
                         break
                     add_bank(comp.ret_key, self._combos(comp, snapshot, deadline, rnd))
             solution = cegar_pass()
+            # created = candidate terms banked; assessed = candidates validated.
+            ui.progress(sum(len(v) for v in bank.values()), len(tried), time.time() - start)
 
         if solution is not None:
             ui.register(solution, [0.0], time.time() - start, True)

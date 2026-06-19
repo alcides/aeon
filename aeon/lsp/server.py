@@ -458,7 +458,7 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
     from . import aeon_adapter
     from aeon.synthesis.entrypoint import synthesize_holes
     from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
-    from aeon.synthesis.uis.api import SilentSynthesisUI
+    from aeon.lsp.synthesis_ui import LSPProgressUI
     from aeon.sugar.lifting import lift
     from aeon.utils.pprint import pretty_print_sterm
 
@@ -502,7 +502,7 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
         )
         return None
 
-    ui = SilentSynthesisUI()
+    ui = LSPProgressUI(ls, synthesizer_name, hole_name_str)
     try:
         mapping = synthesize_holes(
             driver.typing_ctx,

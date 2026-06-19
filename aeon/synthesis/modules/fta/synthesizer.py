@@ -460,6 +460,9 @@ class FTASynthesizer(Synthesizer):
                     new_terms = self._combos(comp, snapshot, deadline, rnd)
                     transitions += len(new_terms)
                     add_bank(comp.ret_key, new_terms)
+            # Report counts after each round: transitions are the candidates
+            # generated; the validated goal states are those assessed.
+            ui.progress(transitions, len(validated), time.time() - start)
 
         states = len(rep)
         if best is not None:
