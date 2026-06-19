@@ -2,6 +2,7 @@ import os
 
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm import LLMSynthesizer
@@ -33,6 +34,10 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tdsyn": "Type-directed Synthesis",
     "tdsyn_enumerative": "Type-directed Synthesis (enumerative)",
     "tdsyn_random": "Type-directed Synthesis (random)",
+    "ng": "Nevergrad grammatical-evolution (NGOpt)",
+    "ng_cma": "Nevergrad grammatical-evolution (CMA-ES)",
+    "ng_de": "Nevergrad grammatical-evolution (Differential Evolution)",
+    "ng_pso": "Nevergrad grammatical-evolution (PSO)",
     "tactics": "Tactic Search (Lean-style)",
     "lta": "Liquid Tree Automata",
     "symetric": "Metric Synthesis",
@@ -64,6 +69,14 @@ def make_synthesizer(module: str) -> Synthesizer:
             return GESynthesizer(seed=seed, method="one_plus_one")
         case "hc":
             return GESynthesizer(seed=seed, method="hill_climbing")
+        case "genomic_ng" | "ng":
+            return GenomicNGSynthesizer(optimizer="NGOpt", seed=seed)
+        case "ng_cma":
+            return GenomicNGSynthesizer(optimizer="CMA", seed=seed)
+        case "ng_de":
+            return GenomicNGSynthesizer(optimizer="DE", seed=seed)
+        case "ng_pso":
+            return GenomicNGSynthesizer(optimizer="PSO", seed=seed)
         case "synquid":
             return SynquidSynthesizer()
         case "llm":
