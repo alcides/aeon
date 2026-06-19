@@ -144,7 +144,17 @@ class LSPProgressUI(SynthesisUI):
             "done": done,
         }
         try:
-            self._ls.send_notification(PROGRESS_NOTIFICATION, params)
+            self._notify(PROGRESS_NOTIFICATION, params)
         except Exception:
             # Never let progress reporting break synthesis.
             pass
+
+    def _notify(self, method: str, params: Any) -> None:
+        """Send a custom notification to the client. pygls 2.x exposes this as
+        ``ls.protocol.notify``; older/test doubles may expose ``send_notification``
+        directly, so fall back to it."""
+        proto = getattr(self._ls, "protocol", None)
+        if proto is not None and hasattr(proto, "notify"):
+            proto.notify(method, params)
+        else:
+            self._ls.send_notification(method, params)

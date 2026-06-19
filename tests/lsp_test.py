@@ -37,12 +37,28 @@ class MockWorkspace:
         return MockDocument(self._source)
 
 
+class MockProtocol:
+    """Stand-in for pygls' LanguageServerProtocol: custom notifications are
+    sent via ``protocol.notify(method, params)`` (NOT ``ls.send_notification``,
+    which does not exist on the real server)."""
+
+    def __init__(self) -> None:
+        self.notifications: list[tuple[str, object]] = []
+
+    def notify(self, method: str, params: object = None) -> None:
+        self.notifications.append((method, params))
+
+
 class MockLS:
-    """Minimal stand-in for AeonLanguageServer used by _run_synthesis."""
+    """Minimal stand-in for AeonLanguageServer used by _run_synthesis.
+
+    Mirrors the real pygls API surface that the synthesis code relies on: a
+    ``protocol.notify`` for custom notifications and ``window_show_message``."""
 
     def __init__(self, source: str):
         self.workspace = MockWorkspace(source)
         self.messages: list[tuple[str, MessageType]] = []
+        self.protocol = MockProtocol()
 
     def window_show_message(self, params: ShowMessageParams) -> None:
         self.messages.append((params.message, params.type))
@@ -217,6 +233,16 @@ def test_run_synthesis_basic_int():
     assert len(synthesized_str) > 0
     assert hole_range.start.line == 0
     assert hole_range.start.character == source.index("?")
+    # Live progress must reach the client via protocol.notify (regression: the
+    # info view showed no progress because the UI called a nonexistent
+    # ls.send_notification, swallowed by a bare except).
+    progress = [p for m, p in mock_ls.protocol.notifications if m == "aeon/synthesisProgress"]
+    assert progress, "no aeon/synthesisProgress notifications were emitted"
+    # The final update fills the bar to 100% (elapsed == budget) and is marked done.
+    final = progress[-1]
+    assert final["done"] is True
+    assert final["algorithm"]
+    assert final["budget"] > 0 and final["elapsed"] == final["budget"]
 
 
 def test_run_synthesis_returns_none_on_parse_error():
