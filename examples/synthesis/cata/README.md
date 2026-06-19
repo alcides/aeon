@@ -19,7 +19,7 @@ The paper evaluates Contata on **30 benchmarks** in four categories (Table 1):
 | Mutual recursion (MR) | 7 | even/odd (`evens`/`odds`) | ◐ co-synthesis of `mutual` holes |
 | Recursive comparators (RC) | 7 | int-tuple list equality | ◐ relational subset |
 | Partial data structures (PDS) | 12 | binary-tree removal | ◐ partial |
-| Stack Overflow (SO) | 4 | reverse a list twice | ✗ relational/k-safety |
+| Stack Overflow (SO) | 4 | reverse a list twice | ◐ `@property` k-safety oracle |
 
 The benchmarks are **not individually published** in the paper (only category
 counts plus one example each; sourced from Stack Overflow, FP textbooks, and
@@ -40,12 +40,17 @@ a time and discharged by the liquid typechecker.
   where evaluating one member's `@example` requires the sibling to already be
   filled — true co-search rather than sibling-as-typed-oracle.
 - **Relational / k-safety specs** relating *multiple* functions or multiple runs
-  of one function (much of RC and all of SO, e.g. `f (f x) = x`) still cannot be
-  stated as a single function's refinement.
+  of one function (much of RC and all of SO, e.g. `f (f x) = x`) — *now expressible*
+  as a `@property`, which the co-synthesis acceptance oracle checks (under
+  property-based testing) alongside the per-function refinement types and any
+  `@example`s. See `relational_property.ae`. What remains: using a failing
+  property as a *counterexample-driven guide* (CEGIS) — feeding the failing
+  input through the z3 unsat-core machinery to derive per-function obligations —
+  rather than only as an accept/reject filter.
 
 So the single-function files here are a **feasible reconstruction** in the spirit
 of the RC category: functions whose *relational refinement* (parameters ↔
 result) pins down the implementation, which aeon's CATA discharges via the liquid
-typechecker. `mutual_cosynth.ae` additionally exercises MR co-synthesis. The
-genuinely k-safety/relational multi-function benchmarks remain future work tied
-to extending the backend.
+typechecker. `mutual_cosynth.ae` exercises MR co-synthesis, and
+`relational_property.ae` a k-safety property over a mutual group. Full
+benchmark-suite coverage and property-driven CEGIS guidance remain future work.

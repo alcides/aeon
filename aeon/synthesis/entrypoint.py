@@ -527,24 +527,36 @@ def _partition_targets(
 
 
 def _joint_accepts(
-    ctx: TypingContext, ectx: EvaluationContext, term: Term, fills: dict[Name, Term], metadata: Metadata
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    term: Term,
+    fills: dict[Name, Term],
+    metadata: Metadata,
+    constructor_names: set[str] | None = None,
 ) -> bool:
     """Contata Algorithm 2, lines 11-13: does the *joint* candidate assignment
-    satisfy the spec? Fill every group hole, then (a) the whole program type
-    checks (the relational/refinement oracle), and (b) any ``@example``
-    assertions on the group's members all pass (the executable oracle)."""
+    satisfy the spec? Fill every group hole, then require:
+    (a) the whole program type checks (the relational/refinement oracle);
+    (b) any ``@example`` assertions on the group's members all pass; and
+    (c) any ``@property`` assertions hold under property-based testing — these
+        are the **relational / k-safety** specifications over *several* functions
+        or *several runs* of one function (e.g. ``even x == !(odd x)`` or
+        ``reverse (reverse x) == x``) that cannot be a single function's
+        refinement type (issue #397)."""
     filled = term
     for hole_name, cand in fills.items():
         filled = substitution(filled, cand, hole_name)
     if not check_type(ctx, filled, Top()):
         return False
-    from aeon.synthesis.pbt.runner import run_examples
+    from aeon.synthesis.pbt.runner import run_examples, run_properties
 
     try:
-        results = run_examples(ectx, filled, metadata)
+        if not all(r.passed for r in run_examples(ectx, filled, metadata)):
+            return False
+        prop_results = run_properties(ctx, ectx, filled, metadata, constructor_names=constructor_names or set())
     except Exception:
         return False
-    return all(r.passed for r in results)
+    return all(r.passed for r in prop_results)
 
 
 def _refine_obligations(
@@ -638,6 +650,7 @@ def _cosynthesize_group(
     ui: SynthesisUI,
     budget_eval: float,
     rounds: int = 3,
+    constructor_names: set[str] | None = None,
 ) -> dict[Name, Optional[Term]]:
     """Co-synthesize a mutual group, following Contata's lazy synthesis
     (Algorithm 2): each round pops a candidate for *every* member (with its
@@ -679,7 +692,9 @@ def _cosynthesize_group(
         # (no stubs left), and the joint assignment satisfies the spec.
         if synthesised == {h for _, h in members}:
             chosen = {h: fills[h] for _, h in members}
-            if all(c is not None for c in chosen.values()) and _joint_accepts(ctx, ectx, term, chosen, metadata):
+            if all(c is not None for c in chosen.values()) and _joint_accepts(
+                ctx, ectx, term, chosen, metadata, constructor_names
+            ):
                 return dict(fills)
         # Refinement phase (Algorithm 2, lines 11-16): blame the failing examples'
         # tail-callees and grow their per-function obligations, so the next round
@@ -704,12 +719,15 @@ def synthesize_holes(
     budget: float = 60.0,
     ui: SynthesisUI = SynthesisUI(),
     budget_eval: Optional[float] = None,
+    constructor_names: set[str] | None = None,
 ) -> dict[Name, Optional[Term]]:
     """Synthesizes code for multiple functions, each with one hole.
 
     Independent functions are synthesised one at a time. Members of a Lean
     ``mutual ... end`` block are co-synthesised together (Contata's relational
-    recursive synthesis), so a candidate for one member may call its siblings."""
+    recursive synthesis), so a candidate for one member may call its siblings.
+    ``constructor_names`` (data-constructor names) is forwarded to the
+    ``@property`` runner used as a relational/k-safety acceptance oracle."""
 
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)
@@ -733,7 +751,19 @@ def synthesize_holes(
         for fun_name, holes_names in group:
             assert len(holes_names) == 1, "Currently, we only support 1 hole per function"
         mapping.update(
-            _cosynthesize_group(ctx, ectx, term, group, program_holes, metadata, synthesizer, budget, ui, budget_eval)
+            _cosynthesize_group(
+                ctx,
+                ectx,
+                term,
+                group,
+                program_holes,
+                metadata,
+                synthesizer,
+                budget,
+                ui,
+                budget_eval,
+                constructor_names=constructor_names,
+            )
         )
 
     return mapping

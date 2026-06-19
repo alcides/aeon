@@ -196,6 +196,7 @@ class AeonDriver:
             synthesizer,
             self.cfg.synthesis_budget,
             ui,
+            constructor_names=self.constructor_names,
         )
 
         synthesized_core: Term = self.core

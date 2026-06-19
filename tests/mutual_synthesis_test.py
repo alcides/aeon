@@ -170,3 +170,64 @@ def test_smt_consistent_no_obligation():
     observed = [(odd, (1,), True)]
     symbolic = [((even, (2,)), (odd, (1,)))]
     assert _smt_unsat_core_obligations(spec, observed, symbolic, {"even", "odd"}) == []
+
+
+# --- Relational / k-safety specs as a co-synthesis oracle (issue #397, item 2) ---
+
+# A complete mutual group plus a *relational* property that relates the two
+# functions (``even n = !(odd n)``) — the kind of k-safety spec over several
+# functions that cannot be a single function's refinement type. The domain is
+# bounded so property-based testing samples small Nats (recursion-friendly).
+_EVEN_ODD = """
+mutual
+  def even (n: {{x:Int | x >= 0}}) : Bool decreasing_by [n] := if n = 0 then true else odd (n - 1)
+  def odd (n: {{x:Int | x >= 0}}) : Bool decreasing_by [n] := if n = 0 then {odd_base} else even (n - 1)
+end
+@property(15)
+def complementary (n: {{x:Int | 0 <= x && x < 6}}) : Bool := even n = !(odd n);
+"""
+
+
+def _joint_accepts_complete(odd_base: str) -> bool:
+    from aeon.synthesis.entrypoint import _joint_accepts
+
+    d = _driver()
+    assert d.parse(aeon_code=_EVEN_ODD.format(odd_base=odd_base), filename="<t>") == []
+    # No holes: the program is complete, so fills is empty and the oracle checks
+    # the whole program (type check + @example + @property).
+    return _joint_accepts(d.typing_ctx, d.evaluation_ctx, d.core, {}, d.metadata, d.constructor_names)
+
+
+def test_relational_property_accepts_consistent_group():
+    """A relational @property over the group is part of the acceptance oracle:
+    a correct even/odd satisfies ``even n = !(odd n)``."""
+    assert _joint_accepts_complete("false") is True
+
+
+def test_relational_property_rejects_inconsistent_group():
+    """The same relational property rejects an inconsistent pair (odd's base case
+    flipped), even though each function type checks in isolation."""
+    assert _joint_accepts_complete("true") is False
+
+
+def test_cosynthesis_satisfies_relational_property():
+    """End-to-end: co-synthesize a mutual group under a relational property that
+    the trivial assignment satisfies (``f n = g n``); the synthesized group both
+    type checks and passes the property."""
+    src = """
+    mutual
+      def f (n: {x:Int | x >= 0}) : {r:Int | r >= 0} decreasing_by [n] := ?hf
+      def g (n: {x:Int | x >= 0}) : {r:Int | r >= 0} decreasing_by [n] := ?hg
+    end
+    @property(10)
+    def agree (n: {x:Int | 0 <= x && x < 6}) : Bool := f n = g n;
+    """
+    d = _driver()
+    assert d.parse(aeon_code=src, filename="<t>") == []
+    assert d.has_synth()
+    d.synth()
+    from aeon.synthesis.pbt.runner import run_properties
+
+    assert check_type(d.typing_ctx, d.core, Top())
+    results = run_properties(d.typing_ctx, d.evaluation_ctx, d.core, d.metadata, constructor_names=d.constructor_names)
+    assert results and all(r.passed for r in results)
