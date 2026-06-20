@@ -250,7 +250,7 @@ expression_b : "fun" ID _FATARROW expression                     -> abstraction_
 // application.
 %declare METHOD_DOT
 
-application_t : application_t "[" type "]"                    -> type_application_e
+application_t : application_t TYPE_LBRACKET type "]"          -> type_application_e
               | application_t "{" expression "}"              -> refinement_application_e
               | method_recv                                  -> same
               | DOT_ID                                       -> anon_constructor
@@ -277,6 +277,16 @@ non_dot_simple : "(" expression ")"                          -> same
         | QUALIFIED_ID                                       -> qualified_var
         | ID                                                 -> var
         | "?" ID                                             -> hole
+        // Lean-style collection literals. ``[1, 2, 3]`` desugars to
+        // ``List.cons``/``List.nil`` and ``#[1, 2, 3]`` to ``Array.new``/
+        // ``Array.append`` (element types are inferred). A *spaced* ``[`` is a
+        // list literal; an *attached* one (``f[Int]``) is a type application —
+        // disambiguated by the postlexer, Lean-style.
+        | "[" list_items "]"                                 -> list_literal
+        | "#[" list_items "]"                                -> array_literal
+
+list_items :                                                 -> empty_list
+           | expression ("," expression)*                    -> list
 
 
 kind : "B" -> base_kind
@@ -327,7 +337,15 @@ _NEQ : "!=" | "≠"
 _LE : "<=" | "≤"
 _GE : ">=" | "≥"
 
-COMMENT: /\s*/ "#" /[^\n]/*
+// ``TYPE_LBRACKET`` has no pattern: it is produced by ``MethodDotPostLex`` from
+// an ``[`` that is *attached* to a receiver (``f[Int]``), marking a type
+// application. A spaced/standalone ``[`` stays ``LSQB`` (a list literal, or the
+// ``decreasing_by``/instance brackets, which are always spaced).
+%declare TYPE_LBRACKET
+
+// A comment runs ``#`` to end of line — but ``#[`` opens an Array literal, so a
+// ``#`` immediately followed by ``[`` is not a comment.
+COMMENT: /\s*#(?!\[)[^\n]*/
 
 %import common.ESCAPED_STRING
 %import common.WS

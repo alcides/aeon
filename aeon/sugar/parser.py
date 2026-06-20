@@ -98,6 +98,7 @@ def _split_arg_multiplicities(fn_args):
 _RECEIVER_END_TOKENS = frozenset(
     {
         "RPAR",  # (e).m
+        "RSQB",  # [1,2,3].m  (list/array literal) and f[A][B] (chained type app)
         "INTLIT",  # 1.m
         "FLOATLIT",  # 1.5.m
         "BOOLLIT",
@@ -110,32 +111,37 @@ _RECEIVER_END_TOKENS = frozenset(
 
 
 class MethodDotPostLex(PostLex):
-    """Distinguish a method/projection dot from an anonymous-constructor dot by
-    whitespace, mirroring Lean (issue #27).
+    """Whitespace-driven token disambiguation, mirroring Lean (issue #27).
 
-    A ``DOT_ID`` (``.name``) that is *attached* to the previous token — no
-    whitespace, and that token can end a receiver — is retagged ``METHOD_DOT``
-    and binds tighter than application (``f 1.toString`` ≡ ``f (1.toString)``).
-    A leading or space-separated ``.name`` stays a ``DOT_ID`` anonymous
-    constructor (``.mk .sc_blue 40``)."""
+    * A ``DOT_ID`` (``.name``) *attached* to the previous token — no whitespace,
+      and that token can end a receiver — is retagged ``METHOD_DOT`` and binds
+      tighter than application (``f 1.toString`` ≡ ``f (1.toString)``). A leading
+      or space-separated ``.name`` stays a ``DOT_ID`` anonymous constructor.
+    * An ``[`` (``LSQB``) *attached* to a receiver-ending token is retagged
+      ``TYPE_LBRACKET`` — a type application (``f[Int]``, ``List.nil[Int]``). A
+      spaced/standalone ``[`` stays ``LSQB``: a list literal (``f [1, 2, 3]``),
+      or the ``decreasing_by``/instance brackets (always spaced)."""
 
-    # Ensure the contextual LALR lexer always offers ``DOT_ID`` (``METHOD_DOT``
-    # has no pattern; it is produced only here), so attached dots are lexable in
-    # states that expect a method dot.
-    always_accept = ("DOT_ID",)
+    # Ensure the contextual LALR lexer always offers ``DOT_ID`` / ``LSQB`` (the
+    # retagged ``METHOD_DOT`` / ``TYPE_LBRACKET`` have no pattern; they are
+    # produced only here), so an attached dot/bracket is lexable in states that
+    # expect the retagged token.
+    always_accept = ("DOT_ID", "LSQB")
 
     def process(self, stream):
         prev: Token | None = None
         for tok in stream:
-            if (
-                tok.type == "DOT_ID"
-                and prev is not None
+            attached = (
+                prev is not None
                 and prev.type in _RECEIVER_END_TOKENS
                 and prev.end_pos is not None
                 and tok.start_pos is not None
                 and prev.end_pos == tok.start_pos
-            ):
+            )
+            if attached and tok.type == "DOT_ID":
                 tok.type = "METHOD_DOT"
+            elif attached and tok.type == "LSQB":
+                tok.type = "TYPE_LBRACKET"
             prev = tok
             yield tok
 
@@ -426,7 +432,33 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def type_application_e(self, meta, args):
-        return STypeApplication(args[0], args[1], loc=self._loc(meta))
+        # ``args`` is ``[receiver, TYPE_LBRACKET?, type]``; the retagged bracket
+        # token may be kept, so take the receiver and the (last) type.
+        return STypeApplication(args[0], args[-1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def list_literal(self, meta, args):
+        # ``[e1, ..., en]`` => ``List.cons e1 (... (List.cons en List.nil))``.
+        # Element type (and abstract refinement) are inferred by elaboration.
+        loc = self._loc(meta)
+        items = args[0] if args else []
+        result: STerm = SQualifiedVar("List", Name("nil"), loc=loc)
+        for e in reversed(items):
+            cons = SQualifiedVar("List", Name("cons"), loc=loc)
+            result = SApplication(SApplication(cons, e, loc=loc), result, loc=loc)
+        return result
+
+    @v_args(meta=True)
+    def array_literal(self, meta, args):
+        # ``#[e1, ..., en]`` => ``Array.append (... (Array.append Array.new e1)) en``
+        # (left fold, so element order is preserved).
+        loc = self._loc(meta)
+        items = args[0] if args else []
+        result: STerm = SQualifiedVar("Array", Name("new"), loc=loc)
+        for e in items:
+            app = SQualifiedVar("Array", Name("append"), loc=loc)
+            result = SApplication(SApplication(app, result, loc=loc), e, loc=loc)
+        return result
 
     @v_args(meta=True)
     def refinement_application_e(self, meta, args):

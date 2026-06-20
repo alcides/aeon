@@ -92,7 +92,8 @@ Main returns Unit, which is the singleton type. It can be used like void in C.
 
 ### Comments
 
-Just like in Python, any line starting with # is a comment.
+Just like in Python, any line starting with # is a comment. (The one exception
+is `#[`, which opens an array literal — see below.)
 
 ### Literals
 
@@ -102,6 +103,22 @@ Just like in Python, any line starting with # is a comment.
 |    Int | ..., -2, -1, 0, 1, 2, ...           |
 |  Float | ..., -2.0, -1.0, 0.0, 1.0, 2.0, ... |
 | String | "", "a", "ab", ...                  |
+|   List | `[]`, `[1, 2, 3]`, `[[1, 2], [3]]`  |
+|  Array | `#[]`, `#[1, 2, 3]`                  |
+
+#### Collection literals
+
+Following Lean, `[1, 2, 3]` is a `List` literal and `#[1, 2, 3]` an `Array`
+literal (`import List` / `import Array` to bring the types into scope). They
+desugar to the library constructors — `[1, 2, 3]` to
+`List.cons 1 (List.cons 2 (List.cons 3 List.nil))` and `#[1, 2, 3]` to
+`Array.append (Array.append (Array.append Array.new 1) 2) 3` — and element types
+are inferred. An empty literal (`[]` / `#[]`) is fine where the element type is
+known (e.g. from an annotation: `let e : (List Int) := []`).
+
+As in Lean, the bracket is whitespace-sensitive: a **spaced** `[` is a list
+literal, while an **attached** `[` is a type application. So `f [1, 2]` applies
+`f` to a list, whereas `f[Int]` instantiates the polymorphic `f` at `Int`.
 
 ### Expressions
 
