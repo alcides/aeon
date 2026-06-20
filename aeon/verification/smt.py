@@ -15,6 +15,7 @@ from z3 import RealVal
 from z3 import Solver
 from z3 import StringVal
 from z3 import sat
+from z3 import unsat
 from z3 import unknown
 from z3.z3 import And
 from z3.z3 import Bool
@@ -44,6 +45,7 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
+from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
@@ -555,6 +557,118 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
             assert False, f"Unexpected case {c} ({type(c)})"
 
 
+def _split_by_cone(
+    variables: dict[str, TypeConstructor],
+    premises: list[LiquidTerm],
+    conclusion: LiquidTerm,
+) -> tuple[dict[str, TypeConstructor], list[LiquidTerm], list[LiquidTerm]]:
+    """Cone-of-influence split of a canonic (flattened) VC.
+
+    Partitions the premises around the variables actually mentioned in the
+    conclusion. ``kept`` premises (and variables) are those transitively
+    connected to the goal through shared bound variables; ``dropped``
+    premises mention only variables that never reach the goal.
+
+    Returns ``(kept_variables, kept_premises, dropped_premises)``.
+
+    Because the dropped premises share no variable with the kept side or
+    the conclusion, the negated VC factors over disjoint variable sets:
+    ``kept ∧ dropped ∧ ¬conclusion`` is unsatisfiable iff
+    ``kept ∧ ¬conclusion`` is, *or* ``dropped`` alone is. So the dropped
+    premises can be removed from the obligation — provided they are
+    satisfiable. The caller is responsible for that satisfiability check
+    (an unsatisfiable ``dropped`` makes the whole obligation valid).
+    """
+    var_names = set(variables.keys())
+    if not var_names:
+        return variables, premises, []
+
+    def relevant_vars(t: LiquidTerm) -> set[str]:
+        # ``liquid_free_vars`` also returns function names; intersecting
+        # with the bound variables keeps us from connecting premises
+        # merely because they share a (global) operator/function.
+        return {str(n) for n in liquid_free_vars(t)} & var_names
+
+    premise_vars = [relevant_vars(p) for p in premises]
+    relevant = relevant_vars(conclusion)
+
+    # Fixpoint: a premise that touches a relevant variable makes all of
+    # its variables relevant, which may in turn pull in further premises.
+    changed = True
+    while changed:
+        changed = False
+        for pv in premise_vars:
+            if pv & relevant and not pv <= relevant:
+                relevant |= pv
+                changed = True
+
+    kept_premises: list[LiquidTerm] = []
+    dropped_premises: list[LiquidTerm] = []
+    for p, pv in zip(premises, premise_vars):
+        # A premise with no bound variables of its own (a constant, e.g. a
+        # literal ``false``) is kept: it cannot be factored out and may
+        # encode a contradiction that discharges the goal.
+        if pv and not (pv & relevant):
+            dropped_premises.append(p)
+        else:
+            kept_premises.append(p)
+
+    if not dropped_premises:
+        # Nothing to prune. Return the original objects untouched so
+        # identity-based memoization downstream keeps hitting.
+        return variables, premises, []
+
+    kept_variables = {n: ty for n, ty in variables.items() if n in relevant}
+    return kept_variables, kept_premises, dropped_premises
+
+
+# Auxiliary solver used only to probe whether a set of premises disconnected
+# from the goal is satisfiable. Kept separate from the main ``s`` so its
+# push/pop scopes never interleave with an in-progress obligation check.
+_aux_solver = Solver()
+_aux_solver.set(timeout=200)
+
+
+def _premises_satisfiable(
+    variables: dict[str, TypeConstructor],
+    premises: list[LiquidTerm],
+    sorts: list[str],
+    functions: dict[str, AbstractionType],
+) -> bool | None:
+    """Whether the conjunction of ``premises`` is satisfiable.
+
+    Returns ``True`` if satisfiable, ``False`` if unsatisfiable, and
+    ``None`` if the solver cannot decide (timeout/unknown). The same
+    ``sorts``/``functions`` are supplied so uninterpreted symbols match
+    those of the obligation the premises came from.
+    """
+    if not premises:
+        return True
+    conj = reduce(mk_liquid_and, premises, LiquidLiteralBool(True))
+    probe = CanonicConstraint.__new__(CanonicConstraint)
+    probe.sorts = sorts
+    probe.functions = functions
+    probe.variables = variables
+    probe.premise = conj
+    # A ``False`` conclusion makes ``translate`` build ``And(premise, True)``,
+    # so checking the result for SAT is exactly checking the premises.
+    probe.conclusion = LiquidLiteralBool(False)
+    formula = translate(probe, {})
+    if formula is False:
+        return True
+    _aux_solver.push()
+    try:
+        _aux_solver.add(formula)
+        result = _aux_solver.check()
+    finally:
+        _aux_solver.pop()
+    if result == sat:
+        return True
+    if result == unsat:
+        return False
+    return None
+
+
 def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
@@ -570,8 +684,28 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
                 sprem.append(sp)
             sexpr, nfunctions, nref = _specialize_liquid_term(expr, nfunctions, ctx.variables, nref, specializations)
             premise = [ple_unfold_fixpoint(p, nref) for p in sprem]
-            out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
-            yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
+            conclusion = ple_unfold_fixpoint(sexpr, nref)
+            # Drop variables and premises (refinements) disconnected from the
+            # goal, so Z3 only sees content that can affect the result.
+            kept_vars, kept_premise, dropped_premise = _split_by_cone(ctx.variables, premise, conclusion)
+            if dropped_premise:
+                sat_result = _premises_satisfiable(ctx.variables, dropped_premise, ctx.sorts, nfunctions)
+            else:
+                sat_result = True
+            if sat_result is False:
+                # The disconnected hypotheses are contradictory, so the whole
+                # obligation holds vacuously: emit a trivially-valid constraint.
+                trivial = SMTContext(ctx.sorts, nfunctions, {}, [], nref)
+                yield CanonicConstraint(trivial, LiquidLiteralBool(True))
+            elif dropped_premise and sat_result is True:
+                # Disconnected hypotheses certified satisfiable: safe to drop.
+                out_ctx = SMTContext(ctx.sorts, nfunctions, kept_vars, kept_premise, nref)
+                yield CanonicConstraint(out_ctx, conclusion)
+            else:
+                # Nothing to drop, or the solver could not certify the dropped
+                # hypotheses as satisfiable (unknown): keep everything, unpruned.
+                out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
+                yield CanonicConstraint(out_ctx, conclusion)
         case Conjunction(c1, c2):
             yield from flatten(c1, ctx)
             yield from flatten(c2, ctx)

@@ -72,6 +72,102 @@ def test_other_sorts():
     assert smt_valid(example2)
 
 
+# --- Cone-of-influence pruning of VCs ---------------------------------------
+#
+# ``flatten`` should drop quantified variables and premises that are
+# disconnected from the goal, but only when doing so cannot change the
+# result (i.e. the dropped premises are satisfiable).
+
+name_irrelevant = Name("irr", 300)
+
+
+def _eq(a, b):
+    return LiquidApp(Name("==", 0), [a, b])
+
+
+def _gt(a, b):
+    return LiquidApp(Name(">", 0), [a, b])
+
+
+# ∀x:Int, (x == 3) => ∀irr:Int, (irr == 99) => (x == 3)
+# The binder ``irr`` and its premise are unrelated to the goal ``x == 3``.
+pruning_example = Implication(
+    name_x,
+    t_int,
+    _eq(LiquidVar(name_x), LiquidLiteralInt(3)),
+    Implication(
+        name_irrelevant,
+        t_int,
+        _eq(LiquidVar(name_irrelevant), LiquidLiteralInt(99)),
+        LiquidConstraint(_eq(LiquidVar(name_x), LiquidLiteralInt(3))),
+    ),
+)
+
+
+def test_pruning_drops_unrelated_variable_and_premise():
+    [canonic] = list(flatten(pruning_example))
+    # ``irr`` is disconnected from the goal and must be pruned away.
+    assert all("irr" not in k for k in canonic.variables)
+    # The remaining obligation is still valid.
+    assert smt_valid(pruning_example)
+
+
+def test_pruning_keeps_connected_premise():
+    # ∀x:Int, (x == 3) => ∀y:Int, (y == x) => (y == 3)
+    # ``y`` reaches the goal through the premise ``y == x``; nothing dropped.
+    c = Implication(
+        name_x,
+        t_int,
+        _eq(LiquidVar(name_x), LiquidLiteralInt(3)),
+        Implication(
+            name_y,
+            t_int,
+            _eq(LiquidVar(name_y), LiquidVar(name_x)),
+            LiquidConstraint(_eq(LiquidVar(name_y), LiquidLiteralInt(3))),
+        ),
+    )
+    [canonic] = list(flatten(c))
+    assert any(k.startswith("y") for k in canonic.variables)
+    assert any(k.startswith("x") for k in canonic.variables)
+    assert smt_valid(c)
+
+
+def test_pruning_keeps_contradictory_unrelated_premise():
+    # The goal ``false`` mentions no variables, so every premise is
+    # "disconnected"; but the disconnected premise ``x > 0 && x < 0`` is
+    # unsatisfiable and discharges the goal. Pruning must NOT drop it.
+    contradiction = LiquidApp(
+        Name("&&", 0),
+        [_gt(LiquidVar(name_x), LiquidLiteralInt(0)), _gt(LiquidLiteralInt(0), LiquidVar(name_x))],
+    )
+    c = Implication(
+        name_x,
+        t_int,
+        contradiction,
+        LiquidConstraint(LiquidLiteralBool(False)),
+    )
+    # Vacuously valid: contradictory hypotheses prove anything.
+    assert smt_valid(c)
+
+
+def test_pruning_does_not_make_invalid_valid():
+    # ∀x:Int, (x == 3) => ∀irr:Int, (irr == 99) => (x == 4)
+    # The goal is genuinely unprovable; pruning the unrelated ``irr`` must
+    # not flip the (invalid) result.
+    c = Implication(
+        name_x,
+        t_int,
+        _eq(LiquidVar(name_x), LiquidLiteralInt(3)),
+        Implication(
+            name_irrelevant,
+            t_int,
+            _eq(LiquidVar(name_irrelevant), LiquidLiteralInt(99)),
+            LiquidConstraint(_eq(LiquidVar(name_x), LiquidLiteralInt(4))),
+        ),
+    )
+    assert not smt_valid(c)
+
+
 # Regression for issue #296: Unit must have its own SMT sort, distinct
 # from Bool. Previously ``Literal((), Unit)`` was lowered to the boolean
 # literal True, so ``unit == True`` came out satisfiable.
