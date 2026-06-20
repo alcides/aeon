@@ -40,13 +40,14 @@ a time and discharged by the liquid typechecker.
   where evaluating one member's `@example` requires the sibling to already be
   filled — true co-search rather than sibling-as-typed-oracle.
 - **Relational / k-safety specs** relating *multiple* functions or multiple runs
-  of one function (much of RC and all of SO, e.g. `f (f x) = x`) — *now expressible*
-  as a `@property`, which the co-synthesis acceptance oracle checks (under
-  property-based testing) alongside the per-function refinement types and any
-  `@example`s. See `relational_property.ae`. What remains: using a failing
-  property as a *counterexample-driven guide* (CEGIS) — feeding the failing
-  input through the z3 unsat-core machinery to derive per-function obligations —
-  rather than only as an accept/reject filter.
+  of one function (much of RC and all of SO, e.g. `f (f x) = x`) — expressible as
+  a `@property`, which is both (a) a co-synthesis acceptance oracle, checked
+  under property-based testing alongside the per-function refinement types and
+  `@example`s, and (b) a **counterexample-driven guide** (CEGIS): a failing
+  property's input is run under the instrumented semantics, the property is
+  encoded as a relational constraint, and z3's unsat core blames the conflicting
+  calls while a model derives concrete per-function obligations — propagated down
+  the call chain to the example-anchored base cases. See `relational_property.ae`.
 
 So the single-function files here are a **feasible reconstruction** in the spirit
 of the RC category: functions whose *relational refinement* (parameters ↔
