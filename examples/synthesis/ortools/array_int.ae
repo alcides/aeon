@@ -1,0 +1,10 @@
+# (Array Int) hole of fixed size 3: minimise sum (v_i - target_i)^2 with
+# targets (3, -7, 10). CP-SAT returns the exact array [3, -7, 10].
+import Array;
+
+@minimize_int(
+  (((Array.get v 0) - 3) * ((Array.get v 0) - 3))
+  + (((Array.get v 1) + 7) * ((Array.get v 1) + 7))
+  + (((Array.get v 2) - 10) * ((Array.get v 2) - 10))
+)
+def v : {a:(Array Int) | Array.size a = 3} := ?h;

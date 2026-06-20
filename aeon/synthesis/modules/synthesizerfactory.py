@@ -4,6 +4,7 @@ from aeon.synthesis.api import ProgramSynthesizer, Synthesizer
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
 from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
+from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm import LLMSynthesizer
@@ -41,6 +42,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "ng_pso": "Nevergrad grammatical-evolution (PSO)",
     "ng_float": "Nevergrad joint Float-hole optimisation (NGOpt)",
     "ng_float_cma": "Nevergrad joint Float-hole optimisation (CMA-ES)",
+    "ortools": "OR-Tools CP-SAT (exact/fixed-point numeric-hole optimisation)",
     "tactics": "Tactic Search (Lean-style)",
     "lta": "Liquid Tree Automata",
     "symetric": "Metric Synthesis",
@@ -84,6 +86,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return FloatHoleNGSynthesizer(optimizer="NGOpt", seed=seed)
         case "ng_float_cma":
             return FloatHoleNGSynthesizer(optimizer="CMA", seed=seed)
+        case "ortools" | "ortools_int" | "cpsat":
+            return CPSatHoleSynthesizer(seed=seed)
         case "synquid":
             return SynquidSynthesizer()
         case "llm":

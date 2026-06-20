@@ -1,0 +1,10 @@
+# (Array Float) hole of fixed size 3 (fixed-point): minimise sum (v_i - t_i)^2
+# with targets (1.5, -2.25, 0.5). The grid-exact optimum is [1.5, -2.25, 0.5].
+import Array;
+
+@minimize_float(
+  (((Array.get v 0) - 1.5) * ((Array.get v 0) - 1.5))
+  + (((Array.get v 1) + 2.25) * ((Array.get v 1) + 2.25))
+  + (((Array.get v 2) - 0.5) * ((Array.get v 2) - 0.5))
+)
+def v : {a:(Array Float) | Array.size a = 3} := ?h;

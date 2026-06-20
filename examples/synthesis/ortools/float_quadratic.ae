@@ -1,0 +1,9 @@
+# Float holes (fixed-point): minimise (x - 2.5)^2 + (y + 1.25)^2 over x, y in
+# [-5, 5]. CP-SAT has no continuous variables, so each Float is an integer
+# multiple of 1/scale (default 1/1000); the exact optimum (2.5, -1.25) lies on
+# that grid, so the result is exact here.
+def x : {v:Float | v >= 0.0 - 5.0 && v <= 5.0} := ?hx;
+def y : {v:Float | v >= 0.0 - 5.0 && v <= 5.0} := ?hy;
+
+@minimize_float( ((x - 2.5) * (x - 2.5)) + ((y + 1.25) * (y + 1.25)) )
+def f : Float := ((x - 2.5) * (x - 2.5)) + ((y + 1.25) * (y + 1.25));

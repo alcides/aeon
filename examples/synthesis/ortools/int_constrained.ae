@@ -1,0 +1,8 @@
+# Refinement-constrained: minimise (x - 3)^2 + (y - 30)^2 with x in [5, 20] and
+# y in [-5, 12]. The unconstrained optima (3, 30) are infeasible, so CP-SAT
+# returns the exact feasible optima x = 5, y = 12 (respecting the refinements).
+def x : {v:Int | v >= 5 && v <= 20} := ?hx;
+def y : {v:Int | v >= 0 - 5 && v <= 12} := ?hy;
+
+@minimize_int( ((x - 3) * (x - 3)) + ((y - 30) * (y - 30)) )
+def f : Int := ((x - 3) * (x - 3)) + ((y - 30) * (y - 30));
