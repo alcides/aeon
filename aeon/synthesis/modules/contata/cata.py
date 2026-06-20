@@ -107,28 +107,57 @@ def _is_recursive_shaped(term: Term, member_names: set[str]) -> bool:
     return False
 
 
+def _value_vector(term: Term, ty: str, inputs: list[Any]) -> Optional[tuple]:
+    """The concrete value of ``term`` at each input, or ``None`` if it is symbolic
+    (contains a call under synthesis). Used to merge observationally-equivalent
+    sub-programs of the *non-recursive* fragment (FTA-style compression)."""
+    out: list[Any] = []
+    for x in inputs:
+        v = _concrete_int(term, x) if ty == INT else _concrete_bool(term, x)
+        if v is None:
+            return None
+        out.append(v)
+    return tuple(out)
+
+
 def _enumerate_bodies(
-    members: list[MemberSig], goal_type: str, max_size: int, max_bank: int = 48, cond_head: int = 16
+    members: list[MemberSig],
+    goal_type: str,
+    max_size: int,
+    inputs: list[Any],
+    max_bank: int = 48,
+    cond_head: int = 16,
 ) -> list[Term]:
     """Bottom-up enumeration of the version space: grow the per-type bank one
     transition deeper each round (operators and members' calls), then form
     conditionals of the **base/recursive-case shape** ``if cond then a else b``
     where one branch is a recursive/mutual call — the structure every recursive
-    definition has. Each type's bank keeps its ``max_bank`` smallest terms *plus
-    every member-call term* (so a recursive branch like ``odd (x-1)`` is never
-    crowded out by smaller junk). Returns goal-typed terms ordered by size."""
+    definition has.
+
+    Two flavours of compression keep the version space small (paper §4): a
+    member-call-free sub-program is merged by its **observed value-vector** over
+    ``inputs`` (so the thousands of arithmetic terms collapse to one per distinct
+    behaviour); a symbolic term (one that calls a function under synthesis) is
+    merged syntactically. Each type's bank keeps its ``max_bank`` smallest terms
+    *plus every recursive-shaped term*, so a branch like ``odd (x-1)`` is never
+    crowded out. Returns goal-typed terms ordered by size."""
     arg_type = members[0].arg_type
     member_names = {m.name for m in members}
     bank = _atoms(arg_type)
-    seen: dict[str, set[str]] = {INT: set(), BOOL: set()}
+    seen: dict[str, set] = {INT: set(), BOOL: set()}
+
+    def key_of(ty: str, term: Term):
+        vec = _value_vector(term, ty, inputs)
+        return ("v", vec) if vec is not None else ("s", str(term))
+
     for ty in bank:
         for t in bank[ty]:
-            seen[ty].add(str(t))
+            seen[ty].add(key_of(ty, t))
 
     calls = [(m.name, [m.arg_type], m.ret_type) for m in members]
 
     def add(ty: str, term: Term) -> None:
-        k = str(term)
+        k = key_of(ty, term)
         if k not in seen[ty]:
             seen[ty].add(k)
             bank[ty].append(term)
@@ -350,10 +379,14 @@ def synthesize_group(
     by_member: dict[str, list[Example]] = {}
     for e in examples:
         by_member.setdefault(e.member, []).append(e)
+    # The example inputs (plus their predecessors, the values recursive calls
+    # reach) over which non-recursive sub-programs are merged by behaviour.
+    int_inputs = sorted({e.arg for e in examples if isinstance(e.arg, int) and not isinstance(e.arg, bool)})
+    inputs: list[Any] = sorted(set(int_inputs) | {v - 1 for v in int_inputs if v - 1 >= 0})
 
     bodies: dict[str, Term] = {}
     for m in members:
-        goal_bodies = _enumerate_bodies(members, m.ret_type, max_size)
+        goal_bodies = _enumerate_bodies(members, m.ret_type, max_size, inputs)
         chosen: Optional[Term] = None
         for body in goal_bodies:  # smallest first => MinTree
             mexs = by_member.get(m.name, [])
