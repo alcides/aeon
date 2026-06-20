@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from aeon.core.terms import Application, If, Term, Var
 from aeon.synthesis.modules.contata import synthesize_group
-from aeon.synthesis.modules.contata.cata import BOOL, INT, Example, MemberSig
+from aeon.synthesis.modules.contata.cata import BOOL, INT, LIST, Example, MemberSig
 
 
 def _mentions(term: Term, name: str) -> bool:
@@ -97,6 +97,53 @@ def test_cata_synthesizes_predicate():
     res = synthesize_group(members, ex, max_size=3)
     assert res is not None
     assert _mentions(res.bodies["f"], "x")
+
+
+def test_cata_synthesizes_list_length_pds():
+    """The PDS (partial-data-structure) category: synthesize ``length`` over
+    ``List Int`` from trace-closed examples. The version space must form the
+    base/recursive conditional ``if isEmpty xs then 0 else 1 + length (tail xs)``
+    — a recursive call under an operator, on the structurally-smaller tail (the
+    well-founded measure is list length)."""
+    members = [MemberSig("length", LIST, INT)]
+    ex = [
+        Example("length", (), 0),
+        Example("length", (3,), 1),
+        Example("length", (2, 3), 2),
+        Example("length", (1, 2, 3), 3),
+    ]
+    res = synthesize_group(members, ex, max_size=4)
+    assert res is not None
+    body = res.bodies["length"]
+    assert isinstance(body, If)
+    assert _mentions(body, "length"), body  # genuinely recursive
+    assert _mentions(body, "isEmpty"), body  # base/recursive split on emptiness
+
+
+def test_contata_backend_fills_predicate_from_examples():
+    """The ``-s contata`` CLI backend: the version space synthesises a hole from
+    its ``@example`` I/O facts, rebinds the body onto real in-scope names
+    (parameter, operators monomorphised at Int), discharges it through the liquid
+    typechecker, and the filled program type checks and evaluates."""
+    from aeon.core.types import Top
+    from aeon.facade.driver import AeonConfig, AeonDriver
+    from aeon.synthesis.uis.api import SilentSynthesisUI
+    from aeon.typechecking.typeinfer import check_type
+
+    src = """
+@example(isZero 0 = true)
+@example(isZero 1 = false)
+@example(isZero 2 = false)
+def isZero (x: {v:Int | v >= 0}) : Bool := ?hole;
+def main (a: Int) : Int := if isZero 0 then (if isZero 3 then 1 else 0) else 9;
+"""
+    cfg = AeonConfig(synthesizer="contata", synthesis_ui=SilentSynthesisUI(), synthesis_budget=5, no_main=False)
+    d = AeonDriver(cfg)
+    assert d.parse(aeon_code=src, filename="<t>") == []
+    assert d.has_synth()
+    d.synth()
+    assert check_type(d.typing_ctx, d.core, Top())  # hole filled, program well-typed
+    assert d.run() == 0  # isZero 0 = true and isZero 3 = false
 
 
 def test_cata_none_when_out_of_size_budget():

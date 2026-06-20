@@ -53,5 +53,39 @@ So the single-function files here are a **feasible reconstruction** in the spiri
 of the RC category: functions whose *relational refinement* (parameters ↔
 result) pins down the implementation, which aeon's CATA discharges via the liquid
 typechecker. `mutual_cosynth.ae` exercises MR co-synthesis, and
-`relational_property.ae` a k-safety property over a mutual group. Full
-benchmark-suite coverage and property-driven CEGIS guidance remain future work.
+`relational_property.ae` a k-safety property over a mutual group.
+
+## `-s contata` — the paper-faithful version space
+
+The `cata` backend above *discharges* a refinement-type spec one candidate at a
+time. The `contata` backend is the paper's actual **version space** (the CATA of
+the title): a candidate body denotes **symbolically** as a z3 expression over the
+functions under synthesis treated as *uninterpreted functions* (the constraint
+annotation), and is **accepted under a model** (Def. 6) iff the ground `@example`
+specification together with the body's denotation at every example input is
+satisfiable — one SMT query. Recursion and mutual recursion need no fixpoint
+(the calls are uninterpreted), the well-foundedness side condition `v' ≺ v_in`
+(Fig. 5) rejects non-terminating bodies, and the **smallest** accepted tree is
+returned (MinTree, Def. 11). Observationally-equivalent member-call-free
+sub-programs are merged by their value-vector (FTA-style compression).
+
+```bash
+uv run python -m aeon --no-main -s contata examples/synthesis/cata/contata_pbe.ae
+```
+
+The version space genuinely synthesises the paper's flagships from examples:
+
+- **MR** — `even`/`odd` co-synthesised from `@example` facts, each body a
+  base/recursive conditional that calls its *sibling* (the mutually-recursive
+  solution, accepted jointly under one model).
+- **PDS** — `length : List Int -> Int` recovered as
+  `if isEmpty xs then 0 else 1 + length (tail xs)` from trace-closed examples;
+  list values are opaque SMT constants, the `isEmpty`/`head`/`tail` destructors
+  fold concretely, and the well-founded measure is list length.
+
+See `tests/contata_test.py`. The single-hole `-s contata` CLI path covers the
+Int/Bool fragment (it rebinds the version-space body onto the real in-scope
+parameter, recursive self-call, and operators monomorphised at `Int`, then
+discharges it through the typechecker); the richer mutual/list version space is
+exercised through its API. Full benchmark-suite coverage (deeper integer
+accumulators, trees) and property-driven CEGIS guidance remain future work.

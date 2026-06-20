@@ -13,6 +13,7 @@ from aeon.synthesis.modules.symetric import SymetricSynthesizer
 from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.modules.afta import AFTASynthesizer
 from aeon.synthesis.modules.cata import CATASynthesizer
+from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -39,6 +40,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "fta": "Finite Tree Automata (FTA)",
     "afta": "Abstraction-refinement FTA",
     "cata": "Constraint-annotated Tree Automata",
+    "contata": "Constraint-annotated Tree Automata (version space, from examples)",
 }
 
 
@@ -90,5 +92,7 @@ def make_synthesizer(module: str) -> Synthesizer:
             return AFTASynthesizer()
         case "cata":
             return CATASynthesizer()
+        case "contata":
+            return ContataSynthesizer()
         case _:
             assert False, f"Not supported synthesizer with name {module}"
