@@ -1,0 +1,8 @@
+# Nevergrad benchmark: Rastrigin (2D). Highly multimodal; global minimum 0 at the origin.
+import Math (cos, PI)
+
+def x : Float := ?hx;
+def y : Float := ?hy;
+
+@minimize_float( (20.0 + ((x * x) - (10.0 * cos ((2.0 * PI) * x)))) + ((y * y) - (10.0 * cos ((2.0 * PI) * y))) )
+def rastrigin : Float := (20.0 + ((x * x) - (10.0 * cos ((2.0 * PI) * x)))) + ((y * y) - (10.0 * cos ((2.0 * PI) * y)));
