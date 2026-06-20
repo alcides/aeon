@@ -26,9 +26,14 @@ class EvaluationContext:
     pipeline: LLVMPipeline | None
     # Optional call-trace sink (instrumented semantics, Fig. 4 of the Contata
     # paper). When non-None, every ``Rec``-bound function call records a
-    # ``(name, args, result)`` fact here, so a synthesized candidate's behaviour
-    # can be observed and blamed. ``None`` (the default) means zero overhead.
+    # ``[name, args, result, parent_index]`` entry here, so a synthesized
+    # candidate's behaviour can be observed and its call tree reconstructed (the
+    # ``parent_index`` distinguishes a real callee from an unrelated call, e.g.
+    # an eagerly-evaluated ``@example`` binding). ``None`` ⇒ zero overhead.
+    # ``trace_stack`` holds the indices of the calls currently on the stack and
+    # is shared (by reference) with ``trace`` across ``with_var``.
     trace: list | None
+    trace_stack: list | None
 
     def __init__(
         self,
@@ -36,6 +41,7 @@ class EvaluationContext:
         metadata: Metadata | None = None,
         pipeline: LLVMPipeline | None = None,
         trace: list | None = None,
+        trace_stack: list | None = None,
     ):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
@@ -44,12 +50,15 @@ class EvaluationContext:
         self.metadata = metadata
         self.pipeline = pipeline
         self.trace = trace
+        self.trace_stack = trace_stack
 
     def with_var(self, name: Name, value: Any):
         assert isinstance(name, Name)
         v = self.variables.copy()
         v.update({name: value})
-        return EvaluationContext(v, metadata=self.metadata, pipeline=self.pipeline, trace=self.trace)
+        return EvaluationContext(
+            v, metadata=self.metadata, pipeline=self.pipeline, trace=self.trace, trace_stack=self.trace_stack
+        )
 
     def get(self, name: Name):
         return self.variables[name]
@@ -117,7 +126,13 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 cur = cur.body
             final_body = cur
 
-            group_ctx = EvaluationContext(ctx.variables, metadata=ctx.metadata, pipeline=ctx.pipeline, trace=ctx.trace)
+            group_ctx = EvaluationContext(
+                ctx.variables,
+                metadata=ctx.metadata,
+                pipeline=ctx.pipeline,
+                trace=ctx.trace,
+                trace_stack=ctx.trace_stack,
+            )
             for m in members:
                 inner_value = m.var_value
                 while isinstance(inner_value, (TypeAbstraction, RefinementAbstraction)):
@@ -126,9 +141,18 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
 
                     def make_closure(fun: Abstraction, fname: Name):
                         def v(x):
-                            result = eval(fun.body, group_ctx.with_var(fun.var_name, x))
-                            if group_ctx.trace is not None and not callable(result):
-                                group_ctx.trace.append((fname, (x,), result))
+                            tr = group_ctx.trace
+                            if tr is None:
+                                return eval(fun.body, group_ctx.with_var(fun.var_name, x))
+                            st = group_ctx.trace_stack
+                            idx = len(tr)
+                            tr.append([fname, (x,), None, st[-1] if st else -1])
+                            st.append(idx)
+                            try:
+                                result = eval(fun.body, group_ctx.with_var(fun.var_name, x))
+                            finally:
+                                st.pop()
+                            tr[idx][2] = result
                             return result
 
                         return v
@@ -169,10 +193,20 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 fun = inner_value
 
                 def v(x):
-                    return eval(
-                        fun.body,
-                        ctx.with_var(var_name, v).with_var(fun.var_name, x),
-                    )
+                    rec_ctx = ctx.with_var(var_name, v).with_var(fun.var_name, x)
+                    tr = ctx.trace
+                    if tr is None:
+                        return eval(fun.body, rec_ctx)
+                    st = ctx.trace_stack
+                    idx = len(tr)
+                    tr.append([var_name, (x,), None, st[-1] if st else -1])
+                    st.append(idx)
+                    try:
+                        result = eval(fun.body, rec_ctx)
+                    finally:
+                        st.pop()
+                    tr[idx][2] = result
+                    return result
 
             else:
                 # General recursion for non-lambda values (e.g. instance
@@ -215,10 +249,12 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
 
 def eval_with_trace(t: Term, ctx: EvaluationContext = EvaluationContext()) -> tuple[Any, list]:
     """Instrumented evaluation (Contata, Fig. 4): evaluate ``t`` and return
-    ``(value, trace)`` where ``trace`` is the list of ``(name, args, result)``
-    facts for every ``Rec``-bound function call made during evaluation. Used by
-    co-synthesis to observe a candidate's behaviour and blame failing inputs."""
+    ``(value, trace)`` where ``trace`` is the list of ``[name, args, result,
+    parent_index]`` entries for every ``Rec``-bound function call made during
+    evaluation (``parent_index`` is the trace index of the enclosing call, or
+    ``-1`` for a top-level call). Used by co-synthesis to observe a candidate's
+    behaviour, reconstruct its call tree, and blame failing inputs."""
     sink: list = []
-    traced = EvaluationContext(ctx.variables, metadata=ctx.metadata, pipeline=ctx.pipeline, trace=sink)
+    traced = EvaluationContext(ctx.variables, metadata=ctx.metadata, pipeline=ctx.pipeline, trace=sink, trace_stack=[])
     value = eval(t, traced)
     return value, sink

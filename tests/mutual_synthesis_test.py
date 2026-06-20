@@ -133,12 +133,19 @@ def test_instrumented_trace_records_mutual_calls():
     assert d.parse(aeon_code=src, filename="<t>") == []
     value, trace = eval_with_trace(d.core, d.evaluation_ctx)
     assert value == 1  # even 2 == true
-    names = [(n.name, args, res) for (n, args, res) in trace]
-    # even(2) -> odd(1) -> even(0); recorded child-first (post order).
+    # Each entry is [name, args, result, parent_index]; entries are appended when
+    # a call is entered, so the outermost call is first.
+    names = [(e[0].name, e[1], e[2]) for e in trace]
+    # even(2) -> odd(1) -> even(0) (main calls even 2).
     assert ("even", (0,), True) in names
     assert ("odd", (1,), True) in names
     assert ("even", (2,), True) in names
-    assert names[-1][0] == "even" and names[-1][1] == (2,)
+    # The call tree links each member to the sibling it tail-called.
+    by_call = {(e[0].name, e[1]): e for e in trace}
+    odd1 = by_call[("odd", (1,))]
+    even0 = by_call[("even", (0,))]
+    assert trace[odd1[3]][0].name == "even" and trace[odd1[3]][1] == (2,)  # parent of odd(1) is even(2)
+    assert trace[even0[3]][0].name == "odd" and trace[even0[3]][1] == (1,)  # parent of even(0) is odd(1)
 
 
 def test_smt_unsat_core_blames_unspecified_callee():
@@ -231,3 +238,44 @@ def test_cosynthesis_satisfies_relational_property():
     assert check_type(d.typing_ctx, d.core, Top())
     results = run_properties(d.typing_ctx, d.evaluation_ctx, d.core, d.metadata, constructor_names=d.constructor_names)
     assert results and all(r.passed for r in results)
+
+
+def test_property_guides_refinement():
+    """Property-as-guide (Contata refinement, Algorithm 2 lines 11-16): with only
+    base-case ``@example`` anchors, a *wrong* sibling candidate that violates a
+    relational ``@property`` is blamed via z3's unsat core, and the property's
+    counterexample propagates a concrete obligation for the unspecified callee.
+
+    Here ``odd`` is deliberately wrong (constant ``false``); the property
+    ``even n = !(odd n)`` plus the base anchors forces, e.g., ``odd 1 = true``,
+    which ``_refine_obligations`` must add to ``odd``'s obligations."""
+    from aeon.synthesis.entrypoint import _refine_obligations
+
+    src = """
+    mutual
+      @example(even 0 = true)
+      def even (n: {x:Int | x >= 0}) : Bool decreasing_by [n] := if n = 0 then true else odd (n - 1)
+      @example(odd 0 = false)
+      def odd (n: {x:Int | x >= 0}) : Bool decreasing_by [n] := false
+    end
+    @property(10)
+    def comp (n: {x:Int | 0 <= x && x < 6}) : Bool := even n = !(odd n);
+    """
+    d = _driver()
+    assert d.parse(aeon_code=src, filename="<t>") == []
+    names = {
+        r.var_name.name: r.var_name
+        for r in __import__("aeon.synthesis.identification", fromlist=["iterate_top_level"]).iterate_top_level(d.core)
+    }
+    members = [(names["even"], names["even"]), (names["odd"], names["odd"])]
+    odd_io_before = list(d.metadata.get(names["odd"], {}).get("io_examples", []))
+    added = _refine_obligations(d.core, members, d.evaluation_ctx, d.metadata)
+    assert added >= 1, "the relational property should have driven at least one obligation"
+    # A new obligation for a non-base input must have appeared on a member.
+    new_obls = [
+        (fn.name, args, out)
+        for fn in (names["even"], names["odd"])
+        for (args, out) in d.metadata.get(fn, {}).get("io_examples", [])
+        if (args, out) not in (odd_io_before if fn is names["odd"] else [([0], True)])
+    ]
+    assert any(args != [0] for _f, args, _o in new_obls), new_obls

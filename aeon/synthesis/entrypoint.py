@@ -15,7 +15,19 @@ from aeon.core.substitutions import substitution
 
 import dataclasses
 
-from aeon.core.terms import Application, Let, Literal, Rec, Term, Var
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    If,
+    Let,
+    Literal,
+    Rec,
+    RefinementApplication,
+    Term,
+    TypeApplication,
+    Var,
+)
 from aeon.core.types import Top
 from aeon.core.types import top, Type
 from aeon.decorators import Metadata
@@ -373,6 +385,7 @@ def _smt_unsat_core_obligations(
     observed_facts: list[tuple[Name, tuple, Any]],
     symbolic_eqs: list[tuple[tuple[Name, tuple], tuple[Name, tuple]]],
     member_names: set[str],
+    relational: list | None = None,
 ) -> list[tuple[Name, tuple, Any]]:
     """Contata's joint validity check + unsat-core refinement (Algorithm 2,
     lines 11-16), discharged by z3.
@@ -380,13 +393,16 @@ def _smt_unsat_core_obligations(
     The functions under synthesis are modelled as **uninterpreted functions**.
     We assert (with tracking literals) the ground spec ``ψ`` (``spec_facts``),
     the candidate's observed calls ``θ`` on inputs *not* pinned by the spec
-    (``observed_facts``), and the symbolic relations the candidate's structure
-    induces between calls (``symbolic_eqs``, e.g. ``even(2) = odd(1)``). If
-    ``ψ ∧ θ ∧ structure`` is satisfiable the joint candidate is consistent
-    (no refinement). Otherwise z3's **unsat core** names the conflicting calls;
-    for each blamed call to a function under synthesis we read its
-    spec-consistent output from a model of ``ψ ∧ structure`` and return it as a
-    new obligation — the constraint to add to that callee's next-round search."""
+    (``observed_facts``), the symbolic relations the candidate's structure
+    induces between calls (``symbolic_eqs``, e.g. ``even(2) = odd(1)``), and any
+    ``relational`` constraints — a **relational/k-safety ``@property`` evaluated
+    at a counterexample**, encoded as a small IR over the same uninterpreted
+    functions (e.g. ``even(2) = !odd(2)``). If the conjunction is satisfiable the
+    joint candidate is consistent (no refinement). Otherwise z3's **unsat core**
+    names the conflicting calls; for each blamed call to a function under
+    synthesis we read its spec-consistent output from a model of
+    ``ψ ∧ structure ∧ relational`` and return it as a new obligation — the
+    constraint to add to that callee's next-round search."""
     import z3
 
     val_sort = z3.DeclareSort("Val")
@@ -408,6 +424,31 @@ def _smt_unsat_core_obligations(
 
     for fname, args, out in list(spec_facts) + list(observed_facts):
         func_of(fname, args, out)
+
+    def ir_to_z3(ir):
+        """Translate a relational-property IR node into a z3 expression over the
+        (already-declared) uninterpreted functions. Raises on an undeclared
+        function or unsupported node, so the caller can skip that constraint."""
+        tag = ir[0]
+        if tag == "val":
+            return _z3_value(ir[1], val_sort, consts, rev)
+        if tag == "app":
+            return funcs[ir[1]](*[_z3_value(a, val_sort, consts, rev) for a in ir[2]])
+        if tag == "not":
+            return z3.Not(ir_to_z3(ir[1]))
+        if tag == "bin":
+            op, a, b = ir[1], ir_to_z3(ir[2]), ir_to_z3(ir[3])
+            return {
+                "==": lambda: a == b,
+                "!=": lambda: a != b,
+                "&&": lambda: z3.And(a, b),
+                "||": lambda: z3.Or(a, b),
+                "<": lambda: a < b,
+                "<=": lambda: a <= b,
+                ">": lambda: a > b,
+                ">=": lambda: a >= b,
+            }[op]()
+        raise ValueError(f"unsupported relational IR: {ir}")
 
     pinned = {(f.name, args) for f, args, _ in spec_facts}
 
@@ -432,6 +473,14 @@ def _smt_unsat_core_obligations(
     for (f, fa), (g, ga) in symbolic_eqs:
         if f.name in funcs and g.name in funcs:
             track(app(f, fa) == app(g, ga), ("sym", f, fa, g, ga))
+    rel_z3: list = []
+    for ir in relational or []:
+        try:
+            rel_z3.append(ir_to_z3(ir))
+        except Exception:
+            pass  # references an undeclared function / unsupported shape: skip
+    for i, rz in enumerate(rel_z3):
+        track(rz, ("rel", i))
 
     if solver.check() != z3.unsat:
         return []  # consistent (or unknown): nothing to refine
@@ -441,13 +490,18 @@ def _smt_unsat_core_obligations(
     if not blamed:
         return []
 
-    # Read the spec-consistent intended outputs from a model of ψ ∧ structure.
+    # Read the spec-consistent intended outputs from a model of
+    # ψ ∧ structure ∧ relational (the relational property is part of the
+    # intended spec, so the model must satisfy it — that is what pins a blamed
+    # callee's output, e.g. ``odd(1) = true`` from ``even(1) = !odd(1)``).
     model_solver = z3.Solver()
     for fname, args, out in spec_facts:
         model_solver.add(app(fname, args) == _z3_value(out, val_sort, consts, rev))
     for (f, fa), (g, ga) in symbolic_eqs:
         if f.name in funcs and g.name in funcs:
             model_solver.add(app(f, fa) == app(g, ga))
+    for rz in rel_z3:
+        model_solver.add(rz)
     if model_solver.check() != z3.sat:
         return []
     model = model_solver.model()
@@ -559,21 +613,203 @@ def _joint_accepts(
     return all(r.passed for r in prop_results)
 
 
+def _accumulate_trace(
+    trace: list,
+    observed: list,
+    symbolic: list,
+    seen_obs: set,
+    seen_sym: set,
+) -> None:
+    """Fold an instrumented call trace into the observed-fact set ``θ`` and the
+    symbolic tail-edges, using the recorded call-tree parents.
+
+    Each entry is ``[name, args, result, parent_index]``. A call whose result
+    equals its parent's was the parent's *tail call* (e.g. ``even(2) = odd(1)``),
+    so we add the edge ``parent = child`` — and *only* genuine parent/child
+    pairs, so unrelated calls that merely share a value (e.g. an eagerly
+    evaluated ``@example`` binding) never forge a spurious edge that would
+    over-constrain the SMT model. Calls whose result is still a function
+    (multi-argument partial applications) are skipped."""
+    for entry in trace:
+        nm, a, res = entry[0], entry[1], entry[2]
+        if callable(res):
+            continue
+        k = (nm.name, repr(a), repr(res))
+        if k not in seen_obs:
+            seen_obs.add(k)
+            observed.append((nm, a, res))
+    for i, entry in enumerate(trace):
+        p = entry[3]
+        if p < 0:
+            continue
+        nm_i, a_i, res_i = entry[0], entry[1], entry[2]
+        nm_p, a_p, res_p = trace[p][0], trace[p][1], trace[p][2]
+        if callable(res_i) or callable(res_p):
+            continue
+        if res_p == res_i and (nm_p.name, repr(a_p)) != (nm_i.name, repr(a_i)):
+            key = (nm_p.name, repr(a_p), nm_i.name, repr(a_i))
+            if key not in seen_sym:
+                seen_sym.add(key)
+                symbolic.append(((nm_p, a_p), (nm_i, a_i)))
+
+
+def _contains_member(t: Term, names: set[str]) -> bool:
+    """Does ``t`` mention any function under synthesis?"""
+    match t:
+        case Var(nm):
+            return nm.name in names
+        case Application(fun, arg):
+            return _contains_member(fun, names) or _contains_member(arg, names)
+        case Annotation(expr, _):
+            return _contains_member(expr, names)
+        case If(c, th, el):
+            return _contains_member(c, names) or _contains_member(th, names) or _contains_member(el, names)
+        case _:
+            return False
+
+
+def _find_top_level_def(core: Term, name_str: str) -> tuple[list[Name], Term] | None:
+    """Return ``(value-param names, body)`` of a top-level binding, or ``None``."""
+    cur: Term = core
+    while isinstance(cur, Rec):
+        if cur.var_name.name == name_str:
+            val: Term = cur.var_value
+            params: list[Name] = []
+            while isinstance(val, Abstraction):
+                params.append(val.var_name)
+                val = val.body
+            return params, val
+        cur = cur.body
+    return None
+
+
+_REL_BINOPS = {"==", "!=", "&&", "||", "<", "<=", ">", ">="}
+
+
+def _property_to_ir(body: Term, filled_core: Term, ectx: EvaluationContext, member_names: set[str]):
+    """Translate a (counterexample-instantiated) property body into the relational
+    IR consumed by :func:`_smt_unsat_core_obligations`.
+
+    Sub-terms free of any function under synthesis are *evaluated* to concrete
+    values (``("val", v)``); applications of a function under synthesis become
+    symbolic ``("app", name, arg-values)`` nodes (their argument terms — already
+    closed, since the property's parameter has been substituted — are evaluated
+    in the program); boolean/relational operators are kept symbolic. Returns the
+    IR, or ``None`` for an unsupported shape."""
+    from aeon.backend.evaluator import eval as aeon_eval
+
+    def ev(t: Term):
+        return aeon_eval(set_program_tail(filled_core, t), ectx)
+
+    def go(t: Term):
+        if not _contains_member(t, member_names):
+            return ("val", ev(t))
+        # Peel the application spine, then strip type/refinement applications from
+        # the head (a polymorphic operator like ``==`` appears as ``(==)[Bool]``).
+        head: Term = t
+        args: list[Term] = []
+        while isinstance(head, Application):
+            args.append(head.arg)
+            head = head.fun
+        args.reverse()
+        while isinstance(head, (TypeApplication, RefinementApplication)):
+            head = head.body
+        if isinstance(head, Var):
+            nm = head.name.name
+            if nm in member_names:
+                try:
+                    return ("app", nm, tuple(ev(a) for a in args))
+                except Exception:
+                    return None
+            if nm == "!" and len(args) == 1:
+                inner = go(args[0])
+                return ("not", inner) if inner is not None else None
+            if nm in _REL_BINOPS and len(args) == 2:
+                ia, ib = go(args[0]), go(args[1])
+                return ("bin", nm, ia, ib) if ia is not None and ib is not None else None
+        return None
+
+    try:
+        return go(body)
+    except Exception:
+        return None
+
+
+def _member_apps_in_ir(ir, acc: set) -> None:
+    """Collect every ``("app", name, args)`` (call to a function under synthesis)
+    appearing in a relational IR."""
+    if not isinstance(ir, tuple) or not ir:
+        return
+    if ir[0] == "app":
+        acc.add((ir[1], ir[2]))
+    elif ir[0] == "not":
+        _member_apps_in_ir(ir[1], acc)
+    elif ir[0] == "bin":
+        _member_apps_in_ir(ir[2], acc)
+        _member_apps_in_ir(ir[3], acc)
+
+
+def _property_counterexamples(
+    filled_core: Term, metadata: Metadata, ectx: EvaluationContext, member_names: set[str], max_input: int = 8
+) -> tuple[list, set]:
+    """Drive each ``@property`` over a small integer domain; for every input on
+    which it *fails*, return its relational IR and the set of member calls it
+    makes.
+
+    A relational property (e.g. ``even n = !(odd n)``) is the only spec that sees
+    a *deep* input. Its IR states the relation the unsat-core engine needs to
+    detect the conflict, and re-running each of its member calls (separately, so
+    each trace is a single recursion chain) exercises the recursion down to the
+    example-anchored base cases — together letting the engine propagate
+    obligations up the call chain (property-as-guide, not just filter).
+    Properties with non-integer or multi-argument parameters are skipped."""
+    from aeon.backend.evaluator import eval as aeon_eval
+    from aeon.core.types import t_int
+
+    prop_names = [
+        key
+        for key, entry in metadata.items()
+        if isinstance(key, Name) and isinstance(entry, dict) and "property" in entry
+    ]
+    irs: list = []
+    member_calls: set = set()
+    for pn in prop_names:
+        found = _find_top_level_def(filled_core, pn.name)
+        if found is None or len(found[0]) != 1:
+            continue  # need exactly one (integer) parameter to drive
+        (param,), body = found
+        for v in range(0, max_input + 1):
+            call: Term = Application(Var(pn), Literal(v, t_int))
+            try:
+                result = aeon_eval(set_program_tail(filled_core, call), ectx)
+            except Exception:
+                break  # wrong arity / non-int param: this property isn't drivable here
+            if result is False:
+                ir = _property_to_ir(substitution(body, Literal(v, t_int), param), filled_core, ectx, member_names)
+                if ir is not None:
+                    irs.append(ir)
+                    _member_apps_in_ir(ir, member_calls)
+    return irs, member_calls
+
+
 def _refine_obligations(
     filled_core: Term,
     members: list[tuple[Name, Name]],
     ectx: EvaluationContext,
     metadata: Metadata,
 ) -> int:
-    """Contata's refinement phase (Algorithm 2, lines 11-16) for example specs.
+    """Contata's refinement phase (Algorithm 2, lines 11-16).
 
-    Execute the current joint candidate (``filled_core``) on every member's I/O
-    examples under the instrumented semantics, blame the tail-callee of each
-    failing example, and add the propagated ``callee(args) = expected`` fact to
-    that callee's ``io_examples`` — the lazy refinement that constrains the
-    callee's next-round search on exactly the input implicated by the conflict.
-    Returns how many new obligations were added (0 ⇒ fixpoint / nothing to
-    learn). Only group members are refined."""
+    Execute the current joint candidate (``filled_core``) under the instrumented
+    semantics — on every member's I/O examples *and* on the failing inputs of any
+    relational ``@property`` (property-as-guide) — then hand the ground spec
+    ``ψ`` (``@example`` facts), the observed calls ``θ`` and the candidate's
+    symbolic structure to z3. Its unsat core blames the conflicting calls and a
+    model yields each blamed callee's spec-consistent output, added to that
+    callee's ``io_examples``: the lazy refinement that constrains the callee's
+    next-round search on exactly the input implicated by the conflict. Returns
+    how many new obligations were added (0 ⇒ fixpoint). Only group members are
+    refined."""
     from aeon.backend.evaluator import eval_with_trace
 
     member_name_strs = {fun_name.name for fun_name, _ in members}
@@ -585,10 +821,8 @@ def _refine_obligations(
         for args, out in metadata.get(fun_name, {}).get("io_examples", []):
             spec_facts.append((fun_name, tuple(args), out))
 
-    # θ + structure: run the joint candidate on every spec input under the
-    # instrumented semantics, recording observed calls and the per-call symbolic
-    # relations (each call's result equals the nearest enclosing earlier call
-    # with the same result — the executed tail edge).
+    # θ + structure: from running the candidate on every example input, and on
+    # each relational property's failing inputs.
     observed: list[tuple[Name, tuple, Any]] = []
     symbolic: list[tuple[tuple[Name, tuple], tuple[Name, tuple]]] = []
     seen_obs: set = set()
@@ -609,23 +843,32 @@ def _refine_obligations(
                 _actual, trace = eval_with_trace(set_program_tail(filled_core, call), ectx)
             except Exception:
                 continue
-            for nm, a, res in trace:
-                k = (nm.name, repr(a), repr(res))
-                if k not in seen_obs:
-                    seen_obs.add(k)
-                    observed.append((nm, a, res))
-            for i in range(len(trace)):
-                nm_i, a_i, res_i = trace[i]
-                for j in range(i - 1, -1, -1):
-                    nm_j, a_j, res_j = trace[j]
-                    if res_j == res_i and (nm_j.name, repr(a_j)) != (nm_i.name, repr(a_i)):
-                        key = (nm_i.name, repr(a_i), nm_j.name, repr(a_j))
-                        if key not in seen_sym:
-                            seen_sym.add(key)
-                            symbolic.append(((nm_i, a_i), (nm_j, a_j)))
-                        break
+            _accumulate_trace(trace, observed, symbolic, seen_obs, seen_sym)
 
-    obligations = _smt_unsat_core_obligations(spec_facts, observed, symbolic, member_name_strs)
+    relational, prop_member_calls = _property_counterexamples(filled_core, metadata, ectx, member_name_strs)
+    # Re-run each member call the failing properties make, separately, so each
+    # trace is a single recursion chain (no spurious cross-call structure edges).
+    for fname_str, argvals in prop_member_calls:
+        target = name_to_fun.get(fname_str)
+        if target is None:
+            continue
+        call = Var(target)
+        ok = True
+        for v in argvals:
+            lit = _value_literal(v)
+            if lit is None:
+                ok = False
+                break
+            call = Application(call, lit)
+        if not ok:
+            continue
+        try:
+            _actual, trace = eval_with_trace(set_program_tail(filled_core, call), ectx)
+        except Exception:
+            continue
+        _accumulate_trace(trace, observed, symbolic, seen_obs, seen_sym)
+
+    obligations = _smt_unsat_core_obligations(spec_facts, observed, symbolic, member_name_strs, relational=relational)
 
     added = 0
     for fname, args, out in obligations:
