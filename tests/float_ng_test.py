@@ -6,13 +6,21 @@ import pytest
 
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Literal
-from aeon.core.types import t_float, t_int
+from aeon.core.types import TypeConstructor, t_float, t_int
+from aeon.utils.name import Name
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.logger.logger import setup_logger
 from aeon.synthesis.api import ProgramSynthesizer, SynthesisError
 from aeon.synthesis.entrypoint import _make_fitness, synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
-from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer, _is_float
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
+from aeon.core.types import RefinedType
+from aeon.synthesis.modules.float_ng import (
+    FloatHoleNGSynthesizer,
+    _array_length,
+    _is_array_float,
+    _is_float,
+)
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisFormat
 
@@ -122,7 +130,7 @@ def test_single_hole_rejected():
     def f : Float := x * x;
     """
     driver = _parse(src)
-    with pytest.raises(SynthesisError, match="two or more holes"):
+    with pytest.raises(SynthesisError, match="dimension"):
         _synthesize(driver, FloatHoleNGSynthesizer())
 
 
@@ -146,3 +154,61 @@ def test_missing_objective_rejected():
     driver = _parse(src)
     with pytest.raises(SynthesisError, match="objective"):
         _synthesize(driver, FloatHoleNGSynthesizer())
+
+
+# ---------------------------------------------------------------------------
+# Array Float holes
+# ---------------------------------------------------------------------------
+
+
+def test_is_array_float():
+    assert _is_array_float(TypeConstructor(Name("Array", 0), [t_float]))
+    assert not _is_array_float(TypeConstructor(Name("Array", 0), [t_int]))
+    assert not _is_array_float(t_float)
+
+
+ARRAY_SPHERE = """
+import Array;
+def v : {a:(Array Float) | Array.size a = 3} := ?h;
+@minimize_float( ((v.get 0) * (v.get 0)) + ((v.get 1) * (v.get 1)) + ((v.get 2) * (v.get 2)) )
+def sphere : Float := ((v.get 0) * (v.get 0)) + ((v.get 1) * (v.get 1)) + ((v.get 2) * (v.get 2));
+"""
+
+
+def test_array_float_hole_converges():
+    driver = _parse(ARRAY_SPHERE)
+    mapping = _synthesize(driver, FloatHoleNGSynthesizer(optimizer="CMA", seed=1), budget=3.0)
+    assert len(mapping) == 1
+    (term,) = mapping.values()
+    # The single (Array Float) hole is filled with a length-3 list literal.
+    assert isinstance(term, Literal)
+    assert isinstance(term.value, list) and len(term.value) == 3
+    assert _objective(driver, mapping) < 0.1
+
+
+def _array_refined(refinement) -> RefinedType:
+    return RefinedType(Name("a", 0), TypeConstructor(Name("Array", 0), [t_float]), refinement)
+
+
+def _size_eq(left_int: bool, k: int) -> LiquidApp:
+    size = LiquidApp(Name("Array_size", 0), [LiquidVar(Name("a", 0))])
+    lit = LiquidLiteralInt(k)
+    args = [lit, size] if left_int else [size, lit]
+    return LiquidApp(Name("==", 0), args)
+
+
+def test_array_length_extracts_size():
+    assert _array_length(_array_refined(_size_eq(False, 4))) == 4
+
+
+def test_array_length_reversed_operands():
+    assert _array_length(_array_refined(_size_eq(True, 7))) == 7
+
+
+def test_array_length_none_without_fixed_size():
+    # `size a > 0` constrains but does not fix the length → no dimension count.
+    refinement = LiquidApp(
+        Name(">", 0),
+        [LiquidApp(Name("Array_size", 0), [LiquidVar(Name("a", 0))]), LiquidLiteralInt(0)],
+    )
+    assert _array_length(_array_refined(refinement)) is None

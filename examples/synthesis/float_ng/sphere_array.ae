@@ -1,0 +1,11 @@
+# Sphere over an (Array Float) of fixed size 5: the synthesized *body* of
+# `sphere` IS the array. f(v) = sum v_i^2, global minimum 0 at the zero vector.
+# FloatHoleNG fills the function body with a 5-element float vector, one
+# optimisation dimension per element. Elements are read with UFCS method
+# syntax (`sphere.get i`, issue #27), which dispatches to `Array.get`.
+import Array;
+
+@minimize_float(
+  ((sphere.get 0) * (sphere.get 0)) + ((sphere.get 1) * (sphere.get 1)) + ((sphere.get 2) * (sphere.get 2)) + ((sphere.get 3) * (sphere.get 3)) + ((sphere.get 4) * (sphere.get 4))
+)
+def sphere : {a:(Array Float) | Array.size a = 5} := ?h;

@@ -21,9 +21,10 @@ import time
 from typing import Optional
 
 from aeon.backend.evaluator import EvaluationContext
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidTerm
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Literal, Term
-from aeon.core.types import TypeConstructor, t_float, top
+from aeon.core.types import RefinedType, Type, TypeConstructor, t_float, top
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import ProgramSynthesizer, SynthesisError
 from aeon.synthesis.decorators import Goal
@@ -50,8 +51,54 @@ DEFAULT_BOUND = 5.12
 OPTIMIZER_BUDGET = 1000
 
 
+def _unrefine(ty: Type) -> Type:
+    return ty.type if isinstance(ty, RefinedType) else ty
+
+
 def _is_float(ty: object) -> bool:
-    return isinstance(ty, TypeConstructor) and ty.name.name == "Float"
+    base = _unrefine(ty) if isinstance(ty, Type) else ty
+    return isinstance(base, TypeConstructor) and base.name.name == "Float"
+
+
+def _is_array_float(ty: object) -> bool:
+    base = _unrefine(ty) if isinstance(ty, Type) else ty
+    return (
+        isinstance(base, TypeConstructor)
+        and base.name.name == "Array"
+        and len(base.args) == 1
+        and _is_float(base.args[0])
+    )
+
+
+def _size_app(lt: LiquidTerm) -> bool:
+    """A liquid application of an array length measure (e.g. ``Array_size``)."""
+    return isinstance(lt, LiquidApp) and "size" in getattr(lt.fun, "name", str(lt.fun)).lower()
+
+
+def _array_length(ty: Type) -> int | None:
+    """Extract ``k`` from an ``Array`` hole refined by ``size a == k``.
+
+    Walks the refinement looking for an equality between an array-size
+    application and an integer literal (either operand order, anywhere in a
+    conjunction). Returns ``None`` if no such constraint is present.
+    """
+    if not isinstance(ty, RefinedType):
+        return None
+    found: list[int] = []
+
+    def walk(lt: LiquidTerm) -> None:
+        if isinstance(lt, LiquidApp):
+            fname = getattr(lt.fun, "name", str(lt.fun))
+            if fname == "==" and len(lt.args) == 2:
+                a, b = lt.args
+                for x, y in ((a, b), (b, a)):
+                    if _size_app(x) and isinstance(y, LiquidLiteralInt):
+                        found.append(y.value)
+            for a in lt.args:
+                walk(a)
+
+    walk(ty.refinement)
+    return found[0] if found else None
 
 
 class FloatHoleNGSynthesizer(ProgramSynthesizer):
@@ -87,16 +134,37 @@ class FloatHoleNGSynthesizer(ProgramSynthesizer):
                 "`uv pip install nevergrad` (or the 'synthesis-ng' extra)."
             ) from e
 
-        # One float dimension per hole, in a stable order taken from the targets.
+        # Map each hole to a contiguous slice of one flat float vector: a scalar
+        # ``Float`` hole takes one dimension, an ``(Array Float)`` hole takes one
+        # dimension per element (its length comes from a ``size a == k``
+        # refinement). Order is stable, taken from the targets.
         hole_names = [h for _, holes in targets for h in holes]
-        holes_info = get_holes_info(ctx, term, top, targets, refined_types=False)
-        non_float = [h for h in hole_names if not _is_float(holes_info[h][0])]
-        if len(hole_names) < 2 or non_float:
+        holes_info = get_holes_info(ctx, term, top, targets, refined_types=True)
+
+        # spec = (hole name, literal type to substitute, number of dimensions, is_array)
+        specs: list[tuple[Name, Type, int, bool]] = []
+        bad: list[str] = []
+        for h in hole_names:
+            ty = holes_info[h][0]
+            base = _unrefine(ty)
+            if _is_float(base):
+                specs.append((h, t_float, 1, False))
+            elif _is_array_float(base):
+                k = _array_length(ty)
+                if k is None or k < 1:
+                    bad.append(f"{h.pretty()} (Array Float without a 'size a == k' refinement)")
+                else:
+                    specs.append((h, base, k, True))
+            else:
+                bad.append(f"{h.pretty()} (type {base})")
+
+        total_dims = sum(k for _, _, k, _ in specs)
+        if bad or total_dims < 2:
             raise SynthesisError(
-                "FloatHoleNG only applies to programs with two or more holes, all of type Float. "
-                f"Got {len(hole_names)} hole(s)"
-                + (f"; non-Float: {[h.pretty() for h in non_float]}" if non_float else "")
-                + ". Use a grammar-based synthesizer (e.g. -s ng / gp) instead."
+                "FloatHoleNG only applies to holes that are Float or (Array Float) with a fixed "
+                "'size a == k' refinement, totalling at least two float dimensions. "
+                + (f"Unsupported holes: {bad}. " if bad else f"Only {total_dims} dimension(s). ")
+                + "Use a grammar-based synthesizer (e.g. -s ng / gp) instead."
             )
 
         # The objective(s) live on whichever function carries the @minimize/
@@ -107,12 +175,27 @@ class FloatHoleNGSynthesizer(ProgramSynthesizer):
             raise SynthesisError("FloatHoleNG requires at least one @minimize/@maximize objective on the program.")
         evaluators = [_make_fitness(g, ectx) for g in goals]
         minimize = [g.minimize for g in goals]
-        n = len(hole_names)
+        n = total_dims
+
+        def decode(vec: list[float]) -> dict[Name, Optional[Term]]:
+            """Split the flat vector into one term per hole (scalar → Float
+            literal, array slice → list-valued ``Array Float`` literal)."""
+            mapping: dict[Name, Optional[Term]] = {}
+            i = 0
+            for name, lit_type, k, is_array in specs:
+                chunk = vec[i : i + k]
+                i += k
+                if is_array:
+                    mapping[name] = Literal([float(x) for x in chunk], type=lit_type)
+                else:
+                    mapping[name] = Literal(float(chunk[0]), type=lit_type)
+            return mapping
 
         def fill(vec: list[float]) -> Term:
             prog = term
-            for name, val in zip(hole_names, vec):
-                prog = substitution(prog, Literal(float(val), type=t_float), name)
+            for name, rep in decode(vec).items():
+                assert rep is not None
+                prog = substitution(prog, rep, name)
             return prog
 
         def evaluate(vec: list[float]) -> list[float]:
@@ -168,4 +251,4 @@ class FloatHoleNGSynthesizer(ProgramSynthesizer):
                 best_vec = list(chosen)
 
         ui.end(fill(best_vec), None)
-        return {h: Literal(float(v), type=t_float) for h, v in zip(hole_names, best_vec)}
+        return decode(best_vec)
