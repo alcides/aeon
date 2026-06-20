@@ -1,0 +1,8 @@
+# Integer sphere: minimise x^2 + y^2 + z^2 over Int holes in [-50, 50].
+# CP-SAT finds the exact optimum (0, 0, 0) -> 0.
+def x : {v:Int | v > 0 - 50 && v < 50} := ?hx;
+def y : {v:Int | v > 0 - 50 && v < 50} := ?hy;
+def z : {v:Int | v > 0 - 50 && v < 50} := ?hz;
+
+@minimize_int( (x * x) + ((y * y) + (z * z)) )
+def isphere : Int := (x * x) + ((y * y) + (z * z));

@@ -17,7 +17,7 @@ borrow geneticengine's codon mapping rather than inventing our own.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 from aeon.core.terms import Term
 from aeon.core.types import Type
@@ -60,12 +60,17 @@ def _orient(components: list[float], minimize: list[bool]) -> list[float]:
     return [c if mini else -c for c, mini in zip(components, minimize)]
 
 
-def _knee_point(archive: list[tuple[Term, list[float]]], minimize: list[bool]) -> Term | None:
-    """Compromise selection over an archive of (term, oriented-loss) pairs.
+_Candidate = TypeVar("_Candidate")
+
+
+def _knee_point(archive: list[tuple[_Candidate, list[float]]], minimize: list[bool]) -> _Candidate | None:
+    """Compromise selection over an archive of (candidate, oriented-loss) pairs.
 
     Mirrors ``ge_synthesis._knee_point_individual``: per-objective min-max
     normalisation, then the candidate closest to the utopia origin. Works for
-    the single-objective case too (one dimension → picks the lowest loss).
+    the single-objective case too (one dimension → picks the lowest loss). The
+    candidate is opaque (a ``Term`` for GenomicNG, a float vector for
+    FloatHoleNG), so the function is generic over it.
     """
     if not archive:
         return None

@@ -55,6 +55,9 @@ tests = [
 synthesis-ng = [
     "nevergrad"
 ]
+synthesis-ortools = [
+    "ortools"
+]
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"

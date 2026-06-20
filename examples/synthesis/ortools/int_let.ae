@@ -1,0 +1,9 @@
+# Same constrained problem as int_constrained.ae, but the holes are `let`-bound
+# *inside* `f` and the objective is the function `f` itself. The CP-SAT
+# translator descends the lets and inlines `f`, reaching both hole leaves, and
+# returns the exact feasible optimum x = 5, y = 12.
+@minimize_int( f )
+def f : Int :=
+  let x : Int | x >= 5 && x <= 20 := ?hx in
+  let y : Int | y >= 0 - 5 && y <= 12 := ?hy in
+  ((x - 3) * (x - 3)) + ((y - 30) * (y - 30));

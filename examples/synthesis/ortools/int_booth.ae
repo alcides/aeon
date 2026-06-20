@@ -1,0 +1,6 @@
+# Integer Booth: (x + 2y - 7)^2 + (2x + y - 5)^2, exact optimum (1, 3) -> 0.
+def x : {v:Int | v > 0 - 20 && v < 20} := ?hx;
+def y : {v:Int | v > 0 - 20 && v < 20} := ?hy;
+
+@minimize_int( (((x + (2 * y)) - 7) * ((x + (2 * y)) - 7)) + ((((2 * x) + y) - 5) * (((2 * x) + y) - 5)) )
+def booth : Int := (((x + (2 * y)) - 7) * ((x + (2 * y)) - 7)) + ((((2 * x) + y) - 5) * (((2 * x) + y) - 5));
