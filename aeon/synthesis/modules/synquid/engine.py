@@ -6,9 +6,11 @@ from itertools import chain, count, takewhile
 import itertools
 from typing import Callable
 
-from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, TypeApplication, Var
+from aeon.core.instantiation import type_substitution
+from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, Term, TypeApplication, Var
 from aeon.core.types import AbstractionType, RefinedType, Type, TypeConstructor, TypePolymorphism, TypeVar
 from aeon.core.types import refined_to_unrefined_type
+from aeon.synthesis.modules.symetric.synthesizer import _match_type
 from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
 from aeon.synthesis.modules.synquid.guards import (
     bool_pairwise_conjunctions,
@@ -46,6 +48,45 @@ def frange(start, stop, step):
     return takewhile(lambda x: x < stop, count(start, step))
 
 
+def _solve_literal(ret_t: Type, base_t: TypeConstructor):
+    """Synquid-faithful literal synthesis. Rather than enumerating a fixed range
+    of constants, emit a *symbolic* literal (``?intLit`` / ``?floatLit``) and let
+    z3 pick a value satisfying the verification condition present at this
+    position -- the refinement of the goal type, propagated here by round-trip
+    type checking. Yields the single solved literal, or nothing if the
+    refinement is unsatisfiable (no constant inhabits the goal type)."""
+    from z3 import Solver, sat
+
+    from aeon.core.liquid import LiquidLiteralBool, liquid_free_vars
+    from aeon.verification.smt import make_variable, translate_liq
+
+    if isinstance(ret_t, RefinedType):
+        binder, refinement = ret_t.name, ret_t.refinement
+    else:
+        binder, refinement = Name("_lit", 0), LiquidLiteralBool(True)
+
+    # The binder is the unknown to solve for; any other free variables in the VC
+    # are unknown context values, given fresh consts so the binder is solved
+    # relative to them.
+    variables: dict[str, object] = {str(binder): make_variable(str(binder), base_t)}
+    for fv in liquid_free_vars(refinement):
+        variables.setdefault(str(fv), make_variable(str(fv), base_t))
+
+    try:
+        s = Solver()
+        s.add(translate_liq(refinement, variables))
+        if s.check() != sat:
+            return
+        model_val = s.model()[variables[str(binder)]]
+    except Exception:
+        return
+
+    if base_t.name.name == "Int":
+        yield Literal(0 if model_val is None else model_val.as_long(), base_t)
+    else:  # Float
+        yield Literal(0.0 if model_val is None else float(model_val.as_fraction()), base_t)
+
+
 def _head_result_constructor(t: Type) -> TypeConstructor | None:
     """Head datatype for ``closing`` when the spine ends in ``TypeConstructor`` or ``RefinedType`` over one."""
     match t:
@@ -55,6 +96,43 @@ def _head_result_constructor(t: Type) -> TypeConstructor | None:
             return inner
         case _:
             return None
+
+
+_PRIMITIVE_BASES = {"Int", "Bool", "Float", "String", "Unit"}
+
+
+def _refined_adt_param(i: Type) -> bool:
+    """True for a refined argument whose base is a user datatype/container (e.g.
+    ``{cs: List Chunk | len cs >= 1}``). Such a parameter must be built by
+    *application* one level deeper, not as a level-0 leaf -- only primitive
+    refined params (refined Int/Bool/...) are satisfiable by literals at level 0."""
+    if not isinstance(i, RefinedType):
+        return False
+    base = refined_to_unrefined_type(i)
+    return isinstance(base, TypeConstructor) and base.name.name not in _PRIMITIVE_BASES
+
+
+def _peel_polymorphism(ty: Type) -> tuple[list[Name], Type]:
+    """Strip the ``forall`` prefix, returning the bound type variables and body."""
+    tyvars: list[Name] = []
+    cur = ty
+    while isinstance(cur, TypePolymorphism):
+        tyvars.append(cur.name)
+        cur = cur.body
+    return tyvars, cur
+
+
+def _uncurry_arrow(ty: Type) -> tuple[list[Type], Type]:
+    """Split an arrow type into argument types and return type, tolerating
+    type-variable domains (e.g. ``(hd: a) -> (tl: List a) -> List a``) -- which
+    arise before a polymorphic binding is instantiated, and which ``uncurry``
+    rejects."""
+    params: list[Type] = []
+    cur = ty
+    while isinstance(cur, AbstractionType):
+        params.append(cur.var_type)
+        cur = cur.type
+    return params, cur
 
 
 def closing(elems: tuple, typ: TypeConstructor):
@@ -114,9 +192,11 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             case TypeConstructor(Name("Bool", 0)):
                 yield from [Literal(True, base_t), Literal(False, base_t)]
             case TypeConstructor(Name("Int", 0)):
-                yield from [Literal(value, base_t) for value in range(-100, 100)]
+                # ?intLit: solved by z3 against the VC (goal refinement) here.
+                yield from _solve_literal(ret_t, base_t)
             case TypeConstructor(Name("Float", 0)):
-                yield from [Literal(value, base_t) for value in frange(-100.0, 100.0, 0.00001)]
+                # ?floatLit: solved by z3 against the VC (goal refinement) here.
+                yield from _solve_literal(ret_t, base_t)
             case TypeConstructor(Name("String", 0)):
                 yield from (
                     Literal(s, base_t)
@@ -141,10 +221,54 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
         for name, typ in [
             (n, ty) for n, ty in ctx.concrete_vars() if not isinstance(ty, TypeConstructor) and not skip(n)
         ]:
-            for candidate in monomorfic(typ, ctx, {}) if isinstance(typ, TypePolymorphism) else [typ]:
-                if synquid_application_arg_types(candidate, ret_t) is None:
+            if isinstance(typ, TypePolymorphism):
+                # Synquid APP rule with polymorphic instantiation: instantiate the
+                # bound type variables by *unifying the function's return type with
+                # the goal* (Polikarpova et al., PLDI'16). Unifying ``List a`` with
+                # the goal ``List Enemy`` yields ``a := Enemy``, so the user's own
+                # containers get built -- and only the one relevant instantiation
+                # is tried (no universe enumeration, no combinatorial blow-up).
+                tyvars, inner = _peel_polymorphism(typ)
+                params_t, ret_template = _uncurry_arrow(inner)
+                # A binding whose return type is a *bare* bound type variable
+                # (e.g. ``+`` / ``Array_get`` : ``∀a. … -> a``) unifies with any
+                # goal, so it would be instantiated at every user datatype --
+                # ``chunk + chunk``, ``level + level`` -- and these nonsensical
+                # builders blow up the search combinatorially. Only build such
+                # "returns-anything" functions at primitive goals (where they are
+                # the actual arithmetic/relational ops); data constructors, whose
+                # return head is a concrete type constructor, are unaffected.
+                ret_unref = refined_to_unrefined_type(ret_template)
+                if isinstance(ret_unref, TypeVar) and ret_unref.name in set(tyvars):
+                    goal_base = refined_to_unrefined_type(ret_t)
+                    if not (isinstance(goal_base, TypeConstructor) and goal_base.name.name in _PRIMITIVE_BASES):
+                        continue
+                sub = _match_type(ret_template, ret_t, set(tyvars))
+                if sub is None or any(tv not in sub for tv in tyvars):
                     continue
-                params_t, t = uncurry(candidate)
+                head: Term = Var(name)
+                for tv in tyvars:
+                    head = TypeApplication(head, sub[tv])
+                inst_params: list[Type] = []
+                for p in params_t:
+                    for tv in tyvars:
+                        p = type_substitution(p, tv, sub[tv])
+                    inst_params.append(p)
+                params = [
+                    synthes_memory(ctx, level - 1, i, skip, mem)
+                    if isinstance(i, TypeConstructor) or _refined_adt_param(i)
+                    else synthes_memory(ctx, 0, i, skip, mem)
+                    for i in inst_params
+                ]
+                for combo in itertools.product(*params):
+                    term: Term = head
+                    for a in combo:
+                        term = Application(term, a)
+                    yield term
+            else:
+                if synquid_application_arg_types(typ, ret_t) is None:
+                    continue
+                params_t, t = uncurry(typ)
                 if refined_to_unrefined_type(t) != base_t:
                     continue
                 head_tc = _head_result_constructor(t)
@@ -152,14 +276,13 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                     continue
                 params = [
                     synthes_memory(ctx, level - 1, i, skip, mem)
-                    if isinstance(i, TypeConstructor)
+                    if isinstance(i, TypeConstructor) or _refined_adt_param(i)
                     else synthes_memory(ctx, 0, i, skip, mem)
                     for i in params_t
                 ]
                 params.insert(0, [Var(name)])
                 for i in itertools.product(*params):
-                    a = closing(i, head_tc)
-                    yield a
+                    yield closing(i, head_tc)
         bool_t = TypeConstructor(Name("Bool", 0), [])
         atoms_q = extract_qualifier_atoms(ctx, goal_type=ret_t)
         guard_quads = bool_quad_conjunctions(ctx, atoms_q)

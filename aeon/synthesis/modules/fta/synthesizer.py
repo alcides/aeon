@@ -125,7 +125,7 @@ class FTASynthesizer(Synthesizer):
         seed: int = 0,
         int_lo: int = -8,
         int_hi: int = 33,
-        rounds: int = 3,
+        rounds: int | None = None,
         combo_cap: int = 4096,
         max_bank: int = 512,
         if_branch_cap: int = 20,
@@ -446,12 +446,17 @@ class FTASynthesizer(Synthesizer):
         add_bank(int_key, [Literal(v, t_int) for v in int_lits])
         add_bank(float_key, [Literal(v, t_float) for v in (0.0, 1.0, 2.0, -1.0)])
 
-        # Rounds 1..k -- apply every transition to the bank built so far, growing
-        # programs one operator deeper. Stop as soon as an accepting state is
-        # found: bottom-up construction reaches the smallest programs first.
-        for _round in range(self.rounds):
-            if best is not None or time.time() >= deadline:
+        # Rounds 1.. -- apply every transition to the bank built so far, growing
+        # programs one operator deeper. Depth is bounded by the time budget, not
+        # a fixed number of rounds: keep deepening until an accepting state is
+        # found (bottom-up construction reaches the smallest programs first), the
+        # budget runs out, or the bank reaches a fixpoint (a full round adds no
+        # new terms). ``self.rounds``, when set, caps the depth explicitly.
+        depth = 0
+        while best is None and time.time() < deadline:
+            if self.rounds is not None and depth >= self.rounds:
                 break
+            before = sum(len(v) for v in bank.values())
             snapshot = {k: list(v) for k, v in bank.items()}
             for comps in builders.values():
                 for comp in comps:
@@ -463,6 +468,9 @@ class FTASynthesizer(Synthesizer):
             # Report counts after each round: transitions are the candidates
             # generated; the validated goal states are those assessed.
             ui.progress(transitions, len(validated), time.time() - start)
+            depth += 1
+            if sum(len(v) for v in bank.values()) == before:
+                break
 
         states = len(rep)
         if best is not None:
@@ -474,9 +482,9 @@ class FTASynthesizer(Synthesizer):
             ui.register(best, [0.0], time.time() - start, True)
             return best
         raise SynthesisNotSuccessful(
-            f"fta: no spec-consistent program of depth < {self.rounds} found within budget={budget}s "
-            f"(explored {states} observational states / {transitions} transitions). Try a larger budget, "
-            "more rounds, or a backend that abstracts states (afta/lta)."
+            f"fta: no spec-consistent program found within budget={budget}s "
+            f"(reached depth {depth}, explored {states} observational states / {transitions} transitions). "
+            "Try a larger budget or a backend that abstracts states (afta/lta)."
         )
 
 

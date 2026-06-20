@@ -577,7 +577,22 @@ def resolve_qualified_names_in_definition(
         )
         for dec in d.decorators
     ]
-    if new_body is d.body and new_args == d.args and new_type is d.type and new_decorators == d.decorators:
+    # The termination-metric expressions reference the parameters and measures
+    # (e.g. ``size xs``) and must be qualified-name-resolved exactly like the
+    # body — otherwise a measure name (``size``) is left unresolved and the
+    # termination obligation is undischarged. ``arg_names`` is bound so the
+    # parameters are not captured by a same-named import.
+    new_decreasing = [
+        resolve_qualified_names_in_sterm(m, qualified_scope, unqualified_scope, constructor_defs, arg_names)
+        for m in d.decreasing_by
+    ]
+    if (
+        new_body is d.body
+        and new_args == d.args
+        and new_type is d.type
+        and new_decorators == d.decorators
+        and new_decreasing == list(d.decreasing_by)
+    ):
         return d
     return Definition(
         d.name,
@@ -587,7 +602,7 @@ def resolve_qualified_names_in_definition(
         new_body,
         new_decorators,
         d.rforalls,
-        d.decreasing_by,
+        new_decreasing,
         d.loc,
         arg_multiplicities=d.arg_multiplicities,
         instance_flags=d.instance_flags,

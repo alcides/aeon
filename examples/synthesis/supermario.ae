@@ -71,11 +71,14 @@ inductive Chunk
 | boxes_chunk (bs: (List Box) | len bs >= 2 && len bs <= 7) : Chunk
 
 # --- Level ---
-# Minimum chunk/enemy counts are enforced by the fitness, not the type,
-# so that partial candidates can still be evaluated by the synthesizer.
+# Both lists are required to be non-empty in the *type* of the constructor
+# (reusing the `len` measure on `List`): since `mk_level` is the only way to
+# build a `Level`, non-emptiness is an invariant of every `Level` value. This
+# rules out the degenerate empty level that a purely fitness-driven search
+# otherwise collapses to.
 
 inductive Level
-| mk_level (cs: (List Chunk)) (es: (List Enemy)) : Level
+| mk_level (cs: (List Chunk) | len cs >= 1) (es: (List Enemy) | len es >= 1) : Level
 
 # --- Fitness helpers (pure Aeon, using match on inductive types) ---
 

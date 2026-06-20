@@ -87,7 +87,11 @@ class AbstractionType(Type):
         )
 
     def __hash__(self) -> int:
-        return hash(self.var_name) + hash(self.var_type) + hash(self.type) + hash(self.multiplicity)
+        h = getattr(self, "_hash", None)
+        if h is None:
+            h = hash(self.var_name) + hash(self.var_type) + hash(self.type) + hash(self.multiplicity)
+            object.__setattr__(self, "_hash", h)
+        return h
 
 
 @dataclass
@@ -109,7 +113,11 @@ class RefinedType(Type):
         )
 
     def __hash__(self) -> int:
-        return hash(self.name) + hash(self.type) + hash(self.refinement)
+        h = getattr(self, "_hash", None)
+        if h is None:
+            h = hash(self.name) + hash(self.type) + hash(self.refinement)
+            object.__setattr__(self, "_hash", h)
+        return h
 
 
 @dataclass
@@ -123,7 +131,11 @@ class TypePolymorphism(Type):
         return f"forall {self.name}:{self.kind}, {self.body}"
 
     def __hash__(self) -> int:
-        return hash(self.name) + hash(self.kind) + hash(self.body)
+        h = getattr(self, "_hash", None)
+        if h is None:
+            h = hash(self.name) + hash(self.kind) + hash(self.body)
+            object.__setattr__(self, "_hash", h)
+        return h
 
 
 @dataclass
@@ -137,7 +149,11 @@ class RefinementPolymorphism(Type):
         return f"forall <{self.name}:{self.sort}>, {self.body}"
 
     def __hash__(self) -> int:
-        return hash(self.name) + hash(self.sort) + hash(self.body)
+        h = getattr(self, "_hash", None)
+        if h is None:
+            h = hash(self.name) + hash(self.sort) + hash(self.body)
+            object.__setattr__(self, "_hash", h)
+        return h
 
 
 @dataclass
@@ -154,7 +170,11 @@ class TypeConstructor(Type):
         return type(other) is TypeConstructor and other.name == self.name and self.args == other.args
 
     def __hash__(self) -> int:
-        return hash(self.name) + sum(hash(a) for a in self.args)
+        h = getattr(self, "_hash", None)
+        if h is None:
+            h = hash(self.name) + sum(hash(a) for a in self.args)
+            object.__setattr__(self, "_hash", h)
+        return h
 
 
 @dataclass

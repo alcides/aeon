@@ -68,10 +68,12 @@ class LTASynthesizer(Synthesizer):
     library `F` (the typing context's library functions) and a goal type
     `φ`, applying the rules of Fig. 7 and the reductions of Fig. 9.
 
-    The implementation simulates a single goal state at depth ≤ `max_depth`.
+    The implementation simulates a single goal state, deepening until the time
+    budget runs out or the LTA reaches a fixpoint (a transition step adds no new
+    states). `max_depth`, when set, caps the depth explicitly.
     """
 
-    def __init__(self, max_depth: int = 4):
+    def __init__(self, max_depth: int | None = None):
         self.max_depth = max_depth
 
     def synthesize(
@@ -143,9 +145,13 @@ class LTASynthesizer(Synthesizer):
         equiv_set: set[tuple[int, int]] = set()
         depth = 1
         created = 0
-        while depth < self.max_depth and (time.time() - start) < budget:
+        while (self.max_depth is None or depth < self.max_depth) and (time.time() - start) < budget:
             new_states = _transition_step(lta, tctx, inner_ctx)
             if not new_states:
+                break
+            # With the depth unbounded, the LTA can grow large; re-check the
+            # budget before the expensive minimization pipeline.
+            if (time.time() - start) >= budget:
                 break
             lta = prune(lta, inner_ctx)
             equiv_set = similarity(lta, inner_ctx, equiv_set)
@@ -161,7 +167,7 @@ class LTASynthesizer(Synthesizer):
                     return term
             depth += 1
 
-        raise SynthesisNotSuccessful(f"LTASynthesizer: no solution within depth={self.max_depth}, budget={budget}s")
+        raise SynthesisNotSuccessful(f"LTASynthesizer: no solution found (reached depth={depth}, budget={budget}s)")
 
     @staticmethod
     def _accept(term: Term, validate: Callable[[Term], bool]) -> bool:

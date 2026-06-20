@@ -64,20 +64,32 @@ class SynquidSynthesizer(Synthesizer):
         goals = current_metadata.get("goals", [])
         search_mode = current_metadata.get("synquid_search", "size_merge")
         typecheck_candidate_first = bool(current_metadata.get("synquid_typecheck_candidate_first", False))
-        max_level = max(0, int(current_metadata.get("synquid_max_level", 128)))
+        # Depth is unbounded by default: the search runs until the time budget
+        # (the budget check in `consider`) or the candidate space is exhausted.
+        # A concrete `synquid_max_level` caps the depth explicitly.
+        _max_level_raw = current_metadata.get("synquid_max_level")
+        max_level = None if _max_level_raw is None else max(0, int(_max_level_raw))
         seed_levels = max(1, int(current_metadata.get("synquid_seed_levels", 2)))
         max_candidates_raw = current_metadata.get("synquid_max_candidates")
         max_candidates = None if max_candidates_raw is None else max(0, int(max_candidates_raw))
         n_candidates = 0
 
+        def _safe_check(fn, *args) -> bool:
+            # A candidate that makes the typechecker/SMT raise (e.g. an
+            # ill-sorted intermediate term) is simply rejected, never fatal.
+            try:
+                return bool(fn(*args))
+            except Exception:
+                return False
+
         def consider(result: Term) -> bool:
             nonlocal best, done
-            if typecheck_candidate_first and not check_type(ctx, result, type):
+            if typecheck_candidate_first and not _safe_check(check_type, ctx, result, type):
                 ui.register(result, "Invalid (hole-local)", get_elapsed_time(start_time), False)
                 if get_elapsed_time(start_time) > budget:
                     done = False
                 return False
-            if validate(result):
+            if _safe_check(validate, result):
                 score = evaluate(result)
                 if not goals:
                     ui.register(result, score, get_elapsed_time(start_time), True)
@@ -94,7 +106,7 @@ class SynquidSynthesizer(Synthesizer):
             return False
 
         if search_mode == "iterative_deepening":
-            while done and level <= max_level:
+            while done and (max_level is None or level <= max_level):
                 cap_done = False
                 for result in sorted_level_candidates(ctx, level, type, skip, mem):
                     if max_candidates is not None and n_candidates >= max_candidates:
