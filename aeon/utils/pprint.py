@@ -609,6 +609,10 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             )
 
         case STypeApplication(body=body, type=_type):
+            # Inferred type arguments are elided from surface output for
+            # readability (they are reconstructed by elaboration). When a type
+            # application *is* rendered textually it uses ``{t}`` (see
+            # ``STypeApplication.__str__``).
             pretty_body = sterm_pretty(body, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
             return group(pretty_body)
 

@@ -10,5 +10,5 @@ def slice (l: (Array Int))
 
 def main (args:Int) : Unit :=
     a : {x:(Array Int) | Array.size x = 7} :=
-        (((((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5).append 6).append 7;
+        (((((((Array.new{Int}).append 1).append 2).append 3).append 4).append 5).append 6).append 7;
     print (slice a 3 5)

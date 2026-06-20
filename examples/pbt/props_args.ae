@@ -36,7 +36,7 @@ def argvModeSlow : (Array String) := native "['--mode', 'slow']"
 # Built by chaining .append so its size (2 > 0) is provable — addChoice requires
 # a statically non-empty list of options.
 def choicesModes : {l : (Array String) | Array.size l > 0} :=
-    ((Array.new[String]).append "fast").append "slow"
+    ((Array.new{String}).append "fast").append "slow"
 
 def singleton (x : String) : (Array String) := native "[x]"
 

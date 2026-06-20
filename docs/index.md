@@ -58,7 +58,7 @@ The list below covers the ideas you'll meet first, with just enough context to g
 | **No exceptions, no `null`** | Errors are not raised. Failure is modelled with inductive types (`Maybe a`, `Either a b`) or, when possible, ruled out by refinement types so the failure case becomes unrepresentable. |
 | **Inductive types and pattern matching** | Data is defined with `inductive` (a sum of named constructors, each carrying typed fields), and destructured with `match ... with`. All constructors must be covered. |
 | **Functional, not object-oriented** | There are no classes, methods, or inheritance — only functions and inductive types. Behaviour is composed by passing functions, not by overriding. |
-| **Explicit polymorphism** | Generics are introduced with `forall t : B, ...` and applied at the call site, e.g. `id[Int]`. Type abstractions in the body use `Λ` (capital lambda). |
+| **Explicit polymorphism** | Generics are introduced with `forall t : B, ...` and applied at the call site with braces, e.g. `id{Int}`. Type abstractions in the body use `Λ` (capital lambda). |
 | **Parametric refinements** | A function can be polymorphic over a refinement *predicate*, not just over a type. This lets one definition preserve whatever invariant the caller's arguments happen to satisfy. |
 | **Synthesis is a language feature** | `?hole` is a legal expression. The compiler can search for an expression of the surrounding type, optionally guided by `@minimize` / `@maximize` decorators, training data, or natural-language prompts. |
 | **Surface syntax** | Top-level definitions use `def`; local bindings use `let`. Function types use `->` (or the Unicode `→`). Comments begin with `#`. |
@@ -92,7 +92,8 @@ Main returns Unit, which is the singleton type. It can be used like void in C.
 
 ### Comments
 
-Just like in Python, any line starting with # is a comment.
+Just like in Python, any line starting with # is a comment. (The one exception
+is `#[`, which opens an array literal — see below.)
 
 ### Literals
 
@@ -102,6 +103,21 @@ Just like in Python, any line starting with # is a comment.
 |    Int | ..., -2, -1, 0, 1, 2, ...           |
 |  Float | ..., -2.0, -1.0, 0.0, 1.0, 2.0, ... |
 | String | "", "a", "ab", ...                  |
+|   List | `[]`, `[1, 2, 3]`, `[[1, 2], [3]]`  |
+|  Array | `#[]`, `#[1, 2, 3]`                  |
+
+#### Collection literals
+
+Following Lean, `[1, 2, 3]` is a `List` literal and `#[1, 2, 3]` an `Array`
+literal (`import List` / `import Array` to bring the types into scope). They
+desugar to the library constructors — `[1, 2, 3]` to
+`List.cons 1 (List.cons 2 (List.cons 3 List.nil))` and `#[1, 2, 3]` to
+`Array.append (Array.append (Array.append Array.new 1) 2) 3` — and element types
+are inferred. An empty literal (`[]` / `#[]`) is fine where the element type is
+known (e.g. from an annotation: `let e : (List Int) := []`).
+
+`[` is always a list literal — type application uses braces (`f{Int}`), so the
+two never collide.
 
 ### Expressions
 
@@ -318,16 +334,18 @@ def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} 
 
 def main (args:Int) : Unit :=
     score : Int | score > 0 := 42;
-    safe_score : Int | safe_score > 0 := wrap[Int]{fun n => n > 0} score;
+    safe_score : Int | safe_score > 0 := wrap{Int}{|fun n => n > 0|} score;
     print safe_score;
 ```
 
-#### Refinement application
+#### Type and refinement application
 
-When calling a function with an explicit refinement parameter, use `{predicate}` to supply the refinement:
+Type application uses braces: `f{Int}` instantiates a `forall t : B` parameter at
+`Int`. A refinement parameter (`forall <p : T -> Bool>`) is supplied with
+`{|predicate|}`:
 
 ```
-wrap[Int]{fun n => n > 0} score
+wrap{Int}{|fun n => n > 0|} score
 ```
 
 ### Inductive types with parametric refinements

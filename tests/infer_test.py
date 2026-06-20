@@ -222,4 +222,4 @@ def test_capture_avoiding_subs():
 
 def test_max():
     max_type = "forall a:B, (x:a) -> (y:a) -> a"
-    assert tt("let r := max[{x:Int | ?hole }] 0 5 in r + 1", "Int", {"max": max_type})
+    assert tt("let r := max{{x:Int | ?hole }} 0 5 in r + 1", "Int", {"max": max_type})

@@ -242,7 +242,7 @@ class TestQualifiedNamesInBodyAnnotations:
         source = (
             "import Array;\n"
             "def main (i:Int) : Int :=\n"
-            "    a : {x:(Array Int) | Array.size x = 2} := ((Array.new[Int]).append 1).append 2;\n"
+            "    a : {x:(Array Int) | Array.size x = 2} := ((Array.new{Int}).append 1).append 2;\n"
             "    a.length;\n"
         )
         assert check_compile(source, st_top, 2)

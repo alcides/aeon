@@ -1,0 +1,22 @@
+# Mutual co-synthesis from examples via the `-s contata` version space (MR).
+#
+# Both `even` and `odd` are holes, specified only by ground @example I/O facts.
+# The version space discharges the WHOLE group in one SMT query: each body may
+# call its sibling (an uninterpreted function), so the assignment is mutually
+# consistent by construction. This is the paper's MR flagship — recovered here
+# as `even x = if x = 0 then true else odd (x-1)` and the dual for `odd`.
+#
+#   uv run python -m aeon --no-main -s contata examples/synthesis/cata/mutual_pbe.ae
+#
+mutual
+  @example(even 0 = true)
+  @example(even 1 = false)
+  @example(even 2 = true)
+  @example(even 3 = false)
+  def even (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?he;
+  @example(odd 0 = false)
+  @example(odd 1 = true)
+  @example(odd 2 = false)
+  @example(odd 3 = true)
+  def odd (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?ho;
+end

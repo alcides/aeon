@@ -385,7 +385,7 @@ class STypeApplication(STerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"({self.body})[{self.type}]"
+        return f"({self.body}){{{self.type}}}"
 
 
 @dataclass(frozen=True)
@@ -395,7 +395,7 @@ class SRefinementApplication(STerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __str__(self):
-        return f"({self.body})[{self.refinement}]"
+        return f"({self.body}){{|{self.refinement}|}}"
 
 
 class Node:

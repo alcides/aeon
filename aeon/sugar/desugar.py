@@ -1915,14 +1915,24 @@ def apply_decorators_in_program(prog: Program) -> Program:
 
 def apply_decorators_in_definitions(definitions: list[Definition]) -> tuple[list[Definition], Metadata]:
     """We apply the decorators meta-programming code to each definition in the
-    program."""
+    program.
+
+    Decorator-generated helper bindings (``@example``/``@property``/fitness
+    helpers) are collected and appended *after* all primary definitions rather
+    than interleaved right after their owner. Interleaving would split a
+    ``mutual`` group — e.g. an ``@example`` on ``even`` inserts a helper between
+    ``even`` and ``odd`` — and the evaluator ties a mutual group's recursive knot
+    only over the contiguous run of members. Helpers are nullary and only
+    *reference* the primary definitions, so placing them last keeps them in scope
+    while preserving member contiguity."""
     metadata: Metadata = {}
-    new_definitions = []
+    primary: list[Definition] = []
+    helpers: list[Definition] = []
     for definition in definitions:
         new_def, other_defs, metadata = apply_decorators(definition, metadata)
-        new_definitions.append(new_def)
-        new_definitions.extend(other_defs)
-    return new_definitions, metadata
+        primary.append(new_def)
+        helpers.extend(other_defs)
+    return primary + helpers, metadata
 
 
 def update_program_and_context(

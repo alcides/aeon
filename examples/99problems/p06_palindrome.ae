@@ -8,7 +8,7 @@ def listEq (xs: (Array Int)) (ys: (Array Int)) : Bool := native "xs == ys"
 def Array.isPalindrome (l: (Array Int)) : Bool := listEq l l.reversed
 
 def main (args:Int) : Unit :=
-    pal := (((Array.new[Int]).append 1).append 2).append 1;
-    notpal := (((Array.new[Int]).append 1).append 2).append 3;
+    pal := (((Array.new{Int}).append 1).append 2).append 1;
+    notpal := (((Array.new{Int}).append 1).append 2).append 3;
     _ := print pal.isPalindrome;
     print notpal.isPalindrome

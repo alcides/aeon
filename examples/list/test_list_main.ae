@@ -2,10 +2,10 @@ open List
 
 def consume : (l:(List Int)) -> Int := fun n => 0;
 
-def pos : Int := consume (List.snoc (List.nil[Int]) 1)
+def pos : Int := consume (List.snoc (List.nil{Int}) 1)
 
 def main (x:Int) : Unit :=
-    nil0 : (List Int) := List.nil[Int];
+    nil0 : (List Int) := List.nil{Int};
     one : (List Int) := nil0.snoc 3;
     two : (List Int) := one.snoc 2;
     three : (List Int) := two.snoc 1;

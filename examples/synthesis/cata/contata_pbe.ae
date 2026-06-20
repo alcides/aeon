@@ -1,0 +1,16 @@
+# Example-driven CATA version space (`-s contata`).
+#
+# Unlike `-s cata` (which discharges a *refinement-type* spec with the liquid
+# typechecker), `contata` is the paper-faithful version space: each candidate
+# body denotes symbolically over the function under synthesis (an uninterpreted
+# function) and is accepted under an SMT model against these ground @example
+# facts, with the well-foundedness side condition and MinTree extraction. Here it
+# recovers the predicate `x == 0`.
+#
+#   uv run python -m aeon --no-main -s contata examples/synthesis/cata/contata_pbe.ae
+#
+@example(isZero 0 = true)
+@example(isZero 1 = false)
+@example(isZero 2 = false)
+@example(isZero 3 = false)
+def isZero (x: {v:Int | v >= 0}) : Bool := ?hole;

@@ -113,6 +113,7 @@ def _parse_common_arguments(parser: ArgumentParser):
             "fta (Finite Tree Automata, OOPSLA'17), "
             "afta (abstraction-refinement FTA, POPL'18), "
             "cata (constraint-annotated tree automata, recursive/relational), "
+            "contata (cata version space, synthesises from @example I/O facts), "
             "symetric / xfta (metric program synthesis, arXiv:2206.06164)"
         ),
     )

@@ -12,5 +12,5 @@ def rndSelect (l: (Array Int)) (n: {k:Int | k >= 0 && k <= Array.size l}) :
 def main (args:Int) : Unit :=
     _ := native "random.seed(42)";
     a : {x:(Array Int) | Array.size x = 6} :=
-        ((((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5).append 6;
+        ((((((Array.new{Int}).append 1).append 2).append 3).append 4).append 5).append 6;
     print (rndSelect a 3)

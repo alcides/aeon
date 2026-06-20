@@ -1,0 +1,25 @@
+# Relational / k-safety specification over several functions (issue #397).
+#
+# A `@property` relates the two mutually-recursive functions to each other
+# (`even n = !(odd n)`) — a k-safety spec that is NOT a single function's
+# refinement type. aeon now uses such properties as a co-synthesis acceptance
+# oracle: a candidate assignment for the whole `mutual` group is accepted only
+# if every relational property holds (under property-based testing), alongside
+# the per-function refinement types and any `@example`s.
+#
+# The property domain is bounded so PBT samples small Nats (the recursive
+# even/odd would otherwise be evaluated on huge random inputs).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/relational_property.ae
+
+mutual
+  def even (n: {x:Int | x >= 0}) : Bool decreasing_by [n] :=
+    if n = 0 then true else odd (n - 1)
+
+  def odd (n: {x:Int | x >= 0}) : Bool decreasing_by [n] :=
+    if n = 0 then false else even (n - 1)
+end
+
+@property(50)
+def even_odd_complementary (n: {x:Int | 0 <= x && x < 12}) : Bool :=
+  even n = !(odd n);

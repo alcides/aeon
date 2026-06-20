@@ -1,0 +1,26 @@
+# Lean-style collection literals.
+#
+#   [1, 2, 3]    a List  (desugars to List.cons 1 (List.cons 2 (List.cons 3 List.nil)))
+#   #[1, 2, 3]   an Array (desugars to Array.append (Array.append (Array.append Array.new 1) 2) 3)
+#
+# Element types are inferred. `[` is always a list literal; type application uses
+# braces — `f{Int}` instantiates `f` at `Int`. `#[` opens an array — never a comment.
+
+import List
+import Array
+
+# A list literal, and a method-dot directly on it.
+def xs : (List Int) := [1, 2, 3]
+def three : Int := [1, 2, 3].length
+
+# An array literal; element order is preserved.
+def ys : (Array Int) := #[10, 20, 30, 40]
+
+# Nested lists and the empty list (annotated, so its element type is known).
+def grid : (List (List Int)) := [[1, 2], [3], []]
+
+# Literals are ordinary expressions: pass them as arguments, fold over them.
+def add (x:Int) (y:Int) : Int := x + y
+def total : Int := List.foldr add 0 [1, 2, 3, 4]
+
+def main (args:Int) : Int := three + List.length xs + Array.length ys + total

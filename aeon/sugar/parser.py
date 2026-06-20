@@ -98,6 +98,8 @@ def _split_arg_multiplicities(fn_args):
 _RECEIVER_END_TOKENS = frozenset(
     {
         "RPAR",  # (e).m
+        "RSQB",  # [1,2,3].m  (list/array literal)
+        "RBRACE",  # f{Int}.m  (closing a type application)
         "INTLIT",  # 1.m
         "FLOATLIT",  # 1.5.m
         "BOOLLIT",
@@ -426,7 +428,33 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def type_application_e(self, meta, args):
-        return STypeApplication(args[0], args[1], loc=self._loc(meta))
+        # ``receiver {type}`` — the ``{``/``}`` are filtered, so ``args`` is
+        # ``[receiver, type]``.
+        return STypeApplication(args[0], args[-1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def list_literal(self, meta, args):
+        # ``[e1, ..., en]`` => ``List.cons e1 (... (List.cons en List.nil))``.
+        # Element type (and abstract refinement) are inferred by elaboration.
+        loc = self._loc(meta)
+        items = args[0] if args else []
+        result: STerm = SQualifiedVar("List", Name("nil"), loc=loc)
+        for e in reversed(items):
+            cons = SQualifiedVar("List", Name("cons"), loc=loc)
+            result = SApplication(SApplication(cons, e, loc=loc), result, loc=loc)
+        return result
+
+    @v_args(meta=True)
+    def array_literal(self, meta, args):
+        # ``#[e1, ..., en]`` => ``Array.append (... (Array.append Array.new e1)) en``
+        # (left fold, so element order is preserved).
+        loc = self._loc(meta)
+        items = args[0] if args else []
+        result: STerm = SQualifiedVar("Array", Name("new"), loc=loc)
+        for e in items:
+            app = SQualifiedVar("Array", Name("append"), loc=loc)
+            result = SApplication(SApplication(app, result, loc=loc), e, loc=loc)
+        return result
 
     @v_args(meta=True)
     def refinement_application_e(self, meta, args):

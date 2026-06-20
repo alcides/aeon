@@ -6,5 +6,5 @@ open Array
 def Array.last (l: {x:(Array a) | Array.size x > 0}) : a := native "l[-1]"
 
 def main (args:Int) : Unit :=
-    xs := (((Array.new[Int]).append 1).append 2).append 3;
+    xs := (((Array.new{Int}).append 1).append 2).append 3;
     print xs.last;
