@@ -52,6 +52,9 @@ tests = [
     "pytest",
     "pytest-beartype"
 ]
+synthesis-ng = [
+    "nevergrad"
+]
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"
