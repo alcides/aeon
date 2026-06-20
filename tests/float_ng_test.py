@@ -168,10 +168,10 @@ def test_is_array_float():
 
 
 ARRAY_SPHERE = """
-import Array (size, get)
-def v : {a:(Array Float) | size a == 3} = ?h;
-@minimize_float( ((get v 0) * (get v 0)) + ((get v 1) * (get v 1)) + ((get v 2) * (get v 2)) )
-def sphere : Float = ((get v 0) * (get v 0)) + ((get v 1) * (get v 1)) + ((get v 2) * (get v 2));
+import Array;
+def v : {a:(Array Float) | Array.size a = 3} := ?h;
+@minimize_float( ((v.get 0) * (v.get 0)) + ((v.get 1) * (v.get 1)) + ((v.get 2) * (v.get 2)) )
+def sphere : Float := ((v.get 0) * (v.get 0)) + ((v.get 1) * (v.get 1)) + ((v.get 2) * (v.get 2));
 """
 
 
