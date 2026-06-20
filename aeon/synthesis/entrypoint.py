@@ -881,6 +881,38 @@ def _refine_obligations(
     return added
 
 
+def _contata_version_space_group(
+    members: list[tuple[Name, Name]],
+    program_holes: dict[Name, tuple[Type, TypingContext]],
+    metadata: Metadata,
+    synthesizer: Synthesizer,
+) -> Optional[dict[Name, Optional[Term]]]:
+    """Try the ``contata`` version space over the whole mutual group, returning a
+    ``{hole_name: body}`` assignment or ``None`` (wrong backend, unsupported
+    member, or no solution). Pure synthesis — the caller still gates on
+    :func:`_joint_accepts`."""
+    from aeon.synthesis.modules.contata.synthesizer import (
+        ContataSynthesizer,
+        GroupMember,
+        cosynthesize_group,
+    )
+
+    if not isinstance(synthesizer, ContataSynthesizer):
+        return None
+    gms: list[GroupMember] = []
+    hole_of: dict[Name, Name] = {}
+    for fun_name, hole_name in members:
+        ty, tyctx = program_holes[hole_name]
+        if not isinstance(tyctx, TypingContext):
+            return None
+        gms.append(GroupMember(fun_name, ty, tyctx, metadata.get(fun_name, {})))
+        hole_of[fun_name] = hole_name
+    bodies = cosynthesize_group(gms, gms[0].hole_ctx, max_size=synthesizer.max_size)
+    if bodies is None:
+        return None
+    return {hole_of[fn]: body for fn, body in bodies.items()}
+
+
 def _cosynthesize_group(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -906,6 +938,17 @@ def _cosynthesize_group(
     their concrete behaviour, so a failing joint check drives the next round
     toward a consistent assignment."""
     members = [(fun_name, holes[0]) for fun_name, holes in group]
+
+    # Fast path: the genuine CATA version space. When the backend is ``contata``
+    # and every member is a unary Int/Bool function with @example facts, discharge
+    # the *whole group* in one SMT query — a member's body may call its siblings
+    # (uninterpreted functions), so the assignment is mutually consistent by
+    # construction. This converges on the MR flagship (even/odd from examples)
+    # that the per-member sibling-as-typed-oracle loop below cannot.
+    vs = _contata_version_space_group(members, program_holes, metadata, synthesizer)
+    if vs is not None and _joint_accepts(ctx, ectx, term, vs, metadata, constructor_names):
+        return vs
+
     # Initialise each sibling to a trivial stub (the executable analog of the
     # accept-all CATA): keeps example evaluation total during the first round.
     fills: dict[Name, Optional[Term]] = {h: _trivial_stub(program_holes[h][0]) for _, h in members}

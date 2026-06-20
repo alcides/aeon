@@ -7,18 +7,24 @@ synthesis as uninterpreted functions) and is accepted under an SMT model against
 the ground ``@example`` spec, with the well-foundedness side condition and
 MinTree extraction (see :mod:`aeon.synthesis.modules.contata.cata`).
 
-This adapter wires that version space into the single-hole ``Synthesizer`` API:
-it reads the hole's ``@example`` I/O facts, runs :func:`synthesize_group` for the
-one member, maps the resulting DSL body onto the real in-scope names
-(parameter, the recursive self-call, and the arithmetic/comparison operators),
-and discharges the mapped term through ``validate`` as a final soundness gate.
-A whole ``mutual`` block is co-synthesised jointly by the entrypoint
-(:func:`aeon.synthesis.entrypoint._cosynthesize_group`); this backend is the
-per-member engine that path drives.
+Two entry points share the body-mapping machinery here:
+
+* :class:`ContataSynthesizer` (the single-hole ``Synthesizer`` API) reads one
+  hole's ``@example`` I/O facts, runs :func:`synthesize_group` for that member,
+  maps the DSL body onto the real in-scope names (parameter, recursive self-call,
+  operators monomorphised at ``Int``), and discharges it through ``validate``.
+* :func:`cosynthesize_group` co-synthesises a whole ``mutual`` block: *all*
+  members' facts go into one :func:`synthesize_group` query, so a body may call
+  its siblings (uninterpreted functions) and the assignment is mutually
+  consistent by construction. The entrypoint
+  (:func:`aeon.synthesis.entrypoint._cosynthesize_group`) calls this as a fast
+  path before its per-member sibling-as-typed-oracle loop — it converges on the
+  MR flagship (even/odd from examples) that the loop cannot.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from loguru import logger
@@ -87,7 +93,7 @@ class ContataSynthesizer(Synthesizer):
             )
         param_name = io_params[0]
 
-        arg_key = _dsl_type(self._param_type(ctx, param_name))
+        arg_key = _dsl_type(_param_type(ctx, param_name))
         ret_key = _dsl_type(type)
         if arg_key is None or ret_key is None:
             raise SynthesisNotSuccessful(
@@ -108,7 +114,7 @@ class ContataSynthesizer(Synthesizer):
             )
 
         op_names = _operator_names(ctx)
-        body = _to_core(result.bodies[fun_name.name], param_name, fun_name, op_names)
+        body = _to_core(result.bodies[fun_name.name], param_name, {fun_name.name: fun_name}, op_names)
         if body is None:
             raise SynthesisNotSuccessful(
                 f"contata: synthesised body uses an operator not in scope for {fun_name.name}."
@@ -125,12 +131,69 @@ class ContataSynthesizer(Synthesizer):
         )
         return body
 
-    @staticmethod
-    def _param_type(ctx: TypingContext, param_name: Name) -> Optional[Type]:
-        for n, ty in ctx.vars():
-            if n == param_name:
-                return ty
+
+def _param_type(ctx: TypingContext, param_name: Name) -> Optional[Type]:
+    for n, ty in ctx.vars():
+        if n == param_name:
+            return ty
+    return None
+
+
+@dataclass(frozen=True)
+class GroupMember:
+    """One member of a mutual group, as the version space needs it: its real
+    ``Name``, hole type, hole context, and the spec entry that holds its
+    ``@example`` I/O facts and value-parameter names."""
+
+    fun_name: Name
+    hole_type: Type
+    hole_ctx: TypingContext
+    entry: dict
+
+
+def cosynthesize_group(
+    members: list[GroupMember], op_ctx: TypingContext, max_size: int = 4
+) -> Optional[dict[Name, Term]]:
+    """Co-synthesise a whole ``mutual`` group with the genuine version space:
+    *all* members' ``@example`` facts are discharged in **one** SMT query
+    (:func:`synthesize_group`), so a member's body may call its siblings (each an
+    uninterpreted function) and the group is mutually consistent by construction
+    — the paper's MR flagship, which the per-member sibling-as-typed-oracle loop
+    cannot converge on. Returns the per-member core bodies, or ``None`` if any
+    member is outside the unary Int/Bool fragment, has no examples, or no
+    example-consistent body exists. Operators are rebound from ``op_ctx``."""
+    specs = []
+    for m in members:
+        io_examples = m.entry.get("io_examples", [])
+        io_params = m.entry.get("io_params", [])
+        if not io_examples or len(io_params) != 1:
+            return None
+        arg_key = _dsl_type(_param_type(m.hole_ctx, io_params[0]))
+        ret_key = _dsl_type(m.hole_type)
+        if arg_key is None or ret_key is None:
+            return None
+        exs = []
+        for args, out in io_examples:
+            if len(args) != 1:
+                return None
+            exs.append(Example(m.fun_name.name, args[0], out))
+        specs.append((m.fun_name, io_params[0], arg_key, ret_key, exs))
+
+    sigs = [MemberSig(fn.name, ak, rk) for (fn, _p, ak, rk, _e) in specs]
+    all_examples = [e for (_fn, _p, _ak, _rk, exs) in specs for e in exs]
+    result = synthesize_group(sigs, all_examples, max_size=max_size)
+    if result is None:
         return None
+
+    op_names = _operator_names(op_ctx)
+    member_map = {fn.name: fn for (fn, _p, _ak, _rk, _e) in specs}
+    bodies: dict[Name, Term] = {}
+    for fn, param_name, _ak, _rk, _e in specs:
+        body = _to_core(result.bodies[fn.name], param_name, member_map, op_names)
+        if body is None:
+            return None
+        bodies[fn] = body
+    return bodies
 
 
 def _dsl_type(ty: Optional[Type]) -> Optional[str]:
@@ -165,27 +228,27 @@ def _operator_names(ctx: TypingContext) -> dict[str, Term]:
     return found
 
 
-def _to_core(term: Term, param_name: Name, fun_name: Name, op_names: dict[str, Term]) -> Optional[Term]:
+def _to_core(term: Term, param_name: Name, member_map: dict[str, Name], op_names: dict[str, Term]) -> Optional[Term]:
     """Rebind the version-space body's id-0 placeholder names to the real ones:
-    the parameter, the recursive self-call, and the (monomorphised) operators.
-    Returns ``None`` if an operator is not in scope."""
+    the parameter, the (self or sibling) member calls via ``member_map``, and the
+    (monomorphised) operators. Returns ``None`` if an operator is not in scope."""
     match term:
         case Literal(_, _):
             return term
         case Var(name) if name == _PARAM:
             return Var(param_name)
-        case Var(name) if name.name == fun_name.name:
-            return Var(fun_name)
+        case Var(name) if name.name in member_map:
+            return Var(member_map[name.name])
         case Var(name):
             return op_names.get(name.name)
         case Application(fun, arg):
-            f = _to_core(fun, param_name, fun_name, op_names)
-            a = _to_core(arg, param_name, fun_name, op_names)
+            f = _to_core(fun, param_name, member_map, op_names)
+            a = _to_core(arg, param_name, member_map, op_names)
             return Application(f, a, _loc) if f is not None and a is not None else None
         case If(c, th, el):
-            cc = _to_core(c, param_name, fun_name, op_names)
-            tt = _to_core(th, param_name, fun_name, op_names)
-            ee = _to_core(el, param_name, fun_name, op_names)
+            cc = _to_core(c, param_name, member_map, op_names)
+            tt = _to_core(th, param_name, member_map, op_names)
+            ee = _to_core(el, param_name, member_map, op_names)
             if cc is None or tt is None or ee is None:
                 return None
             return If(cc, tt, ee, _loc)

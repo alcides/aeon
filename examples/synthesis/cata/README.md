@@ -77,15 +77,20 @@ The version space genuinely synthesises the paper's flagships from examples:
 
 - **MR** — `even`/`odd` co-synthesised from `@example` facts, each body a
   base/recursive conditional that calls its *sibling* (the mutually-recursive
-  solution, accepted jointly under one model).
+  solution, accepted jointly under one model). This runs **from the CLI**: a
+  `mutual` block of holes specified only by `@example`s is discharged in one SMT
+  query by the version-space fast path in `_cosynthesize_group`. See
+  `mutual_pbe.ae`.
 - **PDS** — `length : List Int -> Int` recovered as
   `if isEmpty xs then 0 else 1 + length (tail xs)` from trace-closed examples;
   list values are opaque SMT constants, the `isEmpty`/`head`/`tail` destructors
   fold concretely, and the well-founded measure is list length.
 
-See `tests/contata_test.py`. The single-hole `-s contata` CLI path covers the
-Int/Bool fragment (it rebinds the version-space body onto the real in-scope
-parameter, recursive self-call, and operators monomorphised at `Int`, then
-discharges it through the typechecker); the richer mutual/list version space is
-exercised through its API. Full benchmark-suite coverage (deeper integer
-accumulators, trees) and property-driven CEGIS guidance remain future work.
+See `tests/contata_test.py`. The single-hole `-s contata` CLI path and the
+`mutual` group path both cover the Int/Bool fragment (rebinding the version-space
+body onto the real in-scope parameter, sibling/self calls, and operators
+monomorphised at `Int`, then discharging through the typechecker). The list/PDS
+version space is exercised through its API (aeon's `@example` literals are scalar,
+so list I/O facts are supplied programmatically). Full benchmark-suite coverage
+(deeper integer accumulators, trees, list I/O in `@example` syntax) and
+property-driven CEGIS guidance remain future work.

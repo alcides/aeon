@@ -146,6 +146,40 @@ def main (a: Int) : Int := if isZero 0 then (if isZero 3 then 1 else 0) else 9;
     assert d.run() == 0  # isZero 0 = true and isZero 3 = false
 
 
+def test_contata_cosynthesizes_mutual_group_from_examples():
+    """The MR flagship through the CLI: a ``mutual`` block whose members are
+    holes specified only by ``@example`` facts is co-synthesised by the version
+    space in one SMT query — each body calls its sibling. The old per-member
+    loop could not converge on this; the version-space fast path does."""
+    from aeon.core.types import Top
+    from aeon.facade.driver import AeonConfig, AeonDriver
+    from aeon.synthesis.uis.api import SilentSynthesisUI
+    from aeon.typechecking.typeinfer import check_type
+
+    src = """
+mutual
+  @example(even 0 = true)
+  @example(even 1 = false)
+  @example(even 2 = true)
+  @example(even 3 = false)
+  def even (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?he;
+  @example(odd 0 = false)
+  @example(odd 1 = true)
+  @example(odd 2 = false)
+  @example(odd 3 = true)
+  def odd (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?ho;
+end
+def main (a: Int) : Int := if even 6 then (if odd 5 then 1 else 0) else 0;
+"""
+    cfg = AeonConfig(synthesizer="contata", synthesis_ui=SilentSynthesisUI(), synthesis_budget=10, no_main=False)
+    d = AeonDriver(cfg)
+    assert d.parse(aeon_code=src, filename="<t>") == []
+    assert d.has_synth()
+    d.synth()
+    assert check_type(d.typing_ctx, d.core, Top())  # both holes filled, group well-typed
+    assert d.run() == 1  # even 6 and odd 5 both hold
+
+
 def test_cata_none_when_out_of_size_budget():
     """No body within the size budget ⇒ ``None`` (mutual even/odd needs the
     base/recursive conditional, unreachable at ``max_size=1``)."""
