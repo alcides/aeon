@@ -3,9 +3,8 @@
 #   [1, 2, 3]    a List  (desugars to List.cons 1 (List.cons 2 (List.cons 3 List.nil)))
 #   #[1, 2, 3]   an Array (desugars to Array.append (Array.append (Array.append Array.new 1) 2) 3)
 #
-# Element types are inferred. Following Lean, a *spaced* bracket is a list literal
-# while an *attached* one is a type application: `f [x]` applies `f` to a list,
-# `f[Int]` instantiates `f` at `Int`. `#[` opens an array — it is never a comment.
+# Element types are inferred. `[` is always a list literal; type application uses
+# braces — `f{Int}` instantiates `f` at `Int`. `#[` opens an array — never a comment.
 
 import List
 import Array

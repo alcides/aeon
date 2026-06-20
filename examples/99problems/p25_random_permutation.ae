@@ -10,5 +10,5 @@ def rndPermutation (l: (Array Int)) : {r:(Array Int) | Array.size r = Array.size
 
 def main (args:Int) : Unit :=
     _ := native "random.seed(7)";
-    a : (Array Int) := (((((Array.new[Int]).append 1).append 2).append 3).append 4).append 5;
+    a : (Array Int) := (((((Array.new{Int}).append 1).append 2).append 3).append 4).append 5;
     print (rndPermutation a)

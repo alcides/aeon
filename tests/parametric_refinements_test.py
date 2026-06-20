@@ -11,7 +11,7 @@ def test_parametric_explicit_type_implicit_refinement_compiles():
 def id : forall t : B, (x : t<p>) -> t<p> := Λ t : B => Λ < p : t -> Bool > => fun x => x;
 def main (args:Int) : Unit :=
     x : Int | x > 0 := 3;
-    y : Int | y > 0 := id[Int] x;
+    y : Int | y > 0 := id{Int} x;
     print (y)
 """
     assert check_compile(source, st_top)
@@ -22,7 +22,7 @@ def test_parametric_explicit_type_explicit_refinement_compiles():
 def id : forall t : B, forall <p : t -> Bool>, (x : t<p>) -> t<p> := Λ t : B => Λ < p : t -> Bool > => fun x => x;
 def main (args:Int) : Unit :=
     x : Int | x > 0 := 3;
-    y : Int | y > 0 := id[Int]{fun n => n > 0} x;
+    y : Int | y > 0 := id{Int}{|fun n => n > 0|} x;
     print (y)
 """
     assert check_compile(source, st_top)
@@ -38,7 +38,7 @@ def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} 
 
 def main (args:Int) : Unit :=
     score : Int | score > 0 := 42;
-    safe_score : Int | safe_score > 0 := wrap[Int] score;
+    safe_score : Int | safe_score > 0 := wrap{Int} score;
     print safe_score
 """
     assert check_compile(source, st_top)
@@ -156,7 +156,7 @@ def main (args:Int) : Unit :=
     assert not check_compile(source, st_top)
 
 
-WRAP_DEF = "def wrap : (x : t<p>) -> t<p> := fun x => id[t]{fun v => v = x} x;"
+WRAP_DEF = "def wrap : (x : t<p>) -> t<p> := fun x => id{t}{|fun v => v = x|} x;"
 
 
 def test_wrapper_around_explicit_type_id():

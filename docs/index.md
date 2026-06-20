@@ -58,7 +58,7 @@ The list below covers the ideas you'll meet first, with just enough context to g
 | **No exceptions, no `null`** | Errors are not raised. Failure is modelled with inductive types (`Maybe a`, `Either a b`) or, when possible, ruled out by refinement types so the failure case becomes unrepresentable. |
 | **Inductive types and pattern matching** | Data is defined with `inductive` (a sum of named constructors, each carrying typed fields), and destructured with `match ... with`. All constructors must be covered. |
 | **Functional, not object-oriented** | There are no classes, methods, or inheritance — only functions and inductive types. Behaviour is composed by passing functions, not by overriding. |
-| **Explicit polymorphism** | Generics are introduced with `forall t : B, ...` and applied at the call site, e.g. `id[Int]`. Type abstractions in the body use `Λ` (capital lambda). |
+| **Explicit polymorphism** | Generics are introduced with `forall t : B, ...` and applied at the call site with braces, e.g. `id{Int}`. Type abstractions in the body use `Λ` (capital lambda). |
 | **Parametric refinements** | A function can be polymorphic over a refinement *predicate*, not just over a type. This lets one definition preserve whatever invariant the caller's arguments happen to satisfy. |
 | **Synthesis is a language feature** | `?hole` is a legal expression. The compiler can search for an expression of the surrounding type, optionally guided by `@minimize` / `@maximize` decorators, training data, or natural-language prompts. |
 | **Surface syntax** | Top-level definitions use `def`; local bindings use `let`. Function types use `->` (or the Unicode `→`). Comments begin with `#`. |
@@ -116,9 +116,8 @@ desugar to the library constructors — `[1, 2, 3]` to
 are inferred. An empty literal (`[]` / `#[]`) is fine where the element type is
 known (e.g. from an annotation: `let e : (List Int) := []`).
 
-As in Lean, the bracket is whitespace-sensitive: a **spaced** `[` is a list
-literal, while an **attached** `[` is a type application. So `f [1, 2]` applies
-`f` to a list, whereas `f[Int]` instantiates the polymorphic `f` at `Int`.
+`[` is always a list literal — type application uses braces (`f{Int}`), so the
+two never collide.
 
 ### Expressions
 
@@ -335,16 +334,18 @@ def wrap : forall t : B, forall <p : t -> Bool>, (x : t | p x) -> {v : t | p v} 
 
 def main (args:Int) : Unit :=
     score : Int | score > 0 := 42;
-    safe_score : Int | safe_score > 0 := wrap[Int]{fun n => n > 0} score;
+    safe_score : Int | safe_score > 0 := wrap{Int}{|fun n => n > 0|} score;
     print safe_score;
 ```
 
-#### Refinement application
+#### Type and refinement application
 
-When calling a function with an explicit refinement parameter, use `{predicate}` to supply the refinement:
+Type application uses braces: `f{Int}` instantiates a `forall t : B` parameter at
+`Int`. A refinement parameter (`forall <p : T -> Bool>`) is supplied with
+`{|predicate|}`:
 
 ```
-wrap[Int]{fun n => n > 0} score
+wrap{Int}{|fun n => n > 0|} score
 ```
 
 ### Inductive types with parametric refinements

@@ -1,10 +1,10 @@
 """Lean-style collection literals: ``[1, 2, 3]`` (List) and ``#[1, 2, 3]`` (Array).
 
-A *spaced* ``[`` is a list literal; an *attached* ``[`` (``f[Int]``) stays a type
-application — disambiguated by the postlexer, mirroring Lean's ``f[i]`` vs
-``f [i]``. ``#[…]`` is an array literal (the COMMENT lexer carves out ``#[`` so it
-is not read as a comment). Literals desugar to ``List.cons``/``List.nil`` and
-``Array.new``/``Array.append``; element types are inferred by elaboration.
+``[`` is unambiguously a list literal: type application uses ``{t}`` (e.g.
+``List.nil{Int}``), so the two never collide. ``#[…]`` is an array literal (the
+COMMENT lexer carves out ``#[`` so it is not read as a comment). Literals desugar
+to ``List.cons``/``List.nil`` and ``Array.new``/``Array.append``; element types
+are inferred by elaboration.
 """
 
 from __future__ import annotations
@@ -55,10 +55,10 @@ def test_nested_list_literal():
     assert _run("import List;\ndef main (u:Int) : Int := List.length [[1, 2], [3]];") == 2
 
 
-def test_attached_bracket_is_still_type_application():
-    # Regression: ``List.nil[Int]`` (attached ``[``) must remain a type
-    # application, not a list literal.
-    assert _run("import List;\ndef main (u:Int) : Int := List.length (List.nil[Int]);") == 0
+def test_type_application_uses_braces():
+    # Type application is ``{t}`` (``[`` is reserved for list literals), so
+    # ``List.nil{Int}`` instantiates the empty list at ``Int``.
+    assert _run("import List;\ndef main (u:Int) : Int := List.length (List.nil{Int});") == 0
 
 
 def test_list_literal_elements_evaluate():

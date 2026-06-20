@@ -114,14 +114,14 @@ An `Array String` is a Python `list[str]` at runtime, so it flows directly into
 
 ```aeon
 def echoArgs : {a: (Array String) | Array.size a >= 1} :=
-    Array.append (Array.append (Array.new[String]) "echo") "hello"
+    Array.append (Array.append (Array.new{String}) "echo") "hello"
 ```
 
 An empty argv — which would raise `IndexError` inside `subprocess` — is a type
 error:
 
 ```aeon
-def bad : CompletedProcess := Subprocess.run (Array.new[String])
+def bad : CompletedProcess := Subprocess.run (Array.new{String})
 ```
 
 ```

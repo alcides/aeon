@@ -250,8 +250,8 @@ expression_b : "fun" ID _FATARROW expression                     -> abstraction_
 // application.
 %declare METHOD_DOT
 
-application_t : application_t TYPE_LBRACKET type "]"          -> type_application_e
-              | application_t "{" expression "}"              -> refinement_application_e
+application_t : application_t "{" type "}"                    -> type_application_e
+              | application_t _REFOPEN expression _REFCLOSE   -> refinement_application_e
               | method_recv                                  -> same
               | DOT_ID                                       -> anon_constructor
 
@@ -279,9 +279,8 @@ non_dot_simple : "(" expression ")"                          -> same
         | "?" ID                                             -> hole
         // Lean-style collection literals. ``[1, 2, 3]`` desugars to
         // ``List.cons``/``List.nil`` and ``#[1, 2, 3]`` to ``Array.new``/
-        // ``Array.append`` (element types are inferred). A *spaced* ``[`` is a
-        // list literal; an *attached* one (``f[Int]``) is a type application —
-        // disambiguated by the postlexer, Lean-style.
+        // ``Array.append`` (element types are inferred). ``[`` is unambiguously a
+        // list literal — type application uses ``{t}`` (e.g. ``List.nil{Int}``).
         | "[" list_items "]"                                 -> list_literal
         | "#[" list_items "]"                                -> array_literal
 
@@ -323,6 +322,12 @@ ID.0 : CNAME | /\([\+=\>\<!\*\-&\|\$]{1,3}\)/
 _PIPE.10 : "where" | "|"
 _DOUBLEPIPE.11 : "||"
 
+// Refinement-application brackets ``{| pred |}`` (supplying an abstract
+// refinement). Priority above ``_PIPE`` so ``{|``/``|}`` lex as one token rather
+// than ``{``/``}`` + ``|``; filtered (leading ``_``) so they stay out of the tree.
+_REFOPEN.20 : "{|"
+_REFCLOSE.20 : "|}"
+
 // Operators accept a Lean-style Unicode spelling in addition to their ASCII
 // form. These terminals are filtered (leading ``_``) so the parse-tree shape is
 // identical whichever spelling is used — ``a ≤ b`` and ``a <= b`` desugar to the
@@ -336,12 +341,6 @@ _FATARROW : "=>" | "⇒" | "↦"
 _NEQ : "!=" | "≠"
 _LE : "<=" | "≤"
 _GE : ">=" | "≥"
-
-// ``TYPE_LBRACKET`` has no pattern: it is produced by ``MethodDotPostLex`` from
-// an ``[`` that is *attached* to a receiver (``f[Int]``), marking a type
-// application. A spaced/standalone ``[`` stays ``LSQB`` (a list literal, or the
-// ``decreasing_by``/instance brackets, which are always spaced).
-%declare TYPE_LBRACKET
 
 // A comment runs ``#`` to end of line — but ``#[`` opens an Array literal, so a
 // ``#`` immediately followed by ``[`` is not a comment.
