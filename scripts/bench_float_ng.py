@@ -41,7 +41,7 @@ BUDGET = 3.0
 SEEDS = [1, 2]
 SOLVED_THRESHOLD = 1e-3
 BENCH_DIR = Path(__file__).resolve().parent.parent / "examples" / "synthesis" / "float_ng"
-BENCHMARKS = ["sphere", "rosenbrock", "booth", "matyas", "rastrigin", "ackley"]
+BENCHMARKS = ["sphere", "rosenbrock", "booth", "matyas", "rastrigin", "ackley", "sphere_array"]
 BACKENDS = ["ng_float", "ng_float_cma", "gp"]
 
 

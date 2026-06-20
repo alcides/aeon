@@ -1,0 +1,12 @@
+# Sphere over a single (Array Float) hole of fixed size 5: f(v) = sum v_i^2,
+# global minimum 0 at the zero vector. The whole vector is one hole — FloatHoleNG
+# allocates one optimisation dimension per element.
+import Array (size, get)
+
+def v : {a:(Array Float) | size a == 5} = ?h;
+
+@minimize_float(
+  ((get v 0) * (get v 0)) + ((get v 1) * (get v 1)) + ((get v 2) * (get v 2)) + ((get v 3) * (get v 3)) + ((get v 4) * (get v 4))
+)
+def sphere : Float =
+  ((get v 0) * (get v 0)) + ((get v 1) * (get v 1)) + ((get v 2) * (get v 2)) + ((get v 3) * (get v 3)) + ((get v 4) * (get v 4));
