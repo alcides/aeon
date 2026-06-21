@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any
@@ -33,7 +34,10 @@ from z3.z3 import StringSort
 from z3.z3 import SortRef
 from z3.z3types import Z3Exception
 from z3 import Datatype
-from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
+from z3 import Context, main_ctx
+from z3 import ArraySort
+from z3 import BoolVal
+from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset
 
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, TypeConstructor
@@ -44,6 +48,7 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
+from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
@@ -59,6 +64,14 @@ from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.name import Name, fresh_counter
+
+
+def _set_sort(ctx) -> SortRef:
+    """Set-of-Int sort in ``ctx``. z3py's ``SetSort`` hardcodes a default-context
+    ``BoolSort()`` for the array range, so it raises "Context mismatch" on a
+    worker context -- build the array sort explicitly instead."""
+    return ArraySort(IntSort(ctx), BoolSort(ctx))
+
 
 smt_function_types: dict[str, list[Type]] = {
     "smtEqInt": [t_int, t_int, t_bool],
@@ -119,38 +132,51 @@ smt_function_translation: dict[str, list[str]] = {
     "Set_sub": ["smtSetSub"],
 }
 
-base_functions: dict[str, Any] = {
-    "==": lambda x, y: x == y,
-    "!=": lambda x, y: x != y,
-    "<": lambda x, y: x < y,
-    "<=": lambda x, y: x <= y,
-    ">": lambda x, y: x > y,
-    ">=": lambda x, y: x >= y,
-    "!": lambda x: Not(x),
-    "&&": lambda x, y: And(x, y),
-    "||": lambda x, y: Or(x, y),
-    "+": lambda x, y: x + y,
-    "-": lambda x, y: x - y,
-    "*": lambda x, y: x * y,
-    "/": lambda x, y: x / y,
-    "%": lambda x, y: x % y,
-    "-->": lambda x, y: Implies(x, y),
-    "ite": lambda c, t, e: If(c, t, e),
-    # String.len -> Z3's native string-length, so refinements over string length
-    # (e.g. the `len i` preconditions of String.slice/replace/split) connect to
-    # Z3's string theory. Without this, `String_len` would be an uninterpreted
-    # symbol and `len "hello"` could not be shown to equal 5, so length-refined
-    # operations were undischargeable on string literals.
-    "String_len": lambda s: Length(s),
-    # SMT Set operations
-    "Set_empty": EmptySet(IntSort()),
-    "Set_sng": lambda x: SetAdd(EmptySet(IntSort()), x),
-    "Set_cup": lambda a, b: SetUnion(a, b),
-    "Set_cap": lambda a, b: SetIntersect(a, b),
-    "Set_dif": lambda a, b: SetDifference(a, b),
-    "Set_mem": lambda x, s: IsMember(x, s),
-    "Set_sub": lambda a, b: IsSubset(a, b),
-}
+
+def _build_base_functions(ctx) -> dict[str, Any]:
+    """Build the SMT operator table bound to a specific Z3 context.
+
+    Most entries are lambdas whose Z3 context is inferred from their operands,
+    but ``Set_empty``/``Set_sng`` mint a root ``EmptySet(IntSort())`` that must
+    live in ``ctx`` -- so the table is per-context (one per worker thread)."""
+    empty = EmptySet(IntSort(ctx))
+    return {
+        "==": lambda x, y: x == y,
+        "!=": lambda x, y: x != y,
+        "<": lambda x, y: x < y,
+        "<=": lambda x, y: x <= y,
+        ">": lambda x, y: x > y,
+        ">=": lambda x, y: x >= y,
+        "!": lambda x: Not(x),
+        "&&": lambda x, y: And(x, y),
+        "||": lambda x, y: Or(x, y),
+        "+": lambda x, y: x + y,
+        "-": lambda x, y: x - y,
+        "*": lambda x, y: x * y,
+        "/": lambda x, y: x / y,
+        "%": lambda x, y: x % y,
+        "-->": lambda x, y: Implies(x, y),
+        "ite": lambda c, t, e: If(c, t, e),
+        # String.len -> Z3's native string-length, so refinements over string length
+        # (e.g. the `len i` preconditions of String.slice/replace/split) connect to
+        # Z3's string theory. Without this, `String_len` would be an uninterpreted
+        # symbol and `len "hello"` could not be shown to equal 5, so length-refined
+        # operations were undischargeable on string literals.
+        "String_len": lambda s: Length(s),
+        # SMT Set operations
+        "Set_empty": empty,
+        "Set_sng": lambda x: SetAdd(empty, x),
+        "Set_cup": lambda a, b: SetUnion(a, b),
+        "Set_cap": lambda a, b: SetIntersect(a, b),
+        "Set_dif": lambda a, b: SetDifference(a, b),
+        "Set_mem": lambda x, s: IsMember(x, s),
+        "Set_sub": lambda a, b: IsSubset(a, b),
+    }
+
+
+# The default-context operator table, for external importers
+# (``aeon.synthesis.modules.*``) and the main thread's state.
+base_functions: dict[str, Any] = _build_base_functions(main_ctx())
 
 
 @dataclass
@@ -235,13 +261,14 @@ def ple_unfold_fixpoint(
     # also preserves object identity, which the translate-time memo relies on.
     if not reflected_functions:
         return t
+    cache = _ws().ple  # per-thread: pure term rewriting, but a shared dict would race
     key = (id(t), id(reflected_functions))
-    hit = _ple_cache.get(key)
+    hit = cache.get(key)
     if hit is not None and hit[0] is t and hit[1] is reflected_functions:
         return hit[2]
     result = _ple_unfold_fixpoint_uncached(t, reflected_functions, max_steps)
-    _ple_cache[key] = (t, reflected_functions, result)
-    _bound(_ple_cache)
+    cache[key] = (t, reflected_functions, result)
+    _bound(cache)
     return result
 
 
@@ -555,12 +582,148 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
             assert False, f"Unexpected case {c} ({type(c)})"
 
 
-def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
-    """Flattens a constraint into a list of SMT-valid constraints."""
+_RENAME_ABSENT = object()
+
+
+def _rename_vars(t: LiquidTerm, renames: dict[Name, Name]) -> LiquidTerm:
+    """Apply a batch of binder renamings (old ``Name`` -> fresh ``Name``) in a
+    single pass over ``t``.
+
+    Equivalent to composing ``substitution_in_liquid(t, LiquidVar(new), old)``
+    for every ``old -> new`` pair, but in one traversal. The composition order is
+    irrelevant because every ``new`` is globally fresh (``fresh_counter``), so no
+    rename target collides with another rename's source. Returns ``t`` unchanged
+    when ``renames`` is empty (the common leaf case)."""
+    if not renames:
+        return t
+    match t:
+        case LiquidVar(name):
+            new = renames.get(name)
+            return LiquidVar(new) if new is not None else t
+        case LiquidApp(fun, args, loc):
+            return LiquidApp(renames.get(fun, fun), [_rename_vars(a, renames) for a in args], loc=loc)
+        case LiquidHornApplication(name, argtypes, loc):
+            # Mirrors ``substitution_in_liquid``: the head name is passed through,
+            # only argument terms are rewritten.
+            return LiquidHornApplication(name, [(_rename_vars(a, renames), ty) for (a, ty) in argtypes], loc=loc)
+        case _:
+            return t
+
+
+def _conjuncts(t: LiquidTerm) -> list[LiquidTerm]:
+    """Split a liquid term into its top-level ``&&`` conjuncts."""
+    if isinstance(t, LiquidApp) and t.fun.name == "&&" and len(t.args) == 2:
+        return _conjuncts(t.args[0]) + _conjuncts(t.args[1])
+    return [t]
+
+
+def _var_equality(p: LiquidTerm, variables: dict[str, Any], eliminated: set[str]) -> tuple[Name, LiquidTerm] | None:
+    """If ``p`` is ``x == Y`` (or ``Y == x``) with ``x`` an as-yet-uneliminated
+    scalar binder, return ``(x, Y)`` -- the variable to remove and its definition."""
+    if isinstance(p, LiquidApp) and p.fun.name == "==" and len(p.args) == 2:
+        a, b = p.args
+        if isinstance(a, LiquidVar) and str(a.name) in variables and str(a.name) not in eliminated:
+            return a.name, b
+        if isinstance(b, LiquidVar) and str(b.name) in variables and str(b.name) not in eliminated:
+            return b.name, a
+    return None
+
+
+def _symbols(t: LiquidTerm) -> set[str]:
+    """Variable *and* function symbols occurring in ``t`` (``liquid_free_vars``
+    includes ``LiquidApp`` heads, so reflected measures/constructors count)."""
+    return {str(n) for n in liquid_free_vars(t)}
+
+
+def _simplify_vc(
+    premises: list[LiquidTerm],
+    conclusion: LiquidTerm,
+    variables: dict[str, Any],
+    functions: dict[str, Any],
+) -> tuple[list[LiquidTerm], LiquidTerm, dict[str, Any], dict[str, Any]]:
+    """Shrink an obligation before it is handed to Z3.
+
+    1. flatten ``&&`` and drop trivially-true conjuncts (``True && P == P``);
+    2. equality elimination -- *exact*: a premise ``x == Y`` with ``x`` a
+       universally quantified binder and ``Y`` free of ``x`` pins ``x`` to ``Y``,
+       so substitute ``x := Y`` everywhere and drop both. Collapses the ANF
+       ``h_i == e_i`` chains that bloat these VCs;
+    3. relevance slicing -- keep only premises/variables/functions transitively
+       connected (through shared symbols) to the conclusion. Dropping a premise
+       only weakens the hypothesis, so this never makes an invalid program look
+       valid (sound). It is exact whenever the dropped premises are satisfiable
+       -- the sole incompleteness is a disconnected *inconsistent* premise that
+       would vacuously discharge the goal (e.g. dead-code refinement contexts).
+       This is what removes the irrelevant ``open``-library function declarations
+       (supermario's ``gpu_dot`` &c.) that equality elimination cannot touch.
+    """
+    flat: list[LiquidTerm] = []
+    for p in premises:
+        flat.extend(_conjuncts(p))
+    flat = [p for p in flat if not (isinstance(p, LiquidLiteralBool) and p.value is True)]
+
+    # 2. equality elimination
+    eliminated: set[str] = set()
+    changed = True
+    while changed:
+        changed = False
+        for i, p in enumerate(flat):
+            found = _var_equality(p, variables, eliminated)
+            if found is None:
+                continue
+            x, y = found
+            if x in liquid_free_vars(y):  # occurs check: can't eliminate x == f(x)
+                continue
+            rest = flat[:i] + flat[i + 1 :]
+            flat = [substitution_in_liquid(q, y, x) for q in rest]
+            conclusion = substitution_in_liquid(conclusion, y, x)
+            eliminated.add(str(x))
+            changed = True
+            break
+    if eliminated:
+        variables = {k: v for k, v in variables.items() if k not in eliminated}
+
+    # 3. relevance slicing: transitive cone of influence from the conclusion
+    relevant = _symbols(conclusion)
+    changed = True
+    while changed:
+        changed = False
+        for p in flat:
+            ps = _symbols(p)
+            if ps & relevant and not ps <= relevant:
+                relevant |= ps
+                changed = True
+    # keep premises sharing a symbol with the goal's cone (ground premises -- no
+    # symbols at all -- are kept: they are cheap and may be contradictory).
+    flat = [p for p in flat if (not _symbols(p)) or (_symbols(p) & relevant)]
+    variables = {k: v for k, v in variables.items() if k in relevant}
+    functions = {k: v for k, v in functions.items() if k in relevant}
+    return flat, conclusion, variables, functions
+
+
+def flatten(
+    c: Constraint,
+    ctx: SMTContext | None = None,
+    renames: dict[Name, Name] | None = None,
+) -> Generator[CanonicConstraint]:
+    """Flattens a constraint into a list of SMT-valid constraints.
+
+    Binders are alpha-renamed to globally fresh names (so each name has a single
+    sort throughout a solve). Rather than eagerly rebuilding the whole remaining
+    constraint at every ``forall`` binder -- which is O(depth^2) substitution and
+    made ``substitution_in_liquid`` the hottest function in the system -- the
+    renamings are accumulated in ``renames`` and applied in a single pass to each
+    premise/conclusion as it is consumed. Each subterm is walked once, so the
+    pass is linear in the constraint size."""
     if ctx is None:
         ctx = SMTContext(["Top"], {}, {}, [], {})
+    if renames is None:
+        renames = {}
     match c:
         case LiquidConstraint(expr):
+            # Premises were renamed as they were pushed onto ``ctx`` (below); the
+            # conclusion still carries original names, so rename it here.
+            expr = _rename_vars(expr, renames)
             specializations: dict[tuple[str, tuple[str, ...]], str] = {}
             nfunctions = ctx.functions
             nref = ctx.reflected_functions
@@ -570,15 +733,21 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
                 sprem.append(sp)
             sexpr, nfunctions, nref = _specialize_liquid_term(expr, nfunctions, ctx.variables, nref, specializations)
             premise = [ple_unfold_fixpoint(p, nref) for p in sprem]
-            out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
-            yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
+            conclusion = ple_unfold_fixpoint(sexpr, nref)
+            premise, conclusion, svariables, sfunctions = _simplify_vc(premise, conclusion, ctx.variables, nfunctions)
+            out_ctx = SMTContext(ctx.sorts, sfunctions, svariables, premise, nref)
+            yield CanonicConstraint(out_ctx, conclusion)
         case Conjunction(c1, c2):
-            yield from flatten(c1, ctx)
-            yield from flatten(c2, ctx)
+            yield from flatten(c1, ctx, renames)
+            yield from flatten(c2, ctx, renames)
         case Implication(oname, base, pred, seq):
             name = Name(oname.name, fresh_counter.fresh())
-            pred = substitution_in_liquid(pred, LiquidVar(name), oname)
-            seq = rename_constraint(seq, oname, name)
+            # ``pred`` is in scope of this binder and all ancestors: apply the
+            # full accumulated map (incl. this binder) once, and store the
+            # already-renamed premise on the context.
+            prev = renames.get(oname, _RENAME_ABSENT)
+            renames[oname] = name
+            npred = _rename_vars(pred, renames)
             match base:
                 case TypeVar(iname):
                     base = TypeConstructor(iname)
@@ -589,34 +758,104 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
                     pass
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
-            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
+            yield from flatten(seq, ctx.with_var(name, base).with_premise(npred), renames)
+            # Restore so sibling scopes (e.g. the other arm of a Conjunction) do
+            # not see this binder. Safe with the generator: each yielded
+            # CanonicConstraint is already concrete and holds no reference to
+            # ``renames``.
+            if prev is _RENAME_ABSENT:
+                del renames[oname]
+            else:
+                renames[oname] = prev  # type: ignore[assignment]
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
-            yield from flatten(seq, nctx.with_function(name, ty))
+            yield from flatten(seq, nctx.with_function(name, ty), renames)
         case ReflectedFunctionDeclaration(name, ty, params, body, seq):
+            # The reflected body and params are in scope of the ancestor binders;
+            # apply the accumulated renames before building the equality premise.
+            nparams = tuple(renames.get(p, p) for p in params)
+            nbody = _rename_vars(body, renames)
             nctx = (
-                _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
+                _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, nparams, nbody)
             )
-            app = LiquidApp(name, [LiquidVar(p) for p in params])
-            eq = LiquidApp(Name("==", 0), [app, body])
-            yield from flatten(seq, nctx.with_premise(eq))
+            app = LiquidApp(name, [LiquidVar(p) for p in nparams])
+            eq = LiquidApp(Name("==", 0), [app, nbody])
+            yield from flatten(seq, nctx.with_premise(eq), renames)
         case _:
             assert False, f"Cannot flatten {c}."
 
 
-s = Solver()
-(s.set(timeout=200),)
+# Main-thread Z3 solver (default context). Workers get their own via ``_ws()``.
+s = Solver(ctx=main_ctx())
+s.set(timeout=200)
 
+# Validity results are context-independent (keyed by the alpha-normalized
+# constraint string), so this stays a single shared cache across threads, guarded
+# by a lock -- a constraint proved by any thread is reused by all.
 _smt_valid_cache: dict[str, bool] = {}
+_cache_lock = threading.Lock()
+
+
+class _WS:
+    """Per-thread Z3 state. Z3 is not thread-safe across a shared ``Context``, so
+    each worker thread that validates concurrently gets its own ``Context``,
+    ``Solver``, operator table and object caches. The main thread reuses the
+    module-global (default-context) objects, so external importers of
+    ``base_functions`` / ``make_variable`` are unaffected."""
+
+    ctx: Any
+    solver: Any
+    sort_cache: dict[str, Any]
+    base_functions: dict[str, Any]
+    unit_sort: Any
+    unit_value: Any
+    mk_vars: dict[int, Any]
+    mk_funs: dict[int, Any]
+    mk_sorts: dict[tuple[str, ...], Any]
+    ple: dict[Any, Any]
+
+
+def _new_ws(ctx) -> "_WS":
+    w = _WS()
+    w.ctx = ctx
+    w.solver = Solver(ctx=ctx)
+    w.solver.set(timeout=200)
+    w.unit_sort, w.unit_value = _build_unit_sort(ctx)
+    w.sort_cache = {"Unit": w.unit_sort}
+    w.base_functions = _build_base_functions(ctx)
+    w.mk_vars, w.mk_funs, w.mk_sorts, w.ple = {}, {}, {}, {}
+    return w
+
+
+_local = threading.local()
+
+
+def _ws() -> "_WS":
+    w = getattr(_local, "w", None)
+    if w is None:
+        # Main thread reuses the default-context module globals (behaviour
+        # identical to before the refactor); workers get a private context.
+        w = _MAIN if threading.current_thread() is threading.main_thread() else _new_ws(Context())
+        _local.w = w
+    return w
 
 
 def smt_valid(constraint: Constraint) -> bool:
     """Verifies if a constraint is true using Z3."""
     key = alpha_key(constraint)
-    cached = _smt_valid_cache.get(key)
+    with _cache_lock:
+        cached = _smt_valid_cache.get(key)
     if cached is not None:
         return cached
+
+    ws = _ws()
+    solver = ws.solver
+
+    def _memo(result: bool) -> bool:
+        with _cache_lock:
+            _smt_valid_cache[key] = result
+        return result
 
     # One memo per solve: the constraints produced by `flatten` share their
     # accumulated premise subterms (same objects), so translating them once and
@@ -627,7 +866,7 @@ def smt_valid(constraint: Constraint) -> bool:
     n = 0
     for c in flatten(constraint):
         n += 1
-        s.push()
+        solver.push()
 
         # Monomorphic, uncurried function declarations need no separate
         # emission step here: each CanonicConstraint carries its own
@@ -647,26 +886,22 @@ def smt_valid(constraint: Constraint) -> bool:
                 # valid -- unsound, and it let absurd refinements through (any
                 # spec was "satisfied" by a literal ``/ 0``). An obligation we
                 # cannot even define is not proven, so report it invalid.
-                _smt_valid_cache[key] = False
-                return False
+                return _memo(False)
             if smt_c is False:
                 continue
-            s.add(smt_c)
-            result = s.check()
+            solver.add(smt_c)
+            result = solver.check()
             if result == sat:
-                _smt_valid_cache[key] = False
-                return False
+                return _memo(False)
             elif result == unknown:
-                _smt_valid_cache[key] = False
-                return False
+                return _memo(False)
         finally:
-            # Always balance the matching ``push`` -- ``s`` is a reused global
-            # solver, so an early ``return``/``continue`` that skipped the pop
-            # would leak scope state into later constraints and queries.
-            s.pop()
+            # Always balance the matching ``push`` -- the solver is reused across
+            # this thread's queries, so an early ``return``/``continue`` that
+            # skipped the pop would leak scope state into later ones.
+            solver.pop()
 
-    _smt_valid_cache[key] = True
-    return True
+    return _memo(True)
 
 
 def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
@@ -681,21 +916,21 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
 sort_cache: dict[str, SortRef] = {}
 
 
-def _build_unit_sort() -> tuple[SortRef, Any]:
-    """Create the dedicated Unit sort and its single inhabitant.
+def _build_unit_sort(ctx) -> tuple[SortRef, Any]:
+    """Create the dedicated Unit sort and its single inhabitant, in ``ctx``.
 
     Modelled as a z3 datatype with one nullary constructor so the SMT
     solver knows the sort has exactly one value. This avoids the previous
     encoding that aliased ``Unit`` to ``Bool``-true (see issue #296), under
     which ``unit == True`` was accidentally satisfiable.
     """
-    dt = Datatype("Unit")
+    dt = Datatype("Unit", ctx=ctx)
     dt.declare("unit")
     sort = dt.create()
     return sort, sort.unit
 
 
-_unit_sort_ref, _unit_value = _build_unit_sort()
+_unit_sort_ref, _unit_value = _build_unit_sort(main_ctx())
 sort_cache["Unit"] = _unit_sort_ref
 
 # Caches for the SMT-context helpers. Within a single solve, `translate` is
@@ -709,6 +944,21 @@ _mk_sorts_cache: dict[tuple[str, ...], dict[str, SortRef]] = {}
 _SMT_HELPER_CACHE_MAX = 1024
 
 
+# The main thread's per-thread state: a view over the default-context module
+# globals built above, so main-thread behaviour is byte-identical to before.
+_MAIN = _WS()
+_MAIN.ctx = main_ctx()
+_MAIN.solver = s
+_MAIN.sort_cache = sort_cache
+_MAIN.base_functions = base_functions
+_MAIN.unit_sort = _unit_sort_ref
+_MAIN.unit_value = _unit_value
+_MAIN.mk_vars = _mk_vars_cache
+_MAIN.mk_funs = _mk_funs_cache
+_MAIN.mk_sorts = _mk_sorts_cache
+_MAIN.ple = _ple_cache
+
+
 def _bound(cache: dict, limit: int = _SMT_HELPER_CACHE_MAX) -> None:
     if len(cache) > limit:
         # Drop ~10% oldest entries (insertion order in CPython dicts).
@@ -717,40 +967,46 @@ def _bound(cache: dict, limit: int = _SMT_HELPER_CACHE_MAX) -> None:
             del cache[k]
 
 
-def mk_vars(variables: dict[str, TypeConstructor], sorts: dict[str, SortRef]) -> dict[str, Any]:
+def mk_vars(
+    variables: dict[str, TypeConstructor], sorts: dict[str, SortRef], ws: "_WS | None" = None
+) -> dict[str, Any]:
+    ws = ws or _ws()
+    cache = ws.mk_vars
     key = id(variables)
-    hit = _mk_vars_cache.get(key)
+    hit = cache.get(key)
     if hit is not None and hit[0] is variables:
         return hit[1]
-    result = {name: make_variable(name, base) for name, base in variables.items()}
-    _mk_vars_cache[key] = (variables, result)
-    _bound(_mk_vars_cache)
+    result = {name: make_variable(name, base, ws) for name, base in variables.items()}
+    cache[key] = (variables, result)
+    _bound(cache)
     return result
 
 
-def get_sort(base: Type) -> SortRef:
+def get_sort(base: Type, ws: "_WS | None" = None) -> SortRef:
+    ws = ws or _ws()
+    ctx = ws.ctx
     match base:
         case Top() | TypeConstructor(Name("Top", _)):
-            return IntSort()
+            return IntSort(ctx)
         case TypeConstructor(Name("Unit", _)):
-            return _unit_sort_ref
+            return ws.unit_sort
         case TypeConstructor(Name("Int", _)):
-            return IntSort()
+            return IntSort(ctx)
         case TypeConstructor(Name("Bool", _)):
-            return BoolSort()
+            return BoolSort(ctx)
         case TypeConstructor(Name("Float", _)):
-            return RealSort()
+            return RealSort(ctx)
         case TypeConstructor(Name("String", _)):
-            return StringSort()
+            return StringSort(ctx)
         case TypeConstructor(Name("Set", _)):
-            return SetSort(IntSort())
+            return _set_sort(ctx)
         case TypeConstructor(name, args):
             sname = _mangle_sort_name(base) if args else str(name)
             if sname[:1].isupper():
-                if sname not in sort_cache:
-                    sort_cache[sname] = DeclareSort(sname)
-                return sort_cache[sname]
-            return IntSort()
+                if sname not in ws.sort_cache:
+                    ws.sort_cache[sname] = DeclareSort(sname, ctx)
+                return ws.sort_cache[sname]
+            return IntSort(ctx)
         case TypeVar(name):
             assert False, f"TypeVar {name} should not be used in SMT solver."
         case _:
@@ -822,40 +1078,42 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
     return (inputs, current)
 
 
-def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> Any:
+def make_variable(name: str, base: TypeConstructor | AbstractionType | Top, ws: "_WS | None" = None) -> Any:
+    ws = ws or _ws()
+    ctx = ws.ctx
     match base:
         case Top():
-            return Int(name)
+            return Int(name, ctx)
         case TypeConstructor(Name("Unit", _)):
-            return Const(name, _unit_sort_ref)
+            return Const(name, ws.unit_sort)
         case TypeConstructor(Name("Int", _)):
-            return Int(name)
+            return Int(name, ctx)
         case TypeConstructor(Name("Bool", _)):
-            return Bool(name)
+            return Bool(name, ctx)
         case TypeConstructor(Name("Float", _), _):
-            return Real(name)
+            return Real(name, ctx)
         case TypeConstructor(Name("String", _)):
-            return String(name)
+            return String(name, ctx)
         case TypeConstructor(Name("Set", _)):
-            return Const(name, SetSort(IntSort()))
+            return Const(name, _set_sort(ctx))
         case TypeConstructor(Name("Top", _)):
-            return Int(name)
+            return Int(name, ctx)
         case TypeConstructor(_, _):
-            return Const(name, get_sort(base))
+            return Const(name, get_sort(base, ws))
         case TypeVar(_):
-            return Int(name)
+            return Int(name, ctx)
         case AbstractionType(_, _, _):
-            if name in base_functions:
-                return base_functions[name]
+            if name in ws.base_functions:
+                return ws.base_functions[name]
             else:
                 input_types, output_type = uncurry(base)
-                args = [get_sort(x) for x in input_types] + [get_sort(output_type)]
+                args = [get_sort(x, ws) for x in input_types] + [get_sort(output_type, ws)]
                 return Function(name, *args)
         case _:
             assert False, f"No var: {name}, with base {base}."
 
 
-def _coerce_numeric(a: Any) -> Any:
+def _coerce_numeric(a: Any, ctx) -> Any:
     """Lift a Python numeric literal into the matching Z3 value so that an
     operation on it uses Z3 semantics rather than Python's. Z3 expressions (and
     anything non-numeric) pass through unchanged. ``bool`` is checked first
@@ -863,13 +1121,18 @@ def _coerce_numeric(a: Any) -> Any:
     if isinstance(a, bool):
         return a
     if isinstance(a, int):
-        return IntVal(a)
+        return IntVal(a, ctx)
     if isinstance(a, float):
-        return RealVal(a)
+        return RealVal(a, ctx)
     return a
 
 
-def translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None = None):
+def translate_liq(
+    t: LiquidTerm,
+    variables: dict[str, Any],
+    memo: dict[int, tuple[LiquidTerm, Any]] | None = None,
+    ws: "_WS | None" = None,
+):
     """Translate a ``LiquidTerm`` into a Z3 expression.
 
     ``memo`` (optional) caches already-translated subterms by object identity
@@ -889,18 +1152,21 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tupl
     recycling), and it is scoped to one ``smt_valid`` call. Without ``memo``
     (external callers) behaviour is identical to before.
     """
+    if ws is None:
+        ws = _ws()
     if memo is None:
-        return _translate_liq(t, variables, None)
+        return _translate_liq(t, variables, None, ws)
     tid = id(t)
     hit = memo.get(tid)
     if hit is not None and hit[0] is t:
         return hit[1]
-    result = _translate_liq(t, variables, memo)
+    result = _translate_liq(t, variables, memo, ws)
     memo[tid] = (t, result)
     return result
 
 
-def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None):
+def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None, ws: "_WS"):
+    base_functions = ws.base_functions
     match t:
         case LiquidLiteralBool(b):
             return b
@@ -912,10 +1178,10 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
             # Z3 auto-casts Python int/bool/float into its sorts when a literal
             # appears as an argument, but Python `str` does not auto-cast to
             # Z3's String sort, so convert explicitly.
-            return StringVal(s)
+            return StringVal(s, ws.ctx)
         case LiquidLiteralUnit():
             # The single inhabitant of the dedicated Unit datatype.
-            return _unit_value
+            return ws.unit_value
         case LiquidVar(name):
             sname = str(name)
             if sname in variables:
@@ -928,7 +1194,7 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
         case LiquidApp(fun_name, args):
             fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
             assert fun is not None, f"Function {fun_name} not found." + str(variables)
-            args = [translate_liq(a, variables, memo) for a in args]
+            args = [translate_liq(a, variables, memo, ws) for a in args]
             if fun_name.name in ("/", "%"):
                 # Evaluate division and modulo with Z3 numeric semantics, not
                 # Python's. On two Python int literals, Python's ``/`` is *float*
@@ -939,7 +1205,7 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                 # makes ``/`` and ``%`` total integer operations, and division
                 # by zero a fixed-but-unconstrained Z3 term that no refinement
                 # can exploit.
-                args = [_coerce_numeric(a) for a in args]
+                args = [_coerce_numeric(a, ws.ctx) for a in args]
             try:
                 return fun(*args)
             except Z3Exception as e:
@@ -949,20 +1215,26 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
             assert False, f"Cannot translate {t}."
 
 
-def mk_sorts(sorts: list[str]) -> dict[str, SortRef]:
+def mk_sorts(sorts: list[str], ws: "_WS | None" = None) -> dict[str, SortRef]:
+    ws = ws or _ws()
+    cache = ws.mk_sorts
     key = tuple(sorts)
-    hit = _mk_sorts_cache.get(key)
+    hit = cache.get(key)
     if hit is not None:
         return hit
-    result = {name: get_sort(TypeConstructor(Name(name, 0))) for name in sorts}
-    _mk_sorts_cache[key] = result
-    _bound(_mk_sorts_cache)
+    result = {name: get_sort(TypeConstructor(Name(name, 0)), ws) for name in sorts}
+    cache[key] = result
+    _bound(cache)
     return result
 
 
-def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) -> dict[str, Any]:
+def mk_funs(
+    functions: dict[str, AbstractionType], sorts: dict[str, SortRef], ws: "_WS | None" = None
+) -> dict[str, Any]:
+    ws = ws or _ws()
+    cache = ws.mk_funs
     key = id(functions)
-    hit = _mk_funs_cache.get(key)
+    hit = cache.get(key)
     if hit is not None and hit[0] is functions:
         return hit[1]
     funs = {}
@@ -975,12 +1247,12 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
             # call site that ``uncurry`` *can* process; that twin gets
             # picked up the next time this loop runs.
             continue
-        args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
-            sorts.get(str(output_type), get_sort(output_type))
+        args = [sorts.get(str(x), get_sort(x, ws)) for x in input_types] + [
+            sorts.get(str(output_type), get_sort(output_type, ws))
         ]
         funs[name] = Function(name, *args)
-    _mk_funs_cache[key] = (functions, funs)
-    _bound(_mk_funs_cache)
+    cache[key] = (functions, funs)
+    _bound(cache)
     return funs
 
 
@@ -1009,16 +1281,26 @@ def translate(
     c: CanonicConstraint,
     memo: dict[int, tuple[LiquidTerm, Any]] | None = None,
 ) -> BoolRef | bool:
-    sorts = mk_sorts(c.sorts)
-    functions = mk_funs(c.functions, sorts)
-    variables = mk_vars(c.variables, sorts)
+    ws = _ws()
+    sorts = mk_sorts(c.sorts, ws)
+    functions = mk_funs(c.functions, sorts, ws)
+    variables = mk_vars(c.variables, sorts, ws)
     env = variables | functions
-    e1 = translate_liq(c.premise, env, memo)
-    e2 = translate_liq(c.conclusion, env, memo)
+    e1 = translate_liq(c.premise, env, memo, ws)
+    e2 = translate_liq(c.conclusion, env, memo, ws)
     if isinstance(e2, bool) and e2 is True:
         return False
     if isinstance(e1, bool) and isinstance(e2, bool):
         return e1 and not e2
+    # A premise/conclusion that reduces to a Python ``bool`` must be lifted into
+    # *this thread's* Z3 context: ``Not(False)`` (etc.) with no context falls back
+    # to the default ``main_ctx``, which then clashes with the worker-context
+    # ``premise`` in the ``And`` below ("Context mismatch"). On the main thread
+    # ``ws.ctx`` *is* the default context, so this is a no-op there.
+    if isinstance(e1, bool):
+        e1 = BoolVal(e1, ws.ctx)
+    if isinstance(e2, bool):
+        e2 = BoolVal(e2, ws.ctx)
     distinct = _constructor_distinctness(variables)
     premise = And(e1, *distinct) if distinct else e1
     return And(premise, Not(e2))

@@ -1,3 +1,4 @@
+import threading
 from dataclasses import dataclass, field
 
 from aeon.utils.superscripts import superscript
@@ -8,10 +9,16 @@ class FreshCounter:
 
     def __init__(self):
         self.counter = 0
+        # ``fresh`` runs on worker threads under free-threaded CPython (parallel
+        # SMT validation), where ``self.counter += 1`` is a non-atomic
+        # read-modify-write that can hand out duplicate ids -- which would make
+        # the alpha-renaming in ``flatten`` unsound. Guard with a lock.
+        self._lock = threading.Lock()
 
     def fresh(self) -> int:
-        self.counter += 1
-        return self.counter
+        with self._lock:
+            self.counter += 1
+            return self.counter
 
 
 fresh_counter = FreshCounter()
