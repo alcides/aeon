@@ -41,6 +41,7 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
+from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
@@ -54,6 +55,7 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
+from aeon.verification.vcs import substitution_in_constraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.name import Name, fresh_counter
 
@@ -508,6 +510,28 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
             assert False, f"Unexpected case {c} ({type(c)})"
 
 
+def one_point_replacement(pred: LiquidTerm, name: Name) -> LiquidTerm | None:
+    """One-point rule for a universally quantified binder.
+
+    ``forall x:b, (x == c) => P`` is logically equivalent to ``P[x := c]``
+    whenever ``x`` does not occur free in ``c`` (which always holds here, since
+    ``x`` is a freshly introduced binder). When ``pred`` is exactly such an
+    equality this returns ``c``; otherwise ``None``.
+
+    Eliminating the binder removes one universally quantified variable *and* one
+    premise from the SMT query, shrinking the formula handed to Z3. The win is
+    modest in wall-clock terms (Z3 already eliminates trivial equalities during
+    preprocessing), but it keeps the emitted VCs smaller and is always sound.
+    """
+    if isinstance(pred, LiquidApp) and pred.fun == Name("==", 0) and len(pred.args) == 2:
+        left, right = pred.args
+        if left == LiquidVar(name) and name not in liquid_free_vars(right):
+            return right
+        if right == LiquidVar(name) and name not in liquid_free_vars(left):
+            return left
+    return None
+
+
 def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
@@ -542,7 +566,14 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
                     pass
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
-            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
+            # One-point rule: when the premise is just ``x == c`` we substitute
+            # ``c`` for ``x`` in the body and drop the binder entirely instead
+            # of handing the equality to Z3 as one more variable + premise.
+            rep = one_point_replacement(pred, name)
+            if rep is not None:
+                yield from flatten(substitution_in_constraint(seq, rep, name), ctx)
+            else:
+                yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)

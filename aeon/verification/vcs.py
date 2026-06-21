@@ -10,6 +10,7 @@ from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
+from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, Type, TypePolymorphism, TypeVar
 from aeon.core.types import TypeConstructor
 from aeon.utils.location import Location
@@ -84,6 +85,34 @@ class TypeVarDeclaration(Constraint):
 
     def __repr__(self):
         return f"type {self.name}, {self.seq}"
+
+
+def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Constraint:
+    """Substitues a LiquidVar by another expression within a constraint."""
+    match c:
+        case LiquidConstraint(expr):
+            return LiquidConstraint(substitution_in_liquid(expr, rep, name), loc=c.loc)
+        case Conjunction(c1, c2):
+            left = substitution_in_constraint(c1, rep, name)
+            right = substitution_in_constraint(c2, rep, name)
+            return Conjunction(left, right, loc=c.loc)
+        case Implication(impl_name, base, pred, seq):
+            if name == impl_name:
+                return c
+            else:
+                nseq = substitution_in_constraint(seq, rep, name)
+                return Implication(impl_name, base, substitution_in_liquid(pred, rep, name), nseq, loc=c.loc)
+        case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
+            nseq = substitution_in_constraint(seq, rep, name)
+            return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
+        case ReflectedFunctionDeclaration(rfd_name, rfd_type, params, body, seq):
+            nbody = substitution_in_liquid(body, rep, name)
+            nseq = substitution_in_constraint(seq, rep, name)
+            return ReflectedFunctionDeclaration(rfd_name, rfd_type, params, nbody, nseq)
+        case TypeVarDeclaration(tvd_name, seq):
+            return TypeVarDeclaration(tvd_name, substitution_in_constraint(seq, rep, name))
+        case _:
+            assert False
 
 
 def _alpha_name(name: Name, env: dict[tuple[str, int], int], counter: list[int]) -> str:

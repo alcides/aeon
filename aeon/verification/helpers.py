@@ -23,6 +23,7 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
+from aeon.verification.vcs import substitution_in_constraint
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.location import Location
 from aeon.utils.name import Name, fresh_counter
@@ -214,32 +215,6 @@ def constraint_free_variables(c: Constraint) -> list[Name]:
             return constraint_free_variables(c1) + constraint_free_variables(c2)
         case _:
             assert False, f"Unsupported Constraint: {c}"
-
-
-def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Constraint:
-    """Substitues a LiquidVar by another expression within a constraint."""
-    match c:
-        case LiquidConstraint(expr):
-            return LiquidConstraint(substitution_in_liquid(expr, rep, name), loc=c.loc)
-        case Conjunction(c1, c2):
-            left = substitution_in_constraint(c1, rep, name)
-            right = substitution_in_constraint(c2, rep, name)
-            return Conjunction(left, right, loc=c.loc)
-        case Implication(impl_name, base, pred, seq):
-            if name == impl_name:
-                return c
-            else:
-                nseq = substitution_in_constraint(seq, rep, name)
-                return Implication(impl_name, base, substitution_in_liquid(pred, rep, name), nseq, loc=c.loc)
-        case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
-            nseq = substitution_in_constraint(seq, rep, name)
-            return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
-        case ReflectedFunctionDeclaration(rfd_name, rfd_type, params, body, seq):
-            nbody = substitution_in_liquid(body, rep, name)
-            nseq = substitution_in_constraint(seq, rep, name)
-            return ReflectedFunctionDeclaration(rfd_name, rfd_type, params, nbody, nseq)
-        case _:
-            assert False
 
 
 def used_variables(c: LiquidTerm) -> set[Name]:
