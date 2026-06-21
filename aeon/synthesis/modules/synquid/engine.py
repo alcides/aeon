@@ -19,6 +19,7 @@ from aeon.synthesis.modules.synquid.guards import (
     bool_triple_conjunctions,
 )
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import check_type
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.name import Name
 
@@ -99,6 +100,12 @@ def _head_result_constructor(t: Type) -> TypeConstructor | None:
 
 
 _PRIMITIVE_BASES = {"Int", "Bool", "Float", "String", "Unit"}
+# Goals at which a "returns-anything" operator (``∀a. … -> a``: ``+``, ``-``,
+# ``*``, ``Array_get``, ...) is meaningful: the Num/Ord arithmetic ops. Building
+# them at *non-numeric* primitives produces ill-typed junk -- in particular
+# ``True + False`` as a Bool guard, which makes the z3 backend raise an
+# int-where-bool sort error and so escapes the local refinement check below.
+_NUMERIC_BASES = {"Int", "Float"}
 
 
 def _refined_adt_param(i: Type) -> bool:
@@ -110,6 +117,42 @@ def _refined_adt_param(i: Type) -> bool:
         return False
     base = refined_to_unrefined_type(i)
     return isinstance(base, TypeConstructor) and base.name.name not in _PRIMITIVE_BASES
+
+
+def _local_check(ctx: TypingContext, term: Term, goal: Type) -> bool:
+    """Round-trip local refinement check (Synquid APPFO, PLDI'16 §3.2).
+
+    Keep an argument candidate unless it is *definitely* incompatible with the
+    refined parameter type ``goal``. ``check_type`` returns ``False`` only on a
+    genuine refinement contradiction -- e.g. ``nil : {List a | len >= 1}`` -- so
+    those candidates are pruned at the point of application instead of after a
+    full (and failing) program-level validation. A *raise* (an ill-sorted
+    intermediate, or a predicate unknown that only resolves in the global
+    context) means the local checker cannot decide: treat it as ``Unknown`` and
+    keep the candidate, so pruning never drops a valid term (soundness)."""
+    try:
+        return bool(check_type(ctx, term, goal))
+    except Exception:
+        return True
+
+
+def _pruned(gen, ctx: TypingContext, goal: Type):
+    for t in gen:
+        if _local_check(ctx, t, goal):
+            yield t
+
+
+def _arg_gen(ctx: TypingContext, level: int, i: Type, skip: Callable[[Name], bool], mem: dict):
+    """Candidate generator for one application argument of type ``i``.
+
+    Datatype / refined-container args are built one level deeper; primitive args
+    are level-0 leaves. A *refined* container arg additionally goes through the
+    round-trip local check, so e.g. an empty list is pruned against a
+    ``len >= 1`` parameter before the enclosing application is ever assembled."""
+    if isinstance(i, TypeConstructor) or _refined_adt_param(i):
+        g = synthes_memory(ctx, level - 1, i, skip, mem)
+        return _pruned(g, ctx, i) if _refined_adt_param(i) else g
+    return synthes_memory(ctx, 0, i, skip, mem)
 
 
 def _peel_polymorphism(ty: Type) -> tuple[list[Name], Type]:
@@ -241,7 +284,7 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                 ret_unref = refined_to_unrefined_type(ret_template)
                 if isinstance(ret_unref, TypeVar) and ret_unref.name in set(tyvars):
                     goal_base = refined_to_unrefined_type(ret_t)
-                    if not (isinstance(goal_base, TypeConstructor) and goal_base.name.name in _PRIMITIVE_BASES):
+                    if not (isinstance(goal_base, TypeConstructor) and goal_base.name.name in _NUMERIC_BASES):
                         continue
                 sub = _match_type(ret_template, ret_t, set(tyvars))
                 if sub is None or any(tv not in sub for tv in tyvars):
@@ -254,12 +297,7 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                     for tv in tyvars:
                         p = type_substitution(p, tv, sub[tv])
                     inst_params.append(p)
-                params = [
-                    synthes_memory(ctx, level - 1, i, skip, mem)
-                    if isinstance(i, TypeConstructor) or _refined_adt_param(i)
-                    else synthes_memory(ctx, 0, i, skip, mem)
-                    for i in inst_params
-                ]
+                params = [_arg_gen(ctx, level, i, skip, mem) for i in inst_params]
                 for combo in itertools.product(*params):
                     term: Term = head
                     for a in combo:
@@ -274,12 +312,7 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                 head_tc = _head_result_constructor(t)
                 if head_tc is None:
                     continue
-                params = [
-                    synthes_memory(ctx, level - 1, i, skip, mem)
-                    if isinstance(i, TypeConstructor) or _refined_adt_param(i)
-                    else synthes_memory(ctx, 0, i, skip, mem)
-                    for i in params_t
-                ]
+                params = [_arg_gen(ctx, level, i, skip, mem) for i in params_t]
                 params.insert(0, [Var(name)])
                 for i in itertools.product(*params):
                     yield closing(i, head_tc)
