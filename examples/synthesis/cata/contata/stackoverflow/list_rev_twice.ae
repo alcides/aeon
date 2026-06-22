@@ -1,0 +1,45 @@
+# Contata benchmark: stackoverflow/list_rev_twice.mls  (category SO -- Stack Overflow)
+#
+# Original Contata task:
+#     synth reverse : [list] -> list calling [reverse] ;;
+#   spec: a pure k-safety property relating two runs of the function --
+#     test forall xs. reverse (reverse xs) == xs
+#   plus IO examples. This is the canonical relational/k-safety SO benchmark and
+#   CANNOT be stated as a single function's refinement type.
+#
+# aeon transcription: `reverse` (via `append`) is the reference; the k-safety
+# property is PBT-checked with structural list equality, exactly mirroring the
+# Contata `test forall`.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/stackoverflow/list_rev_twice.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+# --- reference solution ---
+def append (xs: IntList) (ys: IntList) : IntList :=
+    match xs with
+    | .nil => ys
+    | .cons h t => .cons h (append t ys)
+
+def reverse (xs: IntList) : IntList :=
+    match xs with
+    | .nil => .nil
+    | .cons h t => append (reverse t) (.cons h .nil)
+
+def listEq (a: IntList) (b: IntList) : Bool :=
+    match a with
+    | .nil => (match b with | .nil => true | .cons hb tb => false)
+    | .cons ha ta =>
+        (match b with
+         | .nil => false
+         | .cons hb tb => if ha = hb then listEq ta tb else false)
+
+# --- Contata's k-safety specification, as a PBT property + IO examples ---
+@property(50)
+def prop_reverse_involutive (xs: IntList) : Bool := listEq (reverse (reverse xs)) xs
+
+@example(listEq (reverse (.cons 1 (.cons 0 .nil))) (.cons 0 (.cons 1 .nil)) = true)
+def main (z: Int) : Unit :=
+    print (listEq (reverse (reverse (.cons 1 (.cons 2 .nil)))) (.cons 1 (.cons 2 .nil)))

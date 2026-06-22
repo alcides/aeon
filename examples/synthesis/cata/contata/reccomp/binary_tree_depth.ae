@@ -1,0 +1,39 @@
+# Contata benchmark: reccomp/binary_tree_depth.mls  (category RC)
+#
+# Original Contata task:
+#     synth depth : [(bst)] -> nat calling [depth] ;;
+#   spec: depth of a leaf is 0; depth of a node is one more than the max depth of
+#   its children; plus monotonicity properties and an IO example.
+#
+# aeon transcription: `nat` encoded as `Int`. The reference `depth` is given and
+# Contata's defining/monotonicity properties are PBT-checked over generated trees.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/reccomp/binary_tree_depth.ae
+
+inductive BTree
+| empty : BTree
+| node (v: Int) (l: BTree) (r: BTree) : BTree
+
+def maxInt (a: Int) (b: Int) : Int := if a >= b then a else b
+
+# --- reference solution ---
+def depth (t: BTree) : Int :=
+    match t with
+    | .empty => 0
+    | .node v l r => 1 + maxInt (depth l) (depth r)
+
+# --- specification as PBT properties ---
+# defining equation for the recursive (node) case
+@property(40)
+def prop_node_unfolds (v: Int) (l: BTree) (r: BTree) : Bool :=
+    depth (.node v l r) = 1 + maxInt (depth l) (depth r)
+
+# a node is strictly deeper than each of its children (monotonicity)
+@property(40)
+def prop_deeper_than_children (v: Int) (l: BTree) (r: BTree) : Bool :=
+    if depth (.node v l r) > depth l then depth (.node v l r) > depth r else false
+
+@example(depth .empty = 0)
+@example(depth (.node 7 .empty .empty) = 1)
+def main (z: Int) : Unit :=
+    print (depth (.node 1 (.node 2 .empty .empty) .empty))

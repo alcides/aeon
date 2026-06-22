@@ -1,0 +1,40 @@
+# Contata benchmark: mutrec/even_odd.mls  (category MR -- Mutual Recursion)
+#
+# Original Contata task: co-synthesise two MUTUALLY recursive functions
+#     synth is_even : [nat] -> bool calling [is_odd] ;;
+#     synth is_odd  : [nat] -> bool calling [is_even] ;;
+# against the relational spec
+#     test forall x. is_odd (inc x) == is_even x
+#     test forall x. is_odd x       == not (is_odd (inc x))
+#     io   is_even O -> True
+#
+# Faithful transcription. aeon (master, issue #397) has a Lean-style
+# `mutual ... end` block, so the genuinely-mutual structure IS expressible:
+# `isEven` and `isOdd` reference one another and are co-typechecked. The SPEC
+# below is Contata's, unchanged, and is checked by property-based testing.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/mutrec/even_odd.ae
+
+inductive Nat
+| zero : Nat
+| succ (n: Nat) : Nat
+
+def not (b: Bool) : Bool := if b then false else true
+def bIff (a: Bool) (b: Bool) : Bool := if a then b else not b
+
+# --- reference solution: a true mutual-recursion group ---
+mutual
+  def isEven (n: Nat) : Bool :=
+    match n with | .zero => true  | .succ m => isOdd m
+  def isOdd (n: Nat) : Bool :=
+    match n with | .zero => false | .succ m => isEven m
+end
+
+# --- Contata's relational specification, as PBT properties ---
+@property(40)
+def prop_odd_succ_is_even (x: Nat) : Bool := bIff (isOdd (.succ x)) (isEven x)
+
+@property(40)
+def prop_odd_alternates (x: Nat) : Bool := bIff (isOdd x) (not (isOdd (.succ x)))
+
+def main (z: Int) : Unit := print (isEven (.succ (.succ .zero)))

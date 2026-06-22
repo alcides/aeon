@@ -1,0 +1,50 @@
+# Contata benchmark: mutrec/evens_odds.mls  (category MR -- Mutual Recursion)
+#
+# Original Contata task:
+#     synth evens : [list] -> list calling [odds] ;;
+#     synth odds  : [list] -> list calling [evens] ;;
+#   spec: `evens` keeps the even-indexed elements, `odds` the odd-indexed ones;
+#   given by 8 IO examples. They are mutually recursive: evens of (x::xs) is
+#   x :: odds xs, and odds of (x::xs) is evens xs.
+#
+# aeon transcription (element type `A` ↦ `Int`): a true `mutual ... end` group.
+# The defining equations and a length-partition property are PBT-checked.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/mutrec/evens_odds.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+def len (xs: IntList) : Int :=
+    match xs with | .nil => 0 | .cons h t => 1 + len t
+
+def listEq (a: IntList) (b: IntList) : Bool :=
+    match a with
+    | .nil => (match b with | .nil => true | .cons hb tb => false)
+    | .cons ha ta =>
+        (match b with
+         | .nil => false
+         | .cons hb tb => if ha = hb then listEq ta tb else false)
+
+# --- reference solution: a true mutual-recursion group ---
+mutual
+  def evens (xs: IntList) : IntList :=
+    match xs with | .nil => .nil | .cons h t => .cons h (odds t)
+  def odds (xs: IntList) : IntList :=
+    match xs with | .nil => .nil | .cons h t => evens t
+end
+
+# --- specification as PBT properties ---
+# evens and odds together account for every element (length partition)
+@property(40)
+def prop_length_partition (xs: IntList) : Bool := len (evens xs) + len (odds xs) = len xs
+
+# defining equation: odds of the tail are the evens-minus-head
+@property(40)
+def prop_evens_unfolds (h: Int) (t: IntList) : Bool :=
+    listEq (evens (.cons h t)) (.cons h (odds t))
+
+@example(listEq (evens (.cons 1 (.cons 2 (.cons 3 .nil)))) (.cons 1 (.cons 3 .nil)) = true)
+def main (z: Int) : Unit :=
+    print (len (evens (.cons 1 (.cons 2 (.cons 3 .nil)))))

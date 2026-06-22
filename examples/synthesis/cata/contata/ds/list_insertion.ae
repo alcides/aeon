@@ -1,0 +1,54 @@
+# Contata benchmark: ds/list_insertion.mls  (category PDS -- Partial Data Structures)
+#
+# Original Contata task:
+#     synth insert : [(A * list)] -> list calling [insert] ;;
+#   spec: insert an element into a SORTED list keeping it sorted (the "partial
+#   data structure" invariant), with an IO example. The characteristic properties
+#   are: membership is added, and sortedness is preserved.
+#
+# aeon transcription: element type `A` encoded as `Int`. The reference sorted
+# `insert` is given and the invariant/membership properties are PBT-checked.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/list_insertion.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+def not (b: Bool) : Bool := if b then false else true
+def and (a: Bool) (b: Bool) : Bool := if a then b else false
+
+# --- reference solution: ordered insertion ---
+def insert (x: Int) (xs: IntList) : IntList :=
+    match xs with
+    | .nil => .cons x .nil
+    | .cons h t => if x <= h then .cons x (.cons h t) else .cons h (insert x t)
+
+def member (x: Int) (xs: IntList) : Bool :=
+    match xs with
+    | .nil => false
+    | .cons h t => if x = h then true else member x t
+
+# is the list sorted (non-decreasing)?
+def sortedFrom (lo: Int) (xs: IntList) : Bool :=
+    match xs with
+    | .nil => true
+    | .cons h t => if lo <= h then sortedFrom h t else false
+def isSorted (xs: IntList) : Bool :=
+    match xs with
+    | .nil => true
+    | .cons h t => sortedFrom h t
+
+# --- specification as PBT properties + IO ---
+# the inserted element is now a member
+@property(40)
+def prop_inserts_member (x: Int) (xs: IntList) : Bool := member x (insert x xs)
+
+# sortedness is preserved (the PDS invariant)
+@property(40)
+def prop_preserves_sorted (x: Int) (xs: IntList) : Bool :=
+    if isSorted xs then isSorted (insert x xs) else true
+
+@example(member 3 (insert 3 .nil) = true)
+def main (z: Int) : Unit :=
+    print (isSorted (insert 2 (.cons 1 (.cons 3 .nil))))
