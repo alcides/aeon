@@ -1,0 +1,43 @@
+# Contata benchmark: ds/mirror_tree_test.mls  (category PDS -- Partial Data Structures)
+#
+# Original Contata task:
+#     synth mirror : [tree] -> tree calling [mirror] ;;
+#   spec: mirroring swaps left/right subtrees recursively; the characteristic
+#   k-safety property is involutivity -- `mirror (mirror t) == t`.
+#
+# aeon transcription: the reference `mirror` is given; structural tree equality
+# `treeEq` lets the involutivity property be PBT-checked over generated trees.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/mirror_tree.ae
+
+inductive BTree
+| empty : BTree
+| node (v: Int) (l: BTree) (r: BTree) : BTree
+
+# --- reference solution ---
+def mirror (t: BTree) : BTree :=
+    match t with
+    | .empty => .empty
+    | .node v l r => .node v (mirror r) (mirror l)
+
+def treeEq (a: BTree) (b: BTree) : Bool :=
+    match a with
+    | .empty => (match b with | .empty => true | .node v l r => false)
+    | .node va la ra =>
+        (match b with
+         | .empty => false
+         | .node vb lb rb => if va = vb then (if treeEq la lb then treeEq ra rb else false) else false)
+
+# --- specification as PBT properties ---
+# involutivity: mirroring twice is the identity (the SO/k-safety-style property)
+@property(40)
+def prop_mirror_involutive (t: BTree) : Bool := treeEq (mirror (mirror t)) t
+
+# defining equation for the recursive case
+@property(40)
+def prop_mirror_swaps (v: Int) (l: BTree) (r: BTree) : Bool :=
+    treeEq (mirror (.node v l r)) (.node v (mirror r) (mirror l))
+
+def main (z: Int) : Unit :=
+    print (treeEq (mirror (mirror (.node 1 (.node 2 .empty .empty) .empty)))
+                  (.node 1 (.node 2 .empty .empty) .empty))

@@ -1,0 +1,49 @@
+# Contata benchmark: reccomp/list_eq.mls  (category RC -- Recursive Comparators)
+#
+# Original Contata task:
+#     synth list_cmp : [(list * list)] -> bool calling [list_cmp] ;;
+#   spec (relational properties + IO):
+#     test forall xs. list_cmp (xs, xs) == True            -- reflexivity
+#     test forall x y. not (nat_eq x y) --> not (list_cmp ([x],[y]))
+#     test forall x. not (list_cmp ([x], []))              -- length mismatch
+#     io list_cmp (Nil, Nil) -> True ;;  io ...
+#
+# aeon transcription. `nat` is encoded as `Int` (so element equality is the SMT
+# `=`); the recursive comparator is given as the reference solution and Contata's
+# relational properties are PBT-checked. A relational *refinement-type* spec on
+# `listEq` is NOT used: aeon's `match` is not path-sensitive (verified), so a
+# measure-based refinement relating result to inputs cannot be discharged -- which
+# is exactly why this is a property/PBT transcription, mirroring Contata's `test`.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/reccomp/list_eq.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+def not (b: Bool) : Bool := if b then false else true
+
+# --- reference solution ---
+def listEq (a: IntList) (b: IntList) : Bool :=
+    match a with
+    | .nil => (match b with | .nil => true | .cons hb tb => false)
+    | .cons ha ta =>
+        (match b with
+         | .nil => false
+         | .cons hb tb => if ha = hb then listEq ta tb else false)
+
+# --- Contata's relational specification, as PBT properties + IO examples ---
+@property(40)
+def prop_reflexive (xs: IntList) : Bool := listEq xs xs
+
+@property(40)
+def prop_singleton_diff (x: Int) (y: Int) : Bool :=
+    if x = y then true else not (listEq (.cons x .nil) (.cons y .nil))
+
+@property(40)
+def prop_length_mismatch (x: Int) : Bool := not (listEq (.cons x .nil) .nil)
+
+@example(listEq .nil .nil = true)
+@example(listEq (.cons 0 .nil) (.cons 0 .nil) = true)
+@example(listEq (.cons 0 .nil) (.cons 1 .nil) = false)
+def main (z: Int) : Unit := print (listEq (.cons 1 (.cons 2 .nil)) (.cons 1 (.cons 2 .nil)))
