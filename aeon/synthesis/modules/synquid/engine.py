@@ -7,9 +7,11 @@ import itertools
 from typing import Callable
 
 from aeon.core.instantiation import type_substitution
+from aeon.core.liquid import LiquidVar, liquid_free_vars
+from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, Term, TypeApplication, Var
 from aeon.core.types import AbstractionType, RefinedType, Type, TypeConstructor, TypePolymorphism, TypeVar
-from aeon.core.types import refined_to_unrefined_type
+from aeon.core.types import refined_to_unrefined_type, type_free_term_vars
 from aeon.synthesis.modules.symetric.synthesizer import _match_type
 from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
 from aeon.synthesis.modules.synquid.guards import (
@@ -19,7 +21,7 @@ from aeon.synthesis.modules.synquid.guards import (
     bool_triple_conjunctions,
 )
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type
+from aeon.typechecking.typeinfer import check_type, synth
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.name import Name
 
@@ -119,21 +121,78 @@ def _refined_adt_param(i: Type) -> bool:
     return isinstance(base, TypeConstructor) and base.name.name not in _PRIMITIVE_BASES
 
 
+def _refinements_consistent(actual: Type, goal: Type) -> bool:
+    """Synquid type-consistency ``∧:`` (PLDI'16, Fig 5): are the refinements of
+    ``actual`` and ``goal`` *jointly satisfiable*?
+
+    Consistency is the existential (``∃`` a valuation of the binder) counterpart
+    of subtyping (``∀``): it rejects only candidates whose type *contradicts* the
+    goal -- ``{v | v > 0}`` against ``{v | v < 0}`` -- while keeping any candidate
+    that could still be made to fit. It is therefore the right check when full
+    subtyping cannot be decided (a leftover predicate unknown). Only primitive
+    bases are SAT-checked (they map to a z3 sort); any doubt yields ``True``
+    (keep), so consistency never drops a valid term."""
+    ab = refined_to_unrefined_type(actual)
+    gb = refined_to_unrefined_type(goal)
+    if not (isinstance(ab, TypeConstructor) and isinstance(gb, TypeConstructor)):
+        return True
+    if ab.name.name != gb.name.name:
+        # Different base heads: aeon permits numeric coercions (Int/Float), so a
+        # name mismatch is not a definite contradiction -- keep, and let global
+        # validation decide. Consistency only ever prunes a same-base, jointly
+        # unsatisfiable refinement pair below.
+        return True
+    if ab.name.name not in _PRIMITIVE_BASES:
+        return True
+    binder = Name("_consist", 0)
+    refs = [
+        substitution_in_liquid(ty.refinement, LiquidVar(binder), ty.name)
+        for ty in (actual, goal)
+        if isinstance(ty, RefinedType)
+    ]
+    if not refs:
+        return True
+    try:
+        from z3 import Solver, sat
+
+        from aeon.verification.smt import make_variable, translate_liq
+
+        variables: dict[str, object] = {str(binder): make_variable(str(binder), ab)}
+        for r in refs:
+            for fv in liquid_free_vars(r):
+                # Free vars other than the binder are unconstrained context
+                # values; sorts are unknown here, so give them the base sort and
+                # let a sort clash raise -> caught -> keep (never a false prune).
+                variables.setdefault(str(fv), make_variable(str(fv), ab))
+        s = Solver()
+        for r in refs:
+            s.add(translate_liq(r, variables))
+        return s.check() == sat
+    except Exception:
+        return True
+
+
 def _local_check(ctx: TypingContext, term: Term, goal: Type) -> bool:
-    """Round-trip local refinement check (Synquid APPFO, PLDI'16 §3.2).
+    """Round-trip local refinement check (Synquid APPFO, PLDI'16 §3.2) plus the
+    type-consistency fallback (∧:, Fig 5).
 
     Keep an argument candidate unless it is *definitely* incompatible with the
-    refined parameter type ``goal``. ``check_type`` returns ``False`` only on a
-    genuine refinement contradiction -- e.g. ``nil : {List a | len >= 1}`` -- so
-    those candidates are pruned at the point of application instead of after a
-    full (and failing) program-level validation. A *raise* (an ill-sorted
-    intermediate, or a predicate unknown that only resolves in the global
-    context) means the local checker cannot decide: treat it as ``Unknown`` and
-    keep the candidate, so pruning never drops a valid term (soundness)."""
+    parameter type ``goal``. ``check_type`` (subtyping, the ``∀`` check) returns
+    ``False`` only on a genuine contradiction -- e.g. ``nil : {List a | len >=
+    1}`` -- so those are pruned at the application site instead of after a full,
+    failing program-level validation. When ``check_type`` cannot decide (a
+    raise: an ill-sorted intermediate or a predicate unknown that only resolves
+    globally), fall back to the weaker *consistency* check: keep only if the
+    candidate's inferred type is not outright contradictory with the goal. Both
+    tiers only ever prune definite failures, so a valid term is never dropped."""
     try:
         return bool(check_type(ctx, term, goal))
     except Exception:
-        return True
+        try:
+            _, actual = synth(ctx, term)
+        except Exception:
+            return True
+        return _refinements_consistent(actual, goal)
 
 
 def _pruned(gen, ctx: TypingContext, goal: Type):
@@ -155,6 +214,43 @@ def _arg_gen(ctx: TypingContext, level: int, i: Type, skip: Callable[[Name], boo
     return synthes_memory(ctx, 0, i, skip, mem)
 
 
+def _app_combos(
+    ctx: TypingContext,
+    level: int,
+    params: list[tuple[Name, Type]],
+    skip: Callable[[Name], bool],
+    mem: dict,
+):
+    """Incremental-unification argument synthesis (Synquid, PLDI'16 §3.6).
+
+    Rather than taking the independent cross-product of all argument candidate
+    sets, synthesize arguments left to right and *substitute each chosen
+    argument into the dependent parameter types that follow it*. A later
+    argument is therefore synthesized against an already-narrowed goal: for
+    ``f (x: Int) (y: {v: Int | v > x})`` the choice ``x := 3`` propagates so
+    ``y`` is synthesized against ``{v | v > 3}`` directly. For non-dependent
+    parameters the substitution is a no-op and this reduces to the plain
+    product, so it never enlarges the search space."""
+    if not params:
+        yield ()
+        return
+    # Fast path: when no parameter binder occurs free in a *later* parameter
+    # type, there is nothing to narrow, so incremental synthesis coincides with
+    # the plain cross-product -- take it directly and skip the per-argument
+    # substitution work. (Genuine dependencies, the case the incremental rule
+    # exists for, fall through to the recursive narrowing below.)
+    binders = {bn for bn, _ in params}
+    if not any(binders & set(type_free_term_vars(pt)) for _, pt in params):
+        gens = [_arg_gen(ctx, level, pt, skip, mem) for _, pt in params]
+        yield from itertools.product(*gens)
+        return
+    (binder, ptype), rest = params[0], params[1:]
+    for a in _arg_gen(ctx, level, ptype, skip, mem):
+        rest_narrowed = [(n, substitution_in_type(t, a, binder)) for (n, t) in rest]
+        for tail in _app_combos(ctx, level, rest_narrowed, skip, mem):
+            yield (a, *tail)
+
+
 def _peel_polymorphism(ty: Type) -> tuple[list[Name], Type]:
     """Strip the ``forall`` prefix, returning the bound type variables and body."""
     tyvars: list[Name] = []
@@ -165,15 +261,17 @@ def _peel_polymorphism(ty: Type) -> tuple[list[Name], Type]:
     return tyvars, cur
 
 
-def _uncurry_arrow(ty: Type) -> tuple[list[Type], Type]:
-    """Split an arrow type into argument types and return type, tolerating
-    type-variable domains (e.g. ``(hd: a) -> (tl: List a) -> List a``) -- which
-    arise before a polymorphic binding is instantiated, and which ``uncurry``
-    rejects."""
-    params: list[Type] = []
+def _uncurry_arrow_b(ty: Type) -> tuple[list[tuple[Name, Type]], Type]:
+    """Split an arrow type into ``(binder, argument-type)`` pairs and the return
+    type, tolerating type-variable domains (e.g. ``(hd: a) -> (tl: List a) ->
+    List a``) -- which arise before a polymorphic binding is instantiated, and
+    which ``uncurry`` rejects. The binder names let a chosen argument be
+    substituted into the dependent parameter types that follow it (incremental
+    unification)."""
+    params: list[tuple[Name, Type]] = []
     cur = ty
     while isinstance(cur, AbstractionType):
-        params.append(cur.var_type)
+        params.append((cur.var_name, cur.var_type))
         cur = cur.type
     return params, cur
 
@@ -272,7 +370,7 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                 # containers get built -- and only the one relevant instantiation
                 # is tried (no universe enumeration, no combinatorial blow-up).
                 tyvars, inner = _peel_polymorphism(typ)
-                params_t, ret_template = _uncurry_arrow(inner)
+                param_bind, ret_template = _uncurry_arrow_b(inner)
                 # A binding whose return type is a *bare* bound type variable
                 # (e.g. ``+`` / ``Array_get`` : ``∀a. … -> a``) unifies with any
                 # goal, so it would be instantiated at every user datatype --
@@ -292,13 +390,12 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
                 head: Term = Var(name)
                 for tv in tyvars:
                     head = TypeApplication(head, sub[tv])
-                inst_params: list[Type] = []
-                for p in params_t:
+                inst_params: list[tuple[Name, Type]] = []
+                for binder, p in param_bind:
                     for tv in tyvars:
                         p = type_substitution(p, tv, sub[tv])
-                    inst_params.append(p)
-                params = [_arg_gen(ctx, level, i, skip, mem) for i in inst_params]
-                for combo in itertools.product(*params):
+                    inst_params.append((binder, p))
+                for combo in _app_combos(ctx, level, inst_params, skip, mem):
                     term: Term = head
                     for a in combo:
                         term = Application(term, a)
@@ -306,17 +403,25 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             else:
                 if synquid_application_arg_types(typ, ret_t) is None:
                     continue
-                params_t, t = uncurry(typ)
+                _, t = uncurry(typ)
                 if refined_to_unrefined_type(t) != base_t:
                     continue
                 head_tc = _head_result_constructor(t)
                 if head_tc is None:
                     continue
-                params = [_arg_gen(ctx, level, i, skip, mem) for i in params_t]
-                params.insert(0, [Var(name)])
-                for i in itertools.product(*params):
-                    yield closing(i, head_tc)
-        bool_t = TypeConstructor(Name("Bool", 0), [])
+                param_bind, _ = _uncurry_arrow_b(typ)
+                for combo in _app_combos(ctx, level, param_bind, skip, mem):
+                    yield closing((Var(name), *combo), head_tc)
+        # Liquid abduction (Synquid IfAb, PLDI'16 §3.3): a branch guard is
+        # *abduced* from the qualifier-atom set ``atoms_q`` -- the abducibles Q
+        # derived from the goal and context -- and its boolean combinations,
+        # rather than enumerated as an arbitrary boolean term. Restricting the
+        # guard domain to Q is what Synquid does and is what makes conditional
+        # synthesis tractable: free-form boolean enumeration both diverges from
+        # the paper and, empirically, regresses the suite (the large boolean tail
+        # clogs the queue and pushes structural solutions past the budget). The
+        # IfAb premise -- each branch must satisfy the goal under the (negated)
+        # guard -- is discharged by the round-trip check on the assembled term.
         atoms_q = extract_qualifier_atoms(ctx, goal_type=ret_t)
         guard_quads = bool_quad_conjunctions(ctx, atoms_q)
         guard_triples = bool_triple_conjunctions(ctx, atoms_q)
@@ -327,7 +432,6 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             iter(guard_triples),
             iter(guard_pairs),
             iter(guard_terms),
-            synthes_memory(ctx, level - 1, bool_t, skip, mem),
         )
         then = synthes_memory(ctx, level - 1, ret_t, skip, mem)
         otherwise = synthes_memory(ctx, level - 1, ret_t, skip, mem)
