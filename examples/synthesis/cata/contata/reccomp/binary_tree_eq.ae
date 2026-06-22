@@ -1,0 +1,40 @@
+# Contata benchmark: reccomp/binary_tree_eq.mls  (category RC -- Recursive Comparators)
+#
+# Original: synth bt_eq : [(bst * bst)] -> bool calling [bt_eq], structural
+# equality on binary search trees. Spec:
+#     test forall b.        bt_eq (b, b) == True                 -- reflexivity
+#     test forall b1 b2.    bt_eq (b1, b2) == bt_eq (b2, b1)     -- symmetry
+#     test forall b1 b2 n.  bt_eq (b1, Node(b1, n, b2)) == False -- proper subtree
+#     io ... (two equal / one unequal)
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/reccomp/binary_tree_eq.ae
+
+inductive BST
+| leaf : BST
+| node (l: BST) (v: Int) (r: BST) : BST
+
+# --- reference solution ---
+def btEq (a: BST) (b: BST) : Bool :=
+    match a with
+    | .leaf => (match b with | .leaf => true | .node lb vb rb => false)
+    | .node la va ra =>
+        (match b with
+         | .leaf => false
+         | .node lb vb rb => if va = vb then (if btEq la lb then btEq ra rb else false) else false)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_reflexive (b: BST) : Bool := btEq b b
+
+@property(30)
+def prop_symmetric (b1: BST) (b2: BST) : Bool := btEq b1 b2 = btEq b2 b1
+
+@property(30)
+def prop_proper_subtree (b1: BST) (b2: BST) (n: Int) : Bool :=
+    btEq b1 (.node b1 n b2) = false
+
+@example(btEq (.node .leaf 0 (.node .leaf 3 .leaf)) (.node .leaf 0 (.node .leaf 3 .leaf)) = true)
+@example(btEq (.node .leaf 0 (.node .leaf 1 .leaf)) (.node .leaf 0 (.node .leaf 3 .leaf)) = false)
+def main (z: Int) : Unit := print (btEq (.node .leaf 0 .leaf) (.node .leaf 0 .leaf))

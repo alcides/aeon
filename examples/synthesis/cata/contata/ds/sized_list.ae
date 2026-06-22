@@ -1,0 +1,46 @@
+# Contata benchmark: ds/sized_list.mls  (category PDS)
+#
+# Original: a list that caches its own length at every node
+#     list = Nil of nat | Cons of (A * nat * list)
+# and (the one non-recursive synth in the suite) insert : [tapair] -> t calling []
+# that prepends an element and refreshes the cached size. Spec:
+#     test forall s i. invariant s --> invariant (insert (s, i))
+#     io insert (Nil O, 0) -> Cons(0, 1, Nil O)
+#        insert (Cons(0,1,Nil O), 1) -> Cons(1, 2, Cons(0,1,Nil O))
+# where `invariant` says every node's cached size is one more than its tail's.
+#
+# aeon transcription (A,nat ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/sized_list.ae
+
+inductive SList
+| snil (sz: Int) : SList
+| scons (x: Int) (sz: Int) (rest: SList) : SList
+
+def storedLen (l: SList) : Int :=
+    match l with | .snil s => s | .scons x s xs => s
+
+# --- reference solution (non-recursive): prepend with refreshed size ---
+def insert (l: SList) (x: Int) : SList := .scons x (storedLen l + 1) l
+
+def invariant (l: SList) : Bool :=
+    match l with
+    | .snil s => true
+    | .scons x s xs => if invariant xs then (storedLen xs < s) else false
+
+def slEq (a: SList) (b: SList) : Bool :=
+    match a with
+    | .snil sa => (match b with | .snil sb => sa = sb | .scons x s xs => false)
+    | .scons xa sa ta =>
+        (match b with
+         | .snil sb => false
+         | .scons xb sb tb => if xa = xb then (if sa = sb then slEq ta tb else false) else false)
+
+# --- specification as PBT property + io ---
+@property(40)
+def prop_preserves_invariant (s: SList) (i: Int) : Bool :=
+    if invariant s then invariant (insert s i) else true
+
+@example(slEq (insert (.snil 0) 0) (.scons 0 1 (.snil 0)) = true)
+@example(slEq (insert (.scons 0 1 (.snil 0)) 1) (.scons 1 2 (.scons 0 1 (.snil 0))) = true)
+def main (z: Int) : Unit := print (invariant (insert (.scons 0 1 (.snil 0)) 1))

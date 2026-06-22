@@ -1,0 +1,51 @@
+# Contata benchmark: reccomp/ternary_tree_depth.mls  (category RC)
+#
+# Original: over a ternary tree (Leaf | Node of t*A*t*t), co-synthesise
+#     synth depth  : [tree] -> nat calling [depth]
+#     synth tt_cmp : [(tree*tree)] -> compare calling [tt_cmp]
+# Spec: depth(Leaf)=0; depth(Node(.,_,.,.)) = 1 + depth(child) for each child
+# placed singly; tt_cmp(b,b)=Eq; io comparisons consistent with comparing by depth.
+#
+# aeon transcription (A ↦ Int). `tt_cmp` compares by depth — the total function
+# satisfying every io and the reflexivity property.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/reccomp/ternary_tree_depth.ae
+
+inductive TTree
+| leaf : TTree
+| node (l: TTree) (v: Int) (m: TTree) (r: TTree) : TTree
+
+inductive Compare
+| eq : Compare
+| lt : Compare
+| gt : Compare
+
+def isEq (c: Compare) : Bool := match c with | .eq => true | .lt => false | .gt => false
+def isLt (c: Compare) : Bool := match c with | .lt => true | .eq => false | .gt => false
+def isGt (c: Compare) : Bool := match c with | .gt => true | .eq => false | .lt => false
+
+def maxInt (a: Int) (b: Int) : Int := if a >= b then a else b
+
+# --- reference solutions ---
+def depth (t: TTree) : Int :=
+    match t with
+    | .leaf => 0
+    | .node l v m r => 1 + maxInt (depth l) (maxInt (depth m) (depth r))
+
+def ttCmp (a: TTree) (b: TTree) : Compare :=
+    if depth a < depth b then .lt else (if depth b < depth a then .gt else .eq)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_depth_left (t: TTree) : Bool := depth (.node t 0 .leaf .leaf) = 1 + depth t
+@property(30)
+def prop_depth_mid (t: TTree) : Bool := depth (.node .leaf 0 t .leaf) = 1 + depth t
+@property(30)
+def prop_depth_right (t: TTree) : Bool := depth (.node .leaf 0 .leaf t) = 1 + depth t
+@property(30)
+def prop_cmp_reflexive (b: TTree) : Bool := isEq (ttCmp b b)
+
+@example(depth .leaf = 0)
+@example(isLt (ttCmp .leaf (.node .leaf 0 .leaf .leaf)) = true)
+@example(isGt (ttCmp (.node .leaf 0 (.node .leaf 0 .leaf .leaf) .leaf) (.node .leaf 0 .leaf .leaf)) = true)
+def main (z: Int) : Unit := print (depth (.node .leaf 0 (.node .leaf 0 .leaf .leaf) .leaf))

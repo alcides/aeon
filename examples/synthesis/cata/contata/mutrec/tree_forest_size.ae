@@ -1,0 +1,52 @@
+# Contata benchmark: mutrec/tree_forest_size.mls  (category MR)
+#
+# Original: mutually-recursive datatypes tree/forest, and mutually-recursive
+#     synth size_tree : [tree]  -> nat calling [size_forest]
+#     synth size_forest: [forest] -> nat calling [size_tree, size_forest]
+# size_tree(Empty)=0, size_tree(Node a f)=1+size_forest f;
+# size_forest(Leaf)=0, size_forest(Tree t f)=size_tree t + size_forest f. Spec:
+#     test forall f. size_forest f < size_tree (Node 0 f)
+#     test forall f. not (size_forest (Tree Empty f) < size_forest f)
+#
+# aeon: genuine mutual `inductive` types AND a true `mutual ... end` group
+# (forest = Leaf | Tree of tree*forest, i.e. a list of trees). nat ↦ Int.
+#
+# Verification note. The mutual functions span TWO datatype sorts (Tree, Forest).
+# aeon's `--test` path reflects called functions into z3, and reflecting a mutual
+# group across distinct ADT sorts currently raises a z3 "Sort mismatch" (an aeon
+# bug, not a spec issue) — the definitions themselves typecheck and run. So this
+# file verifies by evaluating every Contata io example and both properties (on
+# sampled forests) in `main`, which prints `True`:
+#
+#   uv run python -m aeon examples/synthesis/cata/contata/mutrec/tree_forest_size.ae   # -> True
+
+inductive Tree
+| empty : Tree
+| node (v: Int) (children: Forest) : Tree
+
+inductive Forest
+| leaf : Forest
+| tcons (t: Tree) (rest: Forest) : Forest
+
+# --- reference solution: a true mutual-recursion group ---
+mutual
+  def sizeTree (t: Tree) : Int :=
+    match t with | .empty => 0 | .node v f => 1 + sizeForest f
+  def sizeForest (f: Forest) : Int :=
+    match f with | .leaf => 0 | .tcons t rest => sizeTree t + sizeForest rest
+end
+
+# Contata's two relational properties, instantiated on a sample forest f:
+def prop_node_grows (f: Forest) : Bool := sizeForest f < sizeTree (.node 0 f)
+def prop_empty_tree_no_growth (f: Forest) : Bool := !(sizeForest (.tcons .empty f) < sizeForest f)
+
+def f1 : Forest := .tcons (.node 0 .leaf) (.tcons (.node 1 .leaf) .leaf)
+
+def main (z: Int) : Unit :=
+    print (
+        (sizeTree .empty = 0) &&
+        (sizeForest .leaf = 0) &&
+        (sizeTree (.node 0 .leaf) = 1) &&
+        (sizeForest f1 = 2) &&
+        prop_node_grows .leaf && prop_node_grows f1 &&
+        prop_empty_tree_no_growth .leaf && prop_empty_tree_no_growth f1)

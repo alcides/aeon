@@ -1,0 +1,32 @@
+# Contata benchmark: ds/list_removal2.mls  (category PDS)
+#
+# Original: synth remove : [(A * list)] -> list calling [remove], with the
+# stronger element-wise spec:
+#     test forall x y xs.
+#       contains (y, remove (x, xs)) == (not (x == y) && contains (y, xs))
+#  (remove (x, xs) keeps exactly the elements of xs other than x).
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/list_removal2.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+def andB (a: Bool) (b: Bool) : Bool := if a then b else false
+
+def contains (x: Int) (xs: IntList) : Bool :=
+    match xs with | .nil => false | .cons h t => if x = h then true else contains x t
+
+# --- reference solution: delete every occurrence ---
+def remove (x: Int) (xs: IntList) : IntList :=
+    match xs with | .nil => .nil | .cons h t => if h = x then remove x t else .cons h (remove x t)
+
+# --- specification as PBT property ---
+@property(40)
+def prop_keeps_others (x: Int) (y: Int) (xs: IntList) : Bool :=
+    contains y (remove x xs) = andB (!(x = y)) (contains y xs)
+
+@example(contains 1 (remove 0 (.cons 1 (.cons 0 .nil))) = true)
+def main (z: Int) : Unit := print (contains 0 (remove 0 (.cons 0 (.cons 1 .nil))))

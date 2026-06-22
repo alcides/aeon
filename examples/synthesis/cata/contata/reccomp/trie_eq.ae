@@ -1,0 +1,41 @@
+# Contata benchmark: reccomp/trie_eq.mls  (category RC)
+#
+# Original: synth trie_eq : [(trie*trie)] -> bool calling [trie_eq], structural
+# equality on tries (Leaf | Node of trie*A*trie). Spec:
+#     test forall t. trie_eq (t, t) == True
+#     test forall t. trie_eq (Node(t,0,t), Node(t,1,t)) == False
+#     test forall t. trie_eq (t, Node(t,0,t)) == False
+#     test forall t. trie_eq (Leaf, Node(t,0,t)) == False
+#     post: trie_eq (t1,t2) == (t1 == t2)
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/reccomp/trie_eq.ae
+
+inductive Trie
+| leaf : Trie
+| node (l: Trie) (v: Int) (r: Trie) : Trie
+
+# --- reference solution ---
+def trieEq (a: Trie) (b: Trie) : Bool :=
+    match a with
+    | .leaf => (match b with | .leaf => true | .node lb vb rb => false)
+    | .node la va ra =>
+        (match b with
+         | .leaf => false
+         | .node lb vb rb => if va = vb then (if trieEq la lb then trieEq ra rb else false) else false)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_reflexive (t: Trie) : Bool := trieEq t t
+
+@property(30)
+def prop_value_differs (t: Trie) : Bool := trieEq (.node t 0 t) (.node t 1 t) = false
+
+@property(30)
+def prop_proper_subtrie (t: Trie) : Bool := trieEq t (.node t 0 t) = false
+
+@property(30)
+def prop_leaf_vs_node (t: Trie) : Bool := trieEq .leaf (.node t 0 t) = false
+
+def main (z: Int) : Unit := print (trieEq (.node .leaf 5 .leaf) (.node .leaf 5 .leaf))

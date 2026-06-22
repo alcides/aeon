@@ -1,0 +1,28 @@
+# Contata benchmark: ds/list_removal.mls  (category PDS)
+#
+# Original: synth remove : [(A * list)] -> list calling [remove]. Spec:
+#     test forall x xs. contains (x, remove (x, xs)) == False
+#     io remove (0, [1,0]) -> [1] ; remove (0, [0,1]) -> [1]
+#  (remove deletes all occurrences of x).
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/list_removal.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+def contains (x: Int) (xs: IntList) : Bool :=
+    match xs with | .nil => false | .cons h t => if x = h then true else contains x t
+
+# --- reference solution: delete every occurrence ---
+def remove (x: Int) (xs: IntList) : IntList :=
+    match xs with | .nil => .nil | .cons h t => if h = x then remove x t else .cons h (remove x t)
+
+# --- specification as PBT property ---
+@property(40)
+def prop_removed_absent (x: Int) (xs: IntList) : Bool := contains x (remove x xs) = false
+
+@example(contains 0 (remove 0 (.cons 1 (.cons 0 .nil))) = false)
+def main (z: Int) : Unit := print (contains 0 (remove 0 (.cons 0 (.cons 1 .nil))))

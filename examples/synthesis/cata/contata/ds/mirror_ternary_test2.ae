@@ -1,0 +1,46 @@
+# Contata benchmark: ds/mirror_ternary_test2.mls  (category PDS)
+#
+# Original: synth mirror : [tree] -> tree on a ternary tree (Leaf | Node of
+# t*A*t*t). Spec (period-2 group laws):
+#     test forall x. mirror (mirror (mirror (mirror x))) == x
+#     test forall x. mirror (mirror (mirror x)) == mirror x
+#     io mirror Leaf -> Leaf ; mirror Node(Node(Leaf,1,Leaf,Leaf),0,Leaf,Leaf)
+#                                   -> Node(Leaf,0,Leaf,Node(Leaf,1,Leaf,Leaf))
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/mirror_ternary_test2.ae
+
+inductive TTree
+| leaf : TTree
+| node (l: TTree) (v: Int) (m: TTree) (r: TTree) : TTree
+
+def and (a: Bool) (b: Bool) : Bool := if a then b else false
+
+# --- reference solution: swap outer children ---
+def mirror (t: TTree) : TTree :=
+    match t with
+    | .leaf => .leaf
+    | .node l v m r => .node (mirror r) v (mirror m) (mirror l)
+
+def treeEq (a: TTree) (b: TTree) : Bool :=
+    match a with
+    | .leaf => (match b with | .leaf => true | .node lb vb mb rb => false)
+    | .node la va ma ra =>
+        (match b with
+         | .leaf => false
+         | .node lb vb mb rb =>
+            if va = vb then and (treeEq la lb) (and (treeEq ma mb) (treeEq ra rb)) else false)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_period_4 (x: TTree) : Bool := treeEq (mirror (mirror (mirror (mirror x)))) x
+
+@property(30)
+def prop_period_2 (x: TTree) : Bool := treeEq (mirror (mirror (mirror x))) (mirror x)
+
+@example(treeEq (mirror (.node (.node .leaf 1 .leaf .leaf) 0 .leaf .leaf))
+                (.node .leaf 0 .leaf (.node .leaf 1 .leaf .leaf)) = true)
+def main (z: Int) : Unit :=
+    print (treeEq (mirror (mirror (.node .leaf 0 (.node .leaf 1 .leaf .leaf) .leaf)))
+                  (.node .leaf 0 (.node .leaf 1 .leaf .leaf) .leaf))

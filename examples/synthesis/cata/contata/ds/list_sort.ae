@@ -1,0 +1,33 @@
+# Contata benchmark: ds/list_sort.mls  (category PDS)
+#
+# Original: synth insert_sort : [(A * list)] -> list calling [insert_sort], the
+# ordered-insertion step of insertion sort. Spec:
+#     test forall x xs. sorted xs --> sorted (insert_sort (x, xs))
+#     io insert_sort (2, [0,1]) -> [0,1,2] ; insert_sort (0,[1]) -> [0,1] ; ...
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/list_sort.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+# --- reference solution: ordered insertion ---
+def insertSorted (x: Int) (xs: IntList) : IntList :=
+    match xs with
+    | .nil => .cons x .nil
+    | .cons h t => if x <= h then .cons x (.cons h t) else .cons h (insertSorted x t)
+
+def sortedFrom (lo: Int) (xs: IntList) : Bool :=
+    match xs with | .nil => true | .cons h t => if lo <= h then sortedFrom h t else false
+def sorted (xs: IntList) : Bool :=
+    match xs with | .nil => true | .cons h t => sortedFrom h t
+
+# --- specification as PBT property ---
+@property(40)
+def prop_keeps_sorted (x: Int) (xs: IntList) : Bool :=
+    if sorted xs then sorted (insertSorted x xs) else true
+
+@example(sorted (insertSorted 2 (.cons 0 (.cons 1 .nil))) = true)
+def main (z: Int) : Unit := print (sorted (insertSorted 2 (.cons 0 (.cons 1 .nil))))

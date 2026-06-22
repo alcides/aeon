@@ -1,0 +1,65 @@
+# Contata benchmark: stackoverflow/split_on.mls  (category SO / k-safety)
+#
+# Original: synth split_on_zero : [list] -> nested_list calling [split_on_zero].
+# Splits a list around 0 markers; the k-safety spec is a round-trip:
+#     test forall l. l == concat_list (split_on_zero l)
+#     io split_on_zero [1,0,1] -> [[1],[0],[1]]
+#     io split_on_zero [1,1,2] -> [[1,1,2]]
+# i.e. each 0 becomes its own singleton sublist, maximal non-zero runs are
+# grouped, and flattening recovers the input.
+#
+# aeon transcription (nat ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/stackoverflow/split_on.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+inductive NestedList
+| nnil : NestedList
+| ncons (hd: IntList) (tl: NestedList) : NestedList
+
+def append (a: IntList) (b: IntList) : IntList :=
+    match a with | .nil => b | .cons h t => .cons h (append t b)
+
+def concatNL (ns: NestedList) : IntList :=
+    match ns with | .nnil => .nil | .ncons l ls => append l (concatNL ls)
+
+def listEq (a: IntList) (b: IntList) : Bool :=
+    match a with
+    | .nil => (match b with | .nil => true | .cons hb tb => false)
+    | .cons ha ta => (match b with | .nil => false | .cons hb tb => if ha = hb then listEq ta tb else false)
+
+def nlEq (a: NestedList) (b: NestedList) : Bool :=
+    match a with
+    | .nnil => (match b with | .nnil => true | .ncons hb tb => false)
+    | .ncons ha ta => (match b with | .nnil => false | .ncons hb tb => if listEq ha hb then nlEq ta tb else false)
+
+# --- reference solution ---
+# Each 0 is its own singleton; a non-zero x is prepended to the first group iff
+# that group is itself a non-zero run, otherwise it opens a new group.
+def split (xs: IntList) : NestedList :=
+    match xs with
+    | .nil => .nnil
+    | .cons x rest =>
+        if x = 0 then .ncons (.cons 0 .nil) (split rest)
+        else (match split rest with
+              | .nnil => .ncons (.cons x .nil) .nnil
+              | .ncons h hs =>
+                  (match h with
+                   | .nil => .ncons (.cons x .nil) (.ncons h hs)
+                   | .cons hh ht =>
+                       if hh = 0 then .ncons (.cons x .nil) (.ncons h hs)
+                       else .ncons (.cons x h) hs))
+
+# --- specification: round-trip property + the two io examples (exact shape) ---
+@property(40)
+def prop_roundtrip (l: IntList) : Bool := listEq (concatNL (split l)) l
+
+@example(nlEq (split (.cons 1 (.cons 0 (.cons 1 .nil))))
+              (.ncons (.cons 1 .nil) (.ncons (.cons 0 .nil) (.ncons (.cons 1 .nil) .nnil))) = true)
+@example(nlEq (split (.cons 1 (.cons 1 (.cons 2 .nil))))
+              (.ncons (.cons 1 (.cons 1 (.cons 2 .nil))) .nnil) = true)
+def main (z: Int) : Unit :=
+    print (listEq (concatNL (split (.cons 1 (.cons 0 (.cons 2 .nil))))) (.cons 1 (.cons 0 (.cons 2 .nil))))

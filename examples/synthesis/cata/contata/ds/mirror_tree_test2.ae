@@ -1,0 +1,43 @@
+# Contata benchmark: ds/mirror_tree_test2.mls  (category PDS)
+#
+# Original: synth mirror : [tree] -> tree on a binary tree (Leaf | Node of
+# t*bool*t). Spec (period-2 group laws):
+#     test forall x. mirror (mirror (mirror (mirror x))) == x
+#     test forall x. mirror (mirror (mirror x)) == mirror x
+#     io mirror Leaf -> Leaf ; mirror (Node(Node(Leaf,True,Leaf),True,Leaf))
+#                                   -> Node(Leaf,True,Node(Leaf,True,Leaf))
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/mirror_tree_test2.ae
+
+inductive BTreeB
+| leaf : BTreeB
+| node (l: BTreeB) (v: Bool) (r: BTreeB) : BTreeB
+
+def boolEq (a: Bool) (b: Bool) : Bool := if a then b else !b
+
+# --- reference solution: swap children ---
+def mirror (t: BTreeB) : BTreeB :=
+    match t with
+    | .leaf => .leaf
+    | .node l v r => .node (mirror r) v (mirror l)
+
+def treeEq (a: BTreeB) (b: BTreeB) : Bool :=
+    match a with
+    | .leaf => (match b with | .leaf => true | .node lb vb rb => false)
+    | .node la va ra =>
+        (match b with
+         | .leaf => false
+         | .node lb vb rb => if boolEq va vb then (if treeEq la lb then treeEq ra rb else false) else false)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_period_4 (x: BTreeB) : Bool := treeEq (mirror (mirror (mirror (mirror x)))) x
+
+@property(30)
+def prop_period_2 (x: BTreeB) : Bool := treeEq (mirror (mirror (mirror x))) (mirror x)
+
+@example(treeEq (mirror (.node (.node .leaf true .leaf) true .leaf))
+                (.node .leaf true (.node .leaf true .leaf)) = true)
+def main (z: Int) : Unit :=
+    print (treeEq (mirror (mirror (.node (.node .leaf true .leaf) true .leaf)))
+                  (.node (.node .leaf true .leaf) true .leaf))

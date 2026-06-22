@@ -1,0 +1,53 @@
+# Contata benchmark: mutrec/nested_list_eq.mls  (category MR)
+#
+# Original: synth nested_list_cmp : [(nested_list * nested_list)] -> bool, where
+# a nested_list is a list of lists; equality compares inner lists element-wise
+# (via list_cmp) and is itself recursive. Spec:
+#     test forall ns. nested_list_cmp (ns, ns) == True
+#     test forall xs ys. not (list_cmp xs ys) --> not (nested_list_cmp ([xs],[ys]))
+#     test forall xs. not (nested_list_cmp ([xs], []))
+#
+# aeon (A ↦ Int): inner `listEq` plus the recursive `nlEq`.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/mutrec/nested_list_eq.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+inductive NestedList
+| nnil : NestedList
+| ncons (hd: IntList) (tl: NestedList) : NestedList
+
+def not (b: Bool) : Bool := if b then false else true
+
+def listEq (a: IntList) (b: IntList) : Bool :=
+    match a with
+    | .nil => (match b with | .nil => true | .cons hb tb => false)
+    | .cons ha ta =>
+        (match b with
+         | .nil => false
+         | .cons hb tb => if ha = hb then listEq ta tb else false)
+
+# --- reference solution ---
+def nlEq (a: NestedList) (b: NestedList) : Bool :=
+    match a with
+    | .nnil => (match b with | .nnil => true | .ncons hb tb => false)
+    | .ncons ha ta =>
+        (match b with
+         | .nnil => false
+         | .ncons hb tb => if listEq ha hb then nlEq ta tb else false)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_reflexive (ns: NestedList) : Bool := nlEq ns ns
+
+@property(30)
+def prop_inner_diff (xs: IntList) (ys: IntList) : Bool :=
+    if not (listEq xs ys) then not (nlEq (.ncons xs .nnil) (.ncons ys .nnil)) else true
+
+@property(30)
+def prop_length_mismatch (xs: IntList) : Bool := not (nlEq (.ncons xs .nnil) .nnil)
+
+def main (z: Int) : Unit :=
+    print (nlEq (.ncons (.cons 1 .nil) .nnil) (.ncons (.cons 1 .nil) .nnil))
