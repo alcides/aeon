@@ -1,0 +1,48 @@
+# Contata benchmark: reccomp/list_cmp.mls  (category RC)
+#
+# Original: synth list_cmp : [(list * list)] -> compare calling [list_cmp], a
+# three-way lexicographic comparator (Eq/Lt/Gt) over lists. Spec:
+#     test forall xs. list_cmp (xs, xs) == Eq
+#     test forall x.  list_cmp ([x], Nil) == Gt
+#     test forall x.  list_cmp (Nil, [x]) == Lt
+#     io list_cmp ([0],[1]) -> Lt ; list_cmp ([1],[0]) -> Gt
+#
+# aeon transcription (A ↦ Int), with a `Compare` enum.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/reccomp/list_cmp.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+inductive Compare
+| eq : Compare
+| lt : Compare
+| gt : Compare
+
+def isEq (c: Compare) : Bool := match c with | .eq => true | .lt => false | .gt => false
+def isLt (c: Compare) : Bool := match c with | .lt => true | .eq => false | .gt => false
+def isGt (c: Compare) : Bool := match c with | .gt => true | .eq => false | .lt => false
+
+# --- reference solution: lexicographic three-way comparison ---
+def listCmp (a: IntList) (b: IntList) : Compare :=
+    match a with
+    | .nil => (match b with | .nil => .eq | .cons hb tb => .lt)
+    | .cons ha ta =>
+        (match b with
+         | .nil => .gt
+         | .cons hb tb => if ha < hb then .lt else (if hb < ha then .gt else listCmp ta tb))
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_reflexive (xs: IntList) : Bool := isEq (listCmp xs xs)
+
+@property(30)
+def prop_longer_gt (x: Int) : Bool := isGt (listCmp (.cons x .nil) .nil)
+
+@property(30)
+def prop_shorter_lt (x: Int) : Bool := isLt (listCmp .nil (.cons x .nil))
+
+@example(isLt (listCmp (.cons 0 .nil) (.cons 1 .nil)) = true)
+@example(isGt (listCmp (.cons 1 .nil) (.cons 0 .nil)) = true)
+def main (z: Int) : Unit := print (isEq (listCmp (.cons 1 (.cons 2 .nil)) (.cons 1 (.cons 2 .nil))))

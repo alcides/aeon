@@ -1,0 +1,43 @@
+# Contata benchmark: ds/mirror_ternary_test.mls  (category PDS)
+#
+# Original: synth mirror : [tree] -> tree calling [mirror] on a ternary tree
+# (Leaf | Node of t*bool*t*t). Spec:
+#     test forall x. mirror (mirror x) == x        -- involutivity
+#     io mirror Leaf -> Leaf ;
+#        mirror Node(Node(Leaf,False,Leaf,Leaf), True, Leaf, Leaf)
+#             -> Node(Leaf, True, Leaf, Node(Leaf,False,Leaf,Leaf))
+#  (mirror swaps the outer children l and r, recursively).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/mirror_ternary_test.ae
+
+inductive TTree
+| leaf : TTree
+| node (l: TTree) (v: Bool) (m: TTree) (r: TTree) : TTree
+
+def boolEq (a: Bool) (b: Bool) : Bool := if a then b else !b
+def and (a: Bool) (b: Bool) : Bool := if a then b else false
+
+# --- reference solution: swap outer children ---
+def mirror (t: TTree) : TTree :=
+    match t with
+    | .leaf => .leaf
+    | .node l v m r => .node (mirror r) v (mirror m) (mirror l)
+
+def treeEq (a: TTree) (b: TTree) : Bool :=
+    match a with
+    | .leaf => (match b with | .leaf => true | .node lb vb mb rb => false)
+    | .node la va ma ra =>
+        (match b with
+         | .leaf => false
+         | .node lb vb mb rb =>
+            if boolEq va vb then and (treeEq la lb) (and (treeEq ma mb) (treeEq ra rb)) else false)
+
+# --- specification as PBT property ---
+@property(30)
+def prop_involutive (x: TTree) : Bool := treeEq (mirror (mirror x)) x
+
+@example(treeEq (mirror (.node (.node .leaf false .leaf .leaf) true .leaf .leaf))
+                (.node .leaf true .leaf (.node .leaf false .leaf .leaf)) = true)
+def main (z: Int) : Unit :=
+    print (treeEq (mirror (mirror (.node .leaf true (.node .leaf false .leaf .leaf) .leaf)))
+                  (.node .leaf true (.node .leaf false .leaf .leaf) .leaf))

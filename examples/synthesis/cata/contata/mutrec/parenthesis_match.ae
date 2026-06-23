@@ -1,0 +1,53 @@
+# Contata benchmark: mutrec/parenthesis_match.mls  (category MR)
+#
+# Original: synth is_open : [list] -> bool calling [is_close] and is_close
+# calling [is_open], over a list of parentheses (Left/Right). Spec:
+#     test forall xs. is_open xs == not (is_close xs)
+#     io is_open Nil -> True ; is_close Nil -> False ;
+#        is_close [Right] -> True ; is_open [Left] -> False ;
+#        is_open [Left,Right] -> True ; is_open [Left,Right,Right] -> False ; ...
+#
+# Faithful note. The spec forces `is_close = not is_open` for ALL inputs, so the
+# pair collapses: the only real content is `is_open`, a balanced-parenthesis
+# check (the unique total function matching every io). A pair of mutually
+# recursive *boolean* functions cannot track nesting depth without a counter, so
+# the reference threads an Int depth (`fd`, sticky-negative once unbalanced) and
+# derives `is_open`/`is_close` from it.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/mutrec/parenthesis_match.ae
+
+inductive Par
+| left : Par
+| right : Par
+
+inductive ParList
+| nil : ParList
+| cons (hd: Par) (tl: ParList) : ParList
+
+def bIff (a: Bool) (b: Bool) : Bool := if a then b else (if b then false else true)
+
+# running depth, left-to-right; once negative it stays negative (unbalanced)
+def fd (xs: ParList) (d: Int) : Int :=
+    match xs with
+    | .nil => d
+    | .cons p ps =>
+        if d < 0 then fd ps (d - 1)
+        else (match p with
+              | .left => fd ps (d + 1)
+              | .right => fd ps (d - 1))
+
+# --- reference solution ---
+def isOpen (xs: ParList) : Bool := fd xs 0 = 0
+def isClose (xs: ParList) : Bool := !(isOpen xs)
+
+# --- specification: the complementarity property + the io examples ---
+@property(40)
+def prop_open_not_close (xs: ParList) : Bool := bIff (isOpen xs) (!(isClose xs))
+
+@example(isOpen .nil = true)
+@example(isClose .nil = false)
+@example(isClose (.cons .right .nil) = true)
+@example(isOpen (.cons .left .nil) = false)
+@example(isOpen (.cons .left (.cons .right .nil)) = true)
+@example(isOpen (.cons .left (.cons .right (.cons .right .nil))) = false)
+def main (z: Int) : Unit := print (isOpen (.cons .left (.cons .right .nil)))

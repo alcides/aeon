@@ -1,0 +1,37 @@
+# Contata benchmark: ds/list_insertion3.mls  (category PDS)
+#
+# Original: synth insert : [(A * list)] -> list calling [insert], with io
+# insert (0,[0,1]) -> [0,1,0] (append-to-end) and the comment "insertion will
+# not add other elements than the one inserted". The *intended* property is:
+#     contains (x, insert (y, xs)) --> (contains (x, xs) || x == y)
+#
+# Faithful note. The original test is written
+#     implies(not(and(contains(x,xs), not(x==y))), not(contains(x, insert(y,xs))))
+# whose literal de-Morgan reading is contradicted by the benchmark's own io
+# (with x=y=0, xs=[0,1]: insert gives [0,1,0], which contains 0, yet the literal
+# test demands it must not) — i.e. as written it is inconsistent with the io.
+# We transcribe the evident intent ("no new elements except the inserted one"),
+# which append-to-end satisfies.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/list_insertion3.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+def orB (a: Bool) (b: Bool) : Bool := if a then true else b
+
+def contains (x: Int) (xs: IntList) : Bool :=
+    match xs with | .nil => false | .cons h t => if x = h then true else contains x t
+
+# --- reference solution: append to the end ---
+def insert (y: Int) (xs: IntList) : IntList :=
+    match xs with | .nil => .cons y .nil | .cons h t => .cons h (insert y t)
+
+# --- specification (intended): inserting y adds no element other than y ---
+@property(40)
+def prop_no_new_elements (x: Int) (y: Int) (xs: IntList) : Bool :=
+    if contains x (insert y xs) then orB (contains x xs) (x = y) else true
+
+@example(contains 0 (insert 0 (.cons 0 (.cons 1 .nil))) = true)
+def main (z: Int) : Unit := print (contains 9 (insert 5 (.cons 1 .nil)))

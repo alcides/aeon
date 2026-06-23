@@ -1,0 +1,44 @@
+# Contata benchmark: stackoverflow/pairs.mls  (category SO -- Stack Overflow / k-safety)
+#
+# Original: synth pairs : [list] -> pair_list calling [pairs], grouping a list
+# into adjacent pairs. Spec (k-safety, via a round-trip):
+#     test forall xs. is_even (length xs) --> (pair_list_to_list (pairs xs) == xs)
+# i.e. when the length is even, flattening the pairs recovers the input.
+#
+# aeon transcription (A ↦ Int): `PairList` stores each pair as two Ints.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/stackoverflow/pairs.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+inductive PairList
+| pnil : PairList
+| pcons (a: Int) (b: Int) (rest: PairList) : PairList
+
+def len (xs: IntList) : Int := match xs with | .nil => 0 | .cons h t => 1 + len t
+
+def listEq (a: IntList) (b: IntList) : Bool :=
+    match a with
+    | .nil => (match b with | .nil => true | .cons hb tb => false)
+    | .cons ha ta => (match b with | .nil => false | .cons hb tb => if ha = hb then listEq ta tb else false)
+
+# --- reference solution ---
+def pairs (xs: IntList) : PairList :=
+    match xs with
+    | .nil => .pnil
+    | .cons x rest => (match rest with | .nil => .pnil | .cons y rest2 => .pcons x y (pairs rest2))
+
+def flatten (p: PairList) : IntList :=
+    match p with
+    | .pnil => .nil
+    | .pcons a b ps => .cons a (.cons b (flatten ps))
+
+# --- specification: round-trip on even-length inputs ---
+@property(40)
+def prop_roundtrip_even (xs: IntList) : Bool :=
+    if len xs % 2 = 0 then listEq (flatten (pairs xs)) xs else true
+
+@example(listEq (flatten (pairs (.cons 1 (.cons 2 (.cons 3 (.cons 4 .nil)))))) (.cons 1 (.cons 2 (.cons 3 (.cons 4 .nil)))) = true)
+def main (z: Int) : Unit := print (len (flatten (pairs (.cons 1 (.cons 2 .nil)))))

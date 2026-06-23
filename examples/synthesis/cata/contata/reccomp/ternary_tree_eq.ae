@@ -1,0 +1,37 @@
+# Contata benchmark: reccomp/ternary_tree_eq.mls  (category RC)
+#
+# Original: synth tree_eq : [(tree*tree)] -> bool calling [tree_eq], structural
+# equality on ternary trees (Leaf | Node of t*nat*t*t). Spec:
+#     test forall t.      tree_eq (t, t) == True
+#     test forall t1 t2.  tree_eq (t1, t2) == tree_eq (t2, t1)
+#     io tree_eq (Node(Leaf,0,Leaf,Leaf), Node(Leaf,0,Leaf,Node(Leaf,1,Leaf,Leaf))) -> False
+#
+# aeon transcription (nat ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/reccomp/ternary_tree_eq.ae
+
+inductive TTree
+| leaf : TTree
+| node (l: TTree) (v: Int) (m: TTree) (r: TTree) : TTree
+
+def and (a: Bool) (b: Bool) : Bool := if a then b else false
+
+# --- reference solution ---
+def treeEq (a: TTree) (b: TTree) : Bool :=
+    match a with
+    | .leaf => (match b with | .leaf => true | .node lb vb mb rb => false)
+    | .node la va ma ra =>
+        (match b with
+         | .leaf => false
+         | .node lb vb mb rb =>
+            if va = vb then and (treeEq la lb) (and (treeEq ma mb) (treeEq ra rb)) else false)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_reflexive (t: TTree) : Bool := treeEq t t
+
+@property(30)
+def prop_symmetric (t1: TTree) (t2: TTree) : Bool := treeEq t1 t2 = treeEq t2 t1
+
+@example(treeEq (.node .leaf 0 .leaf .leaf) (.node .leaf 0 .leaf (.node .leaf 1 .leaf .leaf)) = false)
+def main (z: Int) : Unit := print (treeEq (.node .leaf 0 .leaf .leaf) (.node .leaf 0 .leaf .leaf))

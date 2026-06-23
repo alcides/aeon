@@ -1,0 +1,32 @@
+# Contata benchmark: mutrec/even_odd2.mls  (category MR -- Mutual Recursion)
+#
+# A variant of even_odd.mls with different relational properties:
+#     test forall x. is_odd (inc (inc x)) == is_even (inc x)
+#     test forall x. is_even x            == not (is_even (inc x))
+#     io   is_odd O -> False
+# (`inc` is succ.) Same true `mutual ... end` group as even_odd.ae.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/mutrec/even_odd2.ae
+
+inductive Nat
+| zero : Nat
+| succ (n: Nat) : Nat
+
+def not (b: Bool) : Bool := if b then false else true
+def bIff (a: Bool) (b: Bool) : Bool := if a then b else not b
+
+mutual
+  def isEven (n: Nat) : Bool :=
+    match n with | .zero => true  | .succ m => isOdd m
+  def isOdd (n: Nat) : Bool :=
+    match n with | .zero => false | .succ m => isEven m
+end
+
+@property(40)
+def prop_odd_succ_succ (x: Nat) : Bool := bIff (isOdd (.succ (.succ x))) (isEven (.succ x))
+
+@property(40)
+def prop_even_alternates (x: Nat) : Bool := bIff (isEven x) (not (isEven (.succ x)))
+
+@example(isOdd .zero = false)
+def main (z: Int) : Unit := print (isOdd (.succ .zero))

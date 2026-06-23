@@ -1,0 +1,35 @@
+# Contata benchmark: stackoverflow/zip_same_len.mls  (category SO / k-safety)
+#
+# Original: synth zip : [(a_list * b_list)] -> pair_list calling [zip]. Spec
+# relates the lengths of three lists (a k-safety property):
+#     test forall xs ys. length_p (zip (xs, ys)) == min (length_a xs, length_b ys)
+#
+# aeon transcription (A,B ↦ Int): `PairList` stores each pair as two Ints.
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/stackoverflow/zip_same_len.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+inductive PairList
+| pnil : PairList
+| pcons (a: Int) (b: Int) (rest: PairList) : PairList
+
+def len (xs: IntList) : Int := match xs with | .nil => 0 | .cons h t => 1 + len t
+def lenP (p: PairList) : Int := match p with | .pnil => 0 | .pcons a b ps => 1 + lenP ps
+def minInt (a: Int) (b: Int) : Int := if a <= b then a else b
+
+# --- reference solution ---
+def zip (xs: IntList) (ys: IntList) : PairList :=
+    match xs with
+    | .nil => .pnil
+    | .cons x xs2 => (match ys with | .nil => .pnil | .cons y ys2 => .pcons x y (zip xs2 ys2))
+
+# --- specification: the length relation ---
+@property(40)
+def prop_len_is_min (xs: IntList) (ys: IntList) : Bool :=
+    lenP (zip xs ys) = minInt (len xs) (len ys)
+
+@example(lenP (zip (.cons 1 (.cons 2 .nil)) (.cons 9 (.cons 8 (.cons 7 .nil)))) = 2)
+def main (z: Int) : Unit := print (lenP (zip (.cons 1 .nil) (.cons 9 (.cons 8 .nil))))

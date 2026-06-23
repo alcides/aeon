@@ -1,0 +1,29 @@
+# Contata benchmark: ds/list_insertion2.mls  (category PDS)
+#
+# Original: synth insert : [(A * list)] -> list calling [insert]. The io
+# (insert (0, [0,1]) -> [0,1,0]) fixes insert as append-to-end. Spec:
+#     test forall x y xs. contains (x, xs) --> contains (x, insert (y, xs))
+#  (insertion preserves membership of existing elements).
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/list_insertion2.ae
+
+inductive IntList
+| nil : IntList
+| cons (hd: Int) (tl: IntList) : IntList
+
+def contains (x: Int) (xs: IntList) : Bool :=
+    match xs with | .nil => false | .cons h t => if x = h then true else contains x t
+
+# --- reference solution: append to the end ---
+def insert (y: Int) (xs: IntList) : IntList :=
+    match xs with | .nil => .cons y .nil | .cons h t => .cons h (insert y t)
+
+# --- specification as PBT property ---
+@property(40)
+def prop_preserves_membership (x: Int) (y: Int) (xs: IntList) : Bool :=
+    if contains x xs then contains x (insert y xs) else true
+
+@example(contains 0 (insert 0 (.cons 0 (.cons 1 .nil))) = true)
+def main (z: Int) : Unit := print (contains 5 (insert 5 (.cons 1 .nil)))

@@ -1,0 +1,38 @@
+# Contata benchmark: ds/bst_insertion.mls  (category PDS -- Partial Data Structures)
+#
+# Original: synth insert : [tree * t] -> tree calling [insert], insertion into a
+# binary search tree. Spec:
+#     test forall tr x.   lookup (insert (tr, x), x) == True
+#     test forall tr x y. lookup (tr, x) --> lookup (insert (tr, y), x)
+#     io insert (Node(Leaf,1,Leaf), 0) -> Node(Node(Leaf,0,Leaf),1,Leaf) ; ...
+#
+# aeon transcription (A ↦ Int).
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/ds/bst_insertion.ae
+
+inductive BST
+| leaf : BST
+| node (l: BST) (v: Int) (r: BST) : BST
+
+# --- reference solution ---
+def insert (t: BST) (x: Int) : BST :=
+    match t with
+    | .leaf => .node .leaf x .leaf
+    | .node l v r =>
+        if x = v then .node l v r else (if x < v then .node (insert l x) v r else .node l v (insert r x))
+
+def lookup (t: BST) (x: Int) : Bool :=
+    match t with
+    | .leaf => false
+    | .node l v r => if x = v then true else (if x < v then lookup l x else lookup r x)
+
+# --- specification as PBT properties ---
+@property(30)
+def prop_inserts (t: BST) (x: Int) : Bool := lookup (insert t x) x
+
+@property(30)
+def prop_preserves (t: BST) (x: Int) (y: Int) : Bool :=
+    if lookup t x then lookup (insert t y) x else true
+
+@example(lookup (insert (.node .leaf 1 .leaf) 0) 0 = true)
+def main (z: Int) : Unit := print (lookup (insert (.node .leaf 0 .leaf) 1) 1)
