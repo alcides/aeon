@@ -247,10 +247,17 @@ def synthesize_pbe(
                 return None
         return None
 
+    # Depth is bounded by the time budget (and a fixpoint, when a full round adds
+    # no new terms), not a fixed number of rounds; ``synth.rounds``, when set,
+    # caps it explicitly. ``rounds`` defaults to ``None`` (unbounded), so a plain
+    # ``range(synth.rounds)`` would crash -- deepen with a budget-guarded loop
+    # mirroring the non-PBE path.
     solution = cegar_pass()
-    for _round in range(synth.rounds):
-        if solution is not None or time.time() >= deadline:
+    depth = 0
+    while solution is None and time.time() < deadline:
+        if synth.rounds is not None and depth >= synth.rounds:
             break
+        before = sum(len(v) for v in bank.values())
         snapshot = {k: list(v) for k, v in bank.items()}
         for comps in builders.values():
             for comp in comps:
@@ -258,6 +265,9 @@ def synthesize_pbe(
                     break
                 add_bank(comp.ret_key, synth._combos(comp, snapshot, deadline, rnd))
         solution = cegar_pass()
+        depth += 1
+        if sum(len(v) for v in bank.values()) == before:
+            break
 
     if solution is not None:
         ui.register(solution, [0.0], time.time() - start, True)
@@ -268,8 +278,8 @@ def synthesize_pbe(
         )
         return solution
     raise SynthesisNotSuccessful(
-        f"afta(pbe): no program consistent with all {n} example(s) of depth < {synth.rounds} "
-        f"found within the budget (enumerated {len(goal_terms)} goal terms, {refinements} refinements). "
+        f"afta(pbe): no program consistent with all {n} example(s) found within the budget "
+        f"(reached depth {depth}, enumerated {len(goal_terms)} goal terms, {refinements} refinements). "
         "Try a larger budget, more rounds, or a richer DSL in scope."
     )
 
