@@ -298,8 +298,18 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             nname, nsubs = check_name(pname, nsubs)
             trfs.append((nname, bind_stype(psort, nsubs)))
         type_decls.append(TypeDecl(name, targs, trfs, loc=td.loc))
+    # Pre-register every inductive type name before binding any constructor, so
+    # a constructor of one inductive can reference a sibling inductive declared
+    # *later* in the file (mutually-recursive datatypes, e.g. `Tree` whose
+    # `node` constructor carries a `Forest` field while `Forest` is declared
+    # below it) and resolve to the same id. Without this, the forward reference
+    # binds to a fresh, distinct id, and the SMT backend then mints two separate
+    # Z3 sorts for what is logically the same type (a "Sort mismatch").
+    prebound_ind_names: list[Name] = []
     for ind in p.inductive_decls:
         name, nsubs = check_name(ind.name, nsubs)
+        prebound_ind_names.append(name)
+    for ind, name in zip(p.inductive_decls, prebound_ind_names, strict=True):
         iargs = []
         for aname in ind.args:
             nname, nsubs = check_name(aname, nsubs)
