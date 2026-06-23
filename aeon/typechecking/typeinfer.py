@@ -850,6 +850,183 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             assert False, f"Unhandled term {t} in synth. Type: {type(t)}"
 
 
+def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | None:
+    """Path-sensitive checking of a fully-applied inductive eliminator.
+
+    Surface ``match`` lowers to ``T_rec[..] scrut h_1 … h_n``. Elaboration fixes
+    the eliminator's result *motive* to a bare base type, so the ordinary
+    synth-then-subtype path checks every branch against an unrefined ``ret`` and
+    proves the goal only on the (information-free) result -- dropping the matched
+    constructor's refinement. Here we instead bind the motive to the *expected*
+    type ``ty`` and check each handler against it. The dependent eliminator
+    carries the constructor's refinement in as a proof witness (see
+    ``expand_inductive_decls``), so each branch body is verified under that fact
+    -- recovering match path-sensitivity.
+
+    Returns the constraint, or ``None`` to fall back to the default rule when
+    ``t`` is not a recognisable, fully-applied eliminator on a variable
+    scrutinee.
+    """
+    # Only worth the extra work when the expected type carries a non-trivial
+    # refinement: that is the obligation the matched constructor's fact helps
+    # discharge. An unrefined motive is handled fine -- and far more cheaply --
+    # by the default synth-then-subtype path, so skip the whole machinery (and
+    # its per-branch re-checking) for the common case.
+    ty_r = ensure_refined(ty)
+    if not isinstance(ty_r, RefinedType) or (
+        isinstance(ty_r.refinement, LiquidLiteralBool) and ty_r.refinement.value is True
+    ):
+        return None
+
+    value_args: list[Term] = []
+    cur: Term = t
+    while isinstance(cur, Application):
+        value_args.append(cur.arg)
+        cur = cur.fun
+    value_args.reverse()
+    if not value_args:
+        return None
+    spine: list[tuple[str, object]] = []
+    head: Term = cur
+    while isinstance(head, (TypeApplication, RefinementApplication)):
+        spine.append(("T", head.type) if isinstance(head, TypeApplication) else ("R", head.refinement))
+        head = head.body
+    spine.reverse()
+    if not isinstance(head, Var) or not head.name.name.endswith("_rec"):
+        return None
+    from aeon.verification.constructor_registry import get_constructor_groups
+
+    if head.name.name[: -len("_rec")] not in get_constructor_groups():
+        return None
+    rec_type = ctx.type_of(head.name)
+    if rec_type is None:
+        return None
+    scrut = value_args[0]
+    handlers = value_args[1:]
+    scrut_inner = scrut.expr if isinstance(scrut, Annotation) else scrut
+    if not isinstance(scrut_inner, Var):
+        return None
+
+    # The motive is the type-variable returned after peeling binders and arrows.
+    peeled: Type = rec_type
+    while isinstance(peeled, (TypePolymorphism, RefinementPolymorphism)):
+        peeled = peeled.body
+    res: Type = peeled
+    while isinstance(res, AbstractionType):
+        res = res.type
+    if not isinstance(res, TypeVar):
+        return None
+    ret_var = res.name
+
+    # Re-instantiate the eliminator with the spine's args, but bind the motive to
+    # the expected type ``ty`` instead of its elaboration-erased base.
+    inst: Type = rec_type
+    for kind, val in spine:
+        if isinstance(inst, TypePolymorphism) and kind == "T":
+            assert isinstance(val, Type)
+            repl = ty if inst.name == ret_var else fresh(ctx, val)
+            inst = type_substitution(inst.body, inst.name, repl)
+        elif isinstance(inst, RefinementPolymorphism) and kind == "R":
+            if isinstance(val, ImplicitRefinementHole):
+                inst = instantiate_refinement_with_horn_in_type(
+                    inst.body, inst.name, inst.sort, Name("kappa", fresh_counter.fresh())
+                )
+            elif isinstance(val, Abstraction):
+                inst = instantiate_refinement_in_type(inst.body, inst.name, val)
+            else:
+                return None
+        else:
+            return None
+    if not isinstance(inst, AbstractionType):
+        return None
+
+    # ``inst`` is now ``(this: D) -> (case_1: CT_1) -> … -> ty``.
+    rest: Type = substitution_in_type(inst.type, scrut_inner, inst.var_name)
+    tyname = head.name.name[: -len("_rec")]
+    constraints: list[Constraint] = [check(ctx, scrut, inst.var_type)]
+    for h in handlers:
+        if not isinstance(rest, AbstractionType):
+            return None
+        case_name, case_type, rest = rest.var_name, rest.var_type, rest.type
+        constraints.append(_check_recursor_branch(ctx, h, case_type, tyname, case_name, scrut_inner))
+    out: Constraint = constraints[0]
+    for c in constraints[1:]:
+        out = Conjunction(out, c)
+    return out
+
+
+def _check_recursor_branch(
+    ctx: TypingContext,
+    handler: Term,
+    case_type: Type,
+    tyname: str,
+    case_name: Name,
+    scrut: Var,
+) -> Constraint:
+    """Check one eliminator branch under the matched constructor's refinement.
+
+    The branch handler ``λf₁ … f_k. body`` is checked against the case type
+    ``(f₁) → … → (f_k) → motive`` (already carrying the expected motive); on top
+    of the usual field hypotheses we add the constructor's *result* refinement,
+    specialised to the scrutinee (``size this = size tl + 1`` becomes
+    ``size scrut = size <field-for-tl> + 1``). That fact -- a pure measure
+    statement, which is all aeon's SMT logic models about a datatype -- is what
+    a non-dependent ``ret`` motive drops, and is exactly the match-branch
+    hypothesis. Falls back to a plain check (motive only, no constructor fact)
+    if the constructor's shape cannot be recovered."""
+    plain = lambda: check(ctx, handler, case_type)  # noqa: E731
+    ctor_full = f"{tyname}_{case_name.name[len('case_') :]}" if case_name.name.startswith("case_") else None
+    ctor_type = next((tt for n, tt in ctx.vars() if n.name == ctor_full), None) if ctor_full else None
+    if ctor_type is None:
+        return plain()
+    # Peel the constructor's binders/fields to reach its result refinement.
+    cur: Type = ctor_type
+    while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
+        cur = cur.body
+    ctor_arg_names: list[Name] = []
+    while isinstance(cur, AbstractionType):
+        ctor_arg_names.append(cur.var_name)
+        cur = cur.type
+    res_ref = ensure_refined(cur)
+    if not isinstance(res_ref, RefinedType):
+        return plain()
+
+    # Peel the handler's field binders against the case type, recording the
+    # field types and the constructor-arg → handler-field name correspondence.
+    fields: list[tuple[Name, Type]] = []
+    ctor_to_field: dict[Name, LiquidTerm] = {}
+    hh: Term = handler
+    ct: Type = case_type
+    while isinstance(ct, AbstractionType) and isinstance(hh, Abstraction):
+        fn = hh.var_name
+        fields.append((fn, ct.var_type))
+        if len(fields) - 1 < len(ctor_arg_names):
+            ctor_to_field[ctor_arg_names[len(fields) - 1]] = LiquidVar(fn)
+        ct = substitution_in_type(ct.type, Var(fn), ct.var_name)
+        hh = hh.body
+    if isinstance(ct, AbstractionType):
+        return plain()  # handler under-applied for this case — leave it to the default
+
+    # fact = constructor result refinement, with the result binder set to the
+    # scrutinee and constructor field names mapped to the handler's binders.
+    fact: LiquidTerm = substitution_in_liquid(res_ref.refinement, LiquidVar(scrut.name), res_ref.name)
+    for cn, fv in ctor_to_field.items():
+        fact = substitution_in_liquid(fact, fv, cn)
+
+    ctx2 = ctx
+    for fn, ftype in fields:
+        ctx2 = ctx2.with_var(fn, ftype)
+    body_c = check(ctx2, hh, ct)
+    c = implication_constraint(
+        Name("_hyp", fresh_counter.fresh()),
+        RefinedType(Name("_hypu", fresh_counter.fresh()), t_unit, fact),
+        body_c,
+    )
+    for fn, ftype in reversed(fields):
+        c = implication_constraint(fn, ftype, c)
+    return c
+
+
 def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     try:
         assert wellformed(ctx, ty)
@@ -1009,6 +1186,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             # Return (fκ :: sort → bool) ⇒ c
             return UninterpretedFunctionDeclaration(fk_name, fk_type, c)
 
+        case _ if (rec_c := _try_check_recursor(ctx, t, ty)) is not None:
+            # Fully-applied inductive eliminator (lowered ``match``): check each
+            # branch against the expected motive so the matched constructor's
+            # refinement reaches the branch body (path-sensitivity).
+            return rec_c
         case _:
             (c, s) = synth(ctx, t)
             cp = sub(ctx, s, ty, t.loc)
