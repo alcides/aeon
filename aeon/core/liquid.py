@@ -148,7 +148,15 @@ class LiquidApp(LiquidTerm):
         )
 
     def __hash__(self) -> int:
-        return hash(self.fun) + sum(hash(a) for a in self.args)
+        # Cache the structural hash: liquid terms are immutable after
+        # construction, and substitution-built terms are DAGs with shared
+        # subterms -- without memoization, hashing re-visits every path and is
+        # exponential in the term's depth.
+        h = getattr(self, "_hash", None)
+        if h is None:
+            h = hash(self.fun) + sum(hash(a) for a in self.args)
+            object.__setattr__(self, "_hash", h)
+        return h
 
 
 def liquid_free_vars(e: LiquidTerm) -> list[Name]:

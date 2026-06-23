@@ -112,7 +112,7 @@ class AFTASynthesizer(Synthesizer):
         seed: int = 0,
         int_lo: int = -8,
         int_hi: int = 33,
-        rounds: int = 3,
+        rounds: int | None = None,
         combo_cap: int = 4096,
         max_bank: int = 512,
         max_refine: int = 16,
@@ -345,10 +345,16 @@ class AFTASynthesizer(Synthesizer):
         # -- interleave bottom-up growth with CEGAR refinement ----------------
         # Try to solve at the current depth (refining the abstraction to
         # convergence); only deepen the program bank when that depth is dry.
+        # Depth is bounded by the time budget, not a fixed number of rounds: keep
+        # deepening until a solution is found, the budget runs out, or the bank
+        # reaches a fixpoint (a full round adds no new terms). ``self.rounds``,
+        # when set, caps the depth explicitly.
         solution = cegar_pass()
-        for _round in range(self.rounds):
-            if solution is not None or time.time() >= deadline:
+        depth = 0
+        while solution is None and time.time() < deadline:
+            if self.rounds is not None and depth >= self.rounds:
                 break
+            before = sum(len(v) for v in bank.values())
             snapshot = {k: list(v) for k, v in bank.items()}
             for comps in builders.values():
                 for comp in comps:
@@ -358,6 +364,9 @@ class AFTASynthesizer(Synthesizer):
             solution = cegar_pass()
             # created = candidate terms banked; assessed = candidates validated.
             ui.progress(sum(len(v) for v in bank.values()), len(tried), time.time() - start)
+            depth += 1
+            if sum(len(v) for v in bank.values()) == before:
+                break
 
         if solution is not None:
             ui.register(solution, [0.0], time.time() - start, True)
@@ -370,8 +379,8 @@ class AFTASynthesizer(Synthesizer):
             )
             return solution
         raise SynthesisNotSuccessful(
-            f"afta: no spec-consistent program of depth < {self.rounds} found within budget={budget}s "
-            f"(after {refinements} refinement(s)). Try a larger budget or more rounds."
+            f"afta: no spec-consistent program found within budget={budget}s "
+            f"(reached depth {depth}, after {refinements} refinement(s)). Try a larger budget."
         )
 
 

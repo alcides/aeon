@@ -123,7 +123,7 @@ class CATASynthesizer(Synthesizer):
         seed: int = 0,
         int_lo: int = -2,
         int_hi: int = 5,
-        rounds: int = 3,
+        rounds: int | None = None,
         combo_cap: int = 2048,
         cond_cap: int = 4096,
         cond_head: int = 48,
@@ -307,25 +307,32 @@ class CATASynthesizer(Synthesizer):
             add_bank(key, list(vs))
         add_bank(int_key, [Literal(v, t_int) for v in range(self.int_lo, self.int_hi)])
 
-        # Rounds 1..k -- grow the automaton one operator deeper each round:
+        # Rounds 1.. -- grow the automaton one operator deeper each round:
         # application transitions (incl. recursive self-calls) and then the
-        # conditional split. Stop as soon as a state is accepted.
-        for _round in range(self.rounds):
-            if best is not None or time.time() >= deadline:
+        # conditional split. Depth is bounded by the time budget, not a fixed
+        # number of rounds: keep deepening until a state is accepted, the budget
+        # runs out, or the bank reaches a fixpoint (a full round adds no new
+        # terms). ``self.rounds``, when set, caps the depth explicitly.
+        depth = 0
+        while best is None and time.time() < deadline:
+            if self.rounds is not None and depth >= self.rounds:
                 break
+            before = sum(len(v) for v in bank.values())
             snapshot = {k: list(v) for k, v in bank.items()}
             for comps in builders.values():
                 for comp in comps:
                     if best is not None or time.time() >= deadline:
                         break
                     add_bank(comp.ret_key, self._app_combos(comp, snapshot, deadline, rnd))
-            if best is not None or time.time() >= deadline:
-                break
-            # Conditionals at the goal type, using the bank grown so far.
-            conds = self._cond_combos(bank.get(bool_key, []), bank.get(goal_key, []), deadline, rnd)
-            add_bank(goal_key, conds)
+            if best is None and time.time() < deadline:
+                # Conditionals at the goal type, using the bank grown so far.
+                conds = self._cond_combos(bank.get(bool_key, []), bank.get(goal_key, []), deadline, rnd)
+                add_bank(goal_key, conds)
             # created = candidate terms banked; assessed = candidates discharged.
             ui.progress(sum(len(v) for v in bank.values()), validated_count, time.time() - start)
+            depth += 1
+            if sum(len(v) for v in bank.values()) == before:
+                break
 
         if best is not None:
             shape = []
@@ -342,9 +349,9 @@ class CATASynthesizer(Synthesizer):
             )
             return wrap(best)
         raise SynthesisNotSuccessful(
-            f"cata: no spec-consistent program of depth < {self.rounds} found within budget={budget}s "
-            f"(discharged {validated_count} candidates). Try a larger budget, more rounds, or a wider "
-            "integer grid; recursive-datatype goals may need a tailored component set."
+            f"cata: no spec-consistent program found within budget={budget}s "
+            f"(reached depth {depth}, discharged {validated_count} candidates). Try a larger budget or a "
+            "wider integer grid; recursive-datatype goals may need a tailored component set."
         )
 
 
