@@ -10,10 +10,14 @@
 #
 # aeon: genuine mutual `inductive` types + a true `mutual ... end` group. nat ↦ Int.
 #
-# Verification note. As in tree_forest_size.ae, the mutual group spans two ADT
-# sorts, which aeon's `--test` SMT reflection cannot yet handle (z3 "Sort
-# mismatch" — an aeon bug; the defs typecheck and run). This file verifies by
-# evaluating every Contata io example and both properties in `main`:
+# Verification. The mutual functions span TWO datatype sorts (Tree, Forest).
+# The Contata io examples are pinned as `@example` assertions and both
+# relational properties as `@property` tests (the runner generates `Forest`
+# values), so the whole spec is checked with `--test`:
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/mutrec/tree_forest_leaves.ae
+#
+# `main` keeps a self-contained smoke check for a plain run:
 #
 #   uv run python -m aeon examples/synthesis/cata/contata/mutrec/tree_forest_leaves.ae   # -> True
 
@@ -33,10 +37,18 @@ mutual
     match f with | .leaf => 1 | .tcons t rest => leavesTree t + leavesForest rest
 end
 
-def prop_node_keeps (f: Forest) : Bool := leavesForest f = leavesTree (.node 0 f)
-def prop_empty_keeps (f: Forest) : Bool := leavesForest f = leavesForest (.tcons .empty f)
-
 def f1 : Forest := .tcons (.node 0 .leaf) (.tcons (.node 1 .leaf) .leaf)
+
+# Contata's io examples.
+@example(leavesTree .empty = 0)
+@example(leavesForest .leaf = 1)
+@example(leavesForest f1 = 3)
+# Contata's two relational properties, checked over generated forests.
+@property(40)
+def prop_node_keeps (f: Forest) : Bool := leavesForest f = leavesTree (.node 0 f)
+
+@property(40)
+def prop_empty_keeps (f: Forest) : Bool := leavesForest f = leavesForest (.tcons .empty f)
 
 def main (z: Int) : Unit :=
     print (

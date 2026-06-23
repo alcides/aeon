@@ -136,3 +136,32 @@ def test_mutual_nonterminating_absurd_refinement_rejected():
     def main (x: Int) : Int := 0;
     """
     assert not _typechecks(src)
+
+
+def test_mutual_reflection_across_two_datatype_sorts():
+    """A ``mutual`` group whose members range over *distinct* ADT sorts reflects
+    into SMT without a Z3 ``Sort mismatch``.
+
+    Regression: mutually-recursive datatypes ``Tree``/``Forest`` (``Tree``'s
+    ``node`` constructor carries a ``Forest`` field, and ``Forest`` is declared
+    *after* ``Tree``) used to bind that forward ``Forest`` reference to a fresh,
+    distinct id from the ``Forest`` declaration. The SMT backend then minted two
+    separate Z3 sorts for the one type, so applying the ``node`` constructor to a
+    ``Forest`` argument inside a reflected refinement raised ``Sort mismatch``.
+    The relational refinement on ``check`` forces the cross-sort constructor
+    application through SMT, exercising the path that used to crash."""
+    src = """
+    inductive Tree | empty : Tree | node (v: Int) (children: Forest) : Tree
+    inductive Forest | leaf : Forest | tcons (t: Tree) (rest: Forest) : Forest
+    mutual
+      def sizeTree (fuel: {x:Int | x >= 0}) (t: Tree) : Int decreasing_by [fuel] :=
+        if fuel = 0 then 0 else (match t with | .empty => 0 | .node v f => 1 + sizeForest (fuel - 1) f);
+      def sizeForest (fuel: {x:Int | x >= 0}) (f: Forest) : Int decreasing_by [fuel] :=
+        if fuel = 0 then 0 else (match f with | .leaf => 0 | .tcons t rest => sizeTree (fuel - 1) t + sizeForest (fuel - 1) rest);
+    end
+    def check (x: Forest) : {r:Int | r = sizeTree 0 (.node 0 x)} := sizeTree 0 (.node 0 x);
+    def main (z: Int) : Int := sizeTree 10 .empty;
+    """
+    errors, result = _run(src)
+    assert errors == []
+    assert result == 0

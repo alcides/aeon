@@ -11,12 +11,14 @@
 # aeon: genuine mutual `inductive` types AND a true `mutual ... end` group
 # (forest = Leaf | Tree of tree*forest, i.e. a list of trees). nat ↦ Int.
 #
-# Verification note. The mutual functions span TWO datatype sorts (Tree, Forest).
-# aeon's `--test` path reflects called functions into z3, and reflecting a mutual
-# group across distinct ADT sorts currently raises a z3 "Sort mismatch" (an aeon
-# bug, not a spec issue) — the definitions themselves typecheck and run. So this
-# file verifies by evaluating every Contata io example and both properties (on
-# sampled forests) in `main`, which prints `True`:
+# Verification. The mutual functions span TWO datatype sorts (Tree, Forest).
+# The Contata io examples are pinned as `@example` assertions and the two
+# relational properties as `@property` tests (the runner generates `Forest`
+# values), so the whole spec is checked with `--test`:
+#
+#   uv run python -m aeon --test examples/synthesis/cata/contata/mutrec/tree_forest_size.ae
+#
+# `main` keeps a self-contained smoke check for a plain run:
 #
 #   uv run python -m aeon examples/synthesis/cata/contata/mutrec/tree_forest_size.ae   # -> True
 
@@ -36,11 +38,19 @@ mutual
     match f with | .leaf => 0 | .tcons t rest => sizeTree t + sizeForest rest
 end
 
-# Contata's two relational properties, instantiated on a sample forest f:
-def prop_node_grows (f: Forest) : Bool := sizeForest f < sizeTree (.node 0 f)
-def prop_empty_tree_no_growth (f: Forest) : Bool := !(sizeForest (.tcons .empty f) < sizeForest f)
-
 def f1 : Forest := .tcons (.node 0 .leaf) (.tcons (.node 1 .leaf) .leaf)
+
+# Contata's io examples.
+@example(sizeTree .empty = 0)
+@example(sizeForest .leaf = 0)
+@example(sizeTree (.node 0 .leaf) = 1)
+@example(sizeForest f1 = 2)
+# Contata's two relational properties, checked over generated forests.
+@property(40)
+def prop_node_grows (f: Forest) : Bool := sizeForest f < sizeTree (.node 0 f)
+
+@property(40)
+def prop_empty_tree_no_growth (f: Forest) : Bool := !(sizeForest (.tcons .empty f) < sizeForest f)
 
 def main (z: Int) : Unit :=
     print (
