@@ -65,7 +65,7 @@ class EvaluationContext:
 
 
 def is_native_var(fun: Any):
-    return fun == real_eval
+    return fun is real_eval
 
 
 def is_native_import(fun: Term):

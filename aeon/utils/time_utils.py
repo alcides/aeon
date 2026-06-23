@@ -18,8 +18,7 @@ def measure(func):
         finally:
             end_ = int(round(process_time() * 1000)) - start
             if end_ > 1:
-                end_s = end_ if end_ > 0 else 0
-                logger.info(f"Total execution time {func.__name__}: {end_s} ms")
+                logger.info(f"Total execution time {func.__name__}: {end_} ms")
 
     return _time_it
 
