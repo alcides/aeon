@@ -301,8 +301,8 @@ def is_bare(t: Type) -> bool:
             return True
         case RefinedType(_, _, ref):
             return ref == LiquidHole() or isinstance(ref, LiquidHornApplication)
-        case AbstractionType(_, _, vtype):
-            return is_bare(vtype) and is_bare(vtype)
+        case AbstractionType(_, vtype, rtype):
+            return is_bare(vtype) and is_bare(rtype)
         case TypePolymorphism(_, _, ty):
             return is_bare(ty)
         case _:
