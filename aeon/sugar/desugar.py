@@ -64,7 +64,7 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_int, st_string, st_unit, st_bool
 from aeon.sugar.instance_registry import InstanceInfo, register_instance
 
-from aeon.facade.api import ImportError
+from aeon.facade.api import ModuleNotFoundAeonError
 from aeon.sugar.equality import type_equality
 
 
@@ -2113,7 +2113,7 @@ def _resolve_import(imp: ImportAe) -> Program:
         if file.exists():
             resolved = str(file.resolve())
             if resolved in _currently_importing:
-                raise ImportError(importel=imp, possible_containers=possible_containers)
+                raise ModuleNotFoundAeonError(importel=imp, possible_containers=possible_containers)
             if resolved in _import_cache:
                 return _import_cache[resolved]
             _currently_importing.add(resolved)
@@ -2125,4 +2125,4 @@ def _resolve_import(imp: ImportAe) -> Program:
                 return result
             finally:
                 _currently_importing.discard(resolved)
-    raise ImportError(importel=imp, possible_containers=possible_containers)
+    raise ModuleNotFoundAeonError(importel=imp, possible_containers=possible_containers)

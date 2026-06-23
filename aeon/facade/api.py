@@ -1,4 +1,3 @@
-from abc import ABC
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -14,14 +13,14 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.helpers import pretty_print_constraint
 
 
-class AeonError(ABC, BaseException):
+class AeonError(Exception):
     def __str__(self) -> str: ...
 
     def position(self) -> Location: ...
 
 
 @dataclass
-class ImportError(AeonError):
+class ModuleNotFoundAeonError(AeonError):
     importel: ImportAe
     possible_containers: Iterable[Path]
 
