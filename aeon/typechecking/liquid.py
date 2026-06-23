@@ -208,7 +208,7 @@ def type_infer_liquid(
                 case TypeVar(_) as ty:
                     return ty
                 case _:
-                    raise LiquidTypeCheckException("Could not find type for {liq} ({ctx.variables[name]})")
+                    raise LiquidTypeCheckException(f"Could not find type for {liq} ({ctx.variables[name]})")
         case LiquidApp(Name("ite", _), [cond, then, otherwise]):
             kc = type_infer_liquid(ctx, cond)
             if not (isinstance(kc, TypeConstructor) and kc.name.name == "Bool"):
