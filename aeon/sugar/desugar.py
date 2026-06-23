@@ -270,8 +270,8 @@ class DesugaredProgram(NamedTuple):
     program: STerm
     elabcontext: ElaborationTypingContext
     metadata: Metadata
-    constructor_to_type: dict[str, Name] = {}
-    constructor_defs: dict[str, Name] = {}
+    constructor_to_type: dict[str, Name]
+    constructor_defs: dict[str, Name]
 
 
 def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...]]]:
