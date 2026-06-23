@@ -502,7 +502,6 @@ def _as_predicate_type(sort: Type) -> AbstractionType:
     return AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
 
 
-# patterm matching term
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
         case Literal(_, TypeConstructor(Name("Unit", _))):
@@ -528,10 +527,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             if isinstance(ty, TypeConstructor) or isinstance(ty, RefinedType) or isinstance(ty, TypeVar):
                 ty = ensure_refined(ty)
                 assert isinstance(ty, RefinedType)
-                # assert ty.name != t.name
                 if ty.name == t.name:
                     ty = renamed_refined_type(ty)
-                # Self
                 ty = RefinedType(
                     ty.name,
                     ty.type,

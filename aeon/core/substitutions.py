@@ -664,7 +664,6 @@ def liquefy_ann(t: Annotation) -> LiquidTerm | None:
     return liquefy(t.expr)
 
 
-# patterm matching term
 def liquefy(rep: Term) -> LiquidTerm | None:
     """Converts a term to a liquid term."""
 
