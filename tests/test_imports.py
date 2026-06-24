@@ -9,7 +9,7 @@ import pytest
 from aeon.sugar.desugar import _get_package_libraries_dir, _resolve_import, clear_import_cache
 from aeon.sugar.program import ImportAe
 from aeon.sugar.parser import mk_parser
-from aeon.facade.api import ImportError as AeonImportError
+from aeon.facade.api import ModuleNotFoundAeonError as AeonImportError
 
 
 class TestPackageLibrariesDir:

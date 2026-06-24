@@ -9,7 +9,7 @@ from pathlib import Path
 from aeon.facade.api import (
     AeonError,
     CoreTypeCheckingError,
-    ImportError as AeonImportError,
+    ModuleNotFoundAeonError as AeonImportError,
     InstanceResolutionError,
     LinearityError,
     NonOrderableComparisonError,
