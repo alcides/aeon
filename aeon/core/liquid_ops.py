@@ -36,7 +36,7 @@ liquid_prelude: dict[Name, list[TypeConstructor | TypeVar]] = {
     Name("Set_sub", 0): [t_set, t_set, t_bool],
 }
 
-ops = [x for x in liquid_prelude]
+ops = list(liquid_prelude)
 
 
 def mk_liquid_and(e1: LiquidTerm, e2: LiquidTerm):

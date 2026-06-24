@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass
-import typing
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralBool
@@ -121,15 +120,8 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
                 assert False, f"Unknown type {ty} when lowering to liquid"
 
 
-T = typing.TypeVar("T")
-
-
-def flatten(xs: list[list[T]]) -> list[T]:
-    return [x for y in xs for x in y]
-
-
 def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
-    known_types: list[Name] = native_types + []
+    known_types: list[Name] = list(native_types)
     variables: dict[Name, TypeConstructor | TypeVar] = {}
     functions = {}
 

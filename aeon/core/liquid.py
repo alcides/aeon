@@ -135,7 +135,7 @@ class LiquidApp(LiquidTerm):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     def __repr__(self):
-        if all([not c.isalnum() for c in self.fun.name]) and len(self.args) == 2:
+        if all(not c.isalnum() for c in self.fun.name) and len(self.args) == 2:
             (a1, a2) = (repr(x) for x in self.args)
             return f"({a1} {self.fun} {a2})"
 
