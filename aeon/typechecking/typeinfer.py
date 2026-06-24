@@ -532,6 +532,312 @@ def _as_predicate_type(sort: Type) -> AbstractionType:
     return AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
 
 
+def _rec_constraints(
+    ctx: TypingContext,
+    t: Rec,
+    self_type: Type,
+    comp_types: list[tuple[Name, Type]],
+    body_handler,
+) -> tuple[Constraint, Type | None]:
+    """Shared constraint construction for the ``Rec`` arm of ``synth``/``check``.
+
+    ``self_type`` is the type bound for the recursive occurrence in context (the
+    declared type in ``synth``, a freshened copy in ``check``); ``var_value`` is
+    always *checked* against ``t.var_type``. ``comp_types`` carries the in-scope
+    types for mutually-recursive siblings (freshened in ``check``). ``body_handler``
+    runs the body under ``nrctx`` and returns ``(constraint, body_type | None)`` —
+    ``synth`` returns the synthesised type, ``check`` returns ``None``.
+
+    Returns the combined constraint and the body type (the latter ``None`` in
+    check-mode). The Form B existential wrap of the body type is the caller's
+    responsibility, since only ``synth`` propagates a type outward.
+    """
+    var_name, var_type, var_value, body = t.var_name, t.var_type, t.var_value, t.body
+    has_metric = bool(t.decreasing_by)
+    # For a ``mutual`` group the inductive hypothesis (assuming the declared,
+    # refined types of self *and* siblings while checking the value) is only
+    # sound when the *whole* group is well-founded — every member must carry a
+    # termination metric, since one member's termination depends on its callees
+    # terminating too.
+    group_has_metric = has_metric and all(bool(c.decreasing_by) for c in t.companions)
+    # The recursive occurrence may assume the declared (refined) return type as
+    # an inductive hypothesis only when a well-founded termination metric
+    # justifies the induction. Without one, weaken the hypothesis to the bare
+    # codomain so a non-terminating definition cannot "prove" an absurd
+    # refinement (see recursion_soundness_test.py). Non-recursive bindings are
+    # unaffected: their body never references var_name, so the weaker context
+    # binding is never consulted.
+    rec_self_type = self_type if group_has_metric else _erase_return_refinement(self_type)
+    rec_ctx: TypingContext = ctx.with_var(var_name, rec_self_type)
+    # Bring mutually-recursive siblings into scope for the value, under the same
+    # soundness gating.
+    for cname, ctype in comp_types:
+        rec_ctx = rec_ctx.with_var(cname, ctype if group_has_metric else _erase_return_refinement(ctype))
+    c1 = check(rec_ctx, var_value, var_type)
+    nrctx: TypingContext = ctx.with_var(var_name, self_type)
+    # Termination obligations (including cross-function calls within the group)
+    # are synthesised under a context that knows the siblings.
+    term_ctx: TypingContext = nrctx
+    for cname, ctype in comp_types:
+        term_ctx = term_ctx.with_var(cname, ctype)
+    (c2, body_type) = body_handler(nrctx)
+    reflected_impl = _reflected_impl_for(
+        var_name,
+        self_type,
+        var_value,
+        has_termination_metric=has_metric,
+    )
+    keep_refs = _is_trusted_native_value(var_value)
+    c1 = implication_constraint(
+        var_name, self_type, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+    )
+    c2 = implication_constraint(var_name, self_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs)
+    term_c = termination_metric_constraints(t, term_ctx)
+    term_c = implication_constraint(
+        var_name, self_type, term_c, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+    )
+    # Declare mutually-recursive siblings so calls to them inside this member's
+    # value (e.g. selfified applications ``v == odd (n - 1)``) translate. When
+    # the whole group is well-founded and a sibling's body reflects (it doesn't
+    # itself call another sibling), reflect its definition so relational
+    # refinements like ``{r | g r = x}`` can use it; otherwise declare it
+    # uninterpreted.
+    for comp, (cname, ctype) in zip(t.companions, comp_types, strict=True):
+        comp_reflected = (
+            _reflected_impl_for(cname, ctype, comp.value, has_termination_metric=group_has_metric)
+            if (group_has_metric and comp.value is not None)
+            else None
+        )
+        comp_keep = comp.value is not None and _is_trusted_native_value(comp.value)
+        c1 = implication_constraint(
+            cname, ctype, c1, var_value.loc, reflected_impl=comp_reflected, keep_refinements=comp_keep
+        )
+    return Conjunction(Conjunction(c1, c2), term_c), body_type
+
+
+def _synth_application(
+    ctx: TypingContext,
+    t: Application,
+    fun: Term,
+    arg: Term,
+) -> tuple[Constraint, Type]:
+    (c, ty) = synth(ctx, fun)
+    # Lift any binders from the function's type to the outer scope so
+    # the body underneath can be matched as an AbstractionType.
+    fun_binders: tuple[tuple[Name, Type], ...] = ()
+    if isinstance(ty, ExistentialType):
+        fun_binders = ty.binders
+        ty = ty.body
+    # Binders just lifted from the function's type are in scope for
+    # the argument check and any inner synth: atype may reference
+    # them (e.g. dependent parameter types like {t:Float | t >= y}).
+    ctx_inner = ctx
+    for bn, bt in fun_binders:
+        ctx_inner = ctx_inner.with_var(bn, bt)
+    outer_binders: tuple[tuple[Name, Type], ...] = fun_binders
+    match ty:
+        case AbstractionType(aname, atype, rtype):
+            cp = check(ctx_inner, arg, atype)
+            # Abstractions can't be synthesised on their own (no
+            # annotation), and Var/Literal liquefy directly. In all
+            # three cases the existing direct substitution path is
+            # what we want — the type system either preserves the
+            # equation (Var, Literal, liquefiable App) or silently
+            # passes the body through (Abstraction).
+            if isinstance(arg, (Var, Literal, Abstraction)):
+                t_subs = substitution_in_type(rtype, arg, aname)
+            else:
+                # Form B existential introduction: synth the argument
+                # to get its most precise type, prepend a fresh
+                # binder carrying its refinement, and substitute the
+                # binder name into the result type. Any binders
+                # already on the argument's type lift to the outer
+                # scope (binders are always flat).
+                #
+                # A bare Hole has no synthesisable type (synth defaults
+                # it to a polymorphic type variable), which is not an SMT
+                # base type and would leave the `_y` binder undeclared in
+                # the solver. But the hole was just `check`ed against the
+                # domain type `atype`, so that is its type here — use it
+                # so a hole in argument position needs no annotation.
+                if isinstance(arg, Hole):
+                    ty_arg = atype
+                else:
+                    (_, ty_arg) = synth(ctx_inner, arg)
+                if isinstance(ty_arg, ExistentialType):
+                    outer_binders = outer_binders + ty_arg.binders
+                    ty_arg = ty_arg.body
+                y = Name("_y", fresh_counter.fresh())
+                binder_ty = ensure_refined(ty_arg)
+                if isinstance(binder_ty, RefinedType):
+                    renamed = substitution_in_liquid(binder_ty.refinement, LiquidVar(y), binder_ty.name)
+                    assert isinstance(binder_ty.type, (TypeConstructor, TypeVar))
+                    binder_ty = RefinedType(y, binder_ty.type, renamed)
+                outer_binders = outer_binders + ((y, binder_ty),)
+                t_subs = substitution_in_type(rtype, Var(y), aname)
+            # cp may reference the function's lifted binders through
+            # atype; wrap c0 in implications over them so those
+            # references are bound when the constraint reaches SMT.
+            # Argument-side binders propagate to the caller via the
+            # existential type and get their implication wrap there
+            # (e.g. in Let's opened_binders loop).
+            c0: Constraint = Conjunction(c, cp)
+            for bn, bt in reversed(fun_binders):
+                c0 = implication_constraint(bn, bt, c0, t.loc)
+            # Selfify uninformative result types so the value stays
+            # connected to the call that produced it (issue #378).
+            t_subs = _selfify_application_type(ctx_inner, t, t_subs)
+            return (c0, with_binders(outer_binders, t_subs))
+        case _:
+            raise CoreInvalidApplicationError(t, ty)
+
+
+def _synth_let(
+    ctx: TypingContext,
+    t: Let,
+    var_name: Name,
+    var_value: Term,
+    body: Term,
+) -> tuple[Constraint, Type]:
+    (c1, t1) = synth(ctx, var_value)
+    # Form B elimination: if the value's type carries existential binders,
+    # open them into the surrounding scope (each binder name becomes a
+    # context entry under its refinement) and let the body see the
+    # bare body type.
+    opened_binders: tuple[tuple[Name, Type], ...] = ()
+    if isinstance(t1, ExistentialType):
+        opened_binders = t1.binders
+        t1 = t1.body
+    nctx: TypingContext = ctx
+    for bn, bt in opened_binders:
+        nctx = nctx.with_var(bn, bt)
+    nctx = nctx.with_var(var_name, t1)
+    (c2, t2) = synth(nctx, body)
+    term_vars = type_free_term_vars(t1)
+    assert t.var_name not in term_vars
+    reflected_impl = _reflected_impl_for(var_name, t1, var_value)
+    inner = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
+    for bn, bt in reversed(opened_binders):
+        inner = implication_constraint(bn, bt, inner, body.loc)
+    # Form B introduction: if the body's type still mentions a name
+    # bound here (`var_name` or any of the opened binders), wrap it
+    # in an existential so the scope leak is preserved as a binder
+    # rather than as a free variable when the type flows outward.
+    t2_free = type_free_term_vars(t2)
+    leaking: list[tuple[Name, Type]] = []
+    for bn, bt in opened_binders:
+        if bn in t2_free:
+            leaking.append((bn, bt))
+    if var_name in t2_free:
+        leaking.append((var_name, t1))
+    if leaking:
+        t2 = with_binders(tuple(leaking), t2)
+    return (Conjunction(c1, inner), t2)
+
+
+def _synth_if(
+    ctx: TypingContext,
+    t: If,
+    cond: Term,
+    then: Term,
+    otherwise: Term,
+) -> tuple[Constraint, Type]:
+    # Synth-mode If: mirror check-mode, but the branches don't share an expected
+    # type — synth each under its guard and join refinements.
+    liq_cond = liquefy(cond)
+    assert liq_cond is not None, f"Could not liquefy if-condition {cond}"
+    # Synth the cond so its return refinement is propagated into
+    # the branches' hypotheses (see check-mode for details).
+    (c_synth_cond, t_cond) = synth(ctx, cond)
+    ex_binders: tuple[tuple[Name, Type], ...] = ()
+    if isinstance(t_cond, ExistentialType):
+        ex_binders = t_cond.binders
+        t_cond = t_cond.body
+    c_sub_cond = sub(ctx, t_cond, t_bool, cond.loc)
+    c_cond = Conjunction(c_synth_cond, c_sub_cond)
+    branch_ctx = ctx
+    for bn, bt in ex_binders:
+        branch_ctx = branch_ctx.with_var(bn, bt)
+    cond_ref: "LiquidTerm | None" = None
+    t_cond_r = ensure_refined(t_cond)
+    if isinstance(t_cond_r, RefinedType) and not (
+        isinstance(t_cond_r.refinement, LiquidLiteralBool) and t_cond_r.refinement.value is True
+    ):
+        cond_ref = substitution_in_liquid(t_cond_r.refinement, liq_cond, t_cond_r.name)
+
+    y = Name("_cond", fresh_counter.fresh())
+    (c1_inner, t1) = synth(branch_ctx, then)
+    c1 = implication_constraint(
+        y,
+        RefinedType(Name("branch_pos", fresh_counter.fresh()), t_int, _and(liq_cond, cond_ref)),
+        c1_inner,
+        then.loc,
+    )
+    (c2_inner, t2) = synth(branch_ctx, otherwise)
+    c2 = implication_constraint(
+        y,
+        RefinedType(
+            Name("branch_neg", fresh_counter.fresh()),
+            t_int,
+            _and(LiquidApp(Name("!", 0), [liq_cond]), cond_ref),
+        ),
+        c2_inner,
+        otherwise.loc,
+    )
+
+    t1_r = ensure_refined(t1)
+    t2_r = ensure_refined(t2)
+    if isinstance(t1_r, RefinedType) and isinstance(t2_r, RefinedType) and t1_r.type == t2_r.type:
+        v = Name("v_if", fresh_counter.fresh())
+        r1 = substitution_in_liquid(t1_r.refinement, LiquidVar(v), t1_r.name)
+        r2 = substitution_in_liquid(t2_r.refinement, LiquidVar(v), t2_r.name)
+        joined: Type = RefinedType(
+            v,
+            t1_r.type,
+            LiquidApp(
+                Name("&&", 0),
+                [
+                    LiquidApp(Name("-->", 0), [liq_cond, r1]),
+                    LiquidApp(Name("-->", 0), [LiquidApp(Name("!", 0), [liq_cond]), r2]),
+                ],
+            ),
+        )
+    elif t1 == t2:
+        # Same non-refinable type (e.g., function type) on both branches.
+        joined = t1
+    else:
+        raise CoreSubtypingError(ctx, t, t1, t2)
+    if_constraint: Constraint = Conjunction(c_cond, Conjunction(c1, c2))
+    for bn, bt in reversed(ex_binders):
+        if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
+    return (if_constraint, joined)
+
+
+def _synth_rec(
+    ctx: TypingContext,
+    t: Rec,
+    var_name: Name,
+    var_type: Type,
+    var_value: Term,
+    body: Term,
+) -> tuple[Constraint, Type]:
+    comp_types = [(c.name, c.type) for c in t.companions]
+    constraint, t2 = _rec_constraints(
+        ctx,
+        t,
+        var_type,
+        comp_types,
+        lambda nrctx: synth(nrctx, body),
+    )
+    assert t2 is not None
+    # Form B introduction: if the body's type still mentions `var_name`, wrap it
+    # in an existential so the scope leak is preserved as a binder when the type
+    # flows outward.
+    if var_name in type_free_term_vars(t2):
+        t2 = with_binders(((var_name, var_type),), t2)
+    return constraint, t2
+
+
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
         case Literal(_, TypeConstructor(Name("Unit", _))):
@@ -578,181 +884,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 )
             return (ctrue, ty)
         case Application(fun, arg):
-            (c, ty) = synth(ctx, fun)
-            # Lift any binders from the function's type to the outer scope so
-            # the body underneath can be matched as an AbstractionType.
-            fun_binders: tuple[tuple[Name, Type], ...] = ()
-            if isinstance(ty, ExistentialType):
-                fun_binders = ty.binders
-                ty = ty.body
-            # Binders just lifted from the function's type are in scope for
-            # the argument check and any inner synth: atype may reference
-            # them (e.g. dependent parameter types like {t:Float | t >= y}).
-            ctx_inner = ctx
-            for bn, bt in fun_binders:
-                ctx_inner = ctx_inner.with_var(bn, bt)
-            match ty:
-                case AbstractionType(aname, atype, rtype):
-                    outer_binders: tuple[tuple[Name, Type], ...] = fun_binders
-                    cp = check(ctx_inner, arg, atype)
-                    # Abstractions can't be synthesised on their own (no
-                    # annotation), and Var/Literal liquefy directly. In all
-                    # three cases the existing direct substitution path is
-                    # what we want — the type system either preserves the
-                    # equation (Var, Literal, liquefiable App) or silently
-                    # passes the body through (Abstraction).
-                    if isinstance(arg, (Var, Literal, Abstraction)):
-                        t_subs = substitution_in_type(rtype, arg, aname)
-                    else:
-                        # Form B existential introduction: synth the argument
-                        # to get its most precise type, prepend a fresh
-                        # binder carrying its refinement, and substitute the
-                        # binder name into the result type. Any binders
-                        # already on the argument's type lift to the outer
-                        # scope (binders are always flat).
-                        #
-                        # A bare Hole has no synthesisable type (synth defaults
-                        # it to a polymorphic type variable), which is not an SMT
-                        # base type and would leave the `_y` binder undeclared in
-                        # the solver. But the hole was just `check`ed against the
-                        # domain type `atype`, so that is its type here — use it
-                        # so a hole in argument position needs no annotation.
-                        if isinstance(arg, Hole):
-                            ty_arg = atype
-                        else:
-                            (_, ty_arg) = synth(ctx_inner, arg)
-                        if isinstance(ty_arg, ExistentialType):
-                            outer_binders = outer_binders + ty_arg.binders
-                            ty_arg = ty_arg.body
-                        y = Name("_y", fresh_counter.fresh())
-                        binder_ty = ensure_refined(ty_arg)
-                        if isinstance(binder_ty, RefinedType):
-                            renamed = substitution_in_liquid(binder_ty.refinement, LiquidVar(y), binder_ty.name)
-                            assert isinstance(binder_ty.type, (TypeConstructor, TypeVar))
-                            binder_ty = RefinedType(y, binder_ty.type, renamed)
-                        outer_binders = outer_binders + ((y, binder_ty),)
-                        t_subs = substitution_in_type(rtype, Var(y), aname)
-                    # cp may reference the function's lifted binders through
-                    # atype; wrap c0 in implications over them so those
-                    # references are bound when the constraint reaches SMT.
-                    # Argument-side binders propagate to the caller via the
-                    # existential type and get their implication wrap there
-                    # (e.g. in Let's opened_binders loop).
-                    c0: Constraint = Conjunction(c, cp)
-                    for bn, bt in reversed(fun_binders):
-                        c0 = implication_constraint(bn, bt, c0, t.loc)
-                    # Selfify uninformative result types so the value stays
-                    # connected to the call that produced it (issue #378).
-                    t_subs = _selfify_application_type(ctx_inner, t, t_subs)
-                    return (c0, with_binders(outer_binders, t_subs))
-                case _:
-                    raise CoreInvalidApplicationError(t, ty)
+            return _synth_application(ctx, t, fun, arg)
         case Let(var_name, var_value, body):
-            (c1, t1) = synth(ctx, var_value)
-            # Form B elimination: if the value's type carries existential binders,
-            # open them into the surrounding scope (each binder name becomes a
-            # context entry under its refinement) and let the body see the
-            # bare body type.
-            opened_binders: tuple[tuple[Name, Type], ...] = ()
-            if isinstance(t1, ExistentialType):
-                opened_binders = t1.binders
-                t1 = t1.body
-            nctx: TypingContext = ctx
-            for bn, bt in opened_binders:
-                nctx = nctx.with_var(bn, bt)
-            nctx = nctx.with_var(var_name, t1)
-            (c2, t2) = synth(nctx, body)
-            term_vars = type_free_term_vars(t1)
-            assert t.var_name not in term_vars
-            reflected_impl = _reflected_impl_for(var_name, t1, var_value)
-            inner = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
-            for bn, bt in reversed(opened_binders):
-                inner = implication_constraint(bn, bt, inner, body.loc)
-            # Form B introduction: if the body's type still mentions a name
-            # bound here (`var_name` or any of the opened binders), wrap it
-            # in an existential so the scope leak is preserved as a binder
-            # rather than as a free variable when the type flows outward.
-            t2_free = type_free_term_vars(t2)
-            leaking: list[tuple[Name, Type]] = []
-            for bn, bt in opened_binders:
-                if bn in t2_free:
-                    leaking.append((bn, bt))
-            if var_name in t2_free:
-                leaking.append((var_name, t1))
-            if leaking:
-                t2 = with_binders(tuple(leaking), t2)
-            r = (Conjunction(c1, inner), t2)
-            return r
+            return _synth_let(ctx, t, var_name, var_value, body)
         case Rec(var_name, var_type, var_value, body):
-            has_metric = bool(t.decreasing_by)
-            # For a ``mutual`` group the inductive hypothesis (assuming the
-            # declared, refined types of self *and* siblings while checking the
-            # value) is only sound when the *whole* group is well-founded — every
-            # member must carry a termination metric, since one member's
-            # termination depends on its callees terminating too.
-            group_has_metric = has_metric and all(bool(c.decreasing_by) for c in t.companions)
-            # The recursive occurrence may assume the declared (refined) return
-            # type as an inductive hypothesis only when a well-founded
-            # termination metric justifies the induction. Without one, weaken
-            # the hypothesis to the bare codomain so a non-terminating
-            # definition cannot "prove" an absurd refinement (see
-            # recursion_soundness_test.py). Non-recursive bindings are
-            # unaffected: their body never references var_name, so the weaker
-            # context binding is never consulted.
-            rec_var_type = var_type if group_has_metric else _erase_return_refinement(var_type)
-            rec_ctx: TypingContext = ctx.with_var(var_name, rec_var_type)
-            # Bring mutually-recursive siblings into scope for the value, under
-            # the same soundness gating.
-            for comp in t.companions:
-                comp_type = comp.type if group_has_metric else _erase_return_refinement(comp.type)
-                rec_ctx = rec_ctx.with_var(comp.name, comp_type)
-            c1 = check(rec_ctx, var_value, var_type)
-            nrctx: TypingContext = ctx.with_var(var_name, var_type)
-            # Termination obligations (including cross-function calls within the
-            # group) are synthesised under a context that knows the siblings.
-            term_ctx: TypingContext = nrctx
-            for comp in t.companions:
-                term_ctx = term_ctx.with_var(comp.name, comp.type)
-            (c2, t2) = synth(nrctx, body)
-            reflected_impl = _reflected_impl_for(
-                var_name,
-                var_type,
-                var_value,
-                has_termination_metric=has_metric,
-            )
-            keep_refs = _is_trusted_native_value(var_value)
-            c1 = implication_constraint(
-                var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
-            c2 = implication_constraint(
-                var_name, var_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
-            term_c = termination_metric_constraints(t, term_ctx)
-            term_c = implication_constraint(
-                var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
-            # Declare mutually-recursive siblings so calls to them inside this
-            # member's value (e.g. selfified applications ``v == odd (n - 1)``)
-            # translate. When the whole group is well-founded and a sibling's
-            # body reflects (it doesn't itself call another sibling), reflect its
-            # definition so relational refinements like ``{r | g r = x}`` can use
-            # it; otherwise declare it uninterpreted.
-            for comp in t.companions:
-                comp_reflected = (
-                    _reflected_impl_for(comp.name, comp.type, comp.value, has_termination_metric=group_has_metric)
-                    if (group_has_metric and comp.value is not None)
-                    else None
-                )
-                comp_keep = comp.value is not None and _is_trusted_native_value(comp.value)
-                c1 = implication_constraint(
-                    comp.name, comp.type, c1, var_value.loc, reflected_impl=comp_reflected, keep_refinements=comp_keep
-                )
-            # Form B introduction: if the body's type still mentions `var_name`,
-            # wrap it in an existential so the scope leak is preserved as a
-            # binder when the type flows outward.
-            if var_name in type_free_term_vars(t2):
-                t2 = with_binders(((var_name, var_type),), t2)
-            return Conjunction(Conjunction(c1, c2), term_c), t2
+            return _synth_rec(ctx, t, var_name, var_type, var_value, body)
         case Annotation(expr, ty):
             nty = fresh(ctx, ty)
             c = check(ctx, expr, nty)
@@ -806,75 +942,7 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             )
 
         case If(cond, then, otherwise):
-            # Synth-mode If: mirror check-mode (lines 472-493), but the branches don't
-            # share an expected type — synth each under its guard and join refinements.
-            liq_cond = liquefy(cond)
-            assert liq_cond is not None, f"Could not liquefy if-condition {cond}"
-            # Synth the cond so its return refinement is propagated into
-            # the branches' hypotheses (see check-mode for details).
-            (c_synth_cond, t_cond) = synth(ctx, cond)
-            ex_binders: tuple[tuple[Name, Type], ...] = ()
-            if isinstance(t_cond, ExistentialType):
-                ex_binders = t_cond.binders
-                t_cond = t_cond.body
-            c_sub_cond = sub(ctx, t_cond, t_bool, cond.loc)
-            c_cond = Conjunction(c_synth_cond, c_sub_cond)
-            branch_ctx = ctx
-            for bn, bt in ex_binders:
-                branch_ctx = branch_ctx.with_var(bn, bt)
-            cond_ref: "LiquidTerm | None" = None
-            t_cond_r = ensure_refined(t_cond)
-            if isinstance(t_cond_r, RefinedType) and not (
-                isinstance(t_cond_r.refinement, LiquidLiteralBool) and t_cond_r.refinement.value is True
-            ):
-                cond_ref = substitution_in_liquid(t_cond_r.refinement, liq_cond, t_cond_r.name)
-
-            y = Name("_cond", fresh_counter.fresh())
-            (c1_inner, t1) = synth(branch_ctx, then)
-            c1 = implication_constraint(
-                y,
-                RefinedType(Name("branch_pos", fresh_counter.fresh()), t_int, _and(liq_cond, cond_ref)),
-                c1_inner,
-                then.loc,
-            )
-            (c2_inner, t2) = synth(branch_ctx, otherwise)
-            c2 = implication_constraint(
-                y,
-                RefinedType(
-                    Name("branch_neg", fresh_counter.fresh()),
-                    t_int,
-                    _and(LiquidApp(Name("!", 0), [liq_cond]), cond_ref),
-                ),
-                c2_inner,
-                otherwise.loc,
-            )
-
-            t1_r = ensure_refined(t1)
-            t2_r = ensure_refined(t2)
-            if isinstance(t1_r, RefinedType) and isinstance(t2_r, RefinedType) and t1_r.type == t2_r.type:
-                v = Name("v_if", fresh_counter.fresh())
-                r1 = substitution_in_liquid(t1_r.refinement, LiquidVar(v), t1_r.name)
-                r2 = substitution_in_liquid(t2_r.refinement, LiquidVar(v), t2_r.name)
-                joined: Type = RefinedType(
-                    v,
-                    t1_r.type,
-                    LiquidApp(
-                        Name("&&", 0),
-                        [
-                            LiquidApp(Name("-->", 0), [liq_cond, r1]),
-                            LiquidApp(Name("-->", 0), [LiquidApp(Name("!", 0), [liq_cond]), r2]),
-                        ],
-                    ),
-                )
-            elif t1 == t2:
-                # Same non-refinable type (e.g., function type) on both branches.
-                joined = t1
-            else:
-                raise CoreSubtypingError(ctx, t, t1, t2)
-            if_constraint: Constraint = Conjunction(c_cond, Conjunction(c1, c2))
-            for bn, bt in reversed(ex_binders):
-                if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
-            return (if_constraint, joined)
+            return _synth_if(ctx, t, cond, then, otherwise)
 
         case Hole(hole_name):
             name_a = Name(hole_name.name, fresh_counter.fresh())
@@ -1090,70 +1158,21 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             for bn, bt in reversed(opened_binders):
                 inner = implication_constraint(bn, bt, inner, body.loc)
             return Conjunction(c1, inner)
-        case Rec(var_name, var_type, var_value, body), _:
+        case Rec(var_name, var_type, _, body), _:
             if var_name in ctx.trusted_names:
-                t1 = fresh(ctx, var_type)
-                trusted_ctx: TypingContext = ctx.with_var(var_name, t1)
+                self_type = fresh(ctx, var_type)
+                trusted_ctx: TypingContext = ctx.with_var(var_name, self_type)
                 c2 = check(trusted_ctx, body, ty)
-                return implication_constraint(var_name, t1, c2, body.loc, keep_refinements=True)
-            has_metric = bool(t.decreasing_by)
-            # See the ``synth`` Rec arm: a ``mutual`` group's inductive hypothesis
-            # is only sound when every member carries a termination metric.
-            group_has_metric = has_metric and all(bool(c.decreasing_by) for c in t.companions)
-            t1 = fresh(ctx, var_type)
-            # The recursive occurrence may assume the declared (refined) return
-            # type as an inductive hypothesis only when a well-founded
-            # termination metric justifies the induction. Without one, weaken
-            # the hypothesis to the bare codomain so a non-terminating
-            # definition cannot "prove" an absurd refinement (see
-            # recursion_soundness_test.py). Non-recursive bindings are
-            # unaffected: their body never references var_name.
-            rec_t1 = t1 if group_has_metric else _erase_return_refinement(t1)
-            rec_ctx: TypingContext = ctx.with_var(var_name, rec_t1)
-            # Bring mutually-recursive siblings into scope for the value.
+                return implication_constraint(var_name, self_type, c2, body.loc, keep_refinements=True)
+            # The recursive occurrence assumes a freshened copy of the declared
+            # type; siblings are freshened too. The shared skeleton lives in
+            # ``_rec_constraints``; check-mode discards the (None) body type.
+            self_type = fresh(ctx, var_type)
             comp_types: list[tuple[Name, Type]] = [(c.name, fresh(ctx, c.type)) for c in t.companions]
-            for cname, ctype in comp_types:
-                rec_ctx = rec_ctx.with_var(cname, ctype if group_has_metric else _erase_return_refinement(ctype))
-            c1 = check(rec_ctx, var_value, var_type)
-            nrctx: TypingContext = ctx.with_var(var_name, t1)
-            # Termination obligations (incl. cross-function calls) need siblings.
-            term_ctx: TypingContext = nrctx
-            for cname, ctype in comp_types:
-                term_ctx = term_ctx.with_var(cname, ctype)
-            c2 = check(nrctx, body, ty)
-            reflected_impl = _reflected_impl_for(
-                var_name,
-                t1,
-                var_value,
-                has_termination_metric=has_metric,
+            constraint, _ = _rec_constraints(
+                ctx, t, self_type, comp_types, lambda nrctx: (check(nrctx, body, ty), None)
             )
-            keep_refs = _is_trusted_native_value(var_value)
-            c1 = implication_constraint(
-                var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
-            c2 = implication_constraint(
-                var_name, t1, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
-            term_c = termination_metric_constraints(t, term_ctx)
-            term_c = implication_constraint(
-                var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
-            # Declare mutually-recursive siblings so calls to them inside this
-            # member's value translate (selfified applications such as
-            # ``v == odd (n - 1)``). Reflect a sibling's definition when the group
-            # is well-founded and its body reflects, so relational refinements
-            # like ``{r | g r = x}`` can use it; otherwise declare it uninterpreted.
-            for comp, (cname, ctype) in zip(t.companions, comp_types, strict=True):
-                comp_reflected = (
-                    _reflected_impl_for(cname, ctype, comp.value, has_termination_metric=group_has_metric)
-                    if (group_has_metric and comp.value is not None)
-                    else None
-                )
-                comp_keep = comp.value is not None and _is_trusted_native_value(comp.value)
-                c1 = implication_constraint(
-                    cname, ctype, c1, var_value.loc, reflected_impl=comp_reflected, keep_refinements=comp_keep
-                )
-            return Conjunction(Conjunction(c1, c2), term_c)
+            return constraint
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
             liq_cond = liquefy(cond)
