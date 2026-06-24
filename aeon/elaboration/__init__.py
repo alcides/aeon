@@ -927,8 +927,6 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                         case SAbstractionType(_, _, _):
                             # AbstractionTypes are not refined
                             return STypeApplication(body, nt, loc=loc)
-                        # case TypePolymorphism(name, kind, body_):
-
                         case _:
                             assert False, f"{nt} ({type(nt)}) not an SType."
 
