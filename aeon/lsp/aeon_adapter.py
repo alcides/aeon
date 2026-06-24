@@ -166,8 +166,6 @@ async def _parse(
         # non-empty, as long as the program reached core generation).
         _refresh_analysis(driver, uri)
 
-        holes = find_holes_in_source(content)
-
         for error in errors:
             error_message = str(error)
             error_position = error.position()
@@ -190,6 +188,7 @@ async def _parse(
             )
 
         if not errors:
+            holes = find_holes_in_source(content)
             return ParseResult(diagnostics, holes)
 
     except UnexpectedToken as e:
