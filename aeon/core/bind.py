@@ -145,7 +145,7 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
             nty = bind_type(ty, subs)
             nname, nsubs = check_name(name, subs)
             nref = bind_lq(ref, nsubs)
-            assert isinstance(nty, TypeConstructor) or isinstance(nty, TypeVar) or isinstance(nty, TypeConstructor)
+            assert isinstance(nty, (TypeConstructor, TypeVar))
             return RefinedType(nname, nty, nref, loc=loc)
         case TypePolymorphism(name, kind, body, loc):
             name, subs = check_name(name, subs)

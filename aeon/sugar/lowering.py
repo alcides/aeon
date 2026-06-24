@@ -245,11 +245,7 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
             else:
                 name = oname
             basety = type_to_core(ity, available_vars)
-            assert (
-                isinstance(basety, TypeConstructor)
-                or isinstance(basety, TypeVar)
-                or isinstance(basety, TypeConstructor)
-            )
+            assert isinstance(basety, (TypeConstructor, TypeVar))
             return RefinedType(name, basety, liquefy(ref, available_vars + [(name, basety)]), loc=loc)
         case STypeConstructor(name, args, loc):
             return TypeConstructor(name, [type_to_core(ity, available_vars) for ity in args], loc=loc)

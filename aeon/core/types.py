@@ -278,15 +278,7 @@ liq_true = LiquidLiteralBool(True)
 
 
 def extract_parts(t: Type) -> tuple[Name, TypeConstructor | TypeVar, LiquidTerm]:
-    assert (
-        isinstance(t, TypeConstructor)
-        or isinstance(t, RefinedType)
-        or isinstance(
-            t,
-            TypeVar,
-        )
-        or isinstance(t, TypeConstructor)
-    )
+    assert isinstance(t, (TypeConstructor, RefinedType, TypeVar))
     match t:
         case RefinedType(name, ity, ref):
             return (name, ity, ref)
