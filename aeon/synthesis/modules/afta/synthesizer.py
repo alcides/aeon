@@ -45,7 +45,6 @@ Selected with ``--synthesizer afta``.
 
 from __future__ import annotations
 
-import itertools
 import random
 import time
 from typing import Any, Callable, Optional
@@ -61,7 +60,7 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.terms import Application, Literal, Term, Var
+from aeon.core.terms import Literal, Term, Var
 from aeon.core.types import (
     AbstractionType,
     RefinedType,
@@ -71,7 +70,14 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
-from aeon.synthesis.modules.fta.synthesizer import _freeze, _safe, _term_size
+from aeon.synthesis.modules.bottom_up import (
+    application,
+    combos,
+    deepen,
+    freeze as _freeze,
+    safe as _safe,
+    term_size as _term_size,
+)
 from aeon.synthesis.modules.symetric.synthesizer import (
     Component,
     _peel,
@@ -154,31 +160,14 @@ class AFTASynthesizer(Synthesizer):
     def _combos(self, comp: Component, bank: dict[str, list[Term]], deadline: float, rnd: random.Random) -> list[Term]:
         """Transitions ``comp(q1, ..., qk) -> q``: applications of ``comp`` whose
         arguments are drawn from the current bank (per argument type)."""
-        pools: list[list[Term]] = []
-        for ak in comp.arg_keys:
-            pool = bank.get(ak, [])
-            if not pool:
-                return []
-            pools.append(pool)
-        total = 1
-        for p in pools:
-            total *= len(p)
-        out: list[Term] = []
-        if total <= self.combo_cap:
-            for choice in itertools.product(*pools):
-                if time.time() >= deadline:
-                    break
-                term: Term = Var(comp.name)
-                for a in choice:
-                    term = Application(term, a)
-                out.append(term)
-        else:
-            for _ in range(self.combo_cap):
-                term = Var(comp.name)
-                for p in pools:
-                    term = Application(term, rnd.choice(p))
-                out.append(term)
-        return out
+        return combos(
+            comp,
+            bank,
+            deadline,
+            rnd,
+            self.combo_cap,
+            lambda c, choice: application(Var(c.name), choice),
+        )
 
     # -- entry point ----------------------------------------------------------
 
@@ -350,12 +339,9 @@ class AFTASynthesizer(Synthesizer):
         # reaches a fixpoint (a full round adds no new terms). ``self.rounds``,
         # when set, caps the depth explicitly.
         solution = cegar_pass()
-        depth = 0
-        while solution is None and time.time() < deadline:
-            if self.rounds is not None and depth >= self.rounds:
-                break
-            before = sum(len(v) for v in bank.values())
-            snapshot = {k: list(v) for k, v in bank.items()}
+
+        def step(snapshot: dict[str, list[Term]]) -> None:
+            nonlocal solution
             for comps in builders.values():
                 for comp in comps:
                     if time.time() >= deadline:
@@ -364,9 +350,8 @@ class AFTASynthesizer(Synthesizer):
             solution = cegar_pass()
             # created = candidate terms banked; assessed = candidates validated.
             ui.progress(sum(len(v) for v in bank.values()), len(tried), time.time() - start)
-            depth += 1
-            if sum(len(v) for v in bank.values()) == before:
-                break
+
+        depth = deepen(bank, deadline, self.rounds, lambda: solution is not None, step)
 
         if solution is not None:
             ui.register(solution, [0.0], time.time() - start, True)
