@@ -94,6 +94,43 @@ def lower_constraint_type(ttype: Type) -> Type:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
 
 
+def lower_constraint_type_keep_refinements(ttype: Type) -> Type:
+    """Like :func:`lower_constraint_type`, but preserves argument/return
+    refinements while still stripping polymorphism and lowering bases.
+
+    The SMT layer encodes a declared function as a bare uninterpreted symbol,
+    so to instantiate its return-refinement contract per call site (issue #378)
+    the refinement must survive into ``SMTContext.functions``. ``RefinedType``
+    wrappers in function signatures are already tolerated there: regular
+    first-order ``VariableBinder`` functions keep theirs (see
+    ``entailment_context``), and the specialisation/sort machinery lowers each
+    base anew where it needs one.
+    """
+    match ttype:
+        case TypeVar(name):
+            return TypeConstructor(name)
+        case Top():
+            return t_unit
+        case AbstractionType(name, b, r):
+            return AbstractionType(
+                name,
+                lower_constraint_type_keep_refinements(b),
+                lower_constraint_type_keep_refinements(r),
+            )
+        case TypePolymorphism(_, _, body):
+            return lower_constraint_type_keep_refinements(body)
+        case RefinementPolymorphism(_, _, body):
+            return lower_constraint_type_keep_refinements(body)
+        case RefinedType(name, t, ref):
+            inner = lower_constraint_type_keep_refinements(t)
+            assert isinstance(inner, (TypeConstructor, TypeVar))
+            return RefinedType(name, inner, ref)
+        case TypeConstructor(name, args):
+            return TypeConstructor(name, [lower_constraint_type_keep_refinements(a) for a in args])
+        case _:
+            assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
+
+
 def _has_concrete_base_result(ty: Type) -> bool:
     """True when peeling all ``forall`` binders and value arrows lands on a
     concrete base type (a ``TypeConstructor``, possibly refined). Polymorphic
@@ -116,7 +153,15 @@ def implication_constraint(
     c: Constraint,
     loc: Location | None = None,
     reflected_impl: tuple[tuple[Name, ...], LiquidTerm] | None = None,
+    keep_refinements: bool = False,
 ) -> Constraint:
+    # ``keep_refinements`` preserves a function's argument/return refinements in
+    # its uninterpreted declaration so its contract can be instantiated per call
+    # site at the SMT layer (issue #378). It is set only for *trusted*
+    # native/uninterpreted bindings, whose contract is an axiom; a regular
+    # function's body is verified separately, so assuming its own postcondition
+    # while checking (or synthesising) that body would be circular.
+    lower = lower_constraint_type_keep_refinements if keep_refinements else lower_constraint_type
     match ty:
         case Top() | TypeVar(_) | TypeConstructor(_, _):
             basety = lower_constraint_type(ty)
@@ -129,7 +174,7 @@ def implication_constraint(
             return Implication(name, ltype, ref_subs, c, loc=loc)
         case AbstractionType(_, _, _):
             if is_first_order_function(ty):
-                absty = lower_constraint_type(ty)
+                absty = lower(ty)
                 assert isinstance(absty, AbstractionType)
                 if reflected_impl is not None:
                     (params, body) = reflected_impl
@@ -138,7 +183,7 @@ def implication_constraint(
             else:
                 return c
         case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _):
-            lowered = lower_constraint_type(ty)
+            lowered = lower(ty)
             if not isinstance(lowered, AbstractionType):
                 # Higher-order or otherwise non-first-order polymorphic
                 # types stay opaque — no constraint contribution.
