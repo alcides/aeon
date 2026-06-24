@@ -27,6 +27,8 @@ def _typechecks(source: str) -> bool:
     return not _errors(source)
 
 
+# The last draw projects its sample and stops — the unextracted successor
+# needs no `close_rng`.
 _TWO_DICE = """
 open Random
 def two_dice (seed: Int) : {s:Int | s >= 2 && s <= %s} :=
@@ -36,8 +38,6 @@ def two_dice (seed: Int) : {s:Int | s >= 2 && s <= %s} :=
     let 1 g1 := int_next d1 in
     let d2 := draw_int 1 6 g1 in
     let b := int_value 1 6 d2 in
-    let 1 g2 := int_next d2 in
-    let _ : Unit := close_rng g2 in
     a + b
 def main (x:Int) : Unit := print (two_dice 1) ;
 """
@@ -53,8 +53,23 @@ def test_bound_is_tight():
     assert not _typechecks(_TWO_DICE % "11")
 
 
-def test_generator_must_be_used():
-    # Forgetting to consume the final successor `g2` is a linearity error.
+def test_chain_needs_no_close_rng():
+    # A single draw: project the sample and stop. The successor is never
+    # extracted, so no `close_rng` is needed and the generator is discharged.
+    src = """
+    open Random
+    def one_die (seed: Int) : {s:Int | s >= 1 && s <= 6} :=
+        let 1 g0 := new_rng seed in
+        let d1 := draw_int 1 6 g0 in
+        int_value 1 6 d1
+    def main (x:Int) : Unit := print (one_die 1) ;
+    """
+    assert _typechecks(src)
+
+
+def test_extracted_successor_must_be_used():
+    # Once a successor IS extracted into a `let 1`, it must be consumed —
+    # dropping it is a linearity error.
     src = """
     open Random
     def one_die (seed: Int) : {s:Int | s >= 1 && s <= 6} :=
@@ -66,6 +81,16 @@ def test_generator_must_be_used():
     def main (x:Int) : Unit := print (one_die 1) ;
     """
     assert not _typechecks(src)
+
+
+def test_close_rng_discharges_held_generator():
+    # `close_rng` discharges a generator a function holds but never draws from.
+    src = """
+    open Random
+    def discard (1 g: Rng) : Int := let _ : Unit := close_rng g in 0
+    def main (x:Int) : Unit := print (discard (new_rng 1)) ;
+    """
+    assert _typechecks(src)
 
 
 def test_generator_cannot_be_reused():
@@ -89,24 +114,20 @@ def test_float_draw_refinement():
     def f (seed: Int) : {r:Float | r >= 0.5} :=
         let 1 g0 := new_rng seed in
         let d := draw g0 in
-        let x := draw_value d in
-        let 1 g1 := draw_next d in
-        let _ : Unit := close_rng g1 in
-        x
+        draw_value d
     def main (x:Int) : Unit := print (f 1) ;
     """
     assert not _typechecks(bad)
 
 
 def test_polymorphic_choice():
+    # Terminal `choose`: consume the generator, return the element.
     src = """
     open Random
     open Array
     def pick (seed: Int) : Int :=
         let 1 g0 := new_rng seed in
-        with_choice #[10, 20, 30] g0 (fun x => fun g1 =>
-            let _ : Unit := close_rng g1 in
-            x)
+        choose #[10, 20, 30] g0
     def main (x:Int) : Unit := print (pick 3) ;
     """
     assert _typechecks(src)
@@ -129,8 +150,6 @@ def test_two_dice_runs_in_range():
         let 1 g1 := int_next d1 in
         let d2 := draw_int 1 6 g1 in
         let b := int_value 1 6 d2 in
-        let 1 g2 := int_next d2 in
-        let _ : Unit := close_rng g2 in
         a + b
     def main (x:Int) : Int := two_dice 7 ;
     """
