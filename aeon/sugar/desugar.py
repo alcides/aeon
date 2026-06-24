@@ -778,13 +778,12 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                 # Determine which inductive we're matching on from the constructor list.
                 # We only support matching on values of an inductive type whose name can
                 # be inferred from the branch constructor names.
-                lowered_branches: list[SMatchBranch] = branches
-                cons_names = [b.constructor for b in lowered_branches]
+                cons_names = [b.constructor for b in branches]
 
                 # If any branch has a qualifier, use it to directly select the inductive.
                 chosen: Name | None = None
                 chosen_cons_map: dict[Name, list[tuple[Name, SType]]] | None = None
-                for br in lowered_branches:
+                for br in branches:
                     if br.qualifier is not None:
                         for iname, cmap in inductive_info.items():
                             if iname.name == br.qualifier:
@@ -803,7 +802,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
 
                 if chosen is None or chosen_cons_map is None:
                     # Fall back: this should typically be rejected by typechecking later.
-                    return SMatch(lowered_scrut, lowered_branches, loc=t.loc)
+                    return SMatch(lowered_scrut, branches, loc=t.loc)
 
                 rec_name = Name(chosen.name + "_rec", -1)
                 rec_fun: STerm = SVar(rec_name, loc=t.loc)  # will be bound like any other var
@@ -819,7 +818,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                             case Definition(cname, _, cargs, _, _, _, _, _, _):
                                 # Find the matching branch, if missing use a hole-like undefined.
                                 branch_expr = None
-                                for b in lowered_branches:
+                                for b in branches:
                                     if b.constructor == cname:
                                         branch_expr = b.body
                                         branch_binders = b.binders
