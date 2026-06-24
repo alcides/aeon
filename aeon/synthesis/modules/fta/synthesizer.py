@@ -38,7 +38,6 @@ Selected with ``--synthesizer fta``.
 
 from __future__ import annotations
 
-import itertools
 import random
 import time
 from typing import Any, Callable, Optional
@@ -52,7 +51,6 @@ from dataclasses import dataclass, field
 
 from aeon.core.terms import (
     Abstraction,
-    Application,
     If,
     Let,
     Literal,
@@ -74,8 +72,15 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.modules.bottom_up import (
+    application,
+    combos,
+    deepen,
+    freeze as _freeze,
+    safe as _safe,
+    term_size as _term_size,
+)
 from aeon.synthesis.modules.symetric.synthesizer import (
-    _decompose,
     _peel,
     base_key,
 )
@@ -198,43 +203,27 @@ class FTASynthesizer(Synthesizer):
         """Transitions ``comp(q1, ..., qk) -> q``: applications of ``comp`` whose
         arguments are drawn from the current bank (per argument type). Enumerates
         the full product when small, else samples ``combo_cap`` of it."""
-        pools: list[list[Term]] = []
-        for idx, ak in enumerate(comp.arg_keys):
-            pool = bank.get(ak, [])
-            if not pool:
-                return []
+
+        def pool_for(idx: int, _ak: str, pool: list[Term]) -> list[Term]:
             if comp.is_if and idx >= 1:
                 # then/else: only the smallest representatives, so the product
                 # stays bounded and is enumerated exhaustively (below).
-                pool = sorted(pool, key=_term_size)[: self.if_branch_cap]
-            pools.append(pool)
-        total = 1
-        for p in pools:
-            total *= len(p)
-        # The conditional's space is already bounded by the branch cap, so
-        # enumerate it fully rather than sampling.
-        cap = max(self.combo_cap, total) if comp.is_if else self.combo_cap
+                return sorted(pool, key=_term_size)[: self.if_branch_cap]
+            return pool
 
-        def build(choice: tuple[Term, ...]) -> Term:
+        def cap_for(c: _MonoComponent, total: int) -> int:
+            # The conditional's space is already bounded by the branch cap, so
+            # enumerate it fully rather than sampling.
+            return max(self.combo_cap, total) if c.is_if else self.combo_cap
+
+        def build(c: _MonoComponent, choice: tuple[Term, ...]) -> Term:
             # If(cond, then, else) for the conditional builder; otherwise an
             # application of the (possibly type-applied) component to its args.
-            if comp.is_if:
+            if c.is_if:
                 return If(choice[0], choice[1], choice[2])
-            term = self._head(comp)
-            for a in choice:
-                term = Application(term, a)
-            return term
+            return application(self._head(c), choice)
 
-        out: list[Term] = []
-        if total <= cap:
-            for choice in itertools.product(*pools):
-                if time.time() >= deadline:
-                    break
-                out.append(build(choice))
-        else:
-            for _ in range(cap):
-                out.append(build(tuple(rnd.choice(p) for p in pools)))
-        return out
+        return combos(comp, bank, deadline, rnd, self.combo_cap, build, pool_for=pool_for, cap_for=cap_for)
 
     # -- entry point ----------------------------------------------------------
 
@@ -452,12 +441,8 @@ class FTASynthesizer(Synthesizer):
         # found (bottom-up construction reaches the smallest programs first), the
         # budget runs out, or the bank reaches a fixpoint (a full round adds no
         # new terms). ``self.rounds``, when set, caps the depth explicitly.
-        depth = 0
-        while best is None and time.time() < deadline:
-            if self.rounds is not None and depth >= self.rounds:
-                break
-            before = sum(len(v) for v in bank.values())
-            snapshot = {k: list(v) for k, v in bank.items()}
+        def step(snapshot: dict[str, list[Term]]) -> None:
+            nonlocal transitions
             for comps in builders.values():
                 for comp in comps:
                     if best is not None or time.time() >= deadline:
@@ -468,9 +453,8 @@ class FTASynthesizer(Synthesizer):
             # Report counts after each round: transitions are the candidates
             # generated; the validated goal states are those assessed.
             ui.progress(transitions, len(validated), time.time() - start)
-            depth += 1
-            if sum(len(v) for v in bank.values()) == before:
-                break
+
+        depth = deepen(bank, deadline, self.rounds, lambda: best is not None, step)
 
         states = len(rep)
         if best is not None:
@@ -489,31 +473,8 @@ class FTASynthesizer(Synthesizer):
 
 
 # -- free helpers ------------------------------------------------------------
-
-
-def _term_size(term: Term) -> int:
-    """Node count of a term -- the size measure minimised during extraction."""
-    _head, args = _decompose(term)
-    return 1 + sum(_term_size(a) for a in args)
-
-
-def _freeze(v: object) -> Any:
-    """A hashable, order-stable view of a candidate's output, so that equal
-    outputs map to the same automaton state regardless of container type."""
-    if isinstance(v, (list, tuple)):
-        return tuple(_freeze(x) for x in v)
-    if isinstance(v, (set, frozenset)):
-        return frozenset(_freeze(x) for x in v)
-    if isinstance(v, dict):
-        return tuple(sorted((k, _freeze(x)) for k, x in v.items()))
-    return v
-
-
-def _safe(validate: Callable[[Term], bool], term: Term) -> bool:
-    try:
-        return validate(term)
-    except Exception:
-        return False
+# ``_term_size``, ``_freeze`` and ``_safe`` are imported from ``bottom_up`` and
+# re-exported here for the modules (afta/pbe, contata) that import them from fta.
 
 
 def _close(o: object, e: object) -> bool:

@@ -60,10 +60,8 @@ Selected with ``--synthesizer cata``.
 
 from __future__ import annotations
 
-import itertools
 import random
 import time
-from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from loguru import logger
@@ -78,7 +76,14 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
-from aeon.synthesis.modules.fta.synthesizer import _safe, _term_size
+from aeon.synthesis.modules.bottom_up import (
+    Component,
+    application,
+    combos,
+    deepen,
+    safe as _safe,
+    term_size as _term_size,
+)
 from aeon.synthesis.modules.lta.polymorphism import (
     collect_type_universe,
     is_polymorphic,
@@ -93,17 +98,11 @@ from aeon.utils.name import Name
 _loc = SynthesizedLocation("cata")
 
 
-@dataclass(frozen=True)
-class Comp:
-    """A component (constraint-annotated transition's label): a head term --
-    ``Var(f)`` for a monomorphic binding or a ``TypeApplication`` nest for an
-    instantiated polymorphic one -- with the base-type keys of its arguments and
-    result. Unlike the first-order ``Component`` shared by ``fta``/``afta``, the
-    head is a full ``Term`` so monomorphised (type-applied) operators qualify."""
-
-    head: Term
-    arg_keys: tuple[str, ...]
-    ret_key: str
+# A CATA component (constraint-annotated transition's label) is the shared
+# bottom-up ``Component``: a head term -- ``Var(f)`` for a monomorphic binding,
+# or a ``TypeApplication`` nest for a monomorphised (type-applied) operator --
+# with the base-type keys of its arguments and result.
+Comp = Component
 
 
 class CATASynthesizer(Synthesizer):
@@ -179,31 +178,14 @@ class CATASynthesizer(Synthesizer):
     def _app_combos(self, comp: Comp, bank: dict[str, list[Term]], deadline: float, rnd: random.Random) -> list[Term]:
         """Application transitions ``comp(q1, ..., qk) -> q``: applications of
         ``comp`` whose arguments are drawn from the current bank per type."""
-        pools: list[list[Term]] = []
-        for ak in comp.arg_keys:
-            pool = bank.get(ak, [])
-            if not pool:
-                return []
-            pools.append(pool)
-        total = 1
-        for p in pools:
-            total *= len(p)
-        out: list[Term] = []
-        if total <= self.combo_cap:
-            for choice in itertools.product(*pools):
-                if time.time() >= deadline:
-                    break
-                term: Term = comp.head
-                for a in choice:
-                    term = Application(term, a)
-                out.append(term)
-        else:
-            for _ in range(self.combo_cap):
-                term = comp.head
-                for p in pools:
-                    term = Application(term, rnd.choice(p))
-                out.append(term)
-        return out
+        return combos(
+            comp,
+            bank,
+            deadline,
+            rnd,
+            self.combo_cap,
+            lambda c, choice: application(c.head, choice),
+        )
 
     def _cond_combos(
         self, bool_pool: list[Term], goal_pool: list[Term], deadline: float, rnd: random.Random
@@ -313,12 +295,7 @@ class CATASynthesizer(Synthesizer):
         # number of rounds: keep deepening until a state is accepted, the budget
         # runs out, or the bank reaches a fixpoint (a full round adds no new
         # terms). ``self.rounds``, when set, caps the depth explicitly.
-        depth = 0
-        while best is None and time.time() < deadline:
-            if self.rounds is not None and depth >= self.rounds:
-                break
-            before = sum(len(v) for v in bank.values())
-            snapshot = {k: list(v) for k, v in bank.items()}
+        def step(snapshot: dict[str, list[Term]]) -> None:
             for comps in builders.values():
                 for comp in comps:
                     if best is not None or time.time() >= deadline:
@@ -330,9 +307,8 @@ class CATASynthesizer(Synthesizer):
                 add_bank(goal_key, conds)
             # created = candidate terms banked; assessed = candidates discharged.
             ui.progress(sum(len(v) for v in bank.values()), validated_count, time.time() - start)
-            depth += 1
-            if sum(len(v) for v in bank.values()) == before:
-                break
+
+        depth = deepen(bank, deadline, self.rounds, lambda: best is not None, step)
 
         if best is not None:
             shape = []
