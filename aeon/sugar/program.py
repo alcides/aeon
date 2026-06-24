@@ -14,23 +14,17 @@ from aeon.utils.location import Location, SynthesizedLocation
 class STerm:
     loc: Location
 
-    def __hash__(self) -> int:
-        return str(self).__hash__()
-
 
 @dataclass(frozen=True)
 class SLiteral(STerm):
     value: object
     type: SType
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __repr__(self):
         if type(self.value) is str:
             return f'"{self.value}"'
         return f"{self.value}".lower()
-
-    def __eq__(self, other):
-        return isinstance(other, SLiteral) and self.value == other.value and self.type == other.type
 
     def __str__(self):
         if self.type == STypeConstructor(Name("String", 0)):
@@ -41,16 +35,13 @@ class SLiteral(STerm):
 @dataclass(frozen=True)
 class SVar(STerm):
     name: Name
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f"{self.name}"
 
     def __repr__(self):
         return f"Var({self.name})"
-
-    def __eq__(self, other):
-        return isinstance(other, SVar) and self.name == other.name
 
 
 @dataclass(frozen=True)
@@ -69,8 +60,8 @@ class SQualifiedVar(STerm):
 @dataclass(frozen=True)
 class SAnnotation(STerm):
     expr: STerm
-    type: SType
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    type: SType = field(compare=False)
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f"({self.expr} : {self.type})"
@@ -78,23 +69,17 @@ class SAnnotation(STerm):
     def __repr__(self):
         return f"({self.expr} : {self.type})"
 
-    def __eq__(self, other):
-        return isinstance(other, SAnnotation) and self.expr == other.expr
-
 
 @dataclass(frozen=True)
 class SHole(STerm):
     name: Name
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f"?{self.name}"
 
     def __repr__(self):
         return f"Hole({self.name})"
-
-    def __eq__(self, other):
-        return isinstance(other, SHole) and self.name == other.name
 
 
 @dataclass(frozen=True)
@@ -111,16 +96,13 @@ class SImplicitRefinementHole(STerm):
     """
 
     name: Name
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f"?ρ{self.name}"
 
     def __repr__(self):
         return f"ImplicitRefinementHole({self.name})"
-
-    def __eq__(self, other):
-        return isinstance(other, SImplicitRefinementHole) and self.name == other.name
 
 
 @dataclass(frozen=True)
@@ -135,16 +117,13 @@ class SInstanceHole(STerm):
     """
 
     class_type: SType
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f"?inst[{self.class_type}]"
 
     def __repr__(self):
         return f"SInstanceHole({self.class_type!r})"
-
-    def __eq__(self, other):
-        return isinstance(other, SInstanceHole) and self.class_type == other.class_type
 
 
 @dataclass(frozen=True)
@@ -156,7 +135,7 @@ class SBy(STerm):
     """
 
     steps: tuple[str, ...]
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return "by " + "; ".join(self.steps)
@@ -164,21 +143,15 @@ class SBy(STerm):
     def __repr__(self):
         return f"SBy({self.steps!r})"
 
-    def __eq__(self, other):
-        return isinstance(other, SBy) and self.steps == other.steps
-
 
 @dataclass(frozen=True)
 class SApplication(STerm):
     fun: STerm
     arg: STerm
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __repr__(self):
         return f"({self.fun} {self.arg})"
-
-    def __eq__(self, other):
-        return isinstance(other, SApplication) and self.fun == other.fun and self.arg == other.arg
 
     def __str__(self):
         return f"({self.fun} {self.arg})"
@@ -188,13 +161,10 @@ class SApplication(STerm):
 class SAbstraction(STerm):
     var_name: Name
     body: STerm
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f"(fun {self.var_name} => {self.body})"
-
-    def __eq__(self, other):
-        return isinstance(other, SAbstraction) and self.var_name == other.var_name and self.body == other.body
 
 
 @dataclass(frozen=True)
@@ -202,21 +172,12 @@ class SLet(STerm):
     var_name: Name
     var_value: STerm
     body: STerm
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
     multiplicity: Multiplicity = MOmega
 
     def __str__(self):
         prefix = "" if self.multiplicity is MOmega else f"{self.multiplicity} "
         return f"(let {prefix}{self.var_name} := {self.var_value} in\n\t{self.body})"
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, SLet)
-            and self.var_name == other.var_name
-            and self.var_value == other.var_value
-            and self.body == other.body
-            and self.multiplicity is other.multiplicity
-        )
 
 
 @dataclass(frozen=True)
@@ -226,13 +187,14 @@ class SRec(STerm):
     var_value: STerm
     body: STerm
     decreasing_by: tuple[STerm, ...] = field(default_factory=tuple)
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
     multiplicity: Multiplicity = MOmega
     # Mutual recursion: the shared group id (``None`` when not mutual) and the
     # signatures of the *other* group members, brought into scope while
     # elaborating/typechecking this binding's value so cross-references resolve.
     mutual_group_id: int | None = None
-    companions: tuple[tuple[Name, SType], ...] = field(default_factory=tuple)
+    # ``companions`` is scope-only metadata, excluded from equality (as before).
+    companions: tuple[tuple[Name, SType], ...] = field(default_factory=tuple, compare=False)
 
     def __repr__(self):
         return str(self)
@@ -247,51 +209,28 @@ class SRec(STerm):
             self.body,
         )
 
-    def __eq__(self, other):
-        return (
-            isinstance(other, SRec)
-            and self.var_name == other.var_name
-            and self.var_type == other.var_type
-            and self.var_value == other.var_value
-            and self.body == other.body
-            and self.decreasing_by == other.decreasing_by
-            and self.multiplicity is other.multiplicity
-            and self.mutual_group_id == other.mutual_group_id
-        )
-
 
 @dataclass(frozen=True)
 class SIf(STerm):
     cond: STerm
     then: STerm
     otherwise: STerm
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f"(if {self.cond} then {self.then} else {self.otherwise})"
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, SIf)
-            and self.cond == other.cond
-            and self.then == other.then
-            and self.otherwise == other.otherwise
-        )
 
 
 @dataclass(frozen=True)
 class SAnonConstructor(STerm):
     name: str
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f".{self.name}"
 
     def __repr__(self):
         return f"AnonCtor(.{self.name})"
-
-    def __eq__(self, other):
-        return isinstance(other, SAnonConstructor) and self.name == other.name
 
 
 @dataclass(frozen=True)
@@ -311,16 +250,13 @@ class SMethodSelector(STerm):
     """
 
     method: Name
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
 
     def __str__(self):
         return f".{self.method}"
 
     def __repr__(self):
         return f"MethodSelector(.{self.method})"
-
-    def __eq__(self, other):
-        return isinstance(other, SMethodSelector) and self.method == other.method
 
 
 @dataclass(frozen=True)
