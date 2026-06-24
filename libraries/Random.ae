@@ -1,24 +1,82 @@
+# Linear pseudo-random generators (issue #441).
+#
+# Modelling `random.random()` as a pure `Unit -> {r:Float | 0.0 <= r < 1.0}`
+# is unsound: the refinement logic treats it as referentially transparent,
+# so two draws look *equal* to the SMT solver and a single draw can be
+# silently shared. Purity is a precondition for the refinement logic to be
+# sound, so an impure value with a refinement is a hole.
+#
+# Here randomness is threaded through an explicit generator used at
+# multiplicity 1. Every draw consumes its generator and produces a result
+# carrying both the sample and a *successor* generator; the successor
+# re-enters the linear discipline when bound to a `let 1`. A value can never
+# be drawn twice from the same generator, and the logic never sees a draw as
+# a pure function.
+#
+# The numeric draws expose the sample through a refined projection (so the
+# bound survives and composes into proofs), e.g. two dice provably sum to
+# [2, 12]:
+#
+#     def two_dice (seed: Int) : {s:Int | s >= 2 && s <= 12} :=
+#         let 1 g0 := new_rng seed in
+#         let d1   := draw_int 1 6 g0 in
+#         let a    := int_value 1 6 d1 in     # a : {r:Int | 1 <= r <= 6}
+#         let 1 g1 := int_next d1 in
+#         let d2   := draw_int 1 6 g1 in
+#         let b    := int_value 1 6 d2 in
+#         let 1 g2 := int_next d2 in
+#         let _ : Unit := close_rng g2 in
+#         a + b
+#
+# `choice`, being polymorphic in the element type, uses a continuation
+# instead of a projection (no numeric refinement to preserve).
+
 open Array
 
-def random : Unit := native_import "random"
+# An opaque pseudo-random generator (a Python `random.Random` at runtime),
+# used linearly: every draw consumes it and produces a fresh successor.
+type Rng
 
-# Seeds the random number generator.
-def seed (seed: Int) : Unit := native "random.seed(seed)"
+# Results of a draw: the sample paired with the successor generator. These
+# are ordinary (non-linear) values — the generator re-enters the linear
+# discipline when the `*_next` projection is bound to a `let 1`.
+type Draw
+type IntDraw
+type RangeDraw
 
-# Returns a random integer N such that a <= N <= b.
-def randint (a: Int) (b: Int) : {r:Int | r >= a && r <= b} := native "random.randint(a, b)"
+# A fresh generator seeded deterministically. The `Int` argument makes this
+# an *applied* action, so each call yields a new generator — a nullary `def`
+# would be a memoised value, aliasing one generator everywhere.
+def new_rng (seed: Int) : Rng := native "__import__('random').Random(seed)"
 
-# Returns a random float in the range [0.0, 1.0). Thunked to defer evaluation.
-def random (_: Unit) : {r:Float | r >= 0.0 && r < 1.0} := native "random.random()";
+# ── Float draw in [0.0, 1.0) ────────────────────────────────────────────
+def draw (1 g: Rng) : Draw := native "(g.random(), g)"
+def draw_value (d: Draw) : {r: Float | r >= 0.0 && r < 1.0} := native "d[0]"
+def draw_next (d: Draw) : Rng := native "d[1]"
 
-# Returns a random float N such that a <= N < b.
-def uniform (a: Float) (b: Float) : {r:Float | r >= a && r < b} := native "random.uniform(a, b)"
+# ── Integer draw in [lo, hi] ────────────────────────────────────────────
+# The bounds are repeated on the projection so the refinement survives the
+# opaque `IntDraw`.
+def draw_int (lo: Int) (hi: {y: Int | y >= lo}) (1 g: Rng) : IntDraw :=
+    native "(g.randint(lo, hi), g)"
+def int_value (lo: Int) (hi: {y: Int | y >= lo}) (d: IntDraw) : {r: Int | r >= lo && r <= hi} :=
+    native "d[0]"
+def int_next (d: IntDraw) : Rng := native "d[1]"
 
-# Returns a random element from a non-empty list.
-def choice (xs: {l: (Array a) | Array.size l > 0}) : a := native "random.choice(xs)"
+# ── Float draw in [lo, hi) ──────────────────────────────────────────────
+def draw_range (lo: Float) (hi: {y: Float | y > lo}) (1 g: Rng) : RangeDraw :=
+    native "(g.uniform(lo, hi), g)"
+def range_value (lo: Float) (hi: {y: Float | y > lo}) (d: RangeDraw) : {r: Float | r >= lo && r < hi} :=
+    native "d[0]"
+def range_next (d: RangeDraw) : Rng := native "d[1]"
 
-# Shuffles a list in place.
-def shuffle (xs: (Array a)) : Unit := native "random.shuffle(xs)"
+# ── Uniform choice from a non-empty array (polymorphic) ─────────────────
+# Consume `g`, pass the chosen element and successor generator to `k`; `k`
+# must consume its generator in turn.
+def with_choice (xs: {l: (Array a) | Array.size l > 0}) (1 g: Rng)
+    (k: (x: a) -> (1 g2: Rng) -> b) : b :=
+    native "k(g.choice(xs))(g)"
 
-# Returns a k length list of unique elements chosen from the population sequence.
-def sample (k: Int) (xs: {l: (Array a) | Array.size l >= k}) : {l: (Array a) | Array.size l = k} := native "random.sample(xs, k)"
+# End a draw chain: consume the generator, returning Unit so it can never be
+# used again (it has nowhere to go).
+def close_rng (1 g: Rng) : Unit := native "None"
