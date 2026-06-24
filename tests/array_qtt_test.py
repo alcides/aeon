@@ -148,4 +148,3 @@ def main (args: Int) : Unit := print "ok";
     # refinement cannot be proved through the opaque projection.
     assert _linearity_errors(src) == []
     assert _parse(src) != []
-
