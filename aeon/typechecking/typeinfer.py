@@ -591,9 +591,9 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             ctx_inner = ctx
             for bn, bt in fun_binders:
                 ctx_inner = ctx_inner.with_var(bn, bt)
-            outer_binders: tuple[tuple[Name, Type], ...] = fun_binders
             match ty:
                 case AbstractionType(aname, atype, rtype):
+                    outer_binders: tuple[tuple[Name, Type], ...] = fun_binders
                     cp = check(ctx_inner, arg, atype)
                     # Abstractions can't be synthesised on their own (no
                     # annotation), and Var/Literal liquefy directly. In all
