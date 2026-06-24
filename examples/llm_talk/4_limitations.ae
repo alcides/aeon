@@ -1,0 +1,29 @@
+# ============================================================
+# 4. THE LIMITS:  a refinement only checks what you actually wrote
+# ============================================================
+#
+# Refinements are not magic. Two honest boundaries to put on a slide:
+#
+# (A) THE SPEC IS ONLY AS STRONG AS YOU MAKE IT.
+#     This `max` is BUGGY — the else branch returns `a`, never `b`. Yet it
+#     type-checks, because the postcondition `r >= a` is too weak: returning
+#     `a` always satisfies it. A weak refinement rubber-stamps wrong code,
+#     exactly the failure mode of an LLM that writes its own loose spec.
+def max_weak (a:Int) (b:Int) : {r:Int | r >= a} :=
+    if a > b then a else a;   # bug: should be `b`
+
+# Strengthen the type — "the result is >= both AND is one of them" — and the
+# SAME buggy body is now rejected. The proof obligation (a >= b) when a <= b
+# is unprovable. The lesson: writing the right specification is the hard part;
+# the solver only enforces it.
+#   def max (a:Int) (b:Int) : {r:Int | r >= a && r >= b && (r = a || r = b)} :=
+#       if a > b then a else a;     # <-- uncomment: TYPE ERROR
+
+# (B) THE LOGIC IS DECIDABLE, SO IT IS A FRAGMENT.
+#     Predicates live in a decidable theory (linear/some nonlinear integer &
+#     real arithmetic, booleans, equality) that Z3 can decide. You cannot drop
+#     an arbitrary recursive or higher-order function into a refinement and
+#     expect a decision. Push too far and the solver times out or gives up —
+#     even when the claim is true. Expressiveness is traded for automation.
+
+def main (_:Int) : Unit := print (max_weak 2 9)   # prints 2 — the bug, well-typed

@@ -1,0 +1,26 @@
+# ============================================================
+# 7. THE FLIP:  if the type is a spec, the compiler can write the code
+# ============================================================
+#
+# A refinement type says WHAT, not HOW. Once the "what" is precise enough, the
+# "how" can be searched for automatically. We replace the body with a hole `?`
+# and let synthesis fill it so that the refinement is satisfied.
+#
+# `?hole` here must be an Int that is > 100, < 110, and divisible by 7.
+# There is exactly one such value, and the SMT-backed search finds it: 105.
+#   uv run python -m aeon -s synquid examples/llm_talk/7_synthesis.ae
+
+def secret : {v:Int | v > 100 && v < 110 && v % 7 = 0} := ?hole;
+
+# Synthesis also writes FUNCTION bodies from a refined signature. The type
+# `{j:Int | j = i + i}` fully pins the behaviour, and the search returns `i + i`
+# — no examples, no tests, just the specification.
+def dbl (i:Int) : {j:Int | j = i + i} := ?body;
+
+def main (_:Int) : Unit := print (dbl secret)
+
+# This is program synthesis driven by types. The same machinery that REJECTED
+# wrong code in examples 2-6 now GENERATES correct code: verification run
+# backwards. Note the asymmetry with an LLM — synthesis here cannot be wrong.
+# Anything it returns provably meets the spec, because it had to pass the
+# checker to be returned at all.

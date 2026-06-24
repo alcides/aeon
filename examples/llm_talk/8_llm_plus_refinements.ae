@@ -1,0 +1,44 @@
+# ============================================================
+# 8. THE SYNTHESIS:  LLM proposes, refinement type disposes
+# ============================================================
+#
+# This is the thesis of the talk. An LLM is a fast, fluent, UNSOUND generator:
+# it produces plausible code, sometimes wrong. A refinement type is a slow,
+# precise, SOUND judge: it accepts only code proven to meet the spec.
+#
+# Put them together. The `@prompt` decorator feeds a natural-language intent to
+# an LLM; the refinement type is the contract the LLM's answer MUST satisfy.
+#
+#   uv run python -m aeon -s llm examples/llm_talk/8_llm_plus_refinements.ae
+#
+# The LLM is asked: "an HTTP error code for 'not found', plus 200". It might
+# answer 404, 604, "not_found", or nonsense. The refinement `v >= 100 && v <= 599`
+# rejects everything outside the valid HTTP range BEFORE it ever runs.
+
+@prompt("HTTP Error code for not found, plus 200")
+def http_code : {v:Int | v >= 100 && v <= 599} := ?hole;
+
+def main (_:Int) : Unit := print http_code
+
+# ------------------------------------------------------------------------
+# Why this is the right architecture for the LLM world:
+#
+#   aeon/synthesis/modules/llm/__init__.py  line 93:
+#
+#       if validate(core_tterm):       # <-- the type system is the gate
+#           ...return it...
+#       else:
+#           ...reject, raise temperature, ask the LLM again...
+#
+# The LLM never gets the last word. Every candidate it emits is parsed and run
+# through the SAME refinement-type checker from examples 2-4. Hallucinations
+# are filtered structurally, not hoped away. Generation gets the LLM's speed
+# and breadth; correctness gets the type system's guarantees.
+#
+#   refinements        = the machine-checkable contract / prompt
+#   verification       = reject the LLM's wrong answers (soundness)
+#   synthesis          = let the proposer (search OR LLM) fill the hole
+#
+# Types stop being documentation. In the LLM world they become the interface
+# between what we can say we want and what a stochastic model gives us.
+# ------------------------------------------------------------------------

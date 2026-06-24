@@ -1,0 +1,25 @@
+# ============================================================
+# 3. THE POWER:  the return type becomes a machine-checked spec
+# ============================================================
+#
+# Refinements aren't only preconditions on inputs. A refinement on the RESULT
+# is a postcondition — a specification the implementation must satisfy. The
+# checker proves the body lives up to its advertised type, for ALL inputs.
+#
+# `abs` claims to return a non-negative number AND one with the same magnitude.
+# Z3 checks both branches against that claim. If the body were `x` (forgetting
+# the negation), the proof would fail — the spec catches the bug.
+
+def abs (x:Int) : {y:Int | y >= 0 && (y = x || y = 0 - x)} :=
+    if x >= 0 then x else 0 - x;
+
+# A non-trivial proof: with non-negative weights, a ReLU layer is MONOTONE.
+# The dependent type on `xp` carries the hypothesis (xp >= x); the result type
+# carries the conclusion (output difference >= 0). No NN test suite — a proof.
+def relu (x:Float) : {y:Float | y >= 0.0 && y >= x && (y = x || y = 0.0)} :=
+    if x >= 0.0 then x else 0.0;
+
+def monotone (x:Float) (xp:{v:Float | v >= x}) : {d:Float | d >= 0.0} :=
+    relu (2.0 * xp + 1.0) - relu (2.0 * x + 1.0);
+
+def main (_:Int) : Unit := print (monotone 1.0 3.0)

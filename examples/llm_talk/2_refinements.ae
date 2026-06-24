@@ -1,0 +1,27 @@
+# ============================================================
+# 2. THE IDEA:  refinement types = types that carry a logical claim
+# ============================================================
+#
+# A refinement type is `{ x : Base | predicate }` — "a Base, but only those
+# values for which the predicate holds". The predicate is ordinary logic the
+# compiler hands to an SMT solver (Z3) to discharge.
+#
+# Watch a real precondition appear. This `average` divides by `count`. In Aeon
+# the `/` operator is ITSELF refined: its divisor must be provably non-zero.
+# So the naive `count : Int` version below does NOT compile —
+#
+#     def average (total:Int) (count:Int) : Int := total / count;
+#         >>> Failed to prove  (count != 0)
+#
+# The fix is to state the precondition in the type. Now `count` is not just an
+# Int; it is an Int that CANNOT be zero, and the division is justified.
+
+def average (total:Int) (count:{x:Int | x != 0}) : Int := total / count;
+
+# This call is fine: 2 satisfies (x != 0), proved before the program runs.
+def main (_:Int) : Unit := print (average 10 2)
+
+# Change the call to `average 10 0` and re-run. No test executes; the compiler
+# refuses up front with a proof obligation it cannot discharge:
+#     Failed to prove  (0 == 0) ===> (0 != 0)
+# The division-by-zero is impossible by construction, not caught at runtime.

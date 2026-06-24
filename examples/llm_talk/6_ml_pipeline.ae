@@ -1,0 +1,45 @@
+# ============================================================
+# 6. IN THE WILD (ML pipelines):  refinements as data contracts
+# ============================================================
+#
+# ML pipelines fail silently: an unnormalized feature, a probability that isn't
+# one, a train/test split that leaks. None of these are type errors in NumPy —
+# they are wrong numbers that flow downstream and quietly wreck a model.
+# Refinements turn each pipeline invariant into a checked contract between stages.
+
+# (a) FEATURE SCALING.  Min-max normalization must land in [0, 1]. The input
+#     refinement says the raw value is within [lo, hi]; the result refinement is
+#     the post-condition every downstream layer relies on. Proven, not asserted.
+def normalize (lo:Float) (hi:{h:Float | h > lo}) (x:{v:Float | lo <= v && v <= hi}) : {y:Float | 0.0 <= y && y <= 1.0} :=
+    (x - lo) / (hi - lo);
+
+# (b) PROBABILITIES STAY PROBABILITIES.  A model head emits values that must be
+#     in [0, 1]. Combining two independent probabilities multiplies them — and
+#     the checker PROVES the product is still a valid probability (nonlinear:
+#     0<=p<=1 and 0<=q<=1 imply 0<=p*q<=1). Invariants survive composition.
+def joint_prob (p:{x:Float | 0.0 <= x && x <= 1.0}) (q:{y:Float | 0.0 <= y && y <= 1.0}) : {r:Float | 0.0 <= r && r <= 1.0} :=
+    p * q;
+
+# (c) HYPERPARAMETER PRECONDITION.  A learning rate outside (0, 1) silently
+#     diverges or freezes training. The contract lives in the type of the
+#     argument, so `step 1.5 ...` or `step 0.0 ...` never type-checks.
+def step (lr:{r:Float | r > 0.0 && r < 1.0}) (grad:Float) (w:Float) : Float :=
+    w - lr * grad;
+
+# (d) NO DATA LEAKAGE.  A train/test split must be disjoint and exhaustive:
+#     train + test = n, both non-empty. The result type pins `test = n - train`,
+#     so an overlapping or oversized split (e.g. train = n) is a TYPE ERROR —
+#     the classic leakage bug caught structurally instead of by a corrupted score.
+def test_size (n:{x:Int | x > 0}) (train:{t:Int | t > 0 && t < n}) : {test:Int | test > 0 && test = n - train} :=
+    n - train;
+
+def main (_:Int) : Unit :=
+    let _ := print (normalize 0.0 255.0 128.0) in    # pixel 128/255 -> ~0.50
+    let _ := print (joint_prob 0.5 0.5) in           # 0.25, still a probability
+    let _ := print (step 0.1 2.0 1.0) in             # one valid SGD step -> 0.8
+    print (test_size 100 80)                         # 80 train -> 20 test, no leak
+
+# Break any contract and the pipeline refuses to compile:
+#   normalize 0.0 255.0 300.0   (feature out of declared range)
+#   step 1.5 2.0 1.0            (learning rate >= 1)
+#   test_size 100 100          (train = n: empty test set / leakage)

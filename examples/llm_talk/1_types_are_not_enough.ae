@@ -1,0 +1,19 @@
+# ============================================================
+# 1. THE PROBLEM:  ordinary types are too coarse
+# ============================================================
+#
+# An LLM writes this `max`. It type-checks in any mainstream language and in
+# Aeon too: two Ints in, one Int out. The signature is *true* and *useless* —
+# `Int -> Int -> Int` says nothing about which Int comes out.
+#
+# The body is BUGGY: the else branch returns `a`, never `b`. So `max 2 9` is 9?
+# No — it returns 2. A wrong answer, fully well-typed, ships silently.
+#
+# This is the gap LLM-generated code lives in: plausible, well-typed, wrong.
+# A classical type checker has no vocabulary to express "the result is the
+# larger of the two", so it cannot notice the bug.
+
+def max (a:Int) (b:Int) : Int :=
+    if a > b then a else a;     # bug: the else branch should return `b`
+
+def main (_:Int) : Unit := print (max 2 9)   # prints 2, not 9 — and types are happy

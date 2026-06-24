@@ -1,0 +1,47 @@
+# ============================================================
+# 5. IN THE WILD (robotics):  refinements as a robot-safety contract
+# ============================================================
+#
+# Adapted from ROSpec [Canelas, Schmerl, Fonseca & Timperley, OOPSLA 2025], a
+# DSL that puts liquid types on ROS component configurations. The paper's
+# motivating bug (Fig. 1): a driver PUBLISHES colour (RGB) images while the
+# detector SUBSCRIBES expecting GRAYSCALE — a silent misconfiguration that
+# strips the robot's ability to avoid obstacles. Below, the type system makes
+# these robot-safety properties checkable, the way ROSpec does for ROS.
+
+# (a) PARAMETER BOUND.  ROSpec Listing 1:  max_acceleration: double where {_ >= 0}.
+#     A negative acceleration limit would let the joint start moving BACKWARD
+#     while performing an operation. The refinement forbids it at config time.
+def scale_accel (a:{x:Float | x >= 0.0}) (gain:{g:Float | g >= 0.0}) : {r:Float | r >= 0.0} :=
+    a * gain;
+
+# (b) ACTUATOR SAFETY.  A commanded velocity must stay within the robot's
+#     rated envelope. The RESULT type proves every output lands in [-vmax, vmax]
+#     — the motor can never be handed an out-of-range command.
+def clamp_velocity (vmax:{m:Float | m > 0.0}) (v:Float) : {r:Float | 0.0 - vmax <= r && r <= vmax} :=
+    if v > vmax then vmax
+    else if v < 0.0 - vmax then 0.0 - vmax
+    else v;
+
+# (c) PRECONDITION (collision avoidance).  Forward motion is only well-typed
+#     when the measured clearance exceeds the safety margin. The Fig. 1 detector
+#     exists precisely to supply this `clearance`; here the type DEMANDS it.
+def safety_margin : {m:Float | m = 0.5} := 0.5;
+def move_forward (clearance:{d:Float | d > safety_margin}) (v:{x:Float | x > 0.0}) : Unit :=
+    print "advancing";
+
+# (d) INTEGRATION (the Fig. 1 bug itself).  A publisher/subscriber link is only
+#     well-typed when image encodings agree. grayscale = 1 channel, rgb = 3.
+#     `connect 3 1` (publish RGB, expect grayscale) is a TYPE ERROR — the exact
+#     misconfiguration ROSpec was built to catch, caught before deployment.
+def connect_image (pub_channels:Int) (sub_channels:{c:Int | c = pub_channels}) : Unit :=
+    print "topics linked";
+
+def main (_:Int) : Unit :=
+    let _ := move_forward 1.2 0.3 in         # 1.2m clearance > 0.5m margin, forward 0.3: OK
+    let _ := connect_image 1 1 in            # grayscale ↔ grayscale: OK
+    let _ := print (scale_accel 2.0 3.0) in  # non-negative accel: 6.0
+    print (clamp_velocity 1.0 5.0)           # 5.0 clamped to the 1.0 limit -> 1.0
+
+# Try `connect_image 3 1` (RGB publisher, grayscale subscriber) or drop the
+# clearance to `move_forward 0.3 v` — both are rejected at compile time.
