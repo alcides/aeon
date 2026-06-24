@@ -793,6 +793,55 @@ def smt_valid(constraint: Constraint) -> bool:
     return True
 
 
+# Superscript digits encode binder ids in variable names (e.g. ``x¹¹``); strip
+# them so a counterexample reads source-like.
+_STRIP_SUPERSCRIPTS = str.maketrans("", "", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def model_for_invalid(constraint: Constraint) -> list[tuple[str, str]] | None:
+    """When ``constraint`` is *invalid*, return a witnessing counterexample as
+    a list of ``(variable, value)`` pairs from Z3's model for the first
+    falsifiable conjunct. Returns ``None`` if the constraint is actually valid
+    or no concrete model is available (issue #439).
+
+    Used only to enrich an already-emitted failure message, so re-solving here
+    is off the hot path."""
+    translate_memo: dict[int, tuple[LiquidTerm, Any]] = {}
+    for c in flatten(constraint):
+        s.push()
+        try:
+            try:
+                smt_c = translate(c, translate_memo)
+            except ZeroDivisionError:
+                continue
+            if smt_c is False:
+                continue
+            s.add(smt_c)
+            if s.check() == sat:
+                model = s.model()
+                # Arity-0 declarations are the free constants standing for the
+                # VC's universally-quantified binders — i.e. the inputs that
+                # falsify it. Function interpretations are not shown.
+                return [(d.name(), str(model[d])) for d in model.decls() if d.arity() == 0]
+        finally:
+            s.pop()
+    return None
+
+
+def render_counterexample(constraint: Constraint, limit: int = 8) -> str | None:
+    """Render the counterexample for an invalid ``constraint`` as a compact
+    ``name = value, ...`` string (binder ids stripped), or ``None`` when no
+    concrete witness is available."""
+    pairs = model_for_invalid(constraint)
+    if not pairs:
+        return None
+    shown = sorted((name.translate(_STRIP_SUPERSCRIPTS), value) for name, value in pairs)
+    body = ", ".join(f"{name} = {value}" for name, value in shown[:limit])
+    if len(shown) > limit:
+        body += ", …"
+    return body or None
+
+
 def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
     for na, ref in reversed(variables):
         if na == name:

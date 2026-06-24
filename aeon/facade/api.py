@@ -169,7 +169,27 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     loc: Location | None = None
 
     def __str__(self) -> str:
-        return f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
+        base = f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
+        cex = self.counterexample()
+        if cex is not None:
+            base += f"\n    counterexample: {cex}"
+        return base
+
+    def counterexample(self) -> str | None:
+        """A concrete assignment that falsifies this verification condition,
+        rendered as ``name = value, ...`` (issue #439). Computed lazily and
+        memoised; ``None`` when no concrete witness is available."""
+        cached = getattr(self, "_counterexample", "unset")
+        if cached != "unset":
+            return cached
+        try:
+            from aeon.verification.smt import render_counterexample
+
+            value = render_counterexample(self.vc)
+        except Exception:
+            value = None
+        self._counterexample = value
+        return value
 
     def position(self) -> Location:
         return self.loc if self.loc is not None else self.term.loc
