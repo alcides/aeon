@@ -93,10 +93,6 @@ def simplify_is_true(c: Constraint):
             return False
 
 
-def is_whitespace(s: str) -> bool:
-    return all(x in ["\t\n "] for x in s)
-
-
 def flatten_conjunctions(c: Conjunction) -> list[Constraint]:
     queue = [c.c1, c.c2]
     conjunctions = []
