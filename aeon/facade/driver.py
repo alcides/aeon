@@ -128,6 +128,15 @@ class AeonDriver:
         with RecordTime("Evaluation"):
             return eval(self.core, self.evaluation_ctx)
 
+    def trust_report(self, filename: str | None = None, for_func: str | None = None) -> str:
+        """Render the program's trusted computing base — the axioms and refined
+        ``native`` bindings its guarantees rest on (issue #442). Requires a
+        prior successful :meth:`parse`."""
+        from aeon.facade.trust import compute_trust_report, render_report
+
+        report = compute_trust_report(self.core, filename=filename, for_func=for_func)
+        return render_report(report)
+
     def export(self, fun_name: str) -> str:
         """Return a stand-alone, pure-Python definition of ``fun_name``.
 

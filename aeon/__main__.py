@@ -147,6 +147,20 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument(
+        "--trust-report",
+        action="store_true",
+        help="Print the trusted computing base: the axioms and refined `native` bindings the program's guarantees rest on (none of which the type checker verifies).",
+    )
+
+    parser.add_argument(
+        "--trust-for",
+        type=str,
+        default=None,
+        metavar="FUN_NAME",
+        help="Restrict --trust-report to the trusted assumptions transitively reachable from FUN_NAME.",
+    )
+
+    parser.add_argument(
         "--doc",
         action="store_true",
         help="Generate HTML documentation from the source file",
@@ -274,6 +288,8 @@ def main() -> None:
     errors = driver.parse(args.filename)
 
     match errors:
+        case [] if getattr(args, "trust_report", False) or getattr(args, "trust_for", None):
+            print(driver.trust_report(filename=args.filename, for_func=args.trust_for))
         case [] if args.export:
             from aeon.backend.python_export import PythonExportError
 

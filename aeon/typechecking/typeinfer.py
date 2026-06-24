@@ -138,6 +138,36 @@ def _erase_return_refinement(ty: Type) -> Type:
     return ty
 
 
+_TRUSTED_NATIVE_HEADS = frozenset({"native", "native_import", "uninterpreted"})
+
+
+def _is_trusted_native_value(t: Term) -> bool:
+    """Whether a binding's value is a ``native``/``uninterpreted`` builtin.
+
+    Such a definition is *trusted*: its declared type is an axiom (no body is
+    checked), so the return refinement may be assumed at every call site
+    (issue #378). Peels the abstraction/annotation wrappers a def body carries,
+    then the application/type-application spine down to the head variable.
+    """
+    while True:
+        match t:
+            case Abstraction(_, body, _) | TypeAbstraction(_, _, body, _) | RefinementAbstraction(_, _, body, _):
+                t = body
+            case Annotation(expr, _, _):
+                t = expr
+            case _:
+                break
+    while True:
+        match t:
+            case Application(fun, _, _):
+                t = fun
+            case TypeApplication(body, _, _) | RefinementApplication(body, _, _):
+                t = body
+            case _:
+                break
+    return isinstance(t, Var) and t.name.name in _TRUSTED_NATIVE_HEADS
+
+
 def _reflected_impl_for(
     name: Name,
     ty: Type,
@@ -690,10 +720,17 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 var_value,
                 has_termination_metric=has_metric,
             )
-            c1 = implication_constraint(var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl)
-            c2 = implication_constraint(var_name, var_type, c2, body.loc, reflected_impl=reflected_impl)
+            keep_refs = _is_trusted_native_value(var_value)
+            c1 = implication_constraint(
+                var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+            )
+            c2 = implication_constraint(
+                var_name, var_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+            )
             term_c = termination_metric_constraints(t, term_ctx)
-            term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl)
+            term_c = implication_constraint(
+                var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+            )
             # Declare mutually-recursive siblings so calls to them inside this
             # member's value (e.g. selfified applications ``v == odd (n - 1)``)
             # translate. When the whole group is well-founded and a sibling's
@@ -706,7 +743,10 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     if (group_has_metric and comp.value is not None)
                     else None
                 )
-                c1 = implication_constraint(comp.name, comp.type, c1, var_value.loc, reflected_impl=comp_reflected)
+                comp_keep = comp.value is not None and _is_trusted_native_value(comp.value)
+                c1 = implication_constraint(
+                    comp.name, comp.type, c1, var_value.loc, reflected_impl=comp_reflected, keep_refinements=comp_keep
+                )
             # Form B introduction: if the body's type still mentions `var_name`,
             # wrap it in an existential so the scope leak is preserved as a
             # binder when the type flows outward.
@@ -1082,10 +1122,17 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 var_value,
                 has_termination_metric=has_metric,
             )
-            c1 = implication_constraint(var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl)
-            c2 = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
+            keep_refs = _is_trusted_native_value(var_value)
+            c1 = implication_constraint(
+                var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+            )
+            c2 = implication_constraint(
+                var_name, t1, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+            )
             term_c = termination_metric_constraints(t, term_ctx)
-            term_c = implication_constraint(var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl)
+            term_c = implication_constraint(
+                var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+            )
             # Declare mutually-recursive siblings so calls to them inside this
             # member's value translate (selfified applications such as
             # ``v == odd (n - 1)``). Reflect a sibling's definition when the group
@@ -1097,7 +1144,10 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                     if (group_has_metric and comp.value is not None)
                     else None
                 )
-                c1 = implication_constraint(cname, ctype, c1, var_value.loc, reflected_impl=comp_reflected)
+                comp_keep = comp.value is not None and _is_trusted_native_value(comp.value)
+                c1 = implication_constraint(
+                    cname, ctype, c1, var_value.loc, reflected_impl=comp_reflected, keep_refinements=comp_keep
+                )
             return Conjunction(Conjunction(c1, c2), term_c)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
