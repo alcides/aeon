@@ -510,6 +510,126 @@ def _ctx_with_curried_formals(ctx: SMTContext, fun_ty: AbstractionType) -> SMTCo
     return out
 
 
+def _collect_liquid_apps(t: LiquidTerm, acc: list[LiquidApp]) -> None:
+    """Gather every ``LiquidApp`` node (including nested ones) in ``t``."""
+    if isinstance(t, LiquidApp):
+        acc.append(t)
+        for a in t.args:
+            _collect_liquid_apps(a, acc)
+
+
+def _refined_return_contract(app: LiquidApp, fun_ty: AbstractionType) -> LiquidTerm | None:
+    r"""Instantiate the declared return refinement of ``app.fun`` at this call site.
+
+    A declared function is encoded as a *bare uninterpreted* SMT symbol, so the
+    postcondition stated by its return refinement never reaches the solver — a
+    recursive call decreasing through a native helper (e.g. floor division,
+    issue #378) cannot be proven no matter how precisely the helper is
+    specified. Given ``f : (x1:T1) -> ... -> (xn:Tn) -> {r:B | post}`` and a call
+    ``f(a1, ..., an)``, this returns the call's contract
+
+    ``(pre1 /\ ... /\ pren) --> post[xi := ai, r := f(a1..an)]``
+
+    where ``prek`` is ``Tk``'s refinement opened at ``ak``. The guard keeps the
+    instantiation sound even where the precondition is not met: a native is
+    trusted only over its declared domain, and a verified definition's body was
+    only checked to satisfy ``post`` under its preconditions. Returns ``None``
+    when the return type is unrefined (no fact to add), the arity mismatches, or
+    the refinement is trivially ``true``.
+    """
+    formals: list[Name] = []
+    var_types: list[Type] = []
+    cur: Type = fun_ty
+    while isinstance(cur, AbstractionType):
+        formals.append(cur.var_name)
+        var_types.append(cur.var_type)
+        cur = cur.type
+    if not isinstance(cur, RefinedType) or len(formals) != len(app.args):
+        return None
+
+    def open_formals(liq: LiquidTerm) -> LiquidTerm:
+        for fname, arg in zip(formals, app.args):
+            liq = substitution_in_liquid(liq, arg, fname)
+        return liq
+
+    # Postcondition: bind the result variable to the application itself, then
+    # replace each formal with its actual argument.
+    post = open_formals(substitution_in_liquid(cur.refinement, app, cur.name))
+    # ``true`` adds nothing; ``false`` is the bottom contract of the polymorphic
+    # ``native``/``uninterpreted`` builtins (``{x:a | false}``) — assuming it
+    # would make every obligation vacuously provable, so never inject it.
+    if post == LiquidLiteralBool(True) or post == LiquidLiteralBool(False):
+        return None
+
+    # Preconditions: each refined parameter type, opened at its argument (earlier
+    # formals may appear in later types, so substitute them all).
+    pres: list[LiquidTerm] = []
+    for vt, arg in zip(var_types, app.args):
+        if isinstance(vt, RefinedType):
+            pre = open_formals(substitution_in_liquid(vt.refinement, arg, vt.name))
+            if pre != LiquidLiteralBool(True):
+                pres.append(pre)
+    if not pres:
+        return post
+    guard = pres[0]
+    for p in pres[1:]:
+        guard = mk_liquid_and(guard, p)
+    return LiquidApp(Name("-->", 0), [guard, post])
+
+
+def _contract_well_scoped(t: LiquidTerm, ctx: SMTContext) -> bool:
+    """Whether every symbol in ``t`` is declared at this SMT leaf.
+
+    A kept refinement may mention symbols not in scope at a given call site —
+    e.g. a refinement-polymorphism predicate bound where the function was
+    declared. Injecting such a contract would make ``translate`` fail on an
+    undeclared symbol. Operators (non-alphanumeric heads) are handled directly
+    by ``translate_liq``; any other applied head must be a declared function (or
+    a built-in), and every free variable must be a bound scalar.
+    """
+    if isinstance(t, LiquidVar):
+        return str(t.name) in ctx.variables
+    if isinstance(t, LiquidApp):
+        is_operator = all(not c.isalnum() and c != "_" for c in t.fun.name)
+        if not (is_operator or str(t.fun) in ctx.functions or t.fun.name in base_functions):
+            return False
+        return all(_contract_well_scoped(a, ctx) for a in t.args)
+    return True
+
+
+def _refined_return_contracts(expr: LiquidTerm, ctx: SMTContext) -> list[LiquidTerm]:
+    """Per-call-site return-refinement contracts for every declared function
+    applied in ``expr`` or in the accumulated premises (issue #378)."""
+    apps: list[LiquidApp] = []
+    _collect_liquid_apps(expr, apps)
+    for p in ctx.premises:
+        _collect_liquid_apps(p, apps)
+    contracts: list[LiquidTerm] = []
+    seen: set[str] = set()
+    for app in apps:
+        fname = str(app.fun)
+        # Reflected functions already contribute their body equation
+        # (``f(args) == body``). Assuming their declared postcondition on top of
+        # it is circular: while checking ``f``'s own body against that postcondition
+        # the two combine into a contradiction (issue #378 regression). The
+        # postcondition is only an axiom for *uninterpreted* (native/trusted)
+        # symbols, whose body the solver never sees.
+        if fname in ctx.reflected_functions:
+            continue
+        fun_ty = ctx.functions.get(fname)
+        if not isinstance(fun_ty, AbstractionType):
+            continue
+        contract = _refined_return_contract(app, fun_ty)
+        if contract is None or not _contract_well_scoped(contract, ctx):
+            continue
+        key = repr(contract)
+        if key in seen:
+            continue
+        seen.add(key)
+        contracts.append(contract)
+    return contracts
+
+
 @dataclass(init=False)
 class CanonicConstraint:
     """Represents SMT-valid constraints."""
@@ -565,7 +685,11 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             nfunctions = ctx.functions
             nref = ctx.reflected_functions
             sprem: list[LiquidTerm] = []
-            for p in ctx.premises:
+            # Each declared function applied here contributes its return-refinement
+            # contract as an extra hypothesis, so postconditions of native/
+            # uninterpreted helpers reach the obligation that mentions them (#378).
+            premises_in = ctx.premises + _refined_return_contracts(expr, ctx)
+            for p in premises_in:
                 sp, nfunctions, nref = _specialize_liquid_term(p, nfunctions, ctx.variables, nref, specializations)
                 sprem.append(sp)
             sexpr, nfunctions, nref = _specialize_liquid_term(expr, nfunctions, ctx.variables, nref, specializations)

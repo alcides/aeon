@@ -17,7 +17,7 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.verification.horn import solve
-from aeon.verification.sub import is_first_order_function, lower_constraint_type
+from aeon.verification.sub import is_first_order_function, lower_constraint_type_keep_refinements
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import ReflectedFunctionDeclaration
@@ -75,7 +75,10 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                 # call site. ``lower_constraint_type`` already strips
                 # ``TypePolymorphism`` / ``RefinementPolymorphism`` while
                 # keeping ``TypeVar`` in nested positions.
-                lowered = lower_constraint_type(type)
+                # Keep refinements (only polymorphism is stripped) so the
+                # declared return contract of a native/uninterpreted helper can
+                # be instantiated per call site at the SMT layer (issue #378).
+                lowered = lower_constraint_type_keep_refinements(type)
                 if isinstance(lowered, AbstractionType):
                     c = UninterpretedFunctionDeclaration(name, lowered, c)
             case ReflectedBinder(name, type, params, body):
