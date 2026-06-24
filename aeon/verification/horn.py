@@ -585,8 +585,6 @@ def solve(
     def merge(acc: Constraint, pi: Constraint) -> Constraint:
         return Conjunction(acc, pi)
 
-    merged_csps: Constraint
     seed: Constraint = LiquidConstraint(LiquidLiteralBool(True))
     merged_csps = reduce(merge, csp, seed)
-    c_final: Constraint = apply(subst, merged_csps)
-    return smt_valid(c_final)
+    return smt_valid(apply(subst, merged_csps))
