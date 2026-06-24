@@ -117,3 +117,35 @@ def fork (n: Int) : Int :=
 def main (args: Int) : Unit := print "ok";
 """
     assert _linearity_errors(src) == []
+
+
+# ---------------------------------------------------------------------------
+# `copy` is NOT refinement-parametric — the abstract refinement is dropped
+# ---------------------------------------------------------------------------
+
+
+def test_array_copy_is_not_refinement_parametric():
+    """``ArrayPair`` is opaque, so the abstract element refinement ``<p>`` is
+    not threaded through ``copy``: a projection has an unconstrained
+    refinement. Feeding it to a consumer that requires a refined element
+    type therefore fails to type-check. This pins the documented limitation
+    (Aeon has no way to carry a phantom refinement through an opaque
+    projection); operations that don't need ``p`` still work on a projection
+    (see ``test_array_copy_splits_reference_ok``)."""
+    src = """
+open Array
+
+def needs_pos (arr: (Array {v:Int | v > 0})) : Int := sum arr;
+
+def drops_refinement (u: Int) : Int :=
+    let 1 a := append (append new 1) 2 in
+    let p := copy a in
+    needs_pos (fst_array p);
+
+def main (args: Int) : Unit := print "ok";
+"""
+    # No *linearity* error — the discipline is satisfied — but the element
+    # refinement cannot be proved through the opaque projection.
+    assert _linearity_errors(src) == []
+    assert _parse(src) != []
+

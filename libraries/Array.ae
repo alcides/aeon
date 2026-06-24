@@ -29,7 +29,9 @@
 # or to read a value out of a linear chain — call ``copy``. It is the one
 # sanctioned way to duplicate a unique reference: it consumes the array
 # once and hands back two independent arrays packaged in an ``ArrayPair``
-# (projected with ``fst_array`` / ``snd_array``).
+# (projected with ``fst_array`` / ``snd_array``). Note that ``copy`` is not
+# refinement-parametric — see its definition for why the abstract ``<p>``
+# and ``size`` are dropped by the projections.
 
 type Array a forall <p : a -> Bool>
 
@@ -61,20 +63,33 @@ def empty (arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
 
 
 # Explicit copy: consume the single linear reference and return two
-# independent arrays of the same length — the original buffer plus a fresh
-# physical duplicate. This is the only way to turn one unique reference
-# into two: use it to branch a linear computation, or to obtain
-# unrestricted handles you can read with ``length`` / ``get`` / ``sum``.
+# independent arrays — the original buffer plus a fresh physical duplicate.
+# At run time both halves hold the same elements as the input; this is the
+# only way to turn one unique reference into two, to branch a linear
+# computation or to obtain unrestricted handles.
+#
+# NOTE — ``copy`` is NOT refinement-parametric. ``ArrayPair`` is opaque, so
+# the abstract element refinement ``<p>`` and the ``size`` measure are *not*
+# threaded through it: the projections below return arrays with an
+# unconstrained refinement and an unknown length. (Aeon's surface language
+# has no way to apply a phantom refinement to a type constructor, so a
+# projection — which has no element position to mention ``p v`` — cannot
+# carry it.) A caller that needs ``p`` or a known ``size`` on a projection
+# must re-establish it, e.g. by re-checking elements or threading the length
+# alongside. Operations that don't depend on the refinement (``length``,
+# ``sum``, ``append``, ``map``, ...) work on a projection unchanged.
 def copy (1 arr: (Array a)) : (ArrayPair a) :=
     native "(arr, list(arr))"
 
 
-# Left projection of a ``copy`` — the original buffer.
+# Left projection of a ``copy`` — the original buffer. See ``copy``: the
+# result's refinement and length are unconstrained.
 def fst_array (p: (ArrayPair a)) : (Array a) :=
     native "p[0]"
 
 
-# Right projection of a ``copy`` — the fresh duplicate.
+# Right projection of a ``copy`` — the fresh duplicate. See ``copy``: the
+# result's refinement and length are unconstrained.
 def snd_array (p: (ArrayPair a)) : (Array a) :=
     native "p[1]"
 
