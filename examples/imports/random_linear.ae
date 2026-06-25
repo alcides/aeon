@@ -1,0 +1,31 @@
+# Linear pseudo-random generators (libraries/Random.ae, issue #441).
+#
+# Randomness is threaded through a generator used at multiplicity 1: every
+# draw consumes its generator and yields a successor, so the refinement
+# logic never sees a draw as a pure (referentially transparent) function.
+# The numeric draws expose their sample through a refined projection, so the
+# bound composes into proofs — here two dice provably sum to [2, 12]. The
+# last draw just projects its sample and stops; the unextracted successor
+# needs no `close_rng`.
+
+open Random
+open Array
+
+def two_dice (seed: Int) : {s: Int | s >= 2 && s <= 12} :=
+    let 1 g0 := new_rng seed in
+    let d1 := draw_int 1 6 g0 in
+    let a := int_value 1 6 d1 in
+    let 1 g1 := int_next d1 in
+    let d2 := draw_int 1 6 g1 in
+    let b := int_value 1 6 d2 in
+    a + b
+
+# A polymorphic terminal draw: pick a uniformly random element of a
+# non-empty array, consuming the generator.
+def pick_colour (seed: Int) : Int :=
+    let 1 g0 := new_rng seed in
+    choose #[1, 2, 3] g0
+
+def main (args: Int) : Unit :=
+    let _ : Unit := print (two_dice 7) in
+    print (pick_colour 3)
