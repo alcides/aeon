@@ -83,8 +83,9 @@ include-package-data = true
 include = ["aeon*"]
 
 [tool.setuptools.package-data]
-# Include .lark files found in subdirectories
-aeon = ["**/*.lark"]
+# Include grammar files and the bundled standard-library .ae modules
+# (aeon/libraries/*.ae) so imports resolve from an installed wheel/egg.
+aeon = ["**/*.lark", "**/*.ae"]
 
 [tool.docformatter]
 syntax = 'google'
