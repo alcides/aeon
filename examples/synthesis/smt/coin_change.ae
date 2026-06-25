@@ -22,8 +22,7 @@ inductive Change
 + tens  (c:Change) : Int
 
 def total (c:Change) : Int :=
-    match c with
-    | mk c1 c5 c10 => c1 + c5 + c10;
+    let (mk c1 c5 c10) := c in c1 + c5 + c10;
 
 @minimize_int(total change_hole)
 def change_hole : {c:Change |

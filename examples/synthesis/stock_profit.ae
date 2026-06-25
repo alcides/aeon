@@ -29,10 +29,9 @@ def price_at (i:Int) : Int :=
     else if i = 10 then 5
     else 8;
 
-# Match-based profit calculation: extract buy and sell indices via pattern matching.
+# Single-constructor destructuring let: bind buy and sell indices directly.
 def profit (t:Trade) : Int :=
-    match t with
-    | mk b s => price_at s - price_at b;
+    let (mk b s) := t in price_at s - price_at b;
 
 # Synthesize a valid trade that maximizes profit.
 @maximize_int(profit trade_hole)

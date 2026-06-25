@@ -30,8 +30,7 @@ inductive Archery
 def abs (x:Int) : {r:Int | r >= 0} := if x >= 0 then x else 0 - x;
 
 def score (s:Archery) : Int :=
-    match s with
-    | mk a b c d e f =>
+    let (mk a b c d e f) := s in
         a * 16 + b * 17 + c * 23 + d * 24 + e * 39 + f * 40;
 
 @minimize_int(abs (100 - score archery_hole))

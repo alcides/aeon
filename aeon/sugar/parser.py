@@ -269,6 +269,37 @@ class TreeToSugar(Transformer):
             multiplicity=from_token(str(args[0])),
         )
 
+    def _let_pat(self, meta, constructor, binders, value, body, qualifier=None):
+        # `let (<pattern>) := value in body` destructures a single-constructor
+        # value by lowering to a one-branch match:
+        #   match value with | <pattern> => body
+        loc = self._loc(meta)
+        branch = SMatchBranch(
+            constructor=constructor,
+            binders=[Name(b) for b in binders],
+            body=body,
+            qualifier=qualifier,
+            loc=loc,
+        )
+        return SMatch(value, [branch], loc=loc)
+
+    @v_args(meta=True)
+    def let_pat_e(self, meta, args):
+        # let (Constructor binders) := value in body
+        return self._let_pat(meta, Name(args[0]), args[1], args[2], args[3])
+
+    @v_args(meta=True)
+    def let_pat_qualified_e(self, meta, args):
+        # let (Type.Constructor binders) := value in body
+        qualifier, cname = str(args[0]).split(".", 1)
+        return self._let_pat(meta, Name(cname), args[1], args[2], args[3], qualifier=qualifier)
+
+    @v_args(meta=True)
+    def let_pat_anon_e(self, meta, args):
+        # let (.Constructor binders) := value in body
+        bare = str(args[0])[1:]  # strip leading dot
+        return self._let_pat(meta, Name(bare), args[1], args[2], args[3])
+
     @v_args(meta=True)
     def if_e(self, meta, args):
         return SIf(args[0], args[1], args[2], loc=self._loc(meta))

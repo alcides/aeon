@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import desugar, expand_inductive_decls, infer_inductive_rforall_decls
-from aeon.sugar.parser import parse_main_program, parse_program
-from aeon.sugar.program import Program, SAnonConstructor
+from aeon.sugar.parser import parse_main_program, parse_program, parse_expression
+from aeon.sugar.program import Program, SAnonConstructor, SMatch, SMatchBranch
 from aeon.elaboration import elaborate
 from aeon.sugar.ast_helpers import st_top
+from tests.driver import check_compile
 
 
 def test_match_lowering_intlist():
@@ -286,6 +287,79 @@ def test_bare_constructors_require_open():
     # After open, bare 'cons' and 'empty' should resolve to IntList_cons / IntList_empty
     assert "IntList_cons" in dumped or "cons" in dumped
     assert "IntList_rec" in dumped
+
+
+def test_let_pattern_parses_to_single_branch_match():
+    """`let (.mk a b) := e in body` desugars to a one-branch match."""
+    t = parse_expression("let (.mk a b) := p in a")
+    assert isinstance(t, SMatch)
+    assert len(t.branches) == 1
+    branch = t.branches[0]
+    assert isinstance(branch, SMatchBranch)
+    assert branch.constructor.name == "mk"
+    assert [b.name for b in branch.binders] == ["a", "b"]
+    assert branch.qualifier is None
+
+
+def test_let_pattern_qualified_records_qualifier():
+    """`let (Pair.mk a b) := e in body` keeps the qualifier for inductive selection."""
+    t = parse_expression("let (Pair.mk a b) := p in a")
+    assert isinstance(t, SMatch)
+    assert t.branches[0].qualifier == "Pair"
+    assert t.branches[0].constructor.name == "mk"
+
+
+def test_let_pattern_bare_constructor():
+    """`let (mk a b) := e in body` (bare constructor name) parses to a match."""
+    t = parse_expression("let (mk a b) := p in a")
+    assert isinstance(t, SMatch)
+    assert t.branches[0].constructor.name == "mk"
+    assert [b.name for b in t.branches[0].binders] == ["a", "b"]
+
+
+def test_let_pattern_evaluates_single_constructor():
+    """End-to-end: destructuring a single-constructor value binds its fields."""
+    src = """
+        inductive Pair
+        | mk (a:Int) (b:Int) : Pair
+        + fst (p:Pair) : Int
+        + snd (p:Pair) : Int
+        def main (args:Int) : Int :=
+            let (.mk a b) := Pair.mk 1 2 in
+            a + b
+    """
+    assert check_compile(src, st_top, 3)
+
+
+def test_let_pattern_three_arguments():
+    """The destructuring let supports constructors with more than two fields."""
+    src = """
+        inductive Triple
+        | mk (a:Int) (b:Int) (c:Int) : Triple
+        + ta (t:Triple) : Int
+        + tb (t:Triple) : Int
+        + tc (t:Triple) : Int
+        def main (args:Int) : Int :=
+            let (.mk a b c) := Triple.mk 10 20 30 in
+            a + b + c
+    """
+    assert check_compile(src, st_top, 60)
+
+
+def test_let_pattern_qualified_and_bare_forms_evaluate():
+    """Qualified (`Pair.mk`) and bare (`mk`, via open) constructor patterns work end-to-end."""
+    src = """
+        open Pair
+        inductive Pair
+        | mk (a:Int) (b:Int) : Pair
+        + fst (p:Pair) : Int
+        + snd (p:Pair) : Int
+        def main (args:Int) : Int :=
+            let (Pair.mk a b) := Pair.mk 1 2 in
+            let (mk c d) := Pair.mk 100 200 in
+            a + b + c + d
+    """
+    assert check_compile(src, st_top, 303)
 
 
 def test_bare_constructors_fail_without_open():

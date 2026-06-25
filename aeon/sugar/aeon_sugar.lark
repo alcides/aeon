@@ -162,6 +162,12 @@ expression_i : "by" by_body                                  -> by_e
           | "let" ID ":" type _PIPE expression ":=" expression  ("in"|";") expression     -> rec_refined_e
           | "let" MULT ID ":" type _PIPE expression ":=" expression  ("in"|";") expression     -> mult_rec_refined_e
           | ID ":" type _PIPE expression ":=" expression  ("in"|";") expression     -> rec_refined_e
+          // Single-constructor destructuring let. `let (.mk a b) := e in body`
+          // binds the fields of a one-constructor type by pattern matching.
+          // Desugars to a single-branch `match`.
+          | "let" "(" ID pat_binders ")" ":=" expression  ("in"|";") expression          -> let_pat_e
+          | "let" "(" QUALIFIED_ID pat_binders ")" ":=" expression  ("in"|";") expression -> let_pat_qualified_e
+          | "let" "(" DOT_ID pat_binders ")" ":=" expression  ("in"|";") expression       -> let_pat_anon_e
           | "if" expression "then" expression "else" expression    -> if_e
           | "match" expression "with" match_branches              -> match_e
           | expression_dollar                                      -> same

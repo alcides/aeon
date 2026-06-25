@@ -118,8 +118,7 @@ def conflicts (fs: (List Feature)) : Int :=
 
 # Extract features from a dungeon
 def dungeon_features (d: Dungeon) : (List Feature) :=
-    match d with
-    | mk_dungeon fs ms => fs;
+    let (mk_dungeon fs ms) := d in fs;
 
 # --- Synthesis target ---
 # Maximize explorable area, minimize spatial conflicts between features.
