@@ -7,7 +7,38 @@
 #
 # The underlying storage is a Python list, so operations are O(1) for
 # indexed access and O(n) for prepend.
+#
+# ── Linear (QTT) discipline ──────────────────────────────────────────────
+#
+# Every operation that *transforms* an array (``append``, ``cons``,
+# ``set``, ``reversed``, ``map``, ``filter``) takes its array argument at
+# multiplicity 1 (``(1 arr: ...)``) and returns a fresh array. Threading a
+# value through such a chain therefore keeps **exactly one live reference**
+# to the array at all times: binding it with ``let 1 a := ...`` makes the
+# type checker reject any program that uses ``a`` twice (which would alias
+# the buffer) or drops it on the floor without consuming it.
+#
+# Because uniqueness is statically guaranteed, the native bodies are free
+# to mutate the backing list in place — there is no other observer that a
+# mutation could surprise. (The bodies below stay purely functional so the
+# unrestricted, non-linear call sites that predate this discipline keep
+# their old copy-on-write behaviour; the linear annotations only *bite* at
+# ``let 1`` / ``(1 …)`` binders, so existing code is unaffected.)
+#
+# When you genuinely need two independent arrays — to branch a computation,
+# or to read a value out of a linear chain — call ``copy``. It is the one
+# sanctioned way to duplicate a unique reference: it consumes the array
+# once and hands back two independent arrays packaged in an ``ArrayPair``
+# (projected with ``fst_array`` / ``snd_array``). Note that ``copy`` is not
+# refinement-parametric — see its definition for why the abstract ``<p>``
+# and ``size`` are dropped by the projections.
+
 type Array a forall <p : a -> Bool>
+
+# Opaque pair of arrays, returned by ``copy``. Backed by a Python 2-tuple;
+# kept self-contained (rather than reusing the ``Pair`` library) so that
+# ``Array`` has no further imports to drag through every ``open Array``.
+type ArrayPair a
 
 def functools : Unit := native_import "functools"
 
@@ -21,7 +52,7 @@ def length (arr: (Array a)) : {n:Int | n = size arr} :=
     native "len(arr)"
 
 
-# Empty array.
+# Empty array — a fresh, uniquely-owned buffer.
 def new : {arr:(Array a) | size arr = 0} :=
     native "[]"
 
@@ -31,13 +62,47 @@ def empty (arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
     arr.length = 0
 
 
+# Explicit copy: consume the single linear reference and return two
+# independent arrays — the original buffer plus a fresh physical duplicate.
+# At run time both halves hold the same elements as the input; this is the
+# only way to turn one unique reference into two, to branch a linear
+# computation or to obtain unrestricted handles.
+#
+# NOTE — ``copy`` is NOT refinement-parametric. ``ArrayPair`` is opaque, so
+# the abstract element refinement ``<p>`` and the ``size`` measure are *not*
+# threaded through it: the projections below return arrays with an
+# unconstrained refinement and an unknown length. (Aeon's surface language
+# has no way to apply a phantom refinement to a type constructor, so a
+# projection — which has no element position to mention ``p v`` — cannot
+# carry it.) A caller that needs ``p`` or a known ``size`` on a projection
+# must re-establish it, e.g. by re-checking elements or threading the length
+# alongside. Operations that don't depend on the refinement (``length``,
+# ``sum``, ``append``, ``map``, ...) work on a projection unchanged.
+def copy (1 arr: (Array a)) : (ArrayPair a) :=
+    native "(arr, list(arr))"
+
+
+# Left projection of a ``copy`` — the original buffer. See ``copy``: the
+# result's refinement and length are unconstrained.
+def fst_array (p: (ArrayPair a)) : (Array a) :=
+    native "p[0]"
+
+
+# Right projection of a ``copy`` — the fresh duplicate. See ``copy``: the
+# result's refinement and length are unconstrained.
+def snd_array (p: (ArrayPair a)) : (Array a) :=
+    native "p[1]"
+
+
 # Append an element to the back; the value must satisfy the refinement ``p``.
-def append (arr: (Array a)) (x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
+# Consumes the array linearly and returns a fresh one, one element longer.
+def append (1 arr: (Array a)) (x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
     native "arr + [x]"
 
 
 # Prepend an element to the front; the value must satisfy the refinement ``p``.
-def cons (arr: (Array a)) (x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
+# Consumes the array linearly and returns a fresh one, one element longer.
+def cons (1 arr: (Array a)) (x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
     native "[x] + arr"
 
 
@@ -47,7 +112,8 @@ def get (arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
 
 
 # Indexed write; preserves length, and the written value must satisfy ``p``.
-def set (arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) (x: {v:a | p v}) : {r:(Array a) | size r = size arr} :=
+# Consumes the array linearly and returns the fresh, updated array.
+def set (1 arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) (x: {v:a | p v}) : {r:(Array a) | size r = size arr} :=
     native "arr[:i] + [x] + arr[i+1:]"
 
 
@@ -56,19 +122,20 @@ def head (arr: {arr:(Array a) | size arr > 0}) : {v:a | p v} :=
     native "arr[0]"
 
 
-# Reversed copy; length is preserved.
-def reversed (arr: (Array a)) : {r:(Array a) | size r = size arr} :=
+# Reversed copy; length is preserved. Consumes the array linearly.
+def reversed (1 arr: (Array a)) : {r:(Array a) | size r = size arr} :=
     native "arr[::-1]"
 
 
 # Map a function across the array; length is preserved and the result
-# refinement ``q`` is pushed through ``f``.
-def map (f: (x: {v:a | p v}) -> {w:b | q w}) (arr: (Array a)) : {r:(Array b) | size r = size arr} :=
+# refinement ``q`` is pushed through ``f``. Consumes the array linearly.
+def map (f: (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a)) : {r:(Array b) | size r = size arr} :=
     native "list(map(f, arr))"
 
 
-# Filter an array by ``f``; the length never grows.
-def filter (f: (x: {v:a | p v}) -> Bool) (arr: (Array a)) : {r:(Array a) | size r <= size arr} :=
+# Filter an array by ``f``; the length never grows. Consumes the array
+# linearly.
+def filter (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a)) : {r:(Array a) | size r <= size arr} :=
     native "list(filter(f, arr))"
 
 

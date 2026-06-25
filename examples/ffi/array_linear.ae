@@ -1,0 +1,38 @@
+open Array
+
+# Linear (QTT) array lifecycle.
+#
+# Every array-transforming op (`append`, `cons`, `set`, `reversed`, `map`,
+# `filter`) takes its array argument at multiplicity 1, so binding an array
+# with `let 1 a := ...` makes the type checker enforce that exactly one
+# reference stays live: `a` must be consumed exactly once before its scope
+# ends. Threading it through a chain of `let 1`s is the canonical shape:
+#
+#     new → append → set → ...
+#
+# Forgetting to consume the final handle raises a `LinearUnusedError`;
+# referencing a handle after the next op already consumed it (which would
+# alias the buffer) raises a `LinearUsedTooManyTimesError`.
+
+# Build an array linearly, threading the single reference through each step.
+# Each `let 1` handle is consumed exactly once by the next op. The final
+# array is released into a plain `let` so an observer (`sum`) can read it
+# without the linear obligation.
+def build (n: Int) : Int :=
+    let 1 a0 := append new 1 in
+    let 1 a1 := append a0 2 in
+    let a2 := set a1 0 n in
+    sum a2;
+
+# `copy` is the escape hatch: it consumes the unique reference and returns
+# two independent arrays. Here we duplicate, then read one copy while
+# returning the other's length — two live arrays from one linear source.
+def fork (n: Int) : Int :=
+    let 1 a := append (append new n) 7 in
+    let p := copy a in
+    sum (fst_array p) + length (snd_array p);
+
+def main (args: Int) : Unit :=
+    let total := build 10 in
+    let forked := fork 3 in
+    print (total + forked);

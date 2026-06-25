@@ -55,6 +55,25 @@ def test_map : Bool :=
 @property(1)
 def test_sum : Bool := assertEqual (sum (append (append new 2) 3)) 5;
 
+# `copy` splits one linear reference into two independent arrays of equal
+# length and contents.
+@property(1)
+def test_copy_duplicates : Bool :=
+    let 1 a := append (append new 5) 9 in
+    let p := copy a in
+    both (assertEqual (sum (fst_array p)) 14)
+         (assertEqual (length (snd_array p)) 2);
+
+# The two halves of a copy are independent: extending one leaves the other
+# untouched.
+@property(1)
+def test_copy_independent : Bool :=
+    let 1 a := append (append new 1) 2 in
+    let p := copy a in
+    let l2 := append (fst_array p) 9 in
+    both (assertEqual (length l2) 3)
+         (assertEqual (length (snd_array p)) 2);
+
 # ── Property-based tests (Int elements generated) ─────────────────────────────
 
 # A one-element array reads its element back.
