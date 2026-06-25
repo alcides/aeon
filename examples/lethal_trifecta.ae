@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# Preventing the "lethal trifecta" with Liquid Types
+#
+# The lethal trifecta (Simon Willison) is the dangerous combination of an
+# agent that simultaneously has:
+#   (1) access to PRIVATE data,
+#   (2) exposure to UNTRUSTED content, and
+#   (3) the ability to EXFILTRATE / publish externally.
+#
+# An attack only works if all three are present at once. The cleanest defense
+# is to *break one leg of the triangle statically*. Here we forbid leg (3)
+# whenever leg (1) has happened: once any private repo has been read in a
+# session, publishing to a public repo becomes a type error.
+#
+# We follow the library idiom (see Database.ae / Random.ae): the two types are
+# opaque handles, their logical attributes are `uninterpreted` measures used
+# only inside refinements, and the operations are `native` with refinement
+# types acting as trusted contracts the type checker reasons about.
+# ---------------------------------------------------------------------------
+
+# ---- The two opaque handle types ----
+type Repo        # Type 1: a repository handle
+type Session     # Type 2: an access session
+
+# Their logical attributes, used only inside refinements:
+#   private r      : is this repo private?
+#   tainted s      : has this session read from a private repo?
+def private : (r:Repo) -> Bool := uninterpreted;
+def tainted : (s:Session) -> Bool := uninterpreted;
+
+# A brand-new session has never touched private data.
+def fresh : {s:Session | tainted s = false} := native "'session'";
+
+# The two kinds of repo, distinguished by the `private` measure.
+def public_repo  : {r:Repo | private r = false} := native "'public-repo'";
+def private_repo : {r:Repo | private r = true}  := native "'private-repo'";
+
+# ---------------------------------------------------------------------------
+# read / write work on BOTH private and public repos (the visibility is the
+# repo's boolean `private` measure).
+#
+#   - reading a PRIVATE repo TAINTS the session forever (taint is monotone:
+#     once true it stays true).
+#   - reading a PUBLIC  repo leaves the taint flag unchanged.
+#   - writing NEVER taints the session (writing is data egress, not ingress).
+# ---------------------------------------------------------------------------
+def read (r: Repo) (s: Session) :
+    {s2:Session | tainted s2 = (private r || tainted s)} :=
+    native "'session'";
+
+def write (r: Repo) (s: Session) :
+    {s2:Session | tainted s2 = tainted s} :=
+    native "'session'";
+
+# ---------------------------------------------------------------------------
+# publish = leg (3). The precondition is the whole point:
+#   - the target repo MUST be public         (private r = false), and
+#   - the session MUST NOT have read private  (tainted s = false).
+# If either fails, the call does not typecheck.
+# ---------------------------------------------------------------------------
+def publish
+    (r: {r:Repo    | private r = false})
+    (s: {s:Session | tainted s = false}) : Unit :=
+    native "print('published to public repo')";
+
+# ---------------------------------------------------------------------------
+# SAFE flow: read public, write to a private repo, then publish to public.
+# Writing to the private repo does NOT taint, so publish is still allowed.
+# ---------------------------------------------------------------------------
+def safe_flow (_:Int) : Unit :=
+    let s0 := fresh in
+    let s1 := read public_repo s0 in        # public read: still untainted
+    let s2 := write private_repo s1 in      # write to private: still untainted
+    publish public_repo s2;                 # OK: tainted s2 = false
+
+def main (_:Int) : Unit := safe_flow 0;
+
+# ---------------------------------------------------------------------------
+# UNSAFE flow (uncomment to see the type checker reject it):
+#
+# def attack (_:Int) : Unit :=
+#     let s0 := fresh in
+#     let s1 := read private_repo s0 in     # leg (1): private data read -> tainted
+#     publish public_repo s1;               # leg (3): TYPE ERROR
+#                                           # tainted s1 = true, publish needs false
+# ---------------------------------------------------------------------------
