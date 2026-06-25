@@ -24,7 +24,7 @@ from aeon.documentation import generate_documentation
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LIBRARIES_DIR = REPO_ROOT / "libraries"
+LIBRARIES_DIR = REPO_ROOT / "aeon" / "libraries"
 
 
 def _display_path(p: Path) -> str:

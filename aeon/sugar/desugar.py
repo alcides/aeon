@@ -2063,22 +2063,27 @@ def clear_import_cache() -> None:
 
 
 def _get_package_libraries_dir() -> Path | None:
-    """Return the path to the libraries directory in the installed aeon package.
+    """Return the path to the libraries directory shipped inside the aeon package.
 
-    This allows importing standard library modules (List, Math, etc.) when running
-    aeon on files outside the project directory.
+    The standard library ``.ae`` modules (List, Math, etc.) live in
+    ``aeon/libraries`` so they are packaged into the wheel/egg as package data
+    and resolve identically for editable and regular (site-packages) installs.
 
     Returns:
         Path to libraries directory if it exists, None otherwise.
     """
     try:
-        # Get the parent directory of the aeon package
-        # For editable installs: /workspace/aeon -> /workspace/libraries
-        # For regular installs: site-packages/aeon -> site-packages/../libraries
-        aeon_package_dir = Path(aeon.__file__).parent.parent
-        libraries_dir = aeon_package_dir / "libraries"
-        if libraries_dir.exists() and libraries_dir.is_dir():
-            return libraries_dir
+        aeon_package_dir = Path(aeon.__file__).parent
+        # Primary location: bundled inside the package (ships in the wheel/egg).
+        candidates = [
+            aeon_package_dir / "libraries",
+            # Backward-compat for source checkouts that still keep a top-level
+            # ``libraries`` sibling of the package directory.
+            aeon_package_dir.parent / "libraries",
+        ]
+        for libraries_dir in candidates:
+            if libraries_dir.exists() and libraries_dir.is_dir():
+                return libraries_dir
     except Exception:
         pass
     return None
