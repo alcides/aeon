@@ -133,8 +133,7 @@ def conflicts (cs: (List Chunk)) : Int :=
 
 # Extract chunks from a level
 def level_chunks (level: Level) : (List Chunk) :=
-    match level with
-    | mk_level cs es => cs;
+    let (mk_level cs es) := level in cs;
 
 # --- Cluster feature (SyMetric): pure-Aeon scene rasteriser ---
 # Draw the level into a 2D occupancy matrix and project it onto a 1D vector by
@@ -160,11 +159,9 @@ def overlaps (bx: Int) (lo: Int) (w: Int) : Int :=
 
 # X position of a box / enemy.
 def box_x (b: Box) : Int :=
-    match b with
-    | mk_box bt x y => x;
+    let (mk_box bt x y) := b in x;
 def enemy_x (e: Enemy) : Int :=
-    match e with
-    | mk_enemy m x => x;
+    let (mk_enemy m x) := e in x;
 
 # Boxes / enemies overlapping bin bx.
 def boxes_at (bs: (List Box)) (bx: Int) : Int :=
@@ -197,8 +194,7 @@ def chunks_col (cs: (List Chunk)) (bx: Int) : Int :=
 
 # Extract the enemies of a level.
 def level_enemies (level: Level) : (List Enemy) :=
-    match level with
-    | mk_level cs es => es;
+    let (mk_level cs es) := level in es;
 
 # Total filled cells in bin bx (the 2D matrix projected onto that bin).
 def column_value (level: Level) (x: Int) : Int :=

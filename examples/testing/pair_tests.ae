@@ -1,14 +1,14 @@
 # Tests for the Pair library (polymorphic product type). Pair has no projection
-# functions — its single `mk` constructor is eliminated with `match` — so we
-# define small projections to observe the components.
+# functions — its single `mk` constructor is destructured with a one-constructor
+# `let` pattern — so we define small projections to observe the components.
 #
 # Run with:  aeon --test examples/testing/pair_tests.ae
 
 open Testing
 open Pair
 
-def pfst (p : (Pair Int Int)) : Int := match p with | mk a b => a;
-def psnd (p : (Pair Int Int)) : Int := match p with | mk a b => b;
+def pfst (p : (Pair Int Int)) : Int := let (mk a b) := p in a;
+def psnd (p : (Pair Int Int)) : Int := let (mk a b) := p in b;
 
 # ── Unit tests ───────────────────────────────────────────────────────────────
 

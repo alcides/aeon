@@ -21,10 +21,8 @@ def conflicts (t:Coordinate) (b:Board) : Int :=
     match b with
     | Board_empty => 0
     | Board_cons h tl =>
-        match t with
-        | C_mk tx ty =>
-            match h with
-            | C_mk hx hy =>
+        let (C_mk tx ty) := t in
+            let (C_mk hx hy) := h in
                 let row : {r:Int | 0 <= r && r <= 1} := if tx = hx then 1 else 0 in
                 let col : {r:Int | 0 <= r && r <= 1} := if ty = hy then 1 else 0 in
                 let dx : Int := abs (tx - hx) in
