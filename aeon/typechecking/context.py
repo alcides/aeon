@@ -94,6 +94,7 @@ class TypeConstructorBinder(TypingContextEntry):
 @dataclass
 class TypingContext:
     entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
+    trusted_names: frozenset[Name] = field(default_factory=frozenset)
 
     def __post_init__(self):
         for bt in builtin_core_types[::-1]:
@@ -107,11 +108,11 @@ class TypingContext:
 
     def with_var(self, name: Name, type: Type) -> TypingContext:
         nentries = [e for e in self.entries] + [VariableBinder(name, type)]
-        return TypingContext(nentries)
+        return TypingContext(nentries, trusted_names=self.trusted_names)
 
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
         nentries = [e for e in self.entries] + [TypeBinder(name, kind)]
-        return TypingContext(nentries)
+        return TypingContext(nentries, trusted_names=self.trusted_names)
 
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:

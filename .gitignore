@@ -1,4 +1,6 @@
-# Byte-compiled / optimized / DLL files
+# Aeon compilation cache
+*.aec
+
 __pycache__/
 *.py[cod]
 *$py.class

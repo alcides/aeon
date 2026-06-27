@@ -609,7 +609,14 @@ def resolve_qualified_names_in_definition(
     )
 
 
-def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType] | None = None) -> DesugaredProgram:
+def desugar(
+    p: Program,
+    is_main_hole: bool = True,
+    extra_vars: dict[Name, SType] | None = None,
+    *,
+    compiled_imports: dict | None = None,
+    module_export_name: str | None = None,
+) -> DesugaredProgram:
     vs: dict[Name, SType] = {} if extra_vars is None else extra_vars
     vs.update(typing_vars)
 
@@ -626,7 +633,12 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     # definitions, which ``handle_imports`` module-prefixes — they live
     # directly in the main namespace.
     inductive_names_top = {d.name.name for d in p.inductive_decls}
-    imported_classes, imported_instances = collect_imported_typeclasses(p.imports, inductive_names_top)
+    if compiled_imports is not None:
+        imported_classes, imported_instances = collect_imported_typeclasses_from_units(
+            p.imports, inductive_names_top, compiled_imports
+        )
+    else:
+        imported_classes, imported_instances = collect_imported_typeclasses(p.imports, inductive_names_top)
     if imported_classes or imported_instances:
         p = Program(
             p.imports,
@@ -663,9 +675,14 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
         else:
             file_imports.append(imp)
 
-    defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports(
-        file_imports, defs, type_decls
-    )
+    if compiled_imports is not None:
+        defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports_from_units(
+            file_imports, defs, type_decls, compiled_imports
+        )
+    else:
+        defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports(
+            file_imports, defs, type_decls
+        )
 
     # ``native_import`` definitions bind a global Python symbol (e.g. ``np``)
     # that *other* modules' native bodies reference by bare name. The runtime
@@ -718,6 +735,14 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
     ]
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
 
+    if module_export_name is not None:
+        local_qualified: QualifiedScope = {}
+        local_unqualified: UnqualifiedScope = {}
+        defs = prefix_definitions_for_export(defs, module_export_name, local_qualified, local_unqualified)
+        for (qual, bare), internal in local_qualified.items():
+            qualified_scope[(qual, bare)] = internal
+        unqualified_scope.update(local_unqualified)
+
     # Expand the `_` reflection marker in return-type refinements into `binder == body`.
     defs = reflect_underscore_in_definitions(defs)
     defs, metadata = apply_decorators_in_definitions(defs)
@@ -741,6 +766,8 @@ def desugar(p: Program, is_main_hole: bool = True, extra_vars: dict[Name, SType]
         ]
 
     etctx = build_typing_context(vs, type_decls, constructor_to_type, constructor_defs)
+    if compiled_imports is not None:
+        etctx = extend_elabcontext_with_imports(etctx, file_imports, compiled_imports)
     etctx, prog = update_program_and_context(prog, defs, etctx)
     prog, etctx = replace_concrete_types(
         prog, etctx, [Name(t, 0) for t in builtin_types] + [td.name for td in type_decls]
@@ -1785,6 +1812,195 @@ def collect_imported_typeclasses(
         classes.extend(import_p.class_decls)
         instances.extend(import_p.instance_decls)
     return classes, instances
+
+
+def collect_imported_typeclasses_from_units(
+    imports: list[ImportAe],
+    inductive_names: set[str],
+    compiled_imports: dict,
+    _seen: set[str] | None = None,
+) -> tuple[list[ClassDecl], list[InstanceDecl]]:
+    seen: set[str] = set() if _seen is None else _seen
+    classes: list[ClassDecl] = []
+    instances: list[InstanceDecl] = []
+    for imp in imports:
+        if imp.is_open and imp.module_path in inductive_names:
+            continue
+        if imp.module_path in seen:
+            continue
+        seen.add(imp.module_path)
+        unit = compiled_imports.get(imp.module_path)
+        if unit is None:
+            continue
+        for dep_module in unit.dependencies:
+            dep_unit = compiled_imports.get(dep_module)
+            if dep_unit is not None:
+                sub_inductive = {d.name.name for d in dep_unit.inductive_decls}
+                sub_classes, sub_instances = collect_imported_typeclasses_from_units(
+                    [ImportAe(module_path=dep_module)],
+                    sub_inductive,
+                    compiled_imports,
+                    seen,
+                )
+                classes.extend(sub_classes)
+                instances.extend(sub_instances)
+        classes.extend(unit.class_decls)
+        instances.extend(unit.instance_decls)
+    return classes, instances
+
+
+def prefix_definitions_for_export(
+    defs: list[Definition],
+    module_name: str,
+    qualified_scope: QualifiedScope,
+    unqualified_scope: UnqualifiedScope,
+) -> list[Definition]:
+    local_qualified: QualifiedScope = dict(qualified_scope)
+    local_unqualified: UnqualifiedScope = dict(unqualified_scope)
+    for d in defs:
+        if _is_native_import_def(d):
+            continue
+        bare = _bare_name(module_name, d.name.name)
+        internal_name = Name(f"{module_name}_{bare}", d.name.id)
+        local_qualified[(module_name, bare)] = internal_name
+        local_unqualified[bare] = internal_name
+
+    prefixed: list[Definition] = []
+    for d in defs:
+        if _is_native_import_def(d):
+            prefixed.append(d)
+            continue
+        bare = _bare_name(module_name, d.name.name)
+        internal_name = Name(f"{module_name}_{bare}", d.name.id)
+        resolved_d = resolve_qualified_names_in_definition(d, local_qualified, local_unqualified)
+        prefixed.append(
+            Definition(
+                internal_name,
+                resolved_d.foralls,
+                resolved_d.args,
+                resolved_d.type,
+                resolved_d.body,
+                resolved_d.decorators,
+                resolved_d.rforalls,
+                resolved_d.decreasing_by,
+                resolved_d.loc,
+                arg_multiplicities=resolved_d.arg_multiplicities,
+                instance_flags=resolved_d.instance_flags,
+            )
+        )
+        qualified_scope[(module_name, bare)] = internal_name
+    return prefixed
+
+
+def extend_elabcontext_with_imports(
+    ctx: ElaborationTypingContext,
+    imports: list[ImportAe],
+    compiled_imports: dict,
+) -> ElaborationTypingContext:
+    from aeon.elaboration.context import ElabVariableBinder
+
+    entries = list(ctx.entries)
+    seen: set[Name] = set()
+    for imp in imports:
+        unit = compiled_imports.get(imp.module_path)
+        if unit is None:
+            continue
+        for export in unit.exports.values():
+            if export.internal_name not in seen:
+                sugar_ty = export.sugar_type
+                entries.append(ElabVariableBinder(export.internal_name, sugar_ty))
+                seen.add(export.internal_name)
+    return ElaborationTypingContext(entries, ctx.constructor_to_type, ctx.constructor_defs, ctx.instances)
+
+
+def handle_imports_from_units(
+    imports: list[ImportAe],
+    defs: list[Definition],
+    type_decls: list[TypeDecl],
+    compiled_imports: dict,
+    _seen_modules: dict[str, QualifiedScope] | None = None,
+) -> tuple[list[Definition], list[TypeDecl], list[InductiveDecl], QualifiedScope, UnqualifiedScope]:
+    qualified_scope: QualifiedScope = {}
+    unqualified_scope: UnqualifiedScope = {}
+    imported_inductives: list[InductiveDecl] = []
+    seen_modules: dict[str, QualifiedScope] = {} if _seen_modules is None else _seen_modules
+
+    for imp in imports[::-1]:
+        if imp.module_path in seen_modules:
+            prior_q = seen_modules[imp.module_path]
+            for (qual, bare), internal_name in prior_q.items():
+                qualified_scope[(qual, bare)] = internal_name
+                if imp.is_open or (imp.selected_names and bare in imp.selected_names):
+                    unqualified_scope[bare] = internal_name
+            continue
+
+        unit = compiled_imports.get(imp.module_path)
+        if unit is None:
+            continue
+
+        seen_modules[imp.module_path] = {}
+        module_name = imp.module_path.split(".")[-1]
+
+        rec_q: QualifiedScope = {}
+        rec_u: UnqualifiedScope = {}
+        for dep_module in unit.dependencies:
+            if dep_module in seen_modules:
+                rec_q.update(seen_modules[dep_module])
+            dep_unit = compiled_imports.get(dep_module)
+            if dep_unit is not None:
+                imported_inductives.extend(dep_unit.inductive_decls)
+                type_decls = _merge_type_decls(type_decls, dep_unit.type_decls)
+
+        qualified_scope.update(rec_q)
+        unqualified_scope.update(rec_u)
+        imported_inductives.extend(unit.inductive_decls)
+        type_decls = _merge_type_decls(type_decls, unit.type_decls)
+
+        for (qual, bare), internal_name in unit.qualified_scope.items():
+            qualified_scope[(qual, bare)] = internal_name
+            seen_modules[imp.module_path][(qual, bare)] = internal_name
+            if imp.is_open or (imp.selected_names and bare in imp.selected_names):
+                unqualified_scope[bare] = internal_name
+            elif not imp.selected_names:
+                qualified_scope[(module_name, bare)] = internal_name
+                seen_modules[imp.module_path][(module_name, bare)] = internal_name
+
+        for bare, export in unit.exports.items():
+            qualified_scope[(module_name, bare)] = export.internal_name
+            seen_modules[imp.module_path][(module_name, bare)] = export.internal_name
+            if imp.is_open:
+                unqualified_scope[bare] = export.internal_name
+            elif imp.selected_names and bare in imp.selected_names:
+                unqualified_scope[bare] = export.internal_name
+
+    return defs, type_decls, imported_inductives, qualified_scope, unqualified_scope
+
+
+def _merge_type_decls(existing: list[TypeDecl], new: list[TypeDecl]) -> list[TypeDecl]:
+    names = {td.name.name for td in existing}
+    merged = list(existing)
+    for td in new:
+        if td.name.name not in names:
+            merged.append(td)
+            names.add(td.name.name)
+    return merged
+
+
+def resolve_import_path(imp: ImportAe) -> str | None:
+    """Resolve an import to an absolute source file path, or None if not found."""
+    path = imp.file_path
+    possible_containers = [Path.cwd(), Path.cwd() / "libraries"]
+    pkg_libs = _get_package_libraries_dir()
+    if pkg_libs:
+        possible_containers.append(pkg_libs)
+    aeonpath = os.environ.get("AEONPATH", "")
+    if aeonpath:
+        possible_containers.extend([Path(s) for s in aeonpath.split(";") if s])
+    for container in possible_containers:
+        file = container / path
+        if file.exists():
+            return str(file.resolve())
+    return None
 
 
 def handle_imports(
