@@ -73,6 +73,32 @@ Aeon can be executed directly from PyPI using [uvx](https://github.com/astral-sh
 
 `uvx --from aeonlang aeon file.ae`
 
+### Exit codes
+
+The interpreter exits with a distinct code per error category, so scripts and
+CI can react to *what* failed (defined in `aeon.facade.exit_codes`):
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Failing `--test` properties/examples, or an internal crash |
+| 2 | Synthesis finished without finding a solution |
+| 3 | Syntax error |
+| 4 | Import error |
+| 5 | Type mismatch |
+| 6 | Unification error |
+| 7 | Kind mismatch |
+| 8 | Unknown name or variable |
+| 9 | Method resolution error |
+| 10 | Missing typeclass instance |
+| 11 | Comparison on a non-orderable type |
+| 12 | Linearity error |
+| 13 | Core type-checking error |
+| 14 | Invalid refinement predicate |
+| 15 | Other compiler error |
+
+When several errors are reported, the exit code reflects the first one.
+
 ## Hello World
 
 If your aeon file contains a function named `main`, it will be the entrypoint to the program.
