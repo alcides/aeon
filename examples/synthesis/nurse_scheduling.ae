@@ -1,0 +1,89 @@
+# Constraint Programming: nurse scheduling with shift requests.
+#
+# A faithful, down-scaled version of the Google OR-Tools benchmark
+# "Scheduling with shift requests"
+# https://developers.google.com/optimization/scheduling/employee_scheduling
+#
+# This is the textbook example of a problem with BOTH kinds of constraints:
+#
+#   * HARD constraints — a roster is invalid unless every one of them holds.
+#     They live in the refinement type, so the type checker rejects any
+#     assignment that breaks them.
+#   * SOFT constraints — nurses ask for particular shifts. We can't always
+#     grant every request, so we *maximise* the number that are granted.
+#     This is the optimisation objective, expressed with @maximize_int.
+#
+# We have 3 nurses, 2 days, and 2 shifts per day (morning/night):
+#
+#   w[n][d][s] = 1  iff nurse n works shift s on day d   (a 0/1 variable)
+#
+# HARD constraints
+#   coverage:       each (day, shift) is staffed by exactly one nurse
+#   one-per-day:    a nurse works at most one shift per day
+#   fair spread:    4 shifts shared by 3 nurses, so each nurse works 1 or 2
+#
+# SOFT constraint (the six requests below; maximise how many are granted)
+#   nurse 0: day0/morning,  day1/night
+#   nurse 1: day0/morning,  day1/night
+#   nurse 2: day0/night,    day1/morning
+#
+#   Nurses 0 and 1 both want day0/morning, and both want day1/night, but each
+#   of those shifts is staffed by a single nurse — so at most one request from
+#   each pair can be granted. Nurse 2's two requests don't clash with anyone.
+#   Hence the optimum is 4 of the 6 requests granted.
+
+inductive Roster
+| mk (w000:Int | 0 <= w000 && w000 <= 1) (w001:Int | 0 <= w001 && w001 <= 1)
+     (w010:Int | 0 <= w010 && w010 <= 1) (w011:Int | 0 <= w011 && w011 <= 1)
+     (w100:Int | 0 <= w100 && w100 <= 1) (w101:Int | 0 <= w101 && w101 <= 1)
+     (w110:Int | 0 <= w110 && w110 <= 1) (w111:Int | 0 <= w111 && w111 <= 1)
+     (w200:Int | 0 <= w200 && w200 <= 1) (w201:Int | 0 <= w201 && w201 <= 1)
+     (w210:Int | 0 <= w210 && w210 <= 1) (w211:Int | 0 <= w211 && w211 <= 1) :
+     {r:Roster |
+        (n000 r = w000) && (n001 r = w001) && (n010 r = w010) && (n011 r = w011) &&
+        (n100 r = w100) && (n101 r = w101) && (n110 r = w110) && (n111 r = w111) &&
+        (n200 r = w200) && (n201 r = w201) && (n210 r = w210) && (n211 r = w211)}
++ n000 (r:Roster) : Int  + n001 (r:Roster) : Int  + n010 (r:Roster) : Int  + n011 (r:Roster) : Int
++ n100 (r:Roster) : Int  + n101 (r:Roster) : Int  + n110 (r:Roster) : Int  + n111 (r:Roster) : Int
++ n200 (r:Roster) : Int  + n201 (r:Roster) : Int  + n210 (r:Roster) : Int  + n211 (r:Roster) : Int
+
+# Soft objective: how many of the six shift requests this roster grants.
+def granted_requests (r:Roster) : Int :=
+    n000 r + n100 r +   # day0/morning: nurse 0 and nurse 1 both asked
+    n011 r + n111 r +   # day1/night:   nurse 0 and nurse 1 both asked
+    n201 r + n210 r;    # nurse 2: day0/night and day1/morning
+
+# (a) Synthesis: build a valid roster that grants as many requests as possible.
+# The refinement is the conjunction of all HARD constraints; the @maximize_int
+# annotation drives the SOFT objective.
+@maximize_int(granted_requests roster_hole)
+def roster_hole : {r:Roster |
+    # coverage: each (day, shift) staffed by exactly one nurse
+    (n000 r + n100 r + n200 r = 1) && (n001 r + n101 r + n201 r = 1) &&
+    (n010 r + n110 r + n210 r = 1) && (n011 r + n111 r + n211 r = 1) &&
+    # one-per-day: each nurse works at most one shift per day
+    (n000 r + n001 r <= 1) && (n010 r + n011 r <= 1) &&
+    (n100 r + n101 r <= 1) && (n110 r + n111 r <= 1) &&
+    (n200 r + n201 r <= 1) && (n210 r + n211 r <= 1) &&
+    # fair spread: each nurse works between 1 and 2 shifts in total
+    (n000 r + n001 r + n010 r + n011 r >= 1) && (n000 r + n001 r + n010 r + n011 r <= 2) &&
+    (n100 r + n101 r + n110 r + n111 r >= 1) && (n100 r + n101 r + n110 r + n111 r <= 2) &&
+    (n200 r + n201 r + n210 r + n211 r >= 1) && (n200 r + n201 r + n210 r + n211 r <= 2)
+} := ?hole;
+
+# (b) Verification: a hand-crafted optimal roster (4 of 6 requests granted).
+#   day0/morning -> nurse 0   (grants nurse 0's request)
+#   day0/night   -> nurse 2   (grants nurse 2's request)
+#   day1/morning -> nurse 2   (grants nurse 2's request)
+#   day1/night   -> nurse 1   (grants nurse 1's request)
+# Nurse 2 works twice, nurses 0 and 1 once each: a fair, fully covered roster.
+def roster_solution : {r:Roster |
+    (n000 r + n100 r + n200 r = 1) && (n001 r + n101 r + n201 r = 1) &&
+    (n010 r + n110 r + n210 r = 1) && (n011 r + n111 r + n211 r = 1) &&
+    (n000 r + n001 r <= 1) && (n010 r + n011 r <= 1) &&
+    (n100 r + n101 r <= 1) && (n110 r + n111 r <= 1) &&
+    (n200 r + n201 r <= 1) && (n210 r + n211 r <= 1) &&
+    (n000 r + n001 r + n010 r + n011 r >= 1) && (n000 r + n001 r + n010 r + n011 r <= 2) &&
+    (n100 r + n101 r + n110 r + n111 r >= 1) && (n100 r + n101 r + n110 r + n111 r <= 2) &&
+    (n200 r + n201 r + n210 r + n211 r >= 1) && (n200 r + n201 r + n210 r + n211 r <= 2)
+} := .mk 1 0 0 0   0 0 0 1   0 1 1 0
