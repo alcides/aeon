@@ -25,6 +25,7 @@ from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI, SynthesisFormat
+from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_node
@@ -48,6 +49,9 @@ class AeonConfig:
 
 
 class AeonDriver:
+    core: Term | None
+    typing_ctx: TypingContext | None
+
     def __init__(self, cfg: AeonConfig):
         self.cfg = cfg
 
