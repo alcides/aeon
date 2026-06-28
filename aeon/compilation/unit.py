@@ -52,6 +52,8 @@ class CompiledUnit:
 
     dependencies: list[str]  # module_path strings of direct imports
     trusted_names: frozenset[Name] = field(default_factory=frozenset)
+    # Decorator metadata before the core phase runs (includes the core-phase queue).
+    source_metadata: Metadata = field(default_factory=dict)
 
     def dependency_hashes(self) -> dict[str, str]:
         return {dep: "" for dep in self.dependencies}

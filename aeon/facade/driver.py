@@ -1,6 +1,5 @@
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
@@ -16,7 +15,6 @@ from aeon.facade.api import AeonError
 from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
-from aeon.compilation.compile import compile_and_link
 from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.instance_registry import clear_instance_registry
 from aeon.sugar.lifting import lift
@@ -59,32 +57,6 @@ class AeonDriver:
 
         self.core = None
         self.typing_ctx = None
-
-        if filename is not None and Path(filename).is_file():
-            with RecordTime("CompileUnits"):
-                unit, core, typing_ctx, metadata, _trusted, errors = compile_and_link(
-                    filename,
-                    is_main=not self.cfg.no_main,
-                )
-            if errors:
-                return errors
-            assert core is not None and typing_ctx is not None
-
-            self.core = core
-            self.typing_ctx = typing_ctx
-            self.metadata = metadata or {}
-            self.constructor_names = {n.name for n in unit.constructor_defs.values()}
-
-            with RecordTime("Preparing execution env"):
-                pipeline = MultiBackendPipeline(metadata=self.metadata)
-                evaluation_ctx = EvaluationContext(evaluation_vars, metadata=self.metadata, pipeline=pipeline)
-
-            self.evaluation_ctx = evaluation_ctx
-
-            with RecordTime("LLVM compilation"):
-                pipeline.compile(self.core)
-
-            return []
 
         return self._parse_legacy(filename, aeon_code)
 

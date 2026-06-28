@@ -3,7 +3,23 @@ from __future__ import annotations
 from dataclasses import replace
 
 from aeon.compilation.unit import CompiledUnit
-from aeon.core.terms import Rec, Term
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    Hole,
+    If,
+    ImplicitRefinementHole,
+    Let,
+    Literal,
+    Rec,
+    RefinementAbstraction,
+    RefinementApplication,
+    Term,
+    TypeAbstraction,
+    TypeApplication,
+    Var,
+)
 from aeon.decorators import Metadata
 from aeon.elaboration.context import (
     ElabTypingContextEntry,
@@ -21,6 +37,82 @@ def graft_spine(outer: Term, inner: Term) -> Term:
             return replace(rec, body=graft_spine(rec.body, inner))
         case _:
             return inner
+
+
+def _spine_binders(term: Term) -> dict[str, Name]:
+    binders: dict[str, Name] = {}
+    while isinstance(term, Rec):
+        binders[term.var_name.name] = term.var_name
+        term = term.body
+    return binders
+
+
+def _reconcile_names(term: Term, spine: dict[str, Name], bound: frozenset[str] = frozenset()) -> Term:
+    """Align ``Var`` nodes with the ``Name`` ids on the linked top-level ``Rec`` spine.
+
+      Each dependency unit is ``bind_ids``'d independently, so cross-unit references
+    in the importer can carry stale ids that do not match the grafted binders.
+    """
+    match term:
+        case Var(name):
+            if name.name in spine and name.name not in bound:
+                canonical = spine[name.name]
+                if canonical != name:
+                    return Var(canonical)
+            return term
+        case Abstraction(var_name, body):
+            return Abstraction(var_name, _reconcile_names(body, spine, bound | {var_name.name}))
+        case Let(var_name, var_value, body, loc, multiplicity):
+            return Let(
+                var_name,
+                _reconcile_names(var_value, spine, bound),
+                _reconcile_names(body, spine, bound | {var_name.name}),
+                loc=loc,
+                multiplicity=multiplicity,
+            )
+        case Rec(var_name, var_type, var_value, body, decreasing_by, loc, multiplicity, mutual_group_id, companions):
+            # Spine ``body`` is the next top-level binding, not a nested scope where
+            # ``var_name`` is in scope — only reconcile the function body itself.
+            return Rec(
+                var_name,
+                var_type,
+                _reconcile_names(var_value, spine, bound),
+                _reconcile_names(body, spine, bound),
+                decreasing_by=decreasing_by,
+                loc=loc,
+                multiplicity=multiplicity,
+                mutual_group_id=mutual_group_id,
+                companions=companions,
+            )
+        case Application(fun, arg):
+            return Application(_reconcile_names(fun, spine, bound), _reconcile_names(arg, spine, bound))
+        case If(cond, then, otherwise):
+            return If(
+                _reconcile_names(cond, spine, bound),
+                _reconcile_names(then, spine, bound),
+                _reconcile_names(otherwise, spine, bound),
+            )
+        case Annotation(expr, ty):
+            return Annotation(_reconcile_names(expr, spine, bound), ty)
+        case TypeApplication(body, ty):
+            return TypeApplication(_reconcile_names(body, spine, bound), ty)
+        case RefinementApplication(body, refinement):
+            return RefinementApplication(_reconcile_names(body, spine, bound), refinement)
+        case TypeAbstraction(name, kind, body):
+            return TypeAbstraction(name, kind, _reconcile_names(body, spine, bound))
+        case RefinementAbstraction(pname, sort, body):
+            return RefinementAbstraction(pname, sort, _reconcile_names(body, spine, bound))
+        case Literal() | Hole() | ImplicitRefinementHole():
+            return term
+        case _:
+            return term
+
+
+def reconcile_linked_names(term: Term) -> Term:
+    spine = _spine_binders(term)
+    if not spine:
+        return term
+    return _reconcile_names(term, spine)
 
 
 def link_rec_spines(units_in_order: list[CompiledUnit], local_spine: Term) -> Term:
@@ -90,7 +182,7 @@ def link_compiled_units(
     dependency_units: list[CompiledUnit],
 ) -> tuple[Term, TypingContext, Metadata, frozenset[Name]]:
     """Link a module with its dependencies into a runnable core program."""
-    core = link_rec_spines(dependency_units, local_unit.core_spine)
+    core = reconcile_linked_names(link_rec_spines(dependency_units, local_unit.core_spine))
     trusted = frozenset().union(*(u.trusted_names for u in dependency_units))
     typing_ctx = link_typing_context(dependency_units, local_unit.typing_ctx, trusted)
     metadata = merge_metadata([u.metadata for u in dependency_units] + [local_unit.metadata])

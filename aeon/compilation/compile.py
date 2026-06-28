@@ -1,21 +1,29 @@
 from __future__ import annotations
 
+import os
 from importlib.metadata import version
 from pathlib import Path
 
-from aeon.compilation.link import link_compiled_units, link_rec_spines, link_typing_context
+from aeon.compilation.link import (
+    collect_dependency_units,
+    link_compiled_units,
+    link_rec_spines,
+    link_typing_context,
+)
+from aeon.decorators import apply_core_decorators_phase
 from aeon.compilation.serialize import read_unit, source_hash, write_unit
 from aeon.compilation.unit import AEC_FORMAT_VERSION, CompiledUnit, ModuleExport
 from aeon.core.bind import bind_ids, populate_mutual_companions
 from aeon.core.terms import Literal, Rec, Term
 from aeon.core.types import Type, t_int, top
-from aeon.decorators import Metadata, apply_core_decorators_phase
+from aeon.decorators import Metadata
 from aeon.elaboration import elaborate_collecting_errors
 from aeon.facade.api import AeonError
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import (
     _bare_name,
+    _get_package_libraries_dir,
     _is_native_import_def,
     desugar,
     resolve_import_path,
@@ -39,6 +47,44 @@ _module_cache: dict[str, CompiledUnit] = {}
 def clear_unit_cache() -> None:
     _source_cache.clear()
     _module_cache.clear()
+
+
+def _resolve_module_source(module_path: str) -> str | None:
+    """Resolve a module path (e.g. ``String``) to an absolute ``.ae`` file path."""
+    rel = module_path.replace(".", "/") + ".ae"
+    possible_containers = [Path.cwd(), Path.cwd() / "libraries"]
+    pkg_libs = _get_package_libraries_dir()
+    if pkg_libs:
+        possible_containers.append(pkg_libs)
+    aeonpath = os.environ.get("AEONPATH", "")
+    if aeonpath:
+        possible_containers.extend(Path(s) for s in aeonpath.split(";") if s)
+    for container in possible_containers:
+        candidate = container / rel
+        if candidate.exists():
+            return str(candidate.resolve())
+    return None
+
+
+def _ensure_dependencies_cached(module_paths: list[str]) -> None:
+    """Populate ``_module_cache`` with every transitive dependency unit."""
+    pending = list(module_paths)
+    seen: set[str] = set()
+    while pending:
+        module_path = pending.pop()
+        if module_path in seen:
+            continue
+        seen.add(module_path)
+        if module_path in _module_cache:
+            pending.extend(_module_cache[module_path].dependencies)
+            continue
+        source = _resolve_module_source(module_path)
+        if source is None:
+            continue
+        dep_unit, errors = compile_file(source, is_main=False, use_cache=True, write_cache=False)
+        if errors:
+            continue
+        pending.extend(dep_unit.dependencies)
 
 
 def _file_imports(program: Program) -> list[ImportAe]:
@@ -121,6 +167,7 @@ def compile_file(
     filename: str,
     *,
     is_main: bool = False,
+    is_main_hole: bool | None = None,
     use_cache: bool = True,
     write_cache: bool = True,
 ) -> tuple[CompiledUnit, list[AeonError]]:
@@ -130,6 +177,7 @@ def compile_file(
         contents,
         filename=path,
         is_main=is_main,
+        is_main_hole=is_main_hole,
         use_cache=use_cache,
         write_cache=write_cache,
     )
@@ -140,6 +188,7 @@ def compile_program(
     *,
     filename: str | None = None,
     is_main: bool = False,
+    is_main_hole: bool | None = None,
     use_cache: bool = True,
     write_cache: bool = True,
 ) -> tuple[CompiledUnit, list[AeonError]]:
@@ -158,6 +207,7 @@ def compile_program(
         ):
             _source_cache[path] = cached
             _module_cache[cached.module_path] = cached
+            _ensure_dependencies_cached(cached.dependencies)
             return cached, []
 
     clear_instance_registry()
@@ -187,11 +237,12 @@ def compile_program(
 
     module_path = Path(path).stem if path != "<stdin>" else "Main"
     export_prefix = None if is_main else _module_export_name(module_path)
+    main_hole = is_main if is_main_hole is None else is_main_hole
 
     try:
         desugared = desugar(
             prog,
-            is_main_hole=is_main,
+            is_main_hole=main_hole,
             compiled_imports=dep_units if dep_units else None,
             module_export_name=export_prefix,
         )
@@ -223,6 +274,7 @@ def compile_program(
 
     exports = _exports_from_spine(core_ast, typing_ctx, prog.definitions, export_prefix, export_sugar_types)
 
+    source_metadata: Metadata = dict(desugared.metadata)
     metadata: Metadata = {}
     if is_main:
         metadata = apply_core_decorators_phase(linked_ctx, linked_core, desugared.metadata)
@@ -246,6 +298,7 @@ def compile_program(
         qualified_scope=_qualified_scope(exports, module_path) if export_prefix else {},
         dependencies=dep_module_paths,
         trusted_names=frozenset(v.internal_name for v in exports.values()),
+        source_metadata=source_metadata,
     )
 
     if path != "<stdin>":
@@ -283,12 +336,16 @@ def compile_and_link(
     filename: str,
     *,
     is_main: bool = True,
+    is_main_hole: bool | None = None,
     use_cache: bool = True,
 ) -> tuple[CompiledUnit, Term | None, TypingContext | None, Metadata | None, frozenset[Name], list[AeonError]]:
-    unit, errors = compile_file(filename, is_main=is_main, use_cache=use_cache)
+    unit, errors = compile_file(filename, is_main=is_main, is_main_hole=is_main_hole, use_cache=use_cache)
     if errors:
         return unit, None, None, None, frozenset(), errors
 
-    dep_units = [_module_cache[m] for m in unit.dependencies if m in _module_cache]
+    _ensure_dependencies_cached(unit.dependencies)
+    dep_units = collect_dependency_units(unit, _module_cache)
     core, typing_ctx, metadata, trusted = link_compiled_units(unit, dep_units)
+    if is_main and unit.source_metadata:
+        metadata = apply_core_decorators_phase(typing_ctx, core, dict(unit.source_metadata))
     return unit, core, typing_ctx, metadata, trusted, []
