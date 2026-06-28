@@ -1,24 +1,25 @@
 import sys
+import tempfile
 from dataclasses import dataclass
 from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.backend.python_export import export_function
-from aeon.core.bind import bind_ids, populate_mutual_companions
+from aeon.compilation.compile import (
+    clear_unit_cache,
+    compile_and_link,
+    compile_and_link_program,
+    dependency_units_for,
+)
+from aeon.compilation.link import collect_constructor_names
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
-from aeon.core.types import top
-from aeon.decorators import Metadata, apply_core_decorators_phase
-from aeon.elaboration import elaborate_collecting_errors
 from aeon.facade.api import AeonError
 from aeon.prelude.prelude import evaluation_vars
-from aeon.sugar.ast_helpers import st_top
-from aeon.sugar.bind import bind, bind_program
-from aeon.sugar.desugar import DesugaredProgram, desugar
+from aeon.sugar.bind import bind_program
 from aeon.sugar.instance_registry import clear_instance_registry
 from aeon.sugar.lifting import lift
-from aeon.sugar.lowering import lower_to_core, lower_to_core_context
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
 from aeon.synthesis.entrypoint import synthesize_holes
@@ -26,7 +27,6 @@ from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI, SynthesisFormat
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_node
 from aeon.utils.time_utils import RecordTime
@@ -56,72 +56,48 @@ class AeonDriver:
         self.cfg = cfg
 
     def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
-        if aeon_code is None:
-            aeon_code = read_file(filename)
-
         self.core = None
         self.typing_ctx = None
 
-        return self._parse_legacy(filename, aeon_code)
-
-    def _parse_legacy(self, filename: str | None, aeon_code: str) -> Iterable[AeonError]:
         with RecordTime("ParseSugar"):
             clear_instance_registry()
-            prog: Program = parse_main_program(aeon_code, filename=filename)
-            prog = bind_program(prog, [])
+            clear_unit_cache()
 
-        with RecordTime("Desugar"):
-            try:
-                desugared: DesugaredProgram = desugar(prog, is_main_hole=not self.cfg.no_main)
-            except AeonError as e:
-                return [e]
+        with RecordTime("Compile"):
+            if aeon_code is not None:
+                parse_path = filename
+                if parse_path is None:
+                    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".ae", delete=False, encoding="utf-8")
+                    tmp.write(aeon_code)
+                    tmp.close()
+                    parse_path = tmp.name
+                unit, core, typing_ctx, metadata, _trusted, errors = compile_and_link_program(
+                    aeon_code,
+                    filename=parse_path,
+                    is_main=True,
+                    is_main_hole=not self.cfg.no_main,
+                )
+            else:
+                unit, core, typing_ctx, metadata, _trusted, errors = compile_and_link(
+                    filename,
+                    is_main=True,
+                    is_main_hole=not self.cfg.no_main,
+                )
 
-        with RecordTime("Bind"):
-            ctx, progt = bind(desugared.elabcontext, desugared.program)
-            desugared = DesugaredProgram(
-                progt, ctx, desugared.metadata, desugared.constructor_to_type, desugared.constructor_defs
-            )
-            metadata: Metadata = desugared.metadata
+        if errors:
+            return errors
+        assert core is not None and typing_ctx is not None and metadata is not None
 
-        with RecordTime("Elaboration"):
-            sterm, elab_errors = elaborate_collecting_errors(desugared.elabcontext, desugared.program, st_top)
-        if elab_errors:
-            return elab_errors
-        assert sterm is not None
-
-        with RecordTime("Core generation"):
-            typing_ctx = lower_to_core_context(desugared.elabcontext)
-            core_ast = lower_to_core(sterm)
-            typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
-            core_ast = populate_mutual_companions(core_ast)
-
-        # Expose the core program and its top-level typing context as soon as
-        # they exist — before type checking — so tooling (the LSP's hover,
-        # completion and type-index features) can still introspect a program
-        # that elaborates but fails to type check. The later assignments on the
-        # success path overwrite these with identical values.
-        self.core = core_ast
+        self.core = core
         self.typing_ctx = typing_ctx
+        self.metadata = metadata
 
-        with RecordTime("TypeChecking"):
-            type_errors = check_type_errors(typing_ctx, core_ast, top)
-            if type_errors:
-                return type_errors
-
-        with RecordTime("CorePhaseDecorators"):
-            metadata = apply_core_decorators_phase(typing_ctx, core_ast, metadata)
+        dep_units = dependency_units_for(unit)
+        self.constructor_names = collect_constructor_names(unit, dep_units)
 
         with RecordTime("Preparing execution env"):
             pipeline = MultiBackendPipeline(metadata=metadata)
-            evaluation_ctx = EvaluationContext(evaluation_vars, metadata=metadata, pipeline=pipeline)
-
-        self.metadata = metadata
-        self.core = core_ast
-        self.typing_ctx = typing_ctx
-        self.evaluation_ctx = evaluation_ctx
-        # Names (prefixed, e.g. ``List_cons``) of data constructors, so the
-        # property-based tester can build constructor-only generators for ADTs.
-        self.constructor_names = {n.name for n in desugared.constructor_defs.values()}
+            self.evaluation_ctx = EvaluationContext(evaluation_vars, metadata=metadata, pipeline=pipeline)
 
         with RecordTime("LLVM compilation"):
             pipeline.compile(self.core)

@@ -34,7 +34,13 @@ def _typechecks(src: str) -> bool:
     desugared = desugar(prog, is_main_hole=True)
     ctx, progt = bind(desugared.elabcontext, desugared.program)
     desugared = DesugaredProgram(
-        progt, ctx, desugared.metadata, desugared.constructor_to_type, desugared.constructor_defs
+        progt,
+        ctx,
+        desugared.metadata,
+        desugared.constructor_to_type,
+        desugared.constructor_defs,
+        desugared.inductive_decls,
+        desugared.local_inductive_decls,
     )
     sterm = elaborate(desugared.elabcontext, desugared.program, st_top)
     typing_ctx = lower_to_core_context(desugared.elabcontext)

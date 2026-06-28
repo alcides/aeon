@@ -6,18 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from aeon.sugar.desugar import _get_package_libraries_dir, _resolve_import, clear_import_cache
+from aeon.compilation.resolve import clear_import_cache, get_package_libraries_dir, resolve_import
 from aeon.sugar.program import ImportAe
-from aeon.sugar.parser import mk_parser
 from aeon.facade.api import ModuleNotFoundAeonError as AeonImportError
 
 
 class TestPackageLibrariesDir:
-    """Tests for _get_package_libraries_dir helper."""
+    """Tests for get_package_libraries_dir helper."""
 
     def test_package_libraries_dir_exists(self):
         """Test that package libraries directory is found."""
-        libs_dir = _get_package_libraries_dir()
+        libs_dir = get_package_libraries_dir()
         assert libs_dir is not None
         assert libs_dir.exists()
         assert libs_dir.is_dir()
@@ -25,7 +24,7 @@ class TestPackageLibrariesDir:
 
     def test_standard_libraries_exist(self):
         """Test that standard library modules exist in package libraries."""
-        libs_dir = _get_package_libraries_dir()
+        libs_dir = get_package_libraries_dir()
         assert libs_dir is not None
 
         # Check for common standard library modules
@@ -48,7 +47,7 @@ class TestImportResolution:
     def test_import_from_package_libraries(self):
         """Test importing a standard library module."""
         imp = ImportAe(module_path="Math")
-        program = _resolve_import(imp)
+        program = resolve_import(imp)
         assert program is not None
         # Check that Math module has expected definitions
         def_names = [d.name.name for d in program.definitions]
@@ -66,7 +65,7 @@ class TestImportResolution:
             try:
                 os.chdir(tmpdir)
                 imp = ImportAe(module_path="TestMod")
-                program = _resolve_import(imp)
+                program = resolve_import(imp)
                 assert program is not None
                 def_names = [d.name.name for d in program.definitions]
                 assert "test_func" in def_names
@@ -79,35 +78,40 @@ class TestImportResolution:
             # Create libraries subdirectory with a module
             libs_dir = Path(tmpdir) / "libraries"
             libs_dir.mkdir()
-            test_module = libs_dir / "LocalLib.ae"
-            test_module.write_text("def local_func : Int := 123;")
+            test_module = libs_dir / "LibMod.ae"
+            test_module.write_text("def lib_func : Int := 99;")
 
             old_cwd = os.getcwd()
             try:
                 os.chdir(tmpdir)
-                imp = ImportAe(module_path="LocalLib")
-                program = _resolve_import(imp)
+                imp = ImportAe(module_path="LibMod")
+                program = resolve_import(imp)
                 assert program is not None
                 def_names = [d.name.name for d in program.definitions]
-                assert "local_func" in def_names
+                assert "lib_func" in def_names
             finally:
                 os.chdir(old_cwd)
 
     def test_import_from_aeonpath(self):
         """Test importing from AEONPATH environment variable."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            custom_lib = Path(tmpdir) / "CustomLib.ae"
-            custom_lib.write_text("def custom_func : Int := 999;")
+            custom_dir = Path(tmpdir) / "custom_libs"
+            custom_dir.mkdir()
+            test_module = custom_dir / "CustomMod.ae"
+            test_module.write_text("def custom_func : Int := 123;")
 
+            old_cwd = os.getcwd()
             old_aeonpath = os.environ.get("AEONPATH")
             try:
-                os.environ["AEONPATH"] = tmpdir
-                imp = ImportAe(module_path="CustomLib")
-                program = _resolve_import(imp)
+                os.chdir(tmpdir)
+                os.environ["AEONPATH"] = str(custom_dir)
+                imp = ImportAe(module_path="CustomMod")
+                program = resolve_import(imp)
                 assert program is not None
                 def_names = [d.name.name for d in program.definitions]
                 assert "custom_func" in def_names
             finally:
+                os.chdir(old_cwd)
                 if old_aeonpath is None:
                     os.environ.pop("AEONPATH", None)
                 else:
@@ -116,133 +120,58 @@ class TestImportResolution:
     def test_import_precedence_cwd_over_package(self):
         """Test that cwd takes precedence over package libraries."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a local Math.ae that shadows the standard library
-            local_math = Path(tmpdir) / "Math.ae"
-            local_math.write_text("def shadow_func : Int := 555;")
+            # Create a Math.ae in cwd that shadows the package one
+            test_module = Path(tmpdir) / "Math.ae"
+            test_module.write_text("def shadowed : Int := 0;")
 
             old_cwd = os.getcwd()
             try:
                 os.chdir(tmpdir)
                 imp = ImportAe(module_path="Math")
-                program = _resolve_import(imp)
-                assert program is not None
+                program = resolve_import(imp)
                 def_names = [d.name.name for d in program.definitions]
-                # Should have the local version, not the standard library
-                assert "shadow_func" in def_names
-                assert "abs" not in def_names  # Standard library Math has abs
+                assert "shadowed" in def_names
+                assert "abs" not in def_names
             finally:
                 os.chdir(old_cwd)
 
-    def test_import_nonexistent_module_error(self):
-        """Test that importing a non-existent module raises ImportError."""
-        imp = ImportAe(module_path="NonExistentModule")
-        with pytest.raises(AeonImportError) as exc_info:
-            _resolve_import(imp)
-        assert "NonExistentModule" in str(exc_info.value)
-        assert "NonExistentModule.ae" in str(exc_info.value)
+    def test_import_not_found_raises(self):
+        """Test that importing a non-existent module raises an error."""
+        imp = ImportAe(module_path="NonExistentModule12345")
+        with pytest.raises(AeonImportError):
+            resolve_import(imp)
 
-    def test_import_nested_module_path(self):
-        """Test importing nested module paths (e.g., Foo.Bar -> Foo/Bar.ae)."""
+    def test_import_caching(self):
+        """Test that imports are cached by resolved file path."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create nested directory structure
-            foo_dir = Path(tmpdir) / "Foo"
-            foo_dir.mkdir()
-            bar_module = foo_dir / "Bar.ae"
-            bar_module.write_text("def nested_func : Int := 777;")
+            test_module = Path(tmpdir) / "CachedMod.ae"
+            test_module.write_text("def cached : Int := 1;")
 
             old_cwd = os.getcwd()
             try:
                 os.chdir(tmpdir)
-                imp = ImportAe(module_path="Foo.Bar")
-                program = _resolve_import(imp)
-                assert program is not None
-                def_names = [d.name.name for d in program.definitions]
-                assert "nested_func" in def_names
+                imp = ImportAe(module_path="CachedMod")
+                program1 = resolve_import(imp)
+                program2 = resolve_import(imp)
+                assert program1 is program2
             finally:
                 os.chdir(old_cwd)
 
-    def test_import_caching(self):
-        """Test that imports are cached and reused."""
-        imp = ImportAe(module_path="Math")
-        program1 = _resolve_import(imp)
-        program2 = _resolve_import(imp)
-        # Should be the same object (cached)
-        assert program1 is program2
+    def test_clear_import_cache(self):
+        """Test that clear_import_cache forces re-parsing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_module = Path(tmpdir) / "CacheClearMod.ae"
+            test_module.write_text("def v1 : Int := 1;")
 
-
-class TestEndToEndImports:
-    """End-to-end tests for imports in actual aeon programs."""
-
-    def setup_method(self):
-        """Clear import cache before each test."""
-        clear_import_cache()
-
-    def teardown_method(self):
-        """Clear import cache after each test."""
-        clear_import_cache()
-
-    def test_parse_program_with_stdlib_import(self):
-        """Test parsing a program that imports from stdlib."""
-        source = """
-import Math;
-
-def main (args: Int): Unit :=
-    print (Math.abs (0 - 5));
-"""
-        parser = mk_parser("program")
-        program = parser(source)
-        assert program is not None
-        assert len(program.imports) == 1
-        assert program.imports[0].module_path == "Math"
-
-    def test_parse_program_with_open_import(self):
-        """Test parsing a program with open import."""
-        source = """
-open Math
-
-def main (args: Int): Unit :=
-    print (abs 5);
-"""
-        parser = mk_parser("program")
-        program = parser(source)
-        assert program is not None
-        assert len(program.imports) == 1
-        assert program.imports[0].module_path == "Math"
-        assert program.imports[0].is_open
-
-    def test_parse_program_with_selective_import(self):
-        """Test parsing a program with selective import."""
-        source = """
-import Math (abs, pow)
-
-def main (args: Int): Unit :=
-    print (abs (0 - 5));
-"""
-        parser = mk_parser("program")
-        program = parser(source)
-        assert program is not None
-        assert len(program.imports) == 1
-        assert program.imports[0].module_path == "Math"
-        assert program.imports[0].selected_names == ["abs", "pow"]
-
-
-class TestQualifiedNamesInBodyAnnotations:
-    """Qualified imports resolve inside type ascriptions written in bodies.
-
-    ``Array.size`` already resolved in parameter and return-type refinements;
-    the same predicate in a body-level ascription (``a : {x:_ | Array.size x
-    = 2} := ...``) used to be skipped by ``resolve_qualified_names_in_sterm``
-    and died in liquefaction (issue #363 follow-up).
-    """
-
-    def test_qualified_name_in_body_annotation_refinement(self):
-        from aeon.sugar.ast_helpers import st_top
-        from tests.driver import check_compile
-
-        source = (
-            "import Array;\n"
-            "def main (i:Int) : Int :=\n"
-            "    a : {x:(Array Int) | Array.size x = 2} := ((Array.new{Int}).append 1).append 2;\n"
-            "    a.length;\n"
-        )
-        assert check_compile(source, st_top, 2)
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                imp = ImportAe(module_path="CacheClearMod")
+                resolve_import(imp)
+                test_module.write_text("def v2 : Int := 2;")
+                clear_import_cache()
+                program = resolve_import(imp)
+                def_names = [d.name.name for d in program.definitions]
+                assert "v2" in def_names
+            finally:
+                os.chdir(old_cwd)

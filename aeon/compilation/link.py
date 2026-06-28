@@ -48,11 +48,7 @@ def _spine_binders(term: Term) -> dict[str, Name]:
 
 
 def _reconcile_names(term: Term, spine: dict[str, Name], bound: frozenset[str] = frozenset()) -> Term:
-    """Align ``Var`` nodes with the ``Name`` ids on the linked top-level ``Rec`` spine.
-
-      Each dependency unit is ``bind_ids``'d independently, so cross-unit references
-    in the importer can carry stale ids that do not match the grafted binders.
-    """
+    """Align ``Var`` nodes with canonical ``Name`` ids on the linked ``Rec`` spine."""
     match term:
         case Var(name):
             if name.name in spine and name.name not in bound:
@@ -71,8 +67,6 @@ def _reconcile_names(term: Term, spine: dict[str, Name], bound: frozenset[str] =
                 multiplicity=multiplicity,
             )
         case Rec(var_name, var_type, var_value, body, decreasing_by, loc, multiplicity, mutual_group_id, companions):
-            # Spine ``body`` is the next top-level binding, not a nested scope where
-            # ``var_name`` is in scope — only reconcile the function body itself.
             return Rec(
                 var_name,
                 var_type,
@@ -118,11 +112,12 @@ def reconcile_linked_names(term: Term) -> Term:
 def link_rec_spines(units_in_order: list[CompiledUnit], local_spine: Term) -> Term:
     """Nest dependency spines around a module's own spine.
 
-    ``units_in_order`` lists dependencies outermost-first (same order as
-    ``handle_imports`` prepends definitions).
+    ``units_in_order`` lists dependencies outermost-first (from
+    :func:`collect_dependency_units`). Grafting runs innermost-first so
+    providers like ``Math`` end up outside consumers like ``Testing``.
     """
     result = local_spine
-    for unit in units_in_order:
+    for unit in reversed(units_in_order):
         result = graft_spine(unit.core_spine, result)
     return result
 
@@ -211,3 +206,16 @@ def collect_dependency_units(
     for dep_path in unit.dependencies:
         visit(dep_path)
     return ordered
+
+
+def collect_constructor_names(unit: CompiledUnit, dependency_units: list[CompiledUnit]) -> set[str]:
+    names: set[str] = set()
+    for u in [unit, *dependency_units]:
+        mod = u.module_path.split(".")[-1]
+        for decl in u.inductive_decls:
+            for cons in decl.constructors:
+                bare = cons.name.name
+                names.add(f"{decl.name.name}_{bare}")
+                names.add(f"{mod}_{decl.name.name}_{bare}")
+        names.update(n.name for n in u.constructor_defs.values())
+    return names
