@@ -9,6 +9,7 @@ from aeon.elaboration.context import (
     ElabTypingContextEntry,
     ElaborationTypingContext,
 )
+from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext, TypingContextEntry
 from aeon.utils.name import Name
 
@@ -47,7 +48,9 @@ def merge_typing_contexts(contexts: list[TypingContext], trusted: frozenset[Name
     return TypingContext(entries, trusted_names=frozenset(trusted_names))
 
 
-def link_typing_context(dependency_units: list[CompiledUnit], local_ctx: TypingContext, trusted: frozenset[Name]) -> TypingContext:
+def link_typing_context(
+    dependency_units: list[CompiledUnit], local_ctx: TypingContext, trusted: frozenset[Name]
+) -> TypingContext:
     """Merge dependency contexts with local entries, dropping import duplicates."""
     dep_names: set[Name] = set()
     for unit in dependency_units:
@@ -55,11 +58,7 @@ def link_typing_context(dependency_units: list[CompiledUnit], local_ctx: TypingC
             dep_names.add(export.internal_name)
         dep_names.update(unit.trusted_names)
 
-    local_entries = [
-        e
-        for e in local_ctx.entries
-        if not (hasattr(e, "name") and getattr(e, "name") in dep_names)
-    ]
+    local_entries = [e for e in local_ctx.entries if not (hasattr(e, "name") and getattr(e, "name") in dep_names)]
     return merge_typing_contexts(
         [u.typing_ctx for u in dependency_units] + [TypingContext(local_entries)],
         trusted=trusted,
@@ -70,7 +69,7 @@ def merge_elab_contexts(contexts: list[ElaborationTypingContext]) -> Elaboration
     entries: list[ElabTypingContextEntry] = []
     constructor_to_type: dict[str, Name] = {}
     constructor_defs: dict[str, Name] = {}
-    instances: list[tuple[Name, object]] = []
+    instances: list[tuple[Name, SType]] = []
     for ctx in contexts:
         entries.extend(ctx.entries)
         constructor_to_type.update(ctx.constructor_to_type)

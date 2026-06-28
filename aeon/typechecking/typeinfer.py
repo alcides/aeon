@@ -1093,11 +1093,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         case Rec(var_name, var_type, var_value, body), _:
             if var_name in ctx.trusted_names:
                 t1 = fresh(ctx, var_type)
-                nrctx: TypingContext = ctx.with_var(var_name, t1)
-                c2 = check(nrctx, body, ty)
-                return implication_constraint(
-                    var_name, t1, c2, body.loc, keep_refinements=True
-                )
+                trusted_ctx: TypingContext = ctx.with_var(var_name, t1)
+                c2 = check(trusted_ctx, body, ty)
+                return implication_constraint(var_name, t1, c2, body.loc, keep_refinements=True)
             has_metric = bool(t.decreasing_by)
             # See the ``synth`` Rec arm: a ``mutual`` group's inductive hypothesis
             # is only sound when every member carries a termination metric.

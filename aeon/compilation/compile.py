@@ -8,7 +8,7 @@ from aeon.compilation.serialize import read_unit, source_hash, write_unit
 from aeon.compilation.unit import AEC_FORMAT_VERSION, CompiledUnit, ModuleExport
 from aeon.core.bind import bind_ids, populate_mutual_companions
 from aeon.core.terms import Literal, Rec, Term
-from aeon.core.types import t_int, top
+from aeon.core.types import Type, t_int, top
 from aeon.decorators import Metadata, apply_core_decorators_phase
 from aeon.elaboration import elaborate_collecting_errors
 from aeon.facade.api import AeonError
@@ -25,6 +25,7 @@ from aeon.sugar.instance_registry import clear_instance_registry
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context, type_to_core
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import ImportAe, Program, SRec, STerm
+from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type_errors
 from aeon.utils.name import Name
@@ -42,11 +43,7 @@ def clear_unit_cache() -> None:
 
 def _file_imports(program: Program) -> list[ImportAe]:
     inductive_names = {d.name.name for d in program.inductive_decls}
-    return [
-        imp
-        for imp in program.imports
-        if not (imp.is_open and imp.module_path in inductive_names)
-    ]
+    return [imp for imp in program.imports if not (imp.is_open and imp.module_path in inductive_names)]
 
 
 def _module_export_name(module_path: str) -> str:
@@ -60,8 +57,8 @@ def _collect_trusted_names(units: list[CompiledUnit]) -> frozenset[Name]:
     return frozenset(names)
 
 
-def _sugar_types_from_srec_chain(prog: STerm) -> dict[str, object]:
-    types: dict[str, object] = {}
+def _sugar_types_from_srec_chain(prog: STerm) -> dict[str, SType]:
+    types: dict[str, SType] = {}
     current = prog
     while isinstance(current, SRec):
         types[current.var_name.name] = current.var_type
@@ -74,9 +71,9 @@ def _exports_from_spine(
     typing_ctx: TypingContext,
     definitions: list,
     export_prefix: str | None,
-    export_sugar_types: dict[str, object] | None = None,
+    export_sugar_types: dict[str, SType] | None = None,
 ) -> dict[str, ModuleExport]:
-    rec_types: dict[str, object] = {}
+    rec_types: dict[str, Type] = {}
     spine = core_spine
     while isinstance(spine, Rec):
         rec_types[spine.var_name.name] = spine.var_type
@@ -90,15 +87,13 @@ def _exports_from_spine(
         elif export_prefix is not None:
             bare = _bare_name(export_prefix, d.name.name)
             internal = (
-                d.name
-                if d.name.name.startswith(f"{export_prefix}_")
-                else Name(f"{export_prefix}_{bare}", d.name.id)
+                d.name if d.name.name.startswith(f"{export_prefix}_") else Name(f"{export_prefix}_{bare}", d.name.id)
             )
         else:
             bare = d.name.name
             internal = d.name
 
-        core_type = rec_types.get(internal.name)
+        core_type: Type | None = rec_types.get(internal.name)
         if core_type is None:
             core_type = typing_ctx.type_of(internal)
         if core_type is None:
@@ -220,11 +215,7 @@ def compile_program(
     dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]
     linked_core = link_rec_spines(dep_list, core_ast) if dep_list else core_ast
     trusted = _collect_trusted_names(dep_list)
-    linked_ctx = (
-        link_typing_context(dep_list, typing_ctx, trusted)
-        if dep_list
-        else typing_ctx
-    )
+    linked_ctx = link_typing_context(dep_list, typing_ctx, trusted) if dep_list else typing_ctx
 
     type_errors = list(check_type_errors(linked_ctx, linked_core, top))
     if type_errors:
