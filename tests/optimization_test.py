@@ -92,3 +92,17 @@ def test_whnf_peels_annotations():
 def test_whnf_does_not_descend_into_abstraction_body():
     t = parse_term("fun x => (fun y => y) 0")
     assert whnf(t) == t
+
+
+def test_opt_native_lambda():
+    eq('(native "lambda x: x") 1', "1")
+    eq('(native "lambda x: x + 1") 2', "3")
+    eq('(native "lambda x: lambda y: x + y") 1 2', "3")
+
+
+def test_opt_native_lambda_with_var():
+    eq('(native "lambda x: x") y', "y")
+
+
+def test_opt_native_constant_expr():
+    eq('native "1+1"', "2")

@@ -16,6 +16,7 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.core.types import t_bool, t_int
+from aeon.optimization.native import beta_reduce_native, fold_native_expr
 from aeon.utils.name import Name
 
 
@@ -131,7 +132,14 @@ def nf(t: Term) -> Term:
 
         case Abstraction(var_name, body):
             return Abstraction(var_name, nf(body))
+        case Application(Var(Name("native", _)), Literal(code, _)):
+            if (folded := fold_native_expr(str(code))) is not None:
+                return folded
+            return t
+
         case Application(fun, arg):
+            if (reduced := beta_reduce_native(fun, arg)) is not None:
+                return reduced
             return Application(nf(fun), nf(arg))
         case Let(var_name, var_value, body):
             return substitution(body, nf(var_value), var_name)
