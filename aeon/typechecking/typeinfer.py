@@ -85,6 +85,7 @@ from aeon.verification.helpers import (
     constraint_location,
     remove_unrelated_context,
     simplify_constraint,
+    simplify_constraint_fixpoint,
     conjunctive_normal_form,
     is_implication_true,
     split_or_in_conclusion,
@@ -1275,7 +1276,7 @@ def constraint_to_parts(
                 vcs = split_or_in_conclusion(cons)
                 for vc in vcs:
                     if not solve(vc, typing_ctx=typing_ctx, qualifier_atoms=atoms):
-                        cons_simp = simplify_constraint(vc)
+                        cons_simp = simplify_constraint_fixpoint(vc)
                         cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
                         loc = constraint_location(cons_clean)
                         yield cons_clean, loc
