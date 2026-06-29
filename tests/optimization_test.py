@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aeon.optimization.normal_form import optimize
+from aeon.optimization.whnf import whnf
 from aeon.core.parser import parse_term
 
 
@@ -81,3 +82,13 @@ def test_opt_op():
     eq("1-1", "0")
     eq("true && false", "false")
     eq("true || false", "true")
+
+
+def test_whnf_peels_annotations():
+    t = parse_term("(fun x => 1) 2")
+    assert whnf(t) == parse_term("1")
+
+
+def test_whnf_does_not_descend_into_abstraction_body():
+    t = parse_term("fun x => (fun y => y) 0")
+    assert whnf(t) == t

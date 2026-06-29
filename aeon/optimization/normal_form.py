@@ -8,6 +8,8 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementAbstraction,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
@@ -122,8 +124,8 @@ def nf(t: Term) -> Term:
             return t
         case Var(_):
             return t
-        case Annotation(_, _):
-            return t
+        case Annotation(expr, _):
+            return nf(expr)
         case Hole(_):
             return t
 
@@ -143,6 +145,10 @@ def nf(t: Term) -> Term:
             return TypeAbstraction(ty, kind, nf(body))
         case TypeApplication(body, ty):
             return TypeApplication(nf(body), ty)
+        case RefinementAbstraction(name, ty, body):
+            return RefinementAbstraction(name, ty, nf(body))
+        case RefinementApplication(body, _):
+            return nf(body)
         case _:
             assert False, f"No case for {t} ({type(t)})"
 
@@ -157,3 +163,21 @@ def normal_form(t: Term) -> Term:
 
 def optimize(t: Term) -> Term:
     return normal_form(t)
+
+
+def optimize_bindings(core: Term) -> Term:
+    """Run ``optimize`` on every top-level binding value in a core program."""
+    match core:
+        case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
+            return Rec(
+                var_name,
+                var_type,
+                optimize(var_value),
+                optimize_bindings(body),
+                decreasing_by=decreasing_by,
+                loc=loc,
+            )
+        case Let(var_name, var_value, body):
+            return Let(var_name, optimize(var_value), optimize_bindings(body))
+        case _:
+            return core
