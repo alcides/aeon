@@ -281,12 +281,14 @@ def _location_in_file(loc: Location, source_path: str | None) -> bool:
         return True
     if loc.file == source_path:
         return True
+    if not loc.file:
+        return False
     # The parser may record an unresolved path while the compiled unit stores
     # the resolved one (or vice versa); compare normalized paths so a relative
     # filename does not silently drop every warning.
     try:
         return Path(loc.file).resolve() == Path(source_path).resolve()
-    except (OSError, ValueError):
+    except (OSError, ValueError, TypeError):
         return False
 
 
