@@ -16,11 +16,16 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.core.types import t_bool, t_int
+from aeon.optimization.match import optimize_eliminator, optimize_eliminator_abstraction
 from aeon.optimization.native import beta_reduce_native, fold_native_expr
 from aeon.utils.name import Name
 
 
 def nf(t: Term) -> Term:
+    if (reduced := optimize_eliminator(t)) is not None:
+        return reduced
+    if (reduced := optimize_eliminator_abstraction(t)) is not None:
+        return reduced
     match t:
         case Application(Abstraction(var_name, body), arg):
             return substitution(body, arg, var_name)

@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+import pytest
+
 from aeon.optimization.normal_form import optimize
 from aeon.optimization.whnf import whnf
 from aeon.core.parser import parse_term
+from aeon.verification.constructor_registry import clear_constructor_registry, register_constructors
+
+
+@pytest.fixture(autouse=True)
+def _intlist_constructors():
+    clear_constructor_registry()
+    register_constructors("IntList", ["IntList_empty", "IntList_cons"])
+    yield
+    clear_constructor_registry()
 
 
 def eq(source, expected):
@@ -106,3 +117,32 @@ def test_opt_native_lambda_with_var():
 
 def test_opt_native_constant_expr():
     eq('native "1+1"', "2")
+
+
+def test_opt_match_empty():
+    eq(
+        "((((IntList_rec)[Int] IntList_empty) 0) (fun h => (fun t => 1)))",
+        "0",
+    )
+
+
+def test_opt_match_cons():
+    eq(
+        "((((IntList_rec)[Int] ((IntList_cons 2) IntList_empty)) 0) (fun h => (fun t => h)))",
+        "2",
+    )
+
+
+def test_opt_match_native_tuple_scrutinee():
+    eq(
+        "((((IntList_rec)[Int] (native \"('IntList_cons', 2, IntList_empty)\")) 0) (fun h => (fun t => h)))",
+        "2",
+    )
+
+
+def test_opt_match_via_let_scrutinee():
+    eq(
+        "let xs = ((IntList_cons 3) IntList_empty) in "
+        "((((IntList_rec)[Int] xs) 0) (fun h => (fun t => h)))",
+        "3",
+    )
