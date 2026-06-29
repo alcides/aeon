@@ -81,3 +81,80 @@ def test_render_counterexample_consistent_with_validity():
     # The stored VC is genuinely invalid, and the renderer produces a witness.
     assert not smt_valid(err.vc)
     assert render_counterexample(err.vc) is not None
+
+
+def test_counterexample_with_uninterpreted_function():
+    """Counterexamples display values for base-type inputs even when
+    uninterpreted functions are involved.
+
+    The uninterpreted function itself won't have a concrete interpretation
+    in the model, but base-type variables will have concrete values."""
+    src = """
+def my_measure: (x:Int) -> Int := uninterpreted;
+
+def claim_positive (n:{v:Int | v >= 0}) : {r:Int | r >= 0} :=
+    n - 10;
+"""
+    err = _liquid_failure(src)
+    cex = err.counterexample()
+    # This should produce a counterexample because n - 10 is not always >= 0
+    # when n >= 0 (e.g., n=5 gives -5)
+    assert cex is not None
+    assert "n =" in cex
+    # The counterexample should show a small non-negative value for n
+    pairs = model_for_invalid(err.vc)
+    assert pairs is not None
+    values = dict(pairs)
+    n_key = next(k for k in values if k.startswith("n"))
+    n_val = int(values[n_key])
+    # n should be >= 0 (the precondition) but n - 10 < 0, so 0 <= n < 10
+    assert 0 <= n_val < 10
+
+
+def test_counterexample_with_polymorphic_uninterpreted():
+    """Counterexamples with polymorphic uninterpreted functions on base types."""
+    src = """
+def my_len : forall a:B, (x: a) -> Int := uninterpreted
+
+def bad_double (n: {v:Int | v >= 0}) : {r: Int | r >= n + 10} :=
+    n + n ;
+"""
+    err = _liquid_failure(src)
+    cex = err.counterexample()
+    assert cex is not None
+    assert "counterexample:" in str(err)
+    # Should show the value of n that makes the postcondition false
+    assert "n =" in cex
+    # n should be small (0-9) since n + n < n + 10 when n < 10
+    pairs = model_for_invalid(err.vc)
+    assert pairs is not None
+    values = dict(pairs)
+    n_key = next((k for k in values if "n" in k.lower()), None)
+    if n_key:
+        n_val = int(values[n_key])
+        assert 0 <= n_val < 10
+
+
+def test_counterexample_with_custom_sort_constructor():
+    """Custom sort values may appear as opaque witnesses in counterexamples.
+
+    When Z3 needs to produce a counterexample involving custom sorts, it
+    creates opaque witness values. The counterexample shows both base-type
+    values (Int, Float, etc.) and these opaque sort values."""
+    src = """
+type Tree;
+def tree_make : Tree := native "None";
+
+def bad_check (n:{v:Int | v >= 0}) : {r:Int | r >= n + 5} :=
+    n;
+"""
+    err = _liquid_failure(src)
+    cex = err.counterexample()
+    # This should produce a counterexample because n >= n + 5 is false
+    assert cex is not None
+    assert "n =" in cex
+    pairs = model_for_invalid(err.vc)
+    assert pairs is not None
+    # n should be a concrete Int value
+    values = dict(pairs)
+    assert any("n" in k.lower() for k in values)
