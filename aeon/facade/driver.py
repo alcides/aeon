@@ -84,12 +84,14 @@ class AeonDriver:
                     is_main_hole=not self.cfg.no_main,
                 )
 
+        if core is not None and typing_ctx is not None:
+            self.core = core
+            self.typing_ctx = typing_ctx
+
         if errors:
             return errors
         assert core is not None and typing_ctx is not None and metadata is not None
 
-        self.core = core
-        self.typing_ctx = typing_ctx
         self.metadata = metadata
 
         dep_units = dependency_units_for(unit)

@@ -258,8 +258,11 @@ def compile_program(
         filename = "<stdin>"
     path = str(Path(filename).resolve()) if filename != "<stdin>" else filename
     digest = source_hash(aeon_code)
+    # Main programs splice imported definitions during desugar; a cached spine
+    # from an earlier compile would omit those bindings at runtime.
+    cacheable = use_cache and not is_main and path != "<stdin>"
 
-    if use_cache and path != "<stdin>":
+    if cacheable:
         cached = _source_cache.get(path) or read_unit(path)
         if (
             cached is not None
@@ -328,10 +331,16 @@ def compile_program(
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast = populate_mutual_companions(core_ast)
 
-    dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]
-    linked_core = link_rec_spines(dep_list, core_ast) if dep_list else core_ast
-    trusted = _collect_trusted_names(dep_list)
-    linked_ctx = link_typing_context(dep_list, typing_ctx, trusted) if dep_list else typing_ctx
+    # Main programs splice imported definitions during desugar; linking dependency
+    # spines on top would duplicate binders and break name identity.
+    if export_prefix is None:
+        linked_core = core_ast
+        linked_ctx = typing_ctx
+    else:
+        dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]
+        linked_core = link_rec_spines(dep_list, core_ast) if dep_list else core_ast
+        trusted = _collect_trusted_names(dep_list)
+        linked_ctx = link_typing_context(dep_list, typing_ctx, trusted) if dep_list else typing_ctx
 
     # Library modules are typechecked when linked into a main program; checking
     # the grafted spine here rejects valid units whose internal names are
@@ -339,13 +348,35 @@ def compile_program(
     type_errors: list[AeonError] = []
     if export_prefix is None:
         type_errors = list(check_type_errors(linked_ctx, linked_core, top))
-    if type_errors:
+    source_metadata: Metadata = dict(desugared.metadata)
+    if type_errors and not is_main:
         return _placeholder_unit(path, digest, dep_module_paths), type_errors
+    if type_errors:
+        unit = CompiledUnit(
+            format_version=AEC_FORMAT_VERSION,
+            compiler_version=_COMPILER_VERSION,
+            module_path=module_path,
+            source_path=path,
+            source_hash=digest,
+            core_spine=linked_core,
+            typing_ctx=linked_ctx,
+            metadata=Metadata(),
+            type_decls=list(prog.type_decls),
+            inductive_decls=list(desugared.local_inductive_decls),
+            class_decls=class_decls_snapshot,
+            instance_decls=instance_decls_snapshot,
+            constructor_to_type=dict(desugared.constructor_to_type),
+            constructor_defs=dict(desugared.constructor_defs),
+            exports={},
+            qualified_scope={},
+            dependencies=dep_module_paths,
+            source_metadata=source_metadata,
+        )
+        return unit, type_errors
 
     exports = _exports_from_spine(core_ast, typing_ctx, prog.definitions, export_prefix, export_sugar_types)
     exports.update(_exports_from_uninterpreted(typing_ctx, export_prefix))
 
-    source_metadata: Metadata = dict(desugared.metadata)
     metadata: Metadata = {}
     if is_main:
         metadata = apply_core_decorators_phase(linked_ctx, linked_core, desugared.metadata)
@@ -378,8 +409,9 @@ def compile_program(
 
     if path != "<stdin>":
         _source_cache[path] = unit
-        _module_cache[unit.module_path] = unit
-        if write_cache:
+        if export_prefix is not None:
+            _module_cache[unit.module_path] = unit
+        if write_cache and cacheable:
             write_unit(unit, path)
 
     return unit, []
@@ -440,11 +472,14 @@ def _link_compiled_unit(
     *,
     is_main: bool,
 ) -> tuple[Term, TypingContext, Metadata, frozenset[Name]]:
+    if is_main:
+        metadata: Metadata = {}
+        if unit.source_metadata:
+            metadata = apply_core_decorators_phase(unit.typing_ctx, unit.core_spine, dict(unit.source_metadata))
+        return unit.core_spine, unit.typing_ctx, metadata, unit.trusted_names
     _ensure_dependencies_cached(unit.dependencies)
     dep_units = collect_dependency_units(unit, _module_cache)
     core, typing_ctx, metadata, trusted = link_compiled_units(unit, dep_units)
-    if is_main and unit.source_metadata:
-        metadata = apply_core_decorators_phase(typing_ctx, core, dict(unit.source_metadata))
     return core, typing_ctx, metadata, trusted
 
 
@@ -457,6 +492,9 @@ def compile_and_link(
 ) -> tuple[CompiledUnit, Term | None, TypingContext | None, Metadata | None, frozenset[Name], list[AeonError]]:
     unit, errors = compile_file(filename, is_main=is_main, is_main_hole=is_main_hole, use_cache=use_cache)
     if errors:
+        if is_main and unit.source_metadata:
+            core, typing_ctx, metadata, trusted = _link_compiled_unit(unit, is_main=is_main)
+            return unit, core, typing_ctx, metadata, trusted, errors
         return unit, None, None, None, frozenset(), errors
     core, typing_ctx, metadata, trusted = _link_compiled_unit(unit, is_main=is_main)
     return unit, core, typing_ctx, metadata, trusted, []
@@ -479,6 +517,9 @@ def compile_and_link_program(
         write_cache=filename is not None and filename != "<stdin>",
     )
     if errors:
+        if is_main and unit.source_metadata:
+            core, typing_ctx, metadata, trusted = _link_compiled_unit(unit, is_main=is_main)
+            return unit, core, typing_ctx, metadata, trusted, errors
         return unit, None, None, None, frozenset(), errors
     core, typing_ctx, metadata, trusted = _link_compiled_unit(unit, is_main=is_main)
     return unit, core, typing_ctx, metadata, trusted, []

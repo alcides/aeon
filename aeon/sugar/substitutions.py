@@ -48,8 +48,14 @@ def normalize(ty: SType) -> SType:
             return ty
 
 
+def _type_name_key(name: str) -> str:
+    """Normalize skolem type names (``'IntList?``) for by-name lookup."""
+    return name.lstrip("'").rstrip("?")
+
+
 def substitute_svartype_in_stype_by_name(ty: SType, beta: SType, alpha_name: str) -> SType:
     """Like ``substitute_svartype_in_stype`` but matches type variables by string name."""
+    alpha_key = _type_name_key(alpha_name)
 
     def rec(k: SType) -> SType:
         return substitute_svartype_in_stype_by_name(k, beta, alpha_name)
@@ -57,7 +63,7 @@ def substitute_svartype_in_stype_by_name(ty: SType, beta: SType, alpha_name: str
     ty = normalize(ty)
     match ty:
         case STypeVar(tname):
-            if tname.name == alpha_name:
+            if _type_name_key(tname.name) == alpha_key:
                 return beta
             return ty
         case SRefinedType(name, inner, ref):
@@ -71,7 +77,7 @@ def substitute_svartype_in_stype_by_name(ty: SType, beta: SType, alpha_name: str
                 is_instance=getattr(ty, "is_instance", False),
             )
         case STypePolymorphism(tname, kind, body):
-            if tname.name == alpha_name:
+            if _type_name_key(tname.name) == alpha_key:
                 return ty
             return STypePolymorphism(tname, kind, rec(body))
         case SRefinementPolymorphism(name, sort, body):

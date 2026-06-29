@@ -56,7 +56,10 @@ from aeon.sugar.stypes import (
     get_type_vars,
 )
 from aeon.sugar.substitutions import (
+    _type_name_key,
+    substitute_svartype_in_stype,
     substitute_svartype_in_stype_by_name,
+    substitution_svartype_in_sterm,
     substitution_svartype_in_sterm_by_name,
 )
 from aeon.utils.name import Name, fresh_counter
@@ -634,7 +637,13 @@ def desugar(
     # definitions, which ``handle_imports`` module-prefixes — they live
     # directly in the main namespace.
     inductive_names_top = {d.name.name for d in p.inductive_decls}
-    imported_classes, imported_instances = collect_imported_typeclasses(p.imports, inductive_names_top, dep_units)
+    is_main_module = module_export_name is None
+    if is_main_module:
+        imported_classes, imported_instances = collect_imported_typeclasses(p.imports, inductive_names_top)
+    else:
+        imported_classes, imported_instances = collect_imported_typeclasses_from_units(
+            p.imports, inductive_names_top, dep_units
+        )
     if imported_classes or imported_instances:
         p = Program(
             p.imports,
@@ -671,14 +680,19 @@ def desugar(
         else:
             file_imports.append(imp)
 
-    if not dep_units and file_imports:
+    if not is_main_module and not dep_units and file_imports:
         from aeon.compilation.compile import compile_imports_for_desugar
 
         dep_units = compile_imports_for_desugar(file_imports)
 
-    defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports_from_units(
-        file_imports, defs, type_decls, dep_units
-    )
+    if is_main_module:
+        defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports(
+            file_imports, defs, type_decls
+        )
+    else:
+        defs, type_decls, imported_inductives, qualified_scope, unqualified_scope = handle_imports_from_units(
+            file_imports, defs, type_decls, dep_units
+        )
 
     # ``native_import`` definitions bind a global Python symbol (e.g. ``np``)
     # that *other* modules' native bodies reference by bare name. The runtime
@@ -763,24 +777,26 @@ def desugar(
         ]
 
     etctx = build_typing_context(vs, type_decls, constructor_to_type, constructor_defs)
-    if dep_units:
+    if dep_units and not is_main_module:
         etctx = extend_elabcontext_with_imports(etctx, file_imports, dep_units)
     imported_type_names: list[Name] = []
     seen_type_names: set[str] = set()
 
-    def _add_type_name(name: Name) -> None:
-        if name.name not in seen_type_names:
-            imported_type_names.append(name)
-            seen_type_names.add(name.name)
-
     for unit in dep_units.values():
         for decl in unit.inductive_decls:
-            _add_type_name(decl.name)
+            if decl.name.name not in seen_type_names:
+                imported_type_names.append(decl.name)
+                seen_type_names.add(decl.name.name)
         for td in unit.type_decls:
-            _add_type_name(td.name)
+            if td.name.name not in seen_type_names:
+                imported_type_names.append(td.name)
+                seen_type_names.add(td.name.name)
     type_names = [Name(t, 0) for t in builtin_types]
+    seen_type_names = {n.name for n in type_names}
     for name in imported_type_names + [td.name for td in type_decls] + [decl.name for decl in combined_inductives]:
-        _add_type_name(name)
+        if name.name not in seen_type_names:
+            type_names.append(name)
+            seen_type_names.add(name.name)
     defs = _canonicalize_definition_types(defs, type_names)
     etctx, prog = update_program_and_context(prog, defs, etctx)
     prog, etctx = replace_concrete_types(prog, etctx, type_names)
@@ -1792,6 +1808,36 @@ UnqualifiedScope = dict[str, Name]  # bare_name -> original Name
 def collect_imported_typeclasses(
     imports: list[ImportAe],
     inductive_names: set[str],
+    _seen: set[str] | None = None,
+) -> tuple[list[ClassDecl], list[InstanceDecl]]:
+    """Gather typeclass declarations from imported sources (main-program path)."""
+    from aeon.compilation.resolve import resolve_import
+
+    seen: set[str] = set() if _seen is None else _seen
+    classes: list[ClassDecl] = []
+    instances: list[InstanceDecl] = []
+    for imp in imports:
+        if imp.is_open and imp.module_path in inductive_names:
+            continue
+        if imp.module_path in seen:
+            continue
+        seen.add(imp.module_path)
+        try:
+            import_p = resolve_import(imp)
+        except Exception:
+            continue
+        sub_inductive_names = {d.name.name for d in import_p.inductive_decls}
+        sub_classes, sub_instances = collect_imported_typeclasses(import_p.imports, sub_inductive_names, seen)
+        classes.extend(sub_classes)
+        instances.extend(sub_instances)
+        classes.extend(import_p.class_decls)
+        instances.extend(import_p.instance_decls)
+    return classes, instances
+
+
+def collect_imported_typeclasses_from_units(
+    imports: list[ImportAe],
+    inductive_names: set[str],
     compiled_imports: dict,
     _seen: set[str] | None = None,
 ) -> tuple[list[ClassDecl], list[InstanceDecl]]:
@@ -1812,7 +1858,7 @@ def collect_imported_typeclasses(
             dep_unit = compiled_imports.get(dep_module)
             if dep_unit is not None:
                 sub_inductive = {d.name.name for d in dep_unit.inductive_decls}
-                sub_classes, sub_instances = collect_imported_typeclasses(
+                sub_classes, sub_instances = collect_imported_typeclasses_from_units(
                     [ImportAe(module_path=dep_module)],
                     sub_inductive,
                     compiled_imports,
@@ -1958,6 +2004,97 @@ def extend_elabcontext_with_imports(
         visit_module(imp.module_path)
 
     return ElaborationTypingContext(entries, constructor_to_type, constructor_defs, ctx.instances)
+
+
+def handle_imports(
+    imports: list[ImportAe],
+    defs: list[Definition],
+    type_decls: list[TypeDecl],
+    _seen_modules: dict[str, QualifiedScope] | None = None,
+) -> tuple[list[Definition], list[TypeDecl], list[InductiveDecl], QualifiedScope, UnqualifiedScope]:
+    from aeon.compilation.resolve import resolve_import
+
+    qualified_scope: QualifiedScope = {}
+    unqualified_scope: UnqualifiedScope = {}
+    imported_inductives: list[InductiveDecl] = []
+    seen_modules: dict[str, QualifiedScope] = {} if _seen_modules is None else _seen_modules
+
+    for imp in imports[::-1]:
+        if imp.module_path in seen_modules:
+            prior_q = seen_modules[imp.module_path]
+            for (qual, bare), internal_name in prior_q.items():
+                qualified_scope[(qual, bare)] = internal_name
+                if imp.is_open or (imp.selected_names and bare in imp.selected_names):
+                    unqualified_scope[bare] = internal_name
+            continue
+        seen_modules[imp.module_path] = {}
+        import_p = resolve_import(imp)
+        import_p = infer_inductive_rforall_decls(import_p)
+        imported_inductives.extend(import_p.inductive_decls)
+        import_p = expand_inductive_decls(import_p)
+        import_p_definitions = import_p.definitions
+        defs_recursive: list[Definition] = []
+        type_decls_recursive: list[TypeDecl] = []
+        rec_q: QualifiedScope = {}
+        rec_u: UnqualifiedScope = {}
+        if import_p.imports:
+            defs_recursive, type_decls_recursive, rec_inductives, rec_q, rec_u = handle_imports(
+                import_p.imports,
+                [],
+                [],
+                _seen_modules=seen_modules,
+            )
+            qualified_scope.update(rec_q)
+            unqualified_scope.update(rec_u)
+            imported_inductives.extend(rec_inductives)
+
+        module_name = imp.module_path.split(".")[-1]
+
+        local_qualified: QualifiedScope = dict(rec_q)
+        local_unqualified: UnqualifiedScope = dict(rec_u)
+        for d in import_p_definitions:
+            if _is_native_import_def(d):
+                continue
+            bare = _bare_name(module_name, d.name.name)
+            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            local_qualified[(module_name, bare)] = internal_name
+            local_unqualified[bare] = internal_name
+
+        prefixed_definitions: list[Definition] = []
+        for d in import_p_definitions:
+            bare = _bare_name(module_name, d.name.name)
+            if _is_native_import_def(d):
+                prefixed_definitions.append(d)
+                continue
+            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            resolved_d = resolve_qualified_names_in_definition(d, local_qualified, local_unqualified)
+            prefixed_d = Definition(
+                internal_name,
+                resolved_d.foralls,
+                resolved_d.args,
+                resolved_d.type,
+                resolved_d.body,
+                resolved_d.decorators,
+                resolved_d.rforalls,
+                resolved_d.decreasing_by,
+                resolved_d.loc,
+                arg_multiplicities=resolved_d.arg_multiplicities,
+                instance_flags=resolved_d.instance_flags,
+            )
+            prefixed_definitions.append(prefixed_d)
+
+            qualified_scope[(module_name, bare)] = internal_name
+            seen_modules[imp.module_path][(module_name, bare)] = internal_name
+
+            if imp.is_open:
+                unqualified_scope[bare] = internal_name
+            elif imp.selected_names:
+                if bare in imp.selected_names:
+                    unqualified_scope[bare] = internal_name
+
+        defs = defs_recursive + prefixed_definitions + defs
+        type_decls = type_decls_recursive + import_p.type_decls + type_decls
+    return defs, type_decls, imported_inductives, qualified_scope, unqualified_scope
 
 
 def handle_imports_from_units(
@@ -2112,8 +2249,8 @@ def _canonicalize_definition_types(defs: list[Definition], type_names: list[Name
                 return SApplication(canon_sterm(fun), canon_sterm(arg), loc=loc)
             case SAbstraction(name, body, loc):
                 return SAbstraction(name, canon_sterm(body), loc=loc)
-            case SLet(name, val, body, loc):
-                return SLet(name, canon_sterm(val), canon_sterm(body), loc=loc)
+            case SLet(name, val, body, loc, multiplicity=mult):
+                return SLet(name, canon_sterm(val), canon_sterm(body), loc=loc, multiplicity=mult)
             case SIf(cond, then, otherwise, loc):
                 return SIf(canon_sterm(cond), canon_sterm(then), canon_sterm(otherwise), loc=loc)
             case SAnnotation(expr, ty, loc):
@@ -2170,6 +2307,7 @@ def _canonicalize_definition_types(defs: list[Definition], type_names: list[Name
                         loc,
                         arg_multiplicities=d.arg_multiplicities,
                         instance_flags=d.instance_flags,
+                        mutual_group_id=d.mutual_group_id,
                     )
                 )
     return updated
@@ -2238,8 +2376,8 @@ def canonicalize_imported_type_constructors(
                     mutual_group_id=mutual_group_id,
                     companions=tuple((cn, canon_ty(ct)) for cn, ct in companions),
                 )
-            case SLet(name, val, body, loc):
-                return SLet(name, canon_sterm(val), canon_sterm(body), loc=loc)
+            case SLet(name, val, body, loc, multiplicity=mult):
+                return SLet(name, canon_sterm(val), canon_sterm(body), loc=loc, multiplicity=mult)
             case SIf(cond, then, otherwise, loc):
                 return SIf(canon_sterm(cond), canon_sterm(then), canon_sterm(otherwise), loc=loc)
             case STypeApplication(body, ty, loc):
@@ -2320,23 +2458,32 @@ def replace_concrete_types(
     """Replaces all occurrences of STypeVar with the corresponding STypeConstructor."""
     canonical: dict[str, Name] = {}
     for name in types:
-        if name.name not in canonical:
-            canonical[name.name] = name
-    for type_name, name in canonical.items():
+        key = _type_name_key(name.name)
+        if key not in canonical:
+            canonical[key] = name
+
+    for name in types:
         ctor = STypeConstructor(name)
-        t = substitution_svartype_in_sterm_by_name(t, ctor, type_name)
+        t = substitution_svartype_in_sterm(t, ctor, name)
+    for name in canonical.values():
+        ctor = STypeConstructor(name)
+        t = substitution_svartype_in_sterm_by_name(t, ctor, name.name)
 
     def fix_vartype(e: ElabTypingContextEntry) -> ElabTypingContextEntry:
         match e:
             case ElabVariableBinder(vname, ty):
                 nty = ty
-                for type_name, name in canonical.items():
-                    nty = substitute_svartype_in_stype_by_name(nty, STypeConstructor(name), type_name)
+                for name in types:
+                    nty = substitute_svartype_in_stype(nty, STypeConstructor(name), name)
+                for name in canonical.values():
+                    nty = substitute_svartype_in_stype_by_name(nty, STypeConstructor(name), name.name)
                 return ElabVariableBinder(vname, nty)
             case ElabUninterpretedBinder(vname, ty):
                 nty = ty
-                for type_name, name in canonical.items():
-                    nty = substitute_svartype_in_stype_by_name(nty, STypeConstructor(name), type_name)
+                for name in types:
+                    nty = substitute_svartype_in_stype(nty, STypeConstructor(name), name)
+                for name in canonical.values():
+                    nty = substitute_svartype_in_stype_by_name(nty, STypeConstructor(name), name.name)
                 return ElabUninterpretedBinder(vname, nty)
             case _:
                 return e

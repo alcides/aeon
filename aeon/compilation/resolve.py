@@ -6,7 +6,7 @@ from pathlib import Path
 
 import aeon
 from aeon.facade.api import ModuleNotFoundAeonError
-from aeon.sugar.parser import mk_parser, parse_main_program
+from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import ImportAe, Program
 
 _import_cache: dict[str, Program] = {}
