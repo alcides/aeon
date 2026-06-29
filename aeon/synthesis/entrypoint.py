@@ -71,6 +71,16 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
 Evaluators: TypeAlias = list[Callable[[Term], float]]
 
 
+def _ectx_for_workers(ectx: EvaluationContext) -> EvaluationContext:
+    return EvaluationContext(
+        ectx.variables,
+        metadata=ectx.metadata,
+        pipeline=None,
+        trace=ectx.trace,
+        trace_stack=ectx.trace_stack,
+    )
+
+
 def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float]:
     """Build a fitness function for a single goal, dispatching on ``goal.kind``."""
 
@@ -271,7 +281,7 @@ def _synthesize_one(
     # featuriser `f` (e.g. a rasterised scene), else the output is the
     # candidate's own value.
     feature_fun = _cluster_function(metadata, fun_name) or fun_name
-    primitives = EvalPrimitives(evaluators, ectx, feature_fun, replace)
+    primitives = EvalPrimitives(evaluators, _ectx_for_workers(ectx), feature_fun, replace)
     pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
     evaluator, output_evaluator = _pool_backed(pool)
 

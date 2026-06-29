@@ -16,7 +16,7 @@ def List_get_fst : (s: (Array Int)) -> String := fun s => native "s[0]"
 def List_get_snd : (s: (Array Int)) -> String := fun s => native "s[1]"
 def String_neq : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i != j";
 def Filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-def Counter : (l:(Array Int)) -> Counter := fun xs => native "collections.Counter(xs)"
+def MkCounter : (l:(Array Int)) -> Counter := fun xs => native "collections.Counter(xs)"
 def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter := fun c1 => fun c2 => native "c1 & c2"
 def Counter_values : (c:Counter) -> (Array Int) := fun c => native "list(c.values())"
 def Tuple : (a:Int) -> (b:Int) -> (Array Int) := fun a => fun b => native "[a,b]"
@@ -31,7 +31,7 @@ def mastermind ( code : String) (guess: String ) : (Array Int) := items_eq : (x:
     code_unmatched: (Array Int) := Map List_get_fst unmatched;
     guess_unmatched: (Array Int) := Map List_get_snd unmatched;
 
-    white_pegs_f : (x:(Array Int)) -> (y:(Array Int)) -> Int := fun c => fun g => List_sum (Counter_values (Counter_intersection (Counter c) (Counter g)));
+    white_pegs_f : (x:(Array Int)) -> (y:(Array Int)) -> Int := fun c => fun g => List_sum (Counter_values (Counter_intersection (MkCounter c) (MkCounter g)));
     white_pegs :Int := white_pegs_f code_unmatched guess_unmatched;
 
     Tuple white_pegs black_pegs;

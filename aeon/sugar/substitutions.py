@@ -48,6 +48,122 @@ def normalize(ty: SType) -> SType:
             return ty
 
 
+def _type_name_key(name: str) -> str:
+    """Normalize skolem type names (``'IntList?``) for by-name lookup."""
+    return name.lstrip("'").rstrip("?")
+
+
+def substitute_svartype_in_stype_by_name(ty: SType, beta: SType, alpha_name: str) -> SType:
+    """Like ``substitute_svartype_in_stype`` but matches type variables by string name."""
+    alpha_key = _type_name_key(alpha_name)
+
+    def rec(k: SType) -> SType:
+        return substitute_svartype_in_stype_by_name(k, beta, alpha_name)
+
+    ty = normalize(ty)
+    match ty:
+        case STypeVar(tname):
+            if _type_name_key(tname.name) == alpha_key:
+                return beta
+            return ty
+        case SRefinedType(name, inner, ref):
+            return SRefinedType(name, rec(inner), ref)
+        case SAbstractionType(var_name, var_type, return_type):
+            return SAbstractionType(
+                var_name,
+                rec(var_type),
+                rec(return_type),
+                multiplicity=getattr(ty, "multiplicity", MOmega),
+                is_instance=getattr(ty, "is_instance", False),
+            )
+        case STypePolymorphism(tname, kind, body):
+            if _type_name_key(tname.name) == alpha_key:
+                return ty
+            return STypePolymorphism(tname, kind, rec(body))
+        case SRefinementPolymorphism(name, sort, body):
+            return SRefinementPolymorphism(name, rec(sort), rec(body))
+        case STypeConstructor(name, args):
+            return STypeConstructor(name, [rec(a) for a in args])
+        case _:
+            assert False, f"Unknown node in substitute {ty}"
+
+
+def substitution_svartype_in_sterm_by_name(t: STerm, rep: SType, alpha_name: str) -> STerm:
+    """Like ``substitution_svartype_in_sterm`` but matches type variables by string name."""
+
+    def rec(x: STerm) -> STerm:
+        return substitution_svartype_in_sterm_by_name(x, rep, alpha_name)
+
+    match t:
+        case (
+            SVar(_)
+            | SHole(_)
+            | SImplicitRefinementHole(_)
+            | SBy()
+            | SQualifiedVar()
+            | SAnonConstructor()
+            | SMethodSelector()
+        ):
+            return t
+        case SLiteral(v, ty, loc):
+            return SLiteral(v, substitute_svartype_in_stype_by_name(ty, rep, alpha_name), loc=loc)
+        case SApplication(fun, arg, loc):
+            return SApplication(rec(fun), rec(arg), loc=loc)
+        case SAbstraction(aname, body, loc):
+            return SAbstraction(aname, rec(body), loc=loc)
+        case SLet(vname, vvalue, body, loc):
+            return SLet(vname, rec(vvalue), rec(body), loc=loc, multiplicity=t.multiplicity)
+        case SRec(vname, vtype, vvalue, body, decreasing_by, loc):
+            nd = tuple(rec(m) for m in decreasing_by)
+            ncomp = tuple((cn, substitute_svartype_in_stype_by_name(ct, rep, alpha_name)) for (cn, ct) in t.companions)
+            return SRec(
+                vname,
+                substitute_svartype_in_stype_by_name(vtype, rep, alpha_name),
+                rec(vvalue),
+                rec(body),
+                decreasing_by=nd,
+                loc=loc,
+                multiplicity=t.multiplicity,
+                mutual_group_id=t.mutual_group_id,
+                companions=ncomp,
+            )
+        case SAnnotation(expr, ty, loc):
+            return SAnnotation(rec(expr), substitute_svartype_in_stype_by_name(ty, rep, alpha_name), loc=loc)
+        case SIf(cond, then, otherwise, loc):
+            return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
+        case STypeApplication(body, ty, loc):
+            return STypeApplication(rec(body), substitute_svartype_in_stype_by_name(ty, rep, alpha_name), loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return SRefinementApplication(rec(body), rec(refinement), loc=loc)
+        case STypeAbstraction(aname, kind, body, loc):
+            if aname.name == alpha_name:
+                return t
+            return STypeAbstraction(aname, kind, rec(body), loc=loc)
+        case SMatch(scrutinee, branches, loc):
+            return SMatch(
+                scrutinee=rec(scrutinee),
+                branches=[
+                    SMatchBranch(
+                        constructor=br.constructor,
+                        binders=br.binders,
+                        body=rec(br.body),
+                        qualifier=br.qualifier,
+                        loc=br.loc,
+                    )
+                    for br in branches
+                ],
+                loc=loc,
+            )
+        case SMatchBranch():
+            assert False
+        case SRefinementAbstraction(pname, sort, body, loc):
+            return SRefinementAbstraction(
+                pname, substitute_svartype_in_stype_by_name(sort, rep, alpha_name), rec(body), loc=loc
+            )
+        case _:
+            assert False
+
+
 def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
     """Replaces all occurrences of vartypes name in t by rep."""
 
