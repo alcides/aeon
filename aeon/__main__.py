@@ -16,6 +16,7 @@ from aeon.facade.api import (
     LinearityError,
     MethodResolutionError,
     NonOrderableComparisonError,
+    UndecidableRefinementError,
     UnificationFailedError,
     UnificationKindError,
     UnificationSubtypingError,
@@ -90,6 +91,15 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
+
+    parser.add_argument(
+        "--strict-decidable",
+        action="store_true",
+        help=(
+            "Treat refinements that leave the decidable fragment (nonlinear arithmetic such as `x * y`, "
+            "division/modulo by a non-constant divisor, ...) as errors instead of warnings."
+        ),
+    )
 
     parser.add_argument(
         "--test",
@@ -219,6 +229,11 @@ def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
             return "Missing instance", "Define a typeclass instance for this type, or add it as a constraint."
         case NonOrderableComparisonError():
             return "Non-orderable comparison", "Use Int, Float or String, or define an Ord instance for this type."
+        case UndecidableRefinementError():
+            return (
+                "Undecidable refinement",
+                "Keep refinements in the decidable fragment (linear arithmetic), or drop --strict-decidable.",
+            )
         case MethodResolutionError():
             return "Method resolution error", "No method with this name is defined for the receiver's type."
         case LinearityError():
@@ -227,6 +242,22 @@ def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
             return "Type error", None
         case _:
             return "Error", None
+
+
+def print_decidability_warnings(driver: AeonDriver) -> None:
+    """Print non-fatal warnings for refinements that leave the decidable
+    fragment (issue #438). Collected during ``driver.parse``; under
+    ``--strict-decidable`` these surface as errors instead and this list is
+    empty."""
+    from aeon.verification.decidability import format_location
+
+    if driver.cfg.strict_decidable:
+        # Under strict mode these are reported as errors instead, so printing
+        # them here as warnings too would just duplicate the diagnostic.
+        return
+    for w in getattr(driver, "decidability_warnings", []):
+        print(f">>> Warning ({w.construct}) at {format_location(w.location)}:", file=sys.stderr)
+        print(f"    {w.message}", file=sys.stderr)
 
 
 def handle_error(err: AeonError):
@@ -269,6 +300,7 @@ def main() -> None:
         # under ``--test`` the slot must exist even if ``--no-main`` was passed.
         no_main=(args.no_main or bool(getattr(args, "export", None))) and not run_tests,
         synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
+        strict_decidable=getattr(args, "strict_decidable", False),
     )
     driver = AeonDriver(cfg)
 
@@ -312,6 +344,8 @@ def main() -> None:
     except AeonError as e:
         handle_error(e)
         sys.exit(error_exit_code(e))
+
+    print_decidability_warnings(driver)
 
     match errors:
         case [] if getattr(args, "trust_report", False) or getattr(args, "trust_for", None):

@@ -28,6 +28,7 @@ from aeon.facade.api import (
     MethodResolutionError,
     ModuleNotFoundAeonError as AeonImportError,
     NonOrderableComparisonError,
+    UndecidableRefinementError,
     UnificationFailedError,
     UnificationKindError,
     UnificationSubtypingError,
@@ -51,7 +52,8 @@ class ExitCode(IntEnum):
     LINEARITY_ERROR = 12
     CORE_TYPE_ERROR = 13
     INVALID_REFINEMENT = 14
-    OTHER_ERROR = 15
+    UNDECIDABLE_REFINEMENT = 15
+    OTHER_ERROR = 16
 
 
 def error_exit_code(err: AeonError) -> ExitCode:
@@ -78,6 +80,8 @@ def error_exit_code(err: AeonError) -> ExitCode:
             return ExitCode.MISSING_INSTANCE
         case NonOrderableComparisonError():
             return ExitCode.NON_ORDERABLE_COMPARISON
+        case UndecidableRefinementError():
+            return ExitCode.UNDECIDABLE_REFINEMENT
         case LinearityError():
             return ExitCode.LINEARITY_ERROR
         case CoreTypeCheckingError():
