@@ -9,9 +9,10 @@ from aeon.verification.constructor_registry import clear_constructor_registry, r
 
 
 @pytest.fixture(autouse=True)
-def _intlist_constructors():
+def _constructor_registry():
     clear_constructor_registry()
     register_constructors("IntList", ["IntList_empty", "IntList_cons"])
+    register_constructors("Pair", ["Pair_mk"])
     yield
     clear_constructor_registry()
 
@@ -145,4 +146,18 @@ def test_opt_match_via_let_scrutinee():
         "let xs = ((IntList_cons 3) IntList_empty) in "
         "((((IntList_rec)[Int] xs) 0) (fun h => (fun t => h)))",
         "3",
+    )
+
+
+def test_opt_destructor_let_known_value():
+    eq(
+        "((((Pair_rec)[Int] ((Pair_mk 1) 2)) (fun a => (fun b => (((+)[Int] a) b)))))",
+        "(((+)[Int] 1) 2)",
+    )
+
+
+def test_opt_destructor_let_variable_scrutinee():
+    eq(
+        "((((Pair_rec)[Int] p) (fun a => (fun b => (((+)[Int] a) b)))))",
+        "(((+)[Int] (native \"p[1]\")) (native \"p[2]\"))",
     )

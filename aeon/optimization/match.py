@@ -4,7 +4,7 @@ import ast
 
 from aeon.core.terms import Abstraction, Application, Literal, Term, TypeApplication, Var
 from aeon.core.types import Type
-from aeon.optimization.native import literal_from_python, native_code
+from aeon.optimization.native import literal_from_python, native_code, native_term
 from aeon.optimization.whnf import strip_type_wrappers
 from aeon.utils.name import Name
 from aeon.verification.constructor_registry import get_constructor_order
@@ -123,6 +123,59 @@ def apply_handler(handler: Term, args: list[Term]) -> Term:
     return result
 
 
+def handler_arity(handler: Term) -> int:
+    n = 0
+    cur = handler
+    while isinstance(cur, Abstraction):
+        n += 1
+        cur = cur.body
+    return n
+
+
+def scrutinee_fields(scrutinee: Term, arity: int) -> list[Term] | None:
+    """Field projections for a scrutinee, when its constructor shape is known or a bare variable."""
+    if (shape := recognize_constructor(scrutinee)) is not None:
+        _, _, args = shape
+        if len(args) == arity:
+            return args
+        return None
+    head = strip_type_wrappers(scrutinee)
+    if isinstance(head, Var):
+        name = head.name.name
+        return [native_term(f"{name}[{i + 1}]") for i in range(arity)]
+    return None
+
+
+def is_uni_constructor(type_name: str) -> bool:
+    order = get_constructor_order(type_name)
+    return order is not None and len(order) == 1
+
+
+def optimize_destructor_let(type_name: str, scrutinee: Term, handler: Term) -> Term | None:
+    """Optimize ``let (C x …) := scrut in body`` for single-constructor types.
+
+    When the scrutinee is a known constructor application (or native tuple),
+    apply the handler to its fields. When the scrutinee is still a variable,
+    project fields via native tuple indexing — every value of a
+    uni-constructor type carries the same runtime representation.
+    """
+    order = get_constructor_order(type_name)
+    if order is None or len(order) != 1:
+        return None
+    arity = handler_arity(handler)
+    fields = scrutinee_fields(scrutinee, arity)
+    if fields is None:
+        return None
+    if (shape := recognize_constructor(scrutinee)) is not None:
+        scr_type, _, _ = shape
+        if scr_type != type_name:
+            return None
+        key = _constructor_key(scr_type, shape[1])
+        if key != order[0]:
+            return None
+    return apply_handler(handler, fields)
+
+
 def optimize_eliminator(t: Term) -> Term | None:
     """Select a ``match`` branch when the scrutinee constructor is known."""
     parsed = parse_recursor_app(t)
@@ -130,14 +183,20 @@ def optimize_eliminator(t: Term) -> Term | None:
         return None
     type_name, _, value_args = parsed
     scrutinee, *handlers = value_args
+    order = get_constructor_order(type_name)
+    if order is None:
+        return None
+
+    if len(order) == 1 and len(handlers) == 1:
+        if (reduced := optimize_destructor_let(type_name, scrutinee, handlers[0])) is not None:
+            return reduced
+
     shape = recognize_constructor(scrutinee)
     if shape is None:
         return None
     scr_type, constructor_name, ctor_args = shape
     if scr_type != type_name:
         return None
-    order = get_constructor_order(type_name)
-    assert order is not None
     key = _constructor_key(type_name, constructor_name)
     try:
         handler_index = order.index(key)
