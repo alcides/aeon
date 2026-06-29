@@ -8,16 +8,24 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementAbstraction,
+    RefinementApplication,
     Term,
     TypeAbstraction,
     TypeApplication,
     Var,
 )
 from aeon.core.types import t_bool, t_int
+from aeon.optimization.match import optimize_eliminator, optimize_eliminator_abstraction
+from aeon.optimization.native import beta_reduce_native, fold_native_expr
 from aeon.utils.name import Name
 
 
 def nf(t: Term) -> Term:
+    if (reduced := optimize_eliminator(t)) is not None:
+        return reduced
+    if (reduced := optimize_eliminator_abstraction(t)) is not None:
+        return reduced
     match t:
         case Application(Abstraction(var_name, body), arg):
             return substitution(body, arg, var_name)
@@ -122,14 +130,21 @@ def nf(t: Term) -> Term:
             return t
         case Var(_):
             return t
-        case Annotation(_, _):
-            return t
+        case Annotation(expr, _):
+            return nf(expr)
         case Hole(_):
             return t
 
         case Abstraction(var_name, body):
             return Abstraction(var_name, nf(body))
+        case Application(Var(Name("native", _)), Literal(code, _)):
+            if (folded := fold_native_expr(str(code))) is not None:
+                return folded
+            return t
+
         case Application(fun, arg):
+            if (reduced := beta_reduce_native(fun, arg)) is not None:
+                return reduced
             return Application(nf(fun), nf(arg))
         case Let(var_name, var_value, body):
             return substitution(body, nf(var_value), var_name)
@@ -143,6 +158,10 @@ def nf(t: Term) -> Term:
             return TypeAbstraction(ty, kind, nf(body))
         case TypeApplication(body, ty):
             return TypeApplication(nf(body), ty)
+        case RefinementAbstraction(name, ty, body):
+            return RefinementAbstraction(name, ty, nf(body))
+        case RefinementApplication(body, _):
+            return nf(body)
         case _:
             assert False, f"No case for {t} ({type(t)})"
 
@@ -157,3 +176,21 @@ def normal_form(t: Term) -> Term:
 
 def optimize(t: Term) -> Term:
     return normal_form(t)
+
+
+def optimize_bindings(core: Term) -> Term:
+    """Run ``optimize`` on every top-level binding value in a core program."""
+    match core:
+        case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
+            return Rec(
+                var_name,
+                var_type,
+                optimize(var_value),
+                optimize_bindings(body),
+                decreasing_by=decreasing_by,
+                loc=loc,
+            )
+        case Let(var_name, var_value, body):
+            return Let(var_name, optimize(var_value), optimize_bindings(body))
+        case _:
+            return core

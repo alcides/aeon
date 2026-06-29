@@ -7,17 +7,21 @@ constants of the same inductive type.
 
 from __future__ import annotations
 
-# Maps inductive type name -> set of prefixed constructor constant names
-# e.g. {"Pizza": {"Pizza_pepperoni", "Pizza_margherita", ...}}
-_constructor_groups: dict[str, set[str]] = {}
+# Maps inductive type name -> ordered prefixed constructor constant names
+# e.g. {"IntList": ["IntList_empty", "IntList_cons"]}
+_constructor_groups: dict[str, list[str]] = {}
 
 
 def register_constructors(type_name: str, constructor_names: list[str]) -> None:
-    _constructor_groups[type_name] = set(constructor_names)
+    _constructor_groups[type_name] = list(constructor_names)
 
 
 def get_constructor_groups() -> dict[str, set[str]]:
-    return _constructor_groups
+    return {name: set(ctors) for name, ctors in _constructor_groups.items()}
+
+
+def get_constructor_order(type_name: str) -> list[str] | None:
+    return _constructor_groups.get(type_name)
 
 
 def clear_constructor_registry() -> None:

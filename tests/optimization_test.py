@@ -1,7 +1,20 @@
 from __future__ import annotations
 
+import pytest
+
 from aeon.optimization.normal_form import optimize
+from aeon.optimization.whnf import whnf
 from aeon.core.parser import parse_term
+from aeon.verification.constructor_registry import clear_constructor_registry, register_constructors
+
+
+@pytest.fixture(autouse=True)
+def _constructor_registry():
+    clear_constructor_registry()
+    register_constructors("IntList", ["IntList_empty", "IntList_cons"])
+    register_constructors("Pair", ["Pair_mk"])
+    yield
+    clear_constructor_registry()
 
 
 def eq(source, expected):
@@ -81,3 +94,69 @@ def test_opt_op():
     eq("1-1", "0")
     eq("true && false", "false")
     eq("true || false", "true")
+
+
+def test_whnf_peels_annotations():
+    t = parse_term("(fun x => 1) 2")
+    assert whnf(t) == parse_term("1")
+
+
+def test_whnf_does_not_descend_into_abstraction_body():
+    t = parse_term("fun x => (fun y => y) 0")
+    assert whnf(t) == t
+
+
+def test_opt_native_lambda():
+    eq('(native "lambda x: x") 1', "1")
+    eq('(native "lambda x: x + 1") 2', "3")
+    eq('(native "lambda x: lambda y: x + y") 1 2', "3")
+
+
+def test_opt_native_lambda_with_var():
+    eq('(native "lambda x: x") y', "y")
+
+
+def test_opt_native_constant_expr():
+    eq('native "1+1"', "2")
+
+
+def test_opt_match_empty():
+    eq(
+        "((((IntList_rec)[Int] IntList_empty) 0) (fun h => (fun t => 1)))",
+        "0",
+    )
+
+
+def test_opt_match_cons():
+    eq(
+        "((((IntList_rec)[Int] ((IntList_cons 2) IntList_empty)) 0) (fun h => (fun t => h)))",
+        "2",
+    )
+
+
+def test_opt_match_native_tuple_scrutinee():
+    eq(
+        "((((IntList_rec)[Int] (native \"('IntList_cons', 2, IntList_empty)\")) 0) (fun h => (fun t => h)))",
+        "2",
+    )
+
+
+def test_opt_match_via_let_scrutinee():
+    eq(
+        "let xs = ((IntList_cons 3) IntList_empty) in ((((IntList_rec)[Int] xs) 0) (fun h => (fun t => h)))",
+        "3",
+    )
+
+
+def test_opt_destructor_let_known_value():
+    eq(
+        "((((Pair_rec)[Int] ((Pair_mk 1) 2)) (fun a => (fun b => (((+)[Int] a) b)))))",
+        "(((+)[Int] 1) 2)",
+    )
+
+
+def test_opt_destructor_let_variable_scrutinee():
+    eq(
+        "((((Pair_rec)[Int] p) (fun a => (fun b => (((+)[Int] a) b)))))",
+        '(((+)[Int] (native "p[1]")) (native "p[2]"))',
+    )

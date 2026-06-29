@@ -7,7 +7,7 @@ kept since ``native`` strings reference the imported modules by name). For
 each binding the pipeline is:
 
 1. Locate the top-level binding for ``fun_name`` in the core AST.
-2. Reduce its body to weak-head normal form (``whnf``) — this strips the
+2. Reduce its body to weak-head normal form (``aeon.optimization.whnf``) — this strips the
    type-level wrappers introduced by elaboration (type/refinement
    abstractions and applications, annotations) and beta-reduces any redex
    at the head, exposing the underlying ``Abstraction``.
@@ -24,7 +24,6 @@ the source-level parameter names) resolve against the surrounding lambdas.
 
 from __future__ import annotations
 
-from aeon.core.substitutions import substitution
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -41,6 +40,7 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
+from aeon.optimization.whnf import strip_type_wrappers, whnf
 from aeon.core.types import t_bool, t_string, t_unit
 from aeon.utils.name import Name
 
@@ -79,56 +79,6 @@ def find_binding(core: Term, fun_name: str) -> tuple[Name, Term] | None:
     return None
 
 
-def whnf(t: Term) -> Term:
-    """Reduce ``t`` to weak-head normal form.
-
-    Strips the administrative wrappers elaboration leaves around values
-    (annotations, type/refinement abstractions and applications) and
-    beta-reduces any redex sitting at the head. Reduction stops as soon as
-    the head is a value (an ``Abstraction``, ``Literal``, ...) or a stuck
-    application — it never descends into a lambda body.
-    """
-    while True:
-        match t:
-            case Annotation(expr, _):
-                t = expr
-            case TypeAbstraction(_, _, body):
-                t = body
-            case RefinementAbstraction(_, _, body):
-                t = body
-            case TypeApplication(body, _):
-                t = body
-            case RefinementApplication(body, _):
-                t = body
-            case Application(fun, arg):
-                f = whnf(fun)
-                if isinstance(f, Abstraction):
-                    t = substitution(f.body, arg, f.var_name)
-                else:
-                    return Application(f, arg, t.loc)
-            case _:
-                return t
-
-
-def _strip_type_wrappers(t: Term) -> Term:
-    """Peel only the type-level wrappers, exposing the operational head of
-    an application spine (e.g. the ``Var`` behind a ``native [a]`` instance)."""
-    while True:
-        match t:
-            case Annotation(expr, _):
-                t = expr
-            case TypeApplication(body, _):
-                t = body
-            case RefinementApplication(body, _):
-                t = body
-            case TypeAbstraction(_, _, body):
-                t = body
-            case RefinementAbstraction(_, _, body):
-                t = body
-            case _:
-                return t
-
-
 def _unfold_application(t: Application) -> tuple[Term, list[Term]]:
     """Flatten a curried application spine into ``(head, args)`` with the
     type wrappers stripped from the head."""
@@ -138,7 +88,7 @@ def _unfold_application(t: Application) -> tuple[Term, list[Term]]:
         args.append(cur.arg)
         cur = cur.fun
     args.reverse()
-    return _strip_type_wrappers(cur), args
+    return strip_type_wrappers(cur), args
 
 
 def _literal_to_python(value: object, type) -> str:
@@ -187,7 +137,7 @@ def _gen_application(t: Application) -> str:
 
     if isinstance(head, Var):
         op = head.name.name
-        first = _strip_type_wrappers(args[0]) if args else None
+        first = strip_type_wrappers(args[0]) if args else None
         # Inline ``native "..."`` strings verbatim, as the interpreter evals them.
         if op == "native" and isinstance(first, Literal):
             return f"({first.value})"
@@ -261,7 +211,7 @@ def _native_import_module(value: Term) -> str | None:
     if isinstance(head, Application):
         head, args = _unfold_application(head)
         if isinstance(head, Var) and head.name.name == "native_import" and args:
-            first = _strip_type_wrappers(args[0])
+            first = strip_type_wrappers(args[0])
             if isinstance(first, Literal):
                 return str(first.value)
     return None
