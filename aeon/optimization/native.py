@@ -50,7 +50,17 @@ def literal_from_python(value: object) -> Literal:
 def term_to_ast(t: Term) -> ast.expr | None:
     match t:
         case Literal(value, _):
-            return ast.Constant(value=value)
+            if isinstance(value, bool):
+                return ast.Constant(value=value)
+            if isinstance(value, int):
+                return ast.Constant(value=value)
+            if isinstance(value, float):
+                return ast.Constant(value=value)
+            if isinstance(value, str):
+                return ast.Constant(value=value)
+            if value is None:
+                return ast.Constant(value=None)
+            return None
         case Var(name):
             return ast.Name(id=name.name, ctx=ast.Load())
         case _:

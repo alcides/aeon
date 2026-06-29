@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 
-from aeon.core.terms import Abstraction, Application, Literal, Term, TypeApplication, Var
+from aeon.core.terms import Abstraction, Application, Term, TypeApplication, Var
 from aeon.core.types import Type
 from aeon.optimization.native import literal_from_python, native_code, native_term
 from aeon.optimization.whnf import strip_type_wrappers

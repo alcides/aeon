@@ -143,8 +143,7 @@ def test_opt_match_native_tuple_scrutinee():
 
 def test_opt_match_via_let_scrutinee():
     eq(
-        "let xs = ((IntList_cons 3) IntList_empty) in "
-        "((((IntList_rec)[Int] xs) 0) (fun h => (fun t => h)))",
+        "let xs = ((IntList_cons 3) IntList_empty) in ((((IntList_rec)[Int] xs) 0) (fun h => (fun t => h)))",
         "3",
     )
 
@@ -159,5 +158,5 @@ def test_opt_destructor_let_known_value():
 def test_opt_destructor_let_variable_scrutinee():
     eq(
         "((((Pair_rec)[Int] p) (fun a => (fun b => (((+)[Int] a) b)))))",
-        "(((+)[Int] (native \"p[1]\")) (native \"p[2]\"))",
+        '(((+)[Int] (native "p[1]")) (native "p[2]"))',
     )
