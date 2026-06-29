@@ -84,7 +84,6 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.verification.helpers import (
     constraint_location,
     remove_unrelated_context,
-    simplify_constraint,
     simplify_constraint_fixpoint,
     conjunctive_normal_form,
     is_implication_true,

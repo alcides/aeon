@@ -214,9 +214,7 @@ def substitution_in_constraint_with_loc(c: Constraint, rep: LiquidTerm, name: Na
             if name == impl_name:
                 return c
             nseq = substitution_in_constraint_with_loc(seq, rep, name)
-            return Implication(
-                impl_name, base, substitution_in_liquid_with_loc(pred, rep, name), nseq, loc=c.loc
-            )
+            return Implication(impl_name, base, substitution_in_liquid_with_loc(pred, rep, name), nseq, loc=c.loc)
         case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
             nseq = substitution_in_constraint_with_loc(seq, rep, name)
             return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
@@ -268,9 +266,7 @@ def substitute_liquid_term_in_constraint(c: Constraint, old: LiquidTerm, new: Li
                 loc=c.loc,
             )
         case UninterpretedFunctionDeclaration(uname, utype, seq):
-            return UninterpretedFunctionDeclaration(
-                uname, utype, substitute_liquid_term_in_constraint(seq, old, new)
-            )
+            return UninterpretedFunctionDeclaration(uname, utype, substitute_liquid_term_in_constraint(seq, old, new))
         case ReflectedFunctionDeclaration(rname, rtype, params, body, seq):
             return ReflectedFunctionDeclaration(
                 rname,
@@ -317,9 +313,7 @@ def _propagate_loc(c: Constraint, loc: Location | None) -> Constraint:
 # ---------------------------------------------------------------------------
 
 
-def _extract_var_equality(
-    conjuncts: list[LiquidTerm], iname: Name
-) -> tuple[list[LiquidTerm], LiquidTerm] | None:
+def _extract_var_equality(conjuncts: list[LiquidTerm], iname: Name) -> tuple[list[LiquidTerm], LiquidTerm] | None:
     """Find an equality conjunct that directly equates *iname* to some expression.
 
     Returns ``(remaining_conjuncts, replacement)`` on success, ``None`` if no

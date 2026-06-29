@@ -14,8 +14,6 @@ from aeon.verification.helpers import split_or_in_conclusion
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import Implication
 from aeon.verification.vcs import LiquidConstraint
-from aeon.verification.vcs import UninterpretedFunctionDeclaration
-from aeon.core.types import AbstractionType, RefinedType
 
 
 def test_simplify_liquid_right():
