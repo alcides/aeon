@@ -3,10 +3,11 @@ from __future__ import annotations
 from aeon.core.bind import bind_lq
 from aeon.utils.name import Name
 
-from aeon.core.liquid import LiquidVar
-from aeon.core.types import t_int
+from aeon.core.liquid import LiquidLiteralBool, LiquidLiteralInt, LiquidVar
+from aeon.core.types import t_int, TypeConstructor
 from aeon.verification.helpers import parse_liquid
 from aeon.verification.helpers import simplify_constraint
+from aeon.verification.helpers import simplify_constraint_fixpoint
 from aeon.verification.helpers import simplify_expr
 from aeon.verification.helpers import split_or_disjuncts
 from aeon.verification.helpers import split_or_in_conclusion
@@ -60,11 +61,12 @@ def test_simplify_constraint_implication2():
 
 
 def test_simplify_constraint_synthesized_var():
-    """Synthesized existential binders (`_y`) with only equality are substituted away.
+    """Equality binders are substituted away for all variables.
 
-    `synth(Application)` introduces `_y` binders for non-trivial arguments
-    (the Form B replacement for ANF's `_anf` let-bindings); when such a binder
-    carries only an equality, `simplify_constraint` substitutes it away.
+    When a ``forall`` binder carries an equality predicate (e.g. ``_y == x``
+    or ``z == expr``), ``simplify_constraint`` substitutes the variable with
+    its equal expression and drops the binder.  This applies to synthesized
+    existential binders (``_y``) as well as any other variable.
     """
     y_name = Name("_y", 1)
     x_name = Name("x", 0)
@@ -80,10 +82,9 @@ def test_simplify_constraint_synthesized_var():
 
     r = simplify_constraint(c)
 
-    # Should become: forall z: z == x + 1, x > 0 (_y substituted by x)
-    expected_pred_z = bind_lq(parse_liquid("z == x + 1"), [("z", z_name), ("x", x_name)])
-    expected = Implication(z_name, t_int, expected_pred_z, LiquidConstraint(concl))
-    assert r == expected, f"Got {r}, expected {expected}"
+    # Both _y and z are eliminated: _y → x, then z → (x + 1) which doesn't
+    # appear in the conclusion, so the result is just ``x > 0``.
+    assert r == LiquidConstraint(concl), f"Got {r}, expected {LiquidConstraint(concl)}"
 
 
 def test_split_or_disjuncts():
@@ -178,3 +179,227 @@ def test_simplify_no_redundancy():
     # Should remain: forall x: a > 0 => b > 0
     expected = Implication(x_name, t_int, a_gt_0, LiquidConstraint(b_gt_0))
     assert r == expected, f"Got {r}, expected {expected}"
+
+
+# ---------------------------------------------------------------------------
+# Tests for generalised equality elimination
+# ---------------------------------------------------------------------------
+
+
+def test_simplify_variable_equality_elimination():
+    """forall a:Int, a == 1 -> a > 0  simplifies to  true (1 > 0 folded)."""
+    a_name = Name("a", 10)
+    pred = bind_lq(parse_liquid("a == 1"), [("a", a_name)])
+    concl = bind_lq(parse_liquid("a > 0"), [("a", a_name)])
+
+    c = Implication(a_name, t_int, pred, LiquidConstraint(concl))
+    r = simplify_constraint(c)
+
+    # a → 1, then 1 > 0 folds to true
+    assert r == LiquidConstraint(LiquidLiteralBool(True)), f"Got {r}"
+
+
+def test_simplify_variable_equality_eliminates_var():
+    """forall a:Int, a == b -> a > 0  simplifies to  b > 0."""
+    a_name = Name("a", 10)
+    b_name = Name("b", 11)
+    pred = bind_lq(parse_liquid("a == b"), [("a", a_name), ("b", b_name)])
+    concl = bind_lq(parse_liquid("a > 0"), [("a", a_name)])
+
+    c = Implication(a_name, t_int, pred, LiquidConstraint(concl))
+    r = simplify_constraint(c)
+
+    expected_concl = bind_lq(parse_liquid("b > 0"), [("b", b_name)])
+    assert r == LiquidConstraint(expected_concl), f"Got {r}"
+
+
+def test_simplify_variable_equality_reversed():
+    """forall a:Int, 1 == a -> a > 0  simplifies to  true (1 > 0 folded)."""
+    a_name = Name("a", 10)
+    pred = bind_lq(parse_liquid("1 == a"), [("a", a_name)])
+    concl = bind_lq(parse_liquid("a > 0"), [("a", a_name)])
+
+    c = Implication(a_name, t_int, pred, LiquidConstraint(concl))
+    r = simplify_constraint(c)
+
+    assert r == LiquidConstraint(LiquidLiteralBool(True)), f"Got {r}"
+
+
+def test_simplify_variable_equality_in_conjunction():
+    """forall a:Int, (a > 0) && (a == 5) -> a > 3  eliminates a and
+    keeps remaining predicate, then constant-folds."""
+    a_name = Name("a", 10)
+    pred = bind_lq(parse_liquid("a > 0 && a == 5"), [("a", a_name)])
+    concl = bind_lq(parse_liquid("a > 3"), [("a", a_name)])
+
+    c = Implication(a_name, t_int, pred, LiquidConstraint(concl))
+    r = simplify_constraint_fixpoint(c)
+
+    # a → 5, remaining pred becomes 5 > 0 → true, conclusion 5 > 3 → true
+    assert r == LiquidConstraint(LiquidLiteralBool(True)), f"Got {r}"
+
+
+def test_simplify_function_application_equality():
+    """forall x:K, size(x) == 3 -> size(x) > 0  simplifies to  true (3 > 0 folded)."""
+    x_name = Name("x", 20)
+    size_name = Name("size", 0)
+
+    pred = bind_lq(parse_liquid("size(x) == 3"), [("size", size_name), ("x", x_name)])
+    concl = bind_lq(parse_liquid("size(x) > 0"), [("size", size_name), ("x", x_name)])
+
+    k_type = TypeConstructor(Name("K", 0))
+    c = Implication(x_name, k_type, pred, LiquidConstraint(concl))
+    r = simplify_constraint(c)
+
+    # size(x) → 3, then 3 > 0 folds to true
+    assert r == LiquidConstraint(LiquidLiteralBool(True)), f"Got {r}"
+
+
+def test_simplify_function_application_equality_no_fold():
+    """forall x:K, size(x) == n -> size(x) > 0  simplifies to  n > 0."""
+    x_name = Name("x", 20)
+    n_name = Name("n", 21)
+    size_name = Name("size", 0)
+
+    pred = bind_lq(parse_liquid("size(x) == n"), [("size", size_name), ("x", x_name), ("n", n_name)])
+    concl = bind_lq(parse_liquid("size(x) > 0"), [("size", size_name), ("x", x_name)])
+
+    k_type = TypeConstructor(Name("K", 0))
+    c = Implication(x_name, k_type, pred, LiquidConstraint(concl))
+    r = simplify_constraint(c)
+
+    expected_concl = bind_lq(parse_liquid("n > 0"), [("n", n_name)])
+    assert r == LiquidConstraint(expected_concl), f"Got {r}"
+
+
+def test_simplify_nested_equality_elimination():
+    """Chained equality elimination through multiple binders."""
+    a_name = Name("a", 10)
+    b_name = Name("b", 11)
+
+    pred_a = bind_lq(parse_liquid("a == 1"), [("a", a_name)])
+    pred_b = bind_lq(parse_liquid("b == a + 1"), [("b", b_name), ("a", a_name)])
+    concl = bind_lq(parse_liquid("b > 0"), [("b", b_name)])
+
+    inner = Implication(b_name, t_int, pred_b, LiquidConstraint(concl))
+    c = Implication(a_name, t_int, pred_a, inner)
+    r = simplify_constraint_fixpoint(c)
+
+    # a → 1, b → 1 + 1 = 2, so b > 0 → 2 > 0 → true
+    assert r == LiquidConstraint(LiquidLiteralBool(True)), f"Got {r}"
+
+
+# ---------------------------------------------------------------------------
+# Tests for constant folding
+# ---------------------------------------------------------------------------
+
+
+def test_constant_fold_int_addition():
+    x = parse_liquid("1 + 1")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralInt(2), f"Got {r}"
+
+
+def test_constant_fold_int_subtraction():
+    x = parse_liquid("5 - 3")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralInt(2), f"Got {r}"
+
+
+def test_constant_fold_int_multiplication():
+    x = parse_liquid("3 * 4")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralInt(12), f"Got {r}"
+
+
+def test_constant_fold_comparison_gt():
+    x = parse_liquid("5 > 3")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralBool(True), f"Got {r}"
+
+
+def test_constant_fold_comparison_lt():
+    x = parse_liquid("5 < 3")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralBool(False), f"Got {r}"
+
+
+def test_constant_fold_comparison_geq():
+    x = parse_liquid("3 >= 3")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralBool(True), f"Got {r}"
+
+
+def test_constant_fold_comparison_leq():
+    x = parse_liquid("2 <= 3")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralBool(True), f"Got {r}"
+
+
+def test_constant_fold_neq():
+    x = parse_liquid("1 != 2")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralBool(True), f"Got {r}"
+
+
+def test_algebraic_identity_add_zero():
+    x = parse_liquid("a + 0")
+    r = simplify_expr(x)
+    assert r == LiquidVar(Name("a")), f"Got {r}"
+
+
+def test_algebraic_identity_mul_one():
+    x = parse_liquid("a * 1")
+    r = simplify_expr(x)
+    assert r == LiquidVar(Name("a")), f"Got {r}"
+
+
+def test_algebraic_identity_mul_zero():
+    x = parse_liquid("a * 0")
+    r = simplify_expr(x)
+    assert r == LiquidLiteralInt(0), f"Got {r}"
+
+
+def test_algebraic_identity_sub_self():
+    a_name = Name("a", 5)
+    a = LiquidVar(a_name)
+    from aeon.core.liquid import LiquidApp
+
+    expr = LiquidApp(Name("-", 0), [a, a])
+    r = simplify_expr(expr)
+    assert r == LiquidLiteralInt(0), f"Got {r}"
+
+
+# ---------------------------------------------------------------------------
+# Tests for fixpoint with constant folding + equality elimination
+# ---------------------------------------------------------------------------
+
+
+def test_fixpoint_equality_then_constant_fold():
+    """forall a:Int, a == 1 -> a + 1 > 0  simplifies to  2 > 0  then to  true."""
+    a_name = Name("a", 10)
+    pred = bind_lq(parse_liquid("a == 1"), [("a", a_name)])
+    concl = bind_lq(parse_liquid("a + 1 > 0"), [("a", a_name)])
+
+    c = Implication(a_name, t_int, pred, LiquidConstraint(concl))
+    r = simplify_constraint_fixpoint(c)
+
+    # a → 1, so a + 1 → 1 + 1 → 2, then 2 > 0 → true
+    assert r == LiquidConstraint(LiquidLiteralBool(True)), f"Got {r}"
+
+
+def test_fixpoint_extensibility():
+    """Extra passes can be injected into the fixpoint loop."""
+    a_name = Name("a", 10)
+    pred = bind_lq(parse_liquid("a == 1"), [("a", a_name)])
+    concl = bind_lq(parse_liquid("a > 0"), [("a", a_name)])
+    c = Implication(a_name, t_int, pred, LiquidConstraint(concl))
+
+    call_count = [0]
+
+    def counting_pass(c):
+        call_count[0] += 1
+        return c
+
+    simplify_constraint_fixpoint(c, extra_passes=[counting_pass])
+    assert call_count[0] > 0, "Extra pass was never called"

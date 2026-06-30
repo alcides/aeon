@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Generator, cast
+from typing import Callable, Generator, cast
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
@@ -153,11 +153,272 @@ def rebuild_conjunction(conjuncts: list[LiquidTerm]) -> LiquidTerm:
     return result
 
 
+def with_location(term: LiquidTerm, loc: Location) -> LiquidTerm:
+    """Return a shallow copy of *term* whose `loc` field is *loc*."""
+    match term:
+        case LiquidLiteralBool(value):
+            return LiquidLiteralBool(value, loc=loc)
+        case LiquidLiteralInt(value):
+            return LiquidLiteralInt(value, loc=loc)
+        case LiquidLiteralFloat(value):
+            return LiquidLiteralFloat(value, loc=loc)
+        case LiquidLiteralString(value):
+            return LiquidLiteralString(value, loc=loc)
+        case LiquidLiteralUnit():
+            return LiquidLiteralUnit(loc=loc)
+        case LiquidVar(name):
+            return LiquidVar(name, loc=loc)
+        case LiquidApp(fun, args):
+            return LiquidApp(fun, args, loc=loc)
+        case _:
+            return term
+
+
+def substitution_in_liquid_with_loc(t: LiquidTerm, rep: LiquidTerm, name: Name) -> LiquidTerm:
+    """Like ``substitution_in_liquid`` but the replacement inherits the source
+    location of each replaced ``LiquidVar``, so error messages point to the
+    original variable usage site rather than the literal that replaced it."""
+    match t:
+        case (
+            LiquidLiteralBool(_)
+            | LiquidLiteralInt(_)
+            | LiquidLiteralFloat(_)
+            | LiquidLiteralString(_)
+            | LiquidLiteralUnit()
+        ):
+            return t
+        case LiquidVar(tname, loc):
+            if tname == name:
+                return with_location(rep, loc)
+            return t
+        case LiquidApp(aname, args, loc):
+            nargs = [substitution_in_liquid_with_loc(a, rep, name) for a in args]
+            if aname == name:
+                assert isinstance(rep, LiquidVar)
+                return LiquidApp(rep.name, nargs, loc=loc)
+            return LiquidApp(aname, nargs, loc=loc)
+        case _:
+            return substitution_in_liquid(t, rep, name)
+
+
+def substitution_in_constraint_with_loc(c: Constraint, rep: LiquidTerm, name: Name) -> Constraint:
+    """Constraint-level wrapper for ``substitution_in_liquid_with_loc``."""
+    match c:
+        case LiquidConstraint(expr):
+            return LiquidConstraint(substitution_in_liquid_with_loc(expr, rep, name), loc=c.loc)
+        case Conjunction(c1, c2):
+            left = substitution_in_constraint_with_loc(c1, rep, name)
+            right = substitution_in_constraint_with_loc(c2, rep, name)
+            return Conjunction(left, right, loc=c.loc)
+        case Implication(impl_name, base, pred, seq):
+            if name == impl_name:
+                return c
+            nseq = substitution_in_constraint_with_loc(seq, rep, name)
+            return Implication(impl_name, base, substitution_in_liquid_with_loc(pred, rep, name), nseq, loc=c.loc)
+        case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
+            nseq = substitution_in_constraint_with_loc(seq, rep, name)
+            return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
+        case ReflectedFunctionDeclaration(rfd_name, rfd_type, params, body, seq):
+            nbody = substitution_in_liquid_with_loc(body, rep, name)
+            nseq = substitution_in_constraint_with_loc(seq, rep, name)
+            return ReflectedFunctionDeclaration(rfd_name, rfd_type, params, nbody, nseq)
+        case _:
+            assert False
+
+
+# ---------------------------------------------------------------------------
+# Term-for-term substitution (for non-variable equalities like size(x) == 3)
+# ---------------------------------------------------------------------------
+
+
+def substitute_liquid_term(t: LiquidTerm, old: LiquidTerm, new: LiquidTerm) -> LiquidTerm:
+    """Replace every occurrence of *old* inside *t* with *new*.
+
+    The replacement inherits the source location of the matched sub-expression
+    so that error messages point to the right place.
+    """
+    if t == old:
+        return with_location(new, t.loc)
+    match t:
+        case LiquidApp(fun, args, loc):
+            return LiquidApp(fun, [substitute_liquid_term(a, old, new) for a in args], loc=loc)
+        case _:
+            return t
+
+
+def substitute_liquid_term_in_constraint(c: Constraint, old: LiquidTerm, new: LiquidTerm) -> Constraint:
+    """Replace every occurrence of liquid term *old* with *new* throughout a constraint."""
+    match c:
+        case LiquidConstraint(expr):
+            return LiquidConstraint(substitute_liquid_term(expr, old, new), loc=c.loc)
+        case Conjunction(c1, c2):
+            return Conjunction(
+                substitute_liquid_term_in_constraint(c1, old, new),
+                substitute_liquid_term_in_constraint(c2, old, new),
+                loc=c.loc,
+            )
+        case Implication(iname, base, pred, seq):
+            return Implication(
+                iname,
+                base,
+                substitute_liquid_term(pred, old, new),
+                substitute_liquid_term_in_constraint(seq, old, new),
+                loc=c.loc,
+            )
+        case UninterpretedFunctionDeclaration(uname, utype, seq):
+            return UninterpretedFunctionDeclaration(uname, utype, substitute_liquid_term_in_constraint(seq, old, new))
+        case ReflectedFunctionDeclaration(rname, rtype, params, body, seq):
+            return ReflectedFunctionDeclaration(
+                rname,
+                rtype,
+                params,
+                substitute_liquid_term(body, old, new),
+                substitute_liquid_term_in_constraint(seq, old, new),
+            )
+        case _:
+            assert False
+
+
+# ---------------------------------------------------------------------------
+# Location propagation for binder elimination
+# ---------------------------------------------------------------------------
+
+
+def _propagate_loc(c: Constraint, loc: Location | None) -> Constraint:
+    """When an ``Implication`` is eliminated by equality substitution, its
+    source location (pointing to the call site / usage site) must not be lost.
+    This helper transfers *loc* to the result constraint so that
+    ``constraint_location`` still resolves to the right source position."""
+    if loc is None:
+        return c
+    match c:
+        case LiquidConstraint(expr, loc=existing):
+            if existing is None:
+                return LiquidConstraint(expr, loc=loc)
+            return c
+        case Implication(name, base, pred, seq, loc=existing):
+            if existing is None:
+                return Implication(name, base, pred, seq, loc=loc)
+            return c
+        case Conjunction(c1, c2, loc=existing):
+            if existing is None:
+                return Conjunction(c1, c2, loc=loc)
+            return c
+        case _:
+            return c
+
+
+# ---------------------------------------------------------------------------
+# Equality extraction from conjunctive predicates
+# ---------------------------------------------------------------------------
+
+
+def _extract_var_equality(conjuncts: list[LiquidTerm], iname: Name) -> tuple[list[LiquidTerm], LiquidTerm] | None:
+    """Find an equality conjunct that directly equates *iname* to some expression.
+
+    Returns ``(remaining_conjuncts, replacement)`` on success, ``None`` if no
+    such equality exists. Variable equalities are preferred because they
+    completely eliminate the bound variable.
+    """
+    for i, conj in enumerate(conjuncts):
+        if isinstance(conj, LiquidApp) and conj.fun == Name("==", 0) and len(conj.args) == 2:
+            lhs, rhs = conj.args
+            if lhs == LiquidVar(iname):
+                return (conjuncts[:i] + conjuncts[i + 1 :], rhs)
+            if rhs == LiquidVar(iname):
+                return (conjuncts[:i] + conjuncts[i + 1 :], lhs)
+    return None
+
+
+def _extract_term_equality(
+    conjuncts: list[LiquidTerm], iname: Name
+) -> tuple[list[LiquidTerm], LiquidTerm, LiquidTerm] | None:
+    """Find an equality conjunct of the form ``f(…iname…) == expr`` where only
+    one side mentions *iname*.
+
+    Returns ``(remaining_conjuncts, complex_side, simple_side)`` on success.
+    """
+    for i, conj in enumerate(conjuncts):
+        if isinstance(conj, LiquidApp) and conj.fun == Name("==", 0) and len(conj.args) == 2:
+            lhs, rhs = conj.args
+            lhs_has = iname in liquid_free_vars(lhs)
+            rhs_has = iname in liquid_free_vars(rhs)
+            if lhs_has and not rhs_has:
+                return (conjuncts[:i] + conjuncts[i + 1 :], lhs, rhs)
+            if rhs_has and not lhs_has:
+                return (conjuncts[:i] + conjuncts[i + 1 :], rhs, lhs)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Constant folding helpers
+# ---------------------------------------------------------------------------
+
+
+def _fold_int_binary(op: str, a: int, b: int) -> LiquidTerm | None:
+    """Evaluate a binary operation on two integer literals, if possible."""
+    if op == "+":
+        return LiquidLiteralInt(a + b)
+    if op == "-":
+        return LiquidLiteralInt(a - b)
+    if op == "*":
+        return LiquidLiteralInt(a * b)
+    if op == "/" and b != 0:
+        v = a // b if (a >= 0) == (b > 0) or a % b == 0 else -((-a) // b)
+        return LiquidLiteralInt(v)
+    if op == "%" and b != 0:
+        v = a % b if (a >= 0) == (b > 0) or a % b == 0 else -((-a) % b)
+        return LiquidLiteralInt(v)
+    if op == ">":
+        return LiquidLiteralBool(a > b)
+    if op == ">=":
+        return LiquidLiteralBool(a >= b)
+    if op == "<":
+        return LiquidLiteralBool(a < b)
+    if op == "<=":
+        return LiquidLiteralBool(a <= b)
+    if op == "!=":
+        return LiquidLiteralBool(a != b)
+    return None
+
+
+def _fold_float_binary(op: str, a: float, b: float) -> LiquidTerm | None:
+    """Evaluate a binary operation on two float literals, if possible."""
+    if op == "+":
+        return LiquidLiteralFloat(a + b)
+    if op == "-":
+        return LiquidLiteralFloat(a - b)
+    if op == "*":
+        return LiquidLiteralFloat(a * b)
+    if op == "/" and b != 0.0:
+        return LiquidLiteralFloat(a / b)
+    if op == ">":
+        return LiquidLiteralBool(a > b)
+    if op == ">=":
+        return LiquidLiteralBool(a >= b)
+    if op == "<":
+        return LiquidLiteralBool(a < b)
+    if op == "<=":
+        return LiquidLiteralBool(a <= b)
+    if op == "!=":
+        return LiquidLiteralBool(a != b)
+    return None
+
+
 def simplify_expr(expr: LiquidTerm) -> LiquidTerm:
-    """Simplifies a liquid term by reducing it."""
+    """Simplifies a liquid term by reducing it.
+
+    This is the main expression-level simplification entry point.  All
+    expression-level rules (boolean algebra, constant folding, algebraic
+    identities) live here so that ``simplify_constraint_fixpoint`` picks them
+    up automatically.  To add a new rule, append a ``if …`` block before the
+    final ``return LiquidApp(…)``.
+    """
     match expr:
         case LiquidApp(fun=fun, args=args):
             sargs = [simplify_expr(e) for e in args]
+
+            # --- Boolean algebra ------------------------------------------------
             if fun == Name("&&", 0):
                 if sargs[0] == LiquidLiteralBool(False) or sargs[1] == LiquidLiteralBool(False):
                     return LiquidLiteralBool(False)
@@ -188,6 +449,50 @@ def simplify_expr(expr: LiquidTerm) -> LiquidTerm:
                         pass
             if fun == Name("==", 0) and len(sargs) == 2 and sargs[0] == sargs[1]:
                 return LiquidLiteralBool(True)
+
+            # --- Constant folding on literals -----------------------------------
+            if len(sargs) == 2:
+                match (sargs[0], sargs[1]):
+                    case (LiquidLiteralInt(a), LiquidLiteralInt(b)):
+                        folded = _fold_int_binary(fun.name, a, b)
+                        if folded is not None:
+                            return folded
+                    case (LiquidLiteralFloat(a), LiquidLiteralFloat(b)):
+                        folded = _fold_float_binary(fun.name, a, b)
+                        if folded is not None:
+                            return folded
+                    case _:
+                        pass
+
+            # --- Algebraic identities -------------------------------------------
+            if fun == Name("+", 0) and len(sargs) == 2:
+                if sargs[0] == LiquidLiteralInt(0):
+                    return sargs[1]
+                if sargs[1] == LiquidLiteralInt(0):
+                    return sargs[0]
+                if sargs[0] == LiquidLiteralFloat(0.0):
+                    return sargs[1]
+                if sargs[1] == LiquidLiteralFloat(0.0):
+                    return sargs[0]
+            if fun == Name("-", 0) and len(sargs) == 2:
+                if sargs[1] == LiquidLiteralInt(0):
+                    return sargs[0]
+                if sargs[1] == LiquidLiteralFloat(0.0):
+                    return sargs[0]
+                if sargs[0] == sargs[1]:
+                    return LiquidLiteralInt(0)
+            if fun == Name("*", 0) and len(sargs) == 2:
+                if sargs[0] == LiquidLiteralInt(0) or sargs[1] == LiquidLiteralInt(0):
+                    return LiquidLiteralInt(0)
+                if sargs[0] == LiquidLiteralInt(1):
+                    return sargs[1]
+                if sargs[1] == LiquidLiteralInt(1):
+                    return sargs[0]
+                if sargs[0] == LiquidLiteralFloat(1.0):
+                    return sargs[1]
+                if sargs[1] == LiquidLiteralFloat(1.0):
+                    return sargs[0]
+
             return LiquidApp(fun, sargs)
         case _:
             return expr
@@ -297,10 +602,17 @@ def simplify_implication_conclusion(pred: LiquidTerm, conclusion: LiquidTerm) ->
 
 def simplify_constraint(c: Constraint) -> Constraint:
     """Converts a constraint into an equivalent one, by reducing it to
-    equivalent expressions."""
+    equivalent expressions.
+
+    This is the main constraint-level simplification entry point.  All
+    constraint-level rules (equality elimination, binder dropping, conclusion
+    simplification) live here so that ``simplify_constraint_fixpoint`` picks
+    them up automatically.  To add a new rule, add a new ``case`` or ``if``
+    block in the ``Implication`` arm.
+    """
     match c:
         case LiquidConstraint(expr=expr):
-            return LiquidConstraint(simplify_expr(expr))
+            return LiquidConstraint(simplify_expr(expr), loc=c.loc)
         case Conjunction(c1=c1, c2=c2):
             left = simplify_constraint(c1)
             right = simplify_constraint(c2)
@@ -319,50 +631,53 @@ def simplify_constraint(c: Constraint) -> Constraint:
             if pred == LiquidLiteralBool(True) and seq == LiquidConstraint(LiquidLiteralBool(True)):
                 return seq
 
-            # Remove synthesized existential binders that only have equality: forall v: v == expr => seq
-            if is_synthesized_name(iname) and isinstance(pred, LiquidApp) and pred.fun == Name("==", 0):
-                if pred.args[0] == LiquidVar(iname):
-                    rep = pred.args[1]
-                elif pred.args[1] == LiquidVar(iname):
-                    rep = pred.args[0]
-                else:
-                    rep = None
-                if rep is not None:
-                    subs_seq = substitution_in_constraint(seq, rep, iname)
-                    return simplify_constraint(subs_seq)
-
-            # Preds are usually built as in (cond) && ( this = other)
-            if (
-                isinstance(pred, LiquidApp)
-                and pred.fun == Name("&&", 0)
-                and isinstance(pred.args[1], LiquidApp)
-                and pred.args[1].fun == Name("==", 0)
-                and pred.args[1].args[0] == LiquidVar(iname)
-            ):
-                rep = pred.args[1].args[1]
-                subs_pred = substitution_in_liquid(pred.args[0], rep, iname)
-                subs_seq = substitution_in_constraint(seq, rep, iname)
-                rc = simplify_constraint(
-                    Implication(Name("_", fresh_counter.fresh()), t_bool, subs_pred, subs_seq, loc=iloc)
+            # --- Equality elimination (variable) --------------------------------
+            # If the predicate (or any conjunct of it) equates the bound
+            # variable to an expression, substitute the variable away.  This
+            # generalises the old ``_y``-only rule to *all* bound variables.
+            conjuncts = flatten_conjuncts(pred)
+            var_eq = _extract_var_equality(conjuncts, iname)
+            if var_eq is not None:
+                remaining, rep = var_eq
+                subs_remaining = [substitution_in_liquid_with_loc(c, rep, iname) for c in remaining]
+                subs_seq = substitution_in_constraint_with_loc(seq, rep, iname)
+                if not subs_remaining:
+                    return _propagate_loc(simplify_constraint(subs_seq), iloc)
+                new_pred = simplify_expr(rebuild_conjunction(subs_remaining))
+                return simplify_constraint(
+                    Implication(Name("_", fresh_counter.fresh()), t_bool, new_pred, subs_seq, loc=iloc)
                 )
-                return rc
+
+            # --- Equality elimination (non-variable / function application) ------
+            # Handles cases like ``forall x:K, size(x) == 3 -> size(x) > 0``
+            # by substituting the complex side with the simple side.
+            term_eq = _extract_term_equality(conjuncts, iname)
+            if term_eq is not None:
+                remaining, complex_side, simple_side = term_eq
+                subs_remaining = [substitute_liquid_term(c, complex_side, simple_side) for c in remaining]
+                subs_seq = substitute_liquid_term_in_constraint(seq, complex_side, simple_side)
+                new_pred = simplify_expr(rebuild_conjunction(subs_remaining))
+                all_free = liquid_free_vars(new_pred)
+                seq_uses = is_used(iname, subs_seq)
+                if iname not in all_free and not seq_uses:
+                    if not subs_remaining:
+                        return _propagate_loc(simplify_constraint(subs_seq), iloc)
+                    return simplify_constraint(
+                        Implication(Name("_", fresh_counter.fresh()), t_bool, new_pred, subs_seq, loc=iloc)
+                    )
+                return simplify_constraint(Implication(iname, base, new_pred, subs_seq, loc=iloc))
 
             cont = simplify_constraint(seq)
             s = simplify_expr(pred)
 
-            # Track whether the bound variable was used in the original conclusion
             iname_used_in_original = is_used(iname, cont)
 
-            # Simplify the conclusion in the innermost constraint if it's a LiquidConstraint
             if isinstance(cont, LiquidConstraint):
                 simplified_conclusion = simplify_implication_conclusion(s, cont.expr)
-                # Only update if simplification changed something
                 if simplified_conclusion != cont.expr:
                     cont = LiquidConstraint(simplify_expr(simplified_conclusion), loc=cont.loc)
 
             other_used_vars = [x for x in used_variables(s) if x != iname]
-            # If the variable was not used in the original conclusion and there are no other free vars in premise,
-            # we can drop the implication (the premise becomes irrelevant)
             if not iname_used_in_original and not other_used_vars:
                 return cont
 
@@ -377,11 +692,32 @@ def simplify_constraint(c: Constraint) -> Constraint:
             return c
 
 
-def simplify_constraint_fixpoint(c: Constraint, max_steps: int = 16) -> Constraint:
-    """Apply simplification repeatedly until stable (or bounded)."""
+def simplify_constraint_fixpoint(
+    c: Constraint,
+    max_steps: int = 32,
+    extra_passes: list[Callable[[Constraint], Constraint]] | None = None,
+) -> Constraint:
+    """Apply all simplification passes in a loop until the constraint stabilises.
+
+    Each iteration runs ``simplify_constraint`` (which internally calls
+    ``simplify_expr`` for expression-level rules such as constant folding and
+    boolean algebra) followed by any caller-supplied *extra_passes*.
+
+    To extend the fixpoint with a new rewrite rule you can either:
+
+    * Add expression-level rules to ``simplify_expr``.
+    * Add constraint-level rules to ``simplify_constraint``.
+    * Pass one-off passes via *extra_passes*.
+    """
+    passes: list[Callable[[Constraint], Constraint]] = [simplify_constraint]
+    if extra_passes:
+        passes.extend(extra_passes)
+
     cur = c
     for _ in range(max_steps):
-        nxt = simplify_constraint(cur)
+        nxt = cur
+        for p in passes:
+            nxt = p(nxt)
         if nxt == cur:
             return cur
         cur = nxt
@@ -509,7 +845,7 @@ def reduce_to_useful_constraint(c: Constraint) -> Constraint:
     top = []
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
-            cons_simp = simplify_constraint(cons)
+            cons_simp = simplify_constraint_fixpoint(cons)
             cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
             top.append(cons_clean)
     llb = LiquidLiteralBool(True)
@@ -530,7 +866,7 @@ def pretty_print_constraint(c: Constraint) -> str:
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
             r = []
-            cons_simp = simplify_constraint(cons)
+            cons_simp = simplify_constraint_fixpoint(cons)
             cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
             for item, indent in pretty_print_generator(cons_clean):
                 r.append(indent * "\t" + item)
