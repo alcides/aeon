@@ -344,5 +344,43 @@ def test_adapter_parse_populates_type_index_and_drives_completion():
     assert "double" in labels(comps)
 
 
+# --------------------------------------------------------------------------- #
+# Decidability warnings surface as LSP Warning diagnostics (issue #438)
+# --------------------------------------------------------------------------- #
+
+_NONLINEAR_SRC = "def mul (x:Int) (y:Int) : {v:Int | v = x * y} := x * y;\ndef main (_:Int) : Unit := print 0;"
+_LINEAR_SRC = "def f (x:Int) : {v:Int | v = x * 2} := x * 2;\ndef main (_:Int) : Unit := print 0;"
+
+
+def test_adapter_emits_warning_diagnostic_for_nonlinear_refinement():
+    import asyncio
+
+    from lsprotocol.types import DiagnosticSeverity
+
+    from aeon.lsp import aeon_adapter
+
+    ls = _MockLS(_NONLINEAR_SRC)
+    result = asyncio.run(aeon_adapter.parse(ls, "file:///nl_warn.ae"))
+
+    warnings = [d for d in result.diagnostics if d.severity == DiagnosticSeverity.Warning]
+    assert len(warnings) == 1
+    assert "nonlinear multiplication" in warnings[0].message
+    # 1-indexed core (1, 40) -> 0-indexed LSP (0, 39).
+    assert warnings[0].range.start.line == 0
+
+
+def test_adapter_no_warning_for_linear_refinement():
+    import asyncio
+
+    from lsprotocol.types import DiagnosticSeverity
+
+    from aeon.lsp import aeon_adapter
+
+    ls = _MockLS(_LINEAR_SRC)
+    result = asyncio.run(aeon_adapter.parse(ls, "file:///lin_ok.ae"))
+
+    assert [d for d in result.diagnostics if d.severity == DiagnosticSeverity.Warning] == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

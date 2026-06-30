@@ -297,7 +297,9 @@ can return `unknown` or time out, and a program that verified yesterday may
 start failing for no visible reason. To make this failure mode visible, Aeon
 classifies every refinement predicate and emits a located **warning** naming the
 offending construct (and the option `--strict-decidable` turns those warnings
-into errors).
+into errors). On the command line the warning is printed to stderr; in the
+editor it surfaces through the language server as a `Warning`-severity
+diagnostic on the offending span.
 
 ### In the fragment (no warning)
 
