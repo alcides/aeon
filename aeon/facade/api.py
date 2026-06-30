@@ -145,6 +145,26 @@ class NonOrderableComparisonError(AeonError):
         return self.loc
 
 
+@dataclass
+class UndecidableRefinementError(AeonError):
+    """A refinement predicate uses syntax outside the decidable fragment Liquid
+    Types target (e.g. ``x * y`` or ``x % y`` with a non-constant divisor).
+
+    Only raised under strict mode (``--strict-decidable``); otherwise the same
+    situation is reported as a non-fatal warning. ``construct`` names the
+    offending syntax and ``detail`` explains why it is problematic."""
+
+    construct: str
+    detail: str
+    loc: Location
+
+    def __str__(self) -> str:
+        return f"Refinement uses {self.construct}, which is outside the decidable fragment: {self.detail}"
+
+    def position(self) -> Location:
+        return self.loc
+
+
 class CoreTypeCheckingError(AeonError):
     pass
 

@@ -27,7 +27,7 @@ from lsprotocol.types import Diagnostic, DiagnosticSeverity
 from lsprotocol.types import Position, Range
 
 from aeon.facade.driver import AeonDriver
-from aeon.lsp.server import AeonLanguageServer
+from aeon.lsp.server import AeonLanguageServer, _loc_to_range
 
 requests_session = requests.Session()
 
@@ -186,6 +186,22 @@ async def _parse(
                     severity=DiagnosticSeverity.Error,
                 )
             )
+
+        # Non-fatal decidability warnings (issue #438): refinements that leave
+        # the decidable fragment z3 can reliably decide. Surface them as
+        # Warning-severity diagnostics so they appear in the editor. Under strict
+        # mode they are already returned as errors above, so skip them here to
+        # avoid a duplicate squiggle on the same span.
+        if not getattr(driver.cfg, "strict_decidable", False):
+            for warning in getattr(driver, "decidability_warnings", []):
+                diagnostics.append(
+                    Diagnostic(
+                        message=f"{warning.construct}: {warning.message}",
+                        range=_loc_to_range(warning.location),
+                        source="aeon",
+                        severity=DiagnosticSeverity.Warning,
+                    )
+                )
 
         if not errors:
             holes = find_holes_in_source(content)

@@ -15,7 +15,7 @@ from aeon.compilation.compile import (
 from aeon.compilation.link import collect_constructor_names
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
-from aeon.facade.api import AeonError
+from aeon.facade.api import AeonError, UndecidableRefinementError
 from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.bind import bind_program
 from aeon.sugar.instance_registry import clear_instance_registry
@@ -46,6 +46,9 @@ class AeonConfig:
     timings: bool = False
     no_main: bool = False
     synthesis_format: SynthesisFormat = SynthesisFormat.DEFAULT
+    # Treat refinements that leave the decidable fragment (nonlinear
+    # arithmetic, ...) as errors instead of warnings (issue #438).
+    strict_decidable: bool = False
 
 
 class AeonDriver:
@@ -54,10 +57,12 @@ class AeonDriver:
 
     def __init__(self, cfg: AeonConfig):
         self.cfg = cfg
+        self.decidability_warnings: list = []
 
     def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
         self.core = None
         self.typing_ctx = None
+        self.decidability_warnings = []
 
         with RecordTime("ParseSugar"):
             clear_instance_registry()
@@ -91,6 +96,16 @@ class AeonDriver:
         if errors:
             return errors
         assert core is not None and typing_ctx is not None and metadata is not None
+
+        with RecordTime("DecidabilityScan"):
+            from aeon.verification.decidability import collect_decidability_warnings
+
+            self.decidability_warnings = collect_decidability_warnings(core, source_path=unit.source_path)
+            if self.cfg.strict_decidable and self.decidability_warnings:
+                return [
+                    UndecidableRefinementError(construct=w.construct, detail=w.message, loc=w.location)
+                    for w in self.decidability_warnings
+                ]
 
         self.metadata = metadata
 

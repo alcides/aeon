@@ -95,7 +95,8 @@ CI can react to *what* failed (defined in `aeon.facade.exit_codes`):
 | 12 | Linearity error |
 | 13 | Core type-checking error |
 | 14 | Invalid refinement predicate |
-| 15 | Other compiler error |
+| 15 | Undecidable refinement (under `--strict-decidable`) |
+| 16 | Other compiler error |
 
 When several errors are reported, the exit code reflects the first one.
 
@@ -276,6 +277,65 @@ Aeon infers the most precise type it can for each binding:
 ```
 let balance := 1000;                          # inferred: {balance:Int | balance = 1000}
 let remaining := withdraw balance 200;        # inferred: {remaining:Int | remaining >= 0}
+```
+
+## The decidable fragment
+
+Aeon discharges every refinement proof obligation with the SMT solver z3. Liquid
+Types are designed so the predicates stay inside a **decidable** logical
+fragment, where z3 is a true *decision procedure*: it always answers
+`sat`/`unsat`, so the type checker's verdict is reliable. That fragment is:
+
+- **quantifier-free linear arithmetic** over `Int` and `Float` (QF_LIA / QF_LRA),
+- **equality with uninterpreted functions** (EUF) — measures, datatype
+  projections, and reflected function bodies become uninterpreted symbols, and
+- the **predicate abstraction** that Liquid-type (Horn-clause) inference layers
+  on top.
+
+When a refinement steps *outside* this fragment, z3 becomes **incomplete**: it
+can return `unknown` or time out, and a program that verified yesterday may
+start failing for no visible reason. To make this failure mode visible, Aeon
+classifies every refinement predicate and emits a located **warning** naming the
+offending construct (and the option `--strict-decidable` turns those warnings
+into errors). On the command line the warning is printed to stderr; in the
+editor it surfaces through the language server as a `Warning`-severity
+diagnostic on the offending span.
+
+### In the fragment (no warning)
+
+| Construct | Examples |
+|---|---|
+| Boolean / relational structure | `&&`, `\|\|`, `!`, `-->`, `=`, `!=`, `<`, `<=`, `>`, `>=`, `if`/`ite` |
+| Linear arithmetic | `x + y`, `x - y`, `2 * x`, `x * 3`, `x / 4`, `x % 2` (multiplication, division, or modulo where at least one side is a **constant**) |
+| Uninterpreted functions | measures, datatype projections, reflected/`native` functions applied in a predicate (live in EUF) |
+| Predicate abstraction | inference holes for `Int<p>` / `forall <p>` parametric refinements |
+| Set operations | `Set_mem`, `Set_cup`, `Set_cap`, `Set_sub`, ... |
+
+### Out of the fragment (warned about)
+
+| Construct | Why | Example |
+|---|---|---|
+| Nonlinear multiplication | product of two unknowns is undecidable | `{v:Int \| v = x * y}` |
+| Non-constant division | division by a non-constant divisor is nonlinear | `{v:Int \| v = x / y}` |
+| Non-constant modulo | modulo by a non-constant divisor is nonlinear | `{v:Int \| v = x % y}` |
+| Exponentiation | no native z3 theory | `x ** y` |
+| Quantifiers | leave the quantifier-free fragment | `forall`, `exists` inside a predicate |
+
+The surface refinement language has no exponentiation operator or in-predicate
+quantifiers today, so in practice the warnings you will see are the nonlinear
+arithmetic ones; the rest are documented and detected defensively.
+
+To stay in the fragment, keep at least one factor of a product (or a divisor)
+constant, or model the relation with an **uninterpreted function** declared via
+`native` — z3 then reasons about it by equality (EUF) instead of trying to
+interpret the nonlinear operation.
+
+```
+# Warns: x * y is a product of two variables.
+def mul (x:Int) (y:Int) : {v:Int | v = x * y} := x * y;
+
+# No warning: one factor is constant (linear).
+def double (x:Int) : {v:Int | v = x * 2} := x * 2;
 ```
 
 ## Modules and Imports
@@ -500,6 +560,7 @@ The generated files are gitignored; they are produced from source by the
 | -l, --log | Sets the log level (TRACE, DEBUG, INFO, WARNINGS, ERROR, CRITICAL, etc.)  |
 | -f, --logfile | Exports the log to a file                                              |
 | -n, --no-main | Disables introducing hole in main                                     |
+| --strict-decidable | Treats out-of-fragment refinements (nonlinear arithmetic, ...) as errors — see [The decidable fragment](#the-decidable-fragment) |
 | --test | Runs every `@property` and `@example` as a test and reports pass/fail        |
 | --seed | Random seed for `--test` input generation (reproducible for a fixed seed)    |
 | --doc  | Generates HTML documentation from the source file                            |
