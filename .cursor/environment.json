@@ -1,0 +1,4 @@
+{
+  "name": "aeon",
+  "install": "bash .cursor/install.sh"
+}
