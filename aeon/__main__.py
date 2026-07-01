@@ -10,6 +10,7 @@ from lark.exceptions import UnexpectedInput
 
 from aeon.facade.api import (
     AeonError,
+    ContractViolationError,
     CoreTypeCheckingError,
     ModuleNotFoundAeonError as AeonImportError,
     InstanceResolutionError,
@@ -99,6 +100,12 @@ def _parse_common_arguments(parser: ArgumentParser):
             "Treat refinements that leave the decidable fragment (nonlinear arithmetic such as `x * y`, "
             "division/modulo by a non-constant divisor, ...) as errors instead of warnings."
         ),
+    )
+
+    parser.add_argument(
+        "--contracts",
+        action="store_true",
+        help="Check argument and result refinements at run time (gradual verification; off by default).",
     )
 
     parser.add_argument(
@@ -238,6 +245,8 @@ def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
             return "Method resolution error", "No method with this name is defined for the receiver's type."
         case LinearityError():
             return "Linearity error", "A binding's usage does not match its declared multiplicity."
+        case ContractViolationError():
+            return "Contract violation", "A runtime refinement check failed; see blame (caller vs callee)."
         case CoreTypeCheckingError():
             return "Type error", None
         case _:
@@ -301,6 +310,7 @@ def main() -> None:
         no_main=(args.no_main or bool(getattr(args, "export", None))) and not run_tests,
         synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
         strict_decidable=getattr(args, "strict_decidable", False),
+        contracts=getattr(args, "contracts", False),
     )
     driver = AeonDriver(cfg)
 
@@ -384,7 +394,11 @@ def main() -> None:
                     print("#pprint")
                     print(pretty_print_sterm(term))
                 case (False, False):
-                    driver.run()
+                    try:
+                        driver.run()
+                    except ContractViolationError as contract_err:
+                        handle_error(contract_err)
+                        sys.exit(error_exit_code(contract_err))
         case [first, *_]:
             for err in errors:
                 handle_error(err)

@@ -14,6 +14,8 @@ from aeon.core.terms import Rec
 from aeon.core.terms import Term
 from aeon.core.terms import Var
 from aeon.utils.name import Name
+from aeon.backend.contracts import ContractClosure, ContractState, wrap_callable
+from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.llvm.core import LLVMPipeline
 
@@ -34,6 +36,7 @@ class EvaluationContext:
     # is shared (by reference) with ``trace`` across ``with_var``.
     trace: list | None
     trace_stack: list | None
+    contract_state: ContractState | None
 
     def __init__(
         self,
@@ -42,6 +45,7 @@ class EvaluationContext:
         pipeline: LLVMPipeline | None = None,
         trace: list | None = None,
         trace_stack: list | None = None,
+        contract_state: ContractState | None = None,
     ):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
@@ -51,13 +55,23 @@ class EvaluationContext:
         self.pipeline = pipeline
         self.trace = trace
         self.trace_stack = trace_stack
+        self.contract_state = contract_state
 
     def with_var(self, name: Name, value: Any):
         assert isinstance(name, Name)
         v = self.variables.copy()
         v.update({name: value})
+        if self.contract_state is not None:
+            from aeon.backend.contracts import register_runtime_callable
+
+            register_runtime_callable(self.contract_state, name, value)
         return EvaluationContext(
-            v, metadata=self.metadata, pipeline=self.pipeline, trace=self.trace, trace_stack=self.trace_stack
+            v,
+            metadata=self.metadata,
+            pipeline=self.pipeline,
+            trace=self.trace,
+            trace_stack=self.trace_stack,
+            contract_state=self.contract_state,
         )
 
     def get(self, name: Name):
@@ -78,6 +92,19 @@ def is_native_import(fun: Term):
             return False
 
 
+def _wrap_if_contract(
+    fn: Any,
+    fn_type: Type | None,
+    callee: Name,
+    ctx: EvaluationContext,
+    *,
+    loc,
+) -> Any:
+    if ctx.contract_state is None or fn_type is None:
+        return fn
+    return wrap_callable(fn, fn_type, callee, ctx.contract_state, loc=loc)
+
+
 # pattern match term
 def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
     match t:
@@ -96,6 +123,8 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 python_ctx = {str(name): v for name, v in globals().items()}
                 python_ctx.update({str(name.name): v for name, v in ctx.variables.items()})
                 e = real_eval(argv, python_ctx)
+            elif isinstance(f, ContractClosure):
+                e = f(argv)
             else:
                 e = f(argv)
             if is_native_import(fun):
@@ -109,7 +138,8 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             # would raise immediately, surfacing a missed check.
             return eval(body, ctx.with_var(var_name, None))
         case Let(var_name, var_value, body):
-            return eval(body, ctx.with_var(var_name, eval(var_value, ctx)))
+            value = eval(var_value, ctx)
+            return eval(body, ctx.with_var(var_name, value))
         case Rec(var_name, _, _, body, _, _, mult) if mult is M0:
             # Phase 4 — same erasure for ``Rec``. ``var_value`` may be a
             # recursive lambda that's only meaningful at type level.
@@ -132,6 +162,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 pipeline=ctx.pipeline,
                 trace=ctx.trace,
                 trace_stack=ctx.trace_stack,
+                contract_state=ctx.contract_state,
             )
             for m in members:
                 inner_value = m.var_value
@@ -139,7 +170,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                     inner_value = inner_value.body
                 if isinstance(inner_value, Abstraction):
 
-                    def make_closure(fun: Abstraction, fname: Name):
+                    def make_closure(fun: Abstraction, fname: Name, ftype: Type):
                         def v(x):
                             tr = group_ctx.trace
                             if tr is None:
@@ -155,16 +186,16 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                             tr[idx][2] = result
                             return result
 
-                        return v
+                        return _wrap_if_contract(v, ftype, fname, group_ctx, loc=fun.loc)
 
-                    group_ctx.variables[m.var_name] = make_closure(inner_value, m.var_name)
+                    group_ctx.variables[m.var_name] = make_closure(inner_value, m.var_name, m.var_type)
                 else:
                     # Non-lambda mutual binding: evaluate in the shared context
                     # (closures resolve siblings lazily) and patch the cell.
                     group_ctx.variables[m.var_name] = None
                     group_ctx.variables[m.var_name] = eval(m.var_value, group_ctx)
             return eval(final_body, group_ctx)
-        case Rec(var_name, _, var_value, body, _, _):
+        case Rec(var_name, var_type, var_value, body, _, _):
             found_llvm = False
             if ctx.pipeline and ctx.metadata:
                 for k, v in ctx.metadata.items():
@@ -207,6 +238,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                     tr[idx][2] = result
                     return result
 
+                v = _wrap_if_contract(v, var_type, var_name, ctx, loc=t.loc)
             else:
                 # General recursion for non-lambda values (e.g. instance
                 # dictionaries whose default methods reference sibling
@@ -226,8 +258,19 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 return eval(then, ctx)
             else:
                 return eval(otherwise, ctx)
-        case Annotation(expr, _):
-            return eval(expr, ctx)
+        case Annotation(expr, ty):
+            value = eval(expr, ctx)
+            if ctx.contract_state is not None:
+                from aeon.backend.contracts import check_return_refinement
+
+                check_return_refinement(
+                    ty,
+                    value,
+                    ctx.contract_state,
+                    callee=Name("<annotation>", 0),
+                    loc=expr.loc,
+                )
+            return value
         case Hole(name):
             args = ", ".join([str(n.name) for n in ctx.variables])
             print(f"Context ({args})")
@@ -254,6 +297,13 @@ def eval_with_trace(t: Term, ctx: EvaluationContext = EvaluationContext()) -> tu
     ``-1`` for a top-level call). Used by co-synthesis to observe a candidate's
     behaviour, reconstruct its call tree, and blame failing inputs."""
     sink: list = []
-    traced = EvaluationContext(ctx.variables, metadata=ctx.metadata, pipeline=ctx.pipeline, trace=sink, trace_stack=[])
+    traced = EvaluationContext(
+        ctx.variables,
+        metadata=ctx.metadata,
+        pipeline=ctx.pipeline,
+        trace=sink,
+        trace_stack=[],
+        contract_state=ctx.contract_state,
+    )
     value = eval(t, traced)
     return value, sink
