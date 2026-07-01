@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from aeon.core.liquid import LiquidTerm
 from aeon.core.multiplicity import Multiplicity
 from aeon.core.terms import Term
 from aeon.core.types import Kind, Type
@@ -409,6 +410,26 @@ class LinearBranchMismatchError(LinearityError):
 
     def position(self) -> Location:
         return self.term.loc
+
+
+@dataclass
+class ContractViolationError(AeonError):
+    """Raised when ``--contracts`` detects a refinement violation at run time."""
+
+    blame: str
+    binding: str
+    predicate: LiquidTerm
+    loc: Location
+
+    def __str__(self) -> str:
+        side = "caller" if self.blame == "caller" else "callee"
+        return (
+            f"Contract violation (blame: {side}): binding '{self.binding}' "
+            f"does not satisfy refinement `{self.predicate}`."
+        )
+
+    def position(self) -> Location:
+        return self.loc
 
 
 def _format_location(loc: Location) -> str:

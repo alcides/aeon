@@ -5,6 +5,7 @@ from typing import Any, Iterable
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
+from aeon.backend.contracts import ContractState, build_runtime_liquid_env, collect_top_level_fn_types
 from aeon.backend.python_export import export_function
 from aeon.compilation.compile import (
     clear_unit_cache,
@@ -49,6 +50,7 @@ class AeonConfig:
     # Treat refinements that leave the decidable fragment (nonlinear
     # arithmetic, ...) as errors instead of warnings (issue #438).
     strict_decidable: bool = False
+    contracts: bool = False
 
 
 class AeonDriver:
@@ -114,7 +116,17 @@ class AeonDriver:
 
         with RecordTime("Preparing execution env"):
             pipeline = MultiBackendPipeline(metadata=metadata)
-            self.evaluation_ctx = EvaluationContext(evaluation_vars, metadata=metadata, pipeline=pipeline)
+            contract_state: ContractState | None = None
+            if self.cfg.contracts:
+                fn_types = collect_top_level_fn_types(core)
+                runtime = build_runtime_liquid_env(evaluation_vars)
+                contract_state = ContractState.from_contexts(typing_ctx, fn_types, runtime)
+            self.evaluation_ctx = EvaluationContext(
+                evaluation_vars,
+                metadata=metadata,
+                pipeline=pipeline,
+                contract_state=contract_state,
+            )
 
         with RecordTime("LLVM compilation"):
             pipeline.compile(self.core)
