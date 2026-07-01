@@ -1,27 +1,39 @@
-# Distributions.ae
+# Distributions.ae — linear batch samplers (issue #441 follow-up).
 #
-# Probability distribution producers paired with quantile-bound postulates.
+# Each producer draws a batch from a linear ``Rng`` (``libraries/Random.ae``),
+# returning an opaque ``SampleDraw`` paired with the successor generator. Project
+# the array through the distribution-specific ``*_value`` function (where the
+# quantile-bound refinements live), then bind ``sample_next`` to continue the
+# chain. Batch draws never use ``numpy.random`` or other global RNG state.
+#
 # Refinement-language predicates (fracBelow, fracAbove, sampleMean, ...) and
 # their monotonicity axioms (widenBelow, widenAbove, ...) live in Statistics.
-#
-# Each producer is `native` (numpy under the hood). Its return refinement
-# is a *postulate* asserting the true distributional quantiles. For finite
-# samples these are expected-value claims; we treat them as trusted facts
-# since the FFI is on the user's honor.
-#
-# Constants are CDF-inverse evaluations (z-scores, ln(1-p), etc.) hardcoded.
 
 open Array
 open Math
+open Random
 open Statistics
+
+# Opaque batch draw: a sample array paired with the successor generator.
+type SampleDraw
+
+def sample_next (d: SampleDraw) : Rng := native "d[1]"
 
 # ─── Normal distribution N(mu, sigma) ──────────────────────────────────
 # z-scores: 1.282 (90%), 1.645 (95%), 2.33 (99%).
 
-def normalSample
+def normal_sample
+    (1 g: Rng)
     (mu: Float)
     (sigma: {s: Float | s > 0.0})
     (n: {m: Int | m > 0})
+    : SampleDraw
+    := native "(list(g.gauss(mu, sigma) for _ in range(n)), g)"
+
+def normal_value
+    (mu: Float)
+    (sigma: {s: Float | s > 0.0})
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracBelow xs (mu + 2.33 * sigma)  >= 0.99
@@ -31,12 +43,18 @@ def normalSample
         && fracAbove xs (mu - 1.282 * sigma) >= 0.90
         && fracAbove xs (mu - 1.645 * sigma) >= 0.95
         && fracAbove xs (mu - 2.33 * sigma)  >= 0.99 }
-    := native "list(__import__('numpy').random.normal(mu, sigma, n))"
+    := native "d[0]"
 
 # ─── Standard normal Z ~ N(0, 1) ───────────────────────────────────────
 
-def standardNormalSample
+def standard_normal_sample
+    (1 g: Rng)
     (n: {m: Int | m > 0})
+    : SampleDraw
+    := native "(list(g.gauss(0.0, 1.0) for _ in range(n)), g)"
+
+def standard_normal_value
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracBelow xs 2.33  >= 0.99
@@ -46,15 +64,23 @@ def standardNormalSample
         && fracAbove xs 0.0    >= 0.50
         && fracAbove xs (0.0 - 1.282) >= 0.90
         && fracAbove xs (0.0 - 2.33)  >= 0.99 }
-    := native "list(__import__('numpy').random.standard_normal(n))"
+    := native "d[0]"
 
 # ─── Uniform distribution U(a, b) ──────────────────────────────────────
 # Quantile p is exactly a + p*(b - a). Support is [a, b].
 
-def uniformSample
+def uniform_sample
+    (1 g: Rng)
     (a: Float)
     (b: {bb: Float | bb > a})
     (n: {m: Int | m > 0})
+    : SampleDraw
+    := native "(list(g.uniform(a, b) for _ in range(n)), g)"
+
+def uniform_value
+    (a: Float)
+    (b: {bb: Float | bb > a})
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs a >= 1.0
@@ -63,15 +89,22 @@ def uniformSample
         && fracBelow xs (a + 0.95 * (b - a)) >= 0.95
         && fracBelow xs (a + 0.50 * (b - a)) >= 0.50
         && fracBelow xs (a + 0.10 * (b - a)) >= 0.10 }
-    := native "list(__import__('numpy').random.uniform(a, b, n))"
+    := native "d[0]"
 
 # ─── Exponential distribution Exp(rate = lambda) ───────────────────────
 # Quantile p:  -ln(1 - p) / lambda.   Support [0, ∞).
 # Constants: 0.6931 (50%), 2.3026 (90%), 2.9957 (95%), 4.6052 (99%).
 
-def exponentialSample
+def exponential_sample
+    (1 g: Rng)
     (lam: {l: Float | l > 0.0})
     (n: {m: Int | m > 0})
+    : SampleDraw
+    := native "(list(g.expovariate(lam) for _ in range(n)), g)"
+
+def exponential_value
+    (lam: {l: Float | l > 0.0})
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
@@ -79,81 +112,123 @@ def exponentialSample
         && fracBelow xs (2.9957 / lam) >= 0.95
         && fracBelow xs (2.3026 / lam) >= 0.90
         && fracBelow xs (0.6931 / lam) >= 0.50 }
-    := native "list(__import__('numpy').random.exponential(1.0 / lam, n))"
+    := native "d[0]"
 
 # ─── Beta distribution Beta(alpha, beta) ───────────────────────────────
 # Support is (0, 1). Mean = alpha / (alpha + beta).
 
-def betaSample
+def beta_sample
+    (1 g: Rng)
     (alpha: {a: Float | a > 0.0})
     (beta:  {b: Float | b > 0.0})
     (n:     {m: Int   | m > 0})
+    : SampleDraw
+    := native "(list(g.betavariate(alpha, beta) for _ in range(n)), g)"
+
+def beta_value
+    (alpha: {a: Float | a > 0.0})
+    (beta:  {b: Float | b > 0.0})
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && fracBelow xs 1.0 >= 1.0
         && ((sampleMean xs) = (alpha / (alpha + beta))) }
-    := native "list(__import__('numpy').random.beta(alpha, beta, n))"
+    := native "d[0]"
 
 # ─── Gamma distribution Gamma(shape k, scale theta) ────────────────────
 # Support [0, ∞). Mean = k * theta. Var = k * theta * theta.
 
-def gammaSample
+def gamma_sample
+    (1 g: Rng)
     (k:     {kk: Float | kk > 0.0})
     (theta: {th: Float | th > 0.0})
     (n:     {m:  Int   | m > 0})
+    : SampleDraw
+    := native "(list(g.gammavariate(k, theta) for _ in range(n)), g)"
+
+def gamma_value
+    (k:     {kk: Float | kk > 0.0})
+    (theta: {th: Float | th > 0.0})
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && ((sampleMean xs) = (k * theta))
         && ((sampleVar  xs) = (k * (theta * theta))) }
-    := native "list(__import__('numpy').random.gamma(k, theta, n))"
+    := native "d[0]"
 
 # ─── Chi-squared distribution Chi²(k) ──────────────────────────────────
 # Support [0, ∞). Mean = k.  Var = 2k.
 
-def chiSquaredSample
+def chi_squared_sample
+    (1 g: Rng)
     (k: {kk: Int | kk > 0})
     (n: {m: Int  | m > 0})
+    : SampleDraw
+    := native "(list(sum(g.gauss(0.0, 1.0)**2 for _ in range(k)) for _ in range(n)), g)"
+
+def chi_squared_value
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0 }
-    := native "list(__import__('numpy').random.chisquare(k, n))"
+    := native "d[0]"
 
 # ─── Bernoulli distribution Ber(p) ─────────────────────────────────────
 # Values are 0.0 or 1.0. Mean = p.
 
-def bernoulliSample
+def bernoulli_sample
+    (1 g: Rng)
     (p: {pp: Float | pp >= 0.0 && pp <= 1.0})
     (n: {m: Int | m > 0})
+    : SampleDraw
+    := native "(list(1.0 if g.random() < p else 0.0 for _ in range(n)), g)"
+
+def bernoulli_value
+    (p: {pp: Float | pp >= 0.0 && pp <= 1.0})
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracBelow xs 0.5 >= (1.0 - p)
         && fracAbove xs 0.5 >= p
         && fracBelow xs 1.5 >= 1.0
         && fracAbove xs (0.0 - 0.5) >= 1.0 }
-    := native "list(map(float, __import__('numpy').random.binomial(1, p, n)))"
+    := native "d[0]"
 
 # ─── Binomial distribution Bin(trials, p) ──────────────────────────────
 # Support {0, 1, ..., trials}. Mean = trials * p.
 
-def binomialSample
+def binomial_sample
+    (1 g: Rng)
     (trials: {t: Int | t > 0})
     (p:      {pp: Float | pp >= 0.0 && pp <= 1.0})
     (n:      {m: Int | m > 0})
+    : SampleDraw
+    := native "(list(float(sum(1 if g.random() < p else 0 for _ in range(trials))) for _ in range(n)), g)"
+
+def binomial_value
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0 }
-    := native "list(map(float, __import__('numpy').random.binomial(trials, p, n)))"
+    := native "d[0]"
 
 # ─── Poisson distribution Pois(lambda) ─────────────────────────────────
 # Support {0, 1, 2, ...}. Mean = Var = lambda.
 
-def poissonSample
+def poisson_sample
+    (1 g: Rng)
     (lam: {l: Float | l > 0.0})
     (n:   {m: Int | m > 0})
+    : SampleDraw
+    := native "(__import__('aeon.bindings.random_sample', fromlist=['poisson_batch']).poisson_batch(lam, n, g), g)"
+
+def poisson_value
+    (lam: {l: Float | l > 0.0})
+    (d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0
         && ((sampleMean xs) = lam) }
-    := native "list(map(float, __import__('numpy').random.poisson(lam, n)))"
+    := native "d[0]"
