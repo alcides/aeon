@@ -100,7 +100,75 @@ def main (u:Int) : Int := let a : {a:Int | List.all (fun x => x > 0) [1, 2, 3]} 
     assert core.refinement == LiquidLiteralBool(True)
 
 
-def test_refinement_mentioning_binder_not_executed():
+def test_refinement_partial_subexpr_with_binder():
+    clear_unit_cache()
+    ty = parse_type("{a:Int | a > 1 + 2}")
+    executed = execute_refinements_in_stype(ty, st_top, [])
+    core = type_to_core(executed)
+    assert isinstance(core, RefinedType)
+    assert not isinstance(core.refinement, LiquidLiteralBool)
+    from aeon.core.liquid import LiquidApp, LiquidLiteralInt
+
+    ref = core.refinement
+    assert isinstance(ref, LiquidApp)
+    assert isinstance(ref.args[1], LiquidLiteralInt)
+    assert ref.args[1].value == 3
+
+
+def test_refinement_equality_partial_subexpr():
+    clear_unit_cache()
+    ty = parse_type("{a:Int | a = 1 + 2}")
+    executed = execute_refinements_in_stype(ty, st_top, [])
+    core = type_to_core(executed)
+    assert isinstance(core, RefinedType)
+    from aeon.core.liquid import LiquidApp, LiquidLiteralInt
+
+    ref = core.refinement
+    assert isinstance(ref, LiquidApp)
+    assert isinstance(ref.args[1], LiquidLiteralInt)
+    assert ref.args[1].value == 3
+
+
+def test_refinement_true_eq_closed_subexpr():
+    clear_unit_cache()
+    from aeon.compilation.compile import compile_imports_for_desugar, _file_imports
+    from aeon.sugar.parser import parse_main_program
+    from aeon.sugar.desugar import desugar
+    from aeon.sugar.bind import bind_program
+    from aeon.elaboration import elaborate_collecting_errors
+
+    src = """
+import List;
+def main (u:Int) : Int := let a : {a:Int | true = List.all (fun x => x > 0) [1, 2, 3]} := 0 in a;
+"""
+    prog = parse_main_program(src, filename="<t>")
+    prog = bind_program(prog, [])
+    dep_units = compile_imports_for_desugar(_file_imports(prog))
+    dep_list = list(dep_units.values())
+    desugared = desugar(prog, is_main_hole=True, compiled_imports=dep_units)
+    sterm, _ = elaborate_collecting_errors(desugared.elabcontext, desugared.program, st_top)
+    executed = execute_refinements_in_sterm(sterm, dep_list)
+
+    from aeon.sugar.program import SAbstraction, SLet, SRec
+    from aeon.sugar.stypes import SRefinedType
+
+    def find_refined(t):
+        if isinstance(t, SRec) and isinstance(t.var_type, SRefinedType):
+            return t.var_type
+        if isinstance(t, SRec):
+            return find_refined(t.var_value) or find_refined(t.body)
+        if isinstance(t, SAbstraction):
+            return find_refined(t.body)
+        if isinstance(t, SLet):
+            return find_refined(t.var_value) or find_refined(t.body)
+        return None
+
+    refined = find_refined(executed)
+    core = type_to_core(refined)
+    assert core.refinement == LiquidLiteralBool(True)
+
+
+def test_refinement_mentioning_binder_not_fully_executed():
     clear_unit_cache()
     ty = parse_type("{a:Int | a > 0}")
     executed = execute_refinements_in_stype(ty, st_top, [])
