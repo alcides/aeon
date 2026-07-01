@@ -69,3 +69,10 @@ def sum (l: (List Int)) : Int :=
     match l with
     | nil => 0
     | cons hd tl => hd + (sum tl);
+
+
+# True when ``p`` holds for every element of ``l``.
+def all (p: (x:a) -> Bool) (l: (List a)) : Bool :=
+    match l with
+    | nil => true
+    | cons hd tl => p hd && (all p tl);
