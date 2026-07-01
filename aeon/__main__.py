@@ -396,9 +396,9 @@ def main() -> None:
                 case (False, False):
                     try:
                         driver.run()
-                    except ContractViolationError as err:
-                        handle_error(err)
-                        sys.exit(error_exit_code(err))
+                    except ContractViolationError as contract_err:
+                        handle_error(contract_err)
+                        sys.exit(error_exit_code(contract_err))
         case [first, *_]:
             for err in errors:
                 handle_error(err)
