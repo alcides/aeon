@@ -83,10 +83,10 @@ from aeon.utils.location import Location
 from aeon.utils.name import Name, fresh_counter
 from aeon.verification.helpers import (
     constraint_location,
-    remove_unrelated_context,
-    simplify_constraint_fixpoint,
     conjunctive_normal_form,
     is_implication_true,
+    prepare_vc_for_display,
+    split_and_in_conclusion,
     split_or_in_conclusion,
 )
 
@@ -1272,13 +1272,18 @@ def constraint_to_parts(
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
             if not solve(cons, typing_ctx=typing_ctx, qualifier_atoms=atoms):
-                vcs = split_or_in_conclusion(cons)
-                for vc in vcs:
-                    if not solve(vc, typing_ctx=typing_ctx, qualifier_atoms=atoms):
-                        cons_simp = simplify_constraint_fixpoint(vc)
-                        cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
-                        loc = constraint_location(cons_clean)
-                        yield cons_clean, loc
+                or_vcs = split_or_in_conclusion(cons)
+                for or_vc in or_vcs:
+                    if not solve(or_vc, typing_ctx=typing_ctx, qualifier_atoms=atoms):
+                        and_vcs = split_and_in_conclusion(or_vc)
+                        failing = [
+                            part for part in and_vcs if not solve(part, typing_ctx=typing_ctx, qualifier_atoms=atoms)
+                        ]
+                        if not failing:
+                            failing = [or_vc]
+                        for part in failing:
+                            prepared = prepare_vc_for_display(part)
+                            yield prepared, constraint_location(prepared)
                         break
 
 
