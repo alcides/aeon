@@ -30,6 +30,8 @@ from aeon.sugar.program import Definition
 from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.typechecking.typeinfer import check_type_errors
+from aeon.optimization.normal_form import optimize_bindings
+from aeon.optimization.refinement_branches import collect_dead_branch_warnings, optimize_refinement_bindings
 from aeon.utils.name import Name
 
 _COMPILER_VERSION = version("AeonLang")
@@ -394,6 +396,13 @@ def compile_program(
         )
         return unit, type_errors
 
+    optimize_spine = linked_core if export_prefix is None else core_ast
+    optimize_ctx = linked_ctx if export_prefix is None else typing_ctx
+    dead_branch_warnings = collect_dead_branch_warnings(optimize_spine, optimize_ctx, source_path=path)
+    optimize_spine = optimize_refinement_bindings(optimize_spine, optimize_ctx)
+    optimize_spine = optimize_bindings(optimize_spine)
+    core_ast = optimize_spine
+
     exports = _exports_from_spine(core_ast, typing_ctx, prog.definitions, export_prefix, export_sugar_types)
     exports.update(_exports_from_uninterpreted(typing_ctx, export_prefix))
 
@@ -424,6 +433,7 @@ def compile_program(
         qualified_scope=_qualified_scope(exports, module_path) if export_prefix else {},
         dependencies=dep_module_paths,
         trusted_names=frozenset(v.internal_name for v in exports.values()),
+        dead_branch_warnings=dead_branch_warnings,
         source_metadata=source_metadata,
     )
 
