@@ -6,9 +6,12 @@ from aeon.utils.name import Name
 from aeon.core.liquid import LiquidLiteralBool, LiquidLiteralInt, LiquidVar
 from aeon.core.types import t_int, TypeConstructor
 from aeon.verification.helpers import parse_liquid
+from aeon.verification.helpers import prepare_vc_for_display
+from aeon.verification.helpers import remove_inert_preconditions
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.helpers import simplify_constraint_fixpoint
 from aeon.verification.helpers import simplify_expr
+from aeon.verification.helpers import split_and_in_conclusion
 from aeon.verification.helpers import split_or_disjuncts
 from aeon.verification.helpers import split_or_in_conclusion
 from aeon.verification.vcs import Conjunction
@@ -122,6 +125,67 @@ def test_split_or_in_conclusion():
     assert len(result) == 2
     assert result[0].seq.expr == parse_liquid("x > 0")
     assert result[1].seq.expr == parse_liquid("x < 0")
+
+
+def test_split_and_in_conclusion():
+    """AND in nested conclusion is split into separate VCs."""
+    x_name = Name("x", 0)
+    pred = parse_liquid("x > 0")
+    concl = parse_liquid("x > 1 && x < 10")
+
+    c = Implication(x_name, t_int, pred, LiquidConstraint(concl))
+    result = split_and_in_conclusion(c)
+
+    assert len(result) == 2
+    assert result[0].seq.expr == parse_liquid("x > 1")
+    assert result[1].seq.expr == parse_liquid("x < 10")
+
+
+def test_remove_inert_precondition_unused_binder():
+    """Drop preconditions whose variables do not appear in the goal."""
+    i_name = Name("i", 1)
+    x_name = Name("x", 0)
+    irrelevant = bind_lq(parse_liquid("len i >= 0"), [("i", i_name)])
+    goal = bind_lq(parse_liquid("x > 0"), [("x", x_name)])
+
+    c = Implication(i_name, t_int, irrelevant, LiquidConstraint(goal))
+    r = remove_inert_preconditions(c)
+    assert r == LiquidConstraint(goal)
+
+
+def test_keep_false_precondition():
+    """False preconditions are kept because they explain an impossible context."""
+    n_name = Name("n", 1)
+    pred = bind_lq(parse_liquid("false"), [("n", n_name)])
+    goal = bind_lq(parse_liquid("n > 0"), [("n", n_name)])
+
+    c = Implication(n_name, t_int, pred, LiquidConstraint(goal))
+    r = remove_inert_preconditions(c)
+    assert r == c
+
+
+def test_keep_contradictory_preconditions():
+    """Contradictory preconditions are kept because they are diagnostically relevant."""
+    x_name = Name("x", 0)
+    low = bind_lq(parse_liquid("x > 10"), [("x", x_name)])
+    high = bind_lq(parse_liquid("x < 0"), [("x", x_name)])
+    goal = bind_lq(parse_liquid("x == 5"), [("x", x_name)])
+
+    inner = Implication(x_name, t_int, high, LiquidConstraint(goal))
+    c = Implication(x_name, t_int, low, inner)
+    r = remove_inert_preconditions(c)
+    assert r == c
+
+
+def test_prepare_vc_for_display_drops_irrelevant():
+    i_name = Name("i", 1)
+    x_name = Name("x", 0)
+    irrelevant = bind_lq(parse_liquid("len i >= 0"), [("i", i_name)])
+    goal = bind_lq(parse_liquid("x > 0"), [("x", x_name)])
+
+    c = Implication(i_name, t_int, irrelevant, LiquidConstraint(goal))
+    r = prepare_vc_for_display(c)
+    assert r == LiquidConstraint(goal)
 
 
 def test_simplify_redundant_conclusion():

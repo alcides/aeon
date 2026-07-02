@@ -769,6 +769,193 @@ def split_or_in_conclusion(c: Constraint) -> list[Constraint]:
             return [c]
 
 
+def split_and_conjuncts(expr: LiquidTerm) -> list[LiquidTerm]:
+    """Flattens AND in the conclusion into a list of conjuncts."""
+    conjuncts = flatten_conjuncts(expr)
+    return conjuncts if conjuncts else [expr]
+
+
+def split_and_in_conclusion(c: Constraint) -> list[Constraint]:
+    """Splits AND in the conclusion (innermost LiquidConstraint) into separate VCs."""
+    match c:
+        case LiquidConstraint(expr=expr, loc=loc):
+            conjuncts = split_and_conjuncts(expr)
+            if len(conjuncts) <= 1:
+                return [c]
+            return [LiquidConstraint(conj, loc=loc) for conj in conjuncts]
+        case Implication(name=iname, base=base, pred=pred, seq=seq, loc=iloc):
+            return [Implication(iname, base, pred, s, loc=iloc) for s in split_and_in_conclusion(seq)]
+        case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
+            return [UninterpretedFunctionDeclaration(uname, utype, s) for s in split_and_in_conclusion(useq)]
+        case ReflectedFunctionDeclaration(name=rname, type=rtype, params=rparams, body=rbody, seq=rseq):
+            return [
+                ReflectedFunctionDeclaration(rname, rtype, rparams, rbody, s) for s in split_and_in_conclusion(rseq)
+            ]
+        case _:
+            return [c]
+
+
+def is_false_liquid(expr: LiquidTerm) -> bool:
+    """Returns whether a liquid term simplifies to ``false``."""
+    return simplify_expr(expr) == LiquidLiteralBool(False)
+
+
+def conclusion_variables(c: Constraint) -> set[Name]:
+    """Returns free variables appearing in the innermost conclusion."""
+    match c:
+        case LiquidConstraint(expr=expr):
+            return used_variables(expr)
+        case Implication(seq=seq):
+            return conclusion_variables(seq)
+        case UninterpretedFunctionDeclaration(seq=seq):
+            return conclusion_variables(seq)
+        case ReflectedFunctionDeclaration(seq=seq):
+            return conclusion_variables(seq)
+        case Conjunction(c1=c1, c2=c2):
+            return conclusion_variables(c1).union(conclusion_variables(c2))
+        case _:
+            return set()
+
+
+def _extract_var_literal_bound(
+    expr: LiquidTerm,
+) -> tuple[Name, str, int] | None:
+    """If *expr* is ``var op literal`` or ``literal op var``, return ``(var, op, n)``."""
+    match expr:
+        case LiquidApp(fun=f, args=[LiquidVar(name), LiquidLiteralInt(n)]) if f.name in {">", ">=", "<", "<="}:
+            return (name, f.name, n)
+        case LiquidApp(fun=f, args=[LiquidLiteralInt(n), LiquidVar(name)]) if f.name in {">", ">=", "<", "<="}:
+            op = f.name
+            if op == ">":
+                op = "<"
+            elif op == ">=":
+                op = "<="
+            elif op == "<":
+                op = ">"
+            elif op == "<=":
+                op = ">="
+            return (name, op, n)
+        case _:
+            return None
+
+
+def _bounds_contradict(left: tuple[Name, str, int], right: tuple[Name, str, int]) -> bool:
+    """Detect incompatible literal bounds on the same variable."""
+    (v1, op1, n1), (v2, op2, n2) = left, right
+    if v1.name != v2.name or v1.id != v2.id:
+        return False
+
+    def lower_bound(op: str, n: int) -> tuple[bool, int] | None:
+        if op in {">", ">="}:
+            return (op == ">", n)
+        if op in {"<", "<="}:
+            return (op == "<", n)
+        return None
+
+    lb = lower_bound(op1, n1)
+    rb = lower_bound(op2, n2)
+    if lb is None or rb is None:
+        return False
+
+    (strict_l, lo), (strict_u, hi) = lb, rb
+    if strict_l and strict_u:
+        return lo >= hi
+    if strict_l and not strict_u:
+        return lo >= hi
+    if not strict_l and strict_u:
+        return lo > hi
+    return lo > hi
+
+
+def _extract_var_equality_value(expr: LiquidTerm) -> tuple[Name, LiquidTerm] | None:
+    match expr:
+        case LiquidApp(fun=f, args=[LiquidVar(name), rhs]) if f == Name("==", 0):
+            return (name, rhs)
+        case LiquidApp(fun=f, args=[lhs, LiquidVar(name)]) if f == Name("==", 0):
+            return (name, lhs)
+        case _:
+            return None
+
+
+def _equalities_contradict(a: LiquidTerm, b: LiquidTerm) -> bool:
+    eq_a = _extract_var_equality_value(a)
+    eq_b = _extract_var_equality_value(b)
+    if eq_a is None or eq_b is None:
+        return False
+    (v1, rhs1), (v2, rhs2) = eq_a, eq_b
+    if v1.name != v2.name or v1.id != v2.id:
+        return False
+    return not liquid_terms_alpha_equal(rhs1, rhs2)
+
+
+def predicates_contradict(p1: LiquidTerm, p2: LiquidTerm) -> bool:
+    """Conservative syntactic check for contradictory preconditions."""
+    for c1 in flatten_conjuncts(p1) or [p1]:
+        for c2 in flatten_conjuncts(p2) or [p2]:
+            if _equalities_contradict(c1, c2):
+                return True
+            b1 = _extract_var_literal_bound(c1)
+            b2 = _extract_var_literal_bound(c2)
+            if b1 is not None and b2 is not None and _bounds_contradict(b1, b2):
+                return True
+    return False
+
+
+def _should_keep_precondition(
+    iname: Name,
+    pred: LiquidTerm,
+    goal_vars: set[Name],
+    other_preds: list[LiquidTerm],
+) -> bool:
+    """Keep preconditions that are false, contradictory, or mention goal variables."""
+    if is_false_liquid(pred):
+        return True
+    if any(predicates_contradict(pred, other) for other in other_preds):
+        return True
+    pred_vars = used_variables(pred)
+    pred_vars.add(iname)
+    return not goal_vars.isdisjoint(pred_vars)
+
+
+def remove_inert_preconditions(c: Constraint) -> Constraint:
+    """Drop implication preconditions that do not affect the displayed goal."""
+    match c:
+        case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
+            return UninterpretedFunctionDeclaration(uname, utype, remove_inert_preconditions(useq))
+        case ReflectedFunctionDeclaration(name=rname, type=rtype, params=rparams, body=rbody, seq=rseq):
+            return ReflectedFunctionDeclaration(rname, rtype, rparams, rbody, remove_inert_preconditions(rseq))
+        case _:
+            return _remove_inert_implication_chain(c)
+
+
+def _remove_inert_implication_chain(c: Constraint) -> Constraint:
+    parts: list[tuple[Name, TypeConstructor | TypeVar | Top, LiquidTerm, Location | None]] = []
+    goal = c
+    while isinstance(goal, Implication):
+        parts.append((goal.name, goal.base, goal.pred, goal.loc))
+        goal = goal.seq
+
+    goal_vars = conclusion_variables(goal)
+    kept: list[tuple[Name, TypeConstructor | TypeVar | Top, LiquidTerm, Location | None]] = []
+    for i, (iname, base, pred, loc) in enumerate(parts):
+        others = [p for j, (_, _, p, _) in enumerate(parts) if j != i]
+        if _should_keep_precondition(iname, pred, goal_vars, others):
+            kept.append((iname, base, pred, loc))
+
+    result = goal
+    for iname, base, pred, loc in reversed(kept):
+        result = Implication(iname, base, pred, result, loc=loc)
+    return result
+
+
+def prepare_vc_for_display(c: Constraint) -> Constraint:
+    """Simplify a VC for error messages: rewrite, drop inert preconditions, prune context."""
+    cons_simp = simplify_constraint_fixpoint(c)
+    cons_clean = remove_inert_preconditions(cons_simp)
+    cons_clean, _ = remove_unrelated_context(cons_clean, ignore_vars=set())
+    return cons_clean
+
+
 def pretty_print_generator(c: Constraint) -> Generator[tuple[str, int], None, None]:
     """Recursive generates a list of items to print, with the respective
     indentation level."""
@@ -845,9 +1032,7 @@ def reduce_to_useful_constraint(c: Constraint) -> Constraint:
     top = []
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
-            cons_simp = simplify_constraint_fixpoint(cons)
-            cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
-            top.append(cons_clean)
+            top.append(prepare_vc_for_display(cons))
     llb = LiquidLiteralBool(True)
     return reduce(Conjunction, top, LiquidConstraint(llb))  # type: ignore
 
@@ -866,8 +1051,7 @@ def pretty_print_constraint(c: Constraint) -> str:
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
             r = []
-            cons_simp = simplify_constraint_fixpoint(cons)
-            cons_clean, _ = remove_unrelated_context(cons_simp, ignore_vars=set())
+            cons_clean = prepare_vc_for_display(cons)
             for item, indent in pretty_print_generator(cons_clean):
                 r.append(indent * "\t" + item)
             top.append("\n".join(r))
