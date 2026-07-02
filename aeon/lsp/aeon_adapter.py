@@ -335,6 +335,16 @@ async def _parse(
                     )
                 )
 
+        for warning in getattr(driver, "dead_branch_warnings", []):
+            diagnostics.append(
+                Diagnostic(
+                    message=f"dead {warning.branch} branch: {warning.message}",
+                    range=_loc_to_range(warning.location),
+                    source="aeon",
+                    severity=DiagnosticSeverity.Warning,
+                )
+            )
+
         if not errors:
             holes = find_holes_in_source(content)
             return ParseResult(diagnostics, holes)

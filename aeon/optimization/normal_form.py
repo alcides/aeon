@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from aeon.core.substitutions import substitute_vartype_in_term, substitution
 from aeon.core.terms import (
     Abstraction,
@@ -181,16 +183,9 @@ def optimize(t: Term) -> Term:
 def optimize_bindings(core: Term) -> Term:
     """Run ``optimize`` on every top-level binding value in a core program."""
     match core:
-        case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
-            return Rec(
-                var_name,
-                var_type,
-                optimize(var_value),
-                optimize_bindings(body),
-                decreasing_by=decreasing_by,
-                loc=loc,
-            )
-        case Let(var_name, var_value, body):
-            return Let(var_name, optimize(var_value), optimize_bindings(body))
+        case Rec() as rec:
+            return replace(rec, var_value=optimize(rec.var_value), body=optimize_bindings(rec.body))
+        case Let() as let:
+            return replace(let, var_value=optimize(let.var_value), body=optimize_bindings(let.body))
         case _:
             return core
