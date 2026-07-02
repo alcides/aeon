@@ -326,6 +326,11 @@ def compile_program(
     if elab_errors:
         return _placeholder_unit(path, digest, dep_module_paths), elab_errors
 
+    dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]
+    from aeon.verification.refinement_exec import execute_refinements_in_sterm
+
+    sterm = execute_refinements_in_sterm(sterm, dep_list)
+
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     core_ast = lower_to_core(sterm)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
@@ -337,7 +342,6 @@ def compile_program(
         linked_core = core_ast
         linked_ctx = typing_ctx
     else:
-        dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]
         linked_core = link_rec_spines(dep_list, core_ast) if dep_list else core_ast
         trusted = _collect_trusted_names(dep_list)
         linked_ctx = link_typing_context(dep_list, typing_ctx, trusted) if dep_list else typing_ctx
