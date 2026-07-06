@@ -1,0 +1,169 @@
+# Sortacle — a Property-Based Testing benchmark.
+#
+# From:
+#   * Wrenn, Nelson, Krishnamurthi. "Using Relational Problems to Teach
+#     Property-Based Testing." Programming 2021 (pj21).
+#   * Nelson, Rivera, Soucie, Del Vecchio, Wrenn, Krishnamurthi. "Automated,
+#     Targeted Testing of Property-Based Testing Predicates." Programming 2022.
+#
+# Task: students write the *predicate* (the "is-valid" oracle) that decides
+# whether a purported sorting implementation's output is a correct sort of its
+# input. Inputs and outputs are lists of `Person` records; the key is `age`,
+# and `name` is extra payload that the sort must carry along. Stability is NOT
+# required.
+#
+# The correctness property decomposes into three subproperties (pj21 §4.3,
+# 2022 §9). We give each subproperty its own function and assemble `isValid`.
+# The 2022 paper distinguishes a *weak* (set-based, underspecified) permutation
+# check from the *strong* (multiset-based) one — both are provided here.
+#
+# Run with:  aeon --test examples/pbt_benchmarks/sortacle.ae
+
+open List
+open Testing
+
+# ── Domain ────────────────────────────────────────────────────────────────
+
+# A Person to be sorted: `age` is the sort key, `name` is carried payload.
+inductive Person
+| person (age: Int) (name: Int) : Person
+
+def ageOf (p: Person) : Int :=
+    match p with
+    | person a n => a;
+
+def nameOf (p: Person) : Int :=
+    match p with
+    | person a n => n;
+
+# ── List helpers (the minimal vocabulary these predicates need) ────────────
+
+# True when every element satisfies `f`.
+def allP (f: (x:Person) -> Bool) (l: (List Person)) : Bool :=
+    match l with
+    | nil => true
+    | cons hd tl => (f hd) && (allP f tl);
+
+# Structural membership.
+def elemP (x: Person) (l: (List Person)) : Bool :=
+    match l with
+    | nil => false
+    | cons hd tl => (hd = x) || (elemP x tl);
+
+# Number of occurrences of `x` (multiplicity).
+def countP (x: Person) (l: (List Person)) : Int :=
+    match l with
+    | nil => 0
+    | cons hd tl => (if hd = x then 1 else 0) + (countP x tl);
+
+# ── Subproperties ──────────────────────────────────────────────────────────
+
+# Same-Size: the output has as many elements as the input.
+def sameSize (i: (List Person)) (o: (List Person)) : Bool :=
+    length i = length o;
+
+# Same-Elements (WEAK / pj21): input and output contain the same *set* of
+# elements. This is the underspecified version: it ignores multiplicity, so it
+# accepts outputs that drop or duplicate equal records.
+def sameElementsWeak (i: (List Person)) (o: (List Person)) : Bool :=
+    (allP (fun x => elemP x o) i) && (allP (fun x => elemP x i) o);
+
+# Same-Elements (STRONG / 2022): input and output are the same *multiset*.
+# Equal length plus matching multiplicities for every input element implies a
+# genuine permutation.
+def sameElementsStrong (i: (List Person)) (o: (List Person)) : Bool :=
+    (length i = length o) && (allP (fun x => countP x i = countP x o) i);
+
+# Ordered: the output is non-decreasing by age.
+def ordered (l: (List Person)) : Bool :=
+    match l with
+    | nil => true
+    | cons hd tl =>
+        match tl with
+        | nil => true
+        | cons hd2 tl2 => (ageOf hd <= ageOf hd2) && (ordered tl);
+
+# The full correctness predicate students should write (strong version).
+def isValid (i: (List Person)) (o: (List Person)) : Bool :=
+    (sameSize i o) && (sameElementsStrong i o) && (ordered o);
+
+# ── Reference implementation (the "correct" sort under test) ────────────────
+
+def insert (x: Person) (l: (List Person)) : (List Person) :=
+    match l with
+    | nil => cons x nil
+    | cons hd tl =>
+        if ageOf x <= ageOf hd then cons x (cons hd tl)
+        else cons hd (insert x tl);
+
+def isort (l: (List Person)) : (List Person) :=
+    match l with
+    | nil => nil
+    | cons hd tl => insert hd (isort tl);
+
+# ── Positive PBT: the correct implementation always satisfies the oracle ────
+# Inputs (List Person) are generated automatically as constructor trees.
+
+@property(30)
+def prop_isort_isValid (i: (List Person)) : Bool :=
+    isValid i (isort i);
+
+@property(30)
+def prop_isort_ordered (i: (List Person)) : Bool :=
+    ordered (isort i);
+
+@property(30)
+def prop_isort_permutation (i: (List Person)) : Bool :=
+    sameElementsStrong i (isort i);
+
+# ── Negative unit tests: each subproperty catches the corresponding bug ─────
+# Concrete (input, output) pairs, each violating exactly one subproperty.
+
+# Fixtures.
+def a20 : Person := Person.person 20 1;
+def a30 : Person := Person.person 30 2;
+def a40 : Person := Person.person 40 3;
+
+# Same-Size fails: an element was dropped.
+@property(1)
+def test_catches_dropped : Bool :=
+    i := cons a20 (cons a30 nil);
+    o := cons a20 nil;
+    both (assertFalse (sameSize i o)) (assertFalse (isValid i o));
+
+# Same-Elements (strong) fails: a duplicate replaced a distinct element, so the
+# multiset differs even though the size matches.
+@property(1)
+def test_catches_wrong_elements : Bool :=
+    i := cons a20 (cons a30 nil);
+    o := cons a20 (cons a20 nil);
+    allOf3 (assertTrue (sameSize i o))
+           (assertFalse (sameElementsStrong i o))
+           (assertFalse (isValid i o));
+
+# The classic weak-vs-strong gap (2022 §9): duplicating one element and dropping
+# another keeps the *set* of elements equal, so the weak check is fooled while
+# the strong multiset check correctly rejects it.
+@property(1)
+def test_weak_permutation_is_fooled : Bool :=
+    i := cons a20 (cons a20 (cons a30 nil));
+    o := cons a20 (cons a30 (cons a30 nil));
+    allOf3 (assertTrue (sameElementsWeak i o))
+           (assertFalse (sameElementsStrong i o))
+           (assertFalse (isValid i o));
+
+# Ordered fails: right elements, wrong order.
+@property(1)
+def test_catches_unordered : Bool :=
+    i := cons a30 (cons a20 nil);
+    o := cons a30 (cons a20 nil);
+    allOf3 (assertTrue (sameSize i o))
+           (assertFalse (ordered o))
+           (assertFalse (isValid i o));
+
+# A genuinely correct output is accepted.
+@property(1)
+def test_accepts_correct : Bool :=
+    i := cons a30 (cons a20 (cons a40 nil));
+    o := cons a20 (cons a30 (cons a40 nil));
+    assertTrue (isValid i o);

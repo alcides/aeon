@@ -1,0 +1,131 @@
+# DocDiff — a Conceptual Mutation Testing benchmark.
+#
+# From:
+#   * Prasad, Greenman, Nelson, Krishnamurthi. "Conceptual Mutation Testing for
+#     Student Programming Misconceptions." Programming 2024.
+#
+# DocDiff is a document-similarity problem (the classic TF/cosine-style
+# "overlap"). Students write *examples* (input/expected-output pairs) before
+# coding; Examplar checks each example against a correct implementation (the
+# "wheat") and a set of buggy ones (the "chaffs"). A good example suite passes
+# the wheat and *kills* every chaff (disagrees with it on some input).
+#
+# This file encodes the benchmark:
+#   * the wheat: overlap = <v1,v2> / max(||v1||^2, ||v2||^2), case-insensitive,
+#     frequency-based, over the union of words;
+#   * the chaffs deployed in the paper (§8) plus the coarse ones from §10.1;
+#   * an example suite, and the checks that it passes the wheat and kills every
+#     chaff — exactly the Examplar contract.
+#
+# Documents are word lists (Array String). The numeric core uses Aeon's Python
+# FFI (mirroring the student implementations under test); the example/chaff
+# harness is pure Aeon.
+#
+# Run with:  aeon --test examples/pbt_benchmarks/docdiff.ae
+
+open Array
+open Math
+open Testing
+
+# ── The wheat (correct overlap) ─────────────────────────────────────────────
+# Frequency vectors over the union of (lower-cased) words, dot product
+# normalized by the squared magnitude of the larger vector.
+def overlap (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "(lambda a,b: (lambda U,m1,m2: (sum(a.count(w)*b.count(w) for w in U)/max(m1,m2)) if max(m1,m2)>0 else 0.0)(set(a)|set(b), sum(a.count(w)**2 for w in set(a)), sum(b.count(w)**2 for w in set(b))))([x.lower() for x in d1],[y.lower() for y in d2])"
+
+# ── The chaffs (buggy implementations) ──────────────────────────────────────
+
+# Chaff 1: case-sensitive comparison of words (no lower-casing).
+def caseSensitive (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "(lambda a,b: (lambda U,m1,m2: (sum(a.count(w)*b.count(w) for w in U)/max(m1,m2)) if max(m1,m2)>0 else 0.0)(set(a)|set(b), sum(a.count(w)**2 for w in set(a)), sum(b.count(w)**2 for w in set(b))))(list(d1),list(d2))"
+
+# Chaff 2: always returns 0 (no overlap).
+def alwaysZero (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "0.0"
+
+# Chaff 3: normalizes by the *smaller* document's squared magnitude.
+def normalizeSmaller (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "(lambda a,b: (lambda U,m1,m2: (sum(a.count(w)*b.count(w) for w in U)/min(m1,m2)) if min(m1,m2)>0 else 0.0)(set(a)|set(b), sum(a.count(w)**2 for w in set(a)), sum(b.count(w)**2 for w in set(b))))([x.lower() for x in d1],[y.lower() for y in d2])"
+
+# Chaff 4: normalizes by the magnitude, not the *squared* magnitude.
+def normalizeMagnitude (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "(lambda a,b: (lambda U,m1,m2: (sum(a.count(w)*b.count(w) for w in U)/max(m1**0.5,m2**0.5)) if max(m1,m2)>0 else 0.0)(set(a)|set(b), sum(a.count(w)**2 for w in set(a)), sum(b.count(w)**2 for w in set(b))))([x.lower() for x in d1],[y.lower() for y in d2])"
+
+# Chaff 5: returns 1 when one document's word set subsumes the other's.
+def subsumes (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "1.0 if (set(x.lower() for x in d1) <= set(y.lower() for y in d2)) or (set(y.lower() for y in d2) <= set(x.lower() for x in d1)) else 0.0"
+
+# Chaff 6 (coarse): always returns 1.
+def alwaysOne (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "1.0"
+
+# Chaff 7 (coarse): rounds the overlap to 0 or 1.
+def rounds (d1: (Array String)) (d2: (Array String)) : Float :=
+    native "float(round((lambda a,b: (lambda U,m1,m2: (sum(a.count(w)*b.count(w) for w in U)/max(m1,m2)) if max(m1,m2)>0 else 0.0)(set(a)|set(b), sum(a.count(w)**2 for w in set(a)), sum(b.count(w)**2 for w in set(b))))([x.lower() for x in d1],[y.lower() for y in d2])))"
+
+# Two overlap scores are observably different.
+def differs (w: Float) (c: Float) : Bool := absf (w - c) > 0.0001;
+
+# ── The example suite (student input/expected-output pairs) ─────────────────
+
+# A: identical single-word docs           -> 1.0
+def dA1 : (Array String) := native "['a']"
+def dA2 : (Array String) := native "['a']"
+# B: disjoint docs                         -> 0.0
+def dB1 : (Array String) := native "['a']"
+def dB2 : (Array String) := native "['b']"
+# C: same words, different frequencies     -> 0.8
+def dC1 : (Array String) := native "['a','a','b']"
+def dC2 : (Array String) := native "['a','b','b']"
+# D: differ only by letter case            -> 1.0 (case is insignificant)
+def dD1 : (Array String) := native "['A']"
+def dD2 : (Array String) := native "['a']"
+# E: one doc's words are a subset          -> 0.5 (not 1.0!)
+def dE1 : (Array String) := native "['a']"
+def dE2 : (Array String) := native "['a','b']"
+
+# Every example passes the wheat (its expected output is the wheat's output).
+@property(1)
+def test_examples_pass_wheat : Bool :=
+    allOf5 (assertClose (overlap dA1 dA2) 1.0 0.0001)
+           (assertClose (overlap dB1 dB2) 0.0 0.0001)
+           (assertClose (overlap dC1 dC2) 0.8 0.0001)
+           (assertClose (overlap dD1 dD2) 1.0 0.0001)
+           (assertClose (overlap dE1 dE2) 0.5 0.0001);
+
+# ── The chaffs are all killed by the example suite ──────────────────────────
+
+# Case-sensitivity is exposed by example D (case-only difference).
+@property(1)
+def test_kills_case_sensitive : Bool :=
+    assertTrue (differs (overlap dD1 dD2) (caseSensitive dD1 dD2));
+
+# Always-0 is exposed by any positive-overlap example (A).
+@property(1)
+def test_kills_always_zero : Bool :=
+    assertTrue (differs (overlap dA1 dA2) (alwaysZero dA1 dA2));
+
+# Wrong normalization (smaller vector) is exposed by the subset example E.
+@property(1)
+def test_kills_normalize_smaller : Bool :=
+    assertTrue (differs (overlap dE1 dE2) (normalizeSmaller dE1 dE2));
+
+# Wrong normalization (magnitude, not squared) is exposed by E.
+@property(1)
+def test_kills_normalize_magnitude : Bool :=
+    assertTrue (differs (overlap dE1 dE2) (normalizeMagnitude dE1 dE2));
+
+# The subsumption chaff is exposed by E (subset yet overlap is 0.5, not 1.0).
+@property(1)
+def test_kills_subsumes : Bool :=
+    assertTrue (differs (overlap dE1 dE2) (subsumes dE1 dE2));
+
+# Always-1 is exposed by the disjoint example B.
+@property(1)
+def test_kills_always_one : Bool :=
+    assertTrue (differs (overlap dB1 dB2) (alwaysOne dB1 dB2));
+
+# Rounding is exposed by the fractional-overlap example E.
+@property(1)
+def test_kills_rounds : Bool :=
+    assertTrue (differs (overlap dE1 dE2) (rounds dE1 dE2));

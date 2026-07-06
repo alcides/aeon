@@ -1,0 +1,249 @@
+# Filesystem — a Conceptual Mutation Testing benchmark.
+#
+# From:
+#   * Prasad, Greenman, Nelson, Krishnamurthi. "Conceptual Mutation Testing for
+#     Student Programming Misconceptions." Programming 2024.
+#   * The problem itself is the classic "filesystem" from *How to Design
+#     Programs* (Brown cs019). It uses (mutually) recursive datatypes and asks
+#     for four functions: how-many, du-dir, can-find?, and fynd.
+#
+# Spec (cs019 2020):
+#   how-many : Dir -> Int      number of files in the tree
+#   du-dir   : Dir -> Int      total size: file sizes are content-string lengths;
+#                              a directory's size adds the sizes of its files and
+#                              subdirectories PLUS the lengths of its fs and ds lists
+#   can-find : Dir,String->Bool  whether a file with the given name occurs anywhere
+#   fynd     : Dir,String-> [Path]  every path (list of directory names, root
+#                              first) to a file with the given name
+#
+# Students write examples that must pass the correct implementation (the
+# "wheat") and kill each buggy one (the "chaffs"). We implement the wheat, the
+# five chaffs the paper deployed (§8), and the additional candidate chaffs from
+# §10.1. Everything is pure Aeon — the recursive datatype is the point.
+#
+# Run with:  aeon --test examples/pbt_benchmarks/filesystem.ae
+
+open List
+open String
+open Testing
+
+# ── Data representation ─────────────────────────────────────────────────────
+
+# A file has a name and content.
+inductive File
+| file (name: String) (content: String) : File
+
+# A directory has a name, a list of subdirectories, and a list of files.
+inductive Dir
+| dir (name: String) (ds: (List Dir)) (fs: (List File)) : Dir
+
+def fileName (f: File) : String :=
+    match f with | file n c => n;
+
+def fileContent (f: File) : String :=
+    match f with | file n c => c;
+
+# The size of a file is the length of its content string.
+def fileSize (f: File) : Int := len (fileContent f);
+
+def dirName (d: Dir) : String :=
+    match d with | dir n ds fs => n;
+
+def dirSubs (d: Dir) : (List Dir) :=
+    match d with | dir n ds fs => ds;
+
+def dirFiles (d: Dir) : (List File) :=
+    match d with | dir n ds fs => fs;
+
+# ── how-many: number of files in the tree ───────────────────────────────────
+# Self-recursive through List.map (no mutual recursion needed).
+
+def howMany (d: Dir) : Int :=
+    (length (dirFiles d)) + (sum (map howMany (dirSubs d)));
+
+# ── du-dir: total size ──────────────────────────────────────────────────────
+
+def duDir (d: Dir) : Int :=
+    (length (dirFiles d))
+    + (length (dirSubs d))
+    + (sum (map fileSize (dirFiles d)))
+    + (sum (map duDir (dirSubs d)));
+
+# ── can-find: is there a file with this name anywhere? ──────────────────────
+
+def anyB (l: (List Bool)) : Bool :=
+    match l with
+    | nil => false
+    | cons hd tl => hd || (anyB tl);
+
+def anyFileNamed (fs: (List File)) (target: String) : Bool :=
+    match fs with
+    | nil => false
+    | cons hd tl => (equal (fileName hd) target) || (anyFileNamed tl target);
+
+def canFind (d: Dir) (target: String) : Bool :=
+    (anyFileNamed (dirFiles d) target)
+    || (anyB (map (fun sd => canFind sd target) (dirSubs d)));
+
+# ── fynd: every path (root first) to a file with this name ──────────────────
+# A Path is a list of directory names; the result is a list of paths.
+
+def prependName (n: String) (paths: (List (List String))) : (List (List String)) :=
+    map (fun p => cons n p) paths;
+
+def flattenPaths (lls: (List (List (List String)))) : (List (List String)) :=
+    match lls with
+    | nil => nil
+    | cons hd tl => append hd (flattenPaths tl);
+
+def fynd (d: Dir) (target: String) : (List (List String)) :=
+    here : (List (List String)) := (if anyFileNamed (dirFiles d) target
+             then cons (cons (dirName d) nil) nil
+             else nil);
+    below : (List (List String)) := flattenPaths (map (fun sd => prependName (dirName d) (fynd sd target)) (dirSubs d));
+    append here below;
+
+# ── Chaffs deployed in the paper (§8) ───────────────────────────────────────
+
+# Chaff 1: can-find always returns true.
+def canFindAlwaysTrue (d: Dir) (target: String) : Bool := true;
+
+# Chaff 2: can-find skips the root directory (only searches subdirectories).
+def canFindSkipRoot (d: Dir) (target: String) : Bool :=
+    anyB (map (fun sd => canFind sd target) (dirSubs d));
+
+# Chaff 3: du-dir ignores the lengths of the file and directory lists.
+def duDirIgnoreLengths (d: Dir) : Int :=
+    (sum (map fileSize (dirFiles d)))
+    + (sum (map duDirIgnoreLengths (dirSubs d)));
+
+# Chaff 4: how-many counts files (good) and directories (bad).
+def howManyCountsDirs (d: Dir) : Int :=
+    (length (dirFiles d))
+    + (length (dirSubs d))
+    + (sum (map howManyCountsDirs (dirSubs d)));
+
+# Chaff 5: fynd returns the current directory on failure (instead of empty).
+def fyndCurrentOnFailure (d: Dir) (target: String) : (List (List String)) :=
+    if canFind d target then fynd d target
+    else cons (cons (dirName d) nil) nil;
+
+# ── Additional candidate chaffs (§10.1) ─────────────────────────────────────
+
+# can-find always returns false.
+def canFindAlwaysFalse (d: Dir) (target: String) : Bool := false;
+
+# how-many counts only directories.
+def howManyOnlyDirs (d: Dir) : Int :=
+    (length (dirSubs d)) + (sum (map howManyOnlyDirs (dirSubs d)));
+
+# du-dir counts filename length (adds the length of each file's name).
+def duDirNameLength (d: Dir) : Int :=
+    (length (dirFiles d))
+    + (length (dirSubs d))
+    + (sum (map (fun f => (fileSize f) + (len (fileName f))) (dirFiles d)))
+    + (sum (map duDirNameLength (dirSubs d)));
+
+# fynd returns each path twice.
+def fyndDuplicates (d: Dir) (target: String) : (List (List String)) :=
+    r := fynd d target;
+    append r r;
+
+# ── Fixture: the assignment's example tree ──────────────────────────────────
+#   Root      files: read!(4)                     subdirs: Text, Libs
+#   Text      files: part1(1) part2(2) part3(3)   subdirs: -
+#   Libs      files: read!(2)                      subdirs: Code
+#   Code      files: hang(4) draw(2)               subdirs: -
+
+def code : Dir :=
+    Dir.dir "Code" nil
+        (cons (File.file "hang" "dddd") (cons (File.file "draw" "ee") nil));
+
+def libs : Dir :=
+    Dir.dir "Libs"
+        (cons code nil)
+        (cons (File.file "read!" "cc") nil);
+
+def text : Dir :=
+    Dir.dir "Text" nil
+        (cons (File.file "part1" "b")
+              (cons (File.file "part2" "bb")
+                    (cons (File.file "part3" "bbb") nil)));
+
+def root : Dir :=
+    Dir.dir "Root"
+        (cons text (cons libs nil))
+        (cons (File.file "read!" "aaaa") nil);
+
+# Expected fynd results (root first, subdirectories in ds order).
+def expPart3 : (List (List String)) :=
+    cons (cons "Root" (cons "Text" nil)) nil;
+
+def expReadBang : (List (List String)) :=
+    cons (cons "Root" nil)
+         (cons (cons "Root" (cons "Libs" nil)) nil);
+
+# ── Examples pass the wheat ─────────────────────────────────────────────────
+
+# how-many: Root's tree has 7 files.
+@property(1)
+def test_how_many : Bool := assertEqual (howMany root) 7;
+
+# du-dir: computed size of the tree is 28.
+@property(1)
+def test_du_dir : Bool := assertEqual (duDir root) 28;
+
+# can-find: present vs. absent names.
+@property(1)
+def test_can_find : Bool :=
+    both (assertTrue (canFind root "part3"))
+         (assertFalse (canFind root "missing"));
+
+# fynd matches the assignment's worked examples.
+@property(1)
+def test_fynd_part3 : Bool := assertEqual (fynd root "part3") expPart3;
+
+@property(1)
+def test_fynd_readbang : Bool := assertEqual (fynd root "read!") expReadBang;
+
+# ── Chaffs are killed by the examples ───────────────────────────────────────
+
+# A file only in the root distinguishes the skip-root chaff.
+def soloRoot : Dir :=
+    Dir.dir "R" nil (cons (File.file "x" "y") nil);
+
+@property(1)
+def test_kills_canfind_always_true : Bool :=
+    assertNotEqual (canFind root "missing") (canFindAlwaysTrue root "missing");
+
+@property(1)
+def test_kills_canfind_skip_root : Bool :=
+    assertNotEqual (canFind soloRoot "x") (canFindSkipRoot soloRoot "x");
+
+@property(1)
+def test_kills_dudir_ignore_lengths : Bool :=
+    assertNotEqual (duDir root) (duDirIgnoreLengths root);
+
+@property(1)
+def test_kills_howmany_counts_dirs : Bool :=
+    assertNotEqual (howMany root) (howManyCountsDirs root);
+
+@property(1)
+def test_kills_fynd_current_on_failure : Bool :=
+    assertNotEqual (length (fynd root "missing")) (length (fyndCurrentOnFailure root "missing"));
+
+@property(1)
+def test_kills_canfind_always_false : Bool :=
+    assertNotEqual (canFind root "part3") (canFindAlwaysFalse root "part3");
+
+@property(1)
+def test_kills_howmany_only_dirs : Bool :=
+    assertNotEqual (howMany root) (howManyOnlyDirs root);
+
+@property(1)
+def test_kills_dudir_name_length : Bool :=
+    assertNotEqual (duDir root) (duDirNameLength root);
+
+@property(1)
+def test_kills_fynd_duplicates : Bool :=
+    assertNotEqual (length (fynd root "read!")) (length (fyndDuplicates root "read!"));

@@ -1,0 +1,228 @@
+# Toposortacle — a Property-Based Testing benchmark.
+#
+# From:
+#   * Wrenn, Nelson, Krishnamurthi. "Using Relational Problems to Teach
+#     Property-Based Testing." Programming 2021 (pj21).
+#   * Nelson, Rivera, Soucie, Del Vecchio, Wrenn, Krishnamurthi. "Automated,
+#     Targeted Testing of Property-Based Testing Predicates." Programming 2022.
+#     (Toposortacle is that paper's running example — see its Table 1.)
+#
+# Task: write the predicate that decides whether an output list of vertices is
+# a correct topological sort of an input DAG. The input is a set of directed
+# edges (m -> n means "m must come before n"); the output is an ordering of
+# the vertices. Students were told the input mentions every vertex.
+#
+# Correctness decomposes (2022, Table 1) into:
+#   No-New            every output vertex is mentioned by some input edge
+#   None-Dropped      every vertex mentioned by an edge appears in the output
+#   Uniqueness        the output has no duplicate vertices
+#   Sortedness        for positions i1 < i2, O[i2] cannot reach O[i1] in I*
+# and an *error subproperty* (2022, §3) used to catch a common mistake:
+#   Same-Num-Vertices |vertices(I)| = len(O)   (checking size, not contents)
+#
+# Run with:  aeon --test examples/pbt_benchmarks/toposortacle.ae
+
+open List
+open Testing
+
+# ── Domain ────────────────────────────────────────────────────────────────
+
+# A directed edge m -> n (m must precede n).
+inductive Edge
+| edge (src: Int) (dst: Int) : Edge
+
+def srcOf (e: Edge) : Int :=
+    match e with
+    | edge s d => s;
+
+def dstOf (e: Edge) : Int :=
+    match e with
+    | edge s d => d;
+
+# ── Int-list helpers ────────────────────────────────────────────────────────
+
+def elemInt (x: Int) (l: (List Int)) : Bool :=
+    match l with
+    | nil => false
+    | cons hd tl => (hd = x) || (elemInt x tl);
+
+def allInt (f: (x:Int) -> Bool) (l: (List Int)) : Bool :=
+    match l with
+    | nil => true
+    | cons hd tl => (f hd) && (allInt f tl);
+
+def addUniqueInt (x: Int) (l: (List Int)) : (List Int) :=
+    if elemInt x l then l else cons x l;
+
+def removeInt (x: Int) (l: (List Int)) : (List Int) :=
+    match l with
+    | nil => nil
+    | cons hd tl => if hd = x then tl else cons hd (removeInt x tl);
+
+# ── Graph helpers ────────────────────────────────────────────────────────────
+
+# The distinct vertices mentioned by the edge set.
+def verticesOf (i: (List Edge)) : (List Int) :=
+    match i with
+    | nil => nil
+    | cons e tl => addUniqueInt (srcOf e) (addUniqueInt (dstOf e) (verticesOf tl));
+
+# `v` occurs as a source or destination in some edge.
+def vertexInEdges (i: (List Edge)) (v: Int) : Bool :=
+    match i with
+    | nil => false
+    | cons e tl => (srcOf e = v) || (dstOf e = v) || (vertexInEdges tl v);
+
+# One reachability-expansion pass: add the destination of every edge whose
+# source is already reached.
+def expandStep (i: (List Edge)) (reached: (List Int)) : (List Int) :=
+    match i with
+    | nil => reached
+    | cons e tl =>
+        acc := expandStep tl reached;
+        if elemInt (srcOf e) reached then addUniqueInt (dstOf e) acc else acc;
+
+# Iterate the expansion `fuel` times (a DAG's longest path is bounded by the
+# number of edges).
+def closure (fuel: Int) (i: (List Edge)) (reached: (List Int)) : (List Int) :=
+    if fuel <= 0 then reached
+    else closure (fuel - 1) i (expandStep i reached);
+
+# True when there is a directed path a ->* b (path length >= 1). On a DAG a
+# never reaches itself, so requiring a != b keeps this a *proper* reachability.
+def reaches (i: (List Edge)) (a: Int) (b: Int) : Bool :=
+    (a != b) && (elemInt b (closure (length i + 1) i (cons a nil)));
+
+# ── Subproperties (2022, Table 1) ───────────────────────────────────────────
+
+# No-New: every output vertex is mentioned by the input.
+def noNew (i: (List Edge)) (o: (List Int)) : Bool :=
+    allInt (fun v => vertexInEdges i v) o;
+
+# None-Dropped: every vertex mentioned by an edge appears in the output.
+def noneDropped (i: (List Edge)) (o: (List Int)) : Bool :=
+    match i with
+    | nil => true
+    | cons e tl =>
+        (elemInt (srcOf e) o) && (elemInt (dstOf e) o) && (noneDropped tl o);
+
+# Uniqueness: no vertex is repeated.
+def uniqueInt (o: (List Int)) : Bool :=
+    match o with
+    | nil => true
+    | cons hd tl => (! (elemInt hd tl)) && (uniqueInt tl);
+
+# Sortedness: no later element can reach an earlier element. `hd` sits before
+# every element of `tl`, so no `y` in `tl` may reach `hd`.
+def sortedTopo (i: (List Edge)) (o: (List Int)) : Bool :=
+    match o with
+    | nil => true
+    | cons hd tl =>
+        (allInt (fun y => ! (reaches i y hd)) tl) && (sortedTopo i tl);
+
+# Error subproperty (2022, §3): the output has as many entries as the input has
+# distinct vertices. A student who checks *size* instead of *contents* passes
+# this while failing None-Dropped / Uniqueness.
+def sameNumVertices (i: (List Edge)) (o: (List Int)) : Bool :=
+    length (verticesOf i) = length o;
+
+# The correctness predicate students should write. (Same-Num-Vertices is
+# implied by these and is only used to diagnose the size-vs-contents mistake.)
+def isValid (i: (List Edge)) (o: (List Int)) : Bool :=
+    (noNew i o) && (noneDropped i o) && (uniqueInt o) && (sortedTopo i o);
+
+# ── Reference implementation: Kahn's algorithm ──────────────────────────────
+
+# `v` has an incoming edge from a vertex still in `remaining`.
+def hasIncomingFrom (i: (List Edge)) (remaining: (List Int)) (v: Int) : Bool :=
+    match i with
+    | nil => false
+    | cons e tl =>
+        ((dstOf e = v) && (srcOf e != v) && (elemInt (srcOf e) remaining))
+        || (hasIncomingFrom tl remaining v);
+
+# The first remaining vertex with no incoming edge (a "source").
+def pickSource (i: (List Edge)) (remaining: (List Int)) (cand: (List Int)) : Int :=
+    match cand with
+    | nil => 0
+    | cons hd tl =>
+        if ! (hasIncomingFrom i remaining hd) then hd
+        else pickSource i remaining tl;
+
+def kahn (fuel: Int) (i: (List Edge)) (remaining: (List Int)) : (List Int) :=
+    if fuel <= 0 then nil
+    else match remaining with
+         | nil => nil
+         | cons h t =>
+             v := pickSource i remaining remaining;
+             cons v (kahn (fuel - 1) i (removeInt v remaining));
+
+def toposort (i: (List Edge)) : (List Int) :=
+    vs := verticesOf i;
+    kahn (length vs) i vs;
+
+# ── Fixtures: the DAG I = [(1,2),(2,3)] from 2022 Table 1 ───────────────────
+
+def g : (List Edge) := cons (Edge.edge 1 2) (cons (Edge.edge 2 3) nil);
+
+# ── Positive tests: the reference sort is accepted ──────────────────────────
+
+@property(1)
+def test_reference_is_valid : Bool :=
+    assertTrue (isValid g (toposort g));
+
+@property(1)
+def test_accepts_correct_order : Bool :=
+    assertTrue (isValid g (cons 1 (cons 2 (cons 3 nil))));
+
+# A "diamond" DAG 1->2, 1->3, 2->4, 3->4 with a valid ordering.
+def diamond : (List Edge) :=
+    cons (Edge.edge 1 2) (cons (Edge.edge 1 3) (cons (Edge.edge 2 4) (cons (Edge.edge 3 4) nil)));
+
+@property(1)
+def test_reference_valid_diamond : Bool :=
+    assertTrue (isValid diamond (toposort diamond));
+
+# ── Negative tests: 2022 Table 1 example pairs, one per subproperty ─────────
+
+# No-New fails: O = [1,2,3,4] introduces vertex 4.
+@property(1)
+def test_no_new : Bool :=
+    o := cons 1 (cons 2 (cons 3 (cons 4 nil)));
+    allOf3 (assertFalse (noNew g o))
+           (assertTrue (noneDropped g o))
+           (assertFalse (isValid g o));
+
+# None-Dropped fails: O = [1,2] drops vertex 3.
+@property(1)
+def test_none_dropped : Bool :=
+    o := cons 1 (cons 2 nil);
+    allOf3 (assertFalse (noneDropped g o))
+           (assertTrue (noNew g o))
+           (assertFalse (isValid g o));
+
+# Uniqueness fails: O = [1,2,3,3] repeats vertex 3.
+@property(1)
+def test_uniqueness : Bool :=
+    o := cons 1 (cons 2 (cons 3 (cons 3 nil)));
+    both (assertFalse (uniqueInt o))
+         (assertFalse (isValid g o));
+
+# Sortedness fails: O = [3,1,2] violates the partial order (1 ->* 3, 2 ->* 3).
+@property(1)
+def test_sortedness : Bool :=
+    o := cons 3 (cons 1 (cons 2 nil));
+    allOf3 (assertFalse (sortedTopo g o))
+           (assertTrue (noNew g o))
+           (assertFalse (isValid g o));
+
+# The size-vs-contents mistake (2022, §3): O = [1,2,2] has the right *number*
+# of vertices, so Same-Num-Vertices is fooled, yet the output both drops 3 and
+# duplicates 2 — the error subproperty pinpoints this misconception.
+@property(1)
+def test_same_num_vertices_error : Bool :=
+    o := cons 1 (cons 2 (cons 2 nil));
+    allOf4 (assertTrue (sameNumVertices g o))
+           (assertFalse (noneDropped g o))
+           (assertFalse (uniqueInt o))
+           (assertFalse (isValid g o));
