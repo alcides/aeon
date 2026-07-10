@@ -958,6 +958,22 @@ def _eligible_refinement_base_for_inductive(ind: InductiveDecl, base: SType) -> 
             return False
 
 
+def _is_implicit_refinement_param(p: Name, bound_rho: set[Name]) -> bool:
+    """Whether a predicate name ``p`` in a refinement ``{v | p v}`` should be
+    treated as an *implicit* (abstract) refinement parameter to be universally
+    generalised, rather than a reference to a defined function.
+
+    An implicit refinement parameter is an *unbound* predicate variable
+    (``Name.id == -1``): binding leaves it unresolved because it has no binder.
+    A predicate that resolves to a real symbol — a top-level ``def`` (e.g. an
+    ``uninterpreted`` predicate like ``admin``), a builtin, or an import — is
+    bound to a concrete ``id`` and must be kept as an ordinary application so
+    its refinement stays a checked obligation (issue #468). Explicitly-bound
+    ``forall <p>`` parameters live in ``bound_rho`` and are also excluded.
+    """
+    return p.id == -1 and p not in bound_rho
+
+
 def _collect_implicit_refinement_params_for_inductive(
     ind: InductiveDecl, ty: SType, bound_rho: set[Name], acc: dict[Name, SType]
 ) -> None:
@@ -978,7 +994,7 @@ def _collect_implicit_refinement_params_for_inductive(
         case SRefinedType(binder, base, ref):
             rec(base, bound_rho)
             match ref:
-                case SApplication(SVar(p), SVar(b)) if b == binder and p not in bound_rho:
+                case SApplication(SVar(p), SVar(b)) if b == binder and _is_implicit_refinement_param(p, bound_rho):
                     # The inferred sort is the full predicate type ``base -> Bool``.
                     pred_ty = SAbstractionType(Name("_"), base, st_bool)
                     if not _eligible_refinement_base_for_inductive(ind, base):
@@ -1699,7 +1715,7 @@ def _collect_implicit_refinement_params(ty: SType, bound_rho: set[Name], acc: di
         case SRefinedType(binder, base, ref):
             rec(base, bound_rho)
             match ref:
-                case SApplication(SVar(p), SVar(b)) if b == binder and p not in bound_rho:
+                case SApplication(SVar(p), SVar(b)) if b == binder and _is_implicit_refinement_param(p, bound_rho):
                     # The inferred sort is the full predicate type ``base -> Bool``.
                     pred_ty = SAbstractionType(Name("_"), base, st_bool)
                     if p in acc:

@@ -237,3 +237,64 @@ def main (args:Int) : Unit :=
     print (r)
 """
     assert check_compile(source, st_top)
+
+
+# --- issue #468: a *defined* predicate in a parameter refinement is a checked
+# obligation, not an implicit (abstract) refinement parameter. Only an *unbound*
+# predicate name should be universally generalised; a name resolving to a real
+# ``def`` (here an ``uninterpreted`` one) must stay an ordinary application so
+# the refinement is actually verified at each call site.
+
+
+def test_uninterpreted_predicate_refinement_rejects_unproven_argument():
+    """An argument that is not known to satisfy an uninterpreted-predicate
+    precondition must be rejected (regression for issue #468, where it was
+    silently accepted because ``admin`` was generalised into a synthesis hole)."""
+    source = """
+type Person
+
+def admin (p:Person) : Bool := uninterpreted
+
+def register_user (name:String) (age:Int) : Person := native "(name, age)"
+
+def rm (p:Person | admin p) (f:String | f != "/") : Unit := unit
+
+def main (_:Int) : Unit :=
+    let u := register_user "Joe" 30 in
+    rm u "/folder"
+"""
+    assert not check_compile(source, st_top)
+
+
+def test_uninterpreted_predicate_refinement_accepts_proven_argument():
+    """When the argument is known to satisfy the uninterpreted predicate (its
+    type carries the refinement), the call type-checks."""
+    source = """
+type Person
+
+def admin (p:Person) : Bool := uninterpreted
+
+def make_admin (name:String) : {p:Person | admin p} := native "name"
+
+def rm (p:Person | admin p) : Unit := unit
+
+def main (_:Int) : Unit :=
+    let u := make_admin "Joe" in
+    rm u
+"""
+    assert check_compile(source, st_top)
+
+
+def test_defined_bool_predicate_refinement_is_checked():
+    """A refinement mentioning a regular defined boolean function is a checked
+    obligation: ``rm 3`` violates ``admin p`` (``p > 5``) and is rejected."""
+    source = """
+def admin (p:Int) : Bool := p > 5
+
+def rm (p:Int | admin p) : Unit := unit
+
+def main (_:Int) : Unit :=
+    let u := 3 in
+    rm u
+"""
+    assert not check_compile(source, st_top)
