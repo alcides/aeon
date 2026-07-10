@@ -1,0 +1,212 @@
+# Matcher — a Property-Based Testing benchmark (stable matching).
+#
+# From:
+#   * Wrenn, Nelson, Krishnamurthi. "Using Relational Problems to Teach
+#     Property-Based Testing." Programming 2021 (pj21).
+#   * Nelson, Rivera, Soucie, Del Vecchio, Wrenn, Krishnamurthi. "Automated,
+#     Targeted Testing of Property-Based Testing Predicates." Programming 2022.
+#
+# Task: write the predicate that decides whether a purported solution to the
+# stable-matching problem (cast as matching candidates with companies) is
+# correct. The input is a pair of preference profiles — for both candidates and
+# companies — given as ranked lists of ids (indices are identities). The output
+# is a matching (a set of candidate/company pairs).
+#
+# Correctness decomposes (2022, §9) into:
+#   Stable       no unmatched pair would both prefer each other to their match
+#   Uniqueness   no candidate/company is matched more than once
+#   Complete     every candidate and every company is matched
+#
+# Run with:  aeon --test examples/pbt_benchmarks/matcher.ae
+
+open List
+open Testing
+
+# ── Domain ────────────────────────────────────────────────────────────────
+
+# A single pairing: candidate `cand` is matched to company `comp`.
+inductive MPair
+| mpair (cand: Int) (comp: Int) : MPair
+
+def candOf (p: MPair) : Int :=
+    match p with
+    | mpair c f => c;
+
+def compOf (p: MPair) : Int :=
+    match p with
+    | mpair c f => f;
+
+# ── Int-list helpers ────────────────────────────────────────────────────────
+
+def elemInt (x: Int) (l: (List Int)) : Bool :=
+    match l with
+    | nil => false
+    | cons hd tl => (hd = x) || (elemInt x tl);
+
+def allInt (f: (x:Int) -> Bool) (l: (List Int)) : Bool :=
+    match l with
+    | nil => true
+    | cons hd tl => (f hd) && (allInt f tl);
+
+def uniqueInt (l: (List Int)) : Bool :=
+    match l with
+    | nil => true
+    | cons hd tl => (! (elemInt hd tl)) && (uniqueInt tl);
+
+# [0, 1, ..., n-1].
+def rangeAux (k: Int) (n: Int) : (List Int) :=
+    if k >= n then nil else cons k (rangeAux (k + 1) n);
+
+def range (n: Int) : (List Int) := rangeAux 0 n;
+
+# k-th element of a list of ints (0-indexed); -1 if out of range.
+def nth (l: (List Int)) (k: Int) : Int :=
+    match l with
+    | nil => 0 - 1
+    | cons hd tl => if k <= 0 then hd else nth tl (k - 1);
+
+# k-th preference list.
+def nthList (l: (List (List Int))) (k: Int) : (List Int) :=
+    match l with
+    | nil => nil
+    | cons hd tl => if k <= 0 then hd else nthList tl (k - 1);
+
+# ── Preferences and partners ─────────────────────────────────────────────────
+
+# Rank of `x` in a preference list (0 = most preferred); a large number when `x`
+# is absent, so a real option always beats "no partner" (id -1).
+def rankAux (prefs: (List Int)) (x: Int) (idx: Int) : Int :=
+    match prefs with
+    | nil => 1000000
+    | cons hd tl => if hd = x then idx else rankAux tl x (idx + 1);
+
+def rank (prefs: (List Int)) (x: Int) : Int := rankAux prefs x 0;
+
+# `a` is strictly preferred to `b` in `prefs`.
+def prefersOver (prefs: (List Int)) (a: Int) (b: Int) : Bool :=
+    (rank prefs a) < (rank prefs b);
+
+# Company matched to candidate `c` (or -1 if unmatched).
+def partnerOf (m: (List MPair)) (c: Int) : Int :=
+    match m with
+    | nil => 0 - 1
+    | cons p tl => if candOf p = c then compOf p else partnerOf tl c;
+
+# Candidate matched to company `f` (or -1 if unmatched).
+def partnerOfComp (m: (List MPair)) (f: Int) : Int :=
+    match m with
+    | nil => 0 - 1
+    | cons p tl => if compOf p = f then candOf p else partnerOfComp tl f;
+
+def candList (m: (List MPair)) : (List Int) :=
+    match m with
+    | nil => nil
+    | cons p tl => cons (candOf p) (candList tl);
+
+def compList (m: (List MPair)) : (List Int) :=
+    match m with
+    | nil => nil
+    | cons p tl => cons (compOf p) (compList tl);
+
+# ── Subproperties ────────────────────────────────────────────────────────────
+
+# (c, f) is a *blocking pair*: they are not matched to each other, yet each
+# prefers the other to their current partner.
+def isBlocking
+    (candPrefs: (List (List Int)))
+    (compPrefs: (List (List Int)))
+    (m: (List MPair))
+    (c: Int) (f: Int) : Bool :=
+    pc := partnerOf m c;
+    pf := partnerOfComp m f;
+    (pc != f)
+    && (prefersOver (nthList candPrefs c) f pc)
+    && (prefersOver (nthList compPrefs f) c pf);
+
+# Stable: no blocking pair exists over all candidate/company pairs.
+def stable
+    (candPrefs: (List (List Int)))
+    (compPrefs: (List (List Int)))
+    (m: (List MPair)) : Bool :=
+    n := length candPrefs;
+    k := length compPrefs;
+    allInt (fun c => allInt (fun f => ! (isBlocking candPrefs compPrefs m c f)) (range k))
+           (range n);
+
+# Uniqueness: no candidate and no company is matched twice.
+def uniqueMatch (m: (List MPair)) : Bool :=
+    (uniqueInt (candList m)) && (uniqueInt (compList m));
+
+# Complete: every candidate and every company is matched.
+def complete
+    (candPrefs: (List (List Int)))
+    (compPrefs: (List (List Int)))
+    (m: (List MPair)) : Bool :=
+    n := length candPrefs;
+    k := length compPrefs;
+    (allInt (fun c => partnerOf m c != (0 - 1)) (range n))
+    && (allInt (fun f => partnerOfComp m f != (0 - 1)) (range k));
+
+# The full correctness predicate students should write.
+def isValid
+    (candPrefs: (List (List Int)))
+    (compPrefs: (List (List Int)))
+    (m: (List MPair)) : Bool :=
+    (complete candPrefs compPrefs m)
+    && (uniqueMatch m)
+    && (stable candPrefs compPrefs m);
+
+# ── Fixtures: a 2x2 instance ────────────────────────────────────────────────
+# Candidates 0,1 ; Companies 0,1.
+#   cand 0 prefers company 0 then 1;  cand 1 prefers company 1 then 0.
+#   comp 0 prefers candidate 0 then 1; comp 1 prefers candidate 1 then 0.
+# Everyone can get their first choice, so 0-0 / 1-1 is the unique stable match.
+
+def candPrefs2 : (List (List Int)) :=
+    cons (cons 0 (cons 1 nil)) (cons (cons 1 (cons 0 nil)) nil);
+
+def compPrefs2 : (List (List Int)) :=
+    cons (cons 0 (cons 1 nil)) (cons (cons 1 (cons 0 nil)) nil);
+
+# The stable matching 0-0, 1-1.
+def goodMatch : (List MPair) :=
+    cons (MPair.mpair 0 0) (cons (MPair.mpair 1 1) nil);
+
+# The unstable matching 0-1, 1-0 (both would rather swap).
+def unstableMatch : (List MPair) :=
+    cons (MPair.mpair 0 1) (cons (MPair.mpair 1 0) nil);
+
+# ── Positive test ────────────────────────────────────────────────────────────
+
+@property(1)
+def test_accepts_stable : Bool :=
+    assertTrue (isValid candPrefs2 compPrefs2 goodMatch);
+
+# ── Negative tests: each subproperty catches the corresponding bug ──────────
+
+# Stable fails: 0-1 / 1-0 is complete and unique, but (0,0) is a blocking pair.
+@property(1)
+def test_catches_unstable : Bool :=
+    allOf4 (assertTrue (complete candPrefs2 compPrefs2 unstableMatch))
+           (assertTrue (uniqueMatch unstableMatch))
+           (assertFalse (stable candPrefs2 compPrefs2 unstableMatch))
+           (assertFalse (isValid candPrefs2 compPrefs2 unstableMatch));
+
+# The specific blocking pair is (candidate 0, company 0).
+@property(1)
+def test_blocking_pair_identified : Bool :=
+    assertTrue (isBlocking candPrefs2 compPrefs2 unstableMatch 0 0);
+
+# Complete fails: candidate 1 and company 1 are left unmatched.
+@property(1)
+def test_catches_incomplete : Bool :=
+    m := cons (MPair.mpair 0 0) nil;
+    both (assertFalse (complete candPrefs2 compPrefs2 m))
+         (assertFalse (isValid candPrefs2 compPrefs2 m));
+
+# Uniqueness fails: company 0 is matched to both candidates.
+@property(1)
+def test_catches_duplicate : Bool :=
+    m := cons (MPair.mpair 0 0) (cons (MPair.mpair 1 0) nil);
+    both (assertFalse (uniqueMatch m))
+         (assertFalse (isValid candPrefs2 compPrefs2 m));

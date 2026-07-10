@@ -1,0 +1,137 @@
+# Nile — a Conceptual Mutation Testing benchmark.
+#
+# From:
+#   * Prasad, Greenman, Nelson, Krishnamurthi. "Conceptual Mutation Testing for
+#     Student Programming Misconceptions." Programming 2024.
+#
+# Nile is an imaginary online bookstore. The problem asks for two collaborative
+# filters over a set of user *collections* (each a list of book titles):
+#   * recommend a single book, and
+#   * recommend a pair of books,
+# both ranked by *frequency* of occurrence across collections.
+#
+# As with DocDiff, students write examples that must pass a correct
+# implementation (the "wheat") and kill each buggy one (the "chaffs"). We
+# implement the wheat and the six chaffs the paper deployed (§8):
+#   1. counts number of books instead of their frequency
+#   2. counts number of pairs instead of their frequency
+#   3. recommends only books that appear in multiple collections
+#   4. performs case-insensitive comparisons of books
+#   5. recommends at most one book
+#   6. recommends at most one pair
+#
+# A recommendation is returned as a sorted Array String; a pair {a,b} is encoded
+# as the string "a|b". The database is an opaque list-of-collections (DB); the
+# ranking cores use Aeon's Python FFI, and the example/chaff harness is pure
+# Aeon.
+#
+# Run with:  aeon --test examples/pbt_benchmarks/nile.ae
+
+open Array
+open Testing
+
+# A bookstore database: a list of collections, each a list of book titles.
+type DB
+
+# ── The wheats (correct recommenders) ───────────────────────────────────────
+
+# Recommend the book(s) with the highest total frequency across collections.
+def recommendBooks (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda books, flat: sorted([b for b in books if flat.count(b)==max(flat.count(x) for x in books)]) if books else [])(sorted(set(x for c in cols for x in c)), [x for c in cols for x in c]))(d)"
+
+# Recommend the book pair(s) {a,b} with the highest co-occurrence frequency
+# (sum over collections of count(a)*count(b)), encoded "a|b".
+def recommendPairs (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda pairs, best: sorted([a+'|'+b for (a,b) in pairs if best(a,b)==max(best(x,y) for (x,y) in pairs)]) if pairs else [])((lambda allb: [(allb[i],allb[j]) for i in range(len(allb)) for j in range(i+1,len(allb))])(sorted(set(x for c in cols for x in c))), lambda a,b: sum(c.count(a)*c.count(b) for c in cols)))(d)"
+
+# ── The chaffs (buggy recommenders) ─────────────────────────────────────────
+
+# Chaff 1: counts the number of collections a book appears in (presence),
+# not its total frequency.
+def countsBooksPresence (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda books: sorted([b for b in books if sum(1 for c in cols if b in c)==max(sum(1 for c in cols if x in c) for x in books)]) if books else [])(sorted(set(x for c in cols for x in c))))(d)"
+
+# Chaff 2: ranks pairs by collection presence, not co-occurrence frequency.
+def countsPairsPresence (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda pairs, best: sorted([a+'|'+b for (a,b) in pairs if best(a,b)==max(best(x,y) for (x,y) in pairs)]) if pairs else [])((lambda allb: [(allb[i],allb[j]) for i in range(len(allb)) for j in range(i+1,len(allb))])(sorted(set(x for c in cols for x in c))), lambda a,b: sum(1 for c in cols if a in c and b in c)))(d)"
+
+# Chaff 3: recommends only books that appear in more than one collection.
+def recommendMulti (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda cand, flat: sorted([b for b in cand if flat.count(b)==max(flat.count(x) for x in cand)]) if cand else [])([b for b in sorted(set(x for c in cols for x in c)) if sum(1 for c in cols if b in c)>1], [x for c in cols for x in c]))(d)"
+
+# Chaff 4: performs case-insensitive comparisons (Nile titles are case-sensitive).
+def caseInsensitiveBooks (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda books, flat: sorted([b for b in books if flat.count(b)==max(flat.count(x) for x in books)]) if books else [])(sorted(set(x.lower() for c in cols for x in c)), [x.lower() for c in cols for x in c]))(d)"
+
+# Chaff 5: recommends at most one book (drops ties).
+def atMostOneBook (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda books, flat: sorted([b for b in books if flat.count(b)==max(flat.count(x) for x in books)])[:1] if books else [])(sorted(set(x for c in cols for x in c)), [x for c in cols for x in c]))(d)"
+
+# Chaff 6: recommends at most one pair (drops ties).
+def atMostOnePair (d: DB) : (Array String) :=
+    native "(lambda cols: (lambda pairs, best: sorted([a+'|'+b for (a,b) in pairs if best(a,b)==max(best(x,y) for (x,y) in pairs)])[:1] if pairs else [])((lambda allb: [(allb[i],allb[j]) for i in range(len(allb)) for j in range(i+1,len(allb))])(sorted(set(x for c in cols for x in c))), lambda a,b: sum(c.count(a)*c.count(b) for c in cols)))(d)"
+
+# Two recommendations are observably different.
+def recDiffers (a: (Array String)) (b: (Array String)) : Bool := native "list(a) != list(b)"
+def recSame (a: (Array String)) (b: (Array String)) : Bool := native "list(a) == list(b)"
+
+# ── Databases (example inputs) ───────────────────────────────────────────────
+
+# 'a' twice, 'b' once  -> book recommendation ['a']
+def dbB1 : DB := native "[['a','a'],['b']]"
+# two 'a's and two 'b's -> tie ['a','b']
+def dbB2 : DB := native "[['a'],['b'],['a'],['b']]"
+# {a,b} co-occurs twice -> pair recommendation ['a|b']
+def dbP1 : DB := native "[['a','b'],['a','b']]"
+
+# Discriminating databases for the chaffs.
+def dbKB : DB := native "[['a','a','a'],['b'],['b']]"
+def dbKM : DB := native "[['a','a']]"
+def dbKC : DB := native "[['A'],['A'],['a']]"
+def dbKP : DB := native "[['a','a','b'],['a','c'],['c']]"
+def dbP2 : DB := native "[['a','b'],['a','c']]"
+
+# Expected wheat outputs.
+def expA  : (Array String) := native "['a']"
+def expAB : (Array String) := native "['a','b']"
+def expAbPair : (Array String) := native "['a|b']"
+
+# ── Every example passes the wheat ──────────────────────────────────────────
+
+@property(1)
+def test_examples_pass_wheat : Bool :=
+    allOf3 (assertTrue (recSame (recommendBooks dbB1) expA))
+           (assertTrue (recSame (recommendBooks dbB2) expAB))
+           (assertTrue (recSame (recommendPairs dbP1) expAbPair));
+
+# ── Every chaff is killed by some example ───────────────────────────────────
+
+# Presence-vs-frequency: 'a' occurs 3x in one collection; 'b' in two collections.
+@property(1)
+def test_kills_counts_books : Bool :=
+    assertTrue (recDiffers (recommendBooks dbKB) (countsBooksPresence dbKB));
+
+# Presence-vs-frequency for pairs (multiplicity within a collection matters).
+@property(1)
+def test_kills_counts_pairs : Bool :=
+    assertTrue (recDiffers (recommendPairs dbKP) (countsPairsPresence dbKP));
+
+# "Multiple collections" restriction: a single-collection book is dropped.
+@property(1)
+def test_kills_recommend_multi : Bool :=
+    assertTrue (recDiffers (recommendBooks dbKM) (recommendMulti dbKM));
+
+# Case-insensitivity merges 'A' and 'a', changing the winner.
+@property(1)
+def test_kills_case_insensitive : Bool :=
+    assertTrue (recDiffers (recommendBooks dbKC) (caseInsensitiveBooks dbKC));
+
+# At-most-one-book drops a tie.
+@property(1)
+def test_kills_at_most_one_book : Bool :=
+    assertTrue (recDiffers (recommendBooks dbB2) (atMostOneBook dbB2));
+
+# At-most-one-pair drops a tie.
+@property(1)
+def test_kills_at_most_one_pair : Bool :=
+    assertTrue (recDiffers (recommendPairs dbP2) (atMostOnePair dbP2));
