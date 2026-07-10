@@ -970,10 +970,14 @@ def pretty_print_generator(c: Constraint) -> Generator[tuple[str, int], None, No
             yield (f"reflected {rname}({params}) : {rtype}", 0)
             yield from pretty_print_generator(rseq)
         case Implication(name=iname, base=base, pred=pred, seq=sseq):
+            trivial_pred = pred == LiquidLiteralBool(True)
             if is_used(iname, sseq):
-                yield (f"∀{iname}:{base} | {pred}", 0)
+                if trivial_pred:
+                    yield (f"∀{iname}:{base}", 0)
+                else:
+                    yield (f"∀{iname}:{base} | {pred}", 0)
             else:
-                if pred != LiquidLiteralBool(True):
+                if not trivial_pred:
                     yield (f"{iname}:_ | {pred}", 0)
             if not isinstance(sseq, Implication):
                 yield ("====>", 0)
@@ -1059,6 +1063,27 @@ def pretty_print_constraint(c: Constraint) -> str:
     middle = "\n+--------------------+\n".join(top)
     footer = "\n+---------//---------+\n"
     return header + middle + footer
+
+
+def constraint_goal(c: Constraint) -> LiquidTerm | None:
+    """Return the goal (innermost conclusion) of a constraint.
+
+    A verification condition has the shape ``∀…, premises => goal``; this digs
+    through the binders/premises to the final ``LiquidConstraint`` and returns
+    its expression, which is the property that actually has to hold. Used to
+    surface the concrete goal at the top of an error message.
+    """
+    match c:
+        case LiquidConstraint(expr=expr):
+            return expr
+        case Implication(seq=seq):
+            return constraint_goal(seq)
+        case UninterpretedFunctionDeclaration(seq=seq):
+            return constraint_goal(seq)
+        case ReflectedFunctionDeclaration(seq=seq):
+            return constraint_goal(seq)
+        case _:
+            return None
 
 
 def show_constraint(c: Constraint):

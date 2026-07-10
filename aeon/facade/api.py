@@ -190,7 +190,14 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     loc: Location | None = None
 
     def __str__(self) -> str:
-        base = f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
+        from aeon.verification.helpers import constraint_goal
+
+        goal = constraint_goal(self.vc)
+        if goal is not None:
+            base = f"Failed to prove `{goal}` in {self.position()}"
+            base += f"\n    Could not establish it from the available facts:{pretty_print_constraint(self.vc)}"
+        else:
+            base = f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
         cex = self.counterexample()
         if cex is not None:
             base += f"\n    counterexample: {cex}"

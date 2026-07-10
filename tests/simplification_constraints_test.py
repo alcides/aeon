@@ -467,3 +467,35 @@ def test_fixpoint_extensibility():
 
     simplify_constraint_fixpoint(c, extra_passes=[counting_pass])
     assert call_count[0] > 0, "Extra pass was never called"
+
+
+# ---------------------------------------------------------------------------
+# Tests for error-message goal extraction and trivial-refinement printing
+# ---------------------------------------------------------------------------
+
+
+def test_constraint_goal_extracts_conclusion():
+    """constraint_goal digs through binders/premises to the final goal."""
+    from aeon.verification.helpers import constraint_goal
+
+    a_name = Name("a", 10)
+    pred = bind_lq(parse_liquid("a > 0"), [("a", a_name)])
+    concl = bind_lq(parse_liquid("a > 5"), [("a", a_name)])
+    c = Implication(a_name, t_int, pred, LiquidConstraint(concl))
+
+    assert constraint_goal(c) == concl
+
+
+def test_pretty_print_omits_trivial_true_refinement():
+    """A binder with a trivial `true` refinement prints without `| true`."""
+    from aeon.verification.helpers import pretty_print_constraint
+
+    a_name = Name("a", 10)
+    # forall a:Int (with trivial `true` premise) => a > 5
+    concl = bind_lq(parse_liquid("a > 5"), [("a", a_name)])
+    c = Implication(a_name, t_int, LiquidLiteralBool(True), LiquidConstraint(concl))
+
+    out = pretty_print_constraint(c)
+    assert "| true" not in out, out
+    # The binder itself is still shown.
+    assert "∀a" in out, out
