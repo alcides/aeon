@@ -956,6 +956,69 @@ def prepare_vc_for_display(c: Constraint) -> Constraint:
     return cons_clean
 
 
+def render_constraint_for_display(c: Constraint) -> str:
+    """Render a constraint as (multi-line) text *without* simplifying it.
+
+    Unlike :func:`pretty_print_constraint` this does not run
+    :func:`prepare_vc_for_display` first, so it can show a specific intermediate
+    form of a VC verbatim (used by :func:`vc_simplification_steps`). Conjunctions
+    are still split via CNF and trivial ``… -> true`` parts dropped, and each
+    conjunct is indented with two spaces per level so it reads well in a plain
+    ``<pre>`` block."""
+    parts: list[str] = []
+    for cons in conjunctive_normal_form(c):
+        if is_implication_true(cons):
+            continue
+        lines = [indent * "  " + item for item, indent in pretty_print_generator(cons)]
+        parts.append("\n".join(lines))
+    if not parts:
+        return "true"
+    return "\n\n".join(parts)
+
+
+def vc_simplification_steps(c: Constraint, max_steps: int = 32) -> list[tuple[str, str]]:
+    """The labelled progression of a VC from its original form to the fully
+    simplified form shown in error messages.
+
+    Returns a list of ``(label, rendered_text)`` pairs ordered original →
+    simplified; the final element is exactly what :func:`prepare_vc_for_display`
+    produces. This mirrors :func:`prepare_vc_for_display` step by step —
+    per-iteration constraint rewriting, then inert-precondition removal, then
+    unrelated-context pruning — so an editor can present the simplified VC and
+    let the user expand back through each simplification step to the version
+    that preceded it. Steps whose rendered text is identical to the previous
+    one are collapsed (the later, more descriptive label is kept)."""
+    stages: list[tuple[str, Constraint]] = [("Original", c)]
+
+    cur = c
+    for i in range(max_steps):
+        nxt = simplify_constraint(cur)
+        if nxt == cur:
+            break
+        cur = nxt
+        stages.append((f"Rewrite pass {i + 1}", cur))
+
+    cons_clean = remove_inert_preconditions(cur)
+    stages.append(("Drop inert preconditions", cons_clean))
+
+    cons_pruned, _ = remove_unrelated_context(cons_clean, ignore_vars=set())
+    stages.append(("Prune unrelated context", cons_pruned))
+
+    out: list[tuple[str, str]] = []
+    for label, cons in stages:
+        try:
+            text = render_constraint_for_display(cons)
+        except Exception:
+            continue
+        # Collapse steps that render identically, keeping the earlier (more
+        # faithful) label; the final entry still carries the fully simplified
+        # text that ``prepare_vc_for_display`` produces.
+        if out and out[-1][1] == text:
+            continue
+        out.append((label, text))
+    return out
+
+
 def pretty_print_generator(c: Constraint) -> Generator[tuple[str, int], None, None]:
     """Recursive generates a list of items to print, with the respective
     indentation level."""

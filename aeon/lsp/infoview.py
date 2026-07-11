@@ -117,10 +117,52 @@ class TargetInfo:
 
 
 @dataclass(frozen=True)
+class VCStep:
+    """One entry of a failing VC's simplification chain: a human ``label`` for
+    the step and the constraint rendered ``text`` at that stage. Ordered
+    original → simplified, so the final entry is the VC shown in the error."""
+
+    label: str
+    text: str
+
+
+@dataclass(frozen=True)
+class ErrorInfo:
+    """One diagnostic for the info view's error tab. Liquid type-checking
+    failures carry a ``counterexample`` (a concrete falsifying assignment, when
+    available) and ``vcSteps`` — the simplification chain of the failing
+    verification condition — so the view can present the simplified VC and let
+    the user expand back through each step. ``line``/``endLine`` are the
+    0-indexed source span; ``atCursor`` flags the error(s) covering the cursor."""
+
+    message: str
+    severity: str = "error"
+    counterexample: Optional[str] = None
+    vcSteps: list[VCStep] = field(default_factory=list)
+    line: Optional[int] = None
+    endLine: Optional[int] = None
+    atCursor: bool = False
+
+
+@dataclass(frozen=True)
+class SynthesizerInfo:
+    """An available synthesis backend, offered for the hole under the cursor:
+    the internal ``id`` (passed to the ``aeon.synthesize`` command) and a
+    human-readable ``label``."""
+
+    id: str
+    label: str
+
+
+@dataclass(frozen=True)
 class InfoViewData:
     target: Optional[TargetInfo] = None
     locals: list[InfoEntry] = field(default_factory=list)
     globals: list[InfoEntry] = field(default_factory=list)
+    errors: list[ErrorInfo] = field(default_factory=list)
+    # The hole under the cursor (drives the synthesis tab), if any.
+    hole: Optional[str] = None
+    synthesizers: list[SynthesizerInfo] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """A JSON-serialisable payload for the ``aeon/infoView`` response."""
@@ -456,6 +498,66 @@ def _goal_for_hole(hole_name: str, typing_ctx, core) -> Optional[tuple[Type, Opt
     return None
 
 
+def _build_errors(errors, cursor_line: int) -> list[ErrorInfo]:
+    """Turn the parse's structured ``AeonError`` list into error-tab entries.
+
+    Liquid type-checking failures contribute their concise goal, a
+    counterexample and the failing VC's simplification chain; every other error
+    contributes its rendered message. Errors covering the cursor line are listed
+    first so the relevant one is on top."""
+    from aeon.facade.api import LiquidTypeCheckingFailedRelation
+    from aeon.verification.helpers import constraint_goal, vc_simplification_steps
+
+    out: list[ErrorInfo] = []
+    for err in errors or []:
+        try:
+            loc = err.position()
+            sl, _ = loc.get_start()
+            el, _ = loc.get_end()
+            # Core source lines are 1-indexed; the info view is 0-indexed (LSP).
+            start_line: Optional[int] = max(sl - 1, 0)
+            end_line: Optional[int] = max(el - 1, 0)
+        except Exception:
+            start_line = end_line = None
+
+        counterexample: Optional[str] = None
+        vc_steps: list[VCStep] = []
+        if isinstance(err, LiquidTypeCheckingFailedRelation):
+            goal = constraint_goal(err.vc)
+            goal_str = _strip_ids(_pp_liquid(goal)) if goal is not None else None
+            message = f"Failed to prove: {goal_str}" if goal_str else "Failed to prove refinement"
+            try:
+                cex = err.counterexample()
+                counterexample = _strip_ids(cex) if cex is not None else None
+            except Exception:
+                counterexample = None
+            try:
+                vc_steps = [VCStep(label=lbl, text=_strip_ids(txt)) for lbl, txt in vc_simplification_steps(err.vc)]
+            except Exception:
+                vc_steps = []
+        else:
+            try:
+                message = _strip_ids(str(err))
+            except Exception:
+                message = "Error"
+
+        at_cursor = start_line is not None and end_line is not None and start_line <= cursor_line <= end_line
+        out.append(
+            ErrorInfo(
+                message=message,
+                severity="error",
+                counterexample=counterexample,
+                vcSteps=vc_steps,
+                line=start_line,
+                endLine=end_line,
+                atCursor=at_cursor,
+            )
+        )
+    # Stable sort: errors covering the cursor first, original order otherwise.
+    out.sort(key=lambda e: 0 if e.atCursor else 1)
+    return out
+
+
 def compute_info_view(
     source: str,
     line: int,
@@ -463,13 +565,17 @@ def compute_info_view(
     typing_ctx: Optional[TypingContext],
     type_index=None,
     core=None,
+    errors=None,
+    synthesizer_ids: Optional[list[str]] = None,
 ) -> InfoViewData:
     """Top-level entry: the info view contents for the 0-indexed cursor.
 
     ``type_index`` is the last successfully-built
     :class:`~aeon.lsp.typeindex.TypeIndex` for the document; ``typing_ctx`` is
     the top-level context and ``core`` the last good core program (both used to
-    recover hole goals)."""
+    recover hole goals). ``errors`` is the structured error list of the current
+    parse (for the error tab) and ``synthesizer_ids`` the backends offered for a
+    hole under the cursor (for the synthesis tab)."""
     target_ty: Optional[Type] = None
     scope_ctx: Optional[TypingContext] = None
 
@@ -497,4 +603,20 @@ def compute_info_view(
         target = TargetInfo(type=base, predicate=predicate)
 
     locals_, globals_ = _split_scope(typing_ctx, scope_ctx, _top_level_names(core))
-    return InfoViewData(target=target, locals=locals_, globals=globals_)
+
+    error_infos = _build_errors(errors, line)
+
+    synthesizers: list[SynthesizerInfo] = []
+    if hole_name is not None and synthesizer_ids:
+        from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
+
+        synthesizers = [SynthesizerInfo(id=i, label=synthesizer_label(i)) for i in synthesizer_ids]
+
+    return InfoViewData(
+        target=target,
+        locals=locals_,
+        globals=globals_,
+        errors=error_infos,
+        hole=hole_name,
+        synthesizers=synthesizers,
+    )

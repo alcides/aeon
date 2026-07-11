@@ -311,8 +311,18 @@ class AeonLanguageServer(LanguageServer):
             index = aeon_adapter.get_type_index(uri)
             typing_ctx = aeon_adapter.get_typing_ctx(uri) or getattr(ls.aeon_driver, "typing_ctx", None)
             core = aeon_adapter.get_core(uri)
+            errors = aeon_adapter.get_errors(uri)
             try:
-                data = compute_info_view(document.source, line, character, typing_ctx, index, core)
+                data = compute_info_view(
+                    document.source,
+                    line,
+                    character,
+                    typing_ctx,
+                    index,
+                    core,
+                    errors=errors,
+                    synthesizer_ids=SYNTHESIZERS,
+                )
             except Exception:
                 return InfoViewData().to_dict()
             return data.to_dict()

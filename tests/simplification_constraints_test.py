@@ -8,9 +8,11 @@ from aeon.core.types import t_int, TypeConstructor
 from aeon.verification.helpers import parse_liquid
 from aeon.verification.helpers import prepare_vc_for_display
 from aeon.verification.helpers import remove_inert_preconditions
+from aeon.verification.helpers import render_constraint_for_display
 from aeon.verification.helpers import simplify_constraint
 from aeon.verification.helpers import simplify_constraint_fixpoint
 from aeon.verification.helpers import simplify_expr
+from aeon.verification.helpers import vc_simplification_steps
 from aeon.verification.helpers import split_and_in_conclusion
 from aeon.verification.helpers import split_or_disjuncts
 from aeon.verification.helpers import split_or_in_conclusion
@@ -52,6 +54,35 @@ def test_simplify_constraint_implication():
     x = Implication(Name("x"), t_int, parse_liquid("true"), LiquidConstraint(parse_liquid("a > 0")))
     r = simplify_constraint(x)
     assert r == LiquidConstraint(parse_liquid("a > 0"))
+
+
+def test_vc_simplification_steps_are_ordered_and_end_simplified():
+    # A VC with a trivially-true precondition and an already-present conjunct in
+    # the conclusion has room to simplify, so the chain has more than one step.
+    x = Implication(Name("x"), t_int, parse_liquid("true"), LiquidConstraint(parse_liquid("a > 0")))
+    steps = vc_simplification_steps(x)
+    assert len(steps) >= 1
+    # Every step is a (label, text) pair.
+    for label, text in steps:
+        assert isinstance(label, str) and isinstance(text, str)
+    # The last step must equal the fully simplified rendering used in errors.
+    assert steps[-1][1] == render_constraint_for_display(prepare_vc_for_display(x))
+    # Consecutive steps never render identically (duplicates are collapsed).
+    texts = [t for _, t in steps]
+    assert all(texts[i] != texts[i + 1] for i in range(len(texts) - 1))
+
+
+def test_vc_simplification_steps_show_progression():
+    # ∀x, true => (a > 0) simplifies to just (a > 0): the original shows the
+    # implication turnstile, the final drops it, so there are two distinct steps.
+    x = Implication(Name("x"), t_int, parse_liquid("true"), LiquidConstraint(parse_liquid("a > 0")))
+    steps = vc_simplification_steps(x)
+    labels = [label for label, _ in steps]
+    assert labels[0] == "Original"
+    assert len(steps) >= 2
+    # The original renders the implication turnstile; the simplified form does not.
+    assert "====>" in steps[0][1]
+    assert "====>" not in steps[-1][1]
 
 
 def test_simplify_constraint_implication2():

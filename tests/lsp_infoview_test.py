@@ -34,6 +34,13 @@ def info_at(src: str, line: int, character: int):
     return compute_info_view(src, line, character, d.typing_ctx, index, getattr(d, "core", None))
 
 
+def info_at_with_synth(src: str, line: int, character: int, synthesizer_ids: list[str]):
+    d, index, _ = analyse(src)
+    return compute_info_view(
+        src, line, character, d.typing_ctx, index, getattr(d, "core", None), synthesizer_ids=synthesizer_ids
+    )
+
+
 def col_of(src: str, line0: int, needle: str) -> int:
     """0-indexed column of ``needle`` on (0-indexed) ``line0``."""
     return src.splitlines()[line0].index(needle)
@@ -296,10 +303,74 @@ def test_goal_context_includes_locals():
 # --------------------------------------------------------------------------- #
 
 
+# --------------------------------------------------------------------------- #
+# Error tab: counterexamples and the VC simplification chain
+# --------------------------------------------------------------------------- #
+
+FAILING_SRC = "def f (x:Int) : {y:Int | y > 0} := x;\n"
+
+
+def test_error_tab_reports_counterexample_and_vc_steps():
+    d, index, errors = analyse(FAILING_SRC)
+    assert errors, "expected the refinement to fail to verify"
+    info = compute_info_view(
+        FAILING_SRC, 0, col_of(FAILING_SRC, 0, ":= x") + 3, d.typing_ctx, index, getattr(d, "core", None), errors=errors
+    )
+    assert len(info.errors) >= 1
+    err = info.errors[0]
+    # The concise goal is surfaced, not the whole constraint dump.
+    assert "Failed to prove" in err.message and "x > 0" in err.message
+    # A concrete falsifying assignment is available.
+    assert err.counterexample is not None and "x" in err.counterexample
+    # The simplification chain ends at the VC actually shown in the error.
+    assert len(err.vcSteps) >= 1
+    assert all(step.text for step in err.vcSteps)
+    # No checker-internal ids leak into the rendered VC.
+    assert all(not _has_id(step.text) for step in err.vcSteps)
+
+
+def test_error_tab_empty_when_program_type_checks():
+    d, index, errors = analyse(SRC)
+    assert not errors
+    info = compute_info_view(SRC, 3, col_of(SRC, 3, "x"), d.typing_ctx, index, getattr(d, "core", None), errors=errors)
+    assert info.errors == []
+
+
+def test_error_at_cursor_is_listed_first():
+    d, index, errors = analyse(FAILING_SRC)
+    info = compute_info_view(FAILING_SRC, 0, 0, d.typing_ctx, index, getattr(d, "core", None), errors=errors)
+    # Every reported error carries a 0-indexed source span.
+    for e in info.errors:
+        assert e.line is None or e.line >= 0
+
+
+# --------------------------------------------------------------------------- #
+# Synthesis tab: available algorithms at a hole
+# --------------------------------------------------------------------------- #
+
+
+def test_synthesizers_listed_when_cursor_on_hole():
+    info = info_at_with_synth(HOLE_SRC, 2, col_of(HOLE_SRC, 2, "?h") + 1, ["gp", "fta", "enumerative"])
+    assert info.hole == "h"
+    ids = [s.id for s in info.synthesizers]
+    assert ids == ["gp", "fta", "enumerative"]
+    # Each carries a human-readable label.
+    gp = next(s for s in info.synthesizers if s.id == "gp")
+    assert gp.label and gp.label != "gp"
+
+
+def test_synthesizers_absent_when_not_on_hole():
+    info = info_at_with_synth(HOLE_SRC, 1, col_of(HOLE_SRC, 1, "let"), ["gp", "fta"])
+    assert info.hole is None
+    assert info.synthesizers == []
+
+
 def test_graceful_without_analysis_state():
     info = compute_info_view(SRC, 2, 5, None, None, None)
     assert info.target is None
     assert info.locals == [] and info.globals == []
+    assert info.errors == []
+    assert info.synthesizers == []
 
 
 def test_to_dict_is_json_serialisable():
