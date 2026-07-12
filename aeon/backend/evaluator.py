@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 from aeon.core.multiplicity import M0
@@ -272,6 +273,11 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 )
             return value
         case Hole(name):
+            # Holes are filled by synthesis at the CLI. When stdin is not a TTY
+            # (e.g. the LSP uses it for JSON-RPC), prompting would block the
+            # server; refinement execution treats a failed hole eval as "skip".
+            if not sys.stdin.isatty():
+                raise ValueError(f"cannot evaluate hole {t} without a TTY")
             args = ", ".join([str(n.name) for n in ctx.variables])
             print(f"Context ({args})")
             h = input(f"Enter value for hole {t} in Python: ")

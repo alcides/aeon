@@ -32,6 +32,42 @@ def _run(src: str) -> object:
     return d.run()
 
 
+def test_parse_with_hole_does_not_block_when_stdin_is_not_tty():
+    """LSP and other piped invocations must not hang on ``input()`` for holes."""
+    import subprocess
+    import sys
+    import textwrap
+
+    src = textwrap.dedent(
+        """\
+        @example(double 3 = 6)
+        def double (n:Int) : {x:Int | x = 2 * n} :=
+            ?h
+        """
+    )
+    script = textwrap.dedent(
+        f"""\
+        from aeon.facade.driver import AeonConfig, AeonDriver
+        from aeon.synthesis.uis.api import SilentSynthesisUI
+        src = {src!r}
+        cfg = AeonConfig(synthesizer='gp', synthesis_ui=SilentSynthesisUI(), synthesis_budget=0, no_main=False)
+        d = AeonDriver(cfg)
+        errors = list(d.parse(filename='file:///t.ae', aeon_code=src))
+        print('errors', len(errors))
+        """
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", script],
+        input="",
+        capture_output=True,
+        text=True,
+        timeout=15,
+        cwd=__import__("pathlib").Path(__file__).resolve().parents[1],
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "errors 0" in proc.stdout
+
+
 def test_sterm_free_vars_ignores_binder():
     ref = parse_expression("1 + 2 > 0")
     assert sterm_free_vars(ref) == set()
