@@ -147,11 +147,13 @@ class ErrorInfo:
 @dataclass(frozen=True)
 class SynthesizerInfo:
     """An available synthesis backend, offered for the hole under the cursor:
-    the internal ``id`` (passed to the ``aeon.synthesize`` command) and a
-    human-readable ``label``."""
+    the internal ``id`` (passed to the ``aeon.synthesize`` command), a
+    human-readable ``label``, and a high-level ``family`` for grouping in the
+    synthesis tab."""
 
     id: str
     label: str
+    family: str
 
 
 @dataclass(frozen=True)
@@ -608,9 +610,16 @@ def compute_info_view(
 
     synthesizers: list[SynthesizerInfo] = []
     if hole_name is not None and synthesizer_ids:
-        from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
+        from aeon.synthesis.modules.synthesizerfactory import (
+            sort_synthesizer_ids,
+            synthesizer_family_label,
+            synthesizer_label,
+        )
 
-        synthesizers = [SynthesizerInfo(id=i, label=synthesizer_label(i)) for i in synthesizer_ids]
+        synthesizers = [
+            SynthesizerInfo(id=i, label=synthesizer_label(i), family=synthesizer_family_label(i))
+            for i in sort_synthesizer_ids(synthesizer_ids)
+        ]
 
     return InfoViewData(
         target=target,

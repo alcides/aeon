@@ -50,26 +50,30 @@ from pygls.lsp.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
 
-SYNTHESIZERS = [
-    "tdsyn_enumerative",
-    "tdsyn",
-    "tactics",
-    "gp",
-    "enumerative",
-    "random_search",
-    "synquid",
-    "hc",
-    "1p1",
-    "smt",
-    "sygus",
-    "decision_tree",
-    "llm",
-    "fta",
-    "afta",
-    "cata",
-    "lta",
-    "symetric",
-]
+from aeon.synthesis.modules.synthesizerfactory import sort_synthesizer_ids
+
+SYNTHESIZERS = sort_synthesizer_ids(
+    [
+        "tdsyn_enumerative",
+        "tdsyn",
+        "tactics",
+        "gp",
+        "enumerative",
+        "random_search",
+        "synquid",
+        "hc",
+        "1p1",
+        "smt",
+        "sygus",
+        "decision_tree",
+        "llm",
+        "fta",
+        "afta",
+        "cata",
+        "lta",
+        "symetric",
+    ]
+)
 SYNTHESIZE_COMMAND = "aeon.synthesize"
 
 # Custom (non-standard) request backing the editor's Lean-style info view
@@ -370,12 +374,16 @@ class AeonLanguageServer(LanguageServer):
             uri: str,
             hole_name_str: str,
             synthesizer_name: str,
+            budget_seconds: float = 5.0,
         ) -> None:
+            _emit_synthesis_pending(ls, hole_name_str, synthesizer_name, budget_seconds)
             loop = asyncio.get_event_loop()
             try:
                 result = await loop.run_in_executor(
                     None,
-                    lambda: _run_synthesis(ls.aeon_driver, ls, uri, hole_name_str, synthesizer_name),
+                    lambda: _run_synthesis(
+                        ls.aeon_driver, ls, uri, hole_name_str, synthesizer_name, budget_seconds=budget_seconds
+                    ),
                 )
             except Exception as e:
                 ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=f"Synthesis error: {e}"))
@@ -463,7 +471,45 @@ def _get_word_at_position(source: str, line: int, character: int) -> Optional[st
     return word
 
 
-def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_name_str: str, synthesizer_name: str):
+def _emit_synthesis_pending(
+    ls: AeonLanguageServer, hole_name_str: str, synthesizer_name: str, budget_seconds: float
+) -> None:
+    """Push an immediate ``aeon/synthesisProgress`` update so the info view can
+    show activity before the blocking synthesis setup (parse, hole lookup, …)
+    finishes."""
+    from aeon.lsp.synthesis_ui import PROGRESS_NOTIFICATION
+    from aeon.synthesis.modules.synthesizerfactory import synthesizer_label
+
+    try:
+        budget = float(budget_seconds)
+    except (TypeError, ValueError):
+        budget = 5.0
+    params = {
+        "hole": hole_name_str,
+        "algorithm": synthesizer_label(synthesizer_name),
+        "created": 0,
+        "assessed": 0,
+        "best": None,
+        "bestQuality": None,
+        "elapsed": 0.0,
+        "budget": budget,
+        "done": False,
+    }
+    proto = getattr(ls, "protocol", None)
+    if proto is not None and hasattr(proto, "notify"):
+        proto.notify(PROGRESS_NOTIFICATION, params)
+    elif hasattr(ls, "send_notification"):
+        ls.send_notification(PROGRESS_NOTIFICATION, params)
+
+
+def _run_synthesis(
+    driver: AeonDriver,
+    ls: AeonLanguageServer,
+    uri: str,
+    hole_name_str: str,
+    synthesizer_name: str,
+    budget_seconds: float = 5.0,
+):
     """Blocking synthesis function, meant to run in a thread executor."""
     from . import aeon_adapter
     from aeon.synthesis.entrypoint import synthesize_holes
@@ -512,6 +558,11 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
         )
         return None
 
+    try:
+        budget = float(budget_seconds)
+    except (TypeError, ValueError):
+        budget = 5.0
+
     ui = LSPProgressUI(ls, synthesizer_name, hole_name_str)
     try:
         mapping = synthesize_holes(
@@ -521,7 +572,7 @@ def _run_synthesis(driver: AeonDriver, ls: AeonLanguageServer, uri: str, hole_na
             targets,
             driver.metadata,
             synthesizer,
-            budget=5.0,
+            budget=budget,
             ui=ui,
         )
     except Exception as e:

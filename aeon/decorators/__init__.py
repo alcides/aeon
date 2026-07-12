@@ -15,6 +15,7 @@ from dataclasses import replace
 
 from aeon.core.terms import Term
 from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY, DecoratorType, Metadata
+from aeon.facade.api import UnknownDecoratorError
 from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
 from aeon.synthesis.decorators import (
@@ -66,6 +67,33 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
 # Backwards-compatible name (sugar-phase registry only).
 decorators_environment: dict[str, DecoratorType] = sugar_decorators_environment
 
+_KNOWN_DECORATOR_NAMES: frozenset[str] = frozenset(sugar_decorators_environment) | frozenset(
+    core_decorators_environment
+)
+
+# Arity for sugar decorators whose ``macro_args`` must be satisfied before expansion.
+# Omitted names default to exactly one positional argument.
+_SUGAR_DECORATOR_ARITY: dict[str, int | frozenset[int]] = {
+    "allow_recursion": 0,
+    "disable_control_flow": 0,
+    "property": frozenset({0, 1}),
+    "multi_minimize_float": 2,
+    "multi_minimize_int": 2,
+}
+
+
+def _is_decorator_name_prefix(name: str) -> bool:
+    """True when ``name`` is a strict prefix of a registered decorator (mid-typing)."""
+    return any(known.startswith(name) and len(known) > len(name) for known in _KNOWN_DECORATOR_NAMES)
+
+
+def _sugar_decorator_ready(dname: str, decorator: Decorator) -> bool:
+    expected = _SUGAR_DECORATOR_ARITY.get(dname, 1)
+    n = len(decorator.macro_args)
+    if isinstance(expected, frozenset):
+        return n in expected
+    return n == expected
+
 
 def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
     """Apply sugar-phase decorators only; core-phase decorators stay on ``fun.decorators``."""
@@ -73,22 +101,32 @@ def apply_decorators(fun: Definition, metadata: Metadata) -> tuple[Definition, l
         metadata = {}
     sugar_decs: list[Decorator] = []
     core_decs: list[Decorator] = []
+    deferred: list[Decorator] = []
     for decorator in fun.decorators:
         dname = decorator.name.name
         if dname in sugar_decorators_environment:
-            sugar_decs.append(decorator)
+            if _sugar_decorator_ready(dname, decorator):
+                sugar_decs.append(decorator)
+            else:
+                deferred.append(decorator)
         elif dname in core_decorators_environment:
             core_decs.append(decorator)
+        elif _is_decorator_name_prefix(dname):
+            deferred.append(decorator)
         else:
-            raise Exception(f"Unknown decorator named {dname}, in function {fun.name}.")
+            raise UnknownDecoratorError(decorator, fun.name)
 
-    partial = replace(fun, decorators=core_decs)
+    partial = replace(fun, decorators=core_decs + deferred)
     total_extra: list[Definition] = []
     for decorator in sugar_decs:
         dname = decorator.name.name
         decorator_processor = sugar_decorators_environment[dname]
-        partial, extra, metadata = decorator_processor(decorator, partial, metadata)
-        total_extra.extend(extra)
+        try:
+            partial, extra, metadata = decorator_processor(decorator, partial, metadata)
+            total_extra.extend(extra)
+        except AssertionError:
+            # Macro arguments parsed but not yet valid (e.g. mid-edit in the IDE).
+            partial = replace(partial, decorators=list(partial.decorators) + [decorator])
     return partial, total_extra, metadata
 
 
@@ -103,10 +141,9 @@ def collect_core_decorator_queue(
             case Definition(name, foralls, args, rtype, body, decorators, rforalls, decreasing_by, loc):
                 for dec in decorators:
                     if dec.name.name not in core_decorators_environment:
-                        raise ValueError(
-                            f"Unexpected decorator {dec.name.name!r} on function {name.name!r} "
-                            "(expected only core-phase decorators at this stage)."
-                        )
+                        # Unexpanded sugar decorators are left over while the user is
+                        # still typing (e.g. ``@exa`` before ``@example(...)``).
+                        continue
                     queue.append((name, dec))
                 new_definitions.append(
                     Definition(

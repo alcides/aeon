@@ -1,3 +1,5 @@
+from enum import Enum
+
 import os
 
 from aeon.synthesis.api import ProgramSynthesizer, Synthesizer
@@ -18,6 +20,24 @@ from aeon.synthesis.modules.afta import AFTASynthesizer
 from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
+
+
+class SynthesizerFamily(str, Enum):
+    """High-level synthesis backend families shown grouped in the IDE."""
+
+    EXHAUSTIVE = "Exhaustive"
+    RANDOM = "Random"
+    EVOLUTIONARY = "Evolutionary"
+    LLM = "LLM"
+
+
+# Display order for synthesis families in tooling (info view, menus).
+SYNTHESIZER_FAMILY_ORDER: tuple[SynthesizerFamily, ...] = (
+    SynthesizerFamily.EXHAUSTIVE,
+    SynthesizerFamily.RANDOM,
+    SynthesizerFamily.EVOLUTIONARY,
+    SynthesizerFamily.LLM,
+)
 
 
 # Human-readable names for the synthesizer backends, shown in tooling such as
@@ -54,10 +74,71 @@ SYNTHESIZER_LABELS: dict[str, str] = {
 }
 
 
+SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
+    # Exhaustive — complete or constraint-directed search over a finite/decidable space.
+    "enumerative": SynthesizerFamily.EXHAUSTIVE,
+    "tdsyn": SynthesizerFamily.EXHAUSTIVE,
+    "tdsyn_enumerative": SynthesizerFamily.EXHAUSTIVE,
+    "synquid": SynthesizerFamily.EXHAUSTIVE,
+    "smt": SynthesizerFamily.EXHAUSTIVE,
+    "sygus": SynthesizerFamily.EXHAUSTIVE,
+    "decision_tree": SynthesizerFamily.EXHAUSTIVE,
+    "fta": SynthesizerFamily.EXHAUSTIVE,
+    "afta": SynthesizerFamily.EXHAUSTIVE,
+    "cata": SynthesizerFamily.EXHAUSTIVE,
+    "contata": SynthesizerFamily.EXHAUSTIVE,
+    "lta": SynthesizerFamily.EXHAUSTIVE,
+    "symetric": SynthesizerFamily.EXHAUSTIVE,
+    "xfta": SynthesizerFamily.EXHAUSTIVE,
+    "ortools": SynthesizerFamily.EXHAUSTIVE,
+    "ortools_int": SynthesizerFamily.EXHAUSTIVE,
+    "cpsat": SynthesizerFamily.EXHAUSTIVE,
+    # Random — stochastic sampling over the grammar/search space.
+    "random_search": SynthesizerFamily.RANDOM,
+    "tdsyn_random": SynthesizerFamily.RANDOM,
+    "tactics": SynthesizerFamily.RANDOM,
+    # Evolutionary — population- or trajectory-based metaheuristic search.
+    "gp": SynthesizerFamily.EVOLUTIONARY,
+    "hc": SynthesizerFamily.EVOLUTIONARY,
+    "1p1": SynthesizerFamily.EVOLUTIONARY,
+    "ng": SynthesizerFamily.EVOLUTIONARY,
+    "genomic_ng": SynthesizerFamily.EVOLUTIONARY,
+    "ng_cma": SynthesizerFamily.EVOLUTIONARY,
+    "ng_de": SynthesizerFamily.EVOLUTIONARY,
+    "ng_pso": SynthesizerFamily.EVOLUTIONARY,
+    "ng_float": SynthesizerFamily.EVOLUTIONARY,
+    "float_ng": SynthesizerFamily.EVOLUTIONARY,
+    "ng_float_cma": SynthesizerFamily.EVOLUTIONARY,
+    # LLM — large-language-model guided synthesis.
+    "llm": SynthesizerFamily.LLM,
+}
+
+
 def synthesizer_label(module: str) -> str:
     """A readable display name for synthesizer id ``module`` (falls back to the
     id itself for any backend without an explicit label)."""
     return SYNTHESIZER_LABELS.get(module, module)
+
+
+def synthesizer_family(module: str) -> SynthesizerFamily:
+    """The high-level family of synthesizer id ``module``."""
+    return SYNTHESIZER_FAMILIES.get(module, SynthesizerFamily.RANDOM)
+
+
+def synthesizer_family_label(module: str) -> str:
+    """Human-readable family name for synthesizer id ``module``."""
+    return synthesizer_family(module).value
+
+
+def sort_synthesizer_ids(ids: list[str]) -> list[str]:
+    """Order synthesizer ids by family (Exhaustive → Random → Evolutionary → LLM)
+    then by display label within each family."""
+    family_rank = {fam: i for i, fam in enumerate(SYNTHESIZER_FAMILY_ORDER)}
+
+    def key(module: str) -> tuple[int, str]:
+        return (family_rank.get(synthesizer_family(module), len(family_rank)), synthesizer_label(module).casefold())
+
+    return sorted(ids, key=key)
 
 
 def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:

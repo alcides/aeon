@@ -9,7 +9,9 @@ from aeon.core.types import Kind, Type
 from aeon.sugar.program import ImportAe, STerm
 from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
+from aeon.sugar.program import Decorator
 from aeon.utils.location import Location
+from aeon.utils.name import Name
 from aeon.verification.vcs import Constraint
 from aeon.verification.helpers import pretty_print_constraint
 
@@ -437,6 +439,20 @@ class ContractViolationError(AeonError):
 
     def position(self) -> Location:
         return self.loc
+
+
+@dataclass
+class UnknownDecoratorError(AeonError):
+    """Raised when a definition carries a decorator name that is not registered."""
+
+    decorator: Decorator
+    function_name: Name
+
+    def __str__(self) -> str:
+        return f"Unknown decorator named {self.decorator.name.name}, in function {self.function_name.name}."
+
+    def position(self) -> Location:
+        return self.decorator.loc
 
 
 def _format_location(loc: Location) -> str:

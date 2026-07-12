@@ -353,10 +353,12 @@ def test_synthesizers_listed_when_cursor_on_hole():
     info = info_at_with_synth(HOLE_SRC, 2, col_of(HOLE_SRC, 2, "?h") + 1, ["gp", "fta", "enumerative"])
     assert info.hole == "h"
     ids = [s.id for s in info.synthesizers]
-    assert ids == ["gp", "fta", "enumerative"]
-    # Each carries a human-readable label.
+    # Grouped by family: Exhaustive (enumerative, fta) before Evolutionary (gp).
+    assert ids == ["enumerative", "fta", "gp"]
     gp = next(s for s in info.synthesizers if s.id == "gp")
     assert gp.label and gp.label != "gp"
+    assert gp.family == "Evolutionary"
+    assert next(s for s in info.synthesizers if s.id == "enumerative").family == "Exhaustive"
 
 
 def test_synthesizers_absent_when_not_on_hole():
