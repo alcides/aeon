@@ -5,9 +5,10 @@ import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 
 from aeon.core.terms import Application, If, Literal, Term, TypeApplication, Var
-from aeon.core.types import Type, t_float
+from aeon.core.types import Type, t_float, t_int
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.modules.tdsyn.helpers import base_type_of
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.utils.name import Name
@@ -18,24 +19,41 @@ def get_elapsed_time(start_time) -> float:
     return (monotonic_ns() - start_time) * 0.000000001
 
 
-def _get_function_arg_names(ctx: TypingContext, fun_name: Name) -> list[Name]:
-    """Extract the function's argument names from the context.
+def _get_function_args(ctx: TypingContext, fun_name: Name) -> list[tuple[Name, Type]]:
+    """Extract the function's argument names and types from the context.
 
     Arguments are the variables bound after the function itself in the context.
     """
     found_fun = False
-    arg_names = []
+    args: list[tuple[Name, Type]] = []
     for entry in ctx.entries:
         if isinstance(entry, VariableBinder):
             if entry.name.name == fun_name.name:
                 found_fun = True
                 continue
             if found_fun:
-                arg_names.append(entry.name)
-    return arg_names
+                args.append((entry.name, entry.type))
+    return args
 
 
-def _tree_to_term(tree: DecisionTreeRegressor, arg_names: list[Name]) -> Term:
+def _numeric_literal(value: float, ty: Type) -> Term:
+    """Build a numeric literal with the correct base type (Int or Float)."""
+    if base_type_of(ty) == t_int:
+        return Literal(int(round(value)), t_int)
+    return Literal(float(value), t_float)
+
+
+def _comparison_type(ty: Type) -> Type:
+    """Return Int or Float for a polymorphic comparison at parameter ``ty``."""
+    return t_int if base_type_of(ty) == t_int else t_float
+
+
+def _tree_to_term(
+    tree: DecisionTreeRegressor,
+    arg_names: list[Name],
+    return_type: Type,
+    arg_types: list[Type],
+) -> Term:
     """Convert a fitted sklearn decision tree into nested If-then-else Terms."""
     tree_ = tree.tree_
     feature = tree_.feature
@@ -44,19 +62,18 @@ def _tree_to_term(tree: DecisionTreeRegressor, arg_names: list[Name]) -> Term:
 
     def build(node_id: int) -> Term:
         if feature[node_id] == -2:
-            # Leaf node: return the predicted value
             leaf_value = float(value[node_id].flatten()[0])
-            return Literal(leaf_value, t_float)
+            return _numeric_literal(leaf_value, return_type)
 
-        # Internal node: if arg_names[feature_idx] <= threshold then left else right
         feat_idx = feature[node_id]
         thresh = float(threshold[node_id])
+        arg_ty = arg_types[feat_idx]
+        cmp_ty = _comparison_type(arg_ty)
 
-        # <= is polymorphic (forall a:B, ...), so apply it to Float first
-        le_typed = TypeApplication(Var(Name("<=", 0)), t_float)
+        le_typed = TypeApplication(Var(Name("<=", 0)), cmp_ty)
         cond = Application(
             Application(le_typed, Var(arg_names[feat_idx])),
-            Literal(thresh, t_float),
+            _numeric_literal(thresh, arg_ty),
         )
         then_branch = build(tree_.children_left[node_id])
         else_branch = build(tree_.children_right[node_id])
@@ -101,10 +118,14 @@ class DecisionTreeSynthesizer(Synthesizer):
         X = data[:, :-1]
         y = data[:, -1]
 
-        # Extract argument names from the typing context
-        arg_names = _get_function_arg_names(ctx, fun_name)
+        # Extract argument names/types from the typing context (the hole type
+        # is the return type only, not the full function type).
+        fun_args = _get_function_args(ctx, fun_name)
+        arg_names = [name for name, _ in fun_args]
         if len(arg_names) != X.shape[1]:
             return None
+        arg_types = [aty for _, aty in fun_args]
+        return_type = type
 
         # Try increasing depths until budget runs out or validation passes
         has_goals = bool(current_metadata.get("goals"))
@@ -119,7 +140,7 @@ class DecisionTreeSynthesizer(Synthesizer):
             dt = DecisionTreeRegressor(max_depth=depth)
             dt.fit(X, y)
 
-            candidate = _tree_to_term(dt, arg_names)
+            candidate = _tree_to_term(dt, arg_names, return_type, arg_types)
             elapsed = get_elapsed_time(start_time)
 
             if validate(candidate):

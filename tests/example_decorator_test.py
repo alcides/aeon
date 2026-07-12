@@ -132,7 +132,6 @@ def test_non_numeric_examples_do_not_record_training_data():
     assert not any(isinstance(v, dict) and "training_data" in v for v in driver.metadata.values())
 
 
-@pytest.mark.skip(reason="Synthesis-only")
 def test_example_drives_decision_tree_synthesis():
     # The decision-tree synthesizer learns a function purely from @example points.
     from aeon.synthesis.entrypoint import synthesize_holes

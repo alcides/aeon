@@ -23,7 +23,7 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.core.types import Top
-from aeon.core.types import top, Type
+from aeon.core.types import top, Type, t_float, t_int, t_string
 from aeon.decorators import Metadata
 from aeon.synthesis.scope import shadow_fitness_helpers
 from aeon.backend.evaluator import eval
@@ -48,6 +48,7 @@ from aeon.synthesis.modules.contata.cosynthesis import (
     _smt_unsat_core_obligations,  # noqa: F401  — re-exported for tests/external callers.
 )
 from aeon.synthesis.tactics.explicit_synth import ExplicitTacticSynthesizer
+from aeon.synthesis.modules.tdsyn.helpers import base_type_of, get_return_type
 
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.resource_meters import measure_cputime, measure_energy
@@ -58,6 +59,24 @@ def make_program(whole_program: Term, hole_name: Name) -> Callable[[Term], Term]
         return substitution(whole_program, candidate, hole_name)
 
     return replace
+
+
+def _synthesis_dummy_literal(ty: Type) -> Term:
+    """Harmless placeholder body for the hole while building a probe environment.
+
+    Must match the hole's return type so fitness helpers that call the
+    synthesised function (e.g. ``@csv_data``) can be evaluated alongside
+    ``@example`` metadata without mixing types.
+    """
+    ret = get_return_type(ty)
+    base = base_type_of(ret)
+    if base == t_int:
+        return Literal(0, t_int)
+    if base == t_float:
+        return Literal(0.0, t_float)
+    if base == t_string:
+        return Literal("", t_string)
+    return Literal(0.0, t_float)
 
 
 def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Callable[[Term], bool]:
@@ -300,9 +319,7 @@ def _synthesize_one(
         # and blocks on the interactive prompt. The dummy body is irrelevant:
         # the sub-terms we probe are built from the DSL components and the
         # parameters, not from the function under synthesis.
-        from aeon.core.types import t_string as _t_string
-
-        _dummy_prog = replace(Literal("", _t_string))
+        _dummy_prog = replace(_synthesis_dummy_literal(ty))
         # Build the evaluation environment (all in-scope DSL bindings) ONCE,
         # rather than re-evaluating the whole def-chain for every probed
         # sub-term. Each binding is bound by evaluating it with its own name

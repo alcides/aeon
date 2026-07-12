@@ -71,3 +71,71 @@ def test_decision_tree_two_args():
     assert len(mapping) == 1
     result = list(mapping.values())[0]
     assert result is not None
+
+
+def test_decision_tree_single_example_int():
+    """A single @example decorator provides enough training data."""
+    source = """
+        @example(f 2 = 3)
+        def f (x : Int) : Int := ?hole
+    """
+    core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
+    incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
+    mapping = synthesize_holes(
+        ctx,
+        ectx,
+        core_ast_anf,
+        incomplete_functions,
+        metadata,
+        synthesizer=DecisionTreeSynthesizer(),
+        budget=5,
+    )
+    assert len(mapping) == 1
+    assert list(mapping.values())[0] is not None
+
+
+def test_decision_tree_multiple_examples():
+    """Multiple @example decorators merge into training data."""
+    source = """
+        @example(f 1.0 = 10.0)
+        @example(f 2.0 = 10.0)
+        @example(f 8.0 = 20.0)
+        @example(f 9.0 = 20.0)
+        def f (x : Float) : Float := ?hole
+    """
+    core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
+    incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
+    mapping = synthesize_holes(
+        ctx,
+        ectx,
+        core_ast_anf,
+        incomplete_functions,
+        metadata,
+        synthesizer=DecisionTreeSynthesizer(),
+        budget=5,
+    )
+    assert len(mapping) == 1
+    assert list(mapping.values())[0] is not None
+
+
+def test_decision_tree_example_with_csv_data():
+    """@example and @csv_data decorators can be combined."""
+    source = r"""
+        @csv_data("1.0,10.0\n2.0,10.0")
+        @example(f 8.0 = 20.0)
+        @example(f 9.0 = 20.0)
+        def f (x : Float) : Float := ?hole
+    """
+    core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
+    incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
+    mapping = synthesize_holes(
+        ctx,
+        ectx,
+        core_ast_anf,
+        incomplete_functions,
+        metadata,
+        synthesizer=DecisionTreeSynthesizer(),
+        budget=5,
+    )
+    assert len(mapping) == 1
+    assert list(mapping.values())[0] is not None
