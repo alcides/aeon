@@ -59,6 +59,11 @@ class ParseResult:
 _type_index_cache: "Dict[URI, object]" = {}
 _typing_ctx_cache: "Dict[URI, object]" = {}
 _core_cache: "Dict[URI, object]" = {}
+# Structured semantic errors from the most recent parse of each document. Unlike
+# the caches above these track the *current* parse (cleared on every reparse) so
+# the info view's error tab can present the live verification failures — their
+# counterexamples and the simplification chain of the failing VC.
+_errors_cache: "Dict[URI, list]" = {}
 
 
 def get_type_index(uri: URI):
@@ -74,6 +79,11 @@ def get_typing_ctx(uri: URI):
 def get_core(uri: URI):
     """The last successfully-generated core program for ``uri`` (or ``None``)."""
     return _core_cache.get(uri)
+
+
+def get_errors(uri: URI) -> list:
+    """The structured semantic errors (``AeonError``) of ``uri``'s last parse."""
+    return _errors_cache.get(uri, [])
 
 
 def _refresh_analysis(driver: AeonDriver, uri: URI) -> None:
@@ -115,6 +125,7 @@ def clear_cache(uri: URI) -> None:
     """
     logger.debug("Clearing cache for %s", uri)
     _parse_result_cache.pop(uri, None)
+    _errors_cache.pop(uri, None)
     logger.debug("DONE!")
 
 
@@ -157,10 +168,18 @@ async def _parse(
     uri: URI,
 ) -> ParseResult:
     diagnostics = []
+    # Reset structured errors for this parse; only a parse that returns semantic
+    # errors below repopulates them (a syntax error leaves this empty and the
+    # error is surfaced as a diagnostic instead).
+    _errors_cache[uri] = []
 
     try:
         content = fp.read()
-        errors = driver.parse(filename=uri, aeon_code=content)
+        errors = list(driver.parse(filename=uri, aeon_code=content))
+
+        # Keep the structured errors of this parse so the info view can render
+        # their counterexamples and the failing VC's simplification chain.
+        _errors_cache[uri] = errors
 
         # Refresh the type-aware analysis caches (kept even when `errors` is
         # non-empty, as long as the program reached core generation).
