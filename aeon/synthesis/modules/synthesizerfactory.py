@@ -9,7 +9,11 @@ from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
 from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
-from aeon.synthesis.modules.llm import LLMSynthesizer
+from aeon.synthesis.modules.llm import (
+    LLM_OLLAMA_MODELS,
+    LLMSynthesizer,
+    llm_synthesizer_label,
+)
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
@@ -25,18 +29,24 @@ from aeon.synthesis.tactics import TacticRandomSynthesizer
 class SynthesizerFamily(str, Enum):
     """High-level synthesis backend families shown grouped in the IDE."""
 
-    EXHAUSTIVE = "Exhaustive"
-    RANDOM = "Random"
-    EVOLUTIONARY = "Evolutionary"
-    LLM = "LLM"
+    TYPE_DIRECTED = "Type-directed"
+    EXAMPLE_DRIVEN = "Example-driven"
+    CONSTRAINT_SOLVING = "Constraint solving"
+    AUTOMATA = "Automata"
+    GRAMMAR_SEARCH = "Grammar search"
+    METAHEURISTIC = "Metaheuristic"
+    LLM_ASSISTED = "LLM-assisted"
 
 
 # Display order for synthesis families in tooling (info view, menus).
 SYNTHESIZER_FAMILY_ORDER: tuple[SynthesizerFamily, ...] = (
-    SynthesizerFamily.EXHAUSTIVE,
-    SynthesizerFamily.RANDOM,
-    SynthesizerFamily.EVOLUTIONARY,
-    SynthesizerFamily.LLM,
+    SynthesizerFamily.TYPE_DIRECTED,
+    SynthesizerFamily.EXAMPLE_DRIVEN,
+    SynthesizerFamily.CONSTRAINT_SOLVING,
+    SynthesizerFamily.AUTOMATA,
+    SynthesizerFamily.GRAMMAR_SEARCH,
+    SynthesizerFamily.METAHEURISTIC,
+    SynthesizerFamily.LLM_ASSISTED,
 )
 
 
@@ -44,73 +54,81 @@ SYNTHESIZER_FAMILY_ORDER: tuple[SynthesizerFamily, ...] = (
 # the VS Code "Synthesize" refactor menu. Keys are the internal ``-s`` ids
 # accepted by :func:`make_synthesizer`.
 SYNTHESIZER_LABELS: dict[str, str] = {
-    "gp": "Genetic Programming",
-    "enumerative": "Enumerative Search",
-    "random_search": "Random Search",
-    "1p1": "(1+1) Evolutionary Strategy",
-    "hc": "Hill Climbing",
-    "synquid": "Synquid (type-directed)",
-    "llm": "LLM-based (Ollama)",
-    "decision_tree": "Decision Tree (from examples)",
-    "smt": "SMT-guided (z3)",
-    "sygus": "SyGuS (SMT)",
-    "tdsyn": "Type-directed Synthesis",
-    "tdsyn_enumerative": "Type-directed Synthesis (enumerative)",
-    "tdsyn_random": "Type-directed Synthesis (random)",
-    "ng": "Nevergrad grammatical-evolution (NGOpt)",
-    "ng_cma": "Nevergrad grammatical-evolution (CMA-ES)",
-    "ng_de": "Nevergrad grammatical-evolution (Differential Evolution)",
-    "ng_pso": "Nevergrad grammatical-evolution (PSO)",
-    "ng_float": "Nevergrad joint Float-hole optimisation (NGOpt)",
-    "ng_float_cma": "Nevergrad joint Float-hole optimisation (CMA-ES)",
-    "ortools": "OR-Tools CP-SAT (exact/fixed-point numeric-hole optimisation)",
-    "tactics": "Tactic Search (Lean-style)",
-    "lta": "Liquid Tree Automata",
-    "symetric": "Metric Synthesis",
-    "fta": "Finite Tree Automata (FTA)",
-    "afta": "Abstraction-refinement FTA",
-    "cata": "Constraint-annotated Tree Automata",
-    "contata": "Constraint-annotated Tree Automata (version space, from examples)",
+    "tdsyn": "Type-directed synthesis (BFS)",
+    "tdsyn_enumerative": "Type-directed synthesis (BFS)",
+    "tdsyn_random": "Type-directed synthesis (random walk)",
+    "synquid": "Synquid enumeration (Q-guided)",
+    "tactics": "Tactic search (random)",
+    "decision_tree": "Decision tree regression (from examples)",
+    "contata": "Version-space synthesis (from I/O examples)",
+    "smt": "SMT model finding (Z3)",
+    "sygus": "SyGuS translation (CVC5)",
+    "ortools": "CP-SAT optimisation (OR-Tools)",
+    "ortools_int": "CP-SAT optimisation (OR-Tools)",
+    "cpsat": "CP-SAT optimisation (OR-Tools)",
+    "fta": "Finite tree automata (library compose)",
+    "afta": "Abstraction-refinement FTA (from examples)",
+    "cata": "Constraint tree automata (relational)",
+    "lta": "Liquid tree automata (refined compose)",
+    "symetric": "Metric-guided composition (diversity)",
+    "xfta": "Metric-guided composition (diversity)",
+    "enumerative": "Grammar enumeration (enumerative)",
+    "random_search": "Grammar enumeration (random)",
+    "gp": "Genetic programming (default)",
+    "hc": "Hill climbing",
+    "1p1": "(1+1) evolution strategy",
+    "ng": "Nevergrad · grammar (NGOpt)",
+    "genomic_ng": "Nevergrad · grammar (NGOpt)",
+    "ng_cma": "Nevergrad · grammar (CMA-ES)",
+    "ng_de": "Nevergrad · grammar (differential evolution)",
+    "ng_pso": "Nevergrad · grammar (PSO)",
+    "ng_float": "Nevergrad · float holes (NGOpt)",
+    "float_ng": "Nevergrad · float holes (NGOpt)",
+    "ng_float_cma": "Nevergrad · float holes (CMA-ES)",
+    **{sid: llm_synthesizer_label(sid) for sid in LLM_OLLAMA_MODELS},
 }
 
 
 SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
-    # Exhaustive — complete or constraint-directed search over a finite/decidable space.
-    "enumerative": SynthesizerFamily.EXHAUSTIVE,
-    "tdsyn": SynthesizerFamily.EXHAUSTIVE,
-    "tdsyn_enumerative": SynthesizerFamily.EXHAUSTIVE,
-    "synquid": SynthesizerFamily.EXHAUSTIVE,
-    "smt": SynthesizerFamily.EXHAUSTIVE,
-    "sygus": SynthesizerFamily.EXHAUSTIVE,
-    "decision_tree": SynthesizerFamily.EXHAUSTIVE,
-    "fta": SynthesizerFamily.EXHAUSTIVE,
-    "afta": SynthesizerFamily.EXHAUSTIVE,
-    "cata": SynthesizerFamily.EXHAUSTIVE,
-    "contata": SynthesizerFamily.EXHAUSTIVE,
-    "lta": SynthesizerFamily.EXHAUSTIVE,
-    "symetric": SynthesizerFamily.EXHAUSTIVE,
-    "xfta": SynthesizerFamily.EXHAUSTIVE,
-    "ortools": SynthesizerFamily.EXHAUSTIVE,
-    "ortools_int": SynthesizerFamily.EXHAUSTIVE,
-    "cpsat": SynthesizerFamily.EXHAUSTIVE,
-    # Random — stochastic sampling over the grammar/search space.
-    "random_search": SynthesizerFamily.RANDOM,
-    "tdsyn_random": SynthesizerFamily.RANDOM,
-    "tactics": SynthesizerFamily.RANDOM,
-    # Evolutionary — population- or trajectory-based metaheuristic search.
-    "gp": SynthesizerFamily.EVOLUTIONARY,
-    "hc": SynthesizerFamily.EVOLUTIONARY,
-    "1p1": SynthesizerFamily.EVOLUTIONARY,
-    "ng": SynthesizerFamily.EVOLUTIONARY,
-    "genomic_ng": SynthesizerFamily.EVOLUTIONARY,
-    "ng_cma": SynthesizerFamily.EVOLUTIONARY,
-    "ng_de": SynthesizerFamily.EVOLUTIONARY,
-    "ng_pso": SynthesizerFamily.EVOLUTIONARY,
-    "ng_float": SynthesizerFamily.EVOLUTIONARY,
-    "float_ng": SynthesizerFamily.EVOLUTIONARY,
-    "ng_float_cma": SynthesizerFamily.EVOLUTIONARY,
-    # LLM — large-language-model guided synthesis.
-    "llm": SynthesizerFamily.LLM,
+    # Type-directed — decompose the goal type and fill holes structurally.
+    "tdsyn": SynthesizerFamily.TYPE_DIRECTED,
+    "tdsyn_enumerative": SynthesizerFamily.TYPE_DIRECTED,
+    "tdsyn_random": SynthesizerFamily.TYPE_DIRECTED,
+    "synquid": SynthesizerFamily.TYPE_DIRECTED,
+    "tactics": SynthesizerFamily.TYPE_DIRECTED,
+    # Example-driven — learn from @example / @csv_data I/O.
+    "decision_tree": SynthesizerFamily.EXAMPLE_DRIVEN,
+    "contata": SynthesizerFamily.EXAMPLE_DRIVEN,
+    # Constraint solving — SMT / CP-SAT exact solvers.
+    "smt": SynthesizerFamily.CONSTRAINT_SOLVING,
+    "sygus": SynthesizerFamily.CONSTRAINT_SOLVING,
+    "ortools": SynthesizerFamily.CONSTRAINT_SOLVING,
+    "ortools_int": SynthesizerFamily.CONSTRAINT_SOLVING,
+    "cpsat": SynthesizerFamily.CONSTRAINT_SOLVING,
+    # Automata — compose library functions via tree automata.
+    "fta": SynthesizerFamily.AUTOMATA,
+    "afta": SynthesizerFamily.AUTOMATA,
+    "cata": SynthesizerFamily.AUTOMATA,
+    "lta": SynthesizerFamily.AUTOMATA,
+    "symetric": SynthesizerFamily.AUTOMATA,
+    "xfta": SynthesizerFamily.AUTOMATA,
+    # Grammar search — sample or enumerate syntax trees from a grammar.
+    "enumerative": SynthesizerFamily.GRAMMAR_SEARCH,
+    "random_search": SynthesizerFamily.GRAMMAR_SEARCH,
+    # Metaheuristic — improve candidates with a fitness landscape.
+    "gp": SynthesizerFamily.METAHEURISTIC,
+    "hc": SynthesizerFamily.METAHEURISTIC,
+    "1p1": SynthesizerFamily.METAHEURISTIC,
+    "ng": SynthesizerFamily.METAHEURISTIC,
+    "genomic_ng": SynthesizerFamily.METAHEURISTIC,
+    "ng_cma": SynthesizerFamily.METAHEURISTIC,
+    "ng_de": SynthesizerFamily.METAHEURISTIC,
+    "ng_pso": SynthesizerFamily.METAHEURISTIC,
+    "ng_float": SynthesizerFamily.METAHEURISTIC,
+    "float_ng": SynthesizerFamily.METAHEURISTIC,
+    "ng_float_cma": SynthesizerFamily.METAHEURISTIC,
+    # LLM-assisted — generate candidates from natural language.
+    **dict.fromkeys(LLM_OLLAMA_MODELS, SynthesizerFamily.LLM_ASSISTED),
 }
 
 
@@ -122,7 +140,7 @@ def synthesizer_label(module: str) -> str:
 
 def synthesizer_family(module: str) -> SynthesizerFamily:
     """The high-level family of synthesizer id ``module``."""
-    return SYNTHESIZER_FAMILIES.get(module, SynthesizerFamily.RANDOM)
+    return SYNTHESIZER_FAMILIES.get(module, SynthesizerFamily.GRAMMAR_SEARCH)
 
 
 def synthesizer_family_label(module: str) -> str:
@@ -131,8 +149,7 @@ def synthesizer_family_label(module: str) -> str:
 
 
 def sort_synthesizer_ids(ids: list[str]) -> list[str]:
-    """Order synthesizer ids by family (Exhaustive → Random → Evolutionary → LLM)
-    then by display label within each family."""
+    """Order synthesizer ids by family then by display label within each family."""
     family_rank = {fam: i for i, fam in enumerate(SYNTHESIZER_FAMILY_ORDER)}
 
     def key(module: str) -> tuple[int, str]:
@@ -173,8 +190,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return CPSatHoleSynthesizer(seed=seed)
         case "synquid":
             return SynquidSynthesizer()
-        case "llm":
-            return LLMSynthesizer()
+        case id if id in LLM_OLLAMA_MODELS:
+            return LLMSynthesizer(model=LLM_OLLAMA_MODELS[id])
         case "decision_tree":
             return DecisionTreeSynthesizer()
         case "smt":

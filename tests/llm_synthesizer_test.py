@@ -16,7 +16,7 @@ import aeon.synthesis.modules.llm as llm
 from aeon.core.terms import Literal
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
-from aeon.synthesis.modules.llm import LLMSynthesizer
+from aeon.synthesis.modules.llm import LLMSynthesizer, LLM_OLLAMA_MODELS
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 
 from tests.driver import check_and_return_core
@@ -24,6 +24,8 @@ from tests.driver import check_and_return_core
 
 def _mock_generate(monkeypatch, responses):
     """Patch ``ollama.generate`` to yield ``responses`` in order, counting calls."""
+    monkeypatch.setattr(llm, "prepare_ollama_model", lambda _model: None)
+    monkeypatch.setattr(llm, "release_ollama_model", lambda _model: None)
     it = iter(responses)
     calls = {"n": 0}
 
@@ -44,6 +46,13 @@ def _solve(code: str, budget: float = 5.0):
 
 def test_factory_registers_llm():
     assert isinstance(make_synthesizer("llm"), LLMSynthesizer)
+    assert make_synthesizer("llm").model == LLM_OLLAMA_MODELS["llm"]
+
+
+def test_factory_registers_per_model_llm_backends():
+    syn = make_synthesizer("llm_qwen2.5-coder-14b")
+    assert isinstance(syn, LLMSynthesizer)
+    assert syn.model == "qwen2.5-coder:14b"
 
 
 def test_synthesizes_mocked_candidate(monkeypatch):

@@ -213,6 +213,8 @@ def test_synthesizers_includes_defaults():
     assert "tdsyn" in SYNTHESIZERS
     assert "gp" in SYNTHESIZERS
     assert "enumerative" in SYNTHESIZERS
+    assert "llm_qwen2.5-coder-32b" in SYNTHESIZERS
+    assert "llm" not in SYNTHESIZERS
 
 
 # ---------------------------------------------------------------------------
@@ -349,7 +351,9 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
     mock_ls = MockLS(source)
     driver = make_driver()
 
-    if synthesizer == "llm":
+    if synthesizer.startswith("llm"):
+        monkeypatch.setattr("aeon.synthesis.modules.llm.prepare_ollama_model", lambda _model: None)
+        monkeypatch.setattr("aeon.synthesis.modules.llm.release_ollama_model", lambda _model: None)
         monkeypatch.setattr("ollama.generate", lambda **kwargs: _FakeOllamaResponse())
         result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
         # With a blank response the LLM synthesizer cannot find a valid term;
