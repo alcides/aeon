@@ -43,9 +43,20 @@ def _numeric_literal(value: float, ty: Type) -> Term:
     return Literal(float(value), t_float)
 
 
-def _comparison_type(ty: Type) -> Type:
-    """Return Int or Float for a polymorphic comparison at parameter ``ty``."""
-    return t_int if base_type_of(ty) == t_int else t_float
+def _comparison_operand(arg_name: Name, arg_ty: Type) -> Term:
+    """Build the left-hand side of a tree split comparison."""
+    if base_type_of(arg_ty) == t_int:
+        return Application(Var(Name("toFloat", 0)), Var(arg_name))
+    return Var(arg_name)
+
+
+def _split_condition(arg_name: Name, arg_ty: Type, threshold: float) -> Term:
+    """``<=`` comparison preserving sklearn's floating-point split threshold."""
+    le_typed = TypeApplication(Var(Name("<=", 0)), t_float)
+    return Application(
+        Application(le_typed, _comparison_operand(arg_name, arg_ty)),
+        Literal(threshold, t_float),
+    )
 
 
 def _tree_to_term(
@@ -67,14 +78,8 @@ def _tree_to_term(
 
         feat_idx = feature[node_id]
         thresh = float(threshold[node_id])
-        arg_ty = arg_types[feat_idx]
-        cmp_ty = _comparison_type(arg_ty)
 
-        le_typed = TypeApplication(Var(Name("<=", 0)), cmp_ty)
-        cond = Application(
-            Application(le_typed, Var(arg_names[feat_idx])),
-            _numeric_literal(thresh, arg_ty),
-        )
+        cond = _split_condition(arg_names[feat_idx], arg_types[feat_idx], thresh)
         then_branch = build(tree_.children_left[node_id])
         else_branch = build(tree_.children_right[node_id])
         return If(cond, then_branch, else_branch)

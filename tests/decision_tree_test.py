@@ -94,6 +94,43 @@ def test_decision_tree_single_example_int():
     assert list(mapping.values())[0] is not None
 
 
+def test_decision_tree_int_threshold_uses_float_split():
+    """Int feature splits compare ``toFloat n <= thresh`` to match sklearn thresholds."""
+    source = """
+        @example(double 3 = 6)
+        @example(double 4 = 8)
+        def double (n : Int) : Int := ?hole
+    """
+    core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
+    incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
+    mapping = synthesize_holes(
+        ctx,
+        ectx,
+        core_ast_anf,
+        incomplete_functions,
+        metadata,
+        synthesizer=DecisionTreeSynthesizer(),
+        budget=5,
+    )
+    assert len(mapping) == 1
+    term = list(mapping.values())[0]
+    assert term is not None
+
+    from aeon.core.substitutions import substitution
+    from aeon.facade.driver import AeonConfig, AeonDriver
+    from aeon.synthesis.pbt import run_examples
+    from aeon.synthesis.uis.api import SynthesisUI
+
+    hole_name = incomplete_functions[0][1][0]
+    core_filled = substitution(core_ast_anf, term, hole_name)
+    driver = AeonDriver(AeonConfig(synthesizer="decision_tree", synthesis_ui=SynthesisUI(), synthesis_budget=5))
+    driver.core = core_filled
+    driver.evaluation_ctx = ectx
+    driver.metadata = metadata
+    results = run_examples(driver.evaluation_ctx, driver.core, driver.metadata)
+    assert all(r.passed for r in results), [r.summary() for r in results]
+
+
 def test_decision_tree_multiple_examples():
     """Multiple @example decorators merge into training data."""
     source = """
