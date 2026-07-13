@@ -100,15 +100,27 @@ def test_translation_emits_sygus_if():
     assert "(declare-var" in text
 
 
-def test_translation_rejects_non_refined_type():
-    """A plain (unrefined) type has no spec and is not handled here."""
+def test_translation_accepts_bare_smt_type():
+    """Plain Int/Bool/Float holes are treated as ``{v:T | true}``."""
     src = "def n : Int := ?hole"
     core, ctx, _, _ = check_and_return_core(src)
     targets = incomplete_functions_and_holes(ctx, core)
     holes = get_holes_info(ctx, core, top, targets, refined_types=True)
     (fn, hs) = targets[0]
     ty, tyctx = holes[hs[0]]
-    assert build_sygus_problem(tyctx, ty, fun_name=fn.name) is None
+    problem = build_sygus_problem(tyctx, ty, fun_name=fn.name)
+    assert problem is not None
+    assert problem.ret_sort == "Int"
+    text = problem_to_sl(problem)
+    assert "(constraint true)" in text
+    assert "(check-synth)" in text
+
+
+def test_bare_int_synthesis():
+    """A plain ``Int`` hole should synthesize some well-typed integer."""
+    _, _, mapping = _synthesize("def n : Int := ?hole;")
+    (term,) = mapping.values()
+    assert term is not None
 
 
 # ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@ from aeon.utils.name import Name
 
 
 class SygusSynthesizer(Synthesizer):
-    """Synthesize refined-base-type holes by reduction to SyGuS, solved by cvc5."""
+    """Synthesize base-type holes (Int/Bool/Float) by reduction to SyGuS, solved by cvc5."""
 
     def synthesize(
         self,
@@ -50,7 +50,7 @@ class SygusSynthesizer(Synthesizer):
         if problem is None:
             raise SynthesisNotSuccessful(
                 f"SygusSynthesizer: hole of type {type} is outside the SyGuS-supported subset "
-                "(needs a refined Int/Bool/Float type over native operators).",
+                "(needs an Int/Bool/Float type, optionally refined, over native operators).",
             )
 
         logger.log("SYNTHESIZER", f"SyGuS problem:\n{problem_to_sl(problem)}")
