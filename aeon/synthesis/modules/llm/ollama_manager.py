@@ -50,12 +50,24 @@ class RunningModel:
     size_vram: int
 
 
+def _ollama_model_tag(entry) -> str | None:
+    """Resolve a model tag from an Ollama ``list``/``ps`` response entry.
+
+    Current ollama-python exposes ``model``; older responses also carried ``name``.
+    """
+    for attr in ("model", "name"):
+        value = getattr(entry, attr, None)
+        if value:
+            return str(value)
+    return None
+
+
 def _installed_model_names() -> set[str]:
     names: set[str] = set()
     for entry in ollama.list().models:
-        names.add(entry.model)
-        if entry.name:
-            names.add(entry.name)
+        tag = _ollama_model_tag(entry)
+        if tag:
+            names.add(tag)
     return names
 
 
@@ -76,7 +88,7 @@ def _running_models() -> list[RunningModel]:
         return []
     running: list[RunningModel] = []
     for entry in response.models:
-        name = entry.model or entry.name
+        name = _ollama_model_tag(entry)
         if not name:
             continue
         running.append(RunningModel(name=name, size_vram=int(getattr(entry, "size_vram", 0) or 0)))

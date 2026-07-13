@@ -98,3 +98,16 @@ def test_release_noop_when_disabled(monkeypatch):
         lambda _model: (_ for _ in ()).throw(AssertionError("should not unload")),
     )
     mgr.release_ollama_model("qwen2.5-coder:14b")
+
+
+def test_installed_model_names_when_name_attr_missing(monkeypatch):
+    """ollama-python list entries expose ``model`` but not ``name``."""
+    entry = types.SimpleNamespace(model="qwen2.5-coder:14b")
+    monkeypatch.setattr(mgr.ollama, "list", lambda: types.SimpleNamespace(models=[entry]))
+    assert mgr.is_model_installed("qwen2.5-coder:14b")
+
+
+def test_running_models_when_name_attr_missing(monkeypatch):
+    entry = types.SimpleNamespace(model="codellama:13b", size_vram=8 * 1024**3)
+    monkeypatch.setattr(mgr.ollama, "ps", lambda: types.SimpleNamespace(models=[entry]))
+    assert mgr._running_models() == [mgr.RunningModel(name="codellama:13b", size_vram=8 * 1024**3)]
