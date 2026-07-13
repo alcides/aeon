@@ -516,19 +516,42 @@ def _run_synthesis(
     from aeon.synthesis.entrypoint import synthesize_holes
     from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
     from aeon.lsp.synthesis_ui import LSPProgressUI
+    from aeon.lsp.z3_errors import z3_synthesis_message
     from aeon.sugar.lifting import lift
     from aeon.utils.pprint import pretty_print_sterm
+    from z3.z3types import Z3Exception
 
     document = ls.workspace.get_text_document(uri)
     source = document.source
 
     try:
         errors = list(driver.parse(filename=uri, aeon_code=source))
+    except Z3Exception as e:
+        if aeon_adapter.restore_driver_from_cache(driver, uri):
+            ls.window_show_message(
+                ShowMessageParams(
+                    type=MessageType.Warning,
+                    message=(f"{z3_synthesis_message(e)}; synthesizing from the last successful parse of this file"),
+                )
+            )
+            errors = []
+        else:
+            ls.window_show_message(
+                ShowMessageParams(
+                    type=MessageType.Error,
+                    message=f"Cannot synthesize: {z3_synthesis_message(e)}",
+                )
+            )
+            return None
     except Exception as e:
         ls.window_show_message(
             ShowMessageParams(type=MessageType.Error, message=f"Cannot synthesize: parse failed ({e})")
         )
         return None
+
+    if not errors:
+        aeon_adapter.cache_driver_analysis(driver, uri)
+
     if errors:
         ls.window_show_message(
             ShowMessageParams(type=MessageType.Error, message=f"Cannot synthesize: file has {len(errors)} error(s)")
