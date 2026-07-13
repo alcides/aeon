@@ -82,7 +82,7 @@ def synthesize_pbe(
     inputs: list[list] = [inp for (inp, _out) in io_examples]
     n = len(io_examples)
 
-    builders, atoms = synth._collect(ctx)
+    builders, atoms = synth._collect(ctx, synth._inst_types(type), fun_name)
     goal_key = base_key(type)
     int_key = base_key(t_int)
 

@@ -60,11 +60,12 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
-from aeon.core.terms import Literal, Term, Var
+from aeon.core.terms import Literal, Term, TypeApplication, Var
 from aeon.core.types import (
     AbstractionType,
     RefinedType,
     Type,
+    TypeConstructor,
     TypePolymorphism,
     t_int,
 )
@@ -133,29 +134,60 @@ class AFTASynthesizer(Synthesizer):
         # caps it defensively against pathological refinements.
         self.max_refine = max_refine
 
-    # -- components (identical alphabet to the concrete FTA) -------------------
+    # -- components (same alphabet policy as the concrete FTA) -----------------
 
-    def _collect(self, ctx: TypingContext) -> tuple[dict[str, list[Component]], dict[str, list[Var]]]:
+    @staticmethod
+    def _inst_types(goal: Type) -> set[TypeConstructor]:
+        """Types at which polymorphic operators are monomorphised -- the goal's
+        base result type plus ``Int`` (for indices/literals)."""
+        inst: set[TypeConstructor] = {t_int}
+        ret = _peel(goal)[1]
+        if isinstance(ret, TypeConstructor):
+            inst.add(ret)
+        return inst
+
+    def _collect(
+        self, ctx: TypingContext, inst_types: set[TypeConstructor], fun_name: Name
+    ) -> tuple[dict[str, list[Component]], dict[str, list[Var]]]:
         """Index the in-scope bindings as builders (the automaton's ranked
-        alphabet) and atoms (nullary leaves) -- the same component collection
-        the concrete FTA uses."""
+        alphabet) and atoms (nullary leaves). Polymorphic operators (``+``,
+        ``*``, … : ``∀a. a -> a -> a``) are monomorphised at ``inst_types`` so
+        the search can build expressions over them, matching ``fta``."""
+        from aeon.synthesis.grammar.grammar_generation import monomorphize_poly_type
+
+        skip_names = {fun_name.name, "native", "native_import", "print"}
         builders: dict[str, list[Component]] = {}
         atoms: dict[str, list[Var]] = {}
-        for name, ty in ctx.concrete_vars():
-            if isinstance(ty, TypePolymorphism):
-                continue
-            arg_types, ret = _peel(ty)
+
+        def consider(name: Name, arg_types: list[Type], ret: Type, tapps: tuple[Type, ...]) -> None:
             if any(isinstance(a, (AbstractionType, TypePolymorphism)) for a in arg_types):
-                continue
+                return  # no higher-order arguments
             if isinstance(ret, (AbstractionType, TypePolymorphism)):
-                continue
+                return
             ret_key = base_key(ret)
             if arg_types:
-                comp = Component(name, tuple(base_key(a) for a in arg_types), ret_key)
+                comp = Component(name, tuple(base_key(a) for a in arg_types), ret_key, tuple(tapps))
                 builders.setdefault(ret_key, []).append(comp)
-            else:
+            elif not tapps:
                 atoms.setdefault(ret_key, []).append(Var(name))
+
+        for name, ty in ctx.concrete_vars():
+            if name.name in skip_names:
+                continue
+            if isinstance(ty, TypePolymorphism):
+                for body, type_apps in monomorphize_poly_type(ty, inst_types):
+                    arg_types, ret = _peel(body)
+                    consider(name, arg_types, ret, tuple(type_apps))
+            else:
+                arg_types, ret = _peel(ty)
+                consider(name, arg_types, ret, ())
         return builders, atoms
+
+    def _head(self, comp: Component) -> Term:
+        term: Term = Var(comp.name)
+        for ta in comp.type_args:
+            term = TypeApplication(term, ta)
+        return term
 
     def _combos(self, comp: Component, bank: dict[str, list[Term]], deadline: float, rnd: random.Random) -> list[Term]:
         """Transitions ``comp(q1, ..., qk) -> q``: applications of ``comp`` whose
@@ -166,7 +198,7 @@ class AFTASynthesizer(Synthesizer):
             deadline,
             rnd,
             self.combo_cap,
-            lambda c, choice: application(Var(c.name), choice),
+            lambda c, choice: application(self._head(c), choice),
         )
 
     # -- entry point ----------------------------------------------------------
@@ -197,7 +229,7 @@ class AFTASynthesizer(Synthesizer):
         if has_io_examples(metadata, fun_name):
             return synthesize_pbe(self, ctx, type, fun_name, metadata, deadline, start, ui, validate)
 
-        builders, atoms = self._collect(ctx)
+        builders, atoms = self._collect(ctx, self._inst_types(type), fun_name)
         goal_key = base_key(type)
         int_key = base_key(t_int)
 

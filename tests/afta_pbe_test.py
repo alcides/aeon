@@ -63,6 +63,17 @@ def test_pbe_identity(tmp_path):
     assert "def g" in out, out[-2000:]
 
 
+def test_pbe_double_int(tmp_path):
+    """Integer PBE over polymorphic arithmetic: double an input."""
+    out = _run_pbe(
+        "@example(double 3 = 6)\n@example(double 4 = 8)\ndef double (n: Int) : Int := (?hole : Int);\n",
+        tmp_path,
+        budget=15,
+    )
+    assert "def double" in out, out[-2000:]
+    assert "n + n" in out or "n * 2" in out or "* 2" in out or "+ n" in out, out[-2000:]
+
+
 def test_pbe_uppercase(tmp_path):
     """A single-component transformation: upper-case the input."""
     out = _run_pbe(
