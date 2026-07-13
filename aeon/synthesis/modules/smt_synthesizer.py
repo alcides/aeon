@@ -1,15 +1,14 @@
 """SMT-guided synthesizer.
 
 Builds expression trees top-down:
-- Non-SMT types: look for constructors/functions in the context, recurse into their arguments.
-- SMT types (Int, Bool, Float): create a z3 placeholder variable and add any refinement
-  constraints to the solver.
+- Looks in the typing context for variables and applications that produce the goal type.
+- Falls back to Z3 placeholder variables for bare SMT literals (Int/Bool/Float) when
+  refinements demand a concrete constant.
+- ``@example`` I/O pairs (``io_examples`` metadata) become hard Z3 constraints on the
+  synthesized term at each example's inputs.
 
 After the tree is built, solve the z3 constraints and replace placeholders with concrete
 literal values, then validate the result.
-
-The synthesizer loops until the time budget is exhausted, shuffling the context variable
-ordering on each attempt to explore different term structures.
 """
 
 from __future__ import annotations
@@ -32,6 +31,7 @@ from aeon.core.liquid import (
 )
 from aeon.core.substitutions import substitute_vartype
 from aeon.core.terms import Application, Literal, Term, TypeApplication, Var
+from aeon.core.types import t_string
 from aeon.core.types import (
     AbstractionType,
     LiquidHornApplication,
@@ -97,6 +97,138 @@ def _get_params(ty: Type) -> list[tuple[Name, Type]]:
         params.append((current.var_name, current.var_type))
         current = current.type
     return params
+
+
+def _app_spine(term: Term) -> tuple[Term, list[Term]]:
+    """Flatten a curried ``Application`` chain into ``(head, args)``."""
+    args: list[Term] = []
+    current: Term = term
+    while isinstance(current, Application):
+        args.append(current.arg)
+        current = current.fun
+    args.reverse()
+    return current, args
+
+
+def _literal_to_z3(term: Literal) -> object | None:
+    base = _base_type(term.type)
+    value = term.value
+    if base == t_int and isinstance(value, int) and not isinstance(value, bool):
+        return z3.IntVal(value)
+    if base == t_bool and isinstance(value, bool):
+        return z3.BoolVal(value)
+    if base == t_float and isinstance(value, (int, float)) and not isinstance(value, bool):
+        return z3.RealVal(float(value))
+    if base == t_string and isinstance(value, str):
+        return z3.StringVal(value)
+    return None
+
+
+def _python_to_z3(value: object) -> object | None:
+    if isinstance(value, bool):
+        return z3.BoolVal(value)
+    if isinstance(value, int):
+        return z3.IntVal(value)
+    if isinstance(value, float):
+        return z3.RealVal(value)
+    if isinstance(value, str):
+        return z3.StringVal(value)
+    return None
+
+
+def _term_to_z3(
+    term: Term,
+    holes: dict[Name, tuple[object, TypeConstructor]],
+    ctx_z3_vars: dict[str, object],
+    uninterp_ctx: dict[str, object],
+) -> object | None:
+    """Translate a synthesized core term to a Z3 expression."""
+    if isinstance(term, TypeApplication):
+        return _term_to_z3(term.body, holes, ctx_z3_vars, uninterp_ctx)
+    if isinstance(term, Literal):
+        return _literal_to_z3(term)
+    if isinstance(term, Var):
+        if term.name in holes:
+            return holes[term.name][0]
+        key = str(term.name)
+        if key in ctx_z3_vars:
+            return ctx_z3_vars[key]
+        fun = base_functions.get(term.name.name)
+        if fun is not None:
+            return fun
+        return uninterp_ctx.get(key)
+    if isinstance(term, Application):
+        head, args = _app_spine(term)
+        fn = _term_to_z3(head, holes, ctx_z3_vars, uninterp_ctx)
+        if fn is None:
+            return None
+        z3_args = [_term_to_z3(arg, holes, ctx_z3_vars, uninterp_ctx) for arg in args]
+        if any(arg is None for arg in z3_args):
+            return None
+        try:
+            if callable(fn) and not isinstance(fn, z3.FuncDeclRef):
+                return fn(*z3_args)
+            if isinstance(fn, z3.FuncDeclRef):
+                return fn(*z3_args)
+        except Exception:
+            return None
+    return None
+
+
+def _add_refinement_constraint(
+    solver: z3.Solver,
+    target_type: Type,
+    term: Term,
+    holes: dict[Name, tuple[object, TypeConstructor]],
+    ctx_z3_vars: dict[str, object],
+    uninterp_ctx: dict[str, object],
+) -> bool:
+    if not isinstance(target_type, RefinedType):
+        return True
+    expr = _term_to_z3(term, holes, ctx_z3_vars, uninterp_ctx)
+    if expr is None:
+        return False
+    binder_str = str(target_type.name)
+    all_vars = {**ctx_z3_vars, binder_str: expr}
+    constraint = _translate_liq(target_type.refinement, all_vars, uninterp_ctx)
+    if constraint is not None and not isinstance(constraint, bool):
+        solver.add(constraint)
+    return True
+
+
+def _add_io_example_constraints(
+    solver: z3.Solver,
+    term: Term,
+    holes: dict[Name, tuple[object, TypeConstructor]],
+    ctx_z3_vars: dict[str, object],
+    uninterp_ctx: dict[str, object],
+    io_examples: list[tuple[list, object]],
+    io_params: list[Name],
+) -> bool:
+    """Add ``@example`` I/O equalities as hard Z3 constraints on the candidate term."""
+    if not io_examples or not io_params:
+        return True
+    expr = _term_to_z3(term, holes, ctx_z3_vars, uninterp_ctx)
+    if expr is None:
+        return False
+    for inputs, output in io_examples:
+        if len(inputs) != len(io_params):
+            return False
+        pairs: list[tuple[object, object]] = []
+        for param, value in zip(io_params, inputs):
+            key = str(param)
+            if key not in ctx_z3_vars:
+                return False
+            concrete = _python_to_z3(value)
+            if concrete is None:
+                return False
+            pairs.append((ctx_z3_vars[key], concrete))
+        at_inputs = z3.substitute(expr, pairs)
+        expected = _python_to_z3(output)
+        if expected is None:
+            return False
+        solver.add(at_inputs == expected)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +405,9 @@ class SMTSynthesizer(Synthesizer):
                         ctx_constraints.append(constraint)
 
         has_goals = bool(current_meta.get("goals"))
+        io_examples: list[tuple[list, object]] = current_meta.get("io_examples", [])
+        io_params: list[Name] = current_meta.get("io_params", [])
+        has_io_examples = bool(io_examples and io_params)
         rng = random.Random(42)
         best_score: list[float] = []
         best_term: Term | None = None
@@ -305,6 +440,12 @@ class SMTSynthesizer(Synthesizer):
             if term is None:
                 continue
 
+            if not _add_refinement_constraint(solver, type, term, holes, ctx_z3_vars, uninterp_ctx):
+                continue
+
+            if not _add_io_example_constraints(solver, term, holes, ctx_z3_vars, uninterp_ctx, io_examples, io_params):
+                continue
+
             result = solver.check()
             if result != z3.sat:
                 continue
@@ -319,6 +460,12 @@ class SMTSynthesizer(Synthesizer):
             except Exception:
                 ui.register(concrete_term, "Invalid", time.time() - start_time, False)
                 continue
+
+            # @example I/O constraints are already discharged in Z3 — return the
+            # first type-valid candidate without a multiprocessing fitness round-trip.
+            if has_io_examples:
+                ui.register(concrete_term, [], time.time() - start_time, True)
+                return concrete_term
 
             # No optimization goals — return immediately
             if not has_goals:
@@ -359,22 +506,53 @@ class SMTSynthesizer(Synthesizer):
 
         base = _base_type(target_type)
 
-        if _is_smt_base(base):
+        if _is_smt_base(base) and isinstance(target_type, RefinedType):
             assert isinstance(base, TypeConstructor)
-            # Create a fresh z3 hole
             hole_name = Name(f"__smt_hole_{fresh_counter.fresh()}", 0)
             z3_var = make_variable(str(hole_name), base)
             holes[hole_name] = (z3_var, base)
-
-            # Add refinement constraint
-            if isinstance(target_type, RefinedType):
-                binder_str = str(target_type.name)
-                all_vars = {**ctx_z3_vars, binder_str: z3_var}
-                constraint = _translate_liq(target_type.refinement, all_vars, uninterp_ctx)
-                if constraint is not None and not isinstance(constraint, bool):
-                    solver.add(constraint)
-
             return Var(hole_name)
+
+        built = self._build_from_context(
+            ctx=ctx,
+            target_type=target_type,
+            fun_name=fun_name,
+            solver=solver,
+            holes=holes,
+            ctx_z3_vars=ctx_z3_vars,
+            uninterp_ctx=uninterp_ctx,
+            depth=depth,
+            rng=rng,
+            base=base,
+        )
+        if built is not None:
+            return built
+
+        if _is_smt_base(base):
+            assert isinstance(base, TypeConstructor)
+            # Fallback: a fresh Z3 placeholder for a bare SMT literal.
+            hole_name = Name(f"__smt_hole_{fresh_counter.fresh()}", 0)
+            z3_var = make_variable(str(hole_name), base)
+            holes[hole_name] = (z3_var, base)
+            return Var(hole_name)
+
+        return None
+
+    def _build_from_context(
+        self,
+        ctx: TypingContext,
+        target_type: Type,
+        fun_name: Name,
+        solver: z3.Solver,
+        holes: dict[Name, tuple[object, TypeConstructor]],
+        ctx_z3_vars: dict[str, object],
+        uninterp_ctx: dict[str, object],
+        depth: int,
+        rng: random.Random | None,
+        base: Type,
+    ) -> Term | None:
+        if depth > self.max_depth:
+            return None
 
         # Non-SMT: find a function in ctx whose return base type matches
         if not isinstance(base, TypeConstructor):
@@ -387,68 +565,72 @@ class SMTSynthesizer(Synthesizer):
         if rng is not None:
             rng.shuffle(ctx_vars)
 
-        for var_name, var_ty in ctx_vars:
-            # Skip the function being synthesized (no self-recursion)
-            if var_name == fun_name:
-                continue
-            # Skip system names (fitness helpers are shadowed to Unit upstream)
-            if var_name.name in _SYSTEM_NAMES:
-                continue
-            # Try to instantiate polymorphic functions
-            effective_ty: Type = var_ty
-            type_apps: list[Type] = []
-            if isinstance(var_ty, TypePolymorphism):
-                result = _try_instantiate_poly(var_ty, base)
-                if result is None:
+        for applications_first in ((depth == 0), (depth > 0)):
+            for var_name, var_ty in ctx_vars:
+                # Skip the function being synthesized (no self-recursion)
+                if var_name == fun_name:
                     continue
-                effective_ty, type_apps = result
+                # Skip system names (fitness helpers are shadowed to Unit upstream)
+                if var_name.name in _SYSTEM_NAMES:
+                    continue
+                # Try to instantiate polymorphic functions
+                effective_ty: Type = var_ty
+                type_apps: list[Type] = []
+                if isinstance(var_ty, TypePolymorphism):
+                    result = _try_instantiate_poly(var_ty, base)
+                    if result is None:
+                        continue
+                    effective_ty, type_apps = result
 
-            # Skip non-functions (plain values of non-SMT type could be vars)
-            if not isinstance(effective_ty, AbstractionType):
-                # A plain variable (non-function) whose base type matches
-                plain_base = _base_type(effective_ty)
-                if isinstance(plain_base, TypeConstructor) and plain_base == base:
-                    head: Term = Var(var_name)
+                is_function = isinstance(effective_ty, AbstractionType)
+                if applications_first != is_function:
+                    continue
+
+                if not is_function:
+                    # A plain variable whose base type matches
+                    plain_base = _base_type(effective_ty)
+                    if isinstance(plain_base, TypeConstructor) and plain_base == base:
+                        head: Term = Var(var_name)
+                        for ta in type_apps:
+                            head = TypeApplication(head, ta)
+                        return head
+                    continue
+
+                ret_base = _return_base_type(effective_ty)
+                if not isinstance(ret_base, TypeConstructor):
+                    continue
+                if ret_base != base:
+                    continue
+
+                # This function can produce the needed type — try to build args
+                params = _get_params(effective_ty)
+                args: list[Term] = []
+                success = True
+
+                for _param_name, param_type in params:
+                    arg = self._build_term(
+                        ctx=ctx,
+                        target_type=param_type,
+                        fun_name=fun_name,
+                        solver=solver,
+                        holes=holes,
+                        ctx_z3_vars=ctx_z3_vars,
+                        uninterp_ctx=uninterp_ctx,
+                        depth=depth + 1,
+                        rng=rng,
+                    )
+                    if arg is None:
+                        success = False
+                        break
+                    args.append(arg)
+
+                if success:
+                    result_term: Term = Var(var_name)
                     for ta in type_apps:
-                        head = TypeApplication(head, ta)
-                    return head
-                continue
-
-            ret_base = _return_base_type(effective_ty)
-            if not isinstance(ret_base, TypeConstructor):
-                continue
-            if ret_base != base:
-                continue
-
-            # This function can produce the needed type — try to build args
-            params = _get_params(effective_ty)
-            args: list[Term] = []
-            success = True
-
-            for _param_name, param_type in params:
-                arg = self._build_term(
-                    ctx=ctx,
-                    target_type=param_type,
-                    fun_name=fun_name,
-                    solver=solver,
-                    holes=holes,
-                    ctx_z3_vars=ctx_z3_vars,
-                    uninterp_ctx=uninterp_ctx,
-                    depth=depth + 1,
-                    rng=rng,
-                )
-                if arg is None:
-                    success = False
-                    break
-                args.append(arg)
-
-            if success:
-                result_term: Term = Var(var_name)
-                for ta in type_apps:
-                    result_term = TypeApplication(result_term, ta)
-                for arg in args:
-                    result_term = Application(result_term, arg)
-                return result_term
+                        result_term = TypeApplication(result_term, ta)
+                    for arg in args:
+                        result_term = Application(result_term, arg)
+                    return result_term
 
         return None
 

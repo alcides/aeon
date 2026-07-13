@@ -19,15 +19,22 @@ import logging
 import re
 import urllib.parse
 from dataclasses import dataclass, field
-from typing import Dict, List, TextIO
+from typing import Dict, List, TextIO, cast
 
 import requests
 from lark.exceptions import UnexpectedToken
 from lsprotocol.types import Diagnostic, DiagnosticSeverity
 from lsprotocol.types import Position, Range
 
+from z3.z3types import Z3Exception
+
 from aeon.facade.driver import AeonDriver
+from aeon.backend.evaluator import EvaluationContext
+from aeon.core.terms import Term
+from aeon.decorators.api import Metadata
 from aeon.lsp.server import AeonLanguageServer, _loc_to_range
+from aeon.lsp.z3_errors import z3_diagnostic_message
+from aeon.typechecking.context import TypingContext
 
 requests_session = requests.Session()
 
@@ -59,6 +66,9 @@ class ParseResult:
 _type_index_cache: "Dict[URI, object]" = {}
 _typing_ctx_cache: "Dict[URI, object]" = {}
 _core_cache: "Dict[URI, object]" = {}
+_metadata_cache: "Dict[URI, object]" = {}
+_evaluation_ctx_cache: "Dict[URI, object]" = {}
+_constructor_names_cache: "Dict[URI, object]" = {}
 # Structured semantic errors from the most recent parse of each document. Unlike
 # the caches above these track the *current* parse (cleared on every reparse) so
 # the info view's error tab can present the live verification failures — their
@@ -81,6 +91,39 @@ def get_core(uri: URI):
     return _core_cache.get(uri)
 
 
+def get_metadata(uri: URI):
+    """The metadata from the last parse of ``uri`` that reached core generation."""
+    return _metadata_cache.get(uri)
+
+
+def cache_driver_analysis(driver: AeonDriver, uri: URI) -> None:
+    """Snapshot ``driver``'s analysis fields for ``uri`` (LSP feature cache)."""
+    _refresh_analysis(driver, uri)
+
+
+def restore_driver_from_cache(driver: AeonDriver, uri: URI) -> bool:
+    """Repopulate ``driver`` analysis fields from the last good parse of ``uri``.
+
+    Used when a fresh parse aborts with :class:`Z3Exception` but an earlier
+    successful parse left enough state to run synthesis or type-aware features.
+    """
+    core = _core_cache.get(uri)
+    typing_ctx = _typing_ctx_cache.get(uri)
+    metadata = _metadata_cache.get(uri)
+    if core is None or typing_ctx is None or metadata is None:
+        return False
+    driver.core = cast(Term, core)
+    driver.typing_ctx = cast(TypingContext, typing_ctx)
+    driver.metadata = cast(Metadata, metadata)
+    evaluation_ctx = _evaluation_ctx_cache.get(uri)
+    if evaluation_ctx is not None:
+        driver.evaluation_ctx = cast(EvaluationContext, evaluation_ctx)
+    constructor_names = _constructor_names_cache.get(uri)
+    if constructor_names is not None:
+        driver.constructor_names = cast(set[str], constructor_names)
+    return True
+
+
 def get_errors(uri: URI) -> list:
     """The structured semantic errors (``AeonError``) of ``uri``'s last parse."""
     return _errors_cache.get(uri, [])
@@ -99,6 +142,15 @@ def _refresh_analysis(driver: AeonDriver, uri: URI) -> None:
         _type_index_cache[uri] = build_type_index(typing_ctx, core)
         _typing_ctx_cache[uri] = typing_ctx
         _core_cache[uri] = core
+        metadata = getattr(driver, "metadata", None)
+        if metadata is not None:
+            _metadata_cache[uri] = metadata
+        evaluation_ctx = getattr(driver, "evaluation_ctx", None)
+        if evaluation_ctx is not None:
+            _evaluation_ctx_cache[uri] = evaluation_ctx
+        constructor_names = getattr(driver, "constructor_names", None)
+        if constructor_names is not None:
+            _constructor_names_cache[uri] = constructor_names
     except Exception:
         logger.exception("Failed to build type index for %s", uri)
 
@@ -254,6 +306,21 @@ async def _parse(
                 severity=DiagnosticSeverity.Error,
             )
         )
+    except Z3Exception as e:
+        logger.warning("Z3 verification failed while parsing %s: %s", uri, e)
+        diagnostics.append(
+            Diagnostic(
+                message=z3_diagnostic_message(e),
+                range=Range(
+                    start=Position(line=0, character=0),
+                    end=Position(line=0, character=0),
+                ),
+                source="aeon",
+                severity=DiagnosticSeverity.Warning,
+            )
+        )
+        if _core_cache.get(uri) is not None:
+            return ParseResult(diagnostics, find_holes_in_source(content))
     except Exception as e:
         logger.exception("Unhandled exception while parsing")
         diagnostics.append(

@@ -377,3 +377,82 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
     assert isinstance(synthesized_str, str) and len(synthesized_str) > 0
     assert hole_range.start.line == 0
     assert hole_range.start.character == source.index("?")
+
+
+# ---------------------------------------------------------------------------
+# Z3 verification errors
+# ---------------------------------------------------------------------------
+
+
+def test_z3_exception_message_decodes_bytes():
+    from z3.z3types import Z3Exception
+
+    from aeon.lsp.z3_errors import z3_diagnostic_message, z3_exception_message
+
+    exc = Z3Exception(b"ast is not an expression")
+    assert z3_exception_message(exc) == "ast is not an expression"
+    assert z3_diagnostic_message(exc) == "Z3 verification error: ast is not an expression"
+
+
+def test_parse_z3_exception_keeps_cached_holes(monkeypatch):
+    import asyncio
+    import io
+
+    from z3.z3types import Z3Exception
+
+    from aeon.lsp import aeon_adapter
+    from aeon.lsp.aeon_adapter import _parse
+    from lsprotocol.types import DiagnosticSeverity
+
+    uri = "file:///z3_test.ae"
+    source = "def synth : Int := ?hole;"
+    driver = make_driver()
+    driver.parse(filename=uri, aeon_code=source)
+    aeon_adapter.cache_driver_analysis(driver, uri)
+
+    def boom(*_args, **_kwargs):
+        raise Z3Exception(b"ast is not an expression")
+
+    monkeypatch.setattr(driver, "parse", boom)
+
+    result = asyncio.run(_parse(io.StringIO(source), driver, uri))
+
+    assert len(result.holes) == 1
+    assert result.holes[0].name == "hole"
+    assert any(
+        d.severity == DiagnosticSeverity.Warning and "Z3 verification error" in d.message for d in result.diagnostics
+    )
+
+
+def test_run_synthesis_recovers_from_z3_with_cached_parse(monkeypatch):
+    from z3.z3types import Z3Exception
+
+    from aeon.lsp import aeon_adapter
+
+    source = """
+    @example(double 3 = 6)
+    @example(double 4 = 8)
+    def double (n:Int) : Int := ?hole;
+    """
+    uri = "file:///z3_synth.ae"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+    driver.parse(filename=uri, aeon_code=source)
+    aeon_adapter.cache_driver_analysis(driver, uri)
+
+    real_parse = driver.parse
+
+    def parse_then_z3(*args, **kwargs):
+        real_parse(*args, **kwargs)
+        raise Z3Exception(b"ast is not an expression")
+
+    monkeypatch.setattr(driver, "parse", parse_then_z3)
+
+    result = _run_synthesis(driver, mock_ls, uri, "hole", "smt", budget_seconds=10)
+
+    assert result is not None
+    synthesized_str, _hole_range = result
+    assert "n" in synthesized_str
+    warning_msgs = [msg for msg, typ in mock_ls.messages if typ == MessageType.Warning]
+    assert any("Z3 verification error" in msg for msg in warning_msgs)
+    assert not any("parse failed" in msg for msg, _ in mock_ls.messages)

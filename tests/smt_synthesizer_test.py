@@ -12,7 +12,7 @@ from __future__ import annotations
 from aeon.core.terms import Literal
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
-from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
+from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer, _app_spine
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 
 from tests.driver import check_and_return_core
@@ -52,3 +52,18 @@ def test_solves_bool_refinement():
 def test_solves_float_refinement():
     t = _solve("def p : {x:Float | x = 2.5} := ?hole;")
     assert isinstance(t, Literal) and t.value == 2.5
+
+
+def test_solves_double_from_examples():
+    code = """
+    @example(double 3 = 6)
+    @example(double 4 = 8)
+    def double (n:Int) : Int := ?hole;
+    """
+    t = _solve(code)
+    from aeon.core.terms import Application, Var
+
+    assert isinstance(t, Application)
+    _, args = _app_spine(t)
+    assert len(args) == 2
+    assert all(isinstance(arg, Var) and arg.name.name == "n" for arg in args)
