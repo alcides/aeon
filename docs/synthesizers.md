@@ -83,7 +83,18 @@ Useful for regression problems where input–output pairs are available and a re
 
 ### `llm` — Large Language Model (Ollama)
 
-Uses a locally running [Ollama](https://ollama.com/) instance to generate candidate expressions. The model (`qwen2.5:32b` by default) is prompted with a description of the synthesis problem, including the target type and any `@prompt("description")` decorator. Generated expressions are parsed, type-checked, and validated in a loop until the budget expires or a valid candidate is found.
+Uses a locally running [Ollama](https://ollama.com/) instance to generate candidate expressions. The default model is `qwen2.5-coder:32b`; per-model backends are also available (e.g. `-s llm_qwen2.5-coder-14b`). The LSP menu lists each model by its Ollama tag. The model is prompted with a description of the synthesis problem, including the target type and any `@prompt("description")` decorator. Generated expressions are parsed, type-checked, and validated in a loop until the budget expires or a valid candidate is found.
+
+Curated models for Apple Silicon with ≤64 GB RAM. Models are **pulled automatically** on first use (disable with `AEON_OLLAMA_AUTO_PULL=0`). Before synthesis, other loaded Ollama models are **unloaded from memory** to stay within `AEON_OLLAMA_MEMORY_BUDGET_GB` (default 56). After synthesis, the active model is released from RAM (disable with `AEON_OLLAMA_RELEASE_AFTER=0`).
+
+| Synthesizer id | Ollama model | Approx. size (Q4) |
+| -------------- | ------------ | ----------------- |
+| `llm` / `llm_qwen2.5-coder-32b` | `qwen2.5-coder:32b` | ~20 GB |
+| `llm_qwen2.5-coder-14b` | `qwen2.5-coder:14b` | ~9 GB |
+| `llm_deepseek-coder-v2-16b` | `deepseek-coder-v2:16b` | ~10 GB |
+| `llm_codellama-13b` | `codellama:13b` | ~8 GB |
+| `llm_starcoder2-15b` | `starcoder2:15b` | ~9 GB |
+| `llm_deepseek-coder-6.7b` | `deepseek-coder:6.7b` | ~4 GB |
 
 Requires Ollama to be running locally. Use the `@prompt` decorator to provide a natural-language description of the desired behaviour.
 

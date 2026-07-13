@@ -51,6 +51,7 @@ from pygls.lsp.server import LanguageServer
 from aeon.facade.driver import AeonDriver
 
 from aeon.synthesis.modules.synthesizerfactory import sort_synthesizer_ids
+from aeon.synthesis.modules.llm import llm_synthesizer_menu_ids
 
 SYNTHESIZERS = sort_synthesizer_ids(
     [
@@ -66,7 +67,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "smt",
         "sygus",
         "decision_tree",
-        "llm",
+        *llm_synthesizer_menu_ids(),
         "fta",
         "afta",
         "cata",

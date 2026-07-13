@@ -19,9 +19,9 @@ def test_every_lsp_synthesizer_has_a_family():
 def test_sort_groups_by_family_then_label():
     ids = sort_synthesizer_ids(["gp", "llm", "enumerative", "random_search", "hc"])
     assert [synthesizer_family(i) for i in ids] == [
-        SynthesizerFamily.EXHAUSTIVE,
-        SynthesizerFamily.RANDOM,
-        SynthesizerFamily.EVOLUTIONARY,
-        SynthesizerFamily.EVOLUTIONARY,
-        SynthesizerFamily.LLM,
+        SynthesizerFamily.GRAMMAR_SEARCH,
+        SynthesizerFamily.GRAMMAR_SEARCH,
+        SynthesizerFamily.METAHEURISTIC,
+        SynthesizerFamily.METAHEURISTIC,
+        SynthesizerFamily.LLM_ASSISTED,
     ]
