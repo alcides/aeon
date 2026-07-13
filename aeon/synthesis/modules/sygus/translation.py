@@ -27,7 +27,7 @@ from aeon.core.liquid import (
 )
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int
 from aeon.typechecking.context import TypingContext
-from aeon.utils.name import Name
+from aeon.utils.name import Name, fresh_counter
 
 # SyGuS / SMT-LIB sort for each Aeon base type.
 _SORT_OF_BASE: dict[TypeConstructor, str] = {t_int: "Int", t_bool: "Bool", t_float: "Real"}
@@ -139,21 +139,41 @@ def liquid_to_smt(t: LiquidTerm, names: dict[Name, str], is_real: bool) -> str |
             return None
 
 
+def _hole_spec(ty: Type) -> tuple[TypeConstructor, Name, LiquidTerm] | None:
+    """Return ``(base, binder, refinement)`` for a synthesisable hole type.
+
+    Refined base types keep their predicate; bare ``Int`` / ``Bool`` /
+    ``Float`` are treated as ``{v:T | true}``.
+    """
+    if isinstance(ty, RefinedType):
+        ret_base = ty.type
+        if not isinstance(ret_base, TypeConstructor):
+            return None
+        return ret_base, ty.name, ty.refinement
+    if isinstance(ty, TypeConstructor):
+        if ty not in _SORT_OF_BASE:
+            return None
+        binder = Name("_", fresh_counter.fresh())
+        return ty, binder, LiquidLiteralBool(True)
+    return None
+
+
 def build_sygus_problem(ctx: TypingContext, ty: Type, fun_name: str = "f") -> SygusProblem | None:
     """Translate a hole type + context into a ``SygusProblem`` (or None).
 
-    Supported subset: ``ty`` is ``{v:T | phi}`` with ``T`` a base SMT type,
-    ``phi`` built only from native operators over SMT-typed variables.
+    Supported subset: ``ty`` is a base SMT type (``Int``, ``Bool``, ``Float``)
+    or a refinement ``{v:T | phi}`` over one of those, with ``phi`` built only
+    from native operators over SMT-typed variables.
     """
-    if not isinstance(ty, RefinedType):
+    spec = _hole_spec(ty)
+    if spec is None:
         return None
-    ret_base = ty.type
+    ret_base, binder, refinement = spec
     ret_sort = smt_sort_of(ret_base)
-    if ret_sort is None or not isinstance(ret_base, TypeConstructor):
+    if ret_sort is None:
         return None
 
-    binder = ty.name
-    spec_vars = set(liquid_free_vars(ty.refinement))
+    spec_vars = set(liquid_free_vars(refinement))
 
     # Lift the SMT-typed context variables referenced by the spec into inputs.
     params: list[SygusParam] = []
@@ -170,7 +190,7 @@ def build_sygus_problem(ctx: TypingContext, ty: Type, fun_name: str = "f") -> Sy
 
     # The spec must render to SMT-LIB end-to-end; bail out otherwise.
     is_real = ret_sort == "Real" or any(p.sort == "Real" for p in params)
-    if liquid_to_smt(ty.refinement, names, is_real) is None:
+    if liquid_to_smt(refinement, names, is_real) is None:
         return None
 
     # Any free var of the spec that is neither the binder nor a lifted param
@@ -191,7 +211,7 @@ def build_sygus_problem(ctx: TypingContext, ty: Type, fun_name: str = "f") -> Sy
         ret_sort=ret_sort,
         ret_base=ret_base,
         binder=binder,
-        refinement=ty.refinement,
+        refinement=refinement,
         logic=logic,
     )
 
