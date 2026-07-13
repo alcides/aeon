@@ -20,9 +20,9 @@ pieces, collected here so the three backends stop copy-pasting them:
   and hashable-output helpers.
 
 What is *not* unified: component collection (``_collect``) stays per-backend --
-the signatures and instantiation policies genuinely differ (fta monomorphises
-operators itself at the goal type, afta skips polymorphic bindings entirely, and
-cata monomorphises via the ``lta`` universe). Forcing those together would
+the signatures and instantiation policies genuinely differ (fta and afta both
+monomorphise polymorphic operators at the goal type; cata monomorphises via the
+``lta`` universe). Forcing those together would
 change which components each search sees.
 """
 
