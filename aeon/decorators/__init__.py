@@ -16,8 +16,6 @@ from dataclasses import replace
 from aeon.core.terms import Term
 from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY, DecoratorType, Metadata
 from aeon.facade.api import UnknownDecoratorError
-from aeon.llvm.decorators.gpu import gpu
-from aeon.llvm.decorators.llvm import llvm
 from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
 from aeon.synthesis.decorators import (
@@ -57,14 +55,12 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "prompt": prompt,
     "property": property_test,
     "example": example,
-    "llvm": llvm,
     "csv_data": csv_data,
     "csv_file": csv_file,
     "minimize": minimize,
     "maximize": maximize,
     "minimize_cputime": minimize_cputime,
     "minimize_energy": minimize_energy,
-    "gpu": gpu,
     "cluster": cluster,
 }
 
