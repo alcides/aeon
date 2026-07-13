@@ -9,7 +9,7 @@ from typing import Any, Callable
 from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -17,10 +17,23 @@ from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 
-def is_better(v1, v2):
-    if not v2:
-        return True
-    return all(x < y for x, y in zip(v1, v2))
+def _dominates(a: list[float], b: list[float]) -> bool:
+    return all(x <= y for x, y in zip(a, b)) and any(x < y for x, y in zip(a, b))
+
+
+def _update_pareto_front(
+    front: list[tuple[list[float], Any]],
+    score: list[float],
+    result: Any,
+) -> list[tuple[list[float], Any]]:
+    if any(_dominates(existing_score, score) for existing_score, _ in front):
+        return front
+    return [(s, r) for s, r in front if not _dominates(score, s)] + [(score, result)]
+
+
+def _pick_pareto_member(front: list[tuple[list[float], Any]]) -> Any:
+    _, result = min(front, key=lambda item: (sum(item[0]), item[0]))
+    return result
 
 
 def get_elapsed_time(start_time) -> float:
@@ -58,7 +71,7 @@ class SynquidSynthesizer(Synthesizer):
         start_time = monotonic_ns()
         done = True
         level = 0
-        best: tuple[list[float], Any] = ([], None)
+        pareto_front: list[tuple[list[float], Any]] = []
         mem: dict = {}
         ui.register(None, None, 0, True)
         goals = current_metadata.get("goals", [])
@@ -82,8 +95,13 @@ class SynquidSynthesizer(Synthesizer):
             except Exception:
                 return False
 
+        def finish() -> Term:
+            if not pareto_front:
+                raise SynthesisNotSuccessful("SynquidSynthesizer: no valid candidate found within budget")
+            return _pick_pareto_member(pareto_front)
+
         def consider(result: Term) -> bool:
-            nonlocal best, done
+            nonlocal pareto_front, done
             if typecheck_candidate_first and not _safe_check(check_type, ctx, result, type):
                 ui.register(result, "Invalid (hole-local)", get_elapsed_time(start_time), False)
                 if get_elapsed_time(start_time) > budget:
@@ -94,11 +112,11 @@ class SynquidSynthesizer(Synthesizer):
                 if not goals:
                     ui.register(result, score, get_elapsed_time(start_time), True)
                     return True
-                if is_better(score, best[0]):
-                    best = (score, result)
-                    ui.register(result, score, get_elapsed_time(start_time), True)
-                else:
-                    ui.register(result, score, get_elapsed_time(start_time), False)
+                pareto_front = _update_pareto_front(pareto_front, score, result)
+                on_front = any(r is result for _, r in pareto_front)
+                ui.register(result, score, get_elapsed_time(start_time), on_front)
+                if all(s == 0.0 for s in score):
+                    return True
             else:
                 ui.register(result, "Invalid", get_elapsed_time(start_time), False)
             if get_elapsed_time(start_time) > budget:
@@ -121,7 +139,7 @@ class SynquidSynthesizer(Synthesizer):
                 if cap_done:
                     break
                 level += 1
-            return best[1]
+            return finish()
 
         for result in iter_candidates_size_then_level(
             ctx, type, skip, mem, max_level=max_level, seed_levels=seed_levels
@@ -133,4 +151,4 @@ class SynquidSynthesizer(Synthesizer):
                 return result
             if not done:
                 break
-        return best[1]
+        return finish()
