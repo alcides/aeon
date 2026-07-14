@@ -1,0 +1,8 @@
+# Procurement: a bakery needs 25 croissants; cases hold 12 — order the fewest full cases.
+#
+#   uv run python -m aeon --no-main -s smt --budget 15 talk/04_minimize.ae
+#   uv run python -m aeon --no-main -s ortools --budget 15 talk/04_minimize.ae
+#   uv run python -m aeon --no-main -s gp --budget 15 talk/04_minimize.ae
+
+@minimize_int(cases_to_order)
+def cases_to_order : {c:Int | c > 0 && c * 12 >= 25} := ?hole

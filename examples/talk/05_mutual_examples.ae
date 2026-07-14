@@ -1,0 +1,25 @@
+# SRE on-call: two teams alternate weekly primary pager duty from a week counter.
+#
+#   uv run python -m aeon --no-main -s contata --budget 20 examples/talk/05_mutual_examples.ae
+
+mutual
+  @example(team_a_on_call 0 = true)
+  @example(team_a_on_call 1 = false)
+  @example(team_a_on_call 2 = true)
+  @example(team_a_on_call 3 = false)
+  def team_a_on_call (week: {w:Int | w >= 0}) : Bool decreasing_by [week] := ?ha
+
+  @example(team_b_on_call 0 = false)
+  @example(team_b_on_call 1 = true)
+  @example(team_b_on_call 2 = false)
+  @example(team_b_on_call 3 = true)
+  def team_b_on_call (week: {w:Int | w >= 0}) : Bool decreasing_by [week] := ?hb
+end
+
+
+
+
+# Constraint-Annotated Tree Automata (CATA)
+
+# Similar to Liquid Tree Automata, but supports recursion and logical if statements.
+# CATA focus more on the relation between input and output. LTA focus on composing existing functions, in a type-safe manner.

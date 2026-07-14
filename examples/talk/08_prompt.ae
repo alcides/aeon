@@ -1,0 +1,7 @@
+# Infrastructure config: fill in the standard TCP port assigned to HTTPS (IANA).
+#
+#   uv run python -m aeon --no-main -s llm --budget 30 talk/05_prompt.ae
+#   uv run python -m aeon --no-main -s llm_deepseek-coder-6.7b --budget 30 talk/05_prompt.ae
+
+@prompt("Default TCP port used by HTTPS servers (IANA-assigned).")
+def https_port : {p:Int | p > 0 && p < 65536} := ?hole

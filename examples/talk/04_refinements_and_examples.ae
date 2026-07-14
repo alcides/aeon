@@ -1,0 +1,60 @@
+# CRM data cleanup: extract the three-digit US area code from a formatted phone number.
+#
+#   uv run python -m aeon --test talk/04_refinements_and_examples.ae
+#   uv run python -m aeon --no-main -s afta --budget 30 talk/04_refinements_and_examples.ae
+#   uv run python -m aeon --no-main -s gp --budget 15 talk/04_refinements_and_examples.ae
+
+open String
+
+@example(area_code "938-242-504" = "938")
+@example(area_code "308-916-545" = "308")
+@example(area_code "623-599-749" = "623")
+def area_code (phone:{x:String | String_len x > 3}) : {r:String | String_len r = 3} :=
+    ?hole
+
+
+
+# Finite Tree Automata - FTA
+# Key idea: reuse intermediate results.
+
+# x             [1,2,3]
+# y             [4,3,2]
+
+# x+y           [5,5,5]
+# x-y           [-3, -1, 1]
+
+
+# Target!!!    ["938", "308", "623"]
+
+# phone                             ["938-242-504", "308-916-545", "623-599-749"]
+# String.concat phone "3"           ["938-242-5043", "308-916-5453", "623-599-7493"]
+# ...
+# String.slice 0 3                  ["938", "308", "623"]
+
+
+
+
+
+
+
+# Abstract-Refinement FTA
+
+# Target!!!    [3, 3, 3]
+
+# "hello"                           [5,5,5]
+# String.concat "hello" x           [16,16,16]
+# ...
+# String.slice x 0 3                [3,3,3]
+
+
+
+
+
+# Liquid Tree Automata
+
+# Target!!!    {r:String | String_len r = 3}
+
+# "hello"                           {r:String | String_len r == 5}
+# String.concat "hello" x           {r:String | String_len r == 5 + String_len x}
+# ...
+# String.slice x 0 3                {r:String | String_len r == 3}
