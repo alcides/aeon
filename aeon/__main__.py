@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 from argparse import ArgumentParser
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from lark.exceptions import UnexpectedInput
@@ -38,10 +39,17 @@ from aeon.documentation import generate_documentation
 sys.setrecursionlimit(10000)
 
 
+def _package_version() -> str:
+    try:
+        return version("AeonLang")
+    except PackageNotFoundError:
+        return "unknown"
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
-    if "-lsp" in sys.argv or "--language-server-mode" in sys.argv:
+    if "-lsp" in sys.argv or "--language-server-mode" in sys.argv or "--version" in sys.argv:
         parser.add_argument(
             "-lsp",
             "--language-server-mode",
@@ -62,6 +70,12 @@ def parse_arguments():
 
 
 def _parse_common_arguments(parser: ArgumentParser):
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"aeon {_package_version()}",
+        help="show program's version number and exit",
+    )
     parser.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
     parser.add_argument(
         "-l",
