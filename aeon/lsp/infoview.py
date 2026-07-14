@@ -68,6 +68,16 @@ def _strip_ids(s: str) -> str:
     return s.translate(_SUPERSCRIPT_DIGITS)
 
 
+def aeon_version() -> str:
+    """Installed ``AeonLang`` package version (shown in the IDE info view)."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("AeonLang")
+    except PackageNotFoundError:
+        return "unknown"
+
+
 # Term-level binders that introduce a usable ``name : type`` value into scope.
 # Type-level binders (``TypeBinder``/``TypeConstructorBinder``) are deliberately
 # excluded — they bind types, not variables.
@@ -165,6 +175,7 @@ class InfoViewData:
     # The hole under the cursor (drives the synthesis tab), if any.
     hole: Optional[str] = None
     synthesizers: list[SynthesizerInfo] = field(default_factory=list)
+    aeonVersion: str = field(default_factory=aeon_version)
 
     def to_dict(self) -> dict:
         """A JSON-serialisable payload for the ``aeon/infoView`` response."""
