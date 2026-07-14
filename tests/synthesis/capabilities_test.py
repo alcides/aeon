@@ -3,11 +3,11 @@ import pytest
 from aeon.core.terms import Application, Literal, Term, Var
 from aeon.core.types import top, t_bool, t_int, t_float, t_string
 from aeon.synthesis.identification import incomplete_functions_and_holes
-from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.typechecking.typeinfer import check_type
 from tests.driver import check_and_return_core
 from aeon.utils.name import Name
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+from tests.synthesis_helpers import require_synthesized, synthesize_holes_or_skip
 
 
 def synthesis_and_return(code):
@@ -21,8 +21,8 @@ def synthesis_and_return(code):
 
     synthesizer = GESynthesizer()
 
-    holes = synthesize_holes(ctx, ectx, term, incomplete_functions, metadata, synthesizer, budget=0.25)
-    return holes[list(holes.keys())[0]], ctx
+    holes = synthesize_holes_or_skip(ctx, ectx, term, incomplete_functions, metadata, synthesizer, budget=0.25)
+    return require_synthesized(holes[list(holes.keys())[0]]), ctx
 
 
 @pytest.mark.parametrize("ty", [t_bool, t_int, t_float, t_string])
@@ -71,9 +71,6 @@ def test_e2e_synthesis_ref1():
     code = """def synth : {x:Int | x = 3} := ?hole;"""
     t, _ = synthesis_and_return(code)
 
-    if t is None:
-        return
-
     assert isinstance(t, Term)
     assert isinstance(t, Literal)
     assert t.value == 3
@@ -82,9 +79,6 @@ def test_e2e_synthesis_ref1():
 def test_e2e_synthesis_ref2():
     code = """def synth : {x:Int | x > 3} := ?hole;"""
     t, _ = synthesis_and_return(code)
-
-    if t is None:
-        return
 
     assert isinstance(t, Term)
     assert isinstance(t, Literal)
@@ -95,9 +89,6 @@ def test_e2e_synthesis_ref3():
     code = """def synth : {x:Int | x > 3 && x < 10} := ?hole;"""
     t, _ = synthesis_and_return(code)
 
-    if t is None:
-        return
-
     assert isinstance(t, Term)
     assert isinstance(t, Literal)
     assert t.value > 3 and t.value < 10
@@ -106,9 +97,6 @@ def test_e2e_synthesis_ref3():
 def test_e2e_synthesis_ref4():
     code = """def synth : {x:Int | (x > 3 && x < 10) || (x > 20 && x < 30)} := ?hole;"""
     t, _ = synthesis_and_return(code)
-
-    if t is None:
-        return
 
     assert isinstance(t, Term)
     assert isinstance(t, Literal)

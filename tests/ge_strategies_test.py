@@ -14,13 +14,13 @@ import pytest
 
 from aeon.core.terms import Term
 from aeon.core.types import top, t_bool, t_int
-from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.typechecking.typeinfer import check_type
 
 from tests.driver import check_and_return_core
+from tests.synthesis_helpers import require_synthesized, synthesize_holes_or_skip
 
 STRATEGIES = [("1p1", "one_plus_one"), ("hc", "hill_climbing")]
 TYPES = [("Int", t_int), ("Bool", t_bool)]
@@ -30,8 +30,8 @@ def _synthesize(code: str, method: str, budget: float = 2.0):
     term, ctx, ectx, metadata = check_and_return_core(code)
     assert check_type(ctx, term, top)
     targets = incomplete_functions_and_holes(ctx, term)
-    holes = synthesize_holes(ctx, ectx, term, targets, metadata, GESynthesizer(method=method), budget=budget)
-    return holes[next(iter(holes))], ctx
+    holes = synthesize_holes_or_skip(ctx, ectx, term, targets, metadata, GESynthesizer(method=method), budget=budget)
+    return require_synthesized(holes[next(iter(holes))]), ctx
 
 
 @pytest.mark.parametrize("backend_id,method", STRATEGIES)

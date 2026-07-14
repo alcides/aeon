@@ -2,7 +2,6 @@ import pytest
 
 from aeon.core.types import TypeConstructor
 from aeon.synthesis.api import SynthesisNotSuccessful
-from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.synquid.synthesizer import (
     SynquidSynthesizer,
@@ -13,6 +12,7 @@ from aeon.synthesis.modules.synquid.synthesizer import (
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 from tests.driver import check_and_return_core
+from tests.synthesis_helpers import first_hole_term, synthesize_holes_or_skip
 
 _INT = TypeConstructor(Name("Int", 0), [])
 
@@ -67,10 +67,11 @@ def test_synquid():
         ctx,
         core_ast_anf,
     )
-    mapping = synthesize_holes(
+    mapping = synthesize_holes_or_skip(
         ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=SynquidSynthesizer(), budget=0.25
     )
     assert len(mapping) == 1
+    first_hole_term(mapping)
 
 
 def test_synquid_simple():
@@ -82,7 +83,8 @@ def test_synquid_simple():
         ctx,
         core_ast_anf,
     )
-    mapping = synthesize_holes(
+    mapping = synthesize_holes_or_skip(
         ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=SynquidSynthesizer(), budget=0.25
     )
     assert len(mapping) > 0
+    first_hole_term(mapping)

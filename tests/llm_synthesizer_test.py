@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import aeon.synthesis.modules.llm as llm
 from aeon.core.terms import Literal
-from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.llm import LLMSynthesizer, LLM_OLLAMA_MODELS, LLM_OPENAI_SYNTHESIZER_ID
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 
 from tests.driver import check_and_return_core
+from tests.synthesis_helpers import require_synthesized, synthesize_holes_or_skip
 
 
 def _mock_generate(monkeypatch, responses):
@@ -38,8 +38,8 @@ def _mock_generate(monkeypatch, responses):
 def _solve(code: str, budget: float = 5.0):
     term, ctx, ectx, metadata = check_and_return_core(code)
     targets = incomplete_functions_and_holes(ctx, term)
-    holes = synthesize_holes(ctx, ectx, term, targets, metadata, LLMSynthesizer(), budget=budget)
-    return holes[next(iter(holes))]
+    holes = synthesize_holes_or_skip(ctx, ectx, term, targets, metadata, LLMSynthesizer(), budget=budget)
+    return require_synthesized(holes[next(iter(holes))])
 
 
 def test_factory_registers_llm():

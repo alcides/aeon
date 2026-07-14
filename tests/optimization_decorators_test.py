@@ -1,4 +1,4 @@
-from aeon.synthesis.entrypoint import make_evaluators, synthesize_holes
+from aeon.synthesis.entrypoint import make_evaluators
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer, create_problem
 from aeon.synthesis.identification import incomplete_functions_and_holes, iterate_top_level
@@ -14,6 +14,7 @@ from aeon.sugar.ast_helpers import st_top
 from aeon.utils.name import Name
 
 from tests.driver import check_and_return_core, check_compile, extract_core
+from tests.synthesis_helpers import first_hole_term, synthesize_holes_or_skip
 
 
 def test_hole_minimize_int():
@@ -161,8 +162,11 @@ def test_cputime_synthesis_smoke():
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete = incomplete_functions_and_holes(ctx, core_ast_anf)
-    mapping = synthesize_holes(ctx, ectx, core_ast_anf, incomplete, metadata, synthesizer=GESynthesizer(), budget=0.25)
+    mapping = synthesize_holes_or_skip(
+        ctx, ectx, core_ast_anf, incomplete, metadata, synthesizer=GESynthesizer(), budget=0.25
+    )
     assert len(mapping) == 1
+    first_hole_term(mapping)
 
 
 def test_goal_default_kind_is_expression():

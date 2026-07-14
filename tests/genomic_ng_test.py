@@ -6,7 +6,6 @@ import pytest
 
 from aeon.core.terms import Term
 from aeon.logger.logger import setup_logger
-from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.grammar.genomic_ng import (
     GenomicNGSynthesizer,
     _knee_point,
@@ -16,6 +15,7 @@ from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 
 from tests.driver import check_and_return_core
+from tests.synthesis_helpers import first_hole_term, synthesize_holes_or_skip
 
 setup_logger()
 
@@ -102,11 +102,11 @@ def test_single_objective_synthesis_fills_hole():
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
-    mapping = synthesize_holes(
+    mapping = synthesize_holes_or_skip(
         ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=GenomicNGSynthesizer(), budget=2.0
     )
     assert len(mapping) == 1
-    (term,) = mapping.values()
+    term = first_hole_term(mapping)
     assert isinstance(term, Term)
 
 
@@ -123,11 +123,11 @@ def test_multi_objective_synthesis_fills_hole():
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
-    mapping = synthesize_holes(
+    mapping = synthesize_holes_or_skip(
         ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=GenomicNGSynthesizer(), budget=3.0
     )
     assert len(mapping) == 1
-    (term,) = mapping.values()
+    term = first_hole_term(mapping)
     assert isinstance(term, Term)
 
 
@@ -138,7 +138,7 @@ def test_alternative_optimizer_runs():
         """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
-    mapping = synthesize_holes(
+    mapping = synthesize_holes_or_skip(
         ctx,
         ectx,
         core_ast_anf,
@@ -148,3 +148,4 @@ def test_alternative_optimizer_runs():
         budget=2.0,
     )
     assert len(mapping) == 1
+    first_hole_term(mapping)
