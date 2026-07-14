@@ -1,0 +1,7 @@
+import List
+
+def f (x:a) (y:(List a)) : {r:(List a) | List.size r <= List.size y } :=
+    ?hole
+
+# Synquid
+#let k : {k:Int | k = 1} := 1 in

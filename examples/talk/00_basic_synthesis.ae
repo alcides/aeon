@@ -1,0 +1,5 @@
+# Basic Synthesis problem. Return an integer.
+
+def fun (x:Int) (y:Int) : Int := ?hole
+# GP
+# GS - R+E
