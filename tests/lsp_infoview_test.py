@@ -375,6 +375,13 @@ def test_graceful_without_analysis_state():
     assert info.synthesizers == []
 
 
+def test_info_view_includes_aeon_version():
+    info = info_at(SRC, 2, 5)
+    assert info.aeonVersion
+    assert info.aeonVersion != "unknown"
+    assert info.to_dict()["aeonVersion"] == info.aeonVersion
+
+
 def test_to_dict_is_json_serialisable():
     import json
 
