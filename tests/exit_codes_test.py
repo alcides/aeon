@@ -27,6 +27,7 @@ from aeon.facade.api import (
     UnificationUnknownTypeError,
 )
 from aeon.facade.exit_codes import ExitCode, error_exit_code
+from aeon.__main__ import synthesis_requested
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -62,11 +63,14 @@ def test_error_exit_code_mapping(cls, expected):
 # --- End to end: the CLI process exit status ---------------------------------
 
 
-def run_aeon(tmp_path: Path, source: str) -> subprocess.CompletedProcess:
+def run_aeon(tmp_path: Path, source: str, *, synthesis: bool = True) -> subprocess.CompletedProcess:
     f = tmp_path / "prog.ae"
     f.write_text(source)
+    cmd = [sys.executable, "-m", "aeon", "--no-main", str(f)]
+    if synthesis:
+        cmd.extend(["--budget", "1"])
     return subprocess.run(
-        [sys.executable, "-m", "aeon", "--no-main", "--budget", "1", str(f)],
+        cmd,
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -74,9 +78,38 @@ def run_aeon(tmp_path: Path, source: str) -> subprocess.CompletedProcess:
     )
 
 
+def test_synthesis_requested_detects_flags():
+    assert synthesis_requested(["file.ae", "-s", "gp"])
+    assert synthesis_requested(["file.ae", "--synthesizer", "gp"])
+    assert synthesis_requested(["file.ae", "--budget", "10"])
+    assert synthesis_requested(["file.ae", "--budget=10"])
+    assert not synthesis_requested(["file.ae", "--no-main"])
+    assert not synthesis_requested(["file.ae"])
+
+
 def test_cli_success_exits_zero(tmp_path):
-    r = run_aeon(tmp_path, "def main (x:Int) : Unit := print 42;\n")
+    r = run_aeon(tmp_path, "def main (x:Int) : Unit := print 42;\n", synthesis=False)
     assert r.returncode == ExitCode.SUCCESS, r.stderr
+
+
+def test_cli_synthesis_requested_no_holes(tmp_path):
+    r = run_aeon(tmp_path, "def main (x:Int) : Unit := print 42;\n")
+    assert r.returncode == ExitCode.SYNTHESIS_NOT_SUCCESSFUL
+    assert "No holes to synthesize." in r.stderr
+
+
+def test_cli_unknown_synthesizer(tmp_path):
+    f = tmp_path / "prog.ae"
+    f.write_text("def main (x:Int) : Unit := print 42;\n")
+    r = subprocess.run(
+        [sys.executable, "-m", "aeon", "--no-main", "-s", "not_a_real_synthesizer", str(f)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=240,
+    )
+    assert r.returncode == ExitCode.OTHER_ERROR
+    assert "Unknown synthesizer: not_a_real_synthesizer" in r.stderr
 
 
 def test_cli_syntax_error(tmp_path):
