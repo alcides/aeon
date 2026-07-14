@@ -19,6 +19,7 @@ from __future__ import annotations
 import dataclasses
 
 from aeon.core.types import t_unit
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.typechecking.context import (
     ReflectedBinder,
     TypingContext,
@@ -66,4 +67,17 @@ def shadow_fitness_helpers(ctx: TypingContext, metadata) -> TypingContext:
         return ctx
     entries = list(ctx.entries)
     entries.extend(VariableBinder(Name(name, 0), t_unit) for name in sorted(present))
+    return dataclasses.replace(ctx, entries=entries)
+
+
+def without_excluded_names(ctx: TypingContext) -> TypingContext:
+    """Drop ``native``, ``native_import``, and ``print`` from a synthesis context.
+
+    These prelude intrinsics must not be offered as building blocks to any
+    synthesizer backend."""
+    entries = [
+        e for e in ctx.entries if not (isinstance(e, _VALUE_BINDERS) and e.name.name in SYNTHESIS_EXCLUDED_NAMES)
+    ]
+    if len(entries) == len(ctx.entries):
+        return ctx
     return dataclasses.replace(ctx, entries=entries)

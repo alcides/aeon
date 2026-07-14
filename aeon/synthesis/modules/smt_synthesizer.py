@@ -47,6 +47,7 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.utils.name import Name, fresh_counter
@@ -558,8 +559,6 @@ class SMTSynthesizer(Synthesizer):
         if not isinstance(base, TypeConstructor):
             return None
 
-        _SYSTEM_NAMES = {"native", "native_import", "print"}
-
         # Shuffle context variable order to explore different terms on each attempt
         ctx_vars = list(ctx.concrete_vars())
         if rng is not None:
@@ -571,7 +570,7 @@ class SMTSynthesizer(Synthesizer):
                 if var_name == fun_name:
                     continue
                 # Skip system names (fitness helpers are shadowed to Unit upstream)
-                if var_name.name in _SYSTEM_NAMES:
+                if var_name.name in SYNTHESIS_EXCLUDED_NAMES:
                     continue
                 # Try to instantiate polymorphic functions
                 effective_ty: Type = var_ty

@@ -13,10 +13,10 @@ from aeon.core.types import t_string
 from aeon.core.types import Type
 from aeon.core.pprint import aeon_prelude_ops_to_text
 
-prelude_ops: list[str] = ["print", "native_import", "native"]
-
 # Names that must never appear in synthesized terms.
-SYNTHESIS_EXCLUDED_NAMES: frozenset[str] = frozenset({"native", "native_import"})
+SYNTHESIS_EXCLUDED_NAMES: frozenset[str] = frozenset({"native", "native_import", "print"})
+
+prelude_ops: list[str] = sorted(SYNTHESIS_EXCLUDED_NAMES)
 
 internal_functions: list[str] = []
 

@@ -72,6 +72,7 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.modules.bottom_up import (
     application,
     combos,
@@ -163,7 +164,7 @@ class FTASynthesizer(Synthesizer):
         intrinsics are skipped, as in the grammar backend."""
         from aeon.synthesis.grammar.grammar_generation import monomorphize_poly_type
 
-        skip_names = {fun_name.name, "native", "native_import", "print"}
+        skip_names = {fun_name.name} | SYNTHESIS_EXCLUDED_NAMES
         builders: dict[str, list[_MonoComponent]] = {}
         atoms: dict[str, list[Var]] = {}
 

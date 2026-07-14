@@ -10,6 +10,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -63,7 +64,7 @@ class SynquidSynthesizer(Synthesizer):
         def skip(name: Name) -> bool:
             if name == fun_name:
                 return not is_recursion_allowed
-            elif name.name in ["native", "native_import", "print"]:
+            elif name.name in SYNTHESIS_EXCLUDED_NAMES:
                 return True
             else:
                 return False
