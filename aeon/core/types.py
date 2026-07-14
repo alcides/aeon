@@ -232,9 +232,8 @@ t_float = TypeConstructor(Name("Float", 0), [])
 t_string = TypeConstructor(Name("String", 0), [])
 t_set = TypeConstructor(Name("Set", 0), [])
 t_tensor = TypeConstructor(Name("Tensor", 0), [])
-t_gpu_config = TypeConstructor(Name("GpuConfig", 0), [])
 
-builtin_core_types = [t_unit, t_bool, t_int, t_float, t_string, t_set, t_tensor, t_gpu_config]
+builtin_core_types = [t_unit, t_bool, t_int, t_float, t_string, t_set, t_tensor]
 
 top = Top()
 

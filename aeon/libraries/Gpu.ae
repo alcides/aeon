@@ -1,0 +1,24 @@
+# GPU computation primitives.
+#
+# This module is imported automatically by the ``@gpu`` decorator, or can be
+# brought in explicitly with ``open Gpu``.
+
+type GpuConfig
+
+def gpu_map (f: (x:a) -> b) (t: Tensor) : Tensor :=
+    native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_map(f)(t)";
+
+def gpu_imap (f: (i:Int) -> b) (t: Tensor) : Tensor :=
+    native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_imap(f)(t)";
+
+def gpu_reduce (f: (acc:a) -> (x:a) -> a) (initial: a) (t: Tensor) : a :=
+    native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_reduce(f)(initial)(t)";
+
+def gpu_filter (f: (x:a) -> Bool) (t: Tensor) : Tensor :=
+    native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_filter(f)(t)";
+
+def gpu_dot (a: Tensor) (b: Tensor) : Float :=
+    native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_dot(a)(b)";
+
+def run_gpu (kernel: (x:Tensor) -> a) (config: GpuConfig) (input: Tensor) : a :=
+    native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_run(kernel)(config)(input)";

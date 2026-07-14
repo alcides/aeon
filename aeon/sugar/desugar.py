@@ -612,6 +612,35 @@ def resolve_qualified_names_in_definition(
     )
 
 
+def _program_uses_gpu_decorator(definitions: list[Definition]) -> bool:
+    for definition in definitions:
+        for decorator in definition.decorators:
+            if decorator.name.name == "gpu":
+                return True
+    return False
+
+
+def _has_gpu_import(imports: list[ImportAe]) -> bool:
+    for imp in imports:
+        if imp.module_path.split(".")[0] == "Gpu":
+            return True
+    return False
+
+
+def _inject_gpu_import_if_needed(p: Program) -> Program:
+    """``@gpu`` brings GPU primitives into scope via ``open Gpu``."""
+    if not _program_uses_gpu_decorator(p.definitions) or _has_gpu_import(p.imports):
+        return p
+    return Program(
+        imports=[ImportAe(module_path="Gpu", is_open=True)] + p.imports,
+        type_decls=p.type_decls,
+        inductive_decls=p.inductive_decls,
+        definitions=p.definitions,
+        class_decls=p.class_decls,
+        instance_decls=p.instance_decls,
+    )
+
+
 def desugar(
     p: Program,
     is_main_hole: bool = True,
@@ -629,6 +658,8 @@ def desugar(
     mutual_group_by_name: dict[Name, int] = {
         d.name: d.mutual_group_id for d in p.definitions if d.mutual_group_id is not None
     }
+
+    p = _inject_gpu_import_if_needed(p)
 
     # Pull class/instance declarations from imported modules into the main
     # program so they are expanded by the single ``expand_typeclasses`` pass
