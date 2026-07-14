@@ -56,7 +56,7 @@ SYNTHESIZER_FAMILY_ORDER: tuple[SynthesizerFamily, ...] = (
 SYNTHESIZER_LABELS: dict[str, str] = {
     "tdsyn": "Type-directed synthesis (BFS)",
     "tdsyn_enumerative": "Type-directed synthesis (BFS)",
-    "tdsyn_random": "Type-directed synthesis (random walk)",
+    "tdsyn_random": "Type-directed synthesis (Random Walk)",
     "synquid": "Synquid enumeration (Q-guided)",
     "tactics": "Tactic search (random)",
     "decision_tree": "Decision tree regression (from examples)",
