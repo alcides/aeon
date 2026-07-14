@@ -17,6 +17,7 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.decorators.api import Metadata
+from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.utils.name import Name
@@ -70,7 +71,7 @@ def should_skip(name: Name, fun_name: Name, metadata: Metadata, is_recursion_all
     """Check if a variable should be skipped during synthesis."""
     if name == fun_name:
         return not is_recursion_allowed
-    if name.name in ("native", "native_import", "print"):
+    if name.name in SYNTHESIS_EXCLUDED_NAMES:
         return True
     return False
 

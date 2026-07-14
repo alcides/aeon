@@ -37,10 +37,10 @@ from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
 from aeon.decorators import Metadata
-from aeon.synthesis.scope import shadow_fitness_helpers
+from aeon.synthesis.scope import shadow_fitness_helpers, without_excluded_names
 from aeon.synthesis.grammar.mangling import mangle_name, mangle_var, mangle_type
 from aeon.synthesis.grammar.refinements import refined_type_to_metahandler
-from aeon.synthesis.grammar.utils import prelude_ops, aeon_to_python
+from aeon.synthesis.grammar.utils import prelude_ops, aeon_to_python, SYNTHESIS_EXCLUDED_NAMES
 from aeon.typechecking.context import (
     TypeBinder,
     TypeConstructorBinder,
@@ -958,6 +958,7 @@ def gen_grammar_nodes(
     # Let-shadow the fitness/example/cluster helpers to Unit so they are not
     # offered as building blocks (they stay in the program for evaluation).
     ctx = shadow_fitness_helpers(ctx, metadata)
+    ctx = without_excluded_names(ctx)
 
     # Clean context to remove non-interpreted functions from the context.
     # Simple refinements like 0 < n && n < 10 are kept.
@@ -971,7 +972,7 @@ def gen_grammar_nodes(
     def skip(name: Name) -> bool:
         if name == synth_func_name:
             return not is_recursion_allowed
-        elif name.name in ["native", "native_import", "print"]:
+        elif name.name in SYNTHESIS_EXCLUDED_NAMES:
             return True
         else:
             return False
