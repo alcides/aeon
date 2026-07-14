@@ -56,7 +56,7 @@ from aeon.synthesis.modules.llm import llm_synthesizer_menu_ids
 SYNTHESIZERS = sort_synthesizer_ids(
     [
         "tdsyn_enumerative",
-        "tdsyn",
+        "tdsyn_random",
         "tactics",
         "gp",
         "enumerative",
