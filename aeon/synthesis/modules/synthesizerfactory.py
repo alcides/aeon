@@ -2,7 +2,7 @@ from enum import Enum
 
 import os
 
-from aeon.synthesis.api import ProgramSynthesizer, Synthesizer
+from aeon.synthesis.api import ProgramSynthesizer, Synthesizer, UnknownSynthesizerError
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
 from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
@@ -131,6 +131,53 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     **dict.fromkeys(LLM_OLLAMA_MODELS, SynthesizerFamily.LLM_ASSISTED),
 }
 
+_BUILTIN_SYNTHESIZER_IDS = frozenset(
+    {
+        "random_search",
+        "enumerative",
+        "gp",
+        "1p1",
+        "hc",
+        "genomic_ng",
+        "ng",
+        "ng_cma",
+        "ng_de",
+        "ng_pso",
+        "ng_float",
+        "float_ng",
+        "ng_float_cma",
+        "ortools",
+        "ortools_int",
+        "cpsat",
+        "synquid",
+        "decision_tree",
+        "smt",
+        "sygus",
+        "tdsyn",
+        "tdsyn_enumerative",
+        "tdsyn_random",
+        "tactics",
+        "lta",
+        "symetric",
+        "xfta",
+        "fta",
+        "afta",
+        "cata",
+        "contata",
+    }
+)
+
+
+def is_known_synthesizer(module: str) -> bool:
+    """Whether ``module`` is a valid ``-s``/``--synthesizer`` backend id."""
+    return module in _BUILTIN_SYNTHESIZER_IDS or module in LLM_OLLAMA_MODELS
+
+
+def validate_synthesizer(module: str) -> None:
+    """Raise :class:`UnknownSynthesizerError` when ``module`` is not a known backend."""
+    if not is_known_synthesizer(module):
+        raise UnknownSynthesizerError(module)
+
 
 def synthesizer_label(module: str) -> str:
     """A readable display name for synthesizer id ``module`` (falls back to the
@@ -159,6 +206,7 @@ def sort_synthesizer_ids(ids: list[str]) -> list[str]:
 
 
 def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
+    validate_synthesizer(module)
     # The random seed for stochastic backends is taken from the AEON_SEED
     # environment variable (default 0), so experiments can vary it across runs
     # (e.g. multi-seed benchmarks) without a dedicated CLI flag.
@@ -217,4 +265,4 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "contata":
             return ContataSynthesizer()
         case _:
-            assert False, f"Not supported synthesizer with name {module}"
+            raise UnknownSynthesizerError(module)

@@ -50,7 +50,7 @@ from pygls.lsp.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
 
-from aeon.synthesis.modules.synthesizerfactory import sort_synthesizer_ids
+from aeon.synthesis.modules.synthesizerfactory import is_known_synthesizer, sort_synthesizer_ids
 from aeon.synthesis.modules.llm import llm_synthesizer_menu_ids
 
 SYNTHESIZERS = sort_synthesizer_ids(
@@ -355,6 +355,8 @@ class AeonLanguageServer(LanguageServer):
                 if not ls._ranges_overlap(hole.range, cursor_range):
                     continue
                 for synthesizer in SYNTHESIZERS:
+                    if not is_known_synthesizer(synthesizer):
+                        continue
                     label = synthesizer_label(synthesizer)
                     action = CodeAction(
                         title=f"Synthesize ?{hole.name} with {label}",
@@ -514,6 +516,7 @@ def _run_synthesis(
     """Blocking synthesis function, meant to run in a thread executor."""
     from . import aeon_adapter
     from aeon.synthesis.entrypoint import synthesize_holes
+    from aeon.synthesis.api import UnknownSynthesizerError
     from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
     from aeon.lsp.synthesis_ui import LSPProgressUI
     from aeon.lsp.z3_errors import z3_synthesis_message
@@ -576,10 +579,8 @@ def _run_synthesis(
 
     try:
         synthesizer = make_synthesizer(synthesizer_name)
-    except AssertionError:
-        ls.window_show_message(
-            ShowMessageParams(type=MessageType.Error, message=f"Unknown synthesizer: {synthesizer_name}")
-        )
+    except UnknownSynthesizerError as e:
+        ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=str(e)))
         return None
 
     try:
