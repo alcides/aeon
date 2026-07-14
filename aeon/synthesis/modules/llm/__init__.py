@@ -13,8 +13,7 @@ from aeon.core.terms import Hole
 from aeon.sugar.lowering import lower_to_core
 from aeon.synthesis.decorators import Goal
 
-from ollama import generate
-
+from aeon.synthesis.modules.llm.client import default_openai_model, generate, llm_provider
 from aeon.synthesis.modules.llm.ollama_manager import prepare_ollama_model, release_ollama_model
 
 
@@ -40,20 +39,32 @@ DEFAULT_LLM_SYNTHESIZER_ID = "llm_qwen2.5-coder-32b"
 # Backward-compatible CLI id (``-s llm``) → default model above.
 LLM_OLLAMA_MODELS["llm"] = LLM_OLLAMA_MODELS[DEFAULT_LLM_SYNTHESIZER_ID]
 
+# OpenAI-compatible backend (model from ``AEON_LLM_MODEL``, endpoint from ``AEON_LLM_BASE_URL``).
+LLM_OPENAI_SYNTHESIZER_ID = "llm_openai"
+
 
 def llm_synthesizer_menu_ids() -> list[str]:
     """Synthesizer ids shown in the LSP/infoview menus (one entry per model)."""
-    return [sid for sid in LLM_OLLAMA_MODELS if sid != "llm"]
+    return [sid for sid in LLM_OLLAMA_MODELS if sid != "llm"] + [LLM_OPENAI_SYNTHESIZER_ID]
 
 
 def llm_synthesizer_label(synthesizer_id: str) -> str:
-    """Display label with the Ollama model tag visible in menus."""
+    """Display label with the backend model visible in menus."""
+    if synthesizer_id == LLM_OPENAI_SYNTHESIZER_ID:
+        return f"LLM generation (OpenAI-compatible, {default_openai_model()})"
     model = LLM_OLLAMA_MODELS.get(synthesizer_id, synthesizer_id)
     return f"LLM generation ({model})"
 
 
 def is_llm_synthesizer(synthesizer_id: str) -> bool:
-    return synthesizer_id in LLM_OLLAMA_MODELS
+    return synthesizer_id in LLM_OLLAMA_MODELS or synthesizer_id == LLM_OPENAI_SYNTHESIZER_ID
+
+
+def resolve_llm_backend(synthesizer_id: str) -> tuple[str, str]:
+    """Return ``(model, provider)`` for synthesizer id ``synthesizer_id``."""
+    if synthesizer_id == LLM_OPENAI_SYNTHESIZER_ID or llm_provider() == "openai":
+        return default_openai_model(), "openai"
+    return LLM_OLLAMA_MODELS[synthesizer_id], "ollama"
 
 
 def get_elapsed_time(start_time) -> float:
@@ -81,8 +92,13 @@ def is_better(a: list[float], b: list[float] | None, minimize: list[bool]) -> bo
 
 
 class LLMSynthesizer(Synthesizer):
-    def __init__(self, model: str = LLM_OLLAMA_MODELS[DEFAULT_LLM_SYNTHESIZER_ID]):
+    def __init__(
+        self,
+        model: str = LLM_OLLAMA_MODELS[DEFAULT_LLM_SYNTHESIZER_ID],
+        provider: str | None = None,
+    ):
         self.model = model
+        self.provider = provider
 
     def synthesize(
         self,
@@ -124,13 +140,17 @@ class LLMSynthesizer(Synthesizer):
 
         start_time = monotonic_ns()
         temperature = 0.0
+        use_ollama = (self.provider or llm_provider()) == "ollama"
         try:
-            prepare_ollama_model(self.model)
+            if use_ollama:
+                prepare_ollama_model(self.model)
             while get_elapsed_time(start_time) <= budget:
-                result = generate(
-                    model=self.model, prompt=f"{system_prompt}\n{prompt}", options={"temperature": temperature}
+                r = generate(
+                    model=self.model,
+                    prompt=f"{system_prompt}\n{prompt}",
+                    temperature=temperature,
+                    provider=self.provider,
                 )
-                r = result.response
                 try:
                     tterm = parse_expression(f"({r})")
                     core_tterm = lower_to_core(tterm)
@@ -152,5 +172,6 @@ class LLMSynthesizer(Synthesizer):
                 except Exception:
                     temperature += 0.2
         finally:
-            release_ollama_model(self.model)
+            if use_ollama:
+                release_ollama_model(self.model)
         return core_term
