@@ -15,7 +15,6 @@ st_float = STypeConstructor(Name("Float", 0))
 st_string = STypeConstructor(Name("String", 0))
 st_set = STypeConstructor(Name("Set", 0))
 st_tensor = STypeConstructor(Name("Tensor", 0))
-st_gpu_config = STypeConstructor(Name("GpuConfig", 0))
 
 true = SLiteral(True, st_bool)
 false = SLiteral(False, st_bool)

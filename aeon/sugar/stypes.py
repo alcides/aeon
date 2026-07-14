@@ -97,7 +97,7 @@ class STypeConstructor(SType):
         return hash(self.name) + sum(hash(c) for c in self.args)
 
 
-builtin_types = ["Top", "Bool", "Int", "Float", "String", "Unit", "Set", "Tensor", "GpuConfig"]
+builtin_types = ["Top", "Bool", "Int", "Float", "String", "Unit", "Set", "Tensor"]
 
 
 def get_type_vars(ty: SType) -> set[STypeVar]:
