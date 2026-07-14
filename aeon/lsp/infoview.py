@@ -622,14 +622,20 @@ def compute_info_view(
     synthesizers: list[SynthesizerInfo] = []
     if hole_name is not None and synthesizer_ids:
         from aeon.synthesis.modules.synthesizerfactory import (
+            is_known_synthesizer,
             sort_synthesizer_ids,
             synthesizer_family_label,
             synthesizer_label,
         )
 
+        for synthesizer_id in synthesizer_ids:
+            if not is_known_synthesizer(synthesizer_id):
+                error_infos.append(ErrorInfo(message=f"Unknown synthesizer: {synthesizer_id}"))
+
         synthesizers = [
             SynthesizerInfo(id=i, label=synthesizer_label(i), family=synthesizer_family_label(i))
             for i in sort_synthesizer_ids(synthesizer_ids)
+            if is_known_synthesizer(i)
         ]
 
     return InfoViewData(

@@ -27,7 +27,7 @@ from aeon.facade.api import (
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.facade.exit_codes import ExitCode, error_exit_code
 from aeon.sugar.lowering import LiquefactionException
-from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.api import SynthesisNotSuccessful, UnknownSynthesizerError
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
@@ -233,6 +233,16 @@ def synthesis_requested(argv: list[str] | None = None) -> bool:
     return False
 
 
+def validate_synthesizer_or_exit(name: str) -> None:
+    from aeon.synthesis.modules.synthesizerfactory import validate_synthesizer
+
+    try:
+        validate_synthesizer(name)
+    except UnknownSynthesizerError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(ExitCode.OTHER_ERROR)
+
+
 def format_location(err: AeonError) -> str:
     """Render an error's source span as ``file:line:col`` when positional
     information is available, otherwise fall back to ``str(location)``."""
@@ -342,6 +352,9 @@ def main() -> None:
     )
     driver = AeonDriver(cfg)
 
+    if synthesis_requested():
+        validate_synthesizer_or_exit(args.synthesizer)
+
     if hasattr(args, "language_server_mode"):
         aeon_lsp = AeonLanguageServer(driver)
         aeon_lsp.start(args.tcp)
@@ -413,6 +426,7 @@ def main() -> None:
                 case (True, _):
                     driver.pretty_print(args.filename, args.fix)
                 case (False, True):
+                    validate_synthesizer_or_exit(args.synthesizer)
                     try:
                         term = driver.synth()
                     except SynthesisNotSuccessful as e:

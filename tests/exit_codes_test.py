@@ -98,6 +98,20 @@ def test_cli_synthesis_requested_no_holes(tmp_path):
     assert "No holes to synthesize." in r.stderr
 
 
+def test_cli_unknown_synthesizer(tmp_path):
+    f = tmp_path / "prog.ae"
+    f.write_text("def main (x:Int) : Unit := print 42;\n")
+    r = subprocess.run(
+        [sys.executable, "-m", "aeon", "--no-main", "-s", "not_a_real_synthesizer", str(f)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=240,
+    )
+    assert r.returncode == ExitCode.OTHER_ERROR
+    assert "Unknown synthesizer: not_a_real_synthesizer" in r.stderr
+
+
 def test_cli_syntax_error(tmp_path):
     r = run_aeon(tmp_path, "def main (x:Int) : Unit := print (1 +;\n")
     assert r.returncode == ExitCode.SYNTAX_ERROR
