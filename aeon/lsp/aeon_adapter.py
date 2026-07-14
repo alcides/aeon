@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, TextIO, cast
 
 import requests
-from lark.exceptions import UnexpectedToken
+from lark.exceptions import UnexpectedCharacters, UnexpectedInput, UnexpectedToken
 from lsprotocol.types import Diagnostic, DiagnosticSeverity
 from lsprotocol.types import Position, Range
 
@@ -201,17 +201,89 @@ async def parse(
         except requests.RequestException:
             fp = io.StringIO("")
     else:
-        document = aeon_lsp.workspace.get_text_document(uri)
         try:
+            document = aeon_lsp.workspace.get_text_document(uri)
             fp = io.StringIO(document.source)
-        except IOError:
+        except (IOError, KeyError, AttributeError) as exc:
             if not allow_errors:
                 raise
-            fp = io.StringIO("")
+            logger.warning("Could not read document %s: %s", uri, exc)
+            return ParseResult(
+                diagnostics=[
+                    Diagnostic(
+                        message=f"Could not read document: {exc}",
+                        range=Range(
+                            start=Position(line=0, character=0),
+                            end=Position(line=0, character=0),
+                        ),
+                        source="aeon",
+                        severity=DiagnosticSeverity.Error,
+                    )
+                ]
+            )
 
     parse_result = await _parse(fp, aeon_lsp.aeon_driver, uri)
     _parse_result_cache[uri] = parse_result
     return parse_result
+
+
+def _unexpected_token_diagnostic(e: UnexpectedToken) -> Diagnostic:
+    token_length = 1
+    try:
+        token_length = len(str(e.token.value))
+    except Exception:
+        pass
+
+    token_type = e.token.type if e.token.type else "unknown"
+    token_value = e.token.value if e.token.value else str(e.token)
+
+    error_message = (
+        f"Unexpected {token_type} '{token_value}' at line {e.line}, column {e.column}.\n"
+        f"Expected: {', '.join(e.expected)}"
+    )
+
+    error_range = Range(
+        start=Position(line=e.line - 1, character=e.column - 1),
+        end=Position(line=e.line - 1, character=e.column - 1 + token_length),
+    )
+
+    return Diagnostic(
+        message=error_message,
+        range=error_range,
+        source="aeon",
+        severity=DiagnosticSeverity.Error,
+    )
+
+
+def _unexpected_input_diagnostic(e: UnexpectedInput) -> Diagnostic:
+    if isinstance(e, UnexpectedCharacters):
+        char = e.char or ""
+        token_length = max(len(char), 1)
+        char_display = repr(char)[1:-1] if char else "character"
+        allowed = sorted(e.allowed) if e.allowed else []
+        error_message = (
+            f"Unexpected character '{char_display}' at line {e.line}, column {e.column}.\n"
+            f"Expected: {', '.join(allowed)}"
+        )
+        error_range = Range(
+            start=Position(line=e.line - 1, character=e.column - 1),
+            end=Position(line=e.line - 1, character=e.column - 1 + token_length),
+        )
+    else:
+        error_message = str(e)
+        line = getattr(e, "line", 1) or 1
+        column = getattr(e, "column", 1) or 1
+        error_range = Range(
+            start=Position(line=line - 1, character=column - 1),
+            end=Position(line=line - 1, character=column),
+        )
+
+    return Diagnostic(
+        message=error_message,
+        range=error_range,
+        source="aeon",
+        severity=DiagnosticSeverity.Error,
+    )
 
 
 async def _parse(
@@ -238,21 +310,10 @@ async def _parse(
         _refresh_analysis(driver, uri)
 
         for error in errors:
-            error_message = str(error)
-            error_position = error.position()
-
-            error_start_line, error_start_character = error_position.get_start()
-            error_end_line, error_end_character = error_position.get_end()
-
-            error_range = Range(
-                start=Position(line=error_start_line, character=error_start_character),
-                end=Position(line=error_end_line, character=error_end_character),
-            )
-
             diagnostics.append(
                 Diagnostic(
-                    message=error_message,
-                    range=error_range,
+                    message=str(error),
+                    range=_loc_to_range(error.position()),
                     source="aeon",
                     severity=DiagnosticSeverity.Error,
                 )
@@ -279,33 +340,9 @@ async def _parse(
             return ParseResult(diagnostics, holes)
 
     except UnexpectedToken as e:
-        token_length = 1
-        try:
-            token_length = len(str(e.token.value))
-        except Exception:
-            pass
-
-        token_type = e.token.type if e.token.type else "unknown"
-        token_value = e.token.value if e.token.value else str(e.token)
-
-        error_message = (
-            f"Unexpected {token_type} '{token_value}' at line {e.line}, column {e.column}.\n"
-            f"Expected: {', '.join(e.expected)}"
-        )
-
-        error_range = Range(
-            start=Position(line=e.line - 1, character=e.column - 1),
-            end=Position(line=e.line - 1, character=e.column - 1 + token_length),
-        )
-
-        diagnostics.append(
-            Diagnostic(
-                message=error_message,
-                range=error_range,
-                source="aeon",
-                severity=DiagnosticSeverity.Error,
-            )
-        )
+        diagnostics.append(_unexpected_token_diagnostic(e))
+    except UnexpectedInput as e:
+        diagnostics.append(_unexpected_input_diagnostic(e))
     except Z3Exception as e:
         logger.warning("Z3 verification failed while parsing %s: %s", uri, e)
         diagnostics.append(

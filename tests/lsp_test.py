@@ -380,6 +380,77 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Parse diagnostics for invalid source
+# ---------------------------------------------------------------------------
+
+
+def test_parse_syntax_error_returns_diagnostic():
+    import asyncio
+    import io
+
+    from aeon.lsp.aeon_adapter import _parse
+    from lsprotocol.types import DiagnosticSeverity
+
+    driver = make_driver()
+    result = asyncio.run(_parse(io.StringIO("this is not valid aeon !!!"), driver, "file:///test.ae"))
+
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].severity == DiagnosticSeverity.Error
+    assert "Unexpected" in result.diagnostics[0].message
+
+
+def test_parse_unexpected_characters_returns_syntax_diagnostic():
+    import asyncio
+    import io
+
+    from aeon.lsp.aeon_adapter import _parse
+    from lsprotocol.types import DiagnosticSeverity
+
+    driver = make_driver()
+    result = asyncio.run(_parse(io.StringIO('def x : Int := "unclosed'), driver, "file:///test.ae"))
+
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].severity == DiagnosticSeverity.Error
+    assert "Unknown exception" not in result.diagnostics[0].message
+    assert "Unexpected character" in result.diagnostics[0].message
+
+
+def test_parse_incomplete_definition_returns_diagnostic():
+    import asyncio
+    import io
+
+    from aeon.lsp.aeon_adapter import _parse
+    from lsprotocol.types import DiagnosticSeverity
+
+    driver = make_driver()
+    result = asyncio.run(_parse(io.StringIO("def x : Int :="), driver, "file:///test.ae"))
+
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].severity == DiagnosticSeverity.Error
+
+
+def test_parse_missing_document_returns_diagnostic():
+    import asyncio
+
+    from aeon.lsp.aeon_adapter import parse
+    from lsprotocol.types import DiagnosticSeverity
+
+    class MissingDocWorkspace:
+        def get_text_document(self, uri):
+            raise KeyError("Document not found")
+
+    class MissingDocLS:
+        aeon_driver = make_driver()
+        workspace = MissingDocWorkspace()
+
+    result = asyncio.run(parse(MissingDocLS(), "file:///missing.ae"))
+
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].severity == DiagnosticSeverity.Error
+    assert "Could not read document" in result.diagnostics[0].message
+
+
+# ---------------------------------------------------------------------------
 # Z3 verification errors
 # ---------------------------------------------------------------------------
 

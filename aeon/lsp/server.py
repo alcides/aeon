@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import List, Optional, AsyncIterable
 
 from lsprotocol.types import (
@@ -27,6 +28,7 @@ from lsprotocol.types import (
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
+    DiagnosticSeverity,
     DocumentSymbol,
     DocumentSymbolParams,
     Hover,
@@ -83,6 +85,8 @@ SYNTHESIZE_COMMAND = "aeon.synthesize"
 # :class:`aeon.lsp.infoview.InfoViewData`.
 INFOVIEW_REQUEST = "aeon/infoView"
 
+logger = logging.getLogger(__name__)
+
 
 class AeonLanguageServer(LanguageServer):
     def __init__(self, aeon_driver: AeonDriver):
@@ -103,10 +107,24 @@ class AeonLanguageServer(LanguageServer):
 
     async def _parse_and_send_diagnostics(self, uri) -> None:
         await asyncio.sleep(self.debounce_delay)
-        diagnostics = []
-        async for diag in self._get_diagnostics(uri):
-            diagnostics.append(diag)
-        self.text_document_publish_diagnostics(PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics))
+        diagnostics: list[Diagnostic] = []
+        try:
+            async for diag in self._get_diagnostics(uri):
+                diagnostics.append(diag)
+        except Exception:
+            logger.exception("Failed to produce diagnostics for %s", uri)
+            diagnostics = [
+                Diagnostic(
+                    message="Internal error while analysing this file",
+                    range=Range(start=Position(line=0, character=0), end=Position(line=0, character=0)),
+                    source="aeon",
+                    severity=DiagnosticSeverity.Error,
+                )
+            ]
+        try:
+            self.text_document_publish_diagnostics(PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics))
+        except Exception:
+            logger.exception("Failed to publish diagnostics for %s", uri)
 
     async def _get_diagnostics(self, uri: str) -> AsyncIterable[Diagnostic]:
         from . import aeon_adapter
@@ -161,44 +179,47 @@ class AeonLanguageServer(LanguageServer):
             from . import aeon_adapter
             from aeon.lsp.completion import format_type
 
-            document = ls.workspace.get_text_document(params.text_document.uri)
-            source = document.source
-            line, character = params.position.line, params.position.character
-            word = _get_word_at_position(source, line, character)
+            try:
+                document = ls.workspace.get_text_document(params.text_document.uri)
+                source = document.source
+                line, character = params.position.line, params.position.character
+                word = _get_word_at_position(source, line, character)
 
-            # Position-accurate hover: the inferred (refined) type of the
-            # expression under the cursor, from the type index.
-            index = aeon_adapter.get_type_index(params.text_document.uri)
-            if index is not None:
-                result = index.type_at(line, character)
-                if result is not None:
-                    ty, loc = result
-                    lhs = f"{word} : " if word else ""
-                    return Hover(
-                        contents=MarkupContent(
-                            kind=MarkupKind.Markdown,
-                            value=f"```aeon\n{lhs}{format_type(ty)}\n```",
-                        ),
-                        range=_loc_to_range(loc),
-                    )
-
-            # Fallback: top-level name match (e.g. hovering a definition's name,
-            # which is a binder and has no synthesized-expression observation).
-            if not word:
-                return None
-            typing_ctx = aeon_adapter.get_typing_ctx(params.text_document.uri) or getattr(
-                ls.aeon_driver, "typing_ctx", None
-            )
-            if typing_ctx is None:
-                return None
-            for name, type_ in typing_ctx.vars():
-                if name.pretty() == word:
-                    return Hover(
-                        contents=MarkupContent(
-                            kind=MarkupKind.Markdown,
-                            value=f"```aeon\n{word} : {format_type(type_)}\n```",
+                # Position-accurate hover: the inferred (refined) type of the
+                # expression under the cursor, from the type index.
+                index = aeon_adapter.get_type_index(params.text_document.uri)
+                if index is not None:
+                    result = index.type_at(line, character)
+                    if result is not None:
+                        ty, loc = result
+                        lhs = f"{word} : " if word else ""
+                        return Hover(
+                            contents=MarkupContent(
+                                kind=MarkupKind.Markdown,
+                                value=f"```aeon\n{lhs}{format_type(ty)}\n```",
+                            ),
+                            range=_loc_to_range(loc),
                         )
-                    )
+
+                # Fallback: top-level name match (e.g. hovering a definition's name,
+                # which is a binder and has no synthesized-expression observation).
+                if not word:
+                    return None
+                typing_ctx = aeon_adapter.get_typing_ctx(params.text_document.uri) or getattr(
+                    ls.aeon_driver, "typing_ctx", None
+                )
+                if typing_ctx is None:
+                    return None
+                for name, type_ in typing_ctx.vars():
+                    if name.pretty() == word:
+                        return Hover(
+                            contents=MarkupContent(
+                                kind=MarkupKind.Markdown,
+                                value=f"```aeon\n{word} : {format_type(type_)}\n```",
+                            )
+                        )
+            except Exception:
+                logger.exception("Hover failed for %s", params.text_document.uri)
             return None
 
         @self.feature(TEXT_DOCUMENT_COMPLETION, CompletionOptions(trigger_characters=["."]))
@@ -231,24 +252,28 @@ class AeonLanguageServer(LanguageServer):
             from . import aeon_adapter
             from aeon.lsp.navigation import inlay_hints
 
-            uri = params.text_document.uri
-            core = aeon_adapter.get_core(uri)
-            index = aeon_adapter.get_type_index(uri)
-            if core is None or index is None:
-                return []
-            document = ls.workspace.get_text_document(uri)
-            hints = []
-            for h in inlay_hints(core, document.source, index):
-                # 1-indexed core positions -> 0-indexed LSP.
-                hints.append(
-                    InlayHint(
-                        position=Position(line=h.line - 1, character=h.character - 1),
-                        label=h.label,
-                        kind=InlayHintKind.Type,
-                        padding_left=True,
+            try:
+                uri = params.text_document.uri
+                core = aeon_adapter.get_core(uri)
+                index = aeon_adapter.get_type_index(uri)
+                if core is None or index is None:
+                    return []
+                document = ls.workspace.get_text_document(uri)
+                hints = []
+                for h in inlay_hints(core, document.source, index):
+                    # 1-indexed core positions -> 0-indexed LSP.
+                    hints.append(
+                        InlayHint(
+                            position=Position(line=h.line - 1, character=h.character - 1),
+                            label=h.label,
+                            kind=InlayHintKind.Type,
+                            padding_left=True,
+                        )
                     )
-                )
-            return hints
+                return hints
+            except Exception:
+                logger.exception("Inlay hints failed for %s", params.text_document.uri)
+                return []
 
         @self.feature(TEXT_DOCUMENT_DEFINITION)
         async def definition(
@@ -258,16 +283,20 @@ class AeonLanguageServer(LanguageServer):
             from . import aeon_adapter
             from aeon.lsp.navigation import build_def_index
 
-            uri = params.text_document.uri
-            core = aeon_adapter.get_core(uri)
-            if core is None:
+            try:
+                uri = params.text_document.uri
+                core = aeon_adapter.get_core(uri)
+                if core is None:
+                    return None
+                document = ls.workspace.get_text_document(uri)
+                def_index = build_def_index(core, document.source)
+                span = def_index.definition_at(params.position.line, params.position.character)
+                if span is None:
+                    return None
+                return Location(uri=uri, range=_span_to_range(span))
+            except Exception:
+                logger.exception("Definition lookup failed for %s", params.text_document.uri)
                 return None
-            document = ls.workspace.get_text_document(uri)
-            def_index = build_def_index(core, document.source)
-            span = def_index.definition_at(params.position.line, params.position.character)
-            if span is None:
-                return None
-            return Location(uri=uri, range=_span_to_range(span))
 
         @self.feature(TEXT_DOCUMENT_DOCUMENT_SYMBOL)
         async def document_symbol(
@@ -277,23 +306,27 @@ class AeonLanguageServer(LanguageServer):
             from . import aeon_adapter
             from aeon.lsp.navigation import document_symbols
 
-            uri = params.text_document.uri
-            core = aeon_adapter.get_core(uri)
-            if core is None:
-                return []
-            document = ls.workspace.get_text_document(uri)
-            out = []
-            for s in document_symbols(core, document.source):
-                out.append(
-                    DocumentSymbol(
-                        name=s.name,
-                        detail=s.detail,
-                        kind=SymbolKind.Function if s.is_function else SymbolKind.Variable,
-                        range=_span_to_range(s.full_range),
-                        selection_range=_span_to_range(s.selection_range),
+            try:
+                uri = params.text_document.uri
+                core = aeon_adapter.get_core(uri)
+                if core is None:
+                    return []
+                document = ls.workspace.get_text_document(uri)
+                out = []
+                for s in document_symbols(core, document.source):
+                    out.append(
+                        DocumentSymbol(
+                            name=s.name,
+                            detail=s.detail,
+                            kind=SymbolKind.Function if s.is_function else SymbolKind.Variable,
+                            range=_span_to_range(s.full_range),
+                            selection_range=_span_to_range(s.selection_range),
+                        )
                     )
-                )
-            return out
+                return out
+            except Exception:
+                logger.exception("Document symbols failed for %s", params.text_document.uri)
+                return []
 
         @self.feature(INFOVIEW_REQUEST)
         async def info_view(
