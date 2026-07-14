@@ -220,6 +220,18 @@ def select_synthesis_ui() -> SynthesisUI:
     return TerminalUI()
 
 
+def synthesis_requested(argv: list[str] | None = None) -> bool:
+    """True when ``-s``/``--synthesizer`` or ``--budget`` was passed on the CLI."""
+    if argv is None:
+        argv = sys.argv[1:]
+    for arg in argv:
+        if arg in ("-s", "--synthesizer"):
+            return True
+        if arg == "--budget" or arg.startswith("--budget="):
+            return True
+    return False
+
+
 def format_location(err: AeonError) -> str:
     """Render an error's source span as ``file:line:col`` when positional
     information is available, otherwise fall back to ``str(location)``."""
@@ -393,6 +405,9 @@ def main() -> None:
                     sys.exit(0)
                 failures = driver.run_tests(seed=args.seed)
                 sys.exit(ExitCode.TESTS_FAILED_OR_CRASH if failures else ExitCode.SUCCESS)
+            if synthesis_requested() and not driver.has_synth():
+                print("No holes to synthesize.", file=sys.stderr)
+                sys.exit(ExitCode.SYNTHESIS_NOT_SUCCESSFUL)
             match (args.format, driver.has_synth()):
                 case (True, _):
                     driver.pretty_print(args.filename, args.fix)
