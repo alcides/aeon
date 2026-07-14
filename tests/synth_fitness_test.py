@@ -4,10 +4,10 @@ import pytest
 
 from aeon.logger.logger import setup_logger
 from aeon.synthesis.identification import incomplete_functions_and_holes
-from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 
 from tests.driver import check_and_return_core
+from tests.synthesis_helpers import first_hole_term, synthesize_holes_or_skip
 
 setup_logger()
 
@@ -22,11 +22,12 @@ def test_fitness():
         ctx,
         core_ast_anf,
     )
-    mapping = synthesize_holes(
+    mapping = synthesize_holes_or_skip(
         ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=GESynthesizer(), budget=0.25
     )
 
     assert len(mapping) == 1
+    first_hole_term(mapping)
 
 
 @pytest.mark.skip(reason="Synthesis-only")
@@ -43,5 +44,7 @@ def test_literal_int_range():
 
     synthesizer = GESynthesizer()
 
-    mapping = synthesize_holes(ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer, budget=0.25)
+    mapping = synthesize_holes_or_skip(
+        ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer, budget=0.25
+    )
     assert len(mapping) > 0

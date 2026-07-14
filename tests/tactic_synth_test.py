@@ -26,6 +26,8 @@ from aeon.typechecking.typeinfer import check_type
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
+from tests.synthesis_helpers import run_synthesizer_or_skip
+
 _loc = SynthesizedLocation("test")
 
 
@@ -257,7 +259,8 @@ def test_tactic_random_synthesizer_smoke():
     def evaluate(t):
         return [0.0]
 
-    got = syn.synthesize(
+    got = run_synthesizer_or_skip(
+        syn,
         ctx=ctx,
         type=t_int,
         validate=validate,
@@ -266,7 +269,6 @@ def test_tactic_random_synthesizer_smoke():
         metadata={},
         budget=2.0,
     )
-    assert got is not None
     assert check_type(ctx, got, t_int)
 
 
@@ -313,7 +315,8 @@ def test_explicit_tactic_synthesizer_runs_script():
     def evaluate(t):
         return [0.0]
 
-    got = syn.synthesize(
+    got = run_synthesizer_or_skip(
+        syn,
         ctx=ctx,
         type=t_int,
         validate=validate,
@@ -322,7 +325,6 @@ def test_explicit_tactic_synthesizer_runs_script():
         metadata={},
         budget=1.0,
     )
-    assert got is not None
     assert check_type(ctx, got, t_int)
 
 

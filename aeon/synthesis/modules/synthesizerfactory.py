@@ -11,8 +11,10 @@ from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm import (
     LLM_OLLAMA_MODELS,
+    LLM_OPENAI_SYNTHESIZER_ID,
     LLMSynthesizer,
     llm_synthesizer_label,
+    resolve_llm_backend,
 )
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
@@ -86,6 +88,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "float_ng": "Nevergrad · float holes (NGOpt)",
     "ng_float_cma": "Nevergrad · float holes (CMA-ES)",
     **{sid: llm_synthesizer_label(sid) for sid in LLM_OLLAMA_MODELS},
+    LLM_OPENAI_SYNTHESIZER_ID: llm_synthesizer_label(LLM_OPENAI_SYNTHESIZER_ID),
 }
 
 
@@ -129,6 +132,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "ng_float_cma": SynthesizerFamily.METAHEURISTIC,
     # LLM-assisted — generate candidates from natural language.
     **dict.fromkeys(LLM_OLLAMA_MODELS, SynthesizerFamily.LLM_ASSISTED),
+    LLM_OPENAI_SYNTHESIZER_ID: SynthesizerFamily.LLM_ASSISTED,
 }
 
 
@@ -190,8 +194,9 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return CPSatHoleSynthesizer(seed=seed)
         case "synquid":
             return SynquidSynthesizer()
-        case id if id in LLM_OLLAMA_MODELS:
-            return LLMSynthesizer(model=LLM_OLLAMA_MODELS[id])
+        case id if id in LLM_OLLAMA_MODELS or id == LLM_OPENAI_SYNTHESIZER_ID:
+            model, provider = resolve_llm_backend(id)
+            return LLMSynthesizer(model=model, provider=provider)
         case "decision_tree":
             return DecisionTreeSynthesizer()
         case "smt":
