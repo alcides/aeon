@@ -22,6 +22,22 @@ internal_functions: list[str] = []
 
 text_to_aeon_prelude_ops: dict[str, str] = {v: k for k, v in aeon_prelude_ops_to_text.items()}
 
+
+def _prelude_binding_names() -> frozenset[str]:
+    from aeon.prelude.prelude import typing_vars
+
+    return frozenset(n.name for n in typing_vars)
+
+
+# Prelude operators and internal names tactics must not treat as hypotheses or
+# call targets (``==`` is not a Boolean scrutinee; ``$`` is not a user value).
+TACTIC_CONTEXT_EXCLUDED_NAMES: frozenset[str] = (
+    SYNTHESIS_EXCLUDED_NAMES
+    | _prelude_binding_names()
+    | frozenset(aeon_prelude_ops_to_text.keys())
+    | frozenset(text_to_aeon_prelude_ops.keys())
+)
+
 grammar_base_types: list[str] = ["t_Float", "t_Int", "t_String", "t_Bool"]
 
 aeon_to_python_types: dict[str, TypingType] = {"Int": int, "Bool": bool, "String": str, "Float": float}

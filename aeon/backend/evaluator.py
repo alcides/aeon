@@ -23,6 +23,10 @@ from aeon.llvm.core import LLVMPipeline
 real_eval = eval
 
 
+class HoleEvaluationError(Exception):
+    """Evaluation reached a synthesis hole in a context that rejects open holes."""
+
+
 class EvaluationContext:
     variables: dict[Name, Any]
     metadata: Metadata | None
@@ -38,6 +42,11 @@ class EvaluationContext:
     trace: list | None
     trace_stack: list | None
     contract_state: ContractState | None
+    # Only ``driver.run()`` sets this: compile-time refinement execution and other
+    # internal eval paths must never block on ``input()`` for open holes.
+    interactive_holes: bool
+    # Compile-time refinement execution and synthesis fitness evaluation reject holes.
+    reject_holes: bool
 
     def __init__(
         self,
@@ -47,6 +56,9 @@ class EvaluationContext:
         trace: list | None = None,
         trace_stack: list | None = None,
         contract_state: ContractState | None = None,
+        *,
+        interactive_holes: bool = False,
+        reject_holes: bool = False,
     ):
         if prev:
             self.variables = {k: v for (k, v) in prev.items()}
@@ -57,6 +69,8 @@ class EvaluationContext:
         self.trace = trace
         self.trace_stack = trace_stack
         self.contract_state = contract_state
+        self.interactive_holes = interactive_holes
+        self.reject_holes = reject_holes
 
     def with_var(self, name: Name, value: Any):
         assert isinstance(name, Name)
@@ -73,6 +87,8 @@ class EvaluationContext:
             trace=self.trace,
             trace_stack=self.trace_stack,
             contract_state=self.contract_state,
+            interactive_holes=self.interactive_holes,
+            reject_holes=self.reject_holes,
         )
 
     def get(self, name: Name):
@@ -273,15 +289,16 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 )
             return value
         case Hole(name):
-            # Holes are filled by synthesis at the CLI. When stdin is not a TTY
-            # (e.g. the LSP uses it for JSON-RPC), prompting would block the
-            # server; refinement execution treats a failed hole eval as "skip".
-            if not sys.stdin.isatty():
-                raise ValueError(f"cannot evaluate hole {t} without a TTY")
-            args = ", ".join([str(n.name) for n in ctx.variables])
-            print(f"Context ({args})")
-            h = input(f"Enter value for hole {t} in Python: ")
-            return real_eval(h, {str(name): v for name, v in ctx.variables.items()})
+            if ctx.reject_holes:
+                raise HoleEvaluationError(f"cannot evaluate open hole {t}")
+            # Holes are filled by synthesis at the CLI. Only an explicit
+            # ``driver.run()`` with ``interactive_holes`` may ask on a TTY.
+            if ctx.interactive_holes and sys.stdin.isatty():
+                args = ", ".join([str(n.name) for n in ctx.variables])
+                print(f"Context ({args})")
+                h = input(f"Enter value for hole {t} in Python: ")
+                return real_eval(h, {str(name): v for name, v in ctx.variables.items()})
+            raise HoleEvaluationError(f"cannot evaluate open hole {t}")
 
         case TypeAbstraction(_, _, body):
             return eval(body, ctx)
@@ -310,6 +327,8 @@ def eval_with_trace(t: Term, ctx: EvaluationContext = EvaluationContext()) -> tu
         trace=sink,
         trace_stack=[],
         contract_state=ctx.contract_state,
+        interactive_holes=ctx.interactive_holes,
+        reject_holes=ctx.reject_holes,
     )
     value = eval(t, traced)
     return value, sink
