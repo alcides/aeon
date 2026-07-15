@@ -1,0 +1,3 @@
+open ML
+
+MLCore.read_csv("titanic.csv")
