@@ -1,0 +1,28 @@
+# ─── Library-level imports ─────────────────────────────────────────────
+# ``numpy`` / ``pandas`` / ``sklearn`` are imported by the Python binding
+# module (``aeon/bindings/learning.py``); the native bodies here all go
+# through ``__import__('aeon.bindings.learning')``, so no bare ``np`` /
+# ``pd`` / ``skl`` symbols are needed at this layer. (Declaring them as
+# ``native_import`` here would collide with ``Tensor``'s ``np`` when both
+# libraries are opened together — e.g. via ``Models``.)
+
+# ─── Opaque types ───────────────────────────────────────────────────────
+
+type DataFrame
+type Dataset
+type SklearnRegressor
+type SklearnClassifier
+
+# ─── Uninterpreted shape / class predicates ────────────────────────────
+
+def df_rows (df: DataFrame) -> Int := uniterpreted
+def df_cols (df: DataFrame) -> Int := uniterpreted
+
+def ds_rows (ds: Dataset) -> Int := uniterpreted
+def ds_cols (ds: Dataset) -> Int := uniterpreted
+
+# ─── Loading & target column selection ─────────────────────────────────
+
+# Read a CSV file into a ``DataFrame`` (all columns kept).
+def read_csv (path: String) : {df: DataFrame | df_cols df >= 1 && df_rows df >= 0} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
