@@ -1,5 +1,47 @@
 # Basic Synthesis problem. Return an integer.
+import Array
 
-def fun (x:Int) (y:Int) : Int := ?hole
+def fun (x:Int) (y:Int) : Int :=
+ ?hole
 # GP
 # GS - R+E
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Hitchhikers' Guide to Program Synthesis
+
+# Alcides Fonseca (http://alcidesfonseca.com/)
+# & Alberto Tonda
+
+# Aeon - http://github.com/alcides/aeon
+# Find it on VSCode or OpenVSX stores
+
+
+# Today will be about:
+# * Expressing Intent
+# * Searching strategies
