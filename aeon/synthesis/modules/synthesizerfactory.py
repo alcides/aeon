@@ -13,6 +13,7 @@ from aeon.synthesis.modules.llm import (
     LLM_OLLAMA_MODELS,
     LLM_OPENAI_SYNTHESIZER_ID,
     LLMSynthesizer,
+    is_llm_synthesizer,
     llm_synthesizer_label,
     resolve_llm_backend,
 )
@@ -174,7 +175,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
 
 def is_known_synthesizer(module: str) -> bool:
     """Whether ``module`` is a valid ``-s``/``--synthesizer`` backend id."""
-    return module in _BUILTIN_SYNTHESIZER_IDS or module in LLM_OLLAMA_MODELS
+    return module in _BUILTIN_SYNTHESIZER_IDS or is_llm_synthesizer(module)
 
 
 def validate_synthesizer(module: str) -> None:
