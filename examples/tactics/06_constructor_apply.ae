@@ -1,0 +1,9 @@
+# Tactic: constructor — apply the `mk` constructor of a custom type, leaving a
+# hole for the `Int` field that `choose_literal` fills.
+#
+#   uv run python -m aeon --no-main examples/tactics/06_constructor_apply.ae
+
+inductive Box
+| mk (value:Int) : Box
+
+def target : Box := by (constructor; choose_literal)

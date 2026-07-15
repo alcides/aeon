@@ -126,6 +126,7 @@ class AeonDriver:
                 metadata=metadata,
                 pipeline=pipeline,
                 contract_state=contract_state,
+                reject_holes=True,
             )
 
         with RecordTime("LLVM compilation"):
@@ -135,7 +136,19 @@ class AeonDriver:
 
     def run(self) -> Any:
         with RecordTime("Evaluation"):
-            return eval(self.core, self.evaluation_ctx)
+            from aeon.backend.evaluator import EvaluationContext
+
+            run_ctx = EvaluationContext(
+                self.evaluation_ctx.variables,
+                metadata=self.evaluation_ctx.metadata,
+                pipeline=self.evaluation_ctx.pipeline,
+                trace=self.evaluation_ctx.trace,
+                trace_stack=self.evaluation_ctx.trace_stack,
+                contract_state=self.evaluation_ctx.contract_state,
+                interactive_holes=True,
+                reject_holes=False,
+            )
+            return eval(self.core, run_ctx)
 
     def trust_report(self, filename: str | None = None, for_func: str | None = None) -> str:
         """Render the program's trusted computing base — the axioms and refined

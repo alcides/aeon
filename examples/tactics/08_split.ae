@@ -1,0 +1,5 @@
+# Tactic: split — peel a top-level && in the goal refinement, then solve the rest.
+#
+#   uv run python -m aeon --no-main examples/tactics/08_split.ae
+
+def target : {z:Int | z > 0 && z < 10} := by (split; choose_literal)

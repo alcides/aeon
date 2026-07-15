@@ -10,7 +10,7 @@ from aeon.sugar.program import ImportAe, STerm
 from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
 from aeon.sugar.program import Decorator
-from aeon.utils.location import Location
+from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
 from aeon.verification.vcs import Constraint
 from aeon.verification.helpers import pretty_print_constraint
@@ -142,6 +142,23 @@ class NonOrderableComparisonError(AeonError):
         return (
             f"Operator '{self.operator}' is not defined for type '{self.type_name}'; "
             f"ordered comparisons require Int, Float or String."
+        )
+
+    def position(self) -> Location:
+        return self.loc
+
+
+@dataclass
+class RefinementExecutionHoleError(AeonError):
+    """Compile-time refinement execution reached an open synthesis hole."""
+
+    hole: str
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("refinement execution"))
+
+    def __str__(self) -> str:
+        return (
+            "Compile-time refinement execution cannot evaluate programs with open holes "
+            f"({self.hole}). Fill synthesis holes before running refinement execution."
         )
 
     def position(self) -> Location:

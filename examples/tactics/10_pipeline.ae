@@ -1,0 +1,7 @@
+# Combined script: apply? then constructor on the result spine.
+#
+#   uv run python -m aeon --no-main examples/tactics/10_pipeline.ae
+
+def add_one (x:Int) : Int := x + 1
+
+def target (x:{v:Int | v > 0}) : Int := by (apply?; constructor; choose_literal)

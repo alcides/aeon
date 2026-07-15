@@ -1,0 +1,5 @@
+# Tactic: assumption — close the goal with a hypothesis of the same (liquid) type.
+#
+#   uv run python -m aeon --no-main examples/tactics/03_assumption.ae
+
+def target (x:{v:Int | v > 0}) : {w:Int | w > 0} := by assumption

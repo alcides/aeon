@@ -97,6 +97,7 @@ def _ectx_for_workers(ectx: EvaluationContext) -> EvaluationContext:
         pipeline=None,
         trace=ectx.trace,
         trace_stack=ectx.trace_stack,
+        reject_holes=True,
     )
 
 

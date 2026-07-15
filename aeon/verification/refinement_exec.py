@@ -16,7 +16,7 @@ Example::
 
 from __future__ import annotations
 
-from aeon.backend.evaluator import EvaluationContext, eval
+from aeon.backend.evaluator import EvaluationContext, HoleEvaluationError, eval
 from aeon.compilation.link import link_rec_spines
 from aeon.compilation.unit import CompiledUnit
 from aeon.core.terms import Rec, Term
@@ -27,6 +27,7 @@ from aeon.sugar.program import (
     SAbstraction,
     SAnnotation,
     SApplication,
+    SHole,
     SIf,
     SLet,
     SLiteral,
@@ -47,6 +48,39 @@ from aeon.sugar.stypes import (
     STypePolymorphism,
 )
 from aeon.utils.name import Name
+
+
+def _refinement_eval_context() -> EvaluationContext:
+    return EvaluationContext(evaluation_vars, reject_holes=True)
+
+
+def sterm_has_user_hole(term: STerm) -> bool:
+    """True when the program still contains a synthesis hole other than ``?main``."""
+    match term:
+        case SHole(name):
+            return name.name != "main"
+        case SApplication(fun, arg, _):
+            return sterm_has_user_hole(fun) or sterm_has_user_hole(arg)
+        case SAbstraction(_, body, _):
+            return sterm_has_user_hole(body)
+        case SLet(_, var_value, body, _, _):
+            return sterm_has_user_hole(var_value) or sterm_has_user_hole(body)
+        case SRec(_, _, var_value, body, _, _, _, _, _):
+            return sterm_has_user_hole(var_value) or sterm_has_user_hole(body)
+        case SIf(cond, then, otherwise, _):
+            return sterm_has_user_hole(cond) or sterm_has_user_hole(then) or sterm_has_user_hole(otherwise)
+        case SAnnotation(expr, _, _):
+            return sterm_has_user_hole(expr)
+        case STypeApplication(expr, _, _):
+            return sterm_has_user_hole(expr)
+        case SRefinementApplication(body, refinement, _):
+            return sterm_has_user_hole(body) or sterm_has_user_hole(refinement)
+        case STypeAbstraction(_, _, body):
+            return sterm_has_user_hole(body)
+        case SRefinementAbstraction(_, _, body):
+            return sterm_has_user_hole(body)
+        case _:
+            return False
 
 
 def sterm_free_vars(term: STerm, *, bound: frozenset[Name] = frozenset()) -> set[Name]:
@@ -118,7 +152,9 @@ def _try_execute_subexpr(
     try:
         ref_core = lower_to_core(term)
         linked = _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
-        result = eval(linked, EvaluationContext(evaluation_vars))
+        result = eval(linked, _refinement_eval_context())
+    except HoleEvaluationError:
+        return None
     except Exception:
         return None
     return _sterm_from_runtime_value(result)
@@ -232,7 +268,9 @@ def try_execute_refinement(
     try:
         ref_core = lower_to_core(ref)
         linked = _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
-        result = eval(linked, EvaluationContext(evaluation_vars))
+        result = eval(linked, _refinement_eval_context())
+    except HoleEvaluationError:
+        return None
     except Exception:
         return None
     if isinstance(result, bool):
@@ -288,6 +326,8 @@ def execute_refinements_in_sterm(
     term: STerm,
     dependency_units: list[CompiledUnit],
 ) -> STerm:
+    if sterm_has_user_hole(term):
+        raise HoleEvaluationError("compile-time refinement execution cannot run on programs with open synthesis holes")
     return _execute_refinements_in_sterm(term, term, dependency_units)
 
 

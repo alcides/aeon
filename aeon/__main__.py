@@ -18,6 +18,7 @@ from aeon.facade.api import (
     LinearityError,
     MethodResolutionError,
     NonOrderableComparisonError,
+    RefinementExecutionHoleError,
     UndecidableRefinementError,
     UnificationFailedError,
     UnificationKindError,
@@ -278,6 +279,11 @@ def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
             return (
                 "Undecidable refinement",
                 "Keep refinements in the decidable fragment (linear arithmetic), or drop --strict-decidable.",
+            )
+        case RefinementExecutionHoleError():
+            return (
+                "Refinement execution blocked",
+                "Compile-time refinement execution cannot evaluate open synthesis holes.",
             )
         case MethodResolutionError():
             return "Method resolution error", "No method with this name is defined for the receiver's type."

@@ -28,6 +28,7 @@ from aeon.facade.api import (
     MethodResolutionError,
     ModuleNotFoundAeonError as AeonImportError,
     NonOrderableComparisonError,
+    RefinementExecutionHoleError,
     UndecidableRefinementError,
     UnificationFailedError,
     UnificationKindError,
@@ -82,6 +83,8 @@ def error_exit_code(err: AeonError) -> ExitCode:
             return ExitCode.NON_ORDERABLE_COMPARISON
         case UndecidableRefinementError():
             return ExitCode.UNDECIDABLE_REFINEMENT
+        case RefinementExecutionHoleError():
+            return ExitCode.INVALID_REFINEMENT
         case LinearityError():
             return ExitCode.LINEARITY_ERROR
         case CoreTypeCheckingError():
