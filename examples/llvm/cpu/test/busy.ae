@@ -1,0 +1,13 @@
+open Array
+
+@cpu
+def multiply_by_ten_get (v:(Vector Int)) (size:Int) (idx:Int) : Int =
+    let res : (Vector Int) = Vector.map[Int][Int] (\x:Int -> (x + 1) * 10) v size;
+    Vector.get[Int] res idx;
+
+def main (args:Int) : Unit =
+    let size : Int = 1000000;
+    let v : (Vector Int) = Vector.new size;
+    let out : Int = multiply_by_ten_get v size 1;
+    let _ : Unit = print out;
+    Vector.free[Int] v;

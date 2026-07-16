@@ -1,0 +1,28 @@
+open Vector
+
+@gpu
+def compute_histogram_kernel (vocab: (Vector Int)) (doc: (Vector Int)) (doc_size: Int) (vocab_size: Int) : (Vector Int) =
+    Vector.map[Int][Int] (\word_id ->
+        Vector.count[Int] (\doc_word -> doc_word == word_id) doc doc_size
+    ) vocab vocab_size
+
+def main (args:Int) : Unit =
+    let _ = print("tokenizing lusiadas into word IDs...");
+
+    let text : String = native "open('examples/llvm/gpu/lusiadas.txt', 'r', encoding='latin-1').read().lower()";
+    let words : (Vector String) = native "__import__('re').findall(r'[a-z]+', text)";
+    let unique_words : (Vector String) = native "sorted(list(set(words)))";
+    let word_to_id : Any = native "{w: i for i, w in enumerate(unique_words)}";
+
+    let doc : (Vector Int) = native "[word_to_id[w] for w in words]";
+    let doc_size : Int = Vector.size[Int] doc;
+    let vocab : (Vector Int) = native "list(range(len(unique_words)))";
+    let vocab_size : Int = Vector.size[Int] vocab;
+
+    let _ = print("launching kernel...");
+    let result : (Vector Int) = compute_histogram_kernel vocab doc doc_size vocab_size;
+
+    let _ = print("top 5 frequencies:");
+    let _ : Unit = native "[(print(f'{w}: {c}')) for w, c in sorted(zip(unique_words, result), key=lambda x: x[1], reverse=True)[:5]]";
+
+    print("Done.");

@@ -54,7 +54,7 @@ class TreeToCore(Transformer):
         n = str(args[0])
         if n == "Top":
             return top
-        elif n in ["Unit", "Int", "Bool", "Float", "String"]:
+        elif n in ["Unit", "Int", "Bool", "Float", "String", "Vector", "Set"]:
             return TypeConstructor(Name(n, 0))
         else:
             return TypeVar(Name(n))

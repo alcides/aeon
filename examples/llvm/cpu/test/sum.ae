@@ -1,0 +1,4 @@
+@cpu
+def cpu_sum (a:Int) (b:Int) : Int = a + b;
+
+def main (args:Int) : Unit = print (cpu_sum 5 7);

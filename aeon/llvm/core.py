@@ -27,6 +27,9 @@ if TYPE_CHECKING:
         LLVMVectorFilter,
         LLVMVectorZipWith,
         LLVMVectorCount,
+        LLVMVectorGet,
+        LLVMVectorSet,
+        LLVMVectorSize,
     )
 else:
     LLVMTerm = Any
@@ -48,6 +51,9 @@ else:
     LLVMVectorFilter = Any
     LLVMVectorZipWith = Any
     LLVMVectorCount = Any
+    LLVMVectorGet = Any
+    LLVMVectorSet = Any
+    LLVMVectorSize = Any
 
 
 class LLVMBackendError(Exception):
@@ -108,7 +114,13 @@ class LLVMOptimizer(ABC):
 class LLVMExecutionEngine(ABC):
     @abstractmethod
     def execute(
-        self, llvm_ir: str, func_name: str, args: List[Any], arg_types: List[LLVMType], ret_type: LLVMType
+        self,
+        llvm_ir: str,
+        func_name: str,
+        args: List[Any],
+        arg_types: List[LLVMType],
+        ret_type: LLVMType,
+        metadata: dict[str, Any] | None = None,
     ) -> Any:
         pass
 
@@ -126,7 +138,7 @@ class LLVMPipeline(ABC):
         pass
 
     @abstractmethod
-    def get_curried_function(self, name: Name) -> Any:
+    def get_curried_function(self, name: Name, native_fallback: Any = None) -> Any:
         pass
 
     @abstractmethod
@@ -205,4 +217,16 @@ class LLVMVisitor(ABC):
 
     @abstractmethod
     def visit_vector_count(self, node: LLVMVectorCount) -> Any:
+        pass
+
+    @abstractmethod
+    def visit_vector_get(self, node: LLVMVectorGet) -> Any:
+        pass
+
+    @abstractmethod
+    def visit_vector_set(self, node: LLVMVectorSet) -> Any:
+        pass
+
+    @abstractmethod
+    def visit_vector_size(self, node: LLVMVectorSize) -> Any:
         pass

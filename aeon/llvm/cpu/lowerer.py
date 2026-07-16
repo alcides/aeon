@@ -20,6 +20,7 @@ from aeon.core.terms import (
     RefinementAbstraction,
 )
 from aeon.core.types import Type
+from aeon.llvm.constants import VectorOperation
 from aeon.llvm.core import LLVMLowerer, LLVMValidationError, ValidationStep, ValidationContext, LLVMBackendError
 from aeon.llvm.llvm_ast import (
     LLVMType,
@@ -48,7 +49,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorIMap,
     LLVMVectorFilter,
     LLVMVectorZipWith,
-    LLVMVectorCount,
+    LLVMVectorSize,
     VECTOR_OPERATIONS,
     LLVMCast,
 )
@@ -84,16 +85,17 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "cos": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
     "exp": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "log": LLVMFunctionType([LLVMDouble], LLVMDouble),
-    "new": LLVMFunctionType([], _generic_ptr),
+    "new": LLVMFunctionType([LLVMInt], _generic_ptr),
     "append": LLVMFunctionType([_generic_ptr, LLVMInt], _generic_ptr),
     "get": LLVMFunctionType([_generic_ptr, LLVMInt], LLVMInt),
     "set": LLVMFunctionType([_generic_ptr, LLVMInt, LLVMInt], _generic_ptr),
     "map": LLVMFunctionType([LLVMPointerType(_func_i_i), _generic_ptr, LLVMInt], _generic_ptr),
-    "reduce": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
+    "reduce": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], _generic_ptr),
     "imap": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, LLVMInt], _generic_ptr),
     "filter": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
     "zipWith": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
     "count": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
+    "size": LLVMFunctionType([_generic_ptr], LLVMInt),
 }
 
 _MATH_LIBM_BUILTINS: set[str] = {"pow", "powf", "exp", "sqrt", "sqrtf", "sin", "cos", "log"}
@@ -116,6 +118,7 @@ POLYMORPHIC_FUNCTIONS: set[str] = {
     "filter",
     "zipWith",
     "count",
+    "size",
 }
 
 
@@ -326,6 +329,35 @@ class CPULLVMLowerer(LLVMLowerer):
             return self._get_target_name(target.target)
         return ""
 
+    def _is_inlinable_anf(self, name: Name, val: LLVMTerm) -> bool:
+        if isinstance(val, LLVMFunction):
+            return True
+        if not name.name.startswith("anf"):
+            return False
+
+        is_partial = isinstance(val, LLVMCall) and isinstance(val.type, LLVMFunctionType)
+        is_var = isinstance(val, LLVMVar)
+
+        target_name = self._get_target_name(val)
+        bare_target = target_name.split("_", 1)[1] if "_" in target_name else target_name
+
+        is_op = (
+            target_name in BINARY_OPS
+            or target_name in UNARY_OPS
+            or bare_target in BINARY_OPS
+            or bare_target in UNARY_OPS
+        )
+        is_vec = target_name in (VECTOR_OPERATIONS | {"set", "get", "size"}) or bare_target in (
+            VECTOR_OPERATIONS | {"set", "get", "size"}
+        )
+        _MATH_BUILTINS = {"pow", "powf", "sqrt", "sqrtf", "sin", "cos", "exp", "log"}
+        is_math = target_name in _MATH_BUILTINS or bare_target in _MATH_BUILTINS
+
+        if is_math and is_partial:
+            return False
+
+        return is_var or is_partial or is_op or is_vec or is_math
+
     def _lower_as_standalone(
         self,
         term: Term | LLVMTerm,
@@ -374,13 +406,16 @@ class CPULLVMLowerer(LLVMLowerer):
             resolved_tys.append(actual_ty)
 
         body = self._lower_term(curr, ret_ty, new_type_env, env, allowed, in_vector_op=in_vec)
-        return LLVMFunction(LLVMFunctionType(resolved_tys, ret_ty), arg_names, resolved_tys, body)
+        fn_ty = LLVMFunctionType(resolved_tys, ret_ty)
+        return LLVMFunction(fn_ty, arg_names, resolved_tys, body)
 
     def _create_wrapper_function(self, call: LLVMCall) -> LLVMFunction:
         params, ret = self.get_signature(call.type)
         names = [Name(f"wrapper_arg_{i}") for i in range(len(params))]
         args = call.args + [LLVMVar(ty, n) for n, ty in zip(names, params)]
-        return LLVMFunction(call.type, names, params, LLVMCall(ret, call.target, args))
+        fn_body = LLVMCall(ret, call.target, args)
+        fn_ty = LLVMFunctionType(params, ret)
+        return LLVMFunction(fn_ty, names, params, fn_body)
 
     def _uncurry(self, app: Application) -> tuple[Term, List[Term]]:
         args: list[Term] = []
@@ -423,7 +458,12 @@ class CPULLVMLowerer(LLVMLowerer):
         def low_term(term, exp=None):
             return self._lower_term(term, exp, type_env, env, allowed, in_vector_op=True)
 
-        if op == "reduce":
+        if op == VectorOperation.SIZE:
+            vector_term = args[0]
+            low_vec = low_term(vector_term)
+            return LLVMVectorSize(LLVMInt, low_vec)
+
+        if op == VectorOperation.REDUCE:
             kernel_term, init_term, vector_term, size_term = args
             low_vec, low_init, low_size = low_term(vector_term), low_term(init_term), low_term(size_term, LLVMInt)
             element_type = self._get_vector_base_type(low_vec.type)
@@ -436,9 +476,9 @@ class CPULLVMLowerer(LLVMLowerer):
                 allowed,
                 True,
             )
-            return LLVMVectorReduce(low_init.type, kernel, low_init, vec_cast, low_size)
+            return LLVMVectorReduce(LLVMPointerType(low_init.type), kernel, low_init, vec_cast, low_size)
 
-        if op == "zipWith":
+        if op == VectorOperation.ZIP_WITH:
             kernel_term, v1_term, v2_term, size_term = args
             v1_low, v2_low, sz_low = low_term(v1_term), low_term(v2_term), low_term(size_term, LLVMInt)
             res_el = expected.element_type if expected and isinstance(expected, LLVMPointerType) else LLVMInt
@@ -458,7 +498,7 @@ class CPULLVMLowerer(LLVMLowerer):
         element_type = self._get_vector_base_type(v_low.type)
         vec_cast = self._cast_if_needed(v_low, LLVMPointerType(element_type))
 
-        if op in ("filter", "count"):
+        if op in (VectorOperation.FILTER, VectorOperation.COUNT):
             res_el = LLVMBool
         elif expected and isinstance(expected, LLVMPointerType):
             res_el = expected.element_type
@@ -466,21 +506,47 @@ class CPULLVMLowerer(LLVMLowerer):
             k_lowered = self._lower_as_standalone(kernel_term, None, type_env, env, allowed, True)
             res_el = k_lowered.type.return_type if isinstance(k_lowered.type, LLVMFunctionType) else LLVMInt
 
-        k_params = [LLVMInt, element_type] if op == "imap" else [element_type]
+        k_params = [LLVMInt, element_type] if op == VectorOperation.IMAP else [element_type]
         kernel = self._lower_as_standalone(
             kernel_term, LLVMFunctionType(k_params, res_el), type_env, env, allowed, True
         )
 
-        if op == "filter":
+        if op == VectorOperation.FILTER:
             return LLVMVectorFilter(vec_cast.type, kernel, vec_cast, sz_low)
-        if op == "count":
-            return LLVMVectorCount(LLVMInt, kernel, vec_cast, sz_low)
+        if op == VectorOperation.COUNT:
+            curr_name = Name("curr")
+            pred_ty = kernel.type.return_type if isinstance(kernel.type, LLVMFunctionType) else LLVMBool
+            pred_call = LLVMCall(pred_ty, kernel, [LLVMVar(element_type, curr_name)])
+            pred_cond = self._cast_if_needed(pred_call, LLVMBool)
+            indicator_fn = LLVMFunction(
+                LLVMFunctionType([element_type], LLVMInt),
+                [curr_name],
+                [element_type],
+                LLVMIf(LLVMInt, pred_cond, LLVMLiteral(LLVMInt, 1), LLVMLiteral(LLVMInt, 0)),
+            )
+            indicator_vec = LLVMVectorMap(LLVMPointerType(LLVMInt), indicator_fn, vec_cast, sz_low)
+
+            count_body = LLVMCall(
+                LLVMInt,
+                LLVMVar(LLVMFunctionType([LLVMInt, LLVMInt], LLVMInt), Name("+")),
+                [LLVMVar(LLVMInt, Name("acc")), LLVMVar(LLVMInt, Name("curr"))],
+            )
+            count_fn = LLVMFunction(
+                LLVMFunctionType([LLVMInt, LLVMInt], LLVMInt),
+                [Name("acc"), Name("curr")],
+                [LLVMInt, LLVMInt],
+                count_body,
+            )
+            reduced = LLVMVectorReduce(
+                LLVMPointerType(LLVMInt), count_fn, LLVMLiteral(LLVMInt, 0), indicator_vec, sz_low
+            )
+            return LLVMLoad(LLVMInt, LLVMGetElementPtr(LLVMPointerType(LLVMInt), reduced, [LLVMLiteral(LLVMInt, 0)]))
 
         assert isinstance(kernel.type, LLVMFunctionType)
         res_vec_ty = LLVMPointerType(kernel.type.return_type)
         return (
             LLVMVectorMap(res_vec_ty, kernel, vec_cast, sz_low)
-            if op == "map"
+            if op == VectorOperation.MAP
             else LLVMVectorIMap(res_vec_ty, kernel, vec_cast, sz_low)
         )
 
@@ -524,27 +590,38 @@ class CPULLVMLowerer(LLVMLowerer):
     def _lower_var(
         self, name: Name, expected: LLVMType | None, type_env: Dict[Name, LLVMType], env: Dict[Name, LLVMTerm]
     ) -> LLVMTerm:
-        bare = name.name.split("_", 1)[1] if "_" in name.name else name.name
-        op_name = name.name if name.name in BINARY_OPS or name.name in UNARY_OPS else bare
-        if op_name in BINARY_OPS or op_name in UNARY_OPS:
-            return LLVMVar(self._get_operator_type(op_name, expected), name)
-
-        builtin_key = name.name if name.name in BUILTIN_FUNCTION_TYPES else bare
-        if builtin_key in BUILTIN_FUNCTION_TYPES:
-            ty = BUILTIN_FUNCTION_TYPES[builtin_key]
-            if expected and isinstance(expected, LLVMFunctionType) and len(expected.arg_types) == len(ty.arg_types):
-                ty = expected
-            elif expected and name.name == "new" and isinstance(expected, LLVMPointerType):
-                ty = LLVMFunctionType([], expected)
-            return LLVMVar(ty, name)
-
         if name in env:
             return env[name]
         for en, term in env.items():
             if en.name == name.name:
                 return term
 
-        var_ty = type_env.get(name) or expected or LLVMInt
+        if name in type_env:
+            return LLVMVar(type_env[name], name)
+
+        str_name = name.name
+        name_parts = str_name.rsplit("_", 1)
+        lookup = name_parts[0] if len(name_parts) > 1 and name_parts[1].isdigit() else str_name
+        # Strip module prefix (e.g. "Math_powf" -> "powf") for builtin lookup
+        if "_" in lookup and lookup not in BUILTIN_FUNCTION_TYPES and lookup not in VECTOR_OPERATIONS:
+            bare = lookup.split("_", 1)[1]
+            if bare in BUILTIN_FUNCTION_TYPES or bare in VECTOR_OPERATIONS:
+                lookup = bare
+
+        op_name = lookup if lookup in BINARY_OPS or lookup in UNARY_OPS else str_name
+        if op_name in BINARY_OPS or op_name in UNARY_OPS:
+            return LLVMVar(self._get_operator_type(op_name, expected), name)
+
+        builtin_key = lookup if lookup in BUILTIN_FUNCTION_TYPES else str_name
+        if builtin_key in BUILTIN_FUNCTION_TYPES:
+            ty = BUILTIN_FUNCTION_TYPES[builtin_key]
+            if expected and isinstance(expected, LLVMFunctionType) and len(expected.arg_types) == len(ty.arg_types):
+                ty = expected
+            elif expected and (name.name == "new" or builtin_key == "new") and isinstance(expected, LLVMPointerType):
+                ty = LLVMFunctionType([], expected)
+            return LLVMVar(ty, name)
+
+        var_ty = expected or LLVMInt
         return LLVMVar(var_ty, name)
 
     def _lower_if(
@@ -578,11 +655,22 @@ class CPULLVMLowerer(LLVMLowerer):
             raise LLVMBackendError(f"could not lower base {base}")
 
         target, prev_args, eff_ty = self._extract_call_info(lowered_base)
-        params, ret = self.get_signature(eff_ty)
+        params, ret = self.get_signature(target.type if prev_args else eff_ty)
         lookup = self._get_lookup_name(target)
 
-        if lookup in BUILTIN_FUNCTION_TYPES or lookup in VECTOR_OPERATIONS:
-            return self._lower_builtin_call(lookup, target, prev_args, args, expected, type_env, env, allowed, in_vec)
+        bare_lookup = (
+            lookup.split("_", 1)[1]
+            if "_" in lookup and lookup not in BUILTIN_FUNCTION_TYPES and lookup not in VECTOR_OPERATIONS
+            else lookup
+        )
+
+        if lookup in BUILTIN_FUNCTION_TYPES or lookup in VECTOR_OPERATIONS or bare_lookup in VECTOR_OPERATIONS:
+            effective_name = (
+                lookup if lookup in VECTOR_OPERATIONS else (bare_lookup if bare_lookup in VECTOR_OPERATIONS else lookup)
+            )
+            return self._lower_builtin_call(
+                effective_name, target, prev_args, args, expected, type_env, env, allowed, in_vec
+            )
 
         all_args = prev_args + self._lower_args(args, params, len(prev_args), type_env, env, allowed, in_vec)
         return self._create_call_or_partial(target, all_args, params, ret)
@@ -625,7 +713,7 @@ class CPULLVMLowerer(LLVMLowerer):
         return self._create_call_or_partial(target, all_args, params, ret)
 
     def _extract_call_info(self, lowered: LLVMTerm) -> tuple[LLVMTerm, list[LLVMTerm], LLVMType]:
-        if isinstance(lowered, LLVMCall) and isinstance(lowered.type, LLVMFunctionType):
+        if isinstance(lowered, LLVMCall):
             return lowered.target, lowered.args, lowered.type
         return lowered, [], lowered.type
 
@@ -642,7 +730,9 @@ class CPULLVMLowerer(LLVMLowerer):
     def _is_full_vector_op(self, op: str, total_args: int) -> bool:
         if op not in VECTOR_OPERATIONS:
             return False
-        threshold = 4 if op in ("reduce", "zipWith") else 3
+        if op == VectorOperation.SIZE:
+            return total_args >= 1
+        threshold = 4 if op in (VectorOperation.REDUCE, VectorOperation.ZIP_WITH) else 3
         return total_args >= threshold
 
     def _lower_vector_get(self, vec: LLVMTerm, idx: LLVMTerm) -> LLVMLoad:

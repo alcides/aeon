@@ -1,248 +1,539 @@
 from __future__ import annotations
 
-import ctypes
-import os
-from typing import Any, List
+import hashlib
+from typing import Any, Sequence
 
 import llvmlite.binding as llvm
+import numpy as np
 from loguru import logger
 
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
+
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
-from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType
+from aeon.llvm.constants import LLVMMetadataKey, metadata_get, metadata_has
+from aeon.llvm.cuda.plan import (
+    PLAN_ARRAYS_KEY,
+    PLAN_SIZE_DIM,
+    RESULT_BUFFER_DTYPE,
+    CudaBufferName,
+    CudaCommonKernelName,
+    CudaKernelPlan,
+    CudaKernelStep,
+    CudaPlanAlgorithm,
+    CudaStepArgs,
+    CudaTempSpec,
+    count_map_kernel_name,
+    filter_mask_kernel_name,
+    filter_scatter_kernel_name,
+    reduce_copy_kernel_name,
+    reduce_finish_kernel_name,
+    reduce_step_kernel_name,
+)
+from aeon.llvm.utils import RawVector, VectorDType, sanitize_name
+from aeon.llvm.llvm_ast import (
+    LLVMType,
+    LLVMPointerType,
+    LLVMIntType,
+    LLVMFloatType,
+    LLVMDoubleType,
+    LLVMVoidType,
+)
 
 
 class CUDAExecutionError(LLVMBackendError):
     pass
 
 
-class CUDAExecutionEngine(LLVMExecutionEngine):
-    def __init__(self):
-        try:
-            self.libcuda = self._load_cuda_library()
-            self._init_cuda()
-            self.device = self._get_device(0)
-            self.context = self._create_context(self.device)
-            self._setup_api()
-            self._module_cache = {}
-            logger.info("Successfully initialized CUDA backend.")
-        except Exception as e:
-            raise CUDAExecutionError(f"Failed to initialize CUDA: {e}")
+class CUDALLVMExecutionEngine(LLVMExecutionEngine):
+    def __init__(self) -> None:
+        self._module_cache: dict[str, str] = {}
+        self._temp_pool: dict[tuple[str, tuple[int, ...]], Any] = {}
 
-    def _setup_api(self):
-        # mem management
-        self.libcuda.cuMemAlloc_v2.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_size_t]
-        self.libcuda.cuMemFree_v2.argtypes = [ctypes.c_void_p]
-        self.libcuda.cuMemcpyHtoD_v2.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
-        self.libcuda.cuMemcpyDtoH_v2.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
+    def _acquire_temp(self, key: str, shape: tuple[int, ...], dtype: str) -> Any:
+        if cp is None:
+            raise CUDAExecutionError("cupy is not installed")
+        pool_key = (f"{key}:{dtype}", shape)
+        temp = self._temp_pool.get(pool_key)
+        if temp is None:
+            temp = cp.empty(shape, dtype=dtype)
+            self._temp_pool[pool_key] = temp
+        return temp
 
-        # kernel launch
-        self.libcuda.cuLaunchKernel.argtypes = [
-            ctypes.c_void_p,
-            ctypes.c_uint,
-            ctypes.c_uint,
-            ctypes.c_uint,
-            ctypes.c_uint,
-            ctypes.c_uint,
-            ctypes.c_uint,
-            ctypes.c_uint,
-            ctypes.c_void_p,
-            ctypes.POINTER(ctypes.c_void_p),
-            ctypes.POINTER(ctypes.c_void_p),
-        ]
+    def _dtype_for_pointer(self, ty: LLVMPointerType) -> str:
+        if isinstance(ty.element_type, LLVMIntType):
+            return f"int{ty.element_type.bits}"
+        if isinstance(ty.element_type, LLVMFloatType):
+            return "float32"
+        if isinstance(ty.element_type, LLVMDoubleType):
+            return "float64"
+        return "int32"
 
-        self.libcuda.cuCtxSynchronize.argtypes = []
-        self.libcuda.cuModuleLoadData.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p]
-        self.libcuda.cuModuleGetFunction.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p, ctypes.c_char_p]
+    def _normalize_pointer_arg(self, arg: Any, ty: LLVMPointerType) -> tuple[Any, Any | None, int]:
+        if cp is None:
+            raise CUDAExecutionError("cupy is not installed")
+        dtype = self._dtype_for_pointer(ty)
+        if isinstance(arg, RawVector):
+            arg._ensure_not_freed()
+            if arg.dtype == VectorDType.OBJECT or arg.arr is None:
+                raise CUDAExecutionError("object vector is not supported")
+            host_arr = arg.arr
+            gpu_arr = cp.asarray(host_arr)
+            return gpu_arr, host_arr, int(arg.size)
+        if isinstance(arg, cp.ndarray):
+            return arg, None, int(arg.size)
+        if isinstance(arg, np.ndarray):
+            gpu_arr = cp.asarray(arg.astype(dtype, copy=False))
+            return gpu_arr, arg, int(arg.size)
+        if isinstance(arg, list):
+            gpu_arr = cp.asarray(np.asarray(arg, dtype=dtype))
+            return gpu_arr, arg, len(arg)
+        if hasattr(arg, "__cuda_array_interface__"):
+            gpu_arr = cp.asarray(arg)
+            return gpu_arr, None, int(gpu_arr.size)
+        raise CUDAExecutionError(f"unsupported pointer arg: {type(arg).__name__}")
 
-        self.libcuda.cuLinkCreate_v2.argtypes = [
-            ctypes.c_uint,
-            ctypes.c_void_p,
-            ctypes.c_void_p,
-            ctypes.POINTER(ctypes.c_void_p),
-        ]
-        self.libcuda.cuLinkAddData_v2.argtypes = [
-            ctypes.c_void_p,
-            ctypes.c_int,
-            ctypes.c_void_p,
-            ctypes.c_size_t,
-            ctypes.c_char_p,
-            ctypes.c_uint,
-            ctypes.c_void_p,
-            ctypes.c_void_p,
-        ]
-        self.libcuda.cuLinkComplete.argtypes = [
-            ctypes.c_void_p,
-            ctypes.POINTER(ctypes.c_void_p),
-            ctypes.POINTER(ctypes.c_size_t),
-        ]
-        self.libcuda.cuLinkDestroy.argtypes = [ctypes.c_void_p]
-
-    def _load_cuda_library(self):
-        paths = [
-            "libcuda.so",
-            "/usr/lib/x86_64-linux-gnu/libcuda.so",
-            "/usr/local/cuda/lib64/libcuda.so",
-            "nvcuda.dll",
-        ]
-        for path in paths:
+    def _select_cuda_arch(self, metadata: dict[str, Any]) -> str:
+        requested = metadata_get(metadata, LLVMMetadataKey.GPU_ARCH)
+        if requested:
+            return str(requested)
+        if cp is not None:
             try:
-                lib = ctypes.CDLL(path)
-                logger.debug(f"loaded CUDA driver from {path}")
-                return lib
-            except OSError:
-                continue
-        raise CUDAExecutionError("CUDA driver library not found.")
+                props = cp.cuda.runtime.getDeviceProperties(0)
+                major, minor = props["major"], props["minor"]
+                return f"sm_{major}{minor}"
+            except Exception:
+                pass
+        return "sm_86"
 
-    def _init_cuda(self):
-        if self.libcuda.cuInit(0) != 0:
-            raise CUDAExecutionError("cuInit failed")
+    def _parse_plan(self, raw_plan: Any, lookup_name: str, block_size: int) -> CudaKernelPlan | None:
+        if isinstance(raw_plan, CudaKernelPlan):
+            return raw_plan
+        if isinstance(raw_plan, dict):
+            return CudaKernelPlan.from_dict(raw_plan)
+        if isinstance(raw_plan, list) and raw_plan:
+            steps = tuple(
+                CudaKernelStep(
+                    kernel=str(step.get("kernel", lookup_name)),
+                    block_size=int(step.get("block_size", block_size)) if step.get("block_size") is not None else None,
+                    grid_size=int(step["grid_size"]) if step.get("grid_size") is not None else None,
+                    args=step.get("args", CudaStepArgs.CALL),
+                )
+                for step in raw_plan
+                if isinstance(step, dict)
+            )
+            return CudaKernelPlan(function=lookup_name, steps=steps)
+        return None
 
-    def _get_device(self, ordinal: int):
-        device = ctypes.c_int()
-        if self.libcuda.cuDeviceGet(ctypes.byref(device), ordinal) != 0:
-            raise CUDAExecutionError("cuDeviceGet failed")
-        return device
+    def _resolve_shape(self, shape: Sequence[str | int], size: int) -> tuple[int, ...]:
+        resolved = []
+        for dim in shape:
+            resolved.append(size if dim == PLAN_SIZE_DIM else int(dim))
+        return tuple(resolved)
 
-    def _create_context(self, device):
-        context = ctypes.c_void_p()
-        if self.libcuda.cuCtxCreate(ctypes.byref(context), 0, device) != 0:
-            raise CUDAExecutionError("cuCtxCreate failed")
-        return context
+    def _allocate_plan_buffers(self, plan: CudaKernelPlan, size: int) -> dict[str, Any]:
+        runtime_env: dict[str, Any] = {}
+        arrays: dict[str, Any] = {}
+        for buffer in plan.buffers:
+            dtype = "int32" if buffer.dtype == RESULT_BUFFER_DTYPE else buffer.dtype
+            key = f"{plan.function}:{buffer.name}:{dtype}:{buffer.shape}:{buffer.generation}"
+            array = self._acquire_temp(key, self._resolve_shape(buffer.shape, size), dtype)
+            runtime_env[buffer.name] = array.data.ptr
+            arrays[buffer.name] = array
+        runtime_env[PLAN_ARRAYS_KEY] = arrays
+        return runtime_env
+
+    def _block_size(self, metadata: dict[str, Any], fallback: int = 256) -> int:
+        return max(1, int(metadata_get(metadata, LLVMMetadataKey.GPU_BLOCK_SIZE, fallback)))
+
+    def _execute_count_tree(
+        self,
+        plan: CudaKernelPlan,
+        resolve_kernel,
+        runtime_env: dict[str, Any],
+        processed_args: list[Any],
+        arg_count: int,
+        scalar_out_gpu: Any,
+        size: int,
+        metadata: dict[str, Any],
+        block_size: int,
+    ) -> None:
+        if scalar_out_gpu is None:
+            raise CUDAExecutionError("missing scalar output")
+        map_kernel = resolve_kernel(count_map_kernel_name(plan.function))
+        reduce_kernel = resolve_kernel(CudaCommonKernelName.REDUCE_I32_STEP.value)
+        final_kernel = resolve_kernel(CudaCommonKernelName.STORE_I32_RESULT.value)
+        if map_kernel is None or reduce_kernel is None or final_kernel is None:
+            raise CUDAExecutionError("missing count kernels")
+
+        flags_ptr = runtime_env[CudaBufferName.COUNT_FLAGS.value]
+        ping_ptr = runtime_env[CudaBufferName.REDUCE_PING.value]
+        map_block = self._block_size(metadata, block_size)
+        map_grid = max(1, (size + map_block - 1) // map_block)
+        map_kernel((map_grid,), (map_block,), tuple(processed_args[:arg_count] + [flags_ptr]))
+
+        if size <= 0:
+            scalar_out_gpu.fill(0)
+            return
+
+        src_ptr, dst_ptr = flags_ptr, ping_ptr
+        curr_n = int(size)
+        while curr_n > 1:
+            out_n = (curr_n + 1) // 2
+            grid = max(1, (out_n + map_block - 1) // map_block)
+            reduce_kernel((grid,), (map_block,), (src_ptr, dst_ptr, np.int32(curr_n)))
+            src_ptr, dst_ptr = dst_ptr, src_ptr
+            curr_n = out_n
+        final_kernel((1,), (1,), (src_ptr, scalar_out_gpu.data.ptr))
+
+    def _execute_reduce_tree(
+        self,
+        plan: CudaKernelPlan,
+        resolve_kernel,
+        runtime_env: dict[str, Any],
+        processed_args: list[Any],
+        arg_count: int,
+        scalar_out_gpu: Any,
+        size: int,
+        metadata: dict[str, Any],
+        block_size: int,
+    ) -> Any | None:
+        copy_kernel = resolve_kernel(reduce_copy_kernel_name(plan.function))
+        reduce_kernel = resolve_kernel(reduce_step_kernel_name(plan.function))
+        finish_kernel = resolve_kernel(reduce_finish_kernel_name(plan.function))
+        if copy_kernel is None or reduce_kernel is None or finish_kernel is None:
+            raise CUDAExecutionError("missing reduce kernels")
+
+        arrays = runtime_env[PLAN_ARRAYS_KEY]
+        work = arrays[CudaBufferName.REDUCE_WORK.value]
+        ping = arrays[CudaBufferName.REDUCE_PING.value]
+        out = arrays[CudaBufferName.REDUCE_OUT.value]
+        reduce_block = self._block_size(metadata, block_size)
+        src_ptr, dst_ptr = work.data.ptr, ping.data.ptr
+
+        if size > 0:
+            grid = max(1, (size + reduce_block - 1) // reduce_block)
+            copy_kernel((grid,), (reduce_block,), tuple(processed_args[:arg_count] + [src_ptr]))
+
+        curr_n = int(size)
+        while curr_n > 1:
+            out_n = (curr_n + 1) // 2
+            grid = max(1, (out_n + reduce_block - 1) // reduce_block)
+            reduce_kernel((grid,), (reduce_block,), (src_ptr, dst_ptr, np.int32(curr_n)))
+            src_ptr, dst_ptr = dst_ptr, src_ptr
+            curr_n = out_n
+
+        out_ptr = scalar_out_gpu.data.ptr if scalar_out_gpu is not None else out.data.ptr
+        finish_kernel((1,), (1,), tuple(processed_args[:arg_count] + [src_ptr, out_ptr]))
+        return out if scalar_out_gpu is None else None
+
+    def _execute_filter_plan(
+        self,
+        plan: CudaKernelPlan,
+        resolve_kernel,
+        runtime_env: dict[str, Any],
+        processed_args: list[Any],
+        arg_count: int,
+        scalar_out_gpu: Any,
+        size: int,
+        metadata: dict[str, Any],
+        block_size: int,
+    ) -> tuple[Any, Any, int] | None:
+        mask_kernel = resolve_kernel(filter_mask_kernel_name(plan.function))
+        scan_kernel = resolve_kernel(CudaCommonKernelName.SCAN_I32_INCLUSIVE_STEP.value)
+        scatter_kernel = resolve_kernel(filter_scatter_kernel_name(plan.function))
+        last_kernel = resolve_kernel(CudaCommonKernelName.STORE_I32_LAST.value)
+        if mask_kernel is None or scan_kernel is None:
+            raise CUDAExecutionError("missing filter scan kernels")
+        if plan.algorithm == CudaPlanAlgorithm.FILTER_COMPACT and scatter_kernel is None:
+            raise CUDAExecutionError("missing filter scatter kernel")
+        if plan.algorithm == CudaPlanAlgorithm.FILTER_SIZE_SCAN and (last_kernel is None or scalar_out_gpu is None):
+            raise CUDAExecutionError("missing filter size kernel")
+
+        arrays = runtime_env[PLAN_ARRAYS_KEY]
+        mask = arrays[CudaBufferName.FILTER_MASK.value]
+        scan = arrays[CudaBufferName.FILTER_SCAN.value]
+        out = arrays.get(CudaBufferName.FILTER_OUT.value)
+        filter_block = self._block_size(metadata, block_size)
+        grid = max(1, (size + filter_block - 1) // filter_block)
+        mask_kernel((grid,), (filter_block,), tuple(processed_args[:arg_count] + [mask.data.ptr]))
+
+        scan_src = mask
+        scan_dst = scan
+        offset = 1
+        while offset < max(1, int(size)):
+            scan_kernel(
+                (grid,),
+                (filter_block,),
+                (scan_src.data.ptr, scan_dst.data.ptr, np.int32(size), np.int32(offset)),
+            )
+            scan_src, scan_dst = scan_dst, scan_src
+            offset *= 2
+
+        if plan.algorithm == CudaPlanAlgorithm.FILTER_SIZE_SCAN:
+            last_kernel((1,), (1,), (scan_src.data.ptr, scalar_out_gpu.data.ptr, np.int32(size)))
+            return None
+
+        scatter_kernel(
+            (grid,),
+            (filter_block,),
+            tuple(processed_args[:arg_count] + [scan_src.data.ptr, mask.data.ptr, out.data.ptr]),
+        )
+        return out, scan_src, int(size)
+
+    def _execute_generic_plan(
+        self,
+        plan: CudaKernelPlan,
+        resolve_kernel,
+        runtime_env: dict[str, Any],
+        processed_args: list[Any],
+        size: int,
+        block_size: int,
+    ) -> None:
+        for step in plan.steps:
+            step_kernel = resolve_kernel(step.kernel)
+            if step_kernel is None:
+                raise CUDAExecutionError(f"missing kernel step: {step.kernel}")
+
+            step_block = step.block_size or block_size
+            step_grid = int(step.grid_size if step.grid_size is not None else (size + step_block - 1) // step_block)
+            launch_args = self._resolve_step_args(step, runtime_env, processed_args, size)
+            step_kernel((step_grid,), (step_block,), tuple(launch_args))
+
+    def _resolve_step_args(
+        self, step: CudaKernelStep, runtime_env: dict[str, Any], processed_args: list[Any], size: int
+    ) -> list[Any]:
+        if step.args == CudaStepArgs.CALL:
+            return list(processed_args)
+
+        launch_args: list[Any] = []
+        for spec in step.args:
+            if isinstance(spec, str) and spec in runtime_env:
+                launch_args.append(runtime_env[spec])
+            elif spec in (CudaTempSpec.I32, CudaTempSpec.I32.value):
+                temp = self._acquire_temp(CudaTempSpec.I32.pool_key, (size,), CudaTempSpec.I32.dtype)
+                runtime_env[CudaTempSpec.I32.value] = temp.data.ptr
+                launch_args.append(temp.data.ptr)
+            elif spec in (CudaTempSpec.F32, CudaTempSpec.F32.value):
+                temp = self._acquire_temp(CudaTempSpec.F32.pool_key, (size,), CudaTempSpec.F32.dtype)
+                runtime_env[CudaTempSpec.F32.value] = temp.data.ptr
+                launch_args.append(temp.data.ptr)
+            elif spec == PLAN_SIZE_DIM:
+                launch_args.append(np.int32(size))
+            else:
+                launch_args.append(spec)
+        return launch_args
 
     def execute(
         self,
         llvm_ir: str,
         func_name: str,
-        args: List[Any],
-        arg_types: List[LLVMType],
+        args: list[Any],
+        arg_types: list[LLVMType],
         ret_type: LLVMType,
+        metadata: dict[str, Any] | None = None,
     ) -> Any:
-        logger.debug(f"Executing kernel {func_name} on GPU.")
+        if cp is None:
+            raise CUDAExecutionError("cupy is not installed")
 
-        ir_hash = hash(llvm_ir)
+        metadata = metadata or {}
+        is_debug: bool = bool(metadata_get(metadata, LLVMMetadataKey.GPU_DEBUG, False))
+
+        if is_debug:
+            self._write_ir_to_file(llvm_ir, "debug_llvm.ll")
+
+        ir_hash = hashlib.md5(llvm_ir.encode("utf-8")).hexdigest()
+
         if ir_hash not in self._module_cache:
-            ptx = self._compile_to_ptx(llvm_ir)
-            self._module_cache[ir_hash] = self._load_module(ptx)
+            ptx = self._compile_to_ptx(llvm_ir, metadata)
+            self._module_cache[ir_hash] = ptx
 
-        module = self._module_cache[ir_hash]
-        function = self._get_function(module, func_name)
+            if is_debug:
+                self._write_ir_to_file(ptx, "debug.ptx")
 
-        device_ptrs = []
-        kernel_params = []
-        cleanup_tasks = []
+        ptx = self._module_cache[ir_hash]
+        no_device_alloc = bool(metadata_get(metadata, LLVMMetadataKey.GPU_NO_DEVICE_ALLOC, True))
+        if no_device_alloc:
+            alloc_markers = ("malloc", "free", "alloca.u64")
+            if any(m in ptx for m in alloc_markers):
+                raise CUDAExecutionError("device allocation is disabled")
 
+        lookup_name = func_name
+        if not isinstance(func_name, str):
+            lookup_name = sanitize_name(func_name)
+
+        processed_args: list[Any] = []
+        gpu_arrays: list[tuple[Any, Any | None]] = []
+        size = 1
+
+        for i, (arg, ty) in enumerate(zip(args, arg_types)):
+            if isinstance(ty, LLVMPointerType):
+                gpu_arr, original, arg_size = self._normalize_pointer_arg(arg, ty)
+                gpu_arrays.append((gpu_arr, original))
+                processed_args.append(gpu_arr.data.ptr)
+                size = max(size, arg_size)
+            elif isinstance(ty, LLVMIntType):
+                val = np.int32(arg) if ty.bits <= 32 else np.int64(arg)
+                processed_args.append(val)
+            elif isinstance(ty, (LLVMFloatType, LLVMDoubleType)):
+                val = np.float32(arg) if isinstance(ty, LLVMFloatType) else np.float64(arg)
+                processed_args.append(val)
+            else:
+                processed_args.append(arg)
+
+        has_scalar_return = not isinstance(ret_type, (LLVMVoidType, LLVMPointerType))
+        scalar_out_gpu = None
+        if has_scalar_return:
+            if isinstance(ret_type, LLVMIntType):
+                dtype = f"int{ret_type.bits}"
+            elif isinstance(ret_type, LLVMFloatType):
+                dtype = "float32"
+            elif isinstance(ret_type, LLVMDoubleType):
+                dtype = "float64"
+            else:
+                dtype = "int32"
+            scalar_out_gpu = cp.zeros(1, dtype=dtype)
+            processed_args.append(scalar_out_gpu.data.ptr)
+
+        if metadata_has(metadata, LLVMMetadataKey.SIZE):
+            size = metadata_get(metadata, LLVMMetadataKey.SIZE)
+
+        block_size = self._block_size(metadata)
+        grid_size = (size + block_size - 1) // block_size
+        if has_scalar_return:
+            block_size = 1
+            grid_size = 1
+
+        mod = None
+        return_vector_gpu = None
+        filter_return_info = None
         try:
-            for arg, ty in zip(args, arg_types):
-                if isinstance(ty, LLVMPointerType):
-                    cty = self._get_ctypes_type(ty.element_type)
-                    data = (cty * len(arg))(*arg)
-                    size = ctypes.sizeof(data)
-                    d_ptr = ctypes.c_void_p()
-                    if self.libcuda.cuMemAlloc_v2(ctypes.byref(d_ptr), size) != 0:
-                        raise CUDAExecutionError("cuMemAlloc failed")
-                    if self.libcuda.cuMemcpyHtoD_v2(d_ptr, ctypes.cast(data, ctypes.c_void_p), size) != 0:
-                        raise CUDAExecutionError("cuMemcpyHtoD failed")
-                    device_ptrs.append(d_ptr)
-                    kernel_params.append(ctypes.addressof(d_ptr))
-                    cleanup_tasks.append((d_ptr, data, size, arg))
+            mod = cp.cuda.Module()
+            mod.load(ptx.encode("utf-8"))
+
+            entry_points = [line.split()[2] for line in ptx.split("\n") if ".visible .entry" in line]
+
+            def resolve_kernel(name: str) -> Any | None:
+                possible_names = [name, f"{name}_kernel", lookup_name, f"{lookup_name}_kernel", str(func_name)]
+                possible_names.extend(entry_points)
+                for candidate in possible_names:
+                    try:
+                        name_clean = candidate.split("(")[0] if "(" in candidate else candidate
+                        return mod.get_function(name_clean)
+                    except Exception:
+                        continue
+                return None
+
+            kernel_plan = self._parse_plan(
+                metadata_get(metadata, LLVMMetadataKey.GPU_KERNEL_PLAN),
+                lookup_name,
+                block_size,
+            )
+            if kernel_plan is not None and kernel_plan.steps:
+                runtime_env = self._allocate_plan_buffers(kernel_plan, size)
+
+                if kernel_plan.algorithm == CudaPlanAlgorithm.COUNT_TREE_I32:
+                    self._execute_count_tree(
+                        kernel_plan,
+                        resolve_kernel,
+                        runtime_env,
+                        processed_args,
+                        len(arg_types),
+                        scalar_out_gpu,
+                        size,
+                        metadata,
+                        block_size,
+                    )
+                elif kernel_plan.algorithm == CudaPlanAlgorithm.REDUCE_TREE:
+                    return_vector_gpu = self._execute_reduce_tree(
+                        kernel_plan,
+                        resolve_kernel,
+                        runtime_env,
+                        processed_args,
+                        len(arg_types),
+                        scalar_out_gpu,
+                        size,
+                        metadata,
+                        block_size,
+                    )
+                elif kernel_plan.algorithm in {
+                    CudaPlanAlgorithm.FILTER_COMPACT,
+                    CudaPlanAlgorithm.FILTER_SIZE_SCAN,
+                }:
+                    filter_return_info = self._execute_filter_plan(
+                        kernel_plan,
+                        resolve_kernel,
+                        runtime_env,
+                        processed_args,
+                        len(arg_types),
+                        scalar_out_gpu,
+                        size,
+                        metadata,
+                        block_size,
+                    )
                 else:
-                    c_val = self._get_ctypes_type(ty)(arg)
-                    kernel_params.append(ctypes.addressof(c_val))
+                    self._execute_generic_plan(
+                        kernel_plan,
+                        resolve_kernel,
+                        runtime_env,
+                        processed_args,
+                        size,
+                        block_size,
+                    )
+            else:
+                raw_kernel = resolve_kernel(lookup_name)
+                if raw_kernel is None:
+                    raise CUDAExecutionError(f"kernel not found: {func_name}")
 
-            params_ptr = (ctypes.c_void_p * len(kernel_params))(*[ctypes.c_void_p(p) for p in kernel_params])
+                raw_kernel((grid_size,), (block_size,), tuple(processed_args))
+        except Exception as e:
+            logger.debug(f"Kernel launch failed for {func_name}. PTX content:\n{ptx}")
+            raise CUDAExecutionError(f"kernel launch failed: {e}")
 
-            if self.libcuda.cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0, None, params_ptr, None) != 0:
-                raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}")
+        cp.cuda.Stream.null.synchronize()
 
-            if self.libcuda.cuCtxSynchronize() != 0:
-                raise CUDAExecutionError(f"cuCtxSynchronize failed during {func_name} execution")
+        if has_scalar_return:
+            val = scalar_out_gpu.get()[0]
+            if isinstance(val, (np.integer, np.floating)):
+                return val.item()
+            return val
 
-            for d_ptr, host_data, size, original_arg in cleanup_tasks:
-                if self.libcuda.cuMemcpyDtoH_v2(ctypes.cast(host_data, ctypes.c_void_p), d_ptr, size) != 0:
-                    raise CUDAExecutionError("cuMemcpyDtoH failed")
-                if isinstance(original_arg, list):
-                    original_arg[:] = list(host_data)
+        if return_vector_gpu is not None:
+            return RawVector.from_numpy(return_vector_gpu.get())
 
-            return None
+        if filter_return_info is not None:
+            out, scan_src, logical_capacity = filter_return_info
+            if logical_capacity <= 0:
+                return RawVector.from_numpy(out[:0].get())
+            logical_size = int(scan_src[logical_capacity - 1].get())
+            return RawVector.from_numpy(out[:logical_size].get())
 
-        finally:
-            for d_ptr in device_ptrs:
-                self.libcuda.cuMemFree_v2(d_ptr)
+        if isinstance(ret_type, LLVMPointerType) and gpu_arrays:
+            res_gpu, _ = gpu_arrays[0]
+            return RawVector.from_numpy(res_gpu.get())
 
-    def _get_ctypes_type(self, ty: LLVMType):
-        from aeon.llvm.llvm_ast import LLVMIntType, LLVMFloatType, LLVMDoubleType, LLVMBoolType
+        if gpu_arrays:
+            res_gpu, _ = gpu_arrays[0]
+            return RawVector.from_numpy(res_gpu.get())
 
-        mapping = {
-            LLVMIntType: ctypes.c_int32,
-            LLVMFloatType: ctypes.c_float,
-            LLVMDoubleType: ctypes.c_double,
-            LLVMBoolType: ctypes.c_bool,
-        }
-        return mapping.get(type(ty), ctypes.c_int32)
+        return None
 
-    def _compile_to_ptx(self, llvm_ir: str) -> str:
+    def _write_ir_to_file(self, ir: str, filename: str):
+        with open(filename, "w") as f:
+            f.write(ir)
+
+    def _compile_to_ptx(self, llvm_ir: str, metadata: dict[str, Any]) -> str:
         llvm.initialize_all_targets()
         llvm.initialize_all_asmprinters()
         mod = llvm.parse_assembly(llvm_ir)
-        triple = "nvptx64-nvidia-cuda"
-        target = llvm.Target.from_triple(triple)
-        tm = target.create_target_machine(chip="sm_35")  # sm_35+ for dynamic parallelism
-        return tm.emit_assembly(mod)
-
-    def _find_libcudadevrt(self) -> str | None:
-        common_paths = [
-            "/usr/local/cuda/lib64/libcudadevrt.a",
-            "/usr/local/cuda/lib/libcudadevrt.a",
-            "/usr/lib/x86_64-linux-gnu/libcudadevrt.a",
-            os.path.join(os.environ.get("CUDA_PATH", ""), "lib/x64/libcudadevrt.lib"),
-        ]
-        for path in common_paths:
-            if os.path.exists(path):
-                logger.debug(f"Found libcudadevrt at {path}")
-                return path
-        logger.warning("libcudadevrt.a not found. Dynamic parallelism might fail if required.")
-        return None
-
-    def _load_module(self, ptx: str):
-        logger.debug("Linking and loading CUDA module.")
-        link_state = ctypes.c_void_p()
-        if self.libcuda.cuLinkCreate_v2(0, None, None, ctypes.byref(link_state)) != 0:
-            raise CUDAExecutionError("cuLinkCreate failed")
-
-        try:
-            ptx_bytes = ptx.encode("utf-8")
-            if self.libcuda.cuLinkAddData_v2(link_state, 4, ptx_bytes, len(ptx_bytes), b"aeon.ptx", 0, None, None) != 0:
-                raise CUDAExecutionError("cuLinkAddData (PTX) failed")
-
-            devrt_path = self._find_libcudadevrt()
-            if devrt_path:
-                with open(devrt_path, "rb") as f:
-                    devrt_data = f.read()
-                    if (
-                        self.libcuda.cuLinkAddData_v2(
-                            link_state, 2, devrt_data, len(devrt_data), b"libcudadevrt.a", 0, None, None
-                        )
-                        != 0
-                    ):
-                        raise CUDAExecutionError("cuLinkAddData (devrt) failed")
-
-            cubin = ctypes.c_void_p()
-            size = ctypes.c_size_t()
-            if self.libcuda.cuLinkComplete(link_state, ctypes.byref(cubin), ctypes.byref(size)) != 0:
-                raise CUDAExecutionError("cuLinkComplete failed")
-
-            module = ctypes.c_void_p()
-            if self.libcuda.cuModuleLoadData(ctypes.byref(module), cubin) != 0:
-                raise CUDAExecutionError("cuModuleLoadData failed")
-
-            self.libcuda.cuLinkDestroy(link_state)
-            return module
-        except Exception as e:
-            self.libcuda.cuLinkDestroy(link_state)
-            raise e
-
-    def _get_function(self, module, name: str):
-        function = ctypes.c_void_p()
-        if self.libcuda.cuModuleGetFunction(ctypes.byref(function), module, name.encode("utf-8")) != 0:
-            raise CUDAExecutionError(f"cuModuleGetFunction failed for {name}")
-        return function
+        mod.verify()
+        target = llvm.Target.from_triple("nvptx64-nvidia-cuda")
+        cuda_opt_level = int(metadata_get(metadata, LLVMMetadataKey.GPU_OPT_LEVEL, 0))
+        tm = target.create_target_machine(cpu=self._select_cuda_arch(metadata), features="+ptx73", opt=cuda_opt_level)
+        pto = llvm.create_pipeline_tuning_options(speed_level=cuda_opt_level)
+        pb = llvm.create_pass_builder(tm, pto)
+        pm = pb.getModulePassManager()
+        pm.run(mod, pb)
+        return str(tm.emit_assembly(mod))
