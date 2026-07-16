@@ -1,3 +1,10 @@
 open ML
 
-MLCore.read_csv("titanic.csv")
+def main (_: Int) : Float :=
+    let df := read_csv "examples/machine_learing/titanic.csv" in
+    let ds := target df 1 in
+    let parts := split ds 0.8 in
+    let training := train_of parts in
+    let testing := test_of parts in
+    let model := decision_tree_classifier training in
+    accuracy model testing
