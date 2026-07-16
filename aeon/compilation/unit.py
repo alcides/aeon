@@ -52,6 +52,7 @@ class CompiledUnit:
 
     dependencies: list[str]  # module_path strings of direct imports
     trusted_names: frozenset[Name] = field(default_factory=frozenset)
+    dead_branch_warnings: list = field(default_factory=list)
     # Decorator metadata before the core phase runs (includes the core-phase queue).
     source_metadata: Metadata = field(default_factory=dict)
 

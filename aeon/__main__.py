@@ -297,6 +297,14 @@ def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
             return "Error", None
 
 
+def print_dead_branch_warnings(driver: AeonDriver) -> None:
+    from aeon.optimization.refinement_branches import format_location
+
+    for w in getattr(driver, "dead_branch_warnings", []):
+        print(f">>> Warning (dead {w.branch} branch) at {format_location(w.location)}:", file=sys.stderr)
+        print(f"    {w.message}", file=sys.stderr)
+
+
 def print_decidability_warnings(driver: AeonDriver) -> None:
     """Print non-fatal warnings for refinements that leave the decidable
     fragment (issue #438). Collected during ``driver.parse``; under
@@ -403,6 +411,7 @@ def main() -> None:
         sys.exit(error_exit_code(e))
 
     print_decidability_warnings(driver)
+    print_dead_branch_warnings(driver)
 
     match errors:
         case [] if getattr(args, "trust_report", False) or getattr(args, "trust_for", None):
