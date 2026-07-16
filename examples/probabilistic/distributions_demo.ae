@@ -1,4 +1,4 @@
-open Array
+open List
 open Math
 open Random
 open Statistics
@@ -6,13 +6,13 @@ open Distributions
 
 # Consumer requiring 99% of values below 7.
 def expectMostlyBelow7
-    (xs: {ys: (Array Float) | Array.size ys > 0 && fracBelow ys 7.0 >= 0.99})
+    (xs: {ys: (List Float) | List.size ys > 0 && fracBelow ys 7.0 >= 0.99})
     : Unit
     := print "ok: 99% of values below 7"
 
 # Consumer requiring 95% of values above 0 (i.e., positivity bound).
 def expectMostlyPositive
-    (xs: {ys: (Array Float) | Array.size ys > 0 && fracAbove ys 0.0 >= 0.95})
+    (xs: {ys: (List Float) | List.size ys > 0 && fracAbove ys 0.0 >= 0.95})
     : Unit
     := print "ok: 95% of values above 0"
 

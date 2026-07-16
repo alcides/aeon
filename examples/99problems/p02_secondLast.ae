@@ -1,10 +1,10 @@
 # Problem 2: Find the second-to-last element of a list.
 # Refinement requires at least two elements.
 
-open Array
+open List
 
-def Array.secondLast (l: {x:(Array a) | Array.size x > 1}) : a := native "l[-2]"
+def secondLast (l: {x:(List a) | List.size x > 1}) : a = native "l[-2]"
 
-def main (args:Int) : Unit :=
-    xs := (((Array.new{Int}).append 1).append 2).append 3;
-    print xs.secondLast;
+def main (args:Int) : Unit =
+    xs = List.append (List.append (List.append (List.new[Int]) 1) 2) 3;
+    print (secondLast xs);

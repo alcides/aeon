@@ -1,16 +1,16 @@
 # Problem 12: Decode a run-length encoded list.
 # Inverse of Problem 10: each [count, value] pair expands to ``count`` copies of ``value``.
 
-open Array
+open List
 
-def decode (l: (Array (Array Int))) : (Array Int) :=
+def decode (l: (List (List Int))) : (List Int) =
     native "[pair[1] for pair in l for _ in range(pair[0])]"
 
-def main (args:Int) : Unit :=
-    p1 : (Array Int) := ((Array.new{Int}).append 3).append 1;
-    p2 : (Array Int) := ((Array.new{Int}).append 1).append 2;
-    p3 : (Array Int) := ((Array.new{Int}).append 2).append 3;
-    enc1 : (Array (Array Int)) := (Array.new{(Array Int)}).append p1;
-    enc2 : (Array (Array Int)) := enc1.append p2;
-    enc : (Array (Array Int)) := enc2.append p3;
+def main (args:Int) : Unit =
+    p1 : (List Int) = List.append (List.append (List.new[Int]) 3) 1;
+    p2 : (List Int) = List.append (List.append (List.new[Int]) 1) 2;
+    p3 : (List Int) = List.append (List.append (List.new[Int]) 2) 3;
+    enc1 : (List (List Int)) = List.append (List.new[(List Int)]) p1;
+    enc2 : (List (List Int)) = List.append enc1 p2;
+    enc : (List (List Int)) = List.append enc2 p3;
     print (decode enc)

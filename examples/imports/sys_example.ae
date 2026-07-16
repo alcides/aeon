@@ -1,8 +1,8 @@
 open Sys
-open Array
+open List
 
-# argv is statically known to be non-empty, so Array.head is well-typed.
-def progName : String := (Sys.argv).head
+# argv is statically known to be non-empty, so List.head is well-typed.
+def progName : String = List.head Sys.argv
 
 def show : Unit :=
     _ : Unit := print Sys.platform;

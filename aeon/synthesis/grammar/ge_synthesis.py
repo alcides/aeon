@@ -8,7 +8,7 @@ from aeon.utils.name import Name
 
 
 from aeon.synthesis.uis.api import SynthesisUI
-from aeon.synthesis.api import InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.api import Synthesizer
 
 from aeon.decorators.api import Metadata
 
@@ -89,14 +89,7 @@ def create_problem(
             assert isinstance(p, Term)
             if not validate(p):
                 raise InvalidFitnessException()
-            try:
-                return evaluate(p)
-            except (InvalidIndividualException, TimeoutInEvaluationException):
-                # Translate the backend-neutral exceptions raised by the Aeon
-                # evaluator into geneticengine's own "drop this candidate"
-                # sentinel. A candidate whose evaluation times out is dropped
-                # like an invalid one, rather than aborting the whole search.
-                raise InvalidFitnessException()
+            return evaluate(p)
 
         return MultiObjectiveProblem(fitness_function=fitness_fun, minimize=minimize_list)
     else:

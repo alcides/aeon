@@ -1,40 +1,10 @@
-"""Linearity (Quantitative Type Theory) check — Phase 2b, scaled tallies.
-
-Phase 1 (``aeon.core.multiplicity``) gave every binder an optional
-multiplicity ``μ ∈ {0, 1, ω}``. Phase 2a was the syntactic-occurrence
-flavour — *Linear Haskell* style. Phase 2b (this module) tracks per-name
-*tallies* drawn from the QTT semiring and **scales** them through
-application by the parameter's declared multiplicity:
-
-    tally(f e) = tally(f) ⊕ μ_param ⊗ tally(e)
-
-This catches the canonical QTT discipline error — passing a ``1``-bound
-value into an ``ω``-parameter — that the syntactic count silently
-admitted.
-
-For each binder ``μ x = e`` we compare ``tally(body)[x]`` against ``μ``:
-
-- ``μ = ω`` (default): no check; the variable can be used freely.
-- ``μ = 1``: the body's tally for ``x`` must be exactly ``1``. ``0``
-  raises :class:`LinearUnusedError`; ``ω`` raises
-  :class:`LinearUsedTooManyTimesError` (the syntactic count is
-  preserved alongside the multiplicity for diagnostics).
-- ``μ = 0``: the body's tally for ``x`` must be ``0``. Any non-zero use
-  raises :class:`ErasedUsedAtRuntimeError`.
-
-For ``if`` arms we require the two branches to agree on every name's
-multiplicity — whichever branch is taken at run time must consume the
-binders the same way. Disagreements bubble up as :class:`_Mismatch`
-sentinels and convert to :class:`LinearBranchMismatchError` at the
-binder.
-
-Pure-``ω`` programs trigger no checks and pay no cost. Existing tests
-without any ``0``/``1`` annotation are unaffected.
-"""
+"""Linearity / QTT check — pure re-export of the Rust core
+(``aeon-rs/src/linearity.rs``)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TypeAlias
 
 from aeon.core.multiplicity import M0, M1, MN, MOmega, Multiplicity, add, mul
 from aeon.core.terms import (
@@ -114,7 +84,9 @@ _BOTTOM = _Bottom()
 # Per-name usage record. ``count`` is the syntactic occurrence count
 # (used for diagnostics); ``mult`` is the QTT multiplicity that drives
 # the binder check. ``_Mismatch`` and ``_Bottom`` flow in place of either.
-_Usage = Multiplicity | _Mismatch | _Bottom
+# Explicit TypeAlias: ``Multiplicity`` comes from the Rust extension (untyped
+# to mypy), so implicit alias detection does not kick in.
+_Usage: TypeAlias = Multiplicity | _Mismatch | _Bottom
 Tally = dict[Name, _Usage]
 _Counts = dict[Name, int]
 

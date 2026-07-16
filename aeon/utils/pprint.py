@@ -609,10 +609,6 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             )
 
         case STypeApplication(body=body, type=_type):
-            # Inferred type arguments are elided from surface output for
-            # readability (they are reconstructed by elaboration). When a type
-            # application *is* rendered textually it uses ``{t}`` (see
-            # ``STypeApplication.__str__``).
             pretty_body = sterm_pretty(body, ParenthesisContext(Precedence.APPLICATION, Side.LEFT), depth + 1)
             return group(pretty_body)
 
@@ -829,9 +825,9 @@ def node_pretty(node: Node) -> Doc:
             pretty_macro_args_doc = parens(insert_between(concat([text(","), line()]), pretty_macro_args))
 
             return concat([text("@"), text(name.pretty()), pretty_macro_args_doc])
-        case InductiveDecl(name=name, args=args, rforalls=rforalls, constructors=constructors, measures=measures):
+        case InductiveDecl(name=name, args=ind_args, rforalls=rforalls, constructors=constructors, measures=measures):
             pretty_name = concat([text("inductive"), line(), text(name.pretty())])
-            pretty_args = group(insert_between(line(), [text(arg.pretty()) for arg in args]))
+            pretty_args = group(insert_between(line(), [text(arg.pretty()) for arg in ind_args]))
             pretty_rforalls = group(
                 insert_between(
                     line(),

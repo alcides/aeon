@@ -1,14 +1,14 @@
 # Problem 26: Generate all combinations of K distinct objects from a list.
 # Refinement: K must be a valid size (0 <= k <= size l).
 
-open Array
+open List
 
 def itertools : Unit := native_import "itertools"
 
-def combinations (k: {n:Int | n >= 0}) (l: {x:(Array Int) | Array.size x >= k}) : (Array (Array Int)) :=
+def combinations (k: {n:Int | n >= 0}) (l: {x:(List Int) | List_size x >= k}) : (List (List Int)) =
     native "[list(c) for c in itertools.combinations(l, k)]"
 
-def main (args:Int) : Unit :=
-    a : {x:(Array Int) | Array.size x = 5} :=
-        (((((Array.new{Int}).append 1).append 2).append 3).append 4).append 5;
+def main (args:Int) : Unit =
+    a : {x:(List Int) | List_size x == 5} =
+        List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 2) 3) 4) 5;
     print (combinations 3 a)

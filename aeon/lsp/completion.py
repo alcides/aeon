@@ -451,7 +451,7 @@ def _literal_observation(text: str, ctx: TypingContext):
         return None
     # SynthesizedLocation is acceptable here: feasibility only reads the type and
     # context, and ``sub`` uses ``loc`` purely for error provenance.
-    return TypeObservation(SynthesizedLocation("literal-receiver"), ctx, ty)  # type: ignore[arg-type]
+    return TypeObservation(SynthesizedLocation("literal-receiver"), ctx, ty)
 
 
 def _resolve_receiver(dot: DotContext, line: int, typing_ctx, type_index, scope_ctx, scope_vars):
@@ -483,11 +483,7 @@ def _resolve_receiver(dot: DotContext, line: int, typing_ctx, type_index, scope_
                 bn = base_type_name(ty)
                 if bn is not None:
                     ctx = scope_ctx if scope_ctx is not None else typing_ctx
-                    obs = (
-                        TypeObservation(SynthesizedLocation("receiver-var"), ctx, ty)  # type: ignore[arg-type]
-                        if ctx is not None
-                        else None
-                    )
+                    obs = TypeObservation(SynthesizedLocation("receiver-var"), ctx, ty) if ctx is not None else None
                     return bn, obs
     return None, None
 

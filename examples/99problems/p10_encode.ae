@@ -1,13 +1,13 @@
 # Problem 10: Run-length encoding of a list.
 # Each group is encoded as a [count, value] pair represented as a 2-element list.
 
-open Array
+open List
 
 def itertools : Unit := native_import "itertools"
 
-def encode (l: (Array Int)) : (Array (Array Int)) :=
+def encode (l: (List Int)) : (List (List Int)) =
     native "[[len(list(g)), k] for k, g in itertools.groupby(l)]"
 
-def main (args:Int) : Unit :=
-    a : (Array Int) := ((((((Array.new{Int}).append 1).append 1).append 1).append 2).append 3).append 3;
+def main (args:Int) : Unit =
+    a : (List Int) = List.append (List.append (List.append (List.append (List.append (List.append (List.new[Int]) 1) 1) 1) 2) 3) 3;
     print (encode a)

@@ -707,7 +707,7 @@ class SymetricSynthesizer(Synthesizer):
         rnd.shuffle(int_positions)
         for lit in int_positions[:6]:
             for step in (-1, 1):
-                out.append(_replace(term, lit, Literal(int(lit.value) + step, t_int)))  # type: ignore[call-overload]
+                out.append(_replace(term, lit, Literal(int(lit.value) + step, t_int)))
 
         # 2. Operator swap: a constructor head -> another with the same signature.
         for sub in positions:

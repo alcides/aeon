@@ -1,5 +1,7 @@
-import List
+type List
 
-def create (i:Int) : {l:(List Int) | List.size l = 0} := List.nil
+def length : (l:List) -> Int = uninterpreted
+
+def create(i:Int) : {l:List | length l == 0} = native "[]";
 
 def main (args:Int) : Unit := print "Hello World"

@@ -1,8 +1,9 @@
-import Array
-def math : Unit := native_import "math"
-def Math_floor : (i:Float) -> Int := fun i => native "math.floor(i)"
-def Math_toFloat : (i:Int) -> Float := fun i => native "float(i)"
-def Math_toInt : (i:Float) -> Int := fun i => native "int(i)"
+type List
+
+def math : Unit = native_import "math"
+def Math_floor : (i:Float) -> Int = \i -> native "math.floor(i)"
+def Math_toFloat : (i:Int) -> Float = \i -> native "float(i)"
+def Math_toInt : (i:Float) -> Int = \i -> native "int(i)"
 
 def String_len : (i:String) -> Int := fun i => native "len(i)"
 def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"

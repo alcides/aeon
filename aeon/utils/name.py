@@ -1,51 +1,9 @@
-from dataclasses import dataclass, field
+"""Name and FreshCounter — re-export of the Rust core
+(``aeon-rs/src/name.rs``)."""
 
-from aeon.utils.superscripts import superscript
-
-
-class FreshCounter:
-    counter: int
-
-    def __init__(self):
-        self.counter = 0
-
-    def fresh(self) -> int:
-        self.counter += 1
-        return self.counter
-
+from aeon_rs import FreshCounter as FreshCounter
+from aeon_rs import Name as Name
 
 fresh_counter = FreshCounter()
 
-
-@dataclass(init=False, unsafe_hash=True)
-class Name:
-    name: str
-    id: int = field(default=-1)
-
-    def __init__(self, name: str, id=-1):
-        assert isinstance(name, str)
-        self.name = str(name).strip()
-        self.id = id
-
-    def __str__(self):
-        if self.id == 0:
-            return self.name
-        elif self.id == -1:
-            return f"{self.name}?"
-        else:
-            return f"{self.name}{superscript(str(self.id))}"
-
-    def __repr__(self):
-        return str(self)
-
-    def __eq__(self, other):
-        # `type() is` rather than `isinstance` to skip the ABC/MRO walk.
-        # `Name` has no subclasses; compare `id` first since it's a cheap int
-        # check that short-circuits the more expensive string comparison.
-        return type(other) is Name and self.id == other.id and self.name == other.name
-
-    def __lt__(self, other):
-        return self.id < other.id
-
-    def pretty(self):
-        return self.name
+__all__ = ["FreshCounter", "Name", "fresh_counter"]

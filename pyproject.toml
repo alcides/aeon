@@ -45,6 +45,7 @@ dependencies = [
     'zstandard==0.25.0',
     'zss',
     "llvmlite",
+    "aeon_rs",
 ]
 
 [project.optional-dependencies]
@@ -86,6 +87,14 @@ include = ["aeon*"]
 # Include grammar files and the bundled standard-library .ae modules
 # (aeon/libraries/*.ae) so imports resolve from an installed wheel/egg.
 aeon = ["**/*.lark", "**/*.ae"]
+
+# Build the Rust core (aeon-rs) alongside the Python package.
+# uv resolves the dependency 'aeon_rs' from this local workspace member.
+[tool.uv.workspace]
+members = ["aeon-rs"]
+
+[tool.uv.sources]
+aeon_rs = { workspace = true }
 
 [tool.docformatter]
 syntax = 'google'
