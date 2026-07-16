@@ -6,7 +6,9 @@
 # ``native_import`` here would collide with ``Tensor``'s ``np`` when both
 # libraries are opened together — e.g. via ``Models``.)
 
-# ─── Opaque types ───────────────────────────────────────────────────────
+open Pair
+
+# ─── Opaque types ──────────────────────────────────────────────────────
 
 type DataFrame
 type Dataset
@@ -15,14 +17,38 @@ type SklearnClassifier
 
 # ─── Uninterpreted shape / class predicates ────────────────────────────
 
-def df_rows (df: DataFrame) -> Int := uniterpreted
-def df_cols (df: DataFrame) -> Int := uniterpreted
+def df_rows : (df: DataFrame) -> Int := uninterpreted
+def df_cols : (df: DataFrame) -> Int := uninterpreted
 
-def ds_rows (ds: Dataset) -> Int := uniterpreted
-def ds_cols (ds: Dataset) -> Int := uniterpreted
+def ds_rows : (ds: Dataset) -> Int := uninterpreted
+def ds_cols : (ds: Dataset) -> Int := uninterpreted
 
 # ─── Loading & target column selection ─────────────────────────────────
 
 # Read a CSV file into a ``DataFrame`` (all columns kept).
 def read_csv (path: String) : {df: DataFrame | df_cols df >= 1 && df_rows df >= 0} :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
+
+def target (df: DataFrame) (column: Int) : Dataset :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.target(df, column)"
+
+# ─── Dataset splitting ─────────────────────────────────────────────────
+
+def split (ds: Dataset) (train_size: Float) : (Pair Dataset Dataset) :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.split(ds, train_size)"
+
+# ─── Model training ────────────────────────────────────────────────────
+
+def decision_tree_classifier (ds: Dataset) : SklearnClassifier :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.decision_tree_classifier(ds)"
+
+def train_of (parts: (Pair Dataset Dataset)) : Dataset :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.train_of(parts)"
+
+def test_of (parts: (Pair Dataset Dataset)) : Dataset :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.test_of(parts)"
+
+# ─── Model testing ─────────────────────────────────────────────────────
+
+def accuracy (model: SklearnClassifier) (ds: Dataset) : Float :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.accuracy(model, ds)"
