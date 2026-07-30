@@ -1,9 +1,7 @@
-# ML — typed machine-learning library (umbrella).
+# ML - machine-learning library.
 #
-# Opens the core (types, dataset ops, metrics, prediction) and every
-# estimator family, so ``open ML`` brings the whole API into scope
-# exactly as before. For a smaller footprint, open a single family
-# instead — e.g. ``open MLTrees`` or ``open MLLinear`` —
-# which transitively opens ``MLCore``.
+# For now this umbrella opens only the minimal, executable API in MLCore.
+# Estimator families and refinement contracts will be introduced after the
+# Titanic baseline is stable.
 
 open MLCore
