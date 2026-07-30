@@ -1,54 +1,39 @@
-# ─── Library-level imports ─────────────────────────────────────────────
-# ``numpy`` / ``pandas`` / ``sklearn`` are imported by the Python binding
-# module (``aeon/bindings/learning.py``); the native bodies here all go
-# through ``__import__('aeon.bindings.learning')``, so no bare ``np`` /
-# ``pd`` / ``skl`` symbols are needed at this layer. (Declaring them as
-# ``native_import`` here would collide with ``Tensor``'s ``np`` when both
-# libraries are opened together — e.g. via ``Models``.)
-
-open Pair
-
-# ─── Opaque types ──────────────────────────────────────────────────────
+# Minimal machine-learning API.
+#
+# This is deliberately the executable baseline: it has ordinary Aeon types
+# and no refinement preconditions or postconditions.  Once the Titanic
+# pipeline is stable, the contracts listed in ML_RESTRICTIONS.txt can be added
+# one at a time.
 
 type DataFrame
 type Dataset
-type SklearnRegressor
+type DatasetSplit
 type SklearnClassifier
+type SklearnRegressor
 
-# ─── Uninterpreted shape / class predicates ────────────────────────────
+# Loading and target selection
 
-def df_rows : (df: DataFrame) -> Int := uninterpreted
-def df_cols : (df: DataFrame) -> Int := uninterpreted
-
-def ds_rows : (ds: Dataset) -> Int := uninterpreted
-def ds_cols : (ds: Dataset) -> Int := uninterpreted
-
-# ─── Loading & target column selection ─────────────────────────────────
-
-# Read a CSV file into a ``DataFrame`` (all columns kept).
-def read_csv (path: String) : {df: DataFrame | df_cols df >= 1 && df_rows df >= 0} :=
+def read_csv (path: String) : DataFrame :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
 
 def target (df: DataFrame) (column: Int) : Dataset :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.target(df, column)"
 
-# ─── Dataset splitting ─────────────────────────────────────────────────
+# Train/test splitting
 
-def split (ds: Dataset) (train_size: Float) : (Pair Dataset Dataset) :=
+def split (ds: Dataset) (train_size: Float) : DatasetSplit :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.split(ds, train_size)"
 
-# ─── Model training ────────────────────────────────────────────────────
+def train_of (parts: DatasetSplit) : Dataset :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.train_of(parts)"
+
+def test_of (parts: DatasetSplit) : Dataset :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.test_of(parts)"
+
+# Decision-tree training and evaluation
 
 def decision_tree_classifier (ds: Dataset) : SklearnClassifier :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.decision_tree_classifier(ds)"
-
-def train_of (parts: (Pair Dataset Dataset)) : Dataset :=
-    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.train_of(parts)"
-
-def test_of (parts: (Pair Dataset Dataset)) : Dataset :=
-    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.test_of(parts)"
-
-# ─── Model testing ─────────────────────────────────────────────────────
 
 def accuracy (model: SklearnClassifier) (ds: Dataset) : Float :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.accuracy(model, ds)"
