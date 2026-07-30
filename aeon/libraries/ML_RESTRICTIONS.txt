@@ -1,0 +1,170 @@
+RESTRICOES PARA A BIBLIOTECA ML
+==========================================
+
+Este ficheiro e um inventario de contratos futuros. Nenhuma destas restricoes
+esta ativa na versao minima usada pelo exemplo do Titanic.
+
+Legenda:
+  [L]  Ja existe diretamente na biblioteca Learning.
+  [L+] Existe parcialmente em Learning, mas deve ser reforcada na ML.
+  [N]  Ideia nova para a ML.
+
+A. Dataset, carregamento e target
+---------------------------------
+
+01. [L] read_csv so produz um DataFrame com pelo menos uma coluna e zero
+    ou mais linhas: df_cols df >= 1 e df_rows df >= 0.
+
+02. [L] target_at exige um indice valido:
+    0 <= index e index < df_cols df.
+
+03. [N] target por nome exige que a coluna exista:
+    has_column df column = true.
+
+04. [L] Selecionar o target consome linearmente o DataFrame, impedindo a
+    reutilizacao acidental da versao anterior.
+
+05. [L] Criar um Dataset preserva o numero de linhas:
+    ds_rows ds = df_rows df.
+
+06. [L] Criar um Dataset remove exatamente uma coluna das features:
+    ds_features ds = df_cols df - 1.
+
+07. [L] O nome ou indice do target fica registado no Dataset.
+
+08. [L+] Os metadados is_timeseries, has_missing, coupled e
+    independent_target devem ser declarados ou verificados. Em especial,
+    independent_target nao deve ser afirmado automaticamente sem testemunho.
+
+09. [N] O target nao pode conter valores em falta antes do treino:
+    target_has_missing ds = false.
+
+10. [N] Os nomes das colunas devem ser unicos para evitar selecao e encoding
+    ambiguos.
+
+11. [N] As features fornecidas ao estimador devem ser finitas e numericas ou
+    ter uma estrategia de codificacao declarada; NaN e infinito precisam de
+    tratamento explicito.
+
+B. Split e pre-processamento
+----------------------------
+
+12. [L] A fracao de treino deve estar estritamente entre zero e um:
+    0.0 < fraction e fraction < 1.0.
+
+13. [L] O split exige dados suficientes, por exemplo:
+    ds_rows ds > ds_features ds * 10.
+
+14. [L] O split consome linearmente o Dataset de origem, evitando treinar ou
+    avaliar posteriormente no Dataset ainda nao dividido.
+
+15. [L+] Treino e teste preservam o numero de features e classes do original.
+    O binding deve usar estratificacao quando a preservacao de classes for
+    prometida pelo tipo.
+
+16. [L] As duas metades preservam as flags de temporalidade, missing values,
+    coupling e independencia do target.
+
+17. [L] O teste so recebe clean_test = true quando a origem nao estava coupled
+    e uma serie temporal nao foi baralhada.
+
+18. [L] Scaling, imputacao ou resampling feitos antes do split marcam o
+    Dataset como coupled, permitindo detetar data leakage.
+
+19. [L] A imputacao preserva linhas, features, classes e balanceamento e
+    garante has_missing output = false.
+
+20. [L] Resampling exige pelo menos duas classes, preserva features e classes,
+    produz balanceamento e respeita a monotonia das linhas:
+    oversample nao reduz e undersample nao aumenta o numero de linhas.
+
+21. [N] As metades de treino e teste devem ser nao vazias; uma fracao valida
+    nao e suficiente para garantir isso em datasets muito pequenos.
+
+22. [N] Treino e teste devem ter proveniencia disjunta:
+    overlap train test = 0.
+
+23. [N] Um split estratificado so e permitido quando cada classe tem amostras
+    suficientes e deve manter cada classe nas duas metades.
+
+24. [N] Um preprocessor (imputer, scaler, encoder ou seletor) so pode ser
+    ajustado aos dados de treino: fitted_on transformer train.
+
+25. [N] O teste deve usar exatamente o transformer ajustado ao treino e nunca
+    executar o seu proprio fit_transform.
+
+26. [N] O schema depois do encoding deve ser identico no treino e no teste.
+    Categorias desconhecidas precisam de uma politica explicita, como reject
+    ou ignore.
+
+C. Treino e modelos
+-------------------
+
+27. [L] Estimadores que nao suportam missing values exigem:
+    has_missing ds = false.
+
+28. [L+] O treino exige ausencia de target leakage ou features proxy:
+    independent_target ds = true, apoiado por uma verificacao real.
+
+29. [N] Um trainer exige pelo menos uma linha e uma feature:
+    ds_rows ds > 0 e ds_features ds > 0.
+
+30. [L+] Todo o classificador deve exigir pelo menos duas classes. Learning
+    verifica isso nalgumas operacoes, mas nao em todos os trainers.
+
+31. [L] Um classificador treinado fica marcado com o numero de features do
+    treino: clf_features model = ds_features train.
+
+32. [L] Um classificador treinado fica marcado com o numero de classes:
+    clf_classes model = ds_classes train.
+
+33. [L] Classificador e regressor sao tipos opacos distintos, impedindo o uso
+    de metricas da familia errada.
+
+34. [L+] Os hiperparametros pertencem ao dominio valido e respeitam o Dataset.
+    Exemplos: n_estimators > 0, alpha >= 0, max_depth > 0,
+    min_samples_split >= 2 e 1 <= min_samples_leaf <= ds_rows ds.
+
+D. Avaliacao, reprodutibilidade e seguranca
+-------------------------------------------
+
+35. [L] Predicao e avaliacao exigem compatibilidade dimensional:
+    features esperadas pelo modelo = features do Dataset.
+
+36. [L] Metricas so aceitam um held-out seguro, clean_test = true, rejeitando
+    avaliacao no treino ou em dados contaminados.
+
+37. [L] Metricas sensiveis ao balanceamento, como accuracy, precision e recall,
+    exigem is_balanced ds = true ou um witness que justifique a sua utilizacao.
+
+38. [L] As pos-condicoes limitam os resultados: accuracy, precision, recall,
+    F1 e AUC ficam em [0, 1]; MSE, RMSE e MAE sao nao negativos.
+
+39. [N] predict_proba garante probabilidades em [0, 1], soma de cada linha
+    aproximadamente igual a 1 e uma coluna por classe do modelo.
+
+40. [N] Operacoes aleatorias recebem e registam uma seed. O mesmo Dataset,
+    configuracao e seed devem produzir o mesmo split, modelo e resultado.
+
+41. [N] O modelo guarda proveniencia, trained_on model train, e nao pode ser
+    avaliado nas mesmas linhas usadas no fit.
+
+42. [N] O vocabulario concreto de labels do teste deve ser compativel com as
+    classes do modelo; ter apenas o mesmo numero de classes nao chega.
+
+43. [N] Carregamento seguro: o caminho deve ficar dentro de uma raiz autorizada
+    e o tamanho do CSV deve respeitar um limite configurado, evitando path
+    traversal e consumo descontrolado de memoria.
+
+Notas de implementacao
+----------------------
+
+- Learning declara preservacao de classes no split, mas o binding atual nao
+  usa stratify; a ML deve manter contrato e runtime coerentes.
+- Os preprocessadores de Learning fazem fit_transform diretamente sobre cada
+  Dataset; a ML deve representar separadamente fit no treino e transform no
+  teste.
+- Learning marca independent_target = true durante target sem uma prova real;
+  a ML deve exigir uma declaracao ou verificacao explicita.
+- A versao minima do Titanic ja usa random_state = 42, split estratificado e
+  um sklearn Pipeline, mas os tipos Aeon ainda nao expressam essas garantias.
