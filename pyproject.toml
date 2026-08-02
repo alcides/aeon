@@ -21,27 +21,24 @@ classifiers = [
 scripts.aeon = "aeon.__main__:main"
 
 dependencies = [
-    'argparse',
-    'configparser',
-    'lark',
+    'lark==1.3.1',
     'loguru',
     'geneticengine==0.8.10',
-    'multiprocess',
-    'numpy',
+    'multiprocess==0.70.19',
+    'numpy==2.2.6',
     'ollama',
-    'pathos',
+    'pathos==0.3.5',
     'pillow',
     'psb2',
     'pydantic==2.13.4',
     'pygls==2.1.1',
-    'pytest',
     'requests',
     'types-requests',
     'scikit-image',
     'sympy',
     'textdistance',
     'cvc5 >= 1.1',
-    'z3-solver >= 4',
+    'z3-solver==5.0.0.0',
     'zstandard==0.25.0',
     'zss',
     "llvmlite",
@@ -49,7 +46,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = [
-    "pytest",
+    "pytest==9.1.1",
     "pytest-beartype"
 ]
 synthesis-ng = [
@@ -159,3 +156,12 @@ max-complexity = 10
 
 [tool.pytest.ini_options]
 beartype_packages = 'aeon.core'
+
+[tool.uv]
+override-dependencies = [
+    "dill==0.4.1",
+    "lark==1.3.1",
+    "pathos==0.3.5",
+    "pytest==9.1.1",
+    "z3-solver==5.0.0.0",
+]
