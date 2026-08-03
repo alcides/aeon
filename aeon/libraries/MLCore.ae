@@ -16,6 +16,8 @@ type SklearnRegressor
 def read_csv (path: String) : DataFrame :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
 
+# Decide if we leave "target" or change to a more identifying name.
+# See if we leave like an int or make another version that takes a string and looks up the column index.
 def target (df: DataFrame) (column: Int) : Dataset :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.target(df, column)"
 
