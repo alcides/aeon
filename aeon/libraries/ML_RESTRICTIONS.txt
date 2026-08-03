@@ -19,10 +19,16 @@ A. Dataset, carregamento e target
     0 <= index e index < df_cols df.
 
 03. [N] target por nome exige que a coluna exista:
-    has_column df column = true.
+    has_column df column = true. (ainda a 
+    confirmar se é okay porque tem de se consumir 
+    uma vez o dataset para verificar isso. 
+    A minha solução é ter uma função que devolve 
+    um índice quando dado o nome, mas pode não 
+    ter resultado...)
 
 04. [L] Selecionar o target consome linearmente o DataFrame, impedindo a
-    reutilizacao acidental da versao anterior.
+    reutilizacao acidental da versao anterior. (para todos os casos 
+    destruir o dataset anterior)
 
 05. [L] Criar um Dataset preserva o numero de linhas:
     ds_rows ds = df_rows df.
@@ -39,12 +45,12 @@ A. Dataset, carregamento e target
 09. [N] O target nao pode conter valores em falta antes do treino:
     target_has_missing ds = false.
 
-10. [N] Os nomes das colunas devem ser unicos para evitar selecao e encoding
-    ambiguos.
+10. [N] Os nomes das colunas devem ser unicos para evitar selecao
+    ambigua.
 
 11. [N] As features fornecidas ao estimador devem ser finitas e numericas ou
     ter uma estrategia de codificacao declarada; NaN e infinito precisam de
-    tratamento explicito.
+    tratamento explicito (gerado por IA, nao percebi esta).
 
 B. Split e pre-processamento
 ----------------------------
@@ -53,14 +59,17 @@ B. Split e pre-processamento
     0.0 < fraction e fraction < 1.0.
 
 13. [L] O split exige dados suficientes, por exemplo:
-    ds_rows ds > ds_features ds * 10.
+    ds_rows ds > ds_features ds * 10. (Ver se devemos apresentar
+    um warning apenas ou marcar como erro. AEON ainda 
+    não tem suporte para warning)
 
 14. [L] O split consome linearmente o Dataset de origem, evitando treinar ou
-    avaliar posteriormente no Dataset ainda nao dividido.
+    avaliar posteriormente no Dataset ainda nao dividido. (Data leaking fácil
+    para o pitch)
 
 15. [L+] Treino e teste preservam o numero de features e classes do original.
     O binding deve usar estratificacao quando a preservacao de classes for
-    prometida pelo tipo.
+    prometida pelo tipo. (ver como é que isto pode ser implementado)
 
 16. [L] As duas metades preservam as flags de temporalidade, missing values,
     coupling e independencia do target.
@@ -82,7 +91,8 @@ B. Split e pre-processamento
     nao e suficiente para garantir isso em datasets muito pequenos.
 
 22. [N] Treino e teste devem ter proveniencia disjunta:
-    overlap train test = 0.
+    overlap train test = 0. (adicionar is_dependente e em casos em que
+    acrescentamos linhas retiramos essa propriedad)
 
 23. [N] Um split estratificado so e permitido quando cada classe tem amostras
     suficientes e deve manter cada classe nas duas metades.

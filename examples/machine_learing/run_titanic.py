@@ -49,7 +49,7 @@ def run_titanic() -> float:
 
 def main() -> int:
     score = run_titanic()
-    print(f"Accuracy da decision tree no Titanic: {score:.4f}")
+    print(f"Accuracy da decision tree no Titanic: {score*100:.2f}%")
     return 0
 
 
