@@ -52,7 +52,7 @@ def _resolve_module_source(module_path: str) -> str | None:
         possible_containers.append(pkg_libs)
     aeonpath = os.environ.get("AEONPATH", "")
     if aeonpath:
-        possible_containers.extend(Path(s) for s in aeonpath.split(";") if s)
+        possible_containers.extend(Path(s) for s in aeonpath.split(os.pathsep) if s)
     for container in possible_containers:
         candidate = container / rel
         if candidate.exists():

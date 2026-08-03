@@ -46,7 +46,7 @@ def resolve_import_path(imp: ImportAe) -> str | None:
 
     aeonpath = os.environ.get("AEONPATH", "")
     if aeonpath:
-        possible_containers.extend(Path(s) for s in aeonpath.split(";") if s)
+        possible_containers.extend(Path(s) for s in aeonpath.split(os.pathsep) if s)
     for container in possible_containers:
         file = container / path
         if file.exists():
