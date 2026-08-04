@@ -28,7 +28,7 @@ repos:
         additional_dependencies:
           - types-requests
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.15.11
+    rev: v0.16.1
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
