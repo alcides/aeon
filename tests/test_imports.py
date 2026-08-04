@@ -135,6 +135,30 @@ class TestImportResolution:
             finally:
                 os.chdir(old_cwd)
 
+    def test_import_from_aeonpath_with_pathsep(self):
+        """Test AEONPATH entries separated by os.pathsep."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_dir = Path(tmpdir) / "custom_libs"
+            custom_dir.mkdir()
+            test_module = custom_dir / "SepMod.ae"
+            test_module.write_text("def sep_func : Int := 456;")
+
+            old_cwd = os.getcwd()
+            old_aeonpath = os.environ.get("AEONPATH")
+            try:
+                os.chdir(tmpdir)
+                os.environ["AEONPATH"] = str(custom_dir)
+                imp = ImportAe(module_path="SepMod")
+                program = resolve_import(imp)
+                def_names = [d.name.name for d in program.definitions]
+                assert "sep_func" in def_names
+            finally:
+                os.chdir(old_cwd)
+                if old_aeonpath is None:
+                    os.environ.pop("AEONPATH", None)
+                else:
+                    os.environ["AEONPATH"] = old_aeonpath
+
     def test_import_not_found_raises(self):
         """Test that importing a non-existent module raises an error."""
         imp = ImportAe(module_path="NonExistentModule12345")

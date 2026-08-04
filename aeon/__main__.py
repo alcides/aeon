@@ -33,7 +33,7 @@ from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
 from aeon.synthesis.uis.api import SynthesisUI, SynthesisFormat
-from aeon.synthesis.uis.terminal import TerminalUI
+from aeon.synthesis.uis.terminal import TerminalUI, VerboseTerminalUI
 from aeon.utils.pprint import pretty_print_sterm
 from aeon.documentation import generate_documentation
 
@@ -158,6 +158,12 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument(
+        "--verbose-synthesis",
+        action="store_true",
+        help="Print every synthesis candidate to stdout (noisy; off by default for Windows compatibility).",
+    )
+
+    parser.add_argument(
         "--synthesis-format",
         type=str,
         choices=["default", "json"],
@@ -218,7 +224,9 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
 
-def select_synthesis_ui() -> SynthesisUI:
+def select_synthesis_ui(verbose: bool = False) -> SynthesisUI:
+    if verbose:
+        return VerboseTerminalUI()
     return TerminalUI()
 
 
@@ -345,7 +353,7 @@ def main() -> None:
         print("warning: --no-main is ignored under --test (a main slot is needed to evaluate properties).")
     cfg = AeonConfig(
         synthesizer=args.synthesizer,
-        synthesis_ui=select_synthesis_ui(),
+        synthesis_ui=select_synthesis_ui(verbose=getattr(args, "verbose_synthesis", False)),
         synthesis_budget=args.budget,
         timings=args.timings,
         # ``--export`` forces ``no_main`` (no synthesis hole in main), but
