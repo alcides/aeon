@@ -7,4 +7,4 @@ import Array;
   + (((Array.get v 1) + 7) * ((Array.get v 1) + 7))
   + (((Array.get v 2) - 10) * ((Array.get v 2) - 10))
 )
-def v : {a:(Array Int) | Array.size a = 3} := ?h;
+def v (_: Unit) : {a:(Array Int) | Array.size a = 3} := ?h;

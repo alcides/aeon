@@ -38,7 +38,11 @@ prelude = [
     ("native", "forall a:B, (x:String) -> {x:a | false}", eval),
     ("native_import", "forall a:B, (x:String) -> {x:a | false}", native_import),
     ("unit", "Unit", None),
-    ("print", "forall a:B, (x:a) -> Unit", p),
+    # ``print`` observes its argument exactly once, so its parameter is
+    # multiplicity 1. An ``ω`` annotation would incorrectly scale every free
+    # variable inside the argument (e.g. ``print (fuel_cost arr)`` would
+    # make the linear ``arr`` look duplicated).
+    ("print", "forall a:B, (1 x:a) -> Unit", p),
     # Comparison / arithmetic / logical operators are multiplicity-
     # polymorphic — they work for callers at any concrete multiplicity.
     # The ``n`` annotation makes the QTT scaling identity, so passing a

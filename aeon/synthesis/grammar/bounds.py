@@ -38,7 +38,8 @@ sympy_context = {
 
 
 def liquid_app_to_sympy(ref: LiquidApp) -> Basic:
-    assert ref.fun.id == 0
+    # Measure/constructor names may carry bind ids after elaboration; only the
+    # name matters for mapping into sympy.
     ref_fun = ref.fun.name
     if ref_fun not in sympy_context:
         raise ValueError(f"Unknown Liquid function {ref_fun}")

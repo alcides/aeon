@@ -1,6 +1,7 @@
-# Tests for the Array library (flat, native-backed sequence). Arrays are opaque
-# (no constructors to generate), so property tests generate the Int *elements*
-# and build arrays from `new` / `append`.
+# Tests for the Array library (flat, native-backed sequence). Arrays are a
+# ``linear type``: every binder is at multiplicity 1, and readers like
+# ``get`` / ``length`` / ``sum`` consume their argument. Mid-test reads that
+# need the array afterwards use ``get_at`` / ``len_of`` / ``copy``.
 #
 # Run with:  aeon --test examples/testing/array_tests.ae
 
@@ -11,89 +12,107 @@ open Array
 
 @property(1)
 def test_new_is_empty : Bool :=
-    both (assertTrue (empty new))
-         (assertEqual (length new) 0);
+    both (assertTrue (empty (new unit)))
+         (assertEqual (length (new unit)) 0);
 
 @property(1)
 def test_append_grows : Bool :=
-    arr := append (append new 5) 9;
-    both (assertEqual (length arr) 2)
-         (assertEqual (sum arr) 14);
+    let 1 arr := append (append (new unit) 5) 9 in
+    let lo := len_of arr in
+    let n := len_value lo in
+    let 1 arr2 := len_array lo in
+    both (assertEqual n 2)
+         (assertEqual (sum arr2) 14);
 
 @property(1)
 def test_get : Bool :=
-    arr := append (append new 5) 9;
-    both (assertEqual (get arr 0) 5)
-         (assertEqual (get arr 1) 9);
+    let 1 arr := append (append (new unit) 5) 9 in
+    let g0 := get_at arr 0 in
+    let v0 := got_value g0 in
+    let 1 arr2 := got_array g0 in
+    let g1 := get_at arr2 1 in
+    both (assertEqual v0 5)
+         (assertEqual (got_value g1) 9);
 
 @property(1)
 def test_cons_prepends : Bool :=
-    arr := cons (append new 9) 5;
-    both (assertEqual (get arr 0) 5)
-         (assertEqual (get arr 1) 9);
+    let 1 arr := cons (append (new unit) 9) 5 in
+    let g0 := get_at arr 0 in
+    let v0 := got_value g0 in
+    let 1 arr2 := got_array g0 in
+    both (assertEqual v0 5)
+         (assertEqual (get arr2 1) 9);
 
 @property(1)
-def test_head : Bool := assertEqual (head (cons (append new 9) 5)) 5;
+def test_head : Bool := assertEqual (head (cons (append (new unit) 9) 5)) 5;
 
 @property(1)
 def test_set_preserves_length : Bool :=
-    arr := set (append (append new 5) 9) 0 7;
-    both (assertEqual (length arr) 2)
-         (assertEqual (get arr 0) 7);
+    let 1 arr := set (append (append (new unit) 5) 9) 0 7 in
+    let lo := len_of arr in
+    let n := len_value lo in
+    let 1 arr2 := len_array lo in
+    both (assertEqual n 2)
+         (assertEqual (get arr2 0) 7);
 
 @property(1)
 def test_reversed : Bool :=
-    arr := reversed (append (append new 5) 9);
-    both (assertEqual (get arr 0) 9)
-         (assertEqual (get arr 1) 5);
+    let 1 arr := reversed (append (append (new unit) 5) 9) in
+    let g0 := get_at arr 0 in
+    let v0 := got_value g0 in
+    let 1 arr2 := got_array g0 in
+    both (assertEqual v0 9)
+         (assertEqual (get arr2 1) 5);
 
 @property(1)
 def test_map : Bool :=
-    arr := map (fun x => x + 1) (append (append new 5) 9);
+    let 1 arr := map (fun x => x + 1) (append (append (new unit) 5) 9) in
     assertEqual (sum arr) 16;
 
 @property(1)
-def test_sum : Bool := assertEqual (sum (append (append new 2) 3)) 5;
+def test_sum : Bool := assertEqual (sum (append (append (new unit) 2) 3)) 5;
 
-# `copy` splits one linear reference into two independent arrays of equal
-# length and contents.
+# ``copy`` splits one linear reference into two independent arrays.
 @property(1)
 def test_copy_duplicates : Bool :=
-    let 1 a := append (append new 5) 9 in
+    let 1 a := append (append (new unit) 5) 9 in
     let p := copy a in
-    both (assertEqual (sum (fst_array p)) 14)
-         (assertEqual (length (snd_array p)) 2);
+    let 1 left := fst_array p in
+    let 1 right := snd_array p in
+    both (assertEqual (sum left) 14)
+         (assertEqual (length right) 2);
 
 # The two halves of a copy are independent: extending one leaves the other
 # untouched.
 @property(1)
 def test_copy_independent : Bool :=
-    let 1 a := append (append new 1) 2 in
+    let 1 a := append (append (new unit) 1) 2 in
     let p := copy a in
-    let l2 := append (fst_array p) 9 in
+    let 1 left := fst_array p in
+    let 1 right := snd_array p in
+    let 1 l2 := append left 9 in
     both (assertEqual (length l2) 3)
-         (assertEqual (length (snd_array p)) 2);
+         (assertEqual (length right) 2);
 
 # ── Property-based tests (Int elements generated) ─────────────────────────────
 
-# A one-element array reads its element back.
 @property
 def prop_singleton_get (x : Int) : Bool :=
-    assertEqual (get (append new x) 0) x;
+    assertEqual (get (append (new unit) x) 0) x;
 
-# append adds exactly one element.
 @property
 def prop_append_length (x : Int) (y : Int) : Bool :=
-    assertEqual (length (append (append new x) y)) 2;
+    assertEqual (length (append (append (new unit) x) y)) 2;
 
-# set overwrites the targeted slot and keeps the length.
 @property
 def prop_set_overwrites (x : Int) (y : Int) : Bool :=
-    arr := set (append new x) 0 y;
-    both (assertEqual (get arr 0) y)
-         (assertEqual (length arr) 1);
+    let 1 arr := set (append (new unit) x) 0 y in
+    let g := get_at arr 0 in
+    let v := got_value g in
+    let 1 arr2 := got_array g in
+    both (assertEqual v y)
+         (assertEqual (length arr2) 1);
 
-# sum of a two-element array is the sum of its elements.
 @property
 def prop_sum_two (x : Int) (y : Int) : Bool :=
-    assertEqual (sum (append (append new x) y)) (x + y);
+    assertEqual (sum (append (append (new unit) x) y)) (x + y);

@@ -523,7 +523,12 @@ def create_literal_ref_nodes(type_info: dict[Type, TypingType] = None) -> list[T
         # Parent is the refined type's class, which (after wire_refined_subtyping)
         # chains down through any wider refinements to the base class.
         parent_class = _get(type_info, aeon_ty)
-        metahandler = refined_type_to_metahandler(aeon_ty)
+        try:
+            metahandler = refined_type_to_metahandler(aeon_ty)
+        except (ValueError, TypeError, NotImplementedError):
+            # Abstract refinements (e.g. ``p v``) and other liquid terms that
+            # sympy cannot represent — skip rather than abort grammar building.
+            continue
         if metahandler is None:
             continue
         lit_class = create_literal_class(aeon_ty, parent_class, metahandler)

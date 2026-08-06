@@ -24,7 +24,7 @@
 
 open Tensor
 open NN
-open Learning
+open LearningCore
 
 # ── Classes ────────────────────────────────────────────────────────────
 

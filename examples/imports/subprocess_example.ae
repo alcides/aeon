@@ -5,13 +5,14 @@ open Array
 # inject — and run it. `run` requires a non-empty `Array String`; the
 # `Array.size` postconditions of `append` discharge that automatically.
 
-def echoArgs : {a: (Array String) | Array.size a >= 1} :=
-    ((Array.new{String}).append "echo").append "hello"
+def echoArgs (_: Unit) : {a: (Array String) | Array.size a >= 1} :=
+    ((Array.new{String} unit).append "echo").append "hello"
 
 # Inspect the exit code before trusting the output. `succeeded` ties the
 # boolean to the `exitCode` measure, so the branch reads cleanly.
 def main (_:Int) : Unit :=
-    p : CompletedProcess := Subprocess.run echoArgs;
+    let 1 args := echoArgs unit in
+    p : CompletedProcess := Subprocess.run args;
     if Subprocess.succeeded p then
         print (Subprocess.stdout p)
     else

@@ -371,11 +371,13 @@ class TypeDecl(Node):
     args: list[Name] = field(default_factory=list)
     rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    linear: bool = False
+    """Declared as ``linear type``: binders of this type must be at multiplicity 1."""
 
     def __str__(self):
         args = " ".join(str(arg) for arg in self.args)
         rfs = " ".join(f"forall <{n}:{s} -> Bool>" for (n, s) in self.rforalls)
-        head = f"type {self.name}"
+        head = f"{'linear ' if self.linear else ''}type {self.name}"
         if args:
             head += f" {args}"
         if rfs:

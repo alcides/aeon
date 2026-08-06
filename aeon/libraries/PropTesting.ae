@@ -17,7 +17,7 @@ def generateList (r:Random) : (Array Int) := native "[r.randint(0, 100) for _ in
 # Property Wrappers
 
 
-def countTrues (l:(Array Bool)) : Int :=
+def countTrues (1 l:(Array Bool)) : Int :=
     native "sum(1 for x in l if x)"
 
 
@@ -27,26 +27,26 @@ def ratio (a:Int) (b:Int) : Float := native "a/b"
 
 def forAllInts (func:(a: Int) -> Bool) : Float :=
     n := 1000;
-    vs := repeat random n;
-    rds := vs.map generateInt;
-    rs := rds.map func;
+    let 1 vs := repeat random n in
+    let 1 rds := vs.map generateInt in
+    let 1 rs := rds.map func in
     positive := (countTrues rs);
     ratio positive n
 
 
 def forAllFloats (func:(a: Float) -> Bool) : Float :=
     n := 1000;
-    vs := repeat random n;
-    rds := vs.map generateFloat;
-    rs := rds.map func;
+    let 1 vs := repeat random n in
+    let 1 rds := vs.map generateFloat in
+    let 1 rs := rds.map func in
     positive := (countTrues rs);
     ratio positive n
 
 
-def forAllLists (func:(a: (Array Int)) -> Bool) : Float :=
+def forAllLists (func:(1 a: (Array Int)) -> Bool) : Float :=
     n := 1000;
-    vs := repeat random n;
-    rds := vs.map generateList;
-    rs := rds.map func;
+    let 1 vs := repeat random n in
+    let 1 rds := vs.map generateList in
+    let 1 rs := rds.map func in
     positive := (countTrues rs);
     ratio positive n

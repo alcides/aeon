@@ -408,6 +408,28 @@ class ErasedUsedAtRuntimeError(LinearityError):
 
 
 @dataclass
+class LinearTypeNotBoundLinearlyError(LinearityError):
+    """A binder whose type is declared ``linear type`` was not bound at
+    multiplicity ``1``. Values of a linear type are unique: binding one
+    without the ``1`` annotation would allow it to be duplicated or
+    dropped, so the annotation is mandatory."""
+
+    name: object
+    type_name: object
+    declared: Multiplicity
+    term: Term
+
+    def __str__(self) -> str:
+        return (
+            f"Binding {self.name} has linear type {self.type_name}, so it must be bound with "
+            f"multiplicity 1 (declared {self.declared})."
+        )
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
 class LinearBranchMismatchError(LinearityError):
     """The two branches of an ``if`` use a ``1``-bound name a different
     number of times. Whichever branch is taken at run time, exactly one

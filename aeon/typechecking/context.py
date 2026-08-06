@@ -75,6 +75,8 @@ class TypeConstructorBinder(TypingContextEntry):
     name: Name
     args: list[Name]  # cant hash
     rforalls: list[tuple[Name, Type]] = field(default_factory=list)
+    linear: bool = False
+    """Declared as ``linear type``: binders of this type must be at multiplicity 1."""
 
     def __repr__(self):
         if self.args:

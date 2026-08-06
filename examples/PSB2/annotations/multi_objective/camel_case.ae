@@ -6,10 +6,10 @@ def String_split : (s:String) -> (sep:String) -> (Array Int) := fun s => fun sep
 def String_concat : (i:String) -> (j:String) -> String := fun i => fun j => native "i + j"
 
 def Map_string_string : (f: (s:String) -> String) -> (l:String) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
-def Map_string_list : (f: (s:String) -> String) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
-def Map_list_list : (f: (s:String) -> (Array Int)) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
+def Map_string_list : (f: (s:String) -> String) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
+def Map_list_list : (f: (s:String) -> (Array Int)) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
 
-def String_join : (l:(Array Int)) -> (s:String) -> String := fun l => fun s => native "str(s.join(l))"
+def String_join : (1 l:(Array Int)) -> (s:String) -> String := fun l => fun s => native "str(s.join(l))"
 def String_tail:(l:String) -> String := fun xs => native "xs[1:]"
 def String_capitalize : (s:String) -> String := fun s => native "s.capitalize()"
 def String_get : (s:String) -> (i:Int) -> String := fun s => fun i => native "s[i]"

@@ -1,18 +1,9 @@
 import Array
 
-def List_get (l:(Array Int)) (i: Int) : Int := native "l[i]"
-def List_len (l:(Array Int)) : Int := native "len(l)"
-def List_new : (Array Int) := native "[]"
-def List_append (l:(Array Int)) (i: Int) : (Array Int) := native "l + [i]"
+def List_new (_: Unit) : (Array Int) := native "[]"
+def List_append (1 l:(Array Int)) (i: Int) : (Array Int) := native "l + [i]"
 
-def fst_negative (l:(Array Int)) (i:Int) (u:Int) : Int := if (i >= (List_len l)) then
-        i
-     else if (u < 0) then
-        i
-     else
-        fst_negative l (i + 1) (u + (List_get l (i + 1)));
+def basement (1 nums: (Array Int)) : Int :=
+    native "(lambda l: (lambda d: (exec('i=0\\nu=l[0]\\nwhile i < len(l) and u >= 0:\\n i+=1\\n if i < len(l):\\n  u+=l[i]\\n', d), d['i'])[1])({'l': l}))(nums)"
 
-def basement (nums: (Array Int)) : Int := fst_negative nums 0 (List_get nums 0)
-
-
-def main (args:Int): Unit := print (basement (List_append List_new (-100)) )
+def main (args:Int): Unit := print (basement (List_append (List_new unit) (-100)) )

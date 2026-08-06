@@ -28,9 +28,9 @@
 
 open Array
 
-type Conn      # an open connection            (linear)
-type Txn       # a connection inside a txn      (linear)
-type Rows      # a materialized SELECT result   (unrestricted)
+linear type Conn      # an open connection            (linear)
+linear type Txn       # a connection inside a txn      (linear)
+type Rows             # a materialized SELECT result   (unrestricted)
 
 def sqlite3 : Unit := native_import "sqlite3"
 

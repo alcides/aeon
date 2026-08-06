@@ -477,11 +477,17 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def array_literal(self, meta, args):
-        # ``#[e1, ..., en]`` => ``Array.append (... (Array.append Array.new e1)) en``
-        # (left fold, so element order is preserved).
+        # ``#[e1, ..., en]`` => ``Array.append (... (Array.append (Array.new unit) e1)) en``
+        # (left fold, so element order is preserved). ``Array.new`` is applied
+        # to ``unit`` because an array is unique: a nullary value would be
+        # memoised and every literal would alias one buffer.
         loc = self._loc(meta)
         items = args[0] if args else []
-        result: STerm = SQualifiedVar("Array", Name("new"), loc=loc)
+        result: STerm = SApplication(
+            SQualifiedVar("Array", Name("new"), loc=loc),
+            SLiteral(None, st_unit, loc=loc),
+            loc=loc,
+        )
         for e in items:
             app = SQualifiedVar("Array", Name("append"), loc=loc)
             result = SApplication(SApplication(app, result, loc=loc), e, loc=loc)
@@ -655,6 +661,22 @@ class TreeToSugar(Transformer):
         # Last arg is the (possibly empty) inductive_rforalls list; preceding args are the type params.
         rforalls = ensure_list(args[-1]) if len(args) > 1 else []
         return TypeDecl(Name(args[0]), [Name(i) for i in args[1:-1]], rforalls, loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def linear_type_decl(self, meta, args):
+        rforalls = ensure_list(args[1]) if len(args) > 1 else []
+        return TypeDecl(Name(args[0]), [], rforalls, loc=self._loc(meta), linear=True)
+
+    @v_args(meta=True)
+    def linear_type_constructor_decl(self, meta, args):
+        rforalls = ensure_list(args[-1]) if len(args) > 1 else []
+        return TypeDecl(
+            Name(args[0]),
+            [Name(i) for i in args[1:-1]],
+            rforalls,
+            loc=self._loc(meta),
+            linear=True,
+        )
 
     def inductive_rforall_binding(self, args):
         return (Name(args[0]), args[1])

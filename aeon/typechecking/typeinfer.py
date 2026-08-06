@@ -79,6 +79,9 @@ from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.horn import solve
+from aeon.verification.horn import apply_constraint
+from aeon.verification.horn import contains_horn_constraint
+from aeon.verification.horn import horn_assignment
 from aeon.utils.location import Location
 from aeon.utils.name import Name, fresh_counter
 from aeon.verification.helpers import (
@@ -1269,6 +1272,12 @@ def constraint_to_parts(
     Yields (constraint, location) pairs where location is the AST location
     associated with the failing constraint part."""
     atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
+    # A Horn variable standing for an abstract refinement may occur in several
+    # of the parts below, and it must be given the same solution in all of
+    # them. Solve it once over the whole constraint and inline the result, so
+    # each part is a plain (Horn-free) verification condition.
+    if contains_horn_constraint(c):
+        c = apply_constraint(horn_assignment(c, typing_ctx, atoms), c)
     for cons in conjunctive_normal_form(c):
         if not is_implication_true(cons):
             if not solve(cons, typing_ctx=typing_ctx, qualifier_atoms=atoms):
@@ -1310,6 +1319,19 @@ def check_type_errors(
                     LiquidTypeCheckingFailedRelation(ctx, term, expected_type, vc, loc)
                     for vc, loc in constraint_to_parts(full_constraint, ctx)
                 ]
+                if not type_errors:
+                    # The whole constraint does not hold, so the program is
+                    # rejected even when the split above fails to pinpoint a
+                    # single culprit; reporting nothing would accept it.
+                    type_errors = [
+                        LiquidTypeCheckingFailedRelation(
+                            ctx,
+                            term,
+                            expected_type,
+                            full_constraint,
+                            constraint_location(full_constraint),
+                        )
+                    ]
     except CoreTypeCheckingError as e:
         return [e]
 

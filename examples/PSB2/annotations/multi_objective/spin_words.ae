@@ -1,8 +1,8 @@
 import PSB2 (extract_train_data, psb2_aeon, get_input_list, get_output_list, calculate_str_list_errors, get_sw_synth_values, unpack_train_data, load_dataset)
 import Array
 def String_len : (i:String) -> Int := fun i => native "len(i)"
-def String_list_to_String : (l:(Array Int)) -> String := fun l => native "' '.join(l)"
-def map_String_String_List : (function:(a: String) -> String) -> (l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
+def String_list_to_String : (1 l:(Array Int)) -> String := fun l => native "' '.join(l)"
+def map_String_String_List : (function:(a: String) -> String) -> (1 l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 def String_split : (i:String) -> (j:String) -> (Array Int) := fun i => fun j => native "i.split(j)"
 def String_reverse : (i:String) -> String := fun i => native "i[::-1]"
 

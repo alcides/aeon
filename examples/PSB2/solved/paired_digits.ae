@@ -8,15 +8,15 @@ def String_zip : (i:String) -> (j:String) -> String := fun i => fun j => native 
 def String_to_List : (i:String) -> (Array Int) := fun i => native "list(i)"
 def String_to_Int : (i:String) -> Int := fun i => native "int(i)"
 
-def filter :  (f: (s:String) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-# def filter2 :  (f: (s:String) -> Bool) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "filter(f, xs)"
+def filter :  (f: (s:String) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
+# def filter2 :  (f: (s:String) -> Bool) -> (1 l:(Array Int)) -> (Array Int) = fun f => fun xs => native "filter(f, xs)"
 
-def List_sum: (l:(Array Int)) -> Int := fun xs => native "sum(xs)"
-def List_map_String_Int: (function:(a: String) -> Int) -> (l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
+def List_sum: (1 l:(Array Int)) -> Int := fun xs => native "sum(xs)"
+def List_map_String_Int: (function:(a: String) -> Int) -> (1 l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
-def paired_digits (nums: String) : Int := pairs: (Array Int) := (nums.zip (nums.slice 1 (nums.len))).to_List;
+def paired_digits (nums: String) : Int := let 1 pairs: (Array Int) := (nums.zip (nums.slice 1 (nums.len))).to_List;
     pred : (x:String) -> Bool := fun x => (get_fst x) = (get_snd x);
-    matching_pairs : (Array Int) := filter pred pairs;
+    let 1 matching_pairs: (Array Int)  := filter pred pairs;
     mapper : (x: String) -> Int := fun x => (get_fst x).to_Int;
     total_sum : Int := List_sum (List_map_String_Int mapper matching_pairs);
     total_sum;

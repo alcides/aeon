@@ -8,4 +8,4 @@ import Array;
 @minimize_float(
   ((sphere.get 0) * (sphere.get 0)) + ((sphere.get 1) * (sphere.get 1)) + ((sphere.get 2) * (sphere.get 2)) + ((sphere.get 3) * (sphere.get 3)) + ((sphere.get 4) * (sphere.get 4))
 )
-def sphere : {a:(Array Float) | Array.size a = 5} := ?h;
+def sphere (_: Unit) : {a:(Array Float) | Array.size a = 5} := ?h;

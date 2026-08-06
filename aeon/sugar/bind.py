@@ -98,10 +98,10 @@ def bind_ectx(
             case ElabTypeVarBinder(name, kind):
                 name, subs = check_name(name, subs)
                 e = ElabTypeVarBinder(name, kind)
-            case ElabTypeDecl(name, args, rforalls):
+            case ElabTypeDecl(name, args, rforalls, linear):
                 name, subs = check_type_decl_name(name, subs)
                 new_rfs = [(rn, bind_stype(rs, subs)) for (rn, rs) in rforalls]
-                e = ElabTypeDecl(name, args, new_rfs)
+                e = ElabTypeDecl(name, args, new_rfs, linear)
             case _:
                 assert False, f"{entry} not yet supported in bind."
         nentries.append(e)
@@ -297,7 +297,7 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
         for pname, psort in td.rforalls:
             nname, nsubs = check_name(pname, nsubs)
             trfs.append((nname, bind_stype(psort, nsubs)))
-        type_decls.append(TypeDecl(name, targs, trfs, loc=td.loc))
+        type_decls.append(TypeDecl(name, targs, trfs, loc=td.loc, linear=td.linear))
     # Pre-register every inductive type name before binding any constructor, so
     # a constructor of one inductive can reference a sibling inductive declared
     # *later* in the file (mutually-recursive datatypes, e.g. `Tree` whose

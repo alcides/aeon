@@ -10,9 +10,9 @@ def parser : Parser :=
     p1 : Parser := Args.addOption p0 "greeting" "Hello" "what to say";
     Args.addFlag p1 "uppercase" "shout instead of say"
 
-def emptyArgs : (Array String) := native "[]"
+def emptyArgs (_: Unit) : (Array String)  := native "[]"
 
 def main (_:Int) : Unit :=
-    a : ParsedArgs := Args.parseList parser emptyArgs;
+    a : ParsedArgs := Args.parseList parser (emptyArgs unit);
     g : String := Args.getString a "greeting";
     print g

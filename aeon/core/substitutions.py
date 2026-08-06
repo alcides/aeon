@@ -195,7 +195,7 @@ def instantiate_refinement_in_type(
     Implements s[ρ := φ] from tutorial fig 8.6.
     TODO: support refinement as Var ( id[Int]{myPred} ) — currently requires Abstraction."""
     match t:
-        case Top() | TypeConstructor(_) | TypeVar(_):
+        case Top() | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype, loc):
             return AbstractionType(
@@ -382,7 +382,7 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
         return substitution_liquid_in_type(t, rep, name)
 
     match t:
-        case Top() | TypeConstructor(_) | TypeVar(_):
+        case Top() | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype, loc):
             if aname == name:
@@ -390,18 +390,22 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
             else:
                 return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, multiplicity=t.multiplicity)
         case RefinedType(vname, ity, ref, loc):
+            # The base is not under the refinement binder, so it is substituted
+            # even when ``name`` is shadowed by ``vname``.
+            nity = rec(ity)
+            assert isinstance(nity, (TypeConstructor, TypeVar))
             if name == vname:
-                return t
+                return RefinedType(vname, nity, ref, loc=loc)
             else:
-                return RefinedType(vname, ity, substitution_in_liquid(ref, rep, name), loc=loc)
-        case TypePolymorphism(name, kind, body, loc):
-            return TypePolymorphism(name, kind, rec(body), loc=loc)
+                return RefinedType(vname, nity, substitution_in_liquid(ref, rep, name), loc=loc)
+        case TypePolymorphism(tvname, kind, body, loc):
+            return TypePolymorphism(tvname, kind, rec(body), loc=loc)
         case RefinementPolymorphism(rname, rsort, rbody, loc):
             if rname == name:
                 return t
             return RefinementPolymorphism(rname, rec(rsort), rec(rbody), loc=loc)
-        case TypeConstructor(name, args, loc):
-            return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
+        case TypeConstructor(cname, args, loc):
+            return TypeConstructor(cname, [rec(arg) for arg in args], loc=loc)
         case ExistentialType(binders, body, loc):
             # If `name` is shadowed by a binder, stop the substitution from
             # entering the body — but still recurse into binder types preceding
@@ -478,7 +482,7 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
         return substitution_in_type(t, rep, name)
 
     match t:
-        case Top() | TypeConstructor(_) | TypeVar(_):
+        case Top() | TypeVar(_):
             return t
         case AbstractionType(aname, atype, rtype, loc):
             if aname == name:
@@ -486,14 +490,18 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
             else:
                 return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, multiplicity=t.multiplicity)
         case RefinedType(vname, ity, ref, loc):
+            # The base is not under the refinement binder, so it is substituted
+            # even when ``name`` is shadowed by ``vname``.
+            nity = rec(ity)
+            assert isinstance(nity, (TypeConstructor, TypeVar))
             if name == vname:
-                return t
+                return RefinedType(vname, nity, ref, loc=loc)
             else:
-                return RefinedType(vname, ity, substitution_in_liquid(ref, replacement, name), loc=loc)
-        case TypePolymorphism(name, kind, body, loc):
-            return TypePolymorphism(name, kind, rec(body), loc=loc)
-        case TypeConstructor(name, args, loc):
-            return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
+                return RefinedType(vname, nity, substitution_in_liquid(ref, replacement, name), loc=loc)
+        case TypePolymorphism(tvname, kind, body, loc):
+            return TypePolymorphism(tvname, kind, rec(body), loc=loc)
+        case TypeConstructor(cname, args, loc):
+            return TypeConstructor(cname, [rec(arg) for arg in args], loc=loc)
         case ExistentialType(binders, body, loc):
             new_binders: list[tuple[Name, Type]] = []
             shadowed = False
@@ -683,6 +691,8 @@ def liquefy(rep: Term) -> LiquidTerm | None:
         case Literal(val, TypeConstructor(Name("String", 0)), loc):
             assert isinstance(val, str)
             return LiquidLiteralString(val, loc=loc)
+        case Literal(_, TypeConstructor(Name("Unit", 0)), loc):
+            return LiquidLiteralUnit(loc=loc)
         case Application(_, _):
             return liquefy_app(rep)
         case TypeAbstraction(_, _, body):

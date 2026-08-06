@@ -31,7 +31,7 @@ def columns(table: Table): (Array String) :=
 # table: the table to select from
 # columns: columns to select
 # returns: new table with only the selected columns
-def select(table: Table) (columns: (Array String)): Table :=
+def select(table: Table) (1 columns: (Array String)): Table :=
     native "[{col: row[col] for col in columns} for row in table]"
 
 
@@ -57,7 +57,7 @@ def map_column(table: Table) (column: String) (f: (a: t) -> b): Table :=
 # column: column to summarize
 # f: summary function (e.g., sum, mean)
 # returns: result of the summary function
-def summary(table: Table) (column: String) (f: (a: (Array Int)) -> b): b :=
+def summary(table: Table) (column: String) (f: (1 a: (Array Int)) -> b): b :=
     native "f([row[column] for row in table])"
 
 
@@ -92,7 +92,7 @@ def pivot(table: Table) (index: String) (columns: String) (values: String): Tabl
 # var_name: name for the new variable column
 # value_name: name for the new value column
 # returns: reshaped table (list of dicts)
-def melt(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table :=
+def melt(table: Table) (1 id_vars: (Array String)) (1 value_vars: (Array String)) (var_name: String) (value_name: String): Table :=
     native "__import__('aeon.bindings.table').bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
 
 
@@ -174,5 +174,5 @@ def spread(table: Table) (index: String) (columns: String) (values: String): Tab
     native "__import__('aeon.bindings.table').bindings.table.pivot(table, index, columns, values)"
 
 # `gather` is `melt`: wide -> long.
-def gather(table: Table) (id_vars: (Array String)) (value_vars: (Array String)) (var_name: String) (value_name: String): Table :=
+def gather(table: Table) (1 id_vars: (Array String)) (1 value_vars: (Array String)) (var_name: String) (value_name: String): Table :=
     native "__import__('aeon.bindings.table').bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
