@@ -7,6 +7,11 @@
 # ``split`` only accepts a dataset with enough rows, marks its test half as a
 # clean held-out set, and the trained models' feature counts must match the
 # test set — so a leaky or mis-shaped evaluation is a type error.
+#
+# ``Dataset`` is linear, so each fit/score consumes its argument. We branch
+# with ``copy_dataset`` and feed the projections straight into consumers
+# (no intermediate ``let 1`` of a half that would then be passed to an
+# ω-scaled position under nested applications).
 
 open Learning
 open Math
@@ -17,15 +22,21 @@ open Math
 # [0, 1], but ``maxf`` returns a plain ``Float``, so we report it as such.)
 def best_f1 (path: String) : Float :=
     let 1 df := read_csv path in
-    let ds0 := target df "species" false false in
-    let ds := require_enough_data ds0 in
+    let 1 ds0 := target df "species" false false in
+    let 1 ds := require_enough_data ds0 in
     let parts := split ds 0.7 true in
-    let train := train_of parts in
-    let test := test_of parts in
-    let forest := f1 (random_forest_classifier train) test in        # Ensembles
-    let tree   := f1 (decision_tree_classifier train) test in        # Trees
-    let svc_f  := f1 (svc train) test in                             # SVM
-    let lda    := f1 (linear_discriminant_analysis train) test in    # Discriminant
+    let 1 train0 := train_of parts in
+    let 1 test0 := test_of parts in
+    let tp1 := copy_dataset train0 in
+    let tp2 := copy_dataset (snd_dataset tp1) in
+    let tp3 := copy_dataset (snd_dataset tp2) in
+    let ep1 := copy_dataset test0 in
+    let ep2 := copy_dataset (snd_dataset ep1) in
+    let ep3 := copy_dataset (snd_dataset ep2) in
+    let forest := f1 (random_forest_classifier (fst_dataset tp1)) (fst_dataset ep1) in
+    let tree   := f1 (decision_tree_classifier (fst_dataset tp2)) (fst_dataset ep2) in
+    let svc_f  := f1 (svc (fst_dataset tp3)) (fst_dataset ep3) in
+    let lda    := f1 (linear_discriminant_analysis (snd_dataset tp3)) (snd_dataset ep3) in
     maxf (maxf forest tree) (maxf svc_f lda) ;
 
 

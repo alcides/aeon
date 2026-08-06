@@ -6,19 +6,19 @@ type Counter
 def itertools : Unit := native_import "itertools"
 def collections : Unit := native_import "collections"
 
-def Zip : (xs:(Array Int)) -> (ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
-def Map : (f: (s:(Array Int)) -> String) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
-def Map_bool : (f: (s:(Array Int)) -> Int) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
+def Zip : (1 xs:(Array Int)) -> (1 ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
+def Map : (f: (1 s:(Array Int)) -> String) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
+def Map_bool : (f: (1 s:(Array Int)) -> Int) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
 
 def String_eq : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
-def List_sum : (l:(Array Int)) -> Int := fun xs => native "sum(xs)"
+def List_sum : (1 l:(Array Int)) -> Int := fun xs => native "sum(xs)"
 def String_toList : (s:String) -> (Array Int) := fun s => native "list(s)"
 def String_Zip : (xs:String) -> (ys:String) -> (Array Int) := fun xs => fun ys => native "(zip(xs, ys))"
-def List_get_fst : (s: (Array Int)) -> String := fun s => native "s[0]"
-def List_get_snd : (s: (Array Int)) -> String := fun s => native "s[1]"
+def List_get_fst : (1 s: (Array Int)) -> String := fun s => native "s[0]"
+def List_get_snd : (1 s: (Array Int)) -> String := fun s => native "s[1]"
 def String_neq : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i != j";
-def Filter :  (f: (s:(Array Int)) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-def MkCounter : (l:(Array Int)) -> Counter := fun xs => native "collections.Counter(xs)"
+def Filter :  (f: (1 s:(Array Int)) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
+def MkCounter : (1 l:(Array Int)) -> Counter := fun xs => native "collections.Counter(xs)"
 def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter := fun c1 => fun c2 => native "c1 & c2"
 def Counter_values : (c:Counter) -> (Array Int) := fun c => native "list(c.values())"
 def Tuple : (a:Int) -> (b:Int) -> (Array Int) := fun a => fun b => native "[a,b]"

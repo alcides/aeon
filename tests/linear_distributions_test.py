@@ -26,7 +26,6 @@ open Distributions
 def chain (seed: Int) : {xs: (Array Float) | Array.size xs > 0} :=
     let 1 g0 := new_rng seed in
     let nd := normal_sample g0 2.0 1.0 10 in
-    let xs := normal_value 2.0 1.0 nd in
     let 1 g1 := sample_next nd in
     let ud := uniform_sample g1 0.0 1.0 10 in
     uniform_value 0.0 1.0 ud
@@ -59,7 +58,7 @@ def test_extracted_successor_must_be_used():
     def bad (seed: Int) : {xs: (Array Float) | Array.size xs > 0} :=
         let 1 g0 := new_rng seed in
         let nd := normal_sample g0 2.0 1.0 10 in
-        let xs := normal_value 2.0 1.0 nd in
+        let 1 xs := normal_value 2.0 1.0 nd in
         let 1 g1 := sample_next nd in
         xs
     def main (x:Int) : Unit := print 0 ;

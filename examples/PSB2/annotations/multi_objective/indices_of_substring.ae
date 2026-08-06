@@ -5,7 +5,7 @@ def String_len : (i:String) -> Int := fun i => native "len(i)"
 
 def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) := fun start => fun end => fun step => native "list(range(start, end, step ))"
 
-def Filter :  (f: (s:Int) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
+def Filter :  (f: (s:Int) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
 
 def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
 

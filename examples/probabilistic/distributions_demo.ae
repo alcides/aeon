@@ -6,33 +6,33 @@ open Distributions
 
 # Consumer requiring 99% of values below 7.
 def expectMostlyBelow7
-    (xs: {ys: (Array Float) | Array.size ys > 0 && fracBelow ys 7.0 >= 0.99})
+    (1 xs: {ys: (Array Float) | Array.size ys > 0 && fracBelow ys 7.0 >= 0.99})
     : Unit
-    := print "ok: 99% of values below 7"
+    := let _ := length xs in print "ok: 99% of values below 7"
 
 # Consumer requiring 95% of values above 0 (i.e., positivity bound).
 def expectMostlyPositive
-    (xs: {ys: (Array Float) | Array.size ys > 0 && fracAbove ys 0.0 >= 0.95})
+    (1 xs: {ys: (Array Float) | Array.size ys > 0 && fracAbove ys 0.0 >= 0.95})
     : Unit
-    := print "ok: 95% of values above 0"
+    := let _ := length xs in print "ok: 95% of values above 0"
 
 # Demo: thread one linear generator through several batch samplers.
 def main (seed: Int) : Unit :=
     let 1 g0 := new_rng seed in
     let nd := normal_sample g0 2.0 1.0 100 in
-    let g := normal_value 2.0 1.0 nd in
+    let 1 g := normal_value 2.0 1.0 nd in
     let 1 g1 := sample_next nd in
-    let g7 := widenBelow g (2.0 + 2.33 * 1.0) 7.0 in
+    let 1 g7 := widenBelow g (2.0 + 2.33 * 1.0) 7.0 in
     let r1 := expectMostlyBelow7 g7 in
     let ud := uniform_sample g1 0.0 5.0 100 in
-    let u := uniform_value 0.0 5.0 ud in
+    let 1 u := uniform_value 0.0 5.0 ud in
     let 1 g2 := sample_next ud in
-    let u7 := widenBelow u 5.0 7.0 in
+    let 1 u7 := widenBelow u 5.0 7.0 in
     let r2 := expectMostlyBelow7 u7 in
     let ed := exponential_sample g2 1.0 100 in
-    let e := exponential_value 1.0 ed in
+    let 1 e := exponential_value 1.0 ed in
     let 1 g3 := sample_next ed in
     let r3 := expectMostlyPositive e in
     let bd := beta_sample g3 2.0 5.0 100 in
-    let b := beta_value 2.0 5.0 bd in
+    let 1 b := beta_value 2.0 5.0 bd in
     expectMostlyPositive b

@@ -564,6 +564,27 @@ def fixpoint(cs: list[Constraint], assign) -> Assignment:
         return fixpoint(cs, weakened_assignment)
 
 
+def horn_assignment(
+    c: Constraint,
+    typing_ctx: TypingContext | None = None,
+    qualifier_atoms: frozenset[LiquidTerm] | None = None,
+) -> Assignment:
+    """Computes the weakest assignment of the Horn variables of ``c`` that
+    satisfies every constraint with a Horn variable in the head.
+
+    The assignment is only meaningful for the constraint it was computed
+    from: a Horn variable that appears in several sub-constraints must be
+    given a single solution, so callers that dissect ``c`` afterwards have
+    to apply this assignment to the whole of ``c`` before splitting it.
+    """
+    if qualifier_atoms is None:
+        atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
+    else:
+        atoms = qualifier_atoms
+    csk = [cp for cp in flat(c) if has_k_head(cp)]
+    return fixpoint(csk, build_initial_assignment(c, typing_ctx, atoms))
+
+
 def solve(
     c: Constraint,
     typing_ctx: TypingContext | None = None,
@@ -572,15 +593,8 @@ def solve(
     # Performance improvement
     if not contains_horn_constraint(c):
         return smt_valid(c)
-    if qualifier_atoms is None:
-        atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
-    else:
-        atoms = qualifier_atoms
-    cs = flat(c)
-    csk = [c for c in cs if has_k_head(c)]
-    csp = [c for c in cs if not has_k_head(c)]
-    assignment0: Assignment = build_initial_assignment(c, typing_ctx, atoms)
-    subst = fixpoint(csk, assignment0)
+    subst = horn_assignment(c, typing_ctx, qualifier_atoms)
+    csp = [cp for cp in flat(c) if not has_k_head(cp)]
 
     def merge(acc: Constraint, pi: Constraint) -> Constraint:
         return Conjunction(acc, pi)

@@ -10,35 +10,55 @@
 #
 # ── Linear (QTT) discipline ──────────────────────────────────────────────
 #
-# Every operation that *transforms* an array (``append``, ``cons``,
-# ``set``, ``reversed``, ``map``, ``filter``) takes its array argument at
-# multiplicity 1 (``(1 arr: ...)``) and returns a fresh array. Threading a
-# value through such a chain therefore keeps **exactly one live reference**
-# to the array at all times: binding it with ``let 1 a := ...`` makes the
-# type checker reject any program that uses ``a`` twice (which would alias
-# the buffer) or drops it on the floor without consuming it.
+# ``Array`` is a ``linear type``: an array is a *unique* value, so every
+# binder that holds one must be declared at multiplicity 1 — ``let 1 a :=
+# ...`` for a local, ``(1 arr: ...)`` for a parameter. Omitting the ``1`` is
+# an error, not a silent escape hatch. Consequently every array is consumed
+# **exactly once**: using it twice (which would alias the buffer) or
+# dropping it without consuming it are both rejected.
 #
 # Because uniqueness is statically guaranteed, the native bodies are free
 # to mutate the backing list in place — there is no other observer that a
-# mutation could surprise. (The bodies below stay purely functional so the
-# unrestricted, non-linear call sites that predate this discipline keep
-# their old copy-on-write behaviour; the linear annotations only *bite* at
-# ``let 1`` / ``(1 …)`` binders, so existing code is unaffected.)
+# mutation could surprise. (The bodies below stay purely functional, so the
+# runtime behaviour is unchanged.)
 #
-# When you genuinely need two independent arrays — to branch a computation,
-# or to read a value out of a linear chain — call ``copy``. It is the one
-# sanctioned way to duplicate a unique reference: it consumes the array
-# once and hands back two independent arrays packaged in an ``ArrayPair``
-# (projected with ``fst_array`` / ``snd_array``). Note that ``copy`` is not
-# refinement-parametric — see its definition for why the abstract ``<p>``
-# and ``size`` are dropped by the projections.
+# Operations come in two flavours:
+#
+#   * **Transformers** (``append``, ``cons``, ``set``, ``reversed``, ``map``,
+#     ``filter``) consume the array and return a fresh one — bind the result
+#     to the next ``let 1`` and keep going.
+#
+#   * **Readers** (``length``, ``get``, ``head``, ``sum``, ``reduce``,
+#     ``empty``) also consume the array, because reading it uses up the one
+#     reference. Terminal reads therefore need nothing special:
+#     ``length #[5, 6, 7]`` is fine. To read a value *and carry on* with the
+#     array, use ``get_at`` / ``len_of``: they hand back an opaque result
+#     carrying both the value read and the array itself, which
+#     ``got_value`` / ``got_array`` (resp. ``len_value`` / ``len_array``)
+#     project. Both wrappers are refinement-parametric and thread the
+#     ``size`` measure, so nothing is lost by the round trip.
+#
+# When you need two genuinely independent arrays — to branch a computation
+# in two — call ``copy``: it consumes the array once and hands back two
+# arrays packaged in an ``ArrayPair`` (projected with ``fst_array`` /
+# ``snd_array``), each with the element refinement and length preserved.
 
-type Array a forall <p : a -> Bool>
+linear type Array a forall <p : a -> Bool>
 
 # Opaque pair of arrays, returned by ``copy``. Backed by a Python 2-tuple;
 # kept self-contained (rather than reusing the ``Pair`` library) so that
 # ``Array`` has no further imports to drag through every ``open Array``.
+#
+# The wrappers below are deliberately *not* linear: they are inert values
+# whose only purpose is to be projected. The arrays they carry re-enter the
+# linear discipline as soon as a projection is bound to a ``let 1``.
 type ArrayPair a
+
+# Result of ``get_at``: the element read, plus the array it was read from.
+type ArrayGet a
+
+# Result of ``len_of``: the length, plus the array it was measured from.
+type ArrayLen a
 
 def functools : Unit := native_import "functools"
 
@@ -46,19 +66,34 @@ def functools : Unit := native_import "functools"
 # Abstract length measure.
 def size : (arr: (Array a)) -> Int := uninterpreted
 
+# Length carried by an ``ArrayGet`` / ``ArrayLen`` wrapper — the ``size`` of
+# the array inside it. Lets the projections restate the length they were
+# built with, so threading an array through a read loses nothing.
+def got_size : (g: (ArrayGet a)) -> Int := uninterpreted
+def held_size : (l: (ArrayLen a)) -> Int := uninterpreted
 
-# Length of the array.
-def length (arr: (Array a)) : {n:Int | n = size arr} :=
+# Common length of the two arrays inside an ``ArrayPair``.
+def pair_size : (pr: (ArrayPair a)) -> Int := uninterpreted
+
+
+# Length of the array. Consumes it; use ``len_of`` to keep the array.
+def length (1 arr: (Array a)) : {n:Int | n = size arr} :=
     native "len(arr)"
 
 
 # Empty array — a fresh, uniquely-owned buffer.
-def new : {arr:(Array a) | size arr = 0} :=
+#
+# Takes a ``Unit`` so that creating an array is an *applied* action: each
+# ``new unit`` re-runs the native and yields a new buffer. A nullary ``def``
+# would be a value, which the evaluator memoises — every use would then
+# alias the same Python list, which is exactly what a unique type must rule
+# out (compare ``stream_socket`` in libraries/Socket.ae).
+def new (_: Unit) : {arr:(Array a) | size arr = 0} :=
     native "[]"
 
 
-# True when the array is empty.
-def empty (arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
+# True when the array is empty. Consumes it.
+def empty (1 arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
     arr.length = 0
 
 
@@ -66,59 +101,90 @@ def empty (arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
 # independent arrays — the original buffer plus a fresh physical duplicate.
 # At run time both halves hold the same elements as the input; this is the
 # only way to turn one unique reference into two, to branch a linear
-# computation or to obtain unrestricted handles.
+# computation.
 #
-# NOTE — ``copy`` is NOT refinement-parametric. ``ArrayPair`` is opaque, so
-# the abstract element refinement ``<p>`` and the ``size`` measure are *not*
-# threaded through it: the projections below return arrays with an
-# unconstrained refinement and an unknown length. (Aeon's surface language
-# has no way to apply a phantom refinement to a type constructor, so a
-# projection — which has no element position to mention ``p v`` — cannot
-# carry it.) A caller that needs ``p`` or a known ``size`` on a projection
-# must re-establish it, e.g. by re-checking elements or threading the length
-# alongside. Operations that don't depend on the refinement (``length``,
-# ``sum``, ``append``, ``map``, ...) work on a projection unchanged.
-def copy (1 arr: (Array a)) : (ArrayPair a) :=
+# The element refinement ``<p>`` rides on the element type of the pair and
+# the length is threaded by the ``pair_size`` measure, so both projections
+# come back fully specified.
+def copy (1 arr: (Array a<p>)) : {pr: (ArrayPair a<p>) | pair_size pr = size arr} :=
     native "(arr, list(arr))"
 
 
-# Left projection of a ``copy`` — the original buffer. See ``copy``: the
-# result's refinement and length are unconstrained.
-def fst_array (p: (ArrayPair a)) : (Array a) :=
-    native "p[0]"
+# Left projection of a ``copy`` — the original buffer.
+def fst_array (pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size pr} :=
+    native "pr[0]"
 
 
-# Right projection of a ``copy`` — the fresh duplicate. See ``copy``: the
-# result's refinement and length are unconstrained.
-def snd_array (p: (ArrayPair a)) : (Array a) :=
-    native "p[1]"
+# Right projection of a ``copy`` — the fresh duplicate.
+def snd_array (pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size pr} :=
+    native "pr[1]"
+
+
+# ── Reading without giving up the array ─────────────────────────────────
+#
+# ``get_at`` / ``len_of`` consume the array and return a wrapper holding
+# both the answer and the array, so a read can be threaded through a linear
+# chain. Project the answer with ``got_value`` / ``len_value`` and the array
+# with ``got_array`` / ``len_array`` (bound to a ``let 1``).
+
+def get_at (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) :
+    {g: (ArrayGet a<p>) | got_size g = size arr} :=
+    native "(arr[i], arr)"
+
+
+# The element read by ``get_at``; still known to satisfy ``p``.
+def got_value (g: (ArrayGet a<p>)) : a<p> :=
+    native "g[0]"
+
+
+# The array ``get_at`` read from, with its length intact.
+def got_array (g: (ArrayGet a<p>)) : {r: (Array a<p>) | size r = got_size g} :=
+    native "g[1]"
+
+
+def len_of (1 arr: (Array a<p>)) : {l: (ArrayLen a<p>) | held_size l = size arr} :=
+    native "(len(arr), arr)"
+
+
+# The length measured by ``len_of``.
+def len_value (l: (ArrayLen a<p>)) : {n:Int | n = held_size l} :=
+    native "l[0]"
+
+
+# The array ``len_of`` measured, with its length intact.
+def len_array (l: (ArrayLen a<p>)) : {r: (Array a<p>) | size r = held_size l} :=
+    native "l[1]"
 
 
 # Append an element to the back; the value must satisfy the refinement ``p``.
 # Consumes the array linearly and returns a fresh one, one element longer.
-def append (1 arr: (Array a)) (x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
+# The element is taken at multiplicity 1 so a linear payload (e.g. an
+# ``Array`` nested inside an ``Array``) is not silently duplicated by the
+# call; unrestricted elements such as ``Int`` remain freely usable.
+def append (1 arr: (Array a)) (1 x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
     native "arr + [x]"
 
 
 # Prepend an element to the front; the value must satisfy the refinement ``p``.
 # Consumes the array linearly and returns a fresh one, one element longer.
-def cons (1 arr: (Array a)) (x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
+def cons (1 arr: (Array a)) (1 x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
     native "[x] + arr"
 
 
-# Indexed read; the result is known to satisfy ``p``.
-def get (arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
+# Indexed read; the result is known to satisfy ``p``. Consumes the array —
+# use ``get_at`` to read and keep it.
+def get (1 arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
     native "arr[i]"
 
 
 # Indexed write; preserves length, and the written value must satisfy ``p``.
 # Consumes the array linearly and returns the fresh, updated array.
-def set (1 arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) (x: {v:a | p v}) : {r:(Array a) | size r = size arr} :=
+def set (1 arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) (1 x: {v:a | p v}) : {r:(Array a) | size r = size arr} :=
     native "arr[:i] + [x] + arr[i+1:]"
 
 
-# First element of a non-empty array.
-def head (arr: {arr:(Array a) | size arr > 0}) : {v:a | p v} :=
+# First element of a non-empty array. Consumes the array.
+def head (1 arr: {arr:(Array a) | size arr > 0}) : {v:a | p v} :=
     native "arr[0]"
 
 
@@ -140,10 +206,11 @@ def filter (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a)) : {r:(Array a) | siz
 
 
 # Right fold: ``reduce f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.
-def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (arr: (Array a)) : b :=
+# Consumes the array.
+def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (1 arr: (Array a)) : b :=
     native "functools.reduce(lambda acc, curr: f(curr)(acc), reversed(arr), z)"
 
 
-# Sum of an Int array.
-def sum (arr: (Array Int)) : Int :=
+# Sum of an Int array. Consumes the array.
+def sum (1 arr: (Array Int)) : Int :=
     native "sum(arr)"

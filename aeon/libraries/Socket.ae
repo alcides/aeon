@@ -13,9 +13,11 @@
 # connected socket; ``stream_bind`` / ``stream_connect`` advance the
 # state; ``stream_recv`` / ``stream_send`` require connected.
 
-# Opaque Python wrappers (see native bodies below).
-type StreamSocket
-type DatagramSocket
+# Opaque Python wrappers (see native bodies below). Both are ``linear``: a
+# socket handle is unique, so every binder holding one must be declared at
+# multiplicity 1 and consume it exactly once.
+linear type StreamSocket
+linear type DatagramSocket
 
 # Raw payload (`bytes` at runtime).
 type SocketPayload

@@ -242,6 +242,24 @@ def Learning_class_counts(ds):
     return [list(kv) for kv in items]
 
 
+# ─── Copy ───────────────────────────────────────────────────────────────
+
+
+@curried
+def Learning_copy(ds):
+    """Return ``(original, deep_copy)`` so Aeon can branch a linear Dataset."""
+    X, y = _as_xy(ds)
+    if hasattr(X, "copy"):
+        X2 = X.copy()
+    else:
+        X2 = list(X) if isinstance(X, list) else np.array(X, copy=True)
+    if hasattr(y, "copy"):
+        y2 = y.copy()
+    else:
+        y2 = list(y)
+    return (ds, _xy(X2, y2))
+
+
 # ─── Splitting ──────────────────────────────────────────────────────────
 
 

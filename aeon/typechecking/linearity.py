@@ -56,18 +56,21 @@ from aeon.core.terms import (
 from aeon.core.types import (
     AbstractionType,
     ExistentialType,
+    RefinedType,
     RefinementPolymorphism,
     Type,
+    TypeConstructor,
     TypePolymorphism,
 )
 from aeon.facade.api import (
     ErasedUsedAtRuntimeError,
     LinearBranchMismatchError,
     LinearityError,
+    LinearTypeNotBoundLinearlyError,
     LinearUnusedError,
     LinearUsedTooManyTimesError,
 )
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import TypeConstructorBinder, TypingContext
 from aeon.utils.location import Location
 from aeon.utils.name import Name
 
@@ -317,10 +320,13 @@ class _Walker:
                     return ft.type
                 return None
             case TypeApplication(body, _) | RefinementApplication(body, _):
-                # Peel the polymorphism wrapper from the underlying type;
-                # the multiplicity discipline is unaffected by the type
-                # arguments we instantiate at.
-                return _peel_existential(self.term_type(body))
+                # Peel polymorphism wrappers from the underlying type so
+                # that ``print @ Int`` still exposes the ``(1 x:a) -> Unit``
+                # abstraction (and its parameter multiplicity) to scaling.
+                ty = _peel_existential(self.term_type(body))
+                while isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+                    ty = ty.body
+                return ty
             case _:
                 return None
 
@@ -537,6 +543,44 @@ def _check_binder(
     # use is M1 — exactly the linear obligation. OK.
 
 
+def _linear_type_head(ty: Type | None, linear_types: frozenset[Name]) -> Name | None:
+    """The name of the ``linear type`` constructor at the head of ``ty``, if
+    any. Refinements and existential wrappers are transparent: ``{c:Conn | ok
+    c}`` is as unique as ``Conn`` itself."""
+    if not linear_types:
+        return None
+    ty = _peel_existential(ty)
+    while isinstance(ty, RefinedType):
+        ty = ty.type
+    if isinstance(ty, TypeConstructor) and ty.name in linear_types:
+        return ty.name
+    return None
+
+
+def _check_linear_type_binder(
+    name: Name,
+    declared_type: Type | None,
+    multiplicity: Multiplicity,
+    term: Term,
+    linear_types: frozenset[Name],
+    errors: list[LinearityError],
+) -> None:
+    """A binder of a ``linear type`` must be introduced at multiplicity ``1``:
+    anything else would let the value be duplicated (``ω``) or dropped
+    (``0``)."""
+    head = _linear_type_head(declared_type, linear_types)
+    if head is None or multiplicity is M1:
+        return
+    errors.append(
+        LinearTypeNotBoundLinearlyError(
+            name=name,
+            type_name=head,
+            declared=multiplicity,
+            term=term,
+        )
+    )
+
+
 def _abstraction_param_multiplicity(declared_type: Type | None) -> Multiplicity:
     """Pull the parameter's declared multiplicity off an ``AbstractionType``
     if we know it (e.g. from the enclosing ``Rec``'s annotation). Defaults
@@ -591,9 +635,13 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
     """
     errors: list[LinearityError] = []
     initial_types: dict[Name, Type] = {}
+    linear_types: frozenset[Name] = frozenset()
     if ctx is not None:
         for n, t in ctx.vars():
             initial_types[n] = t
+        linear_types = frozenset(
+            entry.name for entry in ctx.entries if isinstance(entry, TypeConstructorBinder) and entry.linear
+        )
 
     def visit(node: Term, walker: _Walker, expected_ty: Type | None = None) -> None:
         # When ``expected_ty`` is an ``AbstractionType``, the outer
@@ -626,6 +674,7 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 inner = walker.with_var(name, inner_ty)
                 bt, bc = inner.tally(body)
                 _check_binder(name, param_mult, bt, bc, node, errors)
+                _check_linear_type_binder(name, inner_ty, param_mult, node, linear_types, errors)
                 visit(body, inner, body_ty)
             case Let(name, val, body, _, mult):
                 # Inline-infer ``val``'s type so ``name`` carries it
@@ -636,12 +685,14 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 inner = walker.with_var(name, val_ty)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
+                _check_linear_type_binder(name, val_ty, mult, node, linear_types, errors)
                 visit(val, walker)
                 visit(body, inner)
             case Rec(name, var_type, val, body, _, _, mult):
                 inner = walker.with_var(name, var_type)
                 bt, bc = inner.tally(body)
                 _check_binder(name, mult, bt, bc, node, errors)
+                _check_linear_type_binder(name, var_type, mult, node, linear_types, errors)
                 # ``var_type`` typed-walks the abstraction body so nested
                 # parameter multiplicities (curried funs / match handlers)
                 # are checked against their declared types.

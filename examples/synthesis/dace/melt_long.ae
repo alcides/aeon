@@ -3,10 +3,10 @@ open Table
 
 def wide : Table := native "[{'id':1,'x':7,'y':8}]";
 
-def ids  : (Array String) := native "['id']";
-def vals : (Array String) := native "['x','y']";
+def ids (_: Unit) : (Array String) := native "['id']";
+def vals (_: Unit) : (Array String) := native "['x','y']";
 
-def long : Table := wide.melt ids vals "k" "v";
+def long : Table := wide.melt (ids unit) (vals unit) "k" "v";
 
 def v1 : Int := long.cell 1 "v";  # second melted row (y) -> 8
 

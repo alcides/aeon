@@ -38,47 +38,50 @@ open Math
 
 # Passes when the condition holds. Use it to wrap any boolean expression that
 # this library has no dedicated assertion for (e.g. `assertThat (mem x s)`).
-def assertThat (condition : Bool) : Bool := condition;
+# Assertion parameters use multiplicity ``n`` (polymorphic identity scaling)
+# so observing a value computed from a linear resource — e.g.
+# ``assertEqual (sum arr) 14`` — does not artificially scale ``arr`` to ``ω``.
+def assertThat (n condition : Bool) : Bool := condition;
 
 # Passes when the condition holds (alias of `assertThat`, reads well on a raw
 # boolean: `assertTrue (isEmpty xs)`).
-def assertTrue (condition : Bool) : Bool := condition;
+def assertTrue (n condition : Bool) : Bool := condition;
 
 # Passes when the condition is false.
-def assertFalse (condition : Bool) : Bool := !condition;
+def assertFalse (n condition : Bool) : Bool := !condition;
 
 # ── Equality assertions (any base type, including ADTs like Color) ─────────
 
 # Passes when `actual` equals `expected`.
-def assertEqual (actual : a) (expected : a) : Bool := actual = expected;
+def assertEqual (n actual : a) (n expected : a) : Bool := actual = expected;
 
 # Passes when `actual` differs from `expected`.
-def assertNotEqual (actual : a) (expected : a) : Bool := actual != expected;
+def assertNotEqual (n actual : a) (n expected : a) : Bool := actual != expected;
 
 # ── Ordering assertions (Int, Float, String — any orderable type) ──────────
 # Calling these at a non-orderable type is rejected at the call site, mirroring
 # the language's own restriction on `<` / `<=` / `>` / `>=`.
 
 # Passes when `actual < bound`.
-def assertLess (actual : a) (bound : a) : Bool := actual < bound;
+def assertLess (n actual : a) (n bound : a) : Bool := actual < bound;
 
 # Passes when `actual <= bound`.
-def assertLessEqual (actual : a) (bound : a) : Bool := actual <= bound;
+def assertLessEqual (n actual : a) (n bound : a) : Bool := actual <= bound;
 
 # Passes when `actual > bound`.
-def assertGreater (actual : a) (bound : a) : Bool := actual > bound;
+def assertGreater (n actual : a) (n bound : a) : Bool := actual > bound;
 
 # Passes when `actual >= bound`.
-def assertGreaterEqual (actual : a) (bound : a) : Bool := actual >= bound;
+def assertGreaterEqual (n actual : a) (n bound : a) : Bool := actual >= bound;
 
 # ── Approximate equality (floating point) ──────────────────────────────────
 
 # Passes when `actual` and `expected` are within `eps` of each other. Use this
 # instead of `assertEqual` for any value produced by floating-point arithmetic.
 def assertClose
-    (actual : Float)
-    (expected : Float)
-    (eps : {v:Float | v >= 0.0}) :
+    (n actual : Float)
+    (n expected : Float)
+    (n eps : {v:Float | v >= 0.0}) :
     Bool :=
     absf (actual - expected) <= eps;
 
@@ -88,14 +91,14 @@ def assertClose
 # rest.
 
 # Passes when both checks pass.
-def both (a : Bool) (b : Bool) : Bool := a && b;
+def both (n a : Bool) (n b : Bool) : Bool := a && b;
 
 # Passes when all three checks pass.
-def allOf3 (a : Bool) (b : Bool) (c : Bool) : Bool := a && b && c;
+def allOf3 (n a : Bool) (n b : Bool) (n c : Bool) : Bool := a && b && c;
 
 # Passes when all four checks pass.
-def allOf4 (a : Bool) (b : Bool) (c : Bool) (d : Bool) : Bool := a && b && c && d;
+def allOf4 (n a : Bool) (n b : Bool) (n c : Bool) (n d : Bool) : Bool := a && b && c && d;
 
 # Passes when all five checks pass.
-def allOf5 (a : Bool) (b : Bool) (c : Bool) (d : Bool) (e : Bool) : Bool :=
+def allOf5 (n a : Bool) (n b : Bool) (n c : Bool) (n d : Bool) (n e : Bool) : Bool :=
     a && b && c && d && e;

@@ -9,7 +9,7 @@
 # def pos : (n: Int) -> {v : Int | v >= 0} = fun n => n * n
 
 # def main (args : Int) : Unit {
-#     empty = List_new[Int]
+#     empty = (List_new unit)[Int]
 #     xs = List_append (List_append empty (-2)) (-3)
 #     pos_xs = map pos xs
 #     head : Int = List_head pos_xs

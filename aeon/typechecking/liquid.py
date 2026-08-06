@@ -248,6 +248,14 @@ def type_infer_liquid(
                 def _is_numeric(ty: Type) -> bool:
                     return isinstance(ty, TypeConstructor) and ty.name.name in ("Int", "Float")
 
+                # Refinements carry no sort information, so a refined type
+                # argument (``Array a<p>`` lowers to ``Array {v:a | p v}``)
+                # unifies exactly as its base does.
+                while isinstance(actual, RefinedType):
+                    actual = actual.type
+                while isinstance(expected, RefinedType):
+                    expected = expected.type
+
                 match (actual, expected):
                     case (_, TypeVar(name)):
                         resolved = resolve_type(actual) if isinstance(actual, (TypeConstructor, TypeVar)) else actual

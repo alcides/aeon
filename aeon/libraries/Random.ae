@@ -34,8 +34,10 @@
 open Array
 
 # An opaque pseudo-random generator (a Python `random.Random` at runtime),
-# used linearly: every draw consumes it and produces a fresh successor.
-type Rng
+# used linearly: every draw consumes it and produces a fresh successor. Being
+# a `linear type`, every binder holding an `Rng` must be declared with
+# multiplicity 1.
+linear type Rng
 
 # Results of a draw: the sample paired with the successor generator. These
 # are ordinary (non-linear) values — the generator re-enters the linear
@@ -75,7 +77,7 @@ def range_next (d: RangeDraw) : Rng := native "d[1]"
 # Terminal: consume `g` and return the chosen element. To choose mid-chain
 # and keep drawing, draw an index instead — `draw_int 0 (Array.size xs - 1)`
 # — and project the successor as usual.
-def choose (xs: {l: (Array a) | Array.size l > 0}) (1 g: Rng) : a :=
+def choose (1 xs: {l: (Array a) | Array.size l > 0}) (1 g: Rng) : a :=
     native "g.choice(xs)"
 
 # Discharge a generator you hold but never draw from (e.g. a helper handed a
