@@ -1,9 +1,6 @@
 RESTRICOES PARA A BIBLIOTECA ML
 ==========================================
 
-Este ficheiro e um inventario de contratos futuros. Nenhuma destas restricoes
-esta ativa na versao minima usada pelo exemplo do Titanic.
-
 Legenda:
   [L]  Ja existe diretamente na biblioteca Learning.
   [L+] Existe parcialmente em Learning, mas deve ser reforcada na ML.
@@ -19,15 +16,15 @@ A. Dataset, carregamento e target
     0 <= index e index < df_cols df.
 
 03. [N] target por nome exige que a coluna exista:
-    has_column df column = true. (ainda a 
-    confirmar se é okay porque tem de se consumir 
-    uma vez o dataset para verificar isso. 
-    A minha solução é ter uma função que devolve 
-    um índice quando dado o nome, mas pode não 
+    has_column df column = true. (ainda a
+    confirmar se é okay porque tem de se consumir
+    uma vez o dataset para verificar isso.
+    A minha solução é ter uma função que devolve
+    um índice quando dado o nome, mas pode não
     ter resultado...)
 
 04. [L] Selecionar o target consome linearmente o DataFrame, impedindo a
-    reutilizacao acidental da versao anterior. (para todos os casos 
+    reutilizacao acidental da versao anterior. (para todos os casos
     destruir o dataset anterior)
 
 05. [L] Criar um Dataset preserva o numero de linhas:
@@ -60,7 +57,7 @@ B. Split e pre-processamento
 
 13. [L] O split exige dados suficientes, por exemplo:
     ds_rows ds > ds_features ds * 10. (Ver se devemos apresentar
-    um warning apenas ou marcar como erro. AEON ainda 
+    um warning apenas ou marcar como erro. AEON ainda
     não tem suporte para warning)
 
 14. [L] O split consome linearmente o Dataset de origem, evitando treinar ou
@@ -166,8 +163,8 @@ D. Avaliacao, reprodutibilidade e seguranca
     e o tamanho do CSV deve respeitar um limite configurado, evitando path
     traversal e consumo descontrolado de memoria.
 
-Notas de implementacao
-----------------------
+Notas historicas (anteriores ao primeiro incremento)
+----------------------------------------------------
 
 - Learning declara preservacao de classes no split, mas o binding atual nao
   usa stratify; a ML deve manter contrato e runtime coerentes.
@@ -176,5 +173,6 @@ Notas de implementacao
   teste.
 - Learning marca independent_target = true durante target sem uma prova real;
   a ML deve exigir uma declaracao ou verificacao explicita.
-- A versao minima do Titanic ja usa random_state = 42, split estratificado e
-  um sklearn Pipeline, mas os tipos Aeon ainda nao expressam essas garantias.
+- A versao minima do Titanic ja usava random_state = 42, split estratificado e
+  um sklearn Pipeline. A implementacao atual ja exprime nos tipos Aeon o
+  subconjunto ativo destas garantias; consultar o documento Markdown.
