@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-AEON_PROGRAM = REPOSITORY_ROOT / "examples" / "machine_learing" / "titanic_dataset.ae"
+AEON_PROGRAM = REPOSITORY_ROOT / "examples" / "machine_learning" / "titanic_dataset.ae"
 
 # Make both ``import aeon`` and the relative CSV path work even when this
 # script is launched from another directory.
@@ -49,7 +49,7 @@ def run_titanic() -> float:
 
 def main() -> int:
     score = run_titanic()
-    print(f"Accuracy da decision tree no Titanic: {score*100:.2f}%")
+    print(f"Accuracy da decision tree no Titanic: {score * 100:.2f}%")
     return 0
 
 
