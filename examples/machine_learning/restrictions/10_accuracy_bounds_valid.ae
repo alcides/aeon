@@ -1,0 +1,19 @@
+open ML
+
+# CORRETO: o contrato de accuracy prova que o resultado pertence a [0, 1].
+def bounded_accuracy
+    (1 training: TrainingDataset)
+    (1 testing: {test: TestingDataset
+        | testing_features test = training_features training
+       && testing_classes test = training_classes training
+       && testing_split_id test = training_split_id training}) :
+    {score: Float | 0.0 <= score && score <= 1.0} :=
+    let model := decision_tree_classifier training in
+    accuracy model testing
+
+
+def main (_: Int) : Float :=
+    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
+    let 1 dataset := target df 1 in
+    let 1 parts := split dataset 0.7 in
+    consume_split parts bounded_accuracy

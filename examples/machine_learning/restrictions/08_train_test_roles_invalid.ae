@@ -1,0 +1,20 @@
+open ML
+
+# ERRADO: TestingDataset e um tipo nominal diferente e nao pode fazer fit.
+# O training correto tambem e consumido, para isolar o erro de papeis.
+def swap_nominal_roles
+    (1 training: TrainingDataset)
+    (1 testing: {test: TestingDataset
+        | testing_features test = training_features training
+       && testing_classes test = training_classes training
+       && testing_split_id test = training_split_id training}) : Float :=
+    let valid_model := decision_tree_classifier training in
+    let invalid_model := decision_tree_classifier testing in
+    0.0
+
+
+def main (_: Int) : Float :=
+    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
+    let 1 dataset := target df 1 in
+    let 1 parts := split dataset 0.7 in
+    consume_split parts swap_nominal_roles

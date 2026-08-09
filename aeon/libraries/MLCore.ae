@@ -8,34 +8,93 @@
 type DataFrame
 type Dataset
 type DatasetSplit
-type SklearnClassifier
-type SklearnRegressor
+type TrainingDataset
+type TestingDataset
+type DecisionTreeClassifier
 
-# Loading and target selection
+# Logical metadata.  These functions are uninterpreted at runtime; their facts
+# are introduced only by the trusted contracts of the operations below.
+def df_rows : (df: DataFrame) -> Int := uninterpreted
+def df_cols : (df: DataFrame) -> Int := uninterpreted
 
-def read_csv (path: String) : DataFrame :=
+def ds_rows : (ds: Dataset) -> Int := uninterpreted
+def ds_features : (ds: Dataset) -> Int := uninterpreted
+def ds_classes : (ds: Dataset) -> Int := uninterpreted
+
+def training_rows : (ds: TrainingDataset) -> Int := uninterpreted
+def training_features : (ds: TrainingDataset) -> Int := uninterpreted
+def training_classes : (ds: TrainingDataset) -> Int := uninterpreted
+def training_split_id : (ds: TrainingDataset) -> Int := uninterpreted
+
+def testing_rows : (ds: TestingDataset) -> Int := uninterpreted
+def testing_features : (ds: TestingDataset) -> Int := uninterpreted
+def testing_classes : (ds: TestingDataset) -> Int := uninterpreted
+def testing_split_id : (ds: TestingDataset) -> Int := uninterpreted
+
+def classifier_features : (model: DecisionTreeClassifier) -> Int := uninterpreted
+def classifier_classes : (model: DecisionTreeClassifier) -> Int := uninterpreted
+def classifier_split_id : (model: DecisionTreeClassifier) -> Int := uninterpreted
+
+# Loading rejects CSV files that cannot form a labelled dataset.  The binding
+# checks these conditions before returning, making the postcondition truthful.
+def read_csv (path: String) :
+    {df: DataFrame | df_rows df >= 4 && df_cols df >= 2} :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
 
-# Decide if we leave "target" or change to a more identifying name.
-# See if we leave like an int or make another version that takes a string and looks up the column index.
-def target (df: DataFrame) (column: Int) : Dataset :=
+# Select a zero-based target column.  The source DataFrame is consumed exactly
+# once.  The binding also rejects missing targets and targets with fewer than
+# two classes (or fewer than two rows per class), which is required by the
+# stratified split used by this library.
+def target
+    (1 df: DataFrame)
+    (column: {index: Int | 0 <= index && index < df_cols df}) :
+    {ds: Dataset | ds_rows ds = df_rows df
+                && ds_features ds = df_cols df - 1
+                && ds_features ds >= 1
+                && ds_classes ds >= 2} :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.target(df, column)"
 
-# Train/test splitting
-
-def split (ds: Dataset) (train_size: Float) : DatasetSplit :=
+# Split fractions are checked statically when known and dynamically at the FFI
+# boundary.  The split is deterministic (seed 42), stratified and disjoint.
+def split
+    (1 ds: {source: Dataset | ds_rows source >= 4
+                              && ds_features source >= 1
+                              && ds_classes source >= 2})
+    (train_size: {fraction: Float | 0.0 < fraction && fraction < 1.0}) : DatasetSplit :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.split(ds, train_size)"
 
-def train_of (parts: DatasetSplit) : Dataset :=
-    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.train_of(parts)"
+# Safe elimination of a split.  The split object and callback are consumed
+# once.  The callback receives two nominally distinct linear resources whose
+# feature schema, class count and provenance identifier agree.
+def consume_split
+    (1 parts: DatasetSplit)
+    (1 consumer:
+        (1 training: {train: TrainingDataset | training_rows train > 0
+                                             && training_features train >= 1
+                                             && training_classes train >= 2}) ->
+        (1 testing: {test: TestingDataset | testing_rows test > 0
+                                          && testing_features test = training_features training
+                                          && testing_classes test = training_classes training
+                                          && testing_split_id test = training_split_id training}) -> result) : result :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.consume_split(parts, consumer)"
 
-def test_of (parts: DatasetSplit) : Dataset :=
-    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.test_of(parts)"
+# The only model exposed by this library.  Training consumes the training
+# dataset and records its schema, class count and split provenance in the type.
+def decision_tree_classifier (1 training: TrainingDataset) :
+    {model: DecisionTreeClassifier
+        | classifier_features model = training_features training
+       && classifier_classes model = training_classes training
+       && classifier_split_id model = training_split_id training} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.decision_tree_classifier(training)"
 
-# Decision-tree training and evaluation
-
-def decision_tree_classifier (ds: Dataset) : SklearnClassifier :=
-    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.decision_tree_classifier(ds)"
-
-def accuracy (model: SklearnClassifier) (ds: Dataset) : Float :=
-    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.accuracy(model, ds)"
+# Evaluation consumes the held-out test dataset.  It is accepted only when it
+# belongs to the same split and has the same schema/classes as the fitted model.
+# The model itself remains reusable, while this particular test set does not.
+def accuracy
+    (model: DecisionTreeClassifier)
+    (1 testing: {test: TestingDataset
+        | testing_features test = classifier_features model
+       && testing_classes test = classifier_classes model
+       && testing_split_id test = classifier_split_id model}) :
+    {score: Float | 0.0 <= score && score <= 1.0} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.accuracy(model, testing)"

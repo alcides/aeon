@@ -1,0 +1,21 @@
+open ML
+
+# O callback torna visíveis os dois novos recursos produzidos pelo split.
+# Ambos têm multiplicidade 1: treino é consumido pelo classificador e teste é
+# consumido pela accuracy.  Os refinamentos ligam schema, classes e proveniência.
+def train_and_evaluate
+    (1 training: TrainingDataset)
+    (1 testing: {test: TestingDataset
+        | testing_features test = training_features training
+       && testing_classes test = training_classes training
+       && testing_split_id test = training_split_id training}) : Float :=
+    let model := decision_tree_classifier training in
+    accuracy model testing
+
+
+def main (_: Int) : Float :=
+    # Cada estado do pipeline tem um único dono e é consumido uma vez.
+    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
+    let 1 dataset := target df 1 in
+    let 1 parts := split dataset 0.7 in
+    consume_split parts train_and_evaluate
