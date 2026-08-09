@@ -1,0 +1,19 @@
+open ML
+
+# ERRADO: os dois fits tentam consumir o mesmo TrainingDataset.
+def train_twice_case
+    (1 training: TrainingDataset)
+    (1 testing: {test: TestingDataset
+        | testing_features test = training_features training
+       && testing_classes test = training_classes training
+       && testing_split_id test = training_split_id training}) : Float :=
+    let first_model := decision_tree_classifier training in
+    let second_model := decision_tree_classifier training in
+    accuracy first_model testing
+
+
+def main (_: Int) : Float :=
+    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
+    let 1 dataset := target df 1 in
+    let 1 parts := split dataset 0.7 in
+    consume_split parts train_twice_case
