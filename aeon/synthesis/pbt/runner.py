@@ -12,11 +12,28 @@ from __future__ import annotations
 
 import signal
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, replace as dc_replace
 
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Annotation, Application, Let, Rec, Term, Var
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    Hole,
+    If,
+    ImplicitRefinementHole,
+    Let,
+    Literal,
+    Rec,
+    RefinementAbstraction,
+    RefinementApplication,
+    Term,
+    TypeAbstraction,
+    TypeApplication,
+    Var,
+)
 from aeon.core.types import (
     AbstractionType,
     RefinementPolymorphism,
@@ -135,11 +152,19 @@ def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[
     return result, None
 
 
-@dataclass
-class _PropertySpec:
+@dataclass(frozen=True)
+class PropertySpec:
     name: Name
-    arg_specs: list[tuple[Name, Type]]
+    arg_specs: tuple[tuple[Name, Type], ...]
     samples: int
+
+
+@dataclass(frozen=True)
+class PropertyCorpus:
+    """A property and the deterministic argument tuples used for synthesis."""
+
+    spec: PropertySpec
+    cases: tuple[tuple[Term, ...], ...]
 
 
 def _iter_top_level(core: Term):
@@ -160,7 +185,7 @@ def _iter_top_level(core: Term):
                 return
 
 
-def _collect_properties(core: Term, metadata: Metadata) -> tuple[list[_PropertySpec], list[PropertyResult]]:
+def _collect_properties(core: Term, metadata: Metadata) -> tuple[list[PropertySpec], list[PropertyResult]]:
     """Find ``@property`` functions among the program's top-level definitions and
     decompose their types. Returns runnable specs plus skip results for
     malformed properties (polymorphic, or not returning ``Bool``).
@@ -173,7 +198,7 @@ def _collect_properties(core: Term, metadata: Metadata) -> tuple[list[_PropertyS
         if isinstance(key, Name) and isinstance(entry, dict) and "property" in entry:
             config_by_name[key.name] = entry["property"] or {}
 
-    specs: list[_PropertySpec] = []
+    specs: list[PropertySpec] = []
     skips: list[PropertyResult] = []
     seen: set[str] = set()
     for name, ty in _iter_top_level(core):
@@ -190,11 +215,11 @@ def _collect_properties(core: Term, metadata: Metadata) -> tuple[list[_PropertyS
             skips.append(PropertyResult(name, passed=True, trials=0, error=f"return type must be Bool, got {ret}"))
             continue
         samples = config_by_name[name.name].get("samples") or DEFAULT_SAMPLES
-        specs.append(_PropertySpec(name, arg_specs, samples))
+        specs.append(PropertySpec(name, tuple(arg_specs), samples))
     return specs, skips
 
 
-def _shrinkable_flags(arg_specs: list[tuple[Name, Type]]) -> list[bool]:
+def _shrinkable_flags(arg_specs: tuple[tuple[Name, Type], ...]) -> list[bool]:
     """An argument is *not* shrinkable when a later argument's type refers to it:
     shrinking it could break the dependency and produce a spurious (out-of-domain)
     counterexample. Matched by name string to be robust to id differences."""
@@ -205,18 +230,14 @@ def _shrinkable_flags(arg_specs: list[tuple[Name, Type]]) -> list[bool]:
     return flags
 
 
-def _check_property(
-    spec: _PropertySpec,
+def _generate_property_cases(
+    spec: PropertySpec,
     typing_ctx: TypingContext,
     adt_ctx: TypingContext,
-    evaluation_ctx: EvaluationContext,
-    core: Term,
     metadata: Metadata,
-    constructor_types: ConstructorTypes,
-    constructor_names: set[str],
     seed: int,
-    timeout: float,
-) -> PropertyResult:
+) -> list[tuple[list[Term], list[Type]]]:
+    """Generate a property's inputs once, preserving dependent argument types."""
     from aeon.synthesis.pbt.generators import TypeSampler, is_base_type
 
     # Cache one sampler per distinct argument type. A non-dependent argument has
@@ -237,13 +258,8 @@ def _check_property(
             sampler_cache[key] = sampler
         return sampler
 
-    def evaluate(arg_terms: list[Term]) -> tuple[bool | None, str | None]:
-        call: Term = Var(spec.name)
-        for term in arg_terms:
-            call = Application(call, term)
-        return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
-
-    for trial in range(spec.samples):
+    cases: list[tuple[list[Term], list[Type]]] = []
+    for _ in range(spec.samples):
         chosen: list[tuple[Name, Term]] = []
         terms: list[Term] = []
         arg_tys: list[Type] = []
@@ -257,7 +273,30 @@ def _check_property(
             chosen.append((arg_name, term))
             terms.append(term)
             arg_tys.append(ty)
+        cases.append((terms, arg_tys))
+    return cases
 
+
+def _check_property(
+    spec: PropertySpec,
+    typing_ctx: TypingContext,
+    adt_ctx: TypingContext,
+    evaluation_ctx: EvaluationContext,
+    core: Term,
+    metadata: Metadata,
+    constructor_types: ConstructorTypes,
+    constructor_names: set[str],
+    seed: int,
+    timeout: float,
+) -> PropertyResult:
+    def evaluate(arg_terms: list[Term]) -> tuple[bool | None, str | None]:
+        call: Term = Var(spec.name)
+        for term in arg_terms:
+            call = Application(call, term)
+        return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
+
+    cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+    for trial, (terms, arg_tys) in enumerate(cases):
         value, _ = evaluate(terms)
         if value is not True:
             minimized = minimize(
@@ -341,6 +380,110 @@ def _collect_constructors(core: Term, constructor_names: set[str]) -> list[Varia
     """Collect data-constructor bindings (e.g. ``List_cons``, ``List_nil``) from
     the program's top-level definitions, identified by name."""
     return [VariableBinder(name, ty) for name, ty in _iter_top_level(core) if name.name in constructor_names]
+
+
+def _top_level_values(core: Term) -> dict[Name, Term]:
+    values: dict[Name, Term] = {}
+    t = core
+    while True:
+        match t:
+            case Rec():
+                values[t.var_name] = t.var_value
+                t = t.body
+            case Let():
+                t = t.body
+            case Annotation():
+                t = t.expr
+            case _:
+                return values
+
+
+def _term_references(term: Term) -> set[Name]:
+    """Collect every value reference in a core term.
+
+    Core names have unique bound IDs, so references to local binders cannot be
+    confused with top-level synthesis targets. Traversing every term variant
+    keeps property relevance stable as elaboration introduces wrappers.
+    """
+    match term:
+        case Var(name):
+            return {name}
+        case Literal() | Hole() | ImplicitRefinementHole():
+            return set()
+        case Annotation(expr, _):
+            return _term_references(expr)
+        case Application(fun, arg):
+            return _term_references(fun) | _term_references(arg)
+        case Abstraction(_, body) | TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
+            return _term_references(body)
+        case Let(_, value, body) | Rec(_, _, value, body):
+            return _term_references(value) | _term_references(body)
+        case If(cond, then, otherwise):
+            return _term_references(cond) | _term_references(then) | _term_references(otherwise)
+        case TypeApplication(body, _):
+            return _term_references(body)
+        case RefinementApplication(body, refinement):
+            return _term_references(body) | _term_references(refinement)
+        case _:
+            return set()
+
+
+def property_corpora_for_target(
+    typing_ctx: TypingContext,
+    core: Term,
+    metadata: Metadata,
+    target: Name,
+    open_targets: set[Name],
+    constructor_names: set[str] | None = None,
+    seed: int = 0,
+) -> list[PropertyCorpus]:
+    """Build fixed corpora for properties that can guide one ordinary target.
+
+    A property is relevant when its core body directly references ``target``. It
+    is excluded when it also references another open synthesis target, because
+    independent one-hole synthesis cannot execute that sibling. Such relational
+    properties remain part of Contata's joint acceptance oracle.
+    """
+    from aeon.synthesis.pbt.generators import build_adt_context
+
+    specs, _ = _collect_properties(core, metadata)
+    values = _top_level_values(core)
+    names = constructor_names or set()
+    ctor_binders = _collect_constructors(core, names)
+    adt_ctx = build_adt_context(typing_ctx, ctor_binders)
+    other_targets = open_targets - {target}
+    corpora: list[PropertyCorpus] = []
+    for spec in specs:
+        body = values.get(spec.name)
+        if body is None:
+            continue
+        references = _term_references(body)
+        if target not in references or references & other_targets:
+            continue
+        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+        corpora.append(PropertyCorpus(spec, tuple(tuple(terms) for terms, _ in cases)))
+    return corpora
+
+
+def make_property_fitness(corpus: PropertyCorpus, evaluation_ctx: EvaluationContext) -> Callable[[Term], float]:
+    """Return a failure-count evaluator over one pre-generated corpus."""
+
+    def fitness(program: Term) -> float:
+        failures = 0
+        for args in corpus.cases:
+            call: Term = Var(corpus.spec.name)
+            for arg in args:
+                call = Application(call, arg)
+            try:
+                value = aeon_eval(_replace_tail(program, call), evaluation_ctx)
+            except Exception:
+                failures += 1
+                continue
+            if value is not True:
+                failures += 1
+        return float(failures)
+
+    return fitness
 
 
 def run_properties(

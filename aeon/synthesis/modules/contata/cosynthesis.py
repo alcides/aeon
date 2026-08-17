@@ -652,7 +652,20 @@ def _cosynthesize_group(
             assert isinstance(tyctx, TypingContext)
             try:
                 fills[hole_name] = _synthesize_one(
-                    ctx, ectx, prog, fun_name, hole_name, ty, tyctx, metadata, synthesizer, per_budget, ui, budget_eval
+                    ctx,
+                    ectx,
+                    prog,
+                    fun_name,
+                    hole_name,
+                    ty,
+                    tyctx,
+                    metadata,
+                    synthesizer,
+                    per_budget,
+                    ui,
+                    budget_eval,
+                    constructor_names=constructor_names,
+                    open_targets={name for name, _ in members},
                 )
                 synthesised.add(hole_name)
             except Exception:

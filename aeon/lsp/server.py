@@ -632,6 +632,7 @@ def _run_synthesis(
             synthesizer,
             budget=budget,
             ui=ui,
+            constructor_names=driver.constructor_names,
         )
     except Exception as e:
         ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=f"Synthesis failed: {e}"))
