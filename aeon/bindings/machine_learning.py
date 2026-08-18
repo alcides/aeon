@@ -151,11 +151,11 @@ def split(ds: Dataset, train_size: float) -> DatasetSplit:
     """Consume a dataset and create a deterministic, stratified split."""
     _require_available(ds, Dataset, "split")
     if isinstance(train_size, bool) or not isinstance(train_size, (Real, np.floating)):
-        raise TypeError(f"train_size tem de ser Float, recebeu {type(train_size).__name__}")
+        raise TypeError(f"train_size must be a float, and received {type(train_size).__name__}")
 
     fraction = float(train_size)
     if not np.isfinite(fraction) or not 0.0 < fraction < 1.0:
-        raise MLRestrictionError(f"train_size tem de satisfazer 0.0 < f < 1.0; recebeu {fraction!r}")
+        raise MLRestrictionError(f"train_size must satisfy 0.0 < f < 1.0; received {fraction!r}")
 
     try:
         x_train, x_test, y_train, y_test = train_test_split(
@@ -166,17 +166,17 @@ def split(ds: Dataset, train_size: float) -> DatasetSplit:
             stratify=ds.target,
         )
     except ValueError as error:
-        raise MLRestrictionError(f"não foi possível criar um split estratificado válido: {error}") from error
+        raise MLRestrictionError(f"could not create a valid stratified split: {error}") from error
 
     train_classes = set(y_train.unique().tolist())
     test_classes = set(y_test.unique().tolist())
     source_classes = set(ds.target.unique().tolist())
     if not x_train.index.is_unique or not x_test.index.is_unique:
-        raise MLRestrictionError("o índice do dataset tem de identificar cada linha de forma única")
+        raise MLRestrictionError("the dataset index must uniquely identify each row")
     if not set(x_train.index).isdisjoint(set(x_test.index)):
-        raise MLRestrictionError("o split produziu treino e teste com linhas sobrepostas")
+        raise MLRestrictionError("the split produced overlapping rows in train and test sets")
     if train_classes != source_classes or test_classes != source_classes:
-        raise MLRestrictionError("a fração escolhida não preserva todas as classes no treino e no teste")
+        raise MLRestrictionError("the chosen fraction does not preserve all classes in train and test sets")
 
     split_token = object()
     parts = DatasetSplit(

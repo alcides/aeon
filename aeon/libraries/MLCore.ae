@@ -12,7 +12,7 @@ type TrainingDataset
 type TestingDataset
 type DecisionTreeClassifier
 
-# Logical metadata.  These functions are uninterpreted at runtime; their facts
+# Logical metadata. These functions are uninterpreted at runtime; their facts
 # are introduced only by the trusted contracts of the operations below.
 def df_rows : (df: DataFrame) -> Int := uninterpreted
 def df_cols : (df: DataFrame) -> Int := uninterpreted
@@ -35,16 +35,19 @@ def classifier_features : (model: DecisionTreeClassifier) -> Int := uninterprete
 def classifier_classes : (model: DecisionTreeClassifier) -> Int := uninterpreted
 def classifier_split_id : (model: DecisionTreeClassifier) -> Int := uninterpreted
 
-# Loading rejects CSV files that cannot form a labelled dataset.  The binding
-# checks these conditions before returning, making the postcondition truthful.
+# Loading rejects CSV files that cannot form a labelled dataset.
+# TODO: Consider moving the four-row validation to ``target``, where the
+# target-class distribution is known.
 def read_csv (path: String) :
     {df: DataFrame | df_rows df >= 4 && df_cols df >= 2} :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
 
-# Select a zero-based target column.  The source DataFrame is consumed exactly
-# once.  The binding also rejects missing targets and targets with fewer than
-# two classes (or fewer than two rows per class), which is required by the
-# stratified split used by this library.
+# Select a zero-based target column. The source DataFrame is consumed exactly
+# once. The binding also rejects missing targets and targets with fewer than
+# 2 classes (or fewer than 2 rows per class), which is required by the
+# stratified split.
+# TODO: Rename this operation (for example, ``select_target``) so its
+# dataset-construction role is explicit.
 def target
     (1 df: DataFrame)
     (column: {index: Int | 0 <= index && index < df_cols df}) :
@@ -55,17 +58,18 @@ def target
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.target(df, column)"
 
 # Split fractions are checked statically when known and dynamically at the FFI
-# boundary.  The split is deterministic (seed 42), stratified and disjoint.
+# boundary. The split is deterministic (seed 42), stratified and disjoint.
+# TODO: Consider exposing the random seed while retaining a deterministic
+# default. Extend ``DatasetSplit`` metadata so the contract can express row
+# disjointness and class-distribution preservation.
 def split
-    (1 ds: {source: Dataset | ds_rows source >= 4
-                              && ds_features source >= 1
-                              && ds_classes source >= 2})
+    (1 ds: {dataset: Dataset | ds_rows dataset >= 4
+                              && ds_features dataset >= 1
+                              && ds_classes dataset >= 2})
     (train_size: {fraction: Float | 0.0 < fraction && fraction < 1.0}) : DatasetSplit :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.split(ds, train_size)"
 
-# Safe elimination of a split.  The split object and callback are consumed
-# once.  The callback receives two nominally distinct linear resources whose
-# feature schema, class count and provenance identifier agree.
+# Safe elimination of a split. The split object and callback are consumed once.
 def consume_split
     (1 parts: DatasetSplit)
     (1 consumer:
