@@ -327,9 +327,25 @@ def compile_program(
         return _placeholder_unit(path, digest, dep_module_paths), elab_errors
 
     dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]
-    from aeon.verification.refinement_exec import execute_refinements_in_sterm
+    from aeon.backend.evaluator import HoleEvaluationError
+    from aeon.facade.api import RefinementExecutionHoleError
+    from aeon.utils.location import FileLocation
+    from aeon.verification.refinement_exec import execute_refinements_in_sterm, sterm_has_user_hole
 
-    sterm = execute_refinements_in_sterm(sterm, dep_list)
+    _loc = FileLocation(path, (0, 0), (0, 0))
+    if sterm_has_user_hole(sterm):
+        if not is_main:
+            return _placeholder_unit(path, digest, dep_module_paths), [
+                RefinementExecutionHoleError(
+                    "synthesis hole",
+                    loc=_loc,
+                )
+            ]
+    else:
+        try:
+            sterm = execute_refinements_in_sterm(sterm, dep_list)
+        except HoleEvaluationError as e:
+            return _placeholder_unit(path, digest, dep_module_paths), [RefinementExecutionHoleError(str(e), loc=_loc)]
 
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     core_ast = lower_to_core(sterm)

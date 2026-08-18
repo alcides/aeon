@@ -37,29 +37,29 @@ def exitCode : (p: CompletedProcess) -> Int := uninterpreted
 
 # Runs ``argv`` and captures its output. ``argv`` must be non-empty — its
 # first element is the program to execute. No shell is involved.
-def run (argv: {a: (Array String) | Array.size a >= 1}) : CompletedProcess :=
+def run (1 argv: {a: (Array String) | Array.size a >= 1}) : CompletedProcess :=
     native "subprocess.run(argv, capture_output=True, text=True)"
 
 # Runs ``argv``, feeding ``stdin`` to the child's standard input.
-def runWithInput (argv: {a: (Array String) | Array.size a >= 1}) (stdin: String)
+def runWithInput (1 argv: {a: (Array String) | Array.size a >= 1}) (stdin: String)
     : CompletedProcess :=
     native "subprocess.run(argv, capture_output=True, text=True, input=stdin)"
 
 # Runs ``argv`` but aborts the child after ``seconds``. Raises
 # ``TimeoutExpired`` if the deadline passes; ``seconds`` must be positive.
-def runWithTimeout (argv: {a: (Array String) | Array.size a >= 1})
+def runWithTimeout (1 argv: {a: (Array String) | Array.size a >= 1})
                    (seconds: {s:Float | s > 0.0}) : CompletedProcess :=
     native "subprocess.run(argv, capture_output=True, text=True, timeout=seconds)"
 
 # Runs ``argv`` and raises ``CalledProcessError`` on a non-zero exit. Because
 # control only returns here on success, the result is statically known to have
 # ``exitCode p = 0`` — callers can read ``stdout`` without re-checking.
-def checkRun (argv: {a: (Array String) | Array.size a >= 1})
+def checkRun (1 argv: {a: (Array String) | Array.size a >= 1})
     : {p: CompletedProcess | exitCode p = 0} :=
     native "subprocess.run(argv, capture_output=True, text=True, check=True)"
 
 # Convenience: run ``argv``, require success, and return only ``stdout``.
-def checkOutput (argv: {a: (Array String) | Array.size a >= 1}) : String :=
+def checkOutput (1 argv: {a: (Array String) | Array.size a >= 1}) : String :=
     native "subprocess.run(argv, capture_output=True, text=True, check=True).stdout"
 
 # ── Inspecting the result ──────────────────────────────────────────────
@@ -96,7 +96,7 @@ def stderr (p: CompletedProcess) : String := native "p.stderr"
 
 # Spawns a child running `argv` and returns immediately, without waiting. Bind
 # the result to a linear binder. `argv` must be non-empty; no shell is involved.
-def spawn (argv: {a: (Array String) | Array.size a >= 1}) : Process :=
+def spawn (1 argv: {a: (Array String) | Array.size a >= 1}) : Process :=
     native "subprocess.Popen(argv)"
 
 # Blocks until the child exits, reaps it, and returns its exit code. Consumes

@@ -1,17 +1,17 @@
 """Linearity-discipline tests for the QTT Array library.
 
-The array-transforming operations (``append``, ``cons``, ``set``,
-``reversed``, ``map``, ``filter``) take their array argument at
-multiplicity 1, so a ``let 1 a := ...`` binding must be consumed exactly
-once. Threading the value through a chain keeps a single live reference;
+``Array`` is a ``linear type``: every binder holding an array must be at
+multiplicity 1, and every transforming / reading op consumes its argument.
 ``copy`` is the sanctioned way to split one reference into two independent
-arrays. These tests mirror the Socket QTT tests in ``socket_qtt_test.py``.
+arrays (and is refinement-parametric). These tests mirror the Socket QTT
+tests in ``socket_qtt_test.py``.
 """
 
 from __future__ import annotations
 
 from aeon.facade.api import (
     LinearityError,
+    LinearTypeNotBoundLinearlyError,
     LinearUnusedError,
     LinearUsedTooManyTimesError,
 )
@@ -31,31 +31,20 @@ def _linearity_errors(source: str):
     return [e for e in _parse(source) if isinstance(e, LinearityError)]
 
 
-# ---------------------------------------------------------------------------
-# Happy path: thread a single reference through a chain of transforms
-# ---------------------------------------------------------------------------
-
-
 def test_array_linear_chain_ok():
-    """Each ``let 1`` handle is consumed once by the next op; the final
-    array is released into a plain ``let`` so an observer can read it."""
+    """Each ``let 1`` handle is consumed once by the next op."""
     src = """
 open Array
 
 def build (n: Int) : Int :=
-    let 1 a0 := append new 1 in
+    let 1 a0 := append (new unit) 1 in
     let 1 a1 := append a0 2 in
-    let a2 := set a1 0 n in
+    let 1 a2 := set a1 0 n in
     sum a2;
 
 def main (args: Int) : Unit := print "ok";
 """
-    assert _linearity_errors(src) == []
-
-
-# ---------------------------------------------------------------------------
-# Forgetting to consume a linear array should error
-# ---------------------------------------------------------------------------
+    assert _parse(src) == []
 
 
 def test_array_unused_errors():
@@ -65,18 +54,13 @@ def test_array_unused_errors():
 open Array
 
 def leak (args: Int) : Int :=
-    let 1 a := append new 1 in
+    let 1 a := append (new unit) 1 in
     0;
 
 def main (args: Int) : Unit := print "ok";
 """
     errs = _linearity_errors(src)
     assert any(isinstance(e, LinearUnusedError) for e in errs), errs
-
-
-# ---------------------------------------------------------------------------
-# Using the same linear reference twice (aliasing the buffer) should error
-# ---------------------------------------------------------------------------
 
 
 def test_array_used_twice_errors():
@@ -86,9 +70,9 @@ def test_array_used_twice_errors():
 open Array
 
 def twice (args: Int) : Int :=
-    let 1 a := append new 1 in
-    let b := append a 2 in
-    let c := append a 3 in
+    let 1 a := append (new unit) 1 in
+    let 1 b := append a 2 in
+    let 1 c := append a 3 in
     sum b;
 
 def main (args: Int) : Unit := print "ok";
@@ -97,54 +81,54 @@ def main (args: Int) : Unit := print "ok";
     assert any(isinstance(e, LinearUsedTooManyTimesError) for e in errs), errs
 
 
-# ---------------------------------------------------------------------------
-# `copy` is the sanctioned way to obtain two independent references
-# ---------------------------------------------------------------------------
+def test_array_omega_binder_rejected():
+    """Omitting the ``1`` on an array binder is itself an error now that
+    ``Array`` is a ``linear type``."""
+    src = """
+open Array
+
+def leak (args: Int) : Int :=
+    let a := append (new unit) 1 in
+    sum a;
+
+def main (args: Int) : Unit := print "ok";
+"""
+    errs = _linearity_errors(src)
+    assert any(isinstance(e, LinearTypeNotBoundLinearlyError) for e in errs), errs
 
 
 def test_array_copy_splits_reference_ok():
     """``copy`` consumes the single linear reference once and hands back an
-    ``ArrayPair`` of two independent arrays, both readable without further
-    linear obligation."""
+    ``ArrayPair`` of two independent arrays."""
     src = """
 open Array
 
 def fork (n: Int) : Int :=
-    let 1 a := append (append new n) 7 in
+    let 1 a := append (append (new unit) n) 7 in
     let p := copy a in
-    sum (fst_array p) + length (snd_array p);
+    let 1 left := fst_array p in
+    let 1 right := snd_array p in
+    sum left + length right;
 
 def main (args: Int) : Unit := print "ok";
 """
-    assert _linearity_errors(src) == []
+    assert _parse(src) == []
 
 
-# ---------------------------------------------------------------------------
-# `copy` is NOT refinement-parametric — the abstract refinement is dropped
-# ---------------------------------------------------------------------------
-
-
-def test_array_copy_is_not_refinement_parametric():
-    """``ArrayPair`` is opaque, so the abstract element refinement ``<p>`` is
-    not threaded through ``copy``: a projection has an unconstrained
-    refinement. Feeding it to a consumer that requires a refined element
-    type therefore fails to type-check. This pins the documented limitation
-    (Aeon has no way to carry a phantom refinement through an opaque
-    projection); operations that don't need ``p`` still work on a projection
-    (see ``test_array_copy_splits_reference_ok``)."""
+def test_array_copy_preserves_refinement():
+    """``copy`` is refinement-parametric: the element predicate rides on
+    ``a<p>`` through the pair, so a projection of a positive array is still
+    known to be positive."""
     src = """
 open Array
 
-def needs_pos (arr: (Array {v:Int | v > 0})) : Int := sum arr;
+def needs_pos (1 arr: (Array {v:Int | v > 0})) : Int := sum arr;
 
-def drops_refinement (u: Int) : Int :=
-    let 1 a := append (append new 1) 2 in
+def keeps_refinement (1 a: (Array {v:Int | v > 0})) : Int :=
     let p := copy a in
-    needs_pos (fst_array p);
+    let 1 left := fst_array p in
+    needs_pos left;
 
 def main (args: Int) : Unit := print "ok";
 """
-    # No *linearity* error — the discipline is satisfied — but the element
-    # refinement cannot be proved through the opaque projection.
-    assert _linearity_errors(src) == []
-    assert _parse(src) != []
+    assert _parse(src) == []

@@ -9,7 +9,7 @@
 # Task: write the predicate that decides whether a purported solution to the
 # stable-matching problem (cast as matching candidates with companies) is
 # correct. The input is a pair of preference profiles — for both candidates and
-# companies — given as ranked lists of ids (indices are identities). The output
+# companies — given as ranked lists of (ids unit) (indices are identities). The output
 # is a matching (a set of candidate/company pairs).
 #
 # Correctness decomposes (2022, §9) into:

@@ -23,6 +23,14 @@ class SynthesisNotSuccessful(SynthesisError):
     pass
 
 
+class UnknownSynthesizerError(SynthesisError):
+    """Raised when ``-s``/``--synthesizer`` names a backend that does not exist."""
+
+    def __init__(self, synthesizer_id: str):
+        self.synthesizer_id = synthesizer_id
+        super().__init__(f"Unknown synthesizer: {synthesizer_id}")
+
+
 class TimeoutInEvaluationException(SynthesisError):
     pass
 

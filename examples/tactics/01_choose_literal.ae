@@ -1,0 +1,5 @@
+# Tactic: choose_literal — fill a base-type hole with a Z3 model (or 0 / true / 0.0).
+#
+#   uv run python -m aeon --no-main examples/tactics/01_choose_literal.ae
+
+def target : Int := by choose_literal

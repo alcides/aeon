@@ -367,6 +367,18 @@ def test_synthesizers_absent_when_not_on_hole():
     assert info.synthesizers == []
 
 
+def test_unknown_synthesizer_reported_in_infoview():
+    info = info_at_with_synth(
+        HOLE_SRC,
+        2,
+        col_of(HOLE_SRC, 2, "?h") + 1,
+        ["gp", "not_a_real_synthesizer"],
+    )
+    assert info.hole == "h"
+    assert [s.id for s in info.synthesizers] == ["gp"]
+    assert any("Unknown synthesizer: not_a_real_synthesizer" in e.message for e in info.errors)
+
+
 def test_graceful_without_analysis_state():
     info = compute_info_view(SRC, 2, 5, None, None, None)
     assert info.target is None

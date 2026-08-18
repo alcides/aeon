@@ -1,0 +1,5 @@
+# Tactic: apply? — use a hypothesis whose type is a subtype of the goal.
+#
+#   uv run python -m aeon --no-main examples/tactics/04_apply.ae
+
+def target (x:{v:Int | v > 0}) : Int := by apply?

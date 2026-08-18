@@ -1,7 +1,7 @@
 open Array
 
 @gpu(target:="cuda", debug:=true)
-def multiply_by_ten (v:(Array Int)) : (Array Int) :=
+def multiply_by_ten (1 v:(Array Int)) : (Array Int) :=
     Array.map{Int}{Int} (fun (x : Int) => x * 10) v;
 
 def main (args:Int) : Unit :=

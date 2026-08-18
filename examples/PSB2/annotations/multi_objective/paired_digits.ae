@@ -9,11 +9,11 @@ def String_zip : (i:String) -> (j:String) -> String := fun i => fun j => native 
 def String_to_List : (i:String) -> (Array Int) := fun i => native "list(i)"
 def String_to_Int : (i:String) -> Int := fun i => native "int(i)"
 
-def filter :  (f: (s:String) -> Bool) -> (l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-# def filter2 :  (f: (s:String) -> Bool) -> (l:(Array Int)) -> (Array Int) = fun f => fun xs => native "filter(f, xs)"
+def filter :  (f: (s:String) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
+# def filter2 :  (f: (s:String) -> Bool) -> (1 l:(Array Int)) -> (Array Int) = fun f => fun xs => native "filter(f, xs)"
 
-def List_sum: (l:(Array Int)) -> Int := fun xs => native "sum(xs)"
-def List_map_String_Int: (function:(a: String) -> Int) -> (l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
+def List_sum: (1 l:(Array Int)) -> Int := fun xs => native "sum(xs)"
+def List_map_String_Int: (function:(a: String) -> Int) -> (1 l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
 
 def train: TrainData := extract_train_data (load_dataset "paired-digits" 200 200)

@@ -1,0 +1,4 @@
+def f (x:Int) (y:Int) : {r:Int|r > x} := ?hole
+
+# SyGuS
+# Synquid

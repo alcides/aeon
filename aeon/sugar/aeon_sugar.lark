@@ -13,8 +13,12 @@ type_decls : type_decl*                              -> list
 
 defs : def*                                          -> list
 
+// A ``linear type`` is a unique type: every binder of that type must declare
+// multiplicity 1, so values cannot be duplicated or dropped silently.
 type_decl : "type" TYPENAME inductive_rforalls ";"?                            -> type_decl
           | "type" TYPENAME ID+ inductive_rforalls ";"?                            -> type_constructor_decl
+          | "linear" "type" TYPENAME inductive_rforalls ";"?                   -> linear_type_decl
+          | "linear" "type" TYPENAME ID+ inductive_rforalls ";"?               -> linear_type_constructor_decl
           | type_def                                           -> same
           | class_decl                                         -> same
 

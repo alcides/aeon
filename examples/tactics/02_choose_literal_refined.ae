@@ -1,0 +1,5 @@
+# Tactic: choose_literal — same tactic on a refined Int (Z3 finds a witness).
+#
+#   uv run python -m aeon --no-main examples/tactics/02_choose_literal_refined.ae
+
+def target : {z:Int | z > 2} := by choose_literal

@@ -1,0 +1,9 @@
+# Tactic: constructor — function-type introduction (lambda with a fresh body hole),
+# then apply the custom `Box` constructor on the body.
+#
+#   uv run python -m aeon --no-main examples/tactics/05_constructor_intro.ae
+
+inductive Box
+| mk (value:Int) : Box
+
+def target : (x:Int) -> Box := by (constructor; constructor; choose_literal)

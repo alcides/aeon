@@ -15,6 +15,8 @@ from aeon.verification.refinement_exec import (
     execute_refinements_in_stype,
     sterm_free_vars,
 )
+from aeon.backend.evaluator import HoleEvaluationError
+import pytest
 
 
 def _parse_ok(src: str):
@@ -66,6 +68,32 @@ def test_parse_with_hole_does_not_block_when_stdin_is_not_tty():
     )
     assert proc.returncode == 0, proc.stderr
     assert "errors 0" in proc.stdout
+
+
+def test_parse_minimize_with_hole_skips_refinement_exec_and_does_not_prompt():
+    """Main programs with synthesis holes defer compile-time refinement execution."""
+    import sys
+    import unittest.mock as mock
+
+    src = """@minimize_int(cases_to_order)
+def cases_to_order : {c:Int | c > 0 && c * 12 >= 25} := ?hole
+"""
+    with mock.patch.object(sys.stdin, "isatty", return_value=True):
+        assert _parse_ok(src) == []
+
+
+def test_execute_refinements_raises_on_hole_program():
+    src = """@minimize_int(cases_to_order)
+def cases_to_order : {c:Int | c > 0 && c * 12 >= 25} := ?hole
+"""
+    from aeon.sugar.bind import bind_program
+    from aeon.sugar.desugar import desugar
+    from aeon.sugar.parser import parse_main_program
+
+    prog = bind_program(parse_main_program(src, "<t>"), [])
+    desugared = desugar(prog, is_main_hole=False)
+    with pytest.raises(HoleEvaluationError):
+        execute_refinements_in_sterm(desugared.program, [])
 
 
 def test_sterm_free_vars_ignores_binder():

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.terms import Literal, Term
+from aeon.core.terms import Annotation, Literal, Term
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
 from aeon.synthesis.modules.tdsyn.smt_solve import solve_literals
@@ -65,5 +65,11 @@ def tactic_choose_literal(state: TacticState, hole_name: Name) -> TacticState | 
         lit = _default_literal(base)
         if lit is None:
             return None
+
+    # Drop ascribed refinements peeled by ``split`` so final ``validate`` checks the
+    # root goal, not an intermediate annotation.
+    match lit:
+        case Annotation(expr=e, type=_):
+            lit = e
 
     return TacticState(state.ctx, replace_hole(state.term, hole_name, lit), state.goal)

@@ -5,13 +5,13 @@ open Math
 
 # Uninterpreted symbol: fraction of xs strictly below threshold t.
 # Lives in the refinement language; Z3 reasons about it abstractly.
-def fracBelow : (xs: (Array Float)) -> (t: Float) -> Float := uninterpreted
+def fracBelow : (1 xs: (Array Float)) -> (t: Float) -> Float := uninterpreted
 
 # Monotonicity axiom for fracBelow:  t1 <= t2  ⟹  frac(t1) <= frac(t2).
 # Implemented as a runtime no-op (returns xs unchanged); the return
 # refinement is the postulate the SMT solver gets to use at call sites.
 def widenThreshold
-    (xs: {x: (Array Float) | Array.size x > 0})
+    (1 xs: {x: (Array Float) | Array.size x > 0})
     (t1: Float)
     (t2: {t: Float | t >= t1})
     : {r: (Array Float) | Array.size r > 0 && fracBelow r t2 >= fracBelow xs t1}
@@ -33,7 +33,7 @@ def normalSample
 # ─── Consumer: requires 99% below 7 ────────────────────────────────────
 
 def expectMostlyBelow7
-    (xs: {ys: (Array Float)
+    (1 xs: {ys: (Array Float)
          | Array.size ys > 0
            && fracBelow ys 7.0 >= 0.99})
     : Unit

@@ -40,7 +40,7 @@ def tactic_inst(state: TacticState, hole_name: Name) -> TacticState | None:
             continue
         inst_ty = type_substitution(pbody, pname, tau)
         hn = Name("_ti", fresh_counter.fresh())
-        inner: Term = Annotation(Hole(hn, loc=_loc), goal_ty, loc=_loc)
+        inner: Term = Annotation(Hole(hn, loc=_loc), inst_ty, loc=_loc)
         wrapped = TypeApplication(inner, tau, loc=_loc)
         new_term = replace_focal_hole(state.term, hole_name, wrapped)
         new_goal = inst_ty if goal_ty == state.goal else state.goal

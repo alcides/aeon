@@ -1,0 +1,5 @@
+# Tactic: by_cases — case-split on a Bool hypothesis, then close each branch.
+#
+#   uv run python -m aeon --no-main examples/tactics/09_by_cases.ae
+
+def target (b:Bool) : Int := by (by_cases; choose_literal; choose_literal)

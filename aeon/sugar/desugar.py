@@ -2013,7 +2013,7 @@ def extend_elabcontext_with_imports(
         seen_types: set[str] = {e.name.name for e in entries if isinstance(e, ElabTypeDecl)}
         for td in unit.type_decls:
             if td.name.name not in seen_types:
-                entries.append(ElabTypeDecl(td.name, td.args, td.rforalls))
+                entries.append(ElabTypeDecl(td.name, td.args, td.rforalls, td.linear))
                 seen_types.add(td.name.name)
         for decl in unit.inductive_decls:
             if decl.name.name not in seen_types:

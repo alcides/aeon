@@ -72,8 +72,8 @@ def atMostOnePair (d: DB) : (Array String) :=
     native "(lambda cols: (lambda pairs, best: sorted([a+'|'+b for (a,b) in pairs if best(a,b)==max(best(x,y) for (x,y) in pairs)])[:1] if pairs else [])((lambda allb: [(allb[i],allb[j]) for i in range(len(allb)) for j in range(i+1,len(allb))])(sorted(set(x for c in cols for x in c))), lambda a,b: sum(c.count(a)*c.count(b) for c in cols)))(d)"
 
 # Two recommendations are observably different.
-def recDiffers (a: (Array String)) (b: (Array String)) : Bool := native "list(a) != list(b)"
-def recSame (a: (Array String)) (b: (Array String)) : Bool := native "list(a) == list(b)"
+def recDiffers (1 a: (Array String)) (1 b: (Array String)) : Bool := native "list(a) != list(b)"
+def recSame (1 a: (Array String)) (1 b: (Array String)) : Bool := native "list(a) == list(b)"
 
 # ── Databases (example inputs) ───────────────────────────────────────────────
 
@@ -92,17 +92,17 @@ def dbKP : DB := native "[['a','a','b'],['a','c'],['c']]"
 def dbP2 : DB := native "[['a','b'],['a','c']]"
 
 # Expected wheat outputs.
-def expA  : (Array String) := native "['a']"
-def expAB : (Array String) := native "['a','b']"
-def expAbPair : (Array String) := native "['a|b']"
+def expA (_: Unit) : (Array String) := native "['a']"
+def (expA unit)B (_: Unit) : (Array String) := native "['a','b']"
+def (expA unit)bPair (_: Unit) : (Array String) := native "['a|b']"
 
 # ── Every example passes the wheat ──────────────────────────────────────────
 
 @property(1)
 def test_examples_pass_wheat : Bool :=
-    allOf3 (assertTrue (recSame (recommendBooks dbB1) expA))
-           (assertTrue (recSame (recommendBooks dbB2) expAB))
-           (assertTrue (recSame (recommendPairs dbP1) expAbPair));
+    allOf3 (assertTrue (recSame (recommendBooks dbB1) (expA unit)))
+           (assertTrue (recSame (recommendBooks dbB2) (expA unit)B))
+           (assertTrue (recSame (recommendPairs dbP1) (expA unit)bPair));
 
 # ── Every chaff is killed by some example ───────────────────────────────────
 

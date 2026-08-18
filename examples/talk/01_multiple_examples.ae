@@ -1,0 +1,7 @@
+# Last-mile logistics: learn shipping cost from historical weight (kg) and distance (km) rows.
+#
+#   uv run python -m aeon --no-main -s decision_tree --budget 20 talk/03_csv.ae
+#   uv run python -m aeon --no-main -s gp --budget 20 talk/03_csv.ae
+
+@csv_data("1.0,10.0,14.0\n2.0,10.0,16.0\n1.0,50.0,22.0\n5.0,100.0,40.0")
+def shipping_cost (weight:Float) (distance:Float) : Float := ?hole
