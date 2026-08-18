@@ -1,7 +1,7 @@
 """
-!!! THIS DOCUMENT WAS AI GENERATED !!! 
+!!! THIS DOCUMENT WAS AI GENERATED !!!
 
-The objective is a quick Runtime and end-to-end tests 
+The objective is a quick Runtime and end-to-end tests
 for the linear ``ML`` library.
 
 The Aeon types reject resource reuse statically.  These tests call the Python
@@ -178,7 +178,7 @@ def test_split_rejects_an_out_of_range_or_non_finite_fraction_without_consuming_
 def test_split_rejects_a_non_float_fraction_without_consuming_dataset(fraction: Any):
     _, dataset = _owned_dataset()
 
-    with pytest.raises(TypeError, match="train_size.*Float"):
+    with pytest.raises(TypeError, match="train_size.*float"):
         ml.split(dataset, fraction)
 
     assert not dataset._consumed
@@ -187,7 +187,7 @@ def test_split_rejects_a_non_float_fraction_without_consuming_dataset(fraction: 
 def test_split_rejects_a_fraction_too_small_to_preserve_every_class():
     _, dataset = _owned_dataset()
 
-    with pytest.raises(ml.MLRestrictionError, match="split estratificado"):
+    with pytest.raises(ml.MLRestrictionError, match="stratified split"):
         ml.split(dataset, 0.1)
 
     assert not dataset._consumed
