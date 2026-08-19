@@ -29,6 +29,7 @@ from aeon.synthesis.scope import shadow_fitness_helpers, without_excluded_names
 from aeon.backend.evaluator import eval
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.identification import get_holes_info
+from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_target
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
@@ -102,7 +103,8 @@ def _ectx_for_workers(ectx: EvaluationContext) -> EvaluationContext:
 
 
 def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float]:
-    """Build a fitness function for a single goal, dispatching on ``goal.kind``."""
+    """Build a fitness function for a generated-helper goal."""
+    assert goal.kind != "property", "Property goals are backed by fixed-corpus evaluators"
 
     def fitness(v: Term) -> float:
         # Evaluate the goal's objective function (a nullary top-level binding,
@@ -133,14 +135,29 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
     return fitness
 
 
-def make_evaluators(ectx: EvaluationContext, fun_name: Name, metadata: Metadata) -> Evaluators:
-    """Returns a list of functions that take the original program and return each fitness value"""
+def make_evaluators(
+    ectx: EvaluationContext,
+    fun_name: Name,
+    metadata: Metadata,
+    property_evaluators: Evaluators | None = None,
+) -> Evaluators:
+    """Build evaluators in the same component order as the target's goals."""
 
     goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
+    properties = iter(property_evaluators or [])
     fitnesses: list[Callable[[Term], float]] = []
     for goal in goals:
         assert goal.length == 1, "Currently, we only support 1 fitness value per function"
-        fitnesses.append(_make_fitness(goal, ectx))
+        if goal.kind == "property":
+            fitnesses.append(next(properties))
+        else:
+            fitnesses.append(_make_fitness(goal, ectx))
+    try:
+        next(properties)
+    except StopIteration:
+        pass
+    else:
+        raise AssertionError("Property evaluator has no matching property goal")
     return fitnesses
 
 
@@ -266,6 +283,8 @@ def _synthesize_one(
     budget: float,
     ui: SynthesisUI,
     budget_eval: float,
+    constructor_names: set[str] | None = None,
+    open_targets: set[Name] | None = None,
 ) -> Term:
     """Synthesize a single hole in ``prog``.
 
@@ -281,10 +300,34 @@ def _synthesize_one(
 
     replace = make_program(prog, hole_name)
     validator = make_validator(ctx, replace)
-    evaluators = make_evaluators(ectx, fun_name, metadata)
+
+    # Properties are runtime objectives rather than generated Aeon helper
+    # bindings. Give the selected target a synthesis-local property goal for each
+    # deterministic corpus so every fitness backend sees the right objective
+    # count and orientation without mutating metadata shared by other targets.
+    synthesis_metadata = metadata
+    property_evaluators: Evaluators = []
+    corpora = property_corpora_for_target(
+        ctx,
+        prog,
+        metadata,
+        fun_name,
+        open_targets or {fun_name},
+        constructor_names=constructor_names,
+    )
+    if corpora:
+        synthesis_metadata = dict(metadata)
+        entry = dict(metadata.get(fun_name, {}))
+        goals = list(entry.get("goals", []))
+        goals.extend(Goal(minimize=True, length=1, function=corpus.spec.name, kind="property") for corpus in corpora)
+        entry["goals"] = goals
+        synthesis_metadata[fun_name] = entry
+        property_evaluators = [make_property_fitness(corpus, _ectx_for_workers(ectx)) for corpus in corpora]
+
+    evaluators = make_evaluators(ectx, fun_name, synthesis_metadata, property_evaluators)
     assert isinstance(tyctx, TypingContext)
     assert isinstance(ty, Type)
-    tac_map = metadata.get(fun_name, {}).get("tactic_scripts")
+    tac_map = synthesis_metadata.get(fun_name, {}).get("tactic_scripts")
     steps = None
     if isinstance(tac_map, dict):
         raw = tac_map.get(hole_name)
@@ -301,7 +344,7 @@ def _synthesize_one(
     # what they mean. A `@cluster(f shape)` decorator names the output
     # featuriser `f` (e.g. a rasterised scene), else the output is the
     # candidate's own value.
-    feature_fun = _cluster_function(metadata, fun_name) or fun_name
+    feature_fun = _cluster_function(synthesis_metadata, fun_name) or fun_name
     primitives = EvalPrimitives(evaluators, _ectx_for_workers(ectx), feature_fun, replace)
     pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
     evaluator, output_evaluator = _pool_backed(pool)
@@ -342,7 +385,7 @@ def _synthesize_one(
                 e = e.with_var(pname, v)
             return eval(sub_term, e)
 
-        metadata.setdefault(fun_name, {})["pbe_probe"] = _pbe_probe
+        synthesis_metadata.setdefault(fun_name, {})["pbe_probe"] = _pbe_probe
 
     try:
         t = syn_impl.synthesize(
@@ -351,7 +394,7 @@ def _synthesize_one(
             validate=validator,
             evaluate=evaluator,
             fun_name=fun_name,
-            metadata=metadata,
+            metadata=synthesis_metadata,
             budget=budget,
             ui=ui,
             output_value=output_evaluator,
@@ -428,6 +471,7 @@ def synthesize_holes(
     program_holes = get_holes_info(ctx, term, top, targets, refined_types=True)
 
     mapping: dict[Name, Optional[Term]] = {}
+    open_targets = {fun_name for fun_name, _ in targets}
 
     singles, mutual_groups = _partition_targets(term, targets)
 
@@ -437,7 +481,20 @@ def synthesize_holes(
         ty, tyctx = program_holes[hole_name]
         assert isinstance(tyctx, TypingContext)
         mapping[hole_name] = _synthesize_one(
-            ctx, ectx, term, fun_name, hole_name, ty, tyctx, metadata, synthesizer, budget, ui, budget_eval
+            ctx,
+            ectx,
+            term,
+            fun_name,
+            hole_name,
+            ty,
+            tyctx,
+            metadata,
+            synthesizer,
+            budget,
+            ui,
+            budget_eval,
+            constructor_names=constructor_names,
+            open_targets=open_targets,
         )
 
     for group in mutual_groups:

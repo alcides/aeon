@@ -22,7 +22,9 @@ class Goal(NamedTuple):
     # fitness function and returns its numeric result. ``"cputime"`` measures
     # the CPU time consumed evaluating it. ``"energy"`` measures the energy
     # consumed evaluating it (via RAPL when available, otherwise a CPU-time
-    # proxy). See ``aeon/synthesis/entrypoint.py``.
+    # proxy). ``"property"`` is a runtime objective backed by a fixed corpus;
+    # its ``function`` identifies the property rather than a generated numeric
+    # helper. See ``aeon/synthesis/entrypoint.py``.
     kind: str = "expression"
 
 
@@ -257,8 +259,11 @@ def property_test(
 
     The function's arguments are the universally-quantified inputs; their types
     (including refinements, which act as preconditions) drive automatic input
-    generation by reusing the synthesis grammar machinery. The definition is
-    left unchanged — this decorator only records metadata.
+    generation by reusing the synthesis grammar machinery. When the property
+    directly mentions a function with a synthesis hole, runtime-fitness backends
+    also minimize the number of failures over one deterministic corpus generated
+    before search. The definition is left unchanged — this decorator only records
+    metadata.
 
     Usage::
 

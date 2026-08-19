@@ -1,0 +1,16 @@
+open Math
+open Maybe
+
+inductive Pair
+| mk (x:Int) (y:Int) :
+    {p:Pair | (px p = x) && (py p = y)}
++ px (p:Pair) : Int
++ py (p:Pair) : Int
+
+def pell_equation_solver (d:Int | d > 1) : (Maybe Pair) := ?hole
+
+@property
+def prop_pell_equation_solution (d:Int | d > 1) : Bool :=
+    (pell_equation_solver d).rec
+        (isqrt d * isqrt d = d)
+        (fun p => py p != 0 && px p * px p = d * py p * py p + 1)

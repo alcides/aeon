@@ -648,8 +648,22 @@ aeon --doc  examples/pbt/examples_decorator.ae   # render them into HTML
 
 Property-based tests use the related `@property` decorator: it marks a
 `Bool`-returning function whose arguments are universally quantified and checked
-on random inputs generated from their (refinement-constrained) types under
-`--test`.
+on random inputs generated from their (refinement-constrained) types. It serves
+both testing and synthesis:
+
+- **Test** — `--test` generates the requested number of inputs, reports the first
+  failure, and shrinks it to a smaller counterexample.
+- **Synthesis specification** — when a property directly mentions a function
+  whose body is a hole, runtime-fitness synthesizers generate one deterministic
+  corpus before search and minimize the number of failing cases. The same corpus
+  is reused for every candidate, so candidate scores are comparable. Properties
+  compose with `@example` and explicit minimize/maximize objectives.
+
+A property that mentions several independently synthesized functions is not used
+as a per-function objective while the other holes remain open. Relational
+properties over a `mutual` group continue to be checked jointly by the `contata`
+co-synthesis acceptance oracle. Symbolic whole-program optimizers such as
+`cpsat` likewise do not translate sampled runtime properties.
 
 ### Unit testing (`Testing` library)
 
