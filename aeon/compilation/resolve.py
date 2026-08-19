@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import aeon
@@ -35,38 +36,62 @@ def get_package_libraries_dir() -> Path | None:
     return None
 
 
-def resolve_import_path(imp: ImportAe) -> str | None:
-    """Resolve an import to an absolute source file path, or ``None`` if not found."""
-    path = imp.file_path
-    possible_containers = [Path.cwd(), Path.cwd() / "libraries"]
+def split_aeonpath() -> list[Path]:
+    """Split ``AEONPATH`` using the platform path separator (``;`` on Windows)."""
+    raw = os.environ.get("AEONPATH", "")
+    if not raw:
+        return []
+    return [Path(s) for s in raw.split(os.pathsep) if s]
+
+
+def import_search_containers() -> list[Path]:
+    """Ordered import roots: cwd, ``cwd/libraries/``, package ``libraries/``, ``AEONPATH``."""
+    seen: set[Path] = set()
+    containers: list[Path] = []
+
+    def add(path: Path) -> None:
+        resolved = path.resolve()
+        if resolved in seen:
+            return
+        seen.add(resolved)
+        containers.append(path)
+
+    add(Path.cwd())
+    add(Path.cwd() / "libraries")
+
     pkg_libs = get_package_libraries_dir()
     if pkg_libs:
-        possible_containers.append(pkg_libs)
-    import os
+        add(pkg_libs)
 
-    aeonpath = os.environ.get("AEONPATH", "")
-    if aeonpath:
-        possible_containers.extend(Path(s) for s in aeonpath.split(os.pathsep) if s)
-    for container in possible_containers:
-        file = container / path
-        if file.exists():
-            return str(file.resolve())
+    for entry in split_aeonpath():
+        add(entry)
+
+    return containers
+
+
+def resolve_module_source(module_path: str) -> str | None:
+    """Resolve a dotted module path (e.g. ``Math.Basic``) to an absolute ``.ae`` file."""
+    rel = module_path.replace(".", "/") + ".ae"
+    for container in import_search_containers():
+        candidate = container / rel
+        if candidate.exists():
+            return str(candidate.resolve())
     return None
+
+
+def resolve_import_path(imp: ImportAe) -> str | None:
+    """Resolve an import to an absolute source file path, or ``None`` if not found."""
+    return resolve_module_source(imp.module_path)
 
 
 def resolve_import(imp: ImportAe) -> Program:
     """Parse a module referenced by ``imp``, using the standard search path."""
     resolved = resolve_import_path(imp)
     if resolved is None:
-        possible_containers = [Path.cwd(), Path.cwd() / "libraries"]
-        pkg_libs = get_package_libraries_dir()
-        if pkg_libs:
-            possible_containers.append(pkg_libs)
-        raise ModuleNotFoundAeonError(importel=imp, possible_containers=possible_containers)
+        raise ModuleNotFoundAeonError(importel=imp, possible_containers=import_search_containers())
 
     if resolved in _currently_importing:
-        possible_containers = [Path.cwd()]
-        raise ModuleNotFoundAeonError(importel=imp, possible_containers=possible_containers)
+        raise ModuleNotFoundAeonError(importel=imp, possible_containers=[Path.cwd()])
 
     if resolved in _import_cache:
         return _import_cache[resolved]
