@@ -19,7 +19,7 @@ from aeon.synthesis.modules.tdsyn.worklist import TypedHole
 from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
-from aeon.verification.smt import base_functions, make_variable, translate_liq
+from aeon.synthesis.modules._z3py_helpers import base_functions, make_variable, translate_liq
 
 _loc = SynthesizedLocation("tdsyn")
 

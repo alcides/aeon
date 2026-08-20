@@ -1,3 +1,9 @@
+"""Core substitution and instantiation walks.
+
+All of these are implemented in the Rust core (aeon_rs); this module is a
+thin re-export.
+"""
+
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp

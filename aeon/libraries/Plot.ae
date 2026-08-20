@@ -1,4 +1,4 @@
-import Array
+open List
 
 # Represents a Plot object. Internally, this would correspond to a Matplotlib Figure.
 type Plot

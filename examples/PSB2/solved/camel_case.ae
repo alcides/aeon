@@ -1,6 +1,4 @@
-import Array
-def String_split : (s:String) -> (sep:String) -> (Array Int) := fun s => fun sep => native "s.split(sep)"
-def String_concat : (i:String) -> (j:String) -> String := fun i => fun j => native "i + j"
+type List
 
 def Map_string_string : (f: (s:String) -> String) -> (l:String) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
 def Map_string_list : (f: (s:String) -> String) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
@@ -22,7 +20,7 @@ def camel_case (s:String) : String := let 1 groups: (Array Int) := s.split " ";
                            )
                      )
          ) : (s:String) -> String)
-        (Map_list_list ((fun g => (g.split "-")):(s:String) -> (Array Int)) groups)
+        (Map_list_list ((\g -> (String_split g "-")):(s:String) -> List) groups)
     );
     result : String := " ".join camel_case_groups;
     result;

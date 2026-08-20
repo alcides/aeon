@@ -1,7 +1,7 @@
 # Problem 12: Decode a run-length encoded list.
 # Inverse of Problem 10: each [count, value] pair expands to ``count`` copies of ``value``.
 
-open Array
+open List
 
 def decode (1 l: (Array (Array Int))) : (Array Int) :=
     native "[pair[1] for pair in l for _ in range(pair[0])]"

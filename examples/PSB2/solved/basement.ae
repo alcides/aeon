@@ -1,4 +1,4 @@
-import Array
+type List
 
 def List_new (_: Unit) : (Array Int) := native "[]"
 def List_append (1 l:(Array Int)) (i: Int) : (Array Int) := native "l + [i]"

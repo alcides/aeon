@@ -1,7 +1,7 @@
 # Problem 19: Rotate a list n positions to the left.
 # Refinement: output has the same size as input. Negative n rotates right.
 
-open Array
+open List
 
 def rotate (1 l: (Array Int)) (n: Int) : {r:(Array Int) | Array.size r = Array.size l} :=
     native "l[n % len(l):] + l[:n % len(l)] if l else l"

@@ -1,7 +1,6 @@
 import PSB2 (extract_train_data, load_dataset, calculate_coin_sum_errors)
 
-import Array
-def Math_floor_division : (i:Int) -> (j:Int) -> Int := fun i => fun j => native "i // j"
+type List
 
 def List_size : (1 l:(Array Int)) -> Int := uninterpreted
 
@@ -12,4 +11,4 @@ def List_append (1 l:(Array Int)) (i:Int) : {l2:(Array Int) | List_size l2 = Lis
 def train: TrainData := extract_train_data (load_dataset "coin-sums" 200 200)
 
 @multi_minimize_float(calculate_coin_sum_errors train synth, 4)
-def synth (cents: Int) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_coin_sum_errors := unit in ?hole)
+def synth (cents: Int) : List = (?hole:List)

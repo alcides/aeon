@@ -1,7 +1,7 @@
 # Problem 1: Find the last element of a list.
 # Uses a refinement to require the input list to be non-empty.
 
-open Array
+open List
 
 def Array.last (1 l: {x:(Array a) | Array.size x > 0}) : a := native "l[-1]"
 

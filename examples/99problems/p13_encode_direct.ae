@@ -1,7 +1,7 @@
 # Problem 13: Run-length encoding (direct version).
 # Same result as Problem 10 but built directly with a fold, not groupby.
 
-open Array
+open List
 
 def functools : Unit := native_import "functools"
 

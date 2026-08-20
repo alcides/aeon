@@ -1,7 +1,7 @@
 # Problem 2: Find the second-to-last element of a list.
 # Refinement requires at least two elements.
 
-open Array
+open List
 
 def Array.secondLast (1 l: {x:(Array a) | Array.size x > 1}) : a := native "l[-2]"
 

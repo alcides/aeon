@@ -1,3 +1,10 @@
+"""Typing context — pure re-export of the Rust core.
+
+The binders (`VariableBinder`, `UninterpretedBinder`, `TypeBinder`,
+`TypeConstructorBinder`) and the `TypingContext` itself live in
+``aeon-rs/src/typectx.rs``.
+"""
+
 from __future__ import annotations
 
 from abc import ABC

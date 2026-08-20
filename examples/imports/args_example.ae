@@ -1,5 +1,5 @@
 open Args
-open Array
+open List
 
 # Build a parser with a flag and an option-with-default. We use parseList
 # with an explicit empty argv so the example runs cleanly under

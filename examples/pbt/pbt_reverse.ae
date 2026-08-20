@@ -1,4 +1,4 @@
-open Array
+open List
 open PropTesting
 
 def reverse (1 xs: (Array Int)) : (Array Int) := xs.reversed

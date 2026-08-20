@@ -1,9 +1,9 @@
 # Problem 39: Construct a list of prime numbers in a given range.
 # Returns the primes p with low <= p <= high (low >= 2).
 
-open Array
+open List
 
-def primesR (low: {x:Int | x >= 2}) (high: {y:Int | y >= low}) : (Array Int) :=
+def primesR (low: {x:Int | x >= 2}) (high: {y:Int | y >= low}) : (List Int) =
     native "[n for n in range(low, high + 1) if all(n % d != 0 for d in range(2, int(n ** 0.5) + 1))]"
 
 def main (args:Int) : Unit :=

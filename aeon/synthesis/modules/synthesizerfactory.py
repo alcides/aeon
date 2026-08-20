@@ -21,11 +21,7 @@ from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
-from aeon.synthesis.modules.symetric import SymetricSynthesizer
-from aeon.synthesis.modules.fta import FTASynthesizer
-from aeon.synthesis.modules.afta import AFTASynthesizer
-from aeon.synthesis.modules.cata import CATASynthesizer
-from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
+from aeon.synthesis.modules.rust_enum import RustEnumSynthesizerWrapper
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -260,15 +256,7 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return TacticRandomSynthesizer(seed=seed)
         case "lta":
             return LTASynthesizer()
-        case "symetric" | "xfta":
-            return SymetricSynthesizer()
-        case "fta":
-            return FTASynthesizer()
-        case "afta":
-            return AFTASynthesizer()
-        case "cata":
-            return CATASynthesizer()
-        case "contata":
-            return ContataSynthesizer()
+        case "rust_enum":
+            return RustEnumSynthesizerWrapper()
         case _:
             raise UnknownSynthesizerError(module)

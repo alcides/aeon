@@ -1,4 +1,4 @@
-open Array
+open List
 open Math
 open Random
 open Statistics

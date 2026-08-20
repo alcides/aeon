@@ -51,7 +51,7 @@ from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.utils.name import Name, fresh_counter
-from aeon.verification.smt import base_functions, make_variable
+from aeon.synthesis.modules._z3py_helpers import base_functions, make_variable
 
 # ---------------------------------------------------------------------------
 # Helpers

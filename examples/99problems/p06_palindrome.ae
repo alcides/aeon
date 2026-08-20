@@ -1,7 +1,7 @@
 # Problem 6: Detect whether a list is a palindrome.
 # A list is a palindrome if it reads the same forwards and backwards.
 
-open Array
+open List
 
 def Array.isPalindrome (1 l: (Array Int)) : Bool := native "l == l[::-1]"
 

@@ -14,7 +14,7 @@ def List_map_Int_Int: (function:(a: Int) -> Int) -> (1 l: (Array Int)) -> (Array
 
 def train: TrainData := extract_train_data (load_dataset "fuel-cost" 200 200)
 
-def input_list : (Array Int) := get_input_list (unpack_train_data train)
+def input_list : List = get_input_list (unpack_train_data train)
 
 def expected_values : (Array Int) := get_output_list (unpack_train_data train)
 def flatten_list : (1 t:(Array Int)) -> (Array Int) := fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"

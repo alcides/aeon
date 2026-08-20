@@ -1,7 +1,7 @@
 # Problem 17: Split a list into two parts at the given position.
 # Refinement: n must be a valid split point (0 <= n <= size l).
 
-open Array
+open List
 
 def split (1 l: (Array Int)) (n: {k:Int | k >= 0 && k <= Array.size l}) : (Array (Array Int)) :=
     native "[l[:n], l[n:]]"

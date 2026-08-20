@@ -1,0 +1,27 @@
+[package]
+name = "aeon_rs"
+version = "0.1.0"
+edition = "2021"
+description = "Rust core for Aeon: AST, type-checker, and interpreter via PyO3"
+
+[lib]
+name = "aeon_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py310"] }
+# `z3` links dynamically against the system libz3 (install via
+# `brew install z3` on macOS or `apt install libz3-dev` on Debian).
+# The header / library paths are wired up via `.cargo/config.toml`.
+# `Context<'ctx>` lifetimes are erased by leaking a single process-wide
+# Context in smt_z3.rs; everything is then `'static`.
+z3 = "0.12"
+rand = { version = "0.8", features = ["small_rng"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+
+[profile.dev]
+opt-level = 1

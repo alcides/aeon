@@ -1,162 +1,25 @@
+"""LiquidTerm hierarchy — re-export of the Rust core (``aeon-rs/src/liquid.rs``).
+
+The Rust pyclasses mirror master's Python dataclasses one-for-one,
+including ``LiquidLiteralUnit`` (the single inhabitant of the Unit type,
+with its own SMT sort).
+"""
+
 from __future__ import annotations
 
-from abc import ABC
-from dataclasses import dataclass, field
-from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
 
-
-class LiquidTerm(ABC):
-    loc: Location
-
-
-def ensure_liqterm(a: LiquidTerm | Name) -> LiquidTerm:
-    if isinstance(a, Name):
-        return LiquidVar(a)
-    return a
-
-
-class LiquidHole(LiquidTerm):
-    def __eq__(self, other):
-        return isinstance(other, self.__class__)
-
-
-def is_safe_for_application(x: LiquidTerm):
-    return (
-        isinstance(x, LiquidVar)
-        or isinstance(x, LiquidLiteralBool)
-        or isinstance(x, LiquidLiteralFloat)
-        or isinstance(x, LiquidLiteralInt)
-        or isinstance(x, LiquidLiteralString)
-        or isinstance(x, LiquidLiteralUnit)
-    )
-
-
-@dataclass
-class LiquidLiteralUnit(LiquidTerm):
-    """The single inhabitant of the Unit type.
-
-    Distinct from LiquidLiteralBool(True): Unit has its own SMT sort with
-    exactly one element, so ``unit == True`` is ill-typed and rejected at
-    the liquid layer rather than silently true at the SMT layer.
-    """
-
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        return "()"
-
-    def __eq__(self, other):
-        return isinstance(other, LiquidLiteralUnit)
-
-    def __hash__(self) -> int:
-        return hash("()")
-
-
-@dataclass
-class LiquidLiteralBool(LiquidTerm):
-    value: bool
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        return f"{self.value}".lower()
-
-    def __eq__(self, other):
-        return isinstance(other, LiquidLiteralBool) and other.value == self.value
-
-    def __hash__(self) -> int:
-        return hash(self.value)
-
-
-@dataclass
-class LiquidLiteralInt(LiquidTerm):
-    value: int
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        return f"{self.value}".lower()
-
-    def __eq__(self, other):
-        return isinstance(other, LiquidLiteralInt) and other.value == self.value
-
-    def __hash__(self) -> int:
-        return hash(self.value)
-
-
-@dataclass
-class LiquidLiteralFloat(LiquidTerm):
-    value: float
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        return f"{self.value}".lower()
-
-    def __eq__(self, other):
-        return isinstance(other, LiquidLiteralFloat) and other.value == self.value
-
-    def __hash__(self) -> int:
-        return hash(self.value)
-
-
-@dataclass
-class LiquidLiteralString(LiquidTerm):
-    value: str
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        return f"{self.value}".lower()
-
-    def __eq__(self, other):
-        return isinstance(other, LiquidLiteralString) and other.value == self.value
-
-    def __hash__(self) -> int:
-        return hash(self.value)
-
-
-@dataclass
-class LiquidVar(LiquidTerm):
-    name: Name
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        return f"{self.name}"
-
-    def __eq__(self, other):
-        return type(other) is LiquidVar and other.name == self.name
-
-    def __hash__(self) -> int:
-        return hash(self.name)
-
-
-@dataclass
-class LiquidApp(LiquidTerm):
-    fun: Name
-    args: list[LiquidTerm]
-    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
-
-    def __repr__(self):
-        if all(not c.isalnum() for c in self.fun.name) and len(self.args) == 2:
-            (a1, a2) = (repr(x) for x in self.args)
-            return f"({a1} {self.fun} {a2})"
-
-        fargs = ",".join([repr(x) for x in self.args])
-        return f"{self.fun}({fargs})"
-
-    def __eq__(self, other):
-        return (
-            type(other) is LiquidApp and other.fun == self.fun and all(x == y for (x, y) in zip(self.args, other.args))
-        )
-
-    def __hash__(self) -> int:
-        # Cache the structural hash: liquid terms are immutable after
-        # construction, and substitution-built terms are DAGs with shared
-        # subterms -- without memoization, hashing re-visits every path and is
-        # exponential in the term's depth.
-        h = getattr(self, "_hash", None)
-        if h is None:
-            h = hash(self.fun) + sum(hash(a) for a in self.args)
-            object.__setattr__(self, "_hash", h)
-        return h
+from aeon_rs import LiquidApp as LiquidApp
+from aeon_rs import LiquidHole as LiquidHole
+from aeon_rs import LiquidLiteralBool as LiquidLiteralBool
+from aeon_rs import LiquidLiteralFloat as LiquidLiteralFloat
+from aeon_rs import LiquidLiteralInt as LiquidLiteralInt
+from aeon_rs import LiquidLiteralString as LiquidLiteralString
+from aeon_rs import LiquidLiteralUnit as LiquidLiteralUnit
+from aeon_rs import LiquidTerm as LiquidTerm
+from aeon_rs import LiquidVar as LiquidVar
+from aeon_rs import ensure_liqterm as ensure_liqterm
+from aeon_rs import is_safe_for_application as is_safe_for_application
 
 
 def liquid_free_vars(e: LiquidTerm) -> list[Name]:
@@ -166,3 +29,19 @@ def liquid_free_vars(e: LiquidTerm) -> list[Name]:
         return [e.fun] + [x for arg in e.args for x in liquid_free_vars(arg)]
     else:
         return []
+
+
+__all__ = [
+    "LiquidApp",
+    "LiquidHole",
+    "LiquidLiteralBool",
+    "LiquidLiteralFloat",
+    "LiquidLiteralInt",
+    "LiquidLiteralString",
+    "LiquidLiteralUnit",
+    "LiquidTerm",
+    "LiquidVar",
+    "ensure_liqterm",
+    "is_safe_for_application",
+    "liquid_free_vars",
+]
