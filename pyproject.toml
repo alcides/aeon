@@ -45,6 +45,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gpu = [
+    "cupy-cuda12x",
+]
 tests = [
     "pytest==9.1.1",
     "pytest-beartype"

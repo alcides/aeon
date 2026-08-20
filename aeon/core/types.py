@@ -230,6 +230,7 @@ t_bool = TypeConstructor(Name("Bool", 0), [])
 t_int = TypeConstructor(Name("Int", 0), [])
 t_float = TypeConstructor(Name("Float", 0), [])
 t_string = TypeConstructor(Name("String", 0), [])
+t_vector = TypeConstructor(Name("Vector", 0), [])
 t_set = TypeConstructor(Name("Set", 0), [])
 t_tensor = TypeConstructor(Name("Tensor", 0), [])
 
