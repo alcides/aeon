@@ -1,0 +1,5 @@
+open ML
+
+# WRONG: a value of the linear DataFrame type cannot use an unrestricted binder.
+def select_target (df: {table: DataFrame | df_cols table >= 2}) : Dataset :=
+    target df 0

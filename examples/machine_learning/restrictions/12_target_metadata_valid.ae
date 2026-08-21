@@ -1,0 +1,7 @@
+open ML
+
+# CORRECT: target preserves rows and removes exactly one feature column.
+def preserved_target_metadata
+    (1 df: {table: DataFrame | df_rows table = 100 && df_cols table = 5}) :
+    {dataset: Dataset | ds_rows dataset = 100 && ds_features dataset = 4} :=
+    target df 0

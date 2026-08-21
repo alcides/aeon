@@ -1,18 +1,9 @@
 open ML
 
-# CORRETO: o TestingDataset held-out e avaliado uma unica vez.
-def test_once_case
-    (1 training: TrainingDataset)
+# CORRECT: accuracy consumes the compatible TestingDataset once.
+def evaluate_once
+    (model: DecisionTreeClassifier)
     (1 testing: {test: TestingDataset
-        | testing_features test = training_features training
-       && testing_classes test = training_classes training
-       && testing_split_id test = training_split_id training}) : Float :=
-    let model := decision_tree_classifier training in
+        | testing_features test = classifier_features model
+       && testing_split_id test = classifier_split_id model}) : Float :=
     accuracy model testing
-
-
-def main (_: Int) : Float :=
-    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
-    let 1 dataset := target df 1 in
-    let 1 parts := split dataset 0.7 in
-    consume_split parts test_once_case

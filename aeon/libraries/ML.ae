@@ -1,6 +1,3 @@
 # ML - Smart development of Machine Learning Pipelines library.
 #
-# For now this umbrella opens only the minimal, executable API in MLCore.
-# Estimator families and refinement contracts will be introduced after the
-# Titanic baseline is stable.
 open MLCore

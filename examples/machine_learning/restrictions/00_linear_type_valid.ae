@@ -1,0 +1,5 @@
+open ML
+
+# CORRECT: values of the linear DataFrame type are bound at multiplicity 1.
+def select_target (1 df: {table: DataFrame | df_cols table >= 2}) : Dataset :=
+    target df 0

@@ -1,18 +1,5 @@
 open ML
 
-# CORRETO: Survived e a coluna 1 (indices comecam em zero).
-def score_valid_target_index
-    (1 training: TrainingDataset)
-    (1 testing: {test: TestingDataset
-        | testing_features test = training_features training
-       && testing_classes test = training_classes training
-       && testing_split_id test = training_split_id training}) : Float :=
-    let model := decision_tree_classifier training in
-    accuracy model testing
-
-
-def main (_: Int) : Float :=
-    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
-    let 1 dataset := target df 1 in
-    let 1 parts := split dataset 0.7 in
-    consume_split parts score_valid_target_index
+# CORRECT: index 1 is within a twelve-column DataFrame.
+def valid_target_index (1 df: {table: DataFrame | df_cols table = 12}) : Dataset :=
+    target df 1
