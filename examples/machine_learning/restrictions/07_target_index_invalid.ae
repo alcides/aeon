@@ -1,19 +1,5 @@
 open ML
 
-def score_invalid_target_index
-    (1 training: TrainingDataset)
-    (1 testing: {test: TestingDataset
-        | testing_features test = training_features training
-       && testing_classes test = training_classes training
-       && testing_split_id test = training_split_id training}) : Float :=
-    let model := decision_tree_classifier training in
-    accuracy model testing
-
-
-# ERRADO: o Titanic tem 12 colunas, logo os indices validos sao 0..11.
-# Alem do check estatico, o binding volta a validar o indice no runtime.
-def main (_: Int) : Float :=
-    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
-    let 1 dataset := target df 12 in
-    let 1 parts := split dataset 0.7 in
-    consume_split parts score_invalid_target_index
+# WRONG: valid indices for a twelve-column DataFrame are 0 through 11.
+def invalid_target_index (1 df: {table: DataFrame | df_cols table = 12}) : Dataset :=
+    target df 12

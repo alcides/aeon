@@ -1,0 +1,11 @@
+open ML
+
+# CORRECT: model and test data have the same number of features.
+def compatible_features
+    (model: {m: DecisionTreeClassifier
+        | classifier_features m = 4
+       && classifier_split_id m = 7})
+    (1 testing: {test: TestingDataset
+        | testing_features test = 4
+       && testing_split_id test = 7}) : Float :=
+    accuracy model testing
