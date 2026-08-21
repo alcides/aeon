@@ -42,8 +42,46 @@ def _pretty_program(solution: Term) -> str:
 
 
 class TerminalUI(SynthesisUI):
+    """Plain-text synthesis feedback safe on Windows terminals (no progress bars or ANSI)."""
+
     best_solution: Term
     best_quality: list[float] | None
+
+    def start(
+        self,
+        typing_ctx: TypingContext,
+        evaluation_ctx: EvaluationContext,
+        target_name: str,
+        target_type: Type,
+        budget: Any,
+    ):
+        self.target_name = target_name
+        self.target_type = target_type
+        self.budget = budget
+        self.best_solution = Hole(Name("sorry", -1))
+        self.best_quality = None
+        print(f"# Synthesizing ?{target_name} (budget={budget}s)", flush=True)
+
+    def register(
+        self,
+        solution: Term,
+        quality: Any,
+        elapsed_time: float,
+        is_best: bool,
+    ):
+        if not is_best:
+            return
+        self.best_solution = solution
+        self.best_quality = quality
+        q_cur = _format_quality(quality)
+        print(f"# best t={elapsed_time:.1f}s/{self.budget}s fitness {q_cur}", flush=True)
+
+    def end(self, solution: Term, quality: Any):
+        pass
+
+
+class VerboseTerminalUI(TerminalUI):
+    """Per-candidate synthesis log (can be noisy and slow on some terminals)."""
 
     def start(
         self,
@@ -89,6 +127,3 @@ class TerminalUI(SynthesisUI):
         )
         print(cur_pp, flush=True)
         print("---", flush=True)
-
-    def end(self, solution: Term, quality: Any):
-        pass

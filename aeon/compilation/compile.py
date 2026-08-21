@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from importlib.metadata import version
 from pathlib import Path
 
@@ -10,7 +9,7 @@ from aeon.compilation.link import (
     link_rec_spines,
     link_typing_context,
 )
-from aeon.compilation.resolve import get_package_libraries_dir, resolve_import_path
+from aeon.compilation.resolve import import_search_containers, resolve_import_path, resolve_module_source
 from aeon.compilation.serialize import read_unit, source_hash, write_unit
 from aeon.compilation.unit import AEC_FORMAT_VERSION, CompiledUnit, ModuleExport
 from aeon.core.bind import bind_ids, populate_mutual_companions
@@ -45,19 +44,7 @@ def clear_unit_cache() -> None:
 
 def _resolve_module_source(module_path: str) -> str | None:
     """Resolve a module path (e.g. ``String``) to an absolute ``.ae`` file path."""
-    rel = module_path.replace(".", "/") + ".ae"
-    possible_containers = [Path.cwd(), Path.cwd() / "libraries"]
-    pkg_libs = get_package_libraries_dir()
-    if pkg_libs:
-        possible_containers.append(pkg_libs)
-    aeonpath = os.environ.get("AEONPATH", "")
-    if aeonpath:
-        possible_containers.extend(Path(s) for s in aeonpath.split(";") if s)
-    for container in possible_containers:
-        candidate = container / rel
-        if candidate.exists():
-            return str(candidate.resolve())
-    return None
+    return resolve_module_source(module_path)
 
 
 def _ensure_dependencies_cached(module_paths: list[str]) -> None:
@@ -285,7 +272,7 @@ def compile_program(
     dep_errors: list[AeonError] = []
     for imp in file_imports:
         if resolve_import_path(imp) is None:
-            dep_errors.append(ModuleNotFoundAeonError(importel=imp, possible_containers=[Path.cwd()]))
+            dep_errors.append(ModuleNotFoundAeonError(importel=imp, possible_containers=import_search_containers()))
     if dep_errors:
         return _placeholder_unit(path, digest, [imp.module_path for imp in file_imports]), dep_errors
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import os
 import sys
 
 from loguru import logger
@@ -41,9 +42,16 @@ def setup_logger():
     return logger
 
 
+def _stderr_colorize() -> bool:
+    """Disable ANSI coloring on Windows where TERM/VT handling is unreliable."""
+    if os.name == "nt":
+        return False
+    return sys.stderr.isatty()
+
+
 def export_log(logs: list, export_file: bool = False, logfile_name: str = ""):
     if export_file:
         logfile = f"logs/{logfile_name}_{datetime.datetime.now().strftime('%Y_%m_%d %H_%M_%S')}.log"
         return logger.add(logfile, filter=levels_filter(logs))
     else:
-        return logger.add(sys.stderr, filter=levels_filter(logs))
+        return logger.add(sys.stderr, filter=levels_filter(logs), colorize=_stderr_colorize())

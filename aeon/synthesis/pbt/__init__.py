@@ -9,6 +9,22 @@ generators are required.
 - :mod:`aeon.synthesis.pbt.runner` — discover, generate, check, and report.
 """
 
-from aeon.synthesis.pbt.runner import ExampleResult, PropertyResult, run_examples, run_properties
+from aeon.synthesis.pbt.runner import (
+    ExampleResult,
+    PropertyCorpus,
+    PropertyResult,
+    make_property_fitness,
+    property_corpora_for_target,
+    run_examples,
+    run_properties,
+)
 
-__all__ = ["ExampleResult", "PropertyResult", "run_examples", "run_properties"]
+__all__ = [
+    "ExampleResult",
+    "PropertyCorpus",
+    "PropertyResult",
+    "make_property_fitness",
+    "property_corpora_for_target",
+    "run_examples",
+    "run_properties",
+]
