@@ -1,0 +1,7 @@
+open ML
+
+# WRONG: selecting a target from five columns cannot leave five features.
+def impossible_target_metadata
+    (1 df: {table: DataFrame | df_rows table = 100 && df_cols table = 5}) :
+    {dataset: Dataset | ds_rows dataset = 100 && ds_features dataset = 5} :=
+    target df 0

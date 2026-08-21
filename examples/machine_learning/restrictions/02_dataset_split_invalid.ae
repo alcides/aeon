@@ -1,9 +1,17 @@
 open ML
 
-# ERRADO: um Dataset ja entregue a split nao pode originar um segundo split.
-def main (_: Int) : Float :=
-    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
-    let 1 dataset := target df 1 in
-    let first_parts := split dataset 0.7 in
-    let second_parts := split dataset 0.7 in
-    0.0
+def train_and_score
+    (1 training: TrainingDataset)
+    (1 testing: {test: TestingDataset
+        | testing_features test = training_features training
+       && testing_split_id test = training_split_id training}) : Float :=
+    let model := decision_tree_classifier training in
+    accuracy model testing
+
+
+# WRONG: both split calls try to consume the same Dataset.
+def split_twice
+    (1 dataset: {ds: Dataset | ds_features ds >= 1}) : DatasetSplit :=
+    let 1 first_parts := split dataset 0.7 in
+    let first_score := consume_split first_parts train_and_score in
+    split dataset 0.7

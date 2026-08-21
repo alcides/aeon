@@ -1,19 +1,10 @@
 open ML
 
-# ERRADO: [0, 1] nao pode satisfazer a alegacao impossivel score > 1.
+# WRONG: a value in [0, 1] cannot prove the impossible claim score > 1.
 def impossible_accuracy
-    (1 training: TrainingDataset)
+    (model: DecisionTreeClassifier)
     (1 testing: {test: TestingDataset
-        | testing_features test = training_features training
-       && testing_classes test = training_classes training
-       && testing_split_id test = training_split_id training}) :
+        | testing_features test = classifier_features model
+       && testing_split_id test = classifier_split_id model}) :
     {score: Float | score > 1.0} :=
-    let model := decision_tree_classifier training in
     accuracy model testing
-
-
-def main (_: Int) : Float :=
-    let 1 df := read_csv "examples/machine_learning/titanic.csv" in
-    let 1 dataset := target df 1 in
-    let 1 parts := split dataset 0.7 in
-    consume_split parts impossible_accuracy
