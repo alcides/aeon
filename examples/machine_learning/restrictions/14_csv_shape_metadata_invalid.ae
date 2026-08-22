@@ -1,0 +1,6 @@
+open ML
+
+# The declared row count cannot be silently changed by a caller.
+def load_with_wrong_shape (path: String) :
+    {df: DataFrame | df_rows df = 101 && df_cols df = 5} :=
+    read_csv path 100 5
