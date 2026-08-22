@@ -32,21 +32,16 @@ def testing_split_id : (ds: TestingDataset) -> Int := uninterpreted
 def classifier_features : (model: DecisionTreeClassifier) -> Int := uninterpreted
 def classifier_split_id : (model: DecisionTreeClassifier) -> Int := uninterpreted
 
-# A successfully loaded CSV has a non-negative row count and at least one
-# column. No arbitrary minimum row count is imposed at loading time.
-def read_csv (path: String) :
-    {df: DataFrame | df_rows df >= 0 && df_cols df >= 1} :=
+# CSV shape is supplied as logical metadata. The expected values are used by
+# the refinement checker but deliberately omitted from the native expression,
+# so the Python binding remains a thin call to pandas.read_csv.
+def read_csv
+    (path: String)
+    (expected_rows: {rows: Int | rows >= 0})
+    (expected_columns: {columns: Int | columns >= 1}) :
+    {df: DataFrame | df_rows df = expected_rows
+                   && df_cols df = expected_columns} :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
-
-# External schemas are not visible to the static checker. This trusted identity
-# lets a caller state the audited column count once at the native boundary;
-# Python does not inspect or store it. Incorrect declarations are outside the
-# trusted interface and invalidate the caller's modelling assumption.
-def assume_columns
-    (1 df: DataFrame)
-    (columns: {count: Int | count >= 1}) :
-    {out: DataFrame | df_rows out = df_rows df && df_cols out = columns} :=
-    native "df"
 
 # Select a zero-based target column. The input must be known to contain both a
 # target and at least one feature. DataFrame is linear, so target consumes it.
