@@ -1,0 +1,5 @@
+open ML
+
+# WRONG: TestingDataset and TrainingDataset are distinct nominal types.
+def train_with_testing_data (1 testing: TestingDataset) : DecisionTreeClassifier :=
+    decision_tree_classifier testing

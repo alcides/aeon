@@ -1,0 +1,14 @@
+open ML
+
+def train_and_score
+    (1 training: TrainingDataset)
+    (1 testing: {test: TestingDataset
+        | testing_features test = training_features training
+       && testing_split_id test = training_split_id training}) : Float :=
+    let model := decision_tree_classifier training in
+    accuracy model testing
+
+
+# CORRECT: consume_split eliminates the linear container once.
+def consume_once (1 parts: DatasetSplit) : Float :=
+    consume_split parts train_and_score

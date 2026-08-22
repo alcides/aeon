@@ -1,0 +1,56 @@
+ML STATIC GUARANTEES
+====================
+
+This document records the guarantees implemented by the small ML library.
+They are expressed in Aeon's linear and refinement types. The Python binding
+only performs the pandas and scikit-learn operations needed at runtime.
+
+Declared CSV metadata
+---------------------
+
+`read_csv` receives the expected number of data rows (excluding the header)
+and columns. These arguments are logical modelling facts: they are used in the
+return refinement but deliberately not passed to Python or checked at runtime.
+The caller is responsible for supplying metadata that matches the external
+file.
+
+The declared row count must be non-negative and the declared column count must
+be at least one. A returned DataFrame records the exact declared values:
+
+    df_rows df = expected_rows
+    df_cols df = expected_columns
+
+Facts that depend on the selected target or on individual CSV values, such as
+class count, missing values, or minimum examples per class, are not claimed by
+this increment. If needed later, they can be additional logical arguments to
+the operation that introduces the corresponding metadata.
+
+Linearity and target selection
+------------------------------
+
+- DataFrame, Dataset, DatasetSplit, TrainingDataset, and TestingDataset are
+  linear resources and must each be consumed exactly once.
+- A target index must satisfy `0 <= index < df_cols df`.
+- Selecting a target preserves the row count and removes exactly one feature:
+  `ds_rows ds = df_rows df` and `ds_features ds = df_cols df - 1`.
+
+Splitting, training, and evaluation
+-----------------------------------
+
+- A training fraction must satisfy `0.0 < fraction < 1.0`.
+- Training and testing halves have distinct nominal types.
+- Feature-count metadata and logical split provenance flow from the split to
+  both halves, into the classifier, and finally into evaluation.
+- Training consumes only TrainingDataset and accuracy consumes only the
+  compatible held-out TestingDataset.
+- Accuracy is refined to the interval `[0.0, 1.0]`.
+
+Native boundary
+---------------
+
+The native binding reads the CSV, separates the target, performs a
+deterministic stratified split, fits a preprocessing/decision-tree pipeline,
+and computes its score. It contains no duplicate ownership flags, provenance
+tokens, or manual implementations of Aeon's static checks. Operational errors
+from pandas or scikit-learn may still be raised when external data does not
+meet the program's declared modelling assumptions.
