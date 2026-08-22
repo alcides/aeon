@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,7 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 RESTRICTIONS_DIR = REPOSITORY_ROOT / "examples" / "machine_learning" / "restrictions"
 TITANIC_PROGRAM = REPOSITORY_ROOT / "examples" / "machine_learning" / "titanic_dataset.ae"
+TITANIC_CSV = REPOSITORY_ROOT / "examples" / "machine_learning" / "titanic.csv"
 
 VALID_EXAMPLES = tuple(sorted(RESTRICTIONS_DIR.glob("*_valid.ae")))
 INVALID_EXAMPLES: dict[str, type[Exception]] = {
@@ -38,6 +40,7 @@ INVALID_EXAMPLES: dict[str, type[Exception]] = {
     "11_feature_compatibility_invalid.ae": LiquidTypeCheckingFailedRelation,
     "12_target_metadata_invalid.ae": LiquidTypeCheckingFailedRelation,
     "13_split_provenance_invalid.ae": LiquidTypeCheckingFailedRelation,
+    "14_csv_shape_metadata_invalid.ae": LiquidTypeCheckingFailedRelation,
 }
 
 
@@ -134,6 +137,22 @@ def test_target_rejects_a_negative_static_index():
     assert any(isinstance(error, LiquidTypeCheckingFailedRelation) for error in errors), errors
 
 
+@pytest.mark.parametrize(
+    ("expected_rows", "expected_columns"),
+    (("0 - 1", "5"), ("100", "0")),
+)
+def test_read_csv_rejects_invalid_declared_shape(expected_rows: str, expected_columns: str):
+    errors = _parse_source(
+        f"""
+        open ML
+        def invalid (path: String) : DataFrame :=
+            read_csv path ({expected_rows}) ({expected_columns})
+        """
+    )
+
+    assert any(isinstance(error, LiquidTypeCheckingFailedRelation) for error in errors), errors
+
+
 def test_accuracy_rejects_training_data():
     errors = _parse_source(
         """
@@ -144,6 +163,16 @@ def test_accuracy_rejects_training_data():
     )
 
     assert any(isinstance(error, UnificationSubtypingError) for error in errors), errors
+
+
+def test_titanic_declared_shape_matches_fixture():
+    with TITANIC_CSV.open(newline="", encoding="utf-8") as csv_file:
+        rows = csv.reader(csv_file)
+        header = next(rows)
+        row_count = sum(1 for _ in rows)
+
+    assert row_count == 891
+    assert len(header) == 12
 
 
 def test_titanic_pipeline_runs_end_to_end():

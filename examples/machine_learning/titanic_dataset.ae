@@ -14,8 +14,8 @@ def train_and_evaluate
 
 def main (_: Int) : Float :=
     # Every pipeline state has one owner and is consumed exactly once.
-    let 1 raw := read_csv "examples/machine_learning/titanic.csv" in
-    let 1 df := assume_columns raw 12 in
+    # TODO: Confirm that the idea discussed in the Slack is being well applied here. (Funtion have unused arguments for refinement)
+    let 1 df := read_csv "examples/machine_learning/titanic.csv" 891 12 in
     let 1 dataset := target df 1 in
     let 1 parts := split dataset 0.7 in
     consume_split parts train_and_evaluate

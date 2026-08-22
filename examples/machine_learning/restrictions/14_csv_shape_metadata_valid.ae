@@ -1,0 +1,6 @@
+open ML
+
+# The expected CSV shape becomes exact logical metadata on the DataFrame.
+def load_with_expected_shape (path: String) :
+    {df: DataFrame | df_rows df = 100 && df_cols df = 5} :=
+    read_csv path 100 5
