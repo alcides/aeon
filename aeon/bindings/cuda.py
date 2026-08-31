@@ -106,6 +106,9 @@ class _CudaDriver:
         self.cuDeviceGetAttribute = self._configure(
             self._symbol("cuDeviceGetAttribute"), [int_p, ctypes.c_int, ctypes.c_int]
         )
+        self.cuDeviceTotalMem = self._configure(
+            self._symbol("cuDeviceTotalMem_v2", "cuDeviceTotalMem"), [ctypes.POINTER(ctypes.c_size_t), ctypes.c_int]
+        )
         self.cuCtxCreate = self._configure(self._symbol("cuCtxCreate_v2", "cuCtxCreate"), [void_pp, uint, ctypes.c_int])
         self.cuCtxDestroy = self._configure(self._symbol("cuCtxDestroy_v2", "cuCtxDestroy"), [void_p])
         self.cuCtxSetCurrent = self._configure(self._symbol("cuCtxSetCurrent"), [void_p])
@@ -233,6 +236,12 @@ class Device:
                 driver.cuDeviceGetAttribute(ctypes.byref(max_threads), 1, handle.value), "cuDeviceGetAttribute"
             )
             self.max_threads_per_block = max_threads.value
+            total_mem = ctypes.c_size_t()
+            driver.check(
+                driver.cuDeviceTotalMem(ctypes.byref(total_mem), handle.value),
+                "cuDeviceTotalMem",
+            )
+            self.max_allocation = total_mem.value
         except BaseException:
             try:
                 driver.cuCtxDestroy(context)
@@ -531,6 +540,18 @@ def buffer_size(buffer: Buffer) -> int:
     return buffer.length
 
 
+def buffer_elem_size(buffer: Buffer) -> int:
+    return _ITEM_SIZE[buffer.dtype]
+
+
+def buffer_bytes(buffer: Buffer) -> int:
+    return buffer.length * _ITEM_SIZE[buffer.dtype]
+
+
+def max_allocation(device_: Device) -> int:
+    return device_.max_allocation
+
+
 def pending_device(pending: Pending) -> int:
     return pending.device.ordinal
 
@@ -560,6 +581,10 @@ def _upload(device_: Device, values: Iterable[int] | Iterable[float], dtype: _DT
         device_._activate()
         pointer = ctypes.c_uint64()
         allocation_size = max(1, len(host)) * _ITEM_SIZE[dtype]
+        if allocation_size > device_.max_allocation:
+            raise ValueError(
+                f"allocation of {allocation_size} bytes exceeds device limit {device_.max_allocation}"
+            )
         device_._driver.check(
             device_._driver.cuMemAlloc(ctypes.byref(pointer), allocation_size),
             "cuMemAlloc",

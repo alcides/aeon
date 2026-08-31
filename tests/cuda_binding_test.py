@@ -32,6 +32,16 @@ def test_num_devices_reports_available_hardware(cuda_module):
         cuda_module.device(count)
 
 
+def test_device_reports_max_allocation(cuda_module):
+    device = _cuda_device_or_skip(cuda_module)
+    try:
+        assert cuda_module.max_allocation(device) > 0
+        assert cuda_module.buffer_bytes(cuda_module.upload_i32(device, [1, 2, 3])) == 12
+        assert cuda_module.buffer_elem_size(cuda_module.upload_i32(device, [1])) == 4
+    finally:
+        device.close()
+
+
 def test_launch_1d_validates_and_rounds_up(cuda_module):
     launch = cuda_module.Launch1D(33, 32)
     assert launch.grid_size == 2
