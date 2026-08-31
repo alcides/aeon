@@ -16,6 +16,6 @@ the translation then *fails gracefully* (returns ``None``) and the
 synthesizer raises ``SynthesisNotSuccessful`` without crashing.
 """
 
-from aeon.synthesis.modules.sygus.synthesizer import SygusSynthesizer
+from aeon.synthesis.modules.sygus.synthesizer import SygusSynthesizer as SygusSynthesizer
 
-__all__ = ["SygusSynthesizer"]
+__all__: list[str] = []

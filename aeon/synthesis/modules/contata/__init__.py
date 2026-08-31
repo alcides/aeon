@@ -18,6 +18,7 @@ solution is mutually consistent by construction.
 See :mod:`aeon.synthesis.modules.contata.cata`.
 """
 
-from aeon.synthesis.modules.contata.cata import synthesize_group, ContataResult
+from aeon.synthesis.modules.contata.cata import ContataResult as ContataResult
+from aeon.synthesis.modules.contata.cata import synthesize_group as synthesize_group
 
-__all__ = ["synthesize_group", "ContataResult"]
+__all__: list[str] = []

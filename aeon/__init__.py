@@ -10,3 +10,7 @@ import sys
 # (``aeon/__main__.py``) already raised this; doing it here means every
 # ``import aeon`` (tests, library use, the LSP) gets the same headroom.
 sys.setrecursionlimit(max(sys.getrecursionlimit(), 10000))
+
+from aeon.api import Program, check, parse, synthesize  # noqa: E402
+
+__all__ = ["Program", "check", "parse", "synthesize"]
