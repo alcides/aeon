@@ -12,6 +12,7 @@ open Array
 # one-dimensional logical item count and CUDA block size.
 type Device
 type Launch1D
+type Stream
 
 # Device allocations that are ready for download or kernel input.  In-flight
 # results live in ``Pending`` until ``synchronize`` promotes them.
@@ -19,8 +20,10 @@ linear type ReadyBuffer a
 linear type Pending a
 
 # Host snapshot plus the live device allocation it was read from.
-type I32Download
-type Float64Download
+linear type I32Download
+linear type Float64Download
+type I32DownloadPair
+type Float64DownloadPair
 
 # Logical descriptor/resource measures.  Aeon's ``Float`` is represented by
 # this module explicitly as CUDA float64; it is never silently narrowed to
@@ -33,6 +36,9 @@ def launch_device : (launch: Launch1D) -> Int := uninterpreted
 def launch_items : (launch: Launch1D) -> Int := uninterpreted
 def launch_threads : (launch: Launch1D) -> Int := uninterpreted
 def launch_grid_size : (launch: Launch1D) -> Int := uninterpreted
+def stream_device : (stream: Stream) -> Int := uninterpreted
+def stream_id : (stream: Stream) -> Int := uninterpreted
+def pending_stream : (pending: (Pending a)) -> Int := uninterpreted
 
 def buffer_device : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
 def buffer_size : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
@@ -42,8 +48,12 @@ def pending_device : (pending: (Pending a)) -> Int := uninterpreted
 def pending_size : (pending: (Pending a)) -> Int := uninterpreted
 def i32_download_device : (p: I32Download) -> Int := uninterpreted
 def i32_download_size : (p: I32Download) -> Int := uninterpreted
+def i32_download_pair_device : (p: I32DownloadPair) -> Int := uninterpreted
+def i32_download_pair_size : (p: I32DownloadPair) -> Int := uninterpreted
 def float64_download_device : (p: Float64Download) -> Int := uninterpreted
 def float64_download_size : (p: Float64Download) -> Int := uninterpreted
+def float64_download_pair_device : (p: Float64DownloadPair) -> Int := uninterpreted
+def float64_download_pair_size : (p: Float64DownloadPair) -> Int := uninterpreted
 
 # Select an explicit CUDA device, or ask the runtime for its default device.
 def num_devices (_: Unit) :
@@ -57,6 +67,10 @@ def device (id: {n: Int | n >= 0 && n < num_devices unit}) :
 def default_device (_: Unit) :
     {d: Device | device_id d >= 0 && max_threads_per_block d > 0} :=
     native "__import__('aeon.bindings.cuda', fromlist=['device']).device()"
+
+def default_stream (device: Device) :
+    {stream: Stream | stream_device stream = device_id device} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['default_stream']).default_stream(device)"
 
 # Describe a non-empty one-dimensional launch.  A block cannot contain more
 # threads than logical items; the binding additionally enforces CUDA's
@@ -97,6 +111,7 @@ def upload_float64 (device: Device)
 # the caller synchronizes or discards it.
 def add_i32
     (launch: Launch1D)
+    (stream: {s: Stream | stream_device s = launch_device launch})
     (1 left: {buffer: (ReadyBuffer Int) |
         buffer_size buffer > 0 &&
         buffer_device buffer = launch_device launch &&
@@ -107,11 +122,13 @@ def add_i32
         buffer_device buffer = buffer_device left}) :
     {pending: (Pending Int) |
         pending_device pending = launch_device launch &&
-        pending_size pending = launch_items launch} :=
-    native "__import__('aeon.bindings.cuda', fromlist=['vector_add_i32']).vector_add_i32(launch[1], launch[0], left, right)"
+        pending_size pending = launch_items launch &&
+        pending_stream pending = stream_id stream} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['vector_add_i32']).vector_add_i32(launch[1], launch[0], left, right, stream)"
 
 def add_float64
     (launch: Launch1D)
+    (stream: {s: Stream | stream_device s = launch_device launch})
     (1 left: {buffer: (ReadyBuffer Float) |
         buffer_size buffer > 0 &&
         buffer_device buffer = launch_device launch &&
@@ -122,8 +139,9 @@ def add_float64
         buffer_device buffer = buffer_device left}) :
     {pending: (Pending Float) |
         pending_device pending = launch_device launch &&
-        pending_size pending = launch_items launch} :=
-    native "__import__('aeon.bindings.cuda', fromlist=['vector_add_float64']).vector_add_float64(launch[1], launch[0], left, right)"
+        pending_size pending = launch_items launch &&
+        pending_stream pending = stream_id stream} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['vector_add_float64']).vector_add_float64(launch[1], launch[0], left, right, stream)"
 
 # Wait for an enqueued computation and recover its completed device buffer.
 def synchronize (1 pending: (Pending a)) :
@@ -148,25 +166,37 @@ def download_float64 (1 buffer: (ReadyBuffer Float)) :
         float64_download_size result = buffer_size buffer} :=
     native "__import__('aeon.bindings.cuda', fromlist=['download_float64_result']).download_float64_result(buffer)"
 
-def download_values_i32 (p: I32Download) :
-    {xs: (Array Int) | Array.size xs = i32_download_size p} :=
-    native "p.values"
+def unpack_i32_download (1 p: I32Download) :
+    {pair: I32DownloadPair |
+        i32_download_pair_device pair = i32_download_device p &&
+        i32_download_pair_size pair = i32_download_size p} :=
+    native "(p.values, p.buffer)"
 
-def download_buffer_i32 (p: I32Download) :
+def unpack_float64_download (1 p: Float64Download) :
+    {pair: Float64DownloadPair |
+        float64_download_pair_device pair = float64_download_device p &&
+        float64_download_pair_size pair = float64_download_size p} :=
+    native "(p.values, p.buffer)"
+
+def download_values_i32 (p: I32DownloadPair) :
+    {xs: (Array Int) | Array.size xs = i32_download_pair_size p} :=
+    native "p[0]"
+
+def download_buffer_i32 (p: I32DownloadPair) :
     {b: (ReadyBuffer Int) |
-        buffer_device b = i32_download_device p &&
-        buffer_size b = i32_download_size p} :=
-    native "p.buffer"
+        buffer_device b = i32_download_pair_device p &&
+        buffer_size b = i32_download_pair_size p} :=
+    native "p[1]"
 
-def download_values_float64 (p: Float64Download) :
-    {xs: (Array Float) | Array.size xs = float64_download_size p} :=
-    native "p.values"
+def download_values_float64 (p: Float64DownloadPair) :
+    {xs: (Array Float) | Array.size xs = float64_download_pair_size p} :=
+    native "p[0]"
 
-def download_buffer_float64 (p: Float64Download) :
+def download_buffer_float64 (p: Float64DownloadPair) :
     {b: (ReadyBuffer Float) |
-        buffer_device b = float64_download_device p &&
-        buffer_size b = float64_download_size p} :=
-    native "p.buffer"
+        buffer_device b = float64_download_pair_device p &&
+        buffer_size b = float64_download_pair_size p} :=
+    native "p[1]"
 
 # Explicitly release a completed allocation or abandon pending work.
 def free (1 buffer: (ReadyBuffer a)) : Unit :=

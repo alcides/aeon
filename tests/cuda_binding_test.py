@@ -71,7 +71,8 @@ def test_i32_upload_add_download_and_lifecycle(cuda_module):
     try:
         left = cuda_module.upload_i32(device, [1, -2, 3, 2**31 - 1])
         right = cuda_module.upload_i32(device, [4, 8, -3, -1])
-        pending = cuda_module.vector_add_i32(device, cuda_module.Launch1D(4, 4), left, right)
+        stream = cuda_module.default_stream(device)
+        pending = cuda_module.vector_add_i32(device, cuda_module.Launch1D(4, 4), left, right, stream)
         output = pending.synchronize()
 
         expected = [5, 6, 0, 2**31 - 2]
@@ -120,7 +121,8 @@ def test_float64_upload_add_download_and_discard(cuda_module):
     try:
         left = cuda_module.upload_float64(device, [0.5, -2.25, 1e100])
         right = cuda_module.upload_float64(device, [1.25, 0.25, -1e100])
-        pending = cuda_module.vector_add_float64(device, cuda_module.launch_1d(3), left, right)
+        stream = cuda_module.default_stream(device)
+        pending = cuda_module.vector_add_float64(device, cuda_module.launch_1d(3), left, right, stream)
         output = pending._output
         pending.discard()
         pending.discard()
@@ -142,9 +144,13 @@ def test_rejects_mismatched_buffers_without_allocating_output(cuda_module):
         ints = cuda_module.upload_i32(device, [1, 2])
         floats = cuda_module.upload_float64(device, [1.0, 2.0])
         with pytest.raises(TypeError):
-            cuda_module.vector_add_i32(device, cuda_module.launch_1d(2), ints, floats)
+            cuda_module.vector_add_i32(
+                device, cuda_module.launch_1d(2), ints, floats, cuda_module.default_stream(device)
+            )
         with pytest.raises(ValueError):
-            cuda_module.vector_add_i32(device, cuda_module.launch_1d(1), ints, ints)
+            cuda_module.vector_add_i32(
+                device, cuda_module.launch_1d(1), ints, ints, cuda_module.default_stream(device)
+            )
         ints.free()
         floats.free()
     finally:
@@ -155,7 +161,8 @@ def test_device_close_cleans_live_buffers_and_pending_results(cuda_module):
     device = _cuda_device_or_skip(cuda_module)
     left = cuda_module.upload_i32(device, [1])
     right = cuda_module.upload_i32(device, [2])
-    pending = cuda_module.vector_add_i32(device, cuda_module.launch_1d(1), left, right)
+    stream = cuda_module.default_stream(device)
+    pending = cuda_module.vector_add_i32(device, cuda_module.launch_1d(1), left, right, stream)
     output = pending._output
 
     device.close()

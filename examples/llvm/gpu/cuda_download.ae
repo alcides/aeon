@@ -18,9 +18,10 @@ open Cuda
 #
 def read_once (d: Device) : Int :=
     let 1 ready := upload_i32 d (Array.append (Array.append (Array.new{Int} unit) 4) 5) in
-    let downloaded := download_i32 ready in
-    let 1 values := download_values_i32 downloaded in
-    let 1 buffer := download_buffer_i32 downloaded in
+    let 1 downloaded := download_i32 ready in
+    let pair := unpack_i32_download downloaded in
+    let 1 values := download_values_i32 pair in
+    let 1 buffer := download_buffer_i32 pair in
     let sum := Array.sum values in
     let _ := free buffer in
     sum;
@@ -31,12 +32,14 @@ def read_once (d: Device) : Int :=
 #
 def read_twice (d: Device) : Int :=
     let 1 ready0 := upload_i32 d (Array.append (Array.append (Array.new{Int} unit) 1) 2) in
-    let downloaded0 := download_i32 ready0 in
-    let 1 values0 := download_values_i32 downloaded0 in
-    let 1 ready1 := download_buffer_i32 downloaded0 in
-    let downloaded1 := download_i32 ready1 in
-    let 1 values1 := download_values_i32 downloaded1 in
-    let 1 ready2 := download_buffer_i32 downloaded1 in
+    let 1 downloaded0 := download_i32 ready0 in
+    let pair0 := unpack_i32_download downloaded0 in
+    let 1 values0 := download_values_i32 pair0 in
+    let 1 ready1 := download_buffer_i32 pair0 in
+    let 1 downloaded1 := download_i32 ready1 in
+    let pair1 := unpack_i32_download downloaded1 in
+    let 1 values1 := download_values_i32 pair1 in
+    let 1 ready2 := download_buffer_i32 pair1 in
     let first := Array.sum values0 in
     let second := Array.sum values1 in
     let _ := free ready2 in
@@ -48,17 +51,20 @@ def read_twice (d: Device) : Int :=
 #
 def download_compute_download (u: Unit) : Int :=
     let d := default_device u in
+    let stream := default_stream d in
     let launch := launch_1d d 3 1 in
     let 1 ready0 := upload_i32 d (Array.append (Array.append (Array.append (Array.new{Int} unit) 1) 2) 3) in
-    let downloaded0 := download_i32 ready0 in
-    let 1 snapshot0 := download_values_i32 downloaded0 in
-    let 1 left := download_buffer_i32 downloaded0 in
+    let 1 downloaded0 := download_i32 ready0 in
+    let pair0 := unpack_i32_download downloaded0 in
+    let 1 snapshot0 := download_values_i32 pair0 in
+    let 1 left := download_buffer_i32 pair0 in
     let 1 right := upload_i32 d (Array.append (Array.append (Array.append (Array.new{Int} unit) 10) 20) 30) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     let 1 ready1 := synchronize pending in
-    let downloaded1 := download_i32 ready1 in
-    let 1 snapshot1 := download_values_i32 downloaded1 in
-    let 1 buffer := download_buffer_i32 downloaded1 in
+    let 1 downloaded1 := download_i32 ready1 in
+    let pair1 := unpack_i32_download downloaded1 in
+    let 1 snapshot1 := download_values_i32 pair1 in
+    let 1 buffer := download_buffer_i32 pair1 in
     let _ := Array.sum snapshot0 in
     let total := Array.sum snapshot1 in
     let _ := free buffer in
@@ -68,9 +74,10 @@ def download_compute_download (u: Unit) : Int :=
 
 def read_float64 (d: Device) : Float :=
     let 1 ready := upload_float64 d (Array.append (Array.append (Array.new{Float} unit) (1.5 : Float)) (2.5 : Float)) in
-    let downloaded := download_float64 ready in
-    let 1 values := download_values_float64 downloaded in
-    let 1 buffer := download_buffer_float64 downloaded in
+    let 1 downloaded := download_float64 ready in
+    let pair := unpack_float64_download downloaded in
+    let 1 values := download_values_float64 pair in
+    let 1 buffer := download_buffer_float64 pair in
     let first := Array.get values 0 in
     let _ := free buffer in
     first;

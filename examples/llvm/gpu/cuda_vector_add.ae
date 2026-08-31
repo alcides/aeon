@@ -4,27 +4,29 @@ import Cuda;
 # Refined, linear CUDA lifecycle for Int vector addition.
 #
 # Host arrays and device resources are bound at multiplicity 1.  Each handle
-# is consumed exactly once by the next protocol step.  Download returns host
-# data and the preserved device buffer together:
+# is consumed exactly once by the next protocol step.  Download returns a
+# linear I32Download token that must be unpacked before freeing the buffer:
 #
-#   Array --upload--> Buffer --add--> Pending --synchronize--> Buffer
-#     --download--> I32Download --free--> Unit
+#   Array --upload--> ReadyBuffer --add--> Pending --synchronize--> ReadyBuffer
+#     --download--> I32Download --unpack--> Array + ReadyBuffer --free--> Unit
 #
 # The refinements prove at compile time that both inputs and the launch have
 # three items, share a device, and use a valid CUDA block size.  With a CUDA
 # driver/device present this prints 66 (11 + 22 + 33).
 def vector_add (u: Unit) : Int :=
     let d := Cuda.default_device u in
+    let stream := Cuda.default_stream d in
     let launch := Cuda.launch_1d d 3 1 in
     let 1 xs := Array.append (Array.append (Array.append (Array.new{Int} unit) 1) 2) 3 in
     let 1 ys := Array.append (Array.append (Array.append (Array.new{Int} unit) 10) 20) 30 in
     let 1 left := Cuda.upload_i32 d xs in
     let 1 right := Cuda.upload_i32 d ys in
-    let 1 pending := Cuda.add_i32 launch left right in
+    let 1 pending := Cuda.add_i32 launch stream left right in
     let 1 ready := Cuda.synchronize pending in
-    let downloaded := Cuda.download_i32 ready in
-    let 1 result := Cuda.download_values_i32 downloaded in
-    let 1 next := Cuda.download_buffer_i32 downloaded in
+    let 1 downloaded := Cuda.download_i32 ready in
+    let pair := Cuda.unpack_i32_download downloaded in
+    let 1 result := Cuda.download_values_i32 pair in
+    let 1 next := Cuda.download_buffer_i32 pair in
     let total := Array.sum result in
     let _ := Cuda.free next in
     total;
