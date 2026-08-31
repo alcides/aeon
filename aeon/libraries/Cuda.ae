@@ -3,8 +3,8 @@
 # This module is separate from ``Gpu`` and is never imported implicitly by
 # ``@gpu``.  ``Buffer`` and ``Pending`` are linear resources: every uploaded or
 # computed allocation must eventually be freed, synchronized, or discarded
-# exactly once.  Downloads preserve the allocation and pass its ownership to a
-# fresh linear ``Buffer`` binding.
+# exactly once.  Downloads copy to a fresh host array and return a
+# ``DownloadResult`` pairing the snapshot with the preserved allocation.
 
 open Array
 
@@ -16,6 +16,10 @@ type Launch1D
 # Device allocations and enqueued computations are uniquely owned.
 linear type Buffer a
 linear type Pending a
+
+# Host snapshot plus the live device allocation it was read from.
+type I32Download
+type Float64Download
 
 # Logical descriptor/resource measures.  Aeon's ``Float`` is represented by
 # this module explicitly as CUDA float64; it is never silently narrowed to
@@ -30,6 +34,10 @@ def buffer_device : (buffer: (Buffer a)) -> Int := uninterpreted
 def buffer_size : (buffer: (Buffer a)) -> Int := uninterpreted
 def pending_device : (pending: (Pending a)) -> Int := uninterpreted
 def pending_size : (pending: (Pending a)) -> Int := uninterpreted
+def i32_download_device : (p: I32Download) -> Int := uninterpreted
+def i32_download_size : (p: I32Download) -> Int := uninterpreted
+def float64_download_device : (p: Float64Download) -> Int := uninterpreted
+def float64_download_size : (p: Float64Download) -> Int := uninterpreted
 
 # Select an explicit CUDA device, or ask the runtime for its default device.
 def device (id: {n: Int | n >= 0}) :
@@ -108,29 +116,40 @@ def synchronize (1 pending: (Pending a)) :
     native "__import__('aeon.bindings.cuda', fromlist=['synchronize']).synchronize(pending)"
 
 # Copy a completed allocation into a fresh host array while preserving the
-# device allocation.  Ownership of ``buffer`` moves to the callback as
-# ``next``; the callback can download it again and must eventually free it.
-# Continuation passing prevents an unrestricted result wrapper from projecting
-# multiple linear aliases for the same allocation.
-def download_i32
-    (1 buffer: (Buffer Int))
-    (1 continuation:
-        (1 values: {xs: (Array Int) | Array.size xs = buffer_size buffer}) ->
-        (1 next: {b: (Buffer Int) |
-            buffer_device b = buffer_device buffer &&
-            buffer_size b = buffer_size buffer}) ->
-        r) : r :=
-    native "continuation(__import__('aeon.bindings.cuda', fromlist=['download_i32']).download_i32(buffer))(buffer)"
+# device allocation.  The input buffer is consumed.  The returned host array
+# is linear like any other ``Array``; use ``download_buffer_*`` to recover the
+# live GPU allocation and eventually ``free`` it.
+def download_i32 (1 buffer: (Buffer Int)) :
+    {result: I32Download |
+        i32_download_device result = buffer_device buffer &&
+        i32_download_size result = buffer_size buffer} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['download_i32_result']).download_i32_result(buffer)"
 
-def download_float64
-    (1 buffer: (Buffer Float))
-    (1 continuation:
-        (1 values: {xs: (Array Float) | Array.size xs = buffer_size buffer}) ->
-        (1 next: {b: (Buffer Float) |
-            buffer_device b = buffer_device buffer &&
-            buffer_size b = buffer_size buffer}) ->
-        r) : r :=
-    native "continuation(__import__('aeon.bindings.cuda', fromlist=['download_float64']).download_float64(buffer))(buffer)"
+def download_float64 (1 buffer: (Buffer Float)) :
+    {result: Float64Download |
+        float64_download_device result = buffer_device buffer &&
+        float64_download_size result = buffer_size buffer} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['download_float64_result']).download_float64_result(buffer)"
+
+def download_values_i32 (p: I32Download) :
+    {xs: (Array Int) | Array.size xs = i32_download_size p} :=
+    native "p.values"
+
+def download_buffer_i32 (p: I32Download) :
+    {b: (Buffer Int) |
+        buffer_device b = i32_download_device p &&
+        buffer_size b = i32_download_size p} :=
+    native "p.buffer"
+
+def download_values_float64 (p: Float64Download) :
+    {xs: (Array Float) | Array.size xs = float64_download_size p} :=
+    native "p.values"
+
+def download_buffer_float64 (p: Float64Download) :
+    {b: (Buffer Float) |
+        buffer_device b = float64_download_device p &&
+        buffer_size b = float64_download_size p} :=
+    native "p.buffer"
 
 # Explicitly release a completed allocation or abandon pending work.
 def free (1 buffer: (Buffer a)) : Unit :=

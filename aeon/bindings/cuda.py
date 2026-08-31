@@ -591,8 +591,8 @@ def _download(buffer: Buffer, dtype: _DType) -> list[int] | list[float]:
                 )
         return host.tolist()
     except BaseException:
-        # The Aeon continuation receives no successor buffer when download
-        # fails, so release the now-unreachable allocation if possible.
+        # The Aeon caller receives no buffer handle when download fails, so
+        # release the now-unreachable allocation if possible.
         try:
             buffer.free()
         except Exception:
@@ -600,12 +600,32 @@ def _download(buffer: Buffer, dtype: _DType) -> list[int] | list[float]:
         raise
 
 
+@dataclass(frozen=True, slots=True)
+class I32Download:
+    values: list[int]
+    buffer: Buffer
+
+
+@dataclass(frozen=True, slots=True)
+class Float64Download:
+    values: list[float]
+    buffer: Buffer
+
+
 def download_i32(buffer: Buffer) -> list[int]:
     return cast(list[int], _download(buffer, "i32"))
 
 
+def download_i32_result(buffer: Buffer) -> I32Download:
+    return I32Download(download_i32(buffer), buffer)
+
+
 def download_float64(buffer: Buffer) -> list[float]:
     return cast(list[float], _download(buffer, "float64"))
+
+
+def download_float64_result(buffer: Buffer) -> Float64Download:
+    return Float64Download(download_float64(buffer), buffer)
 
 
 def _vector_add(device_: Device, launch: Launch1D, left: Buffer, right: Buffer, dtype: _DType) -> Pending:
@@ -755,7 +775,9 @@ Cuda_launch_1d = launch_1d
 Cuda_upload_i32 = upload_i32
 Cuda_upload_float64 = upload_float64
 Cuda_download_i32 = download_i32
+Cuda_download_i32_result = download_i32_result
 Cuda_download_float64 = download_float64
+Cuda_download_float64_result = download_float64_result
 Cuda_vector_add_i32 = vector_add_i32
 Cuda_vector_add_float64 = vector_add_float64
 Cuda_synchronize = synchronize
@@ -778,7 +800,9 @@ __all__ = [
     "device_id",
     "discard",
     "download_float64",
+    "download_float64_result",
     "download_i32",
+    "download_i32_result",
     "free",
     "launch_1d",
     "launch_device",

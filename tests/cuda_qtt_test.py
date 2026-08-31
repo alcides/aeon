@@ -107,10 +107,12 @@ def lifecycle (u: Unit) : Int :=
     let 1 right := upload_i32 d ys in
     let 1 pending := add_i32 launch left right in
     let 1 ready := synchronize pending in
-    download_i32 ready (fun values => fun next =>
-        let total := Array.sum values in
-        let _ := free next in
-        total);
+    let downloaded := download_i32 ready in
+    let 1 values := download_values_i32 downloaded in
+    let 1 next := download_buffer_i32 downloaded in
+    let total := Array.sum values in
+    let _ := free next in
+    total;
 """
         + MAIN
     )
@@ -130,11 +132,13 @@ def lifecycle (u: Unit) : Unit :=
     let 1 right := upload_float64 d ys in
     let 1 pending := add_float64 launch left right in
     let 1 ready := synchronize pending in
-    download_float64 ready (fun values => fun next =>
-        let _ := Array.length values in
-        let _ := free next in
-        let 1 spare := upload_i32 d ({_int_array((7,))}) in
-        free spare);
+    let downloaded := download_float64 ready in
+    let 1 values := download_values_float64 downloaded in
+    let 1 next := download_buffer_float64 downloaded in
+    let _ := Array.length values in
+    let _ := free next in
+    let 1 spare := upload_i32 d ({_int_array((7,))}) in
+    free spare;
 
 def abandon (u: Unit) : Unit :=
     let d := default_device u in
@@ -227,18 +231,22 @@ def stale (d: Device) : Unit :=
     assert any(isinstance(error, LinearUsedTooManyTimesError) for error in _linearity_errors(source))
 
 
-def test_download_can_thread_ownership_more_than_once():
+def test_download_can_be_repeated_without_nesting():
     source = (
         IMPORTS
         + f"""
 def repeated (d: Device) : Int :=
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
-    download_i32 ready0 (fun values0 => fun ready1 =>
-        let first := Array.sum values0 in
-        download_i32 ready1 (fun values1 => fun ready2 =>
-            let second := Array.sum values1 in
-            let _ := free ready2 in
-            first + second));
+    let downloaded0 := download_i32 ready0 in
+    let 1 values0 := download_values_i32 downloaded0 in
+    let 1 ready1 := download_buffer_i32 downloaded0 in
+    let downloaded1 := download_i32 ready1 in
+    let 1 values1 := download_values_i32 downloaded1 in
+    let 1 ready2 := download_buffer_i32 downloaded1 in
+    let first := Array.sum values0 in
+    let second := Array.sum values1 in
+    let _ := free ready2 in
+    first + second;
 """
         + MAIN
     )
@@ -253,28 +261,35 @@ def preserved (u: Unit) : Int :=
     let d := default_device u in
     let launch := launch_1d d 3 1 in
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
-    download_i32 ready0 (fun values0 => fun ready1 =>
-        let total0 := Array.sum values0 in
-        let 1 other := upload_i32 d ({_int_array((4, 5, 6))}) in
-        let 1 pending := add_i32 launch ready1 other in
-        let 1 ready2 := synchronize pending in
-        download_i32 ready2 (fun values1 => fun ready3 =>
-            let result := Array.sum values1 in
-            let _ := free ready3 in
-            result));
+    let downloaded0 := download_i32 ready0 in
+    let 1 values0 := download_values_i32 downloaded0 in
+    let 1 ready1 := download_buffer_i32 downloaded0 in
+    let total0 := Array.sum values0 in
+    let 1 other := upload_i32 d ({_int_array((4, 5, 6))}) in
+    let 1 pending := add_i32 launch ready1 other in
+    let 1 ready2 := synchronize pending in
+    let downloaded1 := download_i32 ready2 in
+    let 1 values1 := download_values_i32 downloaded1 in
+    let 1 ready3 := download_buffer_i32 downloaded1 in
+    let result := Array.sum values1 in
+    let _ := free ready3 in
+    result;
 """
         + MAIN
     )
     assert _errors(source) == []
 
 
-def test_download_callback_must_consume_successor_buffer():
+def test_download_result_must_free_recovered_buffer():
     source = (
         IMPORTS
         + f"""
 def leak_successor (d: Device) : Int :=
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
-    download_i32 ready (fun values => fun next => Array.sum values);
+    let downloaded := download_i32 ready in
+    let 1 values := download_values_i32 downloaded in
+    let 1 next := download_buffer_i32 downloaded in
+    Array.sum values;
 """
         + MAIN
     )
@@ -287,10 +302,12 @@ def test_download_consumes_outer_buffer_handle():
         + f"""
 def stale (d: Device) : Unit :=
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
-    download_i32 ready (fun values => fun next =>
-        let _ := Array.sum values in
-        let _ := free next in
-        free ready);
+    let downloaded := download_i32 ready in
+    let 1 values := download_values_i32 downloaded in
+    let 1 next := download_buffer_i32 downloaded in
+    let _ := Array.sum values in
+    let _ := free next in
+    free ready;
 """
         + MAIN
     )
@@ -306,10 +323,7 @@ def premature (d: Device) : Int :=
     let 1 left := upload_i32 d ({_int_array((1,))}) in
     let 1 right := upload_i32 d ({_int_array((2,))}) in
     let 1 pending := add_i32 launch left right in
-    download_i32 pending (fun values => fun next =>
-        let total := Array.sum values in
-        let _ := free next in
-        total);
+    download_i32 pending;
 """
         + MAIN
     )
@@ -416,6 +430,13 @@ def invalid (u: Unit) : Unit :=
 
 def test_cuda_vector_add_example_typechecks():
     example = Path(__file__).parents[1] / "examples" / "llvm" / "gpu" / "cuda_vector_add.ae"
+    setup_logger()
+    cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0, no_main=True)
+    assert AeonDriver(cfg).parse(filename=str(example)) == []
+
+
+def test_cuda_download_example_typechecks():
+    example = Path(__file__).parents[1] / "examples" / "llvm" / "gpu" / "cuda_download.ae"
     setup_logger()
     cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0, no_main=True)
     assert AeonDriver(cfg).parse(filename=str(example)) == []
