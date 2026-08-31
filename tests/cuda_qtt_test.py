@@ -83,6 +83,20 @@ def test_num_devices_is_positive():
     assert _errors(source) == []
 
 
+def test_upload_respects_allocation_byte_bound():
+    source = (
+        IMPORTS
+        + f"""
+def bounded (d: Device) : Unit :=
+    let 1 xs := {_int_array((1, 2))} in
+    let 1 buffer := upload_i32 d xs in
+    free buffer;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
 def test_open_cuda_exposes_descriptors_and_launch_measures():
     source = (
         IMPORTS

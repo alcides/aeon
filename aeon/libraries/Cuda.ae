@@ -28,6 +28,7 @@ type Float64Download
 def device_id : (d: Device) -> Int := uninterpreted
 def num_devices : (_: Unit) -> Int := uninterpreted
 def max_threads_per_block : (d: Device) -> Int := uninterpreted
+def max_allocation : (d: Device) -> Int := uninterpreted
 def launch_device : (launch: Launch1D) -> Int := uninterpreted
 def launch_items : (launch: Launch1D) -> Int := uninterpreted
 def launch_threads : (launch: Launch1D) -> Int := uninterpreted
@@ -35,6 +36,8 @@ def launch_grid_size : (launch: Launch1D) -> Int := uninterpreted
 
 def buffer_device : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
 def buffer_size : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+def buffer_elem_size : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+def buffer_bytes : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
 def pending_device : (pending: (Pending a)) -> Int := uninterpreted
 def pending_size : (pending: (Pending a)) -> Int := uninterpreted
 def i32_download_device : (p: I32Download) -> Int := uninterpreted
@@ -74,14 +77,18 @@ def upload_i32 (device: Device)
     (1 values: {xs: (Array Int) | Array.size xs > 0}) :
     {buffer: (ReadyBuffer Int) |
         buffer_device buffer = device_id device &&
-        buffer_size buffer = Array.size values} :=
+        buffer_size buffer = Array.size values &&
+        buffer_bytes buffer = buffer_size buffer * 4 &&
+        buffer_bytes buffer <= max_allocation device} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_i32']).upload_i32(device, values)"
 
 def upload_float64 (device: Device)
     (1 values: {xs: (Array Float) | Array.size xs > 0}) :
     {buffer: (ReadyBuffer Float) |
         buffer_device buffer = device_id device &&
-        buffer_size buffer = Array.size values} :=
+        buffer_size buffer = Array.size values &&
+        buffer_bytes buffer = buffer_size buffer * 8 &&
+        buffer_bytes buffer <= max_allocation device} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_float64']).upload_float64(device, values)"
 
 # Enqueue elementwise addition.  Both inputs must be non-empty, equally sized,
