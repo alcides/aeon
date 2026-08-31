@@ -485,6 +485,23 @@ def invalid (u: Unit) : Unit :=
     assert _errors(source) != []
 
 
+def test_add_rejects_mismatched_element_types():
+    source = (
+        IMPORTS
+        + f"""
+def invalid (d: Device) : Unit :=
+    let stream := default_stream d in
+    let launch := launch_1d d 1 1 in
+    let 1 left := upload_float64 d ({_float_array((1.0,))}) in
+    let 1 right := upload_float64 d ({_float_array((2.0,))}) in
+    let 1 pending := add_i32 launch stream left right in
+    discard pending;
+"""
+        + MAIN
+    )
+    assert _errors(source) != []
+
+
 def test_cuda_vector_add_example_typechecks():
     example = Path(__file__).parents[1] / "examples" / "llvm" / "gpu" / "cuda_vector_add.ae"
     setup_logger()
