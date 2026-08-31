@@ -30,6 +30,7 @@ def max_threads_per_block : (d: Device) -> Int := uninterpreted
 def launch_device : (launch: Launch1D) -> Int := uninterpreted
 def launch_items : (launch: Launch1D) -> Int := uninterpreted
 def launch_threads : (launch: Launch1D) -> Int := uninterpreted
+def launch_grid_size : (launch: Launch1D) -> Int := uninterpreted
 
 def buffer_device : (buffer: (Buffer a)) -> Int := uninterpreted
 def buffer_size : (buffer: (Buffer a)) -> Int := uninterpreted
@@ -62,7 +63,8 @@ def launch_1d (device: Device)
     {launch: Launch1D |
         launch_device launch = device_id device &&
         launch_items launch = items &&
-        launch_threads launch = threads} :=
+        launch_threads launch = threads &&
+        launch_grid_size launch * launch_threads launch >= launch_items launch} :=
     native "(__import__('aeon.bindings.cuda', fromlist=['launch_1d']).launch_1d(items, threads), device)"
 
 # Upload non-empty host arrays.  Upload consumes the uniquely-owned host array
@@ -90,7 +92,8 @@ def add_i32
     (1 left: {buffer: (Buffer Int) |
         buffer_size buffer > 0 &&
         buffer_device buffer = launch_device launch &&
-        buffer_size buffer = launch_items launch})
+        buffer_size buffer = launch_items launch &&
+        launch_grid_size launch * launch_threads launch >= buffer_size buffer})
     (1 right: {buffer: (Buffer Int) |
         buffer_size buffer = buffer_size left &&
         buffer_device buffer = buffer_device left}) :
@@ -104,7 +107,8 @@ def add_float64
     (1 left: {buffer: (Buffer Float) |
         buffer_size buffer > 0 &&
         buffer_device buffer = launch_device launch &&
-        buffer_size buffer = launch_items launch})
+        buffer_size buffer = launch_items launch &&
+        launch_grid_size launch * launch_threads launch >= buffer_size buffer})
     (1 right: {buffer: (Buffer Float) |
         buffer_size buffer = buffer_size left &&
         buffer_device buffer = buffer_device left}) :
