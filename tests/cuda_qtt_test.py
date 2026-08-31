@@ -71,9 +71,15 @@ def test_import_cuda_keeps_api_qualified():
 import Cuda;
 
 def selected (u: Unit) : Int := Cuda.device_id (Cuda.default_device u);
+def count (u: Unit) : Int := Cuda.num_devices u;
 """
         + MAIN
     )
+    assert _errors(source) == []
+
+
+def test_num_devices_is_positive():
+    source = IMPORTS + "def count (u: Unit) : {n: Int | n > 0} := num_devices u;" + MAIN
     assert _errors(source) == []
 
 
@@ -82,7 +88,8 @@ def test_open_cuda_exposes_descriptors_and_launch_measures():
         IMPORTS
         + """
 def descriptors (d: Device) (l: Launch1D) : Int :=
-    device_id d + max_threads_per_block d + launch_items l + launch_device l + launch_threads l;
+    device_id d + max_threads_per_block d + num_devices unit
+    + launch_items l + launch_device l + launch_threads l;
 """
         + MAIN
     )

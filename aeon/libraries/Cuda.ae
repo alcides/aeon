@@ -25,6 +25,7 @@ type Float64Download
 # this module explicitly as CUDA float64; it is never silently narrowed to
 # float32.
 def device_id : (d: Device) -> Int := uninterpreted
+def num_devices : (_: Unit) -> Int := uninterpreted
 def max_threads_per_block : (d: Device) -> Int := uninterpreted
 def launch_device : (launch: Launch1D) -> Int := uninterpreted
 def launch_items : (launch: Launch1D) -> Int := uninterpreted
@@ -40,7 +41,11 @@ def float64_download_device : (p: Float64Download) -> Int := uninterpreted
 def float64_download_size : (p: Float64Download) -> Int := uninterpreted
 
 # Select an explicit CUDA device, or ask the runtime for its default device.
-def device (id: {n: Int | n >= 0}) :
+def num_devices (_: Unit) :
+    {n: Int | n > 0} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['num_devices']).num_devices()"
+
+def device (id: {n: Int | n >= 0 && n < num_devices unit}) :
     {d: Device | device_id d = id && max_threads_per_block d > 0} :=
     native "__import__('aeon.bindings.cuda', fromlist=['device']).device(id)"
 

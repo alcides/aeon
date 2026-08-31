@@ -483,6 +483,16 @@ def device(ordinal: int = 0) -> Device:
     return Device(ordinal)
 
 
+def num_devices() -> int:
+    """Return the number of visible CUDA devices without creating a context."""
+    driver = _driver()
+    count = ctypes.c_int()
+    driver.check(driver.cuDeviceGetCount(ctypes.byref(count)), "cuDeviceGetCount")
+    if count.value <= 0:
+        raise CUDAUnavailableError("no CUDA devices are available")
+    return count.value
+
+
 def launch_1d(size: int, block_size: int | None = None) -> Launch1D:
     return Launch1D(size, min(256, size) if block_size is None else block_size)
 
@@ -771,6 +781,7 @@ def _compile_vector_add_ptx(compute_capability: tuple[int, int]) -> str:
 # Names used by native expressions in Cuda.ae.  Keeping these aliases here also
 # makes the Python binding convenient to exercise without the Aeon evaluator.
 Cuda_device = device
+Cuda_num_devices = num_devices
 Cuda_launch_1d = launch_1d
 Cuda_upload_i32 = upload_i32
 Cuda_upload_float64 = upload_float64
@@ -805,6 +816,7 @@ __all__ = [
     "download_i32_result",
     "free",
     "launch_1d",
+    "num_devices",
     "launch_device",
     "launch_items",
     "launch_threads",

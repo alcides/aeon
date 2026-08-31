@@ -22,6 +22,16 @@ def test_import_does_not_initialize_cuda(cuda_module):
     assert cuda_module._DRIVER is None
 
 
+def test_num_devices_reports_available_hardware(cuda_module):
+    try:
+        count = cuda_module.num_devices()
+    except cuda_module.CUDAError as exc:
+        pytest.skip(f"CUDA hardware is unavailable: {exc}")
+    assert count > 0
+    with pytest.raises(cuda_module.CUDAUnavailableError):
+        cuda_module.device(count)
+
+
 def test_launch_1d_validates_and_rounds_up(cuda_module):
     assert cuda_module.Launch1D(1, 1).grid_size == 1
     assert cuda_module.Launch1D(33, 32).grid_size == 2
