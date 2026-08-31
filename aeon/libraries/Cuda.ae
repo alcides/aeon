@@ -2,8 +2,9 @@
 #
 # This module is separate from ``Gpu`` and is never imported implicitly by
 # ``@gpu``.  ``Buffer`` and ``Pending`` are linear resources: every uploaded or
-# computed allocation must eventually be downloaded/freed, synchronized, or
-# discarded exactly once.
+# computed allocation must eventually be freed, synchronized, or discarded
+# exactly once.  Downloads preserve the allocation and pass its ownership to a
+# fresh linear ``Buffer`` binding.
 
 open Array
 
@@ -106,14 +107,30 @@ def synchronize (1 pending: (Pending a)) :
         buffer_size buffer = pending_size pending} :=
     native "__import__('aeon.bindings.cuda', fromlist=['synchronize']).synchronize(pending)"
 
-# Copy a completed allocation to the host, consuming the device allocation.
-def download_i32 (1 buffer: (Buffer Int)) :
-    {values: (Array Int) | Array.size values = buffer_size buffer} :=
-    native "__import__('aeon.bindings.cuda', fromlist=['download_i32']).download_i32(buffer)"
+# Copy a completed allocation into a fresh host array while preserving the
+# device allocation.  Ownership of ``buffer`` moves to the callback as
+# ``next``; the callback can download it again and must eventually free it.
+# Continuation passing prevents an unrestricted result wrapper from projecting
+# multiple linear aliases for the same allocation.
+def download_i32
+    (1 buffer: (Buffer Int))
+    (1 continuation:
+        (1 values: {xs: (Array Int) | Array.size xs = buffer_size buffer}) ->
+        (1 next: {b: (Buffer Int) |
+            buffer_device b = buffer_device buffer &&
+            buffer_size b = buffer_size buffer}) ->
+        r) : r :=
+    native "continuation(__import__('aeon.bindings.cuda', fromlist=['download_i32']).download_i32(buffer))(buffer)"
 
-def download_float64 (1 buffer: (Buffer Float)) :
-    {values: (Array Float) | Array.size values = buffer_size buffer} :=
-    native "__import__('aeon.bindings.cuda', fromlist=['download_float64']).download_float64(buffer)"
+def download_float64
+    (1 buffer: (Buffer Float))
+    (1 continuation:
+        (1 values: {xs: (Array Float) | Array.size xs = buffer_size buffer}) ->
+        (1 next: {b: (Buffer Float) |
+            buffer_device b = buffer_device buffer &&
+            buffer_size b = buffer_size buffer}) ->
+        r) : r :=
+    native "continuation(__import__('aeon.bindings.cuda', fromlist=['download_float64']).download_float64(buffer))(buffer)"
 
 # Explicitly release a completed allocation or abandon pending work.
 def free (1 buffer: (Buffer a)) : Unit :=

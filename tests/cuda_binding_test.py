@@ -52,9 +52,13 @@ def test_i32_upload_add_download_and_lifecycle(cuda_module):
         pending = cuda_module.vector_add_i32(device, cuda_module.Launch1D(4, 4), left, right)
         output = pending.synchronize()
 
-        assert cuda_module.download_i32(output) == [5, 6, 0, 2**31 - 2]
-        with pytest.raises(cuda_module.CUDAStateError):
-            cuda_module.download_i32(output)
+        expected = [5, 6, 0, 2**31 - 2]
+        first = cuda_module.download_i32(output)
+        second = cuda_module.download_i32(output)
+        assert first == expected
+        assert second == expected
+        assert first is not second
+        assert not output._freed
         with pytest.raises(cuda_module.CUDAStateError):
             pending.synchronize()
 
@@ -63,9 +67,29 @@ def test_i32_upload_add_download_and_lifecycle(cuda_module):
         with pytest.raises(cuda_module.CUDAStateError):
             cuda_module.download_i32(left)
         assert right._freed
+
+        output.free()
+        with pytest.raises(cuda_module.CUDAStateError):
+            cuda_module.download_i32(output)
         output.free()
     finally:
         device.close()
+        device.close()
+
+
+def test_download_failure_releases_buffer(cuda_module):
+    device = _cuda_device_or_skip(cuda_module)
+    try:
+        buffer = cuda_module.upload_i32(device, [1])
+
+        def fail_copy(*args):
+            raise cuda_module.CUDAError("copy failed")
+
+        device._driver.cuMemcpyDtoH = fail_copy
+        with pytest.raises(cuda_module.CUDAError, match="copy failed"):
+            cuda_module.download_i32(buffer)
+        assert buffer._freed
+    finally:
         device.close()
 
 

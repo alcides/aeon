@@ -4,9 +4,12 @@ import Cuda;
 # Refined, linear CUDA lifecycle for Int vector addition.
 #
 # Host arrays and device resources are bound at multiplicity 1.  Each handle
-# is consumed exactly once by the next protocol step:
+# is consumed exactly once by the next protocol step.  Download produces a
+# fresh host snapshot and transfers ownership to a new Buffer binding, which
+# can be downloaded again or explicitly freed:
 #
-#   Array --upload--> Buffer --add--> Pending --synchronize--> Buffer --download--> Array
+#   Array --upload--> Buffer --add--> Pending --synchronize--> Buffer
+#                                                        --download--> Array + Buffer --free--> Unit
 #
 # The refinements prove at compile time that both inputs and the launch have
 # three items, share a device, and use a valid CUDA block size.  With a CUDA
@@ -20,7 +23,9 @@ def vector_add (u: Unit) : Int :=
     let 1 right := Cuda.upload_i32 d ys in
     let 1 pending := Cuda.add_i32 launch left right in
     let 1 ready := Cuda.synchronize pending in
-    let 1 result := Cuda.download_i32 ready in
-    Array.sum result;
+    Cuda.download_i32 ready (fun result => fun next =>
+        let total := Array.sum result in
+        let _ := Cuda.free next in
+        total);
 
 def main (args: Int) : Unit := print (vector_add unit);

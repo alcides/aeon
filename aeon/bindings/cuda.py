@@ -7,8 +7,10 @@ machines without an NVIDIA driver.
 
 The public objects model the lifetime used by ``Cuda.ae``: uploads produce a
 ready :class:`Buffer`, a kernel launch produces :class:`Pending`, and
-``synchronize`` turns that pending result into a ready buffer.  ``free`` and
-``discard`` are idempotent so error paths and finalizers can safely clean up.
+``synchronize`` turns that pending result into a ready buffer.  Downloads copy
+to fresh host arrays while preserving the ready buffer for subsequent downloads
+or an explicit ``free``.  ``free`` and ``discard`` are idempotent so error paths
+and finalizers can safely clean up.
 """
 
 from __future__ import annotations
@@ -574,11 +576,11 @@ def _download(buffer: Buffer, dtype: _DType) -> list[int] | list[float]:
     buffer._ensure_ready()
     if buffer.dtype != dtype:
         raise TypeError(f"expected a {dtype} CUDA buffer, got {buffer.dtype}")
-    typecode = "i" if dtype == "i32" else "d"
-    host = array.array(typecode, [0]) * buffer.length
-    with buffer.device._lock:
-        buffer.device._activate()
-        try:
+    try:
+        typecode = "i" if dtype == "i32" else "d"
+        host = array.array(typecode, [0]) * buffer.length
+        with buffer.device._lock:
+            buffer.device._activate()
             if host:
                 address, length = host.buffer_info()
                 buffer.device._driver.check(
@@ -587,11 +589,15 @@ def _download(buffer: Buffer, dtype: _DType) -> list[int] | list[float]:
                     ),
                     "cuMemcpyDtoH",
                 )
-        finally:
-            # Download is an ownership-consuming operation in Cuda.ae.  Free on
-            # transfer failure too, so an exception cannot leak device memory.
-            buffer._free_from_device()
-    return host.tolist()
+        return host.tolist()
+    except BaseException:
+        # The Aeon continuation receives no successor buffer when download
+        # fails, so release the now-unreachable allocation if possible.
+        try:
+            buffer.free()
+        except Exception:
+            pass
+        raise
 
 
 def download_i32(buffer: Buffer) -> list[int]:

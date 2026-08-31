@@ -107,15 +107,17 @@ def lifecycle (u: Unit) : Int :=
     let 1 right := upload_i32 d ys in
     let 1 pending := add_i32 launch left right in
     let 1 ready := synchronize pending in
-    let 1 values := download_i32 ready in
-    Array.sum values;
+    download_i32 ready (fun values => fun next =>
+        let total := Array.sum values in
+        let _ := free next in
+        total);
 """
         + MAIN
     )
     assert _errors(source) == []
 
 
-def test_float64_lifecycle_and_terminal_operations_typecheck():
+def test_float64_lifecycle_and_explicit_terminal_operations_typecheck():
     source = (
         IMPORTS
         + f"""
@@ -128,10 +130,11 @@ def lifecycle (u: Unit) : Unit :=
     let 1 right := upload_float64 d ys in
     let 1 pending := add_float64 launch left right in
     let 1 ready := synchronize pending in
-    let 1 values := download_float64 ready in
-    let _ := Array.length values in
-    let 1 spare := upload_i32 d ({_int_array((7,))}) in
-    free spare;
+    download_float64 ready (fun values => fun next =>
+        let _ := Array.length values in
+        let _ := free next in
+        let 1 spare := upload_i32 d ({_int_array((7,))}) in
+        free spare);
 
 def abandon (u: Unit) : Unit :=
     let d := default_device u in
@@ -224,6 +227,76 @@ def stale (d: Device) : Unit :=
     assert any(isinstance(error, LinearUsedTooManyTimesError) for error in _linearity_errors(source))
 
 
+def test_download_can_thread_ownership_more_than_once():
+    source = (
+        IMPORTS
+        + f"""
+def repeated (d: Device) : Int :=
+    let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
+    download_i32 ready0 (fun values0 => fun ready1 =>
+        let first := Array.sum values0 in
+        download_i32 ready1 (fun values1 => fun ready2 =>
+            let second := Array.sum values1 in
+            let _ := free ready2 in
+            first + second));
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
+def test_download_preserves_size_and_device_refinements():
+    source = (
+        IMPORTS
+        + f"""
+def preserved (u: Unit) : Int :=
+    let d := default_device u in
+    let launch := launch_1d d 3 1 in
+    let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
+    download_i32 ready0 (fun values0 => fun ready1 =>
+        let total0 := Array.sum values0 in
+        let 1 other := upload_i32 d ({_int_array((4, 5, 6))}) in
+        let 1 pending := add_i32 launch ready1 other in
+        let 1 ready2 := synchronize pending in
+        download_i32 ready2 (fun values1 => fun ready3 =>
+            let result := Array.sum values1 in
+            let _ := free ready3 in
+            result));
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
+def test_download_callback_must_consume_successor_buffer():
+    source = (
+        IMPORTS
+        + f"""
+def leak_successor (d: Device) : Int :=
+    let 1 ready := upload_i32 d ({_int_array((1,))}) in
+    download_i32 ready (fun values => fun next => Array.sum values);
+"""
+        + MAIN
+    )
+    assert any(isinstance(error, LinearUnusedError) for error in _linearity_errors(source))
+
+
+def test_download_consumes_outer_buffer_handle():
+    source = (
+        IMPORTS
+        + f"""
+def stale (d: Device) : Unit :=
+    let 1 ready := upload_i32 d ({_int_array((1,))}) in
+    download_i32 ready (fun values => fun next =>
+        let _ := Array.sum values in
+        let _ := free next in
+        free ready);
+"""
+        + MAIN
+    )
+    assert any(isinstance(error, LinearUsedTooManyTimesError) for error in _linearity_errors(source))
+
+
 def test_pending_cannot_be_downloaded_before_synchronize():
     source = (
         IMPORTS
@@ -233,8 +306,10 @@ def premature (d: Device) : Int :=
     let 1 left := upload_i32 d ({_int_array((1,))}) in
     let 1 right := upload_i32 d ({_int_array((2,))}) in
     let 1 pending := add_i32 launch left right in
-    let 1 values := download_i32 pending in
-    Array.sum values;
+    download_i32 pending (fun values => fun next =>
+        let total := Array.sum values in
+        let _ := free next in
+        total);
 """
         + MAIN
     )
