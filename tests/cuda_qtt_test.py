@@ -89,7 +89,7 @@ def test_open_cuda_exposes_descriptors_and_launch_measures():
         + """
 def descriptors (d: Device) (l: Launch1D) : Int :=
     device_id d + max_threads_per_block d + num_devices unit
-    + launch_items l + launch_device l + launch_threads l;
+    + launch_items l + launch_device l + launch_threads l + launch_grid_size l;
 """
         + MAIN
     )
@@ -99,6 +99,20 @@ def descriptors (d: Device) (l: Launch1D) : Int :=
 # ---------------------------------------------------------------------------
 # Legal protocols
 # ---------------------------------------------------------------------------
+
+
+def test_launch_grid_covers_items_at_compile_time():
+    source = (
+        IMPORTS
+        + """
+def covered (u: Unit) : Int :=
+    let d := default_device u in
+    let launch := launch_1d d 33 1 in
+    launch_grid_size launch * launch_threads launch;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
 
 
 def test_i32_upload_add_synchronize_download_lifecycle_typechecks():

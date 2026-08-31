@@ -519,6 +519,10 @@ def launch_threads(launch: Launch1D | tuple[Launch1D, Device]) -> int:
     return launch[0].block_size if isinstance(launch, tuple) else launch.block_size
 
 
+def launch_grid_size(launch: Launch1D | tuple[Launch1D, Device]) -> int:
+    return launch[0].grid_size if isinstance(launch, tuple) else launch.grid_size
+
+
 def buffer_device(buffer: Buffer) -> int:
     return buffer.device.ordinal
 
@@ -783,6 +787,7 @@ def _compile_vector_add_ptx(compute_capability: tuple[int, int]) -> str:
 Cuda_device = device
 Cuda_num_devices = num_devices
 Cuda_launch_1d = launch_1d
+Cuda_launch_grid_size = launch_grid_size
 Cuda_upload_i32 = upload_i32
 Cuda_upload_float64 = upload_float64
 Cuda_download_i32 = download_i32

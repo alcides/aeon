@@ -33,8 +33,10 @@ def test_num_devices_reports_available_hardware(cuda_module):
 
 
 def test_launch_1d_validates_and_rounds_up(cuda_module):
-    assert cuda_module.Launch1D(1, 1).grid_size == 1
-    assert cuda_module.Launch1D(33, 32).grid_size == 2
+    launch = cuda_module.Launch1D(33, 32)
+    assert launch.grid_size == 2
+    assert cuda_module.launch_grid_size(launch) == 2
+    assert launch.grid_size * launch.block_size >= launch.size
 
     for size, block_size in ((0, 1), (-1, 1), (1, 0), (32, 33), (2048, 1025), (True, 1)):
         with pytest.raises(ValueError):
