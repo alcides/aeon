@@ -83,13 +83,27 @@ def test_num_devices_is_positive():
     assert _errors(source) == []
 
 
+def test_upload_respects_allocation_byte_bound():
+    source = (
+        IMPORTS
+        + f"""
+def bounded (d: Device) : Unit :=
+    let 1 xs := {_int_array((1, 2))} in
+    let 1 buffer := upload_i32 d xs in
+    free buffer;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
 def test_open_cuda_exposes_descriptors_and_launch_measures():
     source = (
         IMPORTS
         + """
 def descriptors (d: Device) (l: Launch1D) : Int :=
     device_id d + max_threads_per_block d + num_devices unit
-    + launch_items l + launch_device l + launch_threads l;
+    + launch_items l + launch_device l + launch_threads l + launch_grid_size l;
 """
         + MAIN
     )
@@ -101,22 +115,39 @@ def descriptors (d: Device) (l: Launch1D) : Int :=
 # ---------------------------------------------------------------------------
 
 
+def test_launch_grid_covers_items_at_compile_time():
+    source = (
+        IMPORTS
+        + """
+def covered (u: Unit) : Int :=
+    let d := default_device u in
+    let stream := default_stream d in
+    let launch := launch_1d d 33 1 in
+    launch_grid_size launch * launch_threads launch;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
 def test_i32_upload_add_synchronize_download_lifecycle_typechecks():
     source = (
         IMPORTS
         + f"""
 def lifecycle (u: Unit) : Int :=
     let d := default_device u in
+    let stream := default_stream d in
     let launch := launch_1d d 3 1 in
     let 1 xs := {_int_array((1, 2, 3))} in
     let 1 ys := {_int_array((10, 20, 30))} in
     let 1 left := upload_i32 d xs in
     let 1 right := upload_i32 d ys in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     let 1 ready := synchronize pending in
-    let downloaded := download_i32 ready in
-    let 1 values := download_values_i32 downloaded in
-    let 1 next := download_buffer_i32 downloaded in
+    let 1 downloaded := download_i32 ready in
+    let pair := unpack_i32_download downloaded in
+    let 1 values := download_values_i32 pair in
+    let 1 next := download_buffer_i32 pair in
     let total := Array.sum values in
     let _ := free next in
     total;
@@ -132,16 +163,18 @@ def test_float64_lifecycle_and_explicit_terminal_operations_typecheck():
         + f"""
 def lifecycle (u: Unit) : Unit :=
     let d := default_device u in
+    let stream := default_stream d in
     let launch := launch_1d d 2 1 in
     let 1 xs := {_float_array((1.5, 2.5))} in
     let 1 ys := {_float_array((3.5, 4.5))} in
     let 1 left := upload_float64 d xs in
     let 1 right := upload_float64 d ys in
-    let 1 pending := add_float64 launch left right in
+    let 1 pending := add_float64 launch stream left right in
     let 1 ready := synchronize pending in
-    let downloaded := download_float64 ready in
-    let 1 values := download_values_float64 downloaded in
-    let 1 next := download_buffer_float64 downloaded in
+    let 1 downloaded := download_float64 ready in
+    let pair := unpack_float64_download downloaded in
+    let 1 values := download_values_float64 pair in
+    let 1 next := download_buffer_float64 pair in
     let _ := Array.length values in
     let _ := free next in
     let 1 spare := upload_i32 d ({_int_array((7,))}) in
@@ -149,10 +182,11 @@ def lifecycle (u: Unit) : Unit :=
 
 def abandon (u: Unit) : Unit :=
     let d := default_device u in
+    let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
     let 1 right := upload_i32 d ({_int_array((2,))}) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     discard pending;
 """
         + MAIN
@@ -183,10 +217,11 @@ def test_leaked_pending_is_rejected():
         IMPORTS
         + f"""
 def leak (d: Device) : Int :=
+    let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
     let 1 right := upload_i32 d ({_int_array((2,))}) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     0;
 """
         + MAIN
@@ -226,10 +261,11 @@ def test_stale_input_handle_after_launch_is_rejected():
         IMPORTS
         + f"""
 def stale (d: Device) : Unit :=
+    let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
     let 1 right := upload_i32 d ({_int_array((2,))}) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     let _ := discard pending in
     free left;
 """
@@ -243,13 +279,16 @@ def test_download_can_be_repeated_without_nesting():
         IMPORTS
         + f"""
 def repeated (d: Device) : Int :=
+    let stream := default_stream d in
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
-    let downloaded0 := download_i32 ready0 in
-    let 1 values0 := download_values_i32 downloaded0 in
-    let 1 ready1 := download_buffer_i32 downloaded0 in
-    let downloaded1 := download_i32 ready1 in
-    let 1 values1 := download_values_i32 downloaded1 in
-    let 1 ready2 := download_buffer_i32 downloaded1 in
+    let 1 downloaded0 := download_i32 ready0 in
+    let pair0 := unpack_i32_download downloaded0 in
+    let 1 values0 := download_values_i32 pair0 in
+    let 1 ready1 := download_buffer_i32 pair0 in
+    let 1 downloaded1 := download_i32 ready1 in
+    let pair1 := unpack_i32_download downloaded1 in
+    let 1 values1 := download_values_i32 pair1 in
+    let 1 ready2 := download_buffer_i32 pair1 in
     let first := Array.sum values0 in
     let second := Array.sum values1 in
     let _ := free ready2 in
@@ -266,18 +305,21 @@ def test_download_preserves_size_and_device_refinements():
         + f"""
 def preserved (u: Unit) : Int :=
     let d := default_device u in
+    let stream := default_stream d in
     let launch := launch_1d d 3 1 in
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
-    let downloaded0 := download_i32 ready0 in
-    let 1 values0 := download_values_i32 downloaded0 in
-    let 1 ready1 := download_buffer_i32 downloaded0 in
+    let 1 downloaded0 := download_i32 ready0 in
+    let pair0 := unpack_i32_download downloaded0 in
+    let 1 values0 := download_values_i32 pair0 in
+    let 1 ready1 := download_buffer_i32 pair0 in
     let total0 := Array.sum values0 in
     let 1 other := upload_i32 d ({_int_array((4, 5, 6))}) in
-    let 1 pending := add_i32 launch ready1 other in
+    let 1 pending := add_i32 launch stream ready1 other in
     let 1 ready2 := synchronize pending in
-    let downloaded1 := download_i32 ready2 in
-    let 1 values1 := download_values_i32 downloaded1 in
-    let 1 ready3 := download_buffer_i32 downloaded1 in
+    let 1 downloaded1 := download_i32 ready2 in
+    let pair1 := unpack_i32_download downloaded1 in
+    let 1 values1 := download_values_i32 pair1 in
+    let 1 ready3 := download_buffer_i32 pair1 in
     let result := Array.sum values1 in
     let _ := free ready3 in
     result;
@@ -292,10 +334,12 @@ def test_download_result_must_free_recovered_buffer():
         IMPORTS
         + f"""
 def leak_successor (d: Device) : Int :=
+    let stream := default_stream d in
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
-    let downloaded := download_i32 ready in
-    let 1 values := download_values_i32 downloaded in
-    let 1 next := download_buffer_i32 downloaded in
+    let 1 downloaded := download_i32 ready in
+    let pair := unpack_i32_download downloaded in
+    let 1 values := download_values_i32 pair in
+    let 1 next := download_buffer_i32 pair in
     Array.sum values;
 """
         + MAIN
@@ -308,10 +352,12 @@ def test_download_consumes_outer_buffer_handle():
         IMPORTS
         + f"""
 def stale (d: Device) : Unit :=
+    let stream := default_stream d in
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
-    let downloaded := download_i32 ready in
-    let 1 values := download_values_i32 downloaded in
-    let 1 next := download_buffer_i32 downloaded in
+    let 1 downloaded := download_i32 ready in
+    let pair := unpack_i32_download downloaded in
+    let 1 values := download_values_i32 pair in
+    let 1 next := download_buffer_i32 pair in
     let _ := Array.sum values in
     let _ := free next in
     free ready;
@@ -326,10 +372,11 @@ def test_pending_cannot_be_downloaded_before_synchronize():
         IMPORTS
         + f"""
 def premature (d: Device) : Int :=
+    let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
     let 1 right := upload_i32 d ({_int_array((2,))}) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     download_i32 pending;
 """
         + MAIN
@@ -390,10 +437,11 @@ def test_add_rejects_unequal_vector_lengths():
         IMPORTS
         + f"""
 def invalid (d: Device) : Unit :=
+    let stream := default_stream d in
     let launch := launch_1d d 2 2 in
     let 1 left := upload_i32 d ({_int_array((1, 2))}) in
     let 1 right := upload_i32 d ({_int_array((3,))}) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     discard pending;
 """
         + MAIN
@@ -406,10 +454,11 @@ def test_add_rejects_launch_item_count_different_from_buffer_size():
         IMPORTS
         + f"""
 def invalid (d: Device) : Unit :=
+    let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1, 2))}) in
     let 1 right := upload_i32 d ({_int_array((3, 4))}) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
     discard pending;
 """
         + MAIN
@@ -424,10 +473,28 @@ def test_add_rejects_cross_device_buffers():
 def invalid (u: Unit) : Unit :=
     let d0 := device 0 in
     let d1 := device 1 in
+    let stream := default_stream d0 in
     let launch := launch_1d d0 1 1 in
     let 1 left := upload_i32 d0 ({_int_array((1,))}) in
     let 1 right := upload_i32 d1 ({_int_array((2,))}) in
-    let 1 pending := add_i32 launch left right in
+    let 1 pending := add_i32 launch stream left right in
+    discard pending;
+"""
+        + MAIN
+    )
+    assert _errors(source) != []
+
+
+def test_add_rejects_mismatched_element_types():
+    source = (
+        IMPORTS
+        + f"""
+def invalid (d: Device) : Unit :=
+    let stream := default_stream d in
+    let launch := launch_1d d 1 1 in
+    let 1 left := upload_float64 d ({_float_array((1.0,))}) in
+    let 1 right := upload_float64 d ({_float_array((2.0,))}) in
+    let 1 pending := add_i32 launch stream left right in
     discard pending;
 """
         + MAIN

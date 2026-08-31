@@ -106,10 +106,18 @@ class _CudaDriver:
         self.cuDeviceGetAttribute = self._configure(
             self._symbol("cuDeviceGetAttribute"), [int_p, ctypes.c_int, ctypes.c_int]
         )
+        self.cuDeviceTotalMem = self._configure(
+            self._symbol("cuDeviceTotalMem_v2", "cuDeviceTotalMem"), [ctypes.POINTER(ctypes.c_size_t), ctypes.c_int]
+        )
         self.cuCtxCreate = self._configure(self._symbol("cuCtxCreate_v2", "cuCtxCreate"), [void_pp, uint, ctypes.c_int])
         self.cuCtxDestroy = self._configure(self._symbol("cuCtxDestroy_v2", "cuCtxDestroy"), [void_p])
         self.cuCtxSetCurrent = self._configure(self._symbol("cuCtxSetCurrent"), [void_p])
         self.cuCtxSynchronize = self._configure(self._symbol("cuCtxSynchronize"), [])
+        self.cuStreamCreate = self._configure(
+            self._symbol("cuStreamCreate"), [ctypes.POINTER(ctypes.c_void_p), uint]
+        )
+        self.cuStreamDestroy = self._configure(self._symbol("cuStreamDestroy"), [ctypes.c_void_p])
+        self.cuStreamSynchronize = self._configure(self._symbol("cuStreamSynchronize"), [ctypes.c_void_p])
         self.cuMemAlloc = self._configure(
             self._symbol("cuMemAlloc_v2", "cuMemAlloc"), [ctypes.POINTER(ctypes.c_uint64), size_t]
         )
@@ -213,6 +221,7 @@ class Device:
         self._closed = False
         self._buffers: weakref.WeakSet[Buffer] = weakref.WeakSet()
         self._pending: weakref.WeakSet[Pending] = weakref.WeakSet()
+        self._streams: weakref.WeakSet[Stream] = weakref.WeakSet()
         self._module: ctypes.c_void_p | None = None
         self._functions: dict[_DType, ctypes.c_void_p] = {}
         self._lock = threading.RLock()
@@ -233,6 +242,12 @@ class Device:
                 driver.cuDeviceGetAttribute(ctypes.byref(max_threads), 1, handle.value), "cuDeviceGetAttribute"
             )
             self.max_threads_per_block = max_threads.value
+            total_mem = ctypes.c_size_t()
+            driver.check(
+                driver.cuDeviceTotalMem(ctypes.byref(total_mem), handle.value),
+                "cuDeviceTotalMem",
+            )
+            self.max_allocation = total_mem.value
         except BaseException:
             try:
                 driver.cuCtxDestroy(context)
@@ -297,6 +312,11 @@ class Device:
                     pending._discard_after_device_sync()
                 except BaseException as exc:
                     error = error or exc
+            for stream in list(self._streams):
+                try:
+                    stream.close()
+                except BaseException as exc:
+                    error = error or exc
             for buffer in list(self._buffers):
                 try:
                     buffer._free_from_device()
@@ -351,6 +371,56 @@ class Launch1D:
     @property
     def grid_size(self) -> int:
         return math.ceil(self.size / self.block_size)
+
+
+class Stream:
+    """A CUDA stream owned by one device context."""
+
+    def __init__(self, device: Device, *, owned: bool, handle: int) -> None:
+        self.device = device
+        self._handle = handle
+        self._owned = owned
+        self._closed = False
+        device._streams.add(self)
+
+    @property
+    def stream_id(self) -> int:
+        return self._handle
+
+    def _ensure_open(self) -> None:
+        self.device._ensure_open()
+        if self._closed:
+            raise CUDAStateError("CUDA stream is closed")
+
+    def synchronize(self) -> None:
+        with self.device._lock:
+            self._ensure_open()
+            self.device._activate()
+            if self._handle:
+                self.device._driver.check(
+                    self.device._driver.cuStreamSynchronize(ctypes.c_void_p(self._handle)),
+                    "cuStreamSynchronize",
+                )
+            else:
+                self.device._driver.check(self.device._driver.cuCtxSynchronize(), "cuCtxSynchronize")
+
+    def close(self) -> None:
+        with self.device._lock:
+            if self._closed or not self._owned or not self._handle:
+                self._closed = True
+                return
+            self.device._activate()
+            self.device._driver.check(
+                self.device._driver.cuStreamDestroy(ctypes.c_void_p(self._handle)),
+                "cuStreamDestroy",
+            )
+            self._closed = True
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 class Buffer:
@@ -410,8 +480,9 @@ class Buffer:
 class Pending:
     """The not-yet-synchronized output of an asynchronous kernel launch."""
 
-    def __init__(self, output: Buffer, inputs: tuple[Buffer, ...]) -> None:
+    def __init__(self, output: Buffer, inputs: tuple[Buffer, ...], stream: Stream) -> None:
         self.device = output.device
+        self.stream = stream
         self._output: Buffer | None = output
         self._inputs = inputs
         self._consumed = False
@@ -419,6 +490,7 @@ class Pending:
 
     def _ensure_pending(self) -> Buffer:
         self.device._ensure_open()
+        self.stream._ensure_open()
         if self._consumed or self._output is None:
             raise CUDAStateError("CUDA pending result has already been consumed")
         return self._output
@@ -426,7 +498,7 @@ class Pending:
     def synchronize(self) -> Buffer:
         with self.device._lock:
             output = self._ensure_pending()
-            self.device.synchronize()
+            self.stream.synchronize()
             inputs = self._inputs
             self._consumed = True
             self._output = None
@@ -493,6 +565,30 @@ def num_devices() -> int:
     return count.value
 
 
+def default_stream(device_: Device) -> Stream:
+    return Stream(device_, owned=False, handle=0)
+
+
+def create_stream(device_: Device) -> Stream:
+    with device_._lock:
+        device_._activate()
+        stream = ctypes.c_void_p()
+        device_._driver.check(device_._driver.cuStreamCreate(ctypes.byref(stream), 0), "cuStreamCreate")
+    return Stream(device_, owned=True, handle=stream.value or 0)
+
+
+def stream_device(stream: Stream) -> int:
+    return stream.device.ordinal
+
+
+def stream_id(stream: Stream) -> int:
+    return stream.stream_id
+
+
+def pending_stream(pending: Pending) -> int:
+    return pending.stream.stream_id
+
+
 def launch_1d(size: int, block_size: int | None = None) -> Launch1D:
     return Launch1D(size, min(256, size) if block_size is None else block_size)
 
@@ -519,12 +615,28 @@ def launch_threads(launch: Launch1D | tuple[Launch1D, Device]) -> int:
     return launch[0].block_size if isinstance(launch, tuple) else launch.block_size
 
 
+def launch_grid_size(launch: Launch1D | tuple[Launch1D, Device]) -> int:
+    return launch[0].grid_size if isinstance(launch, tuple) else launch.grid_size
+
+
 def buffer_device(buffer: Buffer) -> int:
     return buffer.device.ordinal
 
 
 def buffer_size(buffer: Buffer) -> int:
     return buffer.length
+
+
+def buffer_elem_size(buffer: Buffer) -> int:
+    return _ITEM_SIZE[buffer.dtype]
+
+
+def buffer_bytes(buffer: Buffer) -> int:
+    return buffer.length * _ITEM_SIZE[buffer.dtype]
+
+
+def max_allocation(device_: Device) -> int:
+    return device_.max_allocation
 
 
 def pending_device(pending: Pending) -> int:
@@ -556,6 +668,10 @@ def _upload(device_: Device, values: Iterable[int] | Iterable[float], dtype: _DT
         device_._activate()
         pointer = ctypes.c_uint64()
         allocation_size = max(1, len(host)) * _ITEM_SIZE[dtype]
+        if allocation_size > device_.max_allocation:
+            raise ValueError(
+                f"allocation of {allocation_size} bytes exceeds device limit {device_.max_allocation}"
+            )
         device_._driver.check(
             device_._driver.cuMemAlloc(ctypes.byref(pointer), allocation_size),
             "cuMemAlloc",
@@ -638,7 +754,11 @@ def download_float64_result(buffer: Buffer) -> Float64Download:
     return Float64Download(download_float64(buffer), buffer)
 
 
-def _vector_add(device_: Device, launch: Launch1D, left: Buffer, right: Buffer, dtype: _DType) -> Pending:
+def _vector_add(
+    device_: Device, launch: Launch1D, left: Buffer, right: Buffer, dtype: _DType, stream: Stream
+) -> Pending:
+    if stream.device is not device_:
+        raise ValueError("CUDA stream must belong to the launch device")
     if launch.block_size > device_.max_threads_per_block:
         raise ValueError(f"block size {launch.block_size} exceeds device limit {device_.max_threads_per_block}")
     for operand in (left, right):
@@ -681,7 +801,7 @@ def _vector_add(device_: Device, launch: Launch1D, left: Buffer, right: Buffer, 
                         1,
                         1,
                         0,
-                        None,
+                        ctypes.c_void_p(stream.stream_id),
                         arguments,
                         None,
                     ),
@@ -690,15 +810,19 @@ def _vector_add(device_: Device, launch: Launch1D, left: Buffer, right: Buffer, 
         except BaseException:
             output.free()
             raise
-        return Pending(output, (left, right))
+        return Pending(output, (left, right), stream)
 
 
-def vector_add_i32(device_: Device, launch: Launch1D, left: Buffer, right: Buffer) -> Pending:
-    return _vector_add(device_, launch, left, right, "i32")
+def vector_add_i32(
+    device_: Device, launch: Launch1D, left: Buffer, right: Buffer, stream: Stream
+) -> Pending:
+    return _vector_add(device_, launch, left, right, "i32", stream)
 
 
-def vector_add_float64(device_: Device, launch: Launch1D, left: Buffer, right: Buffer) -> Pending:
-    return _vector_add(device_, launch, left, right, "float64")
+def vector_add_float64(
+    device_: Device, launch: Launch1D, left: Buffer, right: Buffer, stream: Stream
+) -> Pending:
+    return _vector_add(device_, launch, left, right, "float64", stream)
 
 
 def synchronize(pending: Pending) -> Buffer:
@@ -783,6 +907,7 @@ def _compile_vector_add_ptx(compute_capability: tuple[int, int]) -> str:
 Cuda_device = device
 Cuda_num_devices = num_devices
 Cuda_launch_1d = launch_1d
+Cuda_launch_grid_size = launch_grid_size
 Cuda_upload_i32 = upload_i32
 Cuda_upload_float64 = upload_float64
 Cuda_download_i32 = download_i32
