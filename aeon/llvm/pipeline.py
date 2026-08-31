@@ -59,8 +59,9 @@ class MultiBackendPipeline(LLVMPipeline):
         return "cpu"
 
     def compile(self, program: Term):
-        self._initialize_cuda_backend()
         discovered_targets = self._find_compilation_targets(program)
+        if any(self._get_target_for_function(target_id) == "cuda" for target_id in discovered_targets):
+            self._initialize_cuda_backend()
 
         for target_id, target_body in discovered_targets.items():
             target_name = self._get_target_for_function(target_id)

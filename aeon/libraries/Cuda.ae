@@ -1,0 +1,164 @@
+# Explicit CUDA device-buffer API.
+#
+# This module is separate from ``Gpu`` and is never imported implicitly by
+# ``@gpu``.  ``Buffer`` and ``Pending`` are linear resources: every uploaded or
+# computed allocation must eventually be freed, synchronized, or discarded
+# exactly once.  Downloads copy to a fresh host array and return a
+# ``DownloadResult`` pairing the snapshot with the preserved allocation.
+
+open Array
+
+# Immutable descriptors.  A launch belongs to one device and describes a
+# one-dimensional logical item count and CUDA block size.
+type Device
+type Launch1D
+
+# Device allocations and enqueued computations are uniquely owned.
+linear type Buffer a
+linear type Pending a
+
+# Host snapshot plus the live device allocation it was read from.
+type I32Download
+type Float64Download
+
+# Logical descriptor/resource measures.  Aeon's ``Float`` is represented by
+# this module explicitly as CUDA float64; it is never silently narrowed to
+# float32.
+def device_id : (d: Device) -> Int := uninterpreted
+def num_devices : (_: Unit) -> Int := uninterpreted
+def max_threads_per_block : (d: Device) -> Int := uninterpreted
+def launch_device : (launch: Launch1D) -> Int := uninterpreted
+def launch_items : (launch: Launch1D) -> Int := uninterpreted
+def launch_threads : (launch: Launch1D) -> Int := uninterpreted
+
+def buffer_device : (buffer: (Buffer a)) -> Int := uninterpreted
+def buffer_size : (buffer: (Buffer a)) -> Int := uninterpreted
+def pending_device : (pending: (Pending a)) -> Int := uninterpreted
+def pending_size : (pending: (Pending a)) -> Int := uninterpreted
+def i32_download_device : (p: I32Download) -> Int := uninterpreted
+def i32_download_size : (p: I32Download) -> Int := uninterpreted
+def float64_download_device : (p: Float64Download) -> Int := uninterpreted
+def float64_download_size : (p: Float64Download) -> Int := uninterpreted
+
+# Select an explicit CUDA device, or ask the runtime for its default device.
+def num_devices (_: Unit) :
+    {n: Int | n > 0} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['num_devices']).num_devices()"
+
+def device (id: {n: Int | n >= 0 && n < num_devices unit}) :
+    {d: Device | device_id d = id && max_threads_per_block d > 0} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['device']).device(id)"
+
+def default_device (_: Unit) :
+    {d: Device | device_id d >= 0 && max_threads_per_block d > 0} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['device']).device()"
+
+# Describe a non-empty one-dimensional launch.  A block cannot contain more
+# threads than logical items; the binding additionally enforces CUDA's
+# hardware-specific maximum block size.
+def launch_1d (device: Device)
+    (items: {n: Int | n > 0})
+    (threads: {n: Int | n > 0 && n <= items && n <= max_threads_per_block device}) :
+    {launch: Launch1D |
+        launch_device launch = device_id device &&
+        launch_items launch = items &&
+        launch_threads launch = threads} :=
+    native "(__import__('aeon.bindings.cuda', fromlist=['launch_1d']).launch_1d(items, threads), device)"
+
+# Upload non-empty host arrays.  Upload consumes the uniquely-owned host array
+# and returns a uniquely-owned device allocation of the same size.
+def upload_i32 (device: Device)
+    (1 values: {xs: (Array Int) | Array.size xs > 0}) :
+    {buffer: (Buffer Int) |
+        buffer_device buffer = device_id device &&
+        buffer_size buffer = Array.size values} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['upload_i32']).upload_i32(device, values)"
+
+def upload_float64 (device: Device)
+    (1 values: {xs: (Array Float) | Array.size xs > 0}) :
+    {buffer: (Buffer Float) |
+        buffer_device buffer = device_id device &&
+        buffer_size buffer = Array.size values} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['upload_float64']).upload_float64(device, values)"
+
+# Enqueue elementwise addition.  Both inputs must be non-empty, equally sized,
+# resident on the launch's device, and cover exactly the launch's item count.
+# The input allocations are consumed and ownership moves to ``Pending`` until
+# the caller synchronizes or discards it.
+def add_i32
+    (launch: Launch1D)
+    (1 left: {buffer: (Buffer Int) |
+        buffer_size buffer > 0 &&
+        buffer_device buffer = launch_device launch &&
+        buffer_size buffer = launch_items launch})
+    (1 right: {buffer: (Buffer Int) |
+        buffer_size buffer = buffer_size left &&
+        buffer_device buffer = buffer_device left}) :
+    {pending: (Pending Int) |
+        pending_device pending = launch_device launch &&
+        pending_size pending = launch_items launch} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['vector_add_i32']).vector_add_i32(launch[1], launch[0], left, right)"
+
+def add_float64
+    (launch: Launch1D)
+    (1 left: {buffer: (Buffer Float) |
+        buffer_size buffer > 0 &&
+        buffer_device buffer = launch_device launch &&
+        buffer_size buffer = launch_items launch})
+    (1 right: {buffer: (Buffer Float) |
+        buffer_size buffer = buffer_size left &&
+        buffer_device buffer = buffer_device left}) :
+    {pending: (Pending Float) |
+        pending_device pending = launch_device launch &&
+        pending_size pending = launch_items launch} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['vector_add_float64']).vector_add_float64(launch[1], launch[0], left, right)"
+
+# Wait for an enqueued computation and recover its completed device buffer.
+def synchronize (1 pending: (Pending a)) :
+    {buffer: (Buffer a) |
+        buffer_device buffer = pending_device pending &&
+        buffer_size buffer = pending_size pending} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['synchronize']).synchronize(pending)"
+
+# Copy a completed allocation into a fresh host array while preserving the
+# device allocation.  The input buffer is consumed.  The returned host array
+# is linear like any other ``Array``; use ``download_buffer_*`` to recover the
+# live GPU allocation and eventually ``free`` it.
+def download_i32 (1 buffer: (Buffer Int)) :
+    {result: I32Download |
+        i32_download_device result = buffer_device buffer &&
+        i32_download_size result = buffer_size buffer} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['download_i32_result']).download_i32_result(buffer)"
+
+def download_float64 (1 buffer: (Buffer Float)) :
+    {result: Float64Download |
+        float64_download_device result = buffer_device buffer &&
+        float64_download_size result = buffer_size buffer} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['download_float64_result']).download_float64_result(buffer)"
+
+def download_values_i32 (p: I32Download) :
+    {xs: (Array Int) | Array.size xs = i32_download_size p} :=
+    native "p.values"
+
+def download_buffer_i32 (p: I32Download) :
+    {b: (Buffer Int) |
+        buffer_device b = i32_download_device p &&
+        buffer_size b = i32_download_size p} :=
+    native "p.buffer"
+
+def download_values_float64 (p: Float64Download) :
+    {xs: (Array Float) | Array.size xs = float64_download_size p} :=
+    native "p.values"
+
+def download_buffer_float64 (p: Float64Download) :
+    {b: (Buffer Float) |
+        buffer_device b = float64_download_device p &&
+        buffer_size b = float64_download_size p} :=
+    native "p.buffer"
+
+# Explicitly release a completed allocation or abandon pending work.
+def free (1 buffer: (Buffer a)) : Unit :=
+    native "__import__('aeon.bindings.cuda', fromlist=['free']).free(buffer)"
+
+def discard (1 pending: (Pending a)) : Unit :=
+    native "__import__('aeon.bindings.cuda', fromlist=['discard']).discard(pending)"
