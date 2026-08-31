@@ -92,7 +92,8 @@ def upload_i32 (device: Device)
     {buffer: (ReadyBuffer Int) |
         buffer_device buffer = device_id device &&
         buffer_size buffer = Array.size values &&
-        buffer_bytes buffer = buffer_size buffer * 4 &&
+        buffer_elem_size buffer = 4 &&
+        buffer_bytes buffer = buffer_size buffer * buffer_elem_size buffer &&
         buffer_bytes buffer <= max_allocation device} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_i32']).upload_i32(device, values)"
 
@@ -101,7 +102,8 @@ def upload_float64 (device: Device)
     {buffer: (ReadyBuffer Float) |
         buffer_device buffer = device_id device &&
         buffer_size buffer = Array.size values &&
-        buffer_bytes buffer = buffer_size buffer * 8 &&
+        buffer_elem_size buffer = 8 &&
+        buffer_bytes buffer = buffer_size buffer * buffer_elem_size buffer &&
         buffer_bytes buffer <= max_allocation device} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_float64']).upload_float64(device, values)"
 
@@ -114,11 +116,13 @@ def add_i32
     (stream: {s: Stream | stream_device s = launch_device launch})
     (1 left: {buffer: (ReadyBuffer Int) |
         buffer_size buffer > 0 &&
+        buffer_elem_size buffer = 4 &&
         buffer_device buffer = launch_device launch &&
         buffer_size buffer = launch_items launch &&
         launch_grid_size launch * launch_threads launch >= buffer_size buffer})
     (1 right: {buffer: (ReadyBuffer Int) |
         buffer_size buffer = buffer_size left &&
+        buffer_elem_size buffer = buffer_elem_size left &&
         buffer_device buffer = buffer_device left}) :
     {pending: (Pending Int) |
         pending_device pending = launch_device launch &&
@@ -131,11 +135,13 @@ def add_float64
     (stream: {s: Stream | stream_device s = launch_device launch})
     (1 left: {buffer: (ReadyBuffer Float) |
         buffer_size buffer > 0 &&
+        buffer_elem_size buffer = 8 &&
         buffer_device buffer = launch_device launch &&
         buffer_size buffer = launch_items launch &&
         launch_grid_size launch * launch_threads launch >= buffer_size buffer})
     (1 right: {buffer: (ReadyBuffer Float) |
         buffer_size buffer = buffer_size left &&
+        buffer_elem_size buffer = buffer_elem_size left &&
         buffer_device buffer = buffer_device left}) :
     {pending: (Pending Float) |
         pending_device pending = launch_device launch &&
@@ -147,7 +153,8 @@ def add_float64
 def synchronize (1 pending: (Pending a)) :
     {buffer: (ReadyBuffer a) |
         buffer_device buffer = pending_device pending &&
-        buffer_size buffer = pending_size pending} :=
+        buffer_size buffer = pending_size pending &&
+        buffer_bytes buffer = buffer_size buffer * buffer_elem_size buffer} :=
     native "__import__('aeon.bindings.cuda', fromlist=['synchronize']).synchronize(pending)"
 
 # Copy a completed allocation into a fresh host array while preserving the
@@ -185,7 +192,9 @@ def download_values_i32 (p: I32DownloadPair) :
 def download_buffer_i32 (p: I32DownloadPair) :
     {b: (ReadyBuffer Int) |
         buffer_device b = i32_download_pair_device p &&
-        buffer_size b = i32_download_pair_size p} :=
+        buffer_size b = i32_download_pair_size p &&
+        buffer_elem_size b = 4 &&
+        buffer_bytes b = buffer_size b * buffer_elem_size b} :=
     native "p[1]"
 
 def download_values_float64 (p: Float64DownloadPair) :
@@ -195,7 +204,9 @@ def download_values_float64 (p: Float64DownloadPair) :
 def download_buffer_float64 (p: Float64DownloadPair) :
     {b: (ReadyBuffer Float) |
         buffer_device b = float64_download_pair_device p &&
-        buffer_size b = float64_download_pair_size p} :=
+        buffer_size b = float64_download_pair_size p &&
+        buffer_elem_size b = 8 &&
+        buffer_bytes b = buffer_size b * buffer_elem_size b} :=
     native "p[1]"
 
 # Explicitly release a completed allocation or abandon pending work.
