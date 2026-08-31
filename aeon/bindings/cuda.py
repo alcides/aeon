@@ -113,9 +113,7 @@ class _CudaDriver:
         self.cuCtxDestroy = self._configure(self._symbol("cuCtxDestroy_v2", "cuCtxDestroy"), [void_p])
         self.cuCtxSetCurrent = self._configure(self._symbol("cuCtxSetCurrent"), [void_p])
         self.cuCtxSynchronize = self._configure(self._symbol("cuCtxSynchronize"), [])
-        self.cuStreamCreate = self._configure(
-            self._symbol("cuStreamCreate"), [ctypes.POINTER(ctypes.c_void_p), uint]
-        )
+        self.cuStreamCreate = self._configure(self._symbol("cuStreamCreate"), [ctypes.POINTER(ctypes.c_void_p), uint])
         self.cuStreamDestroy = self._configure(self._symbol("cuStreamDestroy"), [ctypes.c_void_p])
         self.cuStreamSynchronize = self._configure(self._symbol("cuStreamSynchronize"), [ctypes.c_void_p])
         self.cuMemAlloc = self._configure(
@@ -669,9 +667,7 @@ def _upload(device_: Device, values: Iterable[int] | Iterable[float], dtype: _DT
         pointer = ctypes.c_uint64()
         allocation_size = max(1, len(host)) * _ITEM_SIZE[dtype]
         if allocation_size > device_.max_allocation:
-            raise ValueError(
-                f"allocation of {allocation_size} bytes exceeds device limit {device_.max_allocation}"
-            )
+            raise ValueError(f"allocation of {allocation_size} bytes exceeds device limit {device_.max_allocation}")
         device_._driver.check(
             device_._driver.cuMemAlloc(ctypes.byref(pointer), allocation_size),
             "cuMemAlloc",
@@ -813,15 +809,11 @@ def _vector_add(
         return Pending(output, (left, right), stream)
 
 
-def vector_add_i32(
-    device_: Device, launch: Launch1D, left: Buffer, right: Buffer, stream: Stream
-) -> Pending:
+def vector_add_i32(device_: Device, launch: Launch1D, left: Buffer, right: Buffer, stream: Stream) -> Pending:
     return _vector_add(device_, launch, left, right, "i32", stream)
 
 
-def vector_add_float64(
-    device_: Device, launch: Launch1D, left: Buffer, right: Buffer, stream: Stream
-) -> Pending:
+def vector_add_float64(device_: Device, launch: Launch1D, left: Buffer, right: Buffer, stream: Stream) -> Pending:
     return _vector_add(device_, launch, left, right, "float64", stream)
 
 

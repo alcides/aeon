@@ -148,9 +148,7 @@ def test_rejects_mismatched_buffers_without_allocating_output(cuda_module):
                 device, cuda_module.launch_1d(2), ints, floats, cuda_module.default_stream(device)
             )
         with pytest.raises(ValueError):
-            cuda_module.vector_add_i32(
-                device, cuda_module.launch_1d(1), ints, ints, cuda_module.default_stream(device)
-            )
+            cuda_module.vector_add_i32(device, cuda_module.launch_1d(1), ints, ints, cuda_module.default_stream(device))
         ints.free()
         floats.free()
     finally:
