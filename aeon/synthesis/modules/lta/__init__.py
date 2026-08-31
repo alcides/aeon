@@ -11,6 +11,6 @@ semantic (entailment, ⊨) atomic predicates over positions.
 This module exposes the LTASynthesizer backend, registered as the "lta" synthesizer.
 """
 
-from aeon.synthesis.modules.lta.synthesizer import LTASynthesizer
+from aeon.synthesis.modules.lta.synthesizer import LTASynthesizer as LTASynthesizer
 
-__all__ = ["LTASynthesizer"]
+__all__: list[str] = []
