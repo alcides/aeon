@@ -1,7 +1,7 @@
 # Explicit CUDA device-buffer API.
 #
 # This module is separate from ``Gpu`` and is never imported implicitly by
-# ``@gpu``.  ``Buffer`` and ``Pending`` are linear resources: every uploaded or
+# ``@gpu``.  ``ReadyBuffer`` and ``Pending`` are linear resources: every uploaded or
 # computed allocation must eventually be freed, synchronized, or discarded
 # exactly once.  Downloads copy to a fresh host array and return a
 # ``DownloadResult`` pairing the snapshot with the preserved allocation.
@@ -13,8 +13,9 @@ open Array
 type Device
 type Launch1D
 
-# Device allocations and enqueued computations are uniquely owned.
-linear type Buffer a
+# Device allocations that are ready for download or kernel input.  In-flight
+# results live in ``Pending`` until ``synchronize`` promotes them.
+linear type ReadyBuffer a
 linear type Pending a
 
 # Host snapshot plus the live device allocation it was read from.
@@ -32,8 +33,8 @@ def launch_items : (launch: Launch1D) -> Int := uninterpreted
 def launch_threads : (launch: Launch1D) -> Int := uninterpreted
 def launch_grid_size : (launch: Launch1D) -> Int := uninterpreted
 
-def buffer_device : (buffer: (Buffer a)) -> Int := uninterpreted
-def buffer_size : (buffer: (Buffer a)) -> Int := uninterpreted
+def buffer_device : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+def buffer_size : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
 def pending_device : (pending: (Pending a)) -> Int := uninterpreted
 def pending_size : (pending: (Pending a)) -> Int := uninterpreted
 def i32_download_device : (p: I32Download) -> Int := uninterpreted
@@ -71,14 +72,14 @@ def launch_1d (device: Device)
 # and returns a uniquely-owned device allocation of the same size.
 def upload_i32 (device: Device)
     (1 values: {xs: (Array Int) | Array.size xs > 0}) :
-    {buffer: (Buffer Int) |
+    {buffer: (ReadyBuffer Int) |
         buffer_device buffer = device_id device &&
         buffer_size buffer = Array.size values} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_i32']).upload_i32(device, values)"
 
 def upload_float64 (device: Device)
     (1 values: {xs: (Array Float) | Array.size xs > 0}) :
-    {buffer: (Buffer Float) |
+    {buffer: (ReadyBuffer Float) |
         buffer_device buffer = device_id device &&
         buffer_size buffer = Array.size values} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_float64']).upload_float64(device, values)"
@@ -89,12 +90,12 @@ def upload_float64 (device: Device)
 # the caller synchronizes or discards it.
 def add_i32
     (launch: Launch1D)
-    (1 left: {buffer: (Buffer Int) |
+    (1 left: {buffer: (ReadyBuffer Int) |
         buffer_size buffer > 0 &&
         buffer_device buffer = launch_device launch &&
         buffer_size buffer = launch_items launch &&
         launch_grid_size launch * launch_threads launch >= buffer_size buffer})
-    (1 right: {buffer: (Buffer Int) |
+    (1 right: {buffer: (ReadyBuffer Int) |
         buffer_size buffer = buffer_size left &&
         buffer_device buffer = buffer_device left}) :
     {pending: (Pending Int) |
@@ -104,12 +105,12 @@ def add_i32
 
 def add_float64
     (launch: Launch1D)
-    (1 left: {buffer: (Buffer Float) |
+    (1 left: {buffer: (ReadyBuffer Float) |
         buffer_size buffer > 0 &&
         buffer_device buffer = launch_device launch &&
         buffer_size buffer = launch_items launch &&
         launch_grid_size launch * launch_threads launch >= buffer_size buffer})
-    (1 right: {buffer: (Buffer Float) |
+    (1 right: {buffer: (ReadyBuffer Float) |
         buffer_size buffer = buffer_size left &&
         buffer_device buffer = buffer_device left}) :
     {pending: (Pending Float) |
@@ -119,7 +120,7 @@ def add_float64
 
 # Wait for an enqueued computation and recover its completed device buffer.
 def synchronize (1 pending: (Pending a)) :
-    {buffer: (Buffer a) |
+    {buffer: (ReadyBuffer a) |
         buffer_device buffer = pending_device pending &&
         buffer_size buffer = pending_size pending} :=
     native "__import__('aeon.bindings.cuda', fromlist=['synchronize']).synchronize(pending)"
@@ -128,13 +129,13 @@ def synchronize (1 pending: (Pending a)) :
 # device allocation.  The input buffer is consumed.  The returned host array
 # is linear like any other ``Array``; use ``download_buffer_*`` to recover the
 # live GPU allocation and eventually ``free`` it.
-def download_i32 (1 buffer: (Buffer Int)) :
+def download_i32 (1 buffer: (ReadyBuffer Int)) :
     {result: I32Download |
         i32_download_device result = buffer_device buffer &&
         i32_download_size result = buffer_size buffer} :=
     native "__import__('aeon.bindings.cuda', fromlist=['download_i32_result']).download_i32_result(buffer)"
 
-def download_float64 (1 buffer: (Buffer Float)) :
+def download_float64 (1 buffer: (ReadyBuffer Float)) :
     {result: Float64Download |
         float64_download_device result = buffer_device buffer &&
         float64_download_size result = buffer_size buffer} :=
@@ -145,7 +146,7 @@ def download_values_i32 (p: I32Download) :
     native "p.values"
 
 def download_buffer_i32 (p: I32Download) :
-    {b: (Buffer Int) |
+    {b: (ReadyBuffer Int) |
         buffer_device b = i32_download_device p &&
         buffer_size b = i32_download_size p} :=
     native "p.buffer"
@@ -155,13 +156,13 @@ def download_values_float64 (p: Float64Download) :
     native "p.values"
 
 def download_buffer_float64 (p: Float64Download) :
-    {b: (Buffer Float) |
+    {b: (ReadyBuffer Float) |
         buffer_device b = float64_download_device p &&
         buffer_size b = float64_download_size p} :=
     native "p.buffer"
 
 # Explicitly release a completed allocation or abandon pending work.
-def free (1 buffer: (Buffer a)) : Unit :=
+def free (1 buffer: (ReadyBuffer a)) : Unit :=
     native "__import__('aeon.bindings.cuda', fromlist=['free']).free(buffer)"
 
 def discard (1 pending: (Pending a)) : Unit :=
