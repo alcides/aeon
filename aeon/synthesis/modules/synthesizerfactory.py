@@ -60,6 +60,8 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tdsyn": "Type-directed synthesis (BFS)",
     "tdsyn_enumerative": "Type-directed synthesis (BFS)",
     "tdsyn_random": "Type-directed synthesis (Random Walk)",
+    "tdsyn_backward": "Type-directed synthesis (Backward only)",
+    "tdsyn_forward": "Type-directed synthesis (Forward only)",
     "synquid": "Synquid enumeration (Q-guided)",
     "tactics": "Tactic search (random)",
     "decision_tree": "Decision tree regression (from examples)",
@@ -98,6 +100,8 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "tdsyn": SynthesizerFamily.TYPE_DIRECTED,
     "tdsyn_enumerative": SynthesizerFamily.TYPE_DIRECTED,
     "tdsyn_random": SynthesizerFamily.TYPE_DIRECTED,
+    "tdsyn_backward": SynthesizerFamily.TYPE_DIRECTED,
+    "tdsyn_forward": SynthesizerFamily.TYPE_DIRECTED,
     "synquid": SynthesizerFamily.TYPE_DIRECTED,
     "tactics": SynthesizerFamily.TYPE_DIRECTED,
     # Example-driven — learn from @example / @csv_data I/O.
@@ -161,6 +165,8 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "tdsyn",
         "tdsyn_enumerative",
         "tdsyn_random",
+        "tdsyn_backward",
+        "tdsyn_forward",
         "tactics",
         "lta",
         "symetric",
@@ -256,6 +262,10 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return TDSynSynthesizer(mode="enumerative", seed=seed)
         case "tdsyn_random":
             return TDSynSynthesizer(mode="random", seed=seed)
+        case "tdsyn_backward":
+            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="backward")
+        case "tdsyn_forward":
+            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="forward")
         case "tactics":
             return TacticRandomSynthesizer(seed=seed)
         case "lta":

@@ -69,17 +69,32 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
 class TDSynSynthesizer(Synthesizer):
     """Type-directed synthesizer using backward and forward actions with SMT-based subtyping.
 
-    Supports both enumerative (BFS) and random exploration modes.
+    Supports both enumerative (BFS) and random exploration modes, and can be
+    restricted to a single expansion direction: ``backward`` grows terms from
+    the hole's expected type, ``forward`` grows terms from the variables in
+    scope, and ``both`` (the default) combines the two.
     Loops until the time budget is exhausted, restarting with shuffled expansion
     order on each iteration to explore different term structures.
     """
 
-    def __init__(self, mode: str = "enumerative", seed: int = 0):
+    def __init__(self, mode: str = "enumerative", seed: int = 0, direction: str = "both"):
         assert mode in ("enumerative", "random")
+        assert direction in ("both", "backward", "forward")
         self.mode = mode
         self.seed = seed
+        self.direction = direction
         self._rng = random.Random(seed)
         self._iteration = 0
+
+    def _action_fns(self) -> list[Callable]:
+        """The candidate-generating actions enabled for this synthesizer's direction."""
+        match self.direction:
+            case "backward":
+                return [backward_candidates]
+            case "forward":
+                return [forward_candidates]
+            case _:
+                return [backward_candidates, forward_candidates]
 
     def synthesize(
         self,
@@ -189,10 +204,10 @@ class TDSynSynthesizer(Synthesizer):
         hole: TypedHole,
         skip: Callable[[Name], bool],
     ) -> list[PartialAST]:
-        """Expand a single hole using backward and forward actions."""
+        """Expand a single hole using the enabled backward/forward actions."""
         results: list[PartialAST] = []
 
-        for action_fn in [backward_candidates, forward_candidates]:
+        for action_fn in self._action_fns():
             try:
                 candidates = action_fn(hole, skip)
             except Exception as e:

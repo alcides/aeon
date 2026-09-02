@@ -143,7 +143,9 @@ def _parse_common_arguments(parser: ArgumentParser):
         default="tdsyn_enumerative",
         help=(
             "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
-            "tdsyn_random (type-directed random walk), tactics (random tactic search), gp, synquid, "
+            "tdsyn_random (type-directed random walk), "
+            "tdsyn_backward (type-directed, backward action only), tdsyn_forward (type-directed, forward action only), "
+            "tactics (random tactic search), gp, synquid, "
             "random_search, enumerative (grammar enumeration), hc, 1p1, smt, "
             "sygus (reduce to SyGuS and solve with cvc5), decision_tree, llm (Ollama, default qwen2.5-coder:32b), "
             "llm_<model> (per-model Ollama backends, e.g. llm_qwen2.5-coder-14b), "
