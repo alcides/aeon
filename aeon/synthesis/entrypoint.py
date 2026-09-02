@@ -42,6 +42,7 @@ from aeon.synthesis.api import (
     TimeoutInEvaluationException,
 )
 from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool, set_program_tail
+from aeon.synthesis.fitness_eval import candidate_key, make_bundled_fitness_evaluator
 from aeon.synthesis.modules.contata.cosynthesis import (
     _cosynthesize_group,
     _joint_accepts,  # noqa: F401  — re-exported for tests/external callers.
@@ -322,9 +323,20 @@ def _synthesize_one(
         goals.extend(Goal(minimize=True, length=1, function=corpus.spec.name, kind="property") for corpus in corpora)
         entry["goals"] = goals
         synthesis_metadata[fun_name] = entry
-        property_evaluators = [make_property_fitness(corpus, _ectx_for_workers(ectx)) for corpus in corpora]
+        property_evaluators = [
+            make_property_fitness(corpus, _ectx_for_workers(ectx), target=fun_name) for corpus in corpora
+        ]
 
     evaluators = make_evaluators(ectx, fun_name, synthesis_metadata, property_evaluators)
+    dummy_prog = replace(_synthesis_dummy_literal(ty))
+    fitness_goals: list[Goal] = synthesis_metadata.get(fun_name, {}).get("goals", [])
+    bundled_fitness = make_bundled_fitness_evaluator(
+        fitness_goals,
+        _ectx_for_workers(ectx),
+        fun_name,
+        dummy_prog,
+        property_evaluators if corpora else None,
+    )
     assert isinstance(tyctx, TypingContext)
     assert isinstance(ty, Type)
     tac_map = synthesis_metadata.get(fun_name, {}).get("tactic_scripts")
@@ -345,7 +357,13 @@ def _synthesize_one(
     # featuriser `f` (e.g. a rasterised scene), else the output is the
     # candidate's own value.
     feature_fun = _cluster_function(synthesis_metadata, fun_name) or fun_name
-    primitives = EvalPrimitives(evaluators, _ectx_for_workers(ectx), feature_fun, replace)
+    primitives = EvalPrimitives(
+        evaluators,
+        _ectx_for_workers(ectx),
+        feature_fun,
+        replace,
+        bundled_fitness=bundled_fitness,
+    )
     pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
     evaluator, output_evaluator = _pool_backed(pool)
 
@@ -364,7 +382,7 @@ def _synthesize_one(
         # and blocks on the interactive prompt. The dummy body is irrelevant:
         # the sub-terms we probe are built from the DSL components and the
         # parameters, not from the function under synthesis.
-        _dummy_prog = replace(_synthesis_dummy_literal(ty))
+        _dummy_prog = dummy_prog
         # Build the evaluation environment (all in-scope DSL bindings) ONCE,
         # rather than re-evaluating the whole def-chain for every probed
         # sub-term. Each binding is bound by evaluating it with its own name
@@ -525,10 +543,10 @@ def _pool_backed(pool: EvaluationPool) -> tuple[Callable[[Term], list[float]], C
     ``output_value`` the ``output`` one. Each candidate is run once (all its
     computations together) and the results cached, so the two callables share
     that single round-trip."""
-    cache: dict[str, dict[str, tuple[str, Any]]] = {}
+    cache: dict[int, dict[str, tuple[str, Any]]] = {}
 
     def results(term: Term) -> dict[str, tuple[str, Any]]:
-        key = str(term)
+        key = candidate_key(term)
         if key not in cache:
             cache[key] = pool.run(term)
         return cache[key]

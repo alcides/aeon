@@ -465,15 +465,34 @@ def property_corpora_for_target(
     return corpora
 
 
-def make_property_fitness(corpus: PropertyCorpus, evaluation_ctx: EvaluationContext) -> Callable[[Term], float]:
-    """Return a failure-count evaluator over one pre-generated corpus."""
+def make_property_fitness(
+    corpus: PropertyCorpus,
+    evaluation_ctx: EvaluationContext,
+    target: Name | None = None,
+) -> Callable[[Term], float]:
+    """Return a failure-count evaluator over one pre-generated corpus.
+
+    When ``target`` is the synthesised function, static prefix bindings are
+    evaluated once per candidate and pre-built call spines are reused.
+    """
+    from aeon.synthesis.fitness_eval import prebind_prefix, prebuild_property_calls, set_program_tail
+
+    calls = prebuild_property_calls(corpus.spec.name, corpus.cases)
 
     def fitness(program: Term) -> float:
         failures = 0
-        for args in corpus.cases:
-            call: Term = Var(corpus.spec.name)
-            for arg in args:
-                call = Application(call, arg)
+        if target is not None:
+            prefix_ctx, suffix = prebind_prefix(program, evaluation_ctx, target)
+            for call in calls:
+                try:
+                    value = aeon_eval(set_program_tail(suffix, call), prefix_ctx)
+                except Exception:
+                    failures += 1
+                    continue
+                if value is not True:
+                    failures += 1
+            return float(failures)
+        for call in calls:
             try:
                 value = aeon_eval(_replace_tail(program, call), evaluation_ctx)
             except Exception:
