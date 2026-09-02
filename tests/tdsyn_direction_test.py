@@ -90,8 +90,17 @@ def _int_hole_partial() -> tuple[PartialAST, TypedHole]:
 
 def _record_expansion_actions(synth: TDSynSynthesizer, monkeypatch) -> list[str]:
     calls: list[str] = []
-    monkeypatch.setattr(tdsyn_module, "backward_candidates", lambda hole, skip: calls.append("backward") or [])
-    monkeypatch.setattr(tdsyn_module, "forward_candidates", lambda hole, skip: calls.append("forward") or [])
+
+    def fake_backward(hole, skip):
+        calls.append("backward")
+        return []
+
+    def fake_forward(hole, skip):
+        calls.append("forward")
+        return []
+
+    monkeypatch.setattr(tdsyn_module, "backward_candidates", fake_backward)
+    monkeypatch.setattr(tdsyn_module, "forward_candidates", fake_forward)
     partial, typed_hole = _int_hole_partial()
     synth._expand_hole(partial, typed_hole, lambda name: False)
     return calls
