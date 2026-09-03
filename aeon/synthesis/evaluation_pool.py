@@ -23,8 +23,9 @@ from typing import Any, Callable, Optional
 import multiprocess as mp
 
 from aeon.backend.evaluator import EvaluationContext, eval
-from aeon.core.terms import Let, Rec, Term, Var
+from aeon.core.terms import Term, Var
 from aeon.synthesis.api import InvalidIndividualException
+from aeon.synthesis.fitness_eval import memoize_fitness, set_program_tail
 from aeon.utils.name import Name
 
 # A computation maps a (candidate-substituted) program to a value. It may raise
@@ -33,14 +34,6 @@ Computation = Callable[[Term], Any]
 
 # Per-computation result statuses.
 OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
-
-
-def set_program_tail(term: Term, new_tail: Term) -> Term:
-    """Replace the innermost body of a chain of top-level ``let``/``rec``
-    bindings with ``new_tail`` (the bindings, and so everything in scope, stay)."""
-    if isinstance(term, (Let, Rec)):
-        return dataclasses.replace(term, body=set_program_tail(term.body, new_tail))
-    return new_tail
 
 
 class EvalPrimitives:
@@ -53,11 +46,13 @@ class EvalPrimitives:
         ectx: EvaluationContext,
         feature_fun: Name,
         replace: Optional[Callable[[Term], Term]] = None,
+        bundled_fitness: Optional[Computation] = None,
     ):
         self._evaluators = evaluators
         self._ectx = ectx
         self._feature_fun = feature_fun
         self._replace = replace
+        self._bundled_fitness = bundled_fitness
 
     @property
     def ectx(self) -> EvaluationContext:
@@ -77,8 +72,10 @@ class EvalPrimitives:
     @property
     def fitness(self) -> Computation:
         """Evaluate the objective(s): the list of per-goal distances."""
+        if self._bundled_fitness is not None:
+            return memoize_fitness(self._bundled_fitness)
         evaluators = self._evaluators
-        return lambda prog: [ev(prog) for ev in evaluators]
+        return memoize_fitness(lambda prog: [ev(prog) for ev in evaluators])
 
     @property
     def feature(self) -> Computation:
