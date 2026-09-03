@@ -59,6 +59,8 @@ SYNTHESIZERS = sort_synthesizer_ids(
     [
         "tdsyn_enumerative",
         "tdsyn_random",
+        "tdsyn_backward",
+        "tdsyn_forward",
         "tactics",
         "gp",
         "enumerative",

@@ -211,6 +211,8 @@ def test_synthesizers_list_non_empty():
 def test_synthesizers_includes_defaults():
     assert "tdsyn_enumerative" in SYNTHESIZERS
     assert "tdsyn_random" in SYNTHESIZERS
+    assert "tdsyn_backward" in SYNTHESIZERS
+    assert "tdsyn_forward" in SYNTHESIZERS
     assert "gp" in SYNTHESIZERS
     assert "enumerative" in SYNTHESIZERS
     assert "llm_qwen2.5-coder-32b" in SYNTHESIZERS
@@ -363,9 +365,10 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
 
     # These backends need a spec the plain ``Int`` hole does not provide:
     # decision_tree needs @csv_data/@example rows; symetric needs a @minimize
-    # objective; sygus needs an SMT-expressible constraint. They legitimately
-    # produce no term here — just verify they complete without raising.
-    if synthesizer in ("decision_tree", "sygus", "symetric"):
+    # objective; sygus needs an SMT-expressible constraint; tdsyn_forward
+    # builds terms from variables in scope, and this hole has none. They
+    # legitimately produce no term here — just verify they complete without raising.
+    if synthesizer in ("decision_tree", "sygus", "symetric", "tdsyn_forward"):
         result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
         assert result is None or isinstance(result, tuple)
         return

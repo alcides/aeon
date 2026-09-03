@@ -19,6 +19,8 @@ SEEDED_BACKENDS = [
     "tdsyn",
     "tdsyn_enumerative",
     "tdsyn_random",
+    "tdsyn_backward",
+    "tdsyn_forward",
     "tactics",
 ]
 
