@@ -83,11 +83,8 @@ def length (1 arr: (Array a)) : {n:Int | n = size arr} :=
 
 # Empty array — a fresh, uniquely-owned buffer.
 #
-# Takes a ``Unit`` so that creating an array is an *applied* action: each
-# ``new unit`` re-runs the native and yields a new buffer. A nullary ``def``
-# would be a value, which the evaluator memoises — every use would then
-# alias the same Python list, which is exactly what a unique type must rule
-# out (compare ``stream_socket`` in libraries/Socket.ae).
+# _: applied action; each ``new unit`` yields a distinct buffer (not memoised).
+# returns: array with ``size = 0``.
 def new (_: Unit) : {arr:(Array a) | size arr = 0} :=
     native "[]"
 
@@ -156,11 +153,10 @@ def len_array (l: (ArrayLen a<p>)) : {r: (Array a<p>) | size r = held_size l} :=
     native "l[1]"
 
 
-# Append an element to the back; the value must satisfy the refinement ``p``.
-# Consumes the array linearly and returns a fresh one, one element longer.
-# The element is taken at multiplicity 1 so a linear payload (e.g. an
-# ``Array`` nested inside an ``Array``) is not silently duplicated by the
-# call; unrestricted elements such as ``Int`` remain freely usable.
+# Append an element to the back.
+# arr: consumed linear array.
+# x: element satisfying refinement ``p``.
+# returns: array one element longer.
 def append (1 arr: (Array a)) (1 x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
     native "arr + [x]"
 

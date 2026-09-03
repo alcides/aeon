@@ -39,6 +39,8 @@ from aeon.sugar.stypes import (
     STypeConstructor,
 )
 from aeon.utils.name import Name
+from aeon.core.multiplicity import Multiplicity, MOmega
+from aeon.sugar.substitutions import align_refined_binder
 from aeon.utils.pprint_helpers import (
     Doc,
     parens,
@@ -275,47 +277,65 @@ def format_infix_application(left: STerm, right: STerm, op_name: Name, depth: in
     return group(concat([pretty_left, line(), text(op_text), line(), pretty_right]))
 
 
-def pretty_param_doc(param_name: Name, param_type: SType) -> Doc:
-    match param_type:
-        case SRefinedType(name=ref_name, type=ref_type, refinement=refinement):
-            if ref_name.pretty() == param_name.pretty():
-                return parens(
-                    concat(
-                        [
-                            text(ref_name.pretty()),
-                            text(" : "),
-                            stype_pretty(ref_type),
-                            text(" | "),
-                            sterm_pretty(refinement, ParenthesisContext(Precedence.REFINED_TYPE, Side.RIGHT), depth=1),
-                        ]
-                    )
-                )
-    return parens(
-        concat(
-            [
-                text(param_name.pretty()),
-                text(" : "),
-                stype_pretty(param_type),
-            ]
-        )
-    )
+def pretty_binder_annotation(
+    param_name: Name,
+    param_type: SType,
+    multiplicity: Multiplicity = MOmega,
+) -> Doc:
+    """Render ``[μ] name : type``, inlining a refined type as ``name : Base | pred``.
+
+    ``(id: {n:Int | n >= 0})`` becomes ``id : Int | id ≥ 0`` (caller adds parens).
+    """
+    mult_doc = nil() if multiplicity is MOmega else text(f"{multiplicity} ")
+    aligned = align_refined_binder(param_type, param_name)
+    match aligned:
+        case SRefinedType(type=ref_type, refinement=refinement):
+            return concat(
+                [
+                    mult_doc,
+                    text(param_name.pretty()),
+                    text(" : "),
+                    stype_pretty(ref_type),
+                    text(" | "),
+                    sterm_pretty(refinement, ParenthesisContext(Precedence.REFINED_TYPE, Side.RIGHT), depth=1),
+                ]
+            )
+        case _:
+            return concat(
+                [
+                    mult_doc,
+                    text(param_name.pretty()),
+                    text(" : "),
+                    stype_pretty(param_type),
+                ]
+            )
+
+
+def pretty_param_doc(
+    param_name: Name,
+    param_type: SType,
+    multiplicity: Multiplicity = MOmega,
+) -> Doc:
+    return parens(pretty_binder_annotation(param_name, param_type, multiplicity))
 
 
 def pretty_print_function_definition(
-    func_name_doc: Doc, params: List[Tuple[Name, SType]], return_type: SType
+    func_name_doc: Doc,
+    params: List[Tuple[Name, SType, Multiplicity]],
+    return_type: SType,
 ) -> Tuple[Doc, int]:
-    first_param_name, first_param_type = params[0]
-    first_param_doc = pretty_param_doc(first_param_name, first_param_type)
+    first_param_name, first_param_type, first_mult = params[0]
+    first_param_doc = pretty_param_doc(first_param_name, first_param_type, first_mult)
     func_header = concat([text("def "), func_name_doc, text(" "), first_param_doc])
 
     indent_after_first_param = len("def ") + len(func_name_doc.layout(0)) + 1
     additional_params = nil()
-    for param_name, param_type in params[1:]:
+    for param_name, param_type, mult in params[1:]:
         additional_params = concat(
             [
                 additional_params,
                 line(),
-                pretty_param_doc(param_name, param_type),
+                pretty_param_doc(param_name, param_type, mult),
             ]
         )
     full_func_def = concat(
@@ -327,21 +347,21 @@ def pretty_print_function_definition(
     return full_func_def, indent_after_first_param
 
 
-def unwrap_abstraction_types(stype: SType) -> Tuple[List[Tuple[Name, SType]], SType]:
-    named_vars = []
+def unwrap_abstraction_types(stype: SType) -> Tuple[List[Tuple[Name, SType, Multiplicity]], SType]:
+    named_vars: List[Tuple[Name, SType, Multiplicity]] = []
     curr = stype
     while True:
         match curr:
             case SAbstractionType(var_name=_var_name, var_type=_var_type, type=next_type):
-                named_vars.append((_var_name, _var_type))
+                named_vars.append((_var_name, _var_type, getattr(curr, "multiplicity", MOmega)))
                 curr = next_type
             case other:
                 return named_vars, other
 
 
-def strip_matching_abstractions(abstraction: STerm, arguments: List[Tuple[Name, SType]]) -> STerm:
+def strip_matching_abstractions(abstraction: STerm, arguments: List[Tuple[Name, SType, Multiplicity]]) -> STerm:
     stripped_abstraction = abstraction
-    for argument_name, _ in arguments:
+    for argument_name, _, _ in arguments:
         match stripped_abstraction:
             case SAbstraction(var_name=_var_name, body=body) if _var_name.name == argument_name.name:
                 stripped_abstraction = body
@@ -380,16 +400,9 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
             )
 
         case SAbstractionType(var_name=var_name, var_type=var_type, type=_type):
-            pretty_var_name = text(var_name.pretty())
-            var_type_doc = pretty_stype_with_parens(var_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
-
-            left_doc = concat([pretty_var_name, text(" : "), var_type_doc])
-            left_doc = add_parens_if_needed(
-                left_doc, Operation.ANNOTATION, ParenthesisContext(Precedence.ARROW, Side.LEFT)
-            )
-
+            mult = getattr(stype, "multiplicity", MOmega)
+            left_doc = pretty_param_doc(var_name, var_type, mult)
             right_doc = pretty_stype_with_parens(_type, ParenthesisContext(Precedence.ARROW, Side.RIGHT))
-
             return group(concat([left_doc, text(" →"), line(), right_doc]))
 
         case STypePolymorphism(name=name, kind=kind, body=body):
@@ -530,14 +543,19 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
 
         case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=_):  # refazer rec
             pretty_var_name = text(var_name.pretty())
-            pretty_var_type = pretty_stype_with_parens(var_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
             pretty_var_value = pretty_sterm_with_parens(
                 var_value, ParenthesisContext(Precedence.LET, Side.NONE), depth + 1
             )
             pretty_body = pretty_sterm_with_parens(body, ParenthesisContext(Precedence.LET, Side.NONE), depth)
 
             if depth != 0:
-                pretty_binding = concat([pretty_var_name, text(" : "), pretty_var_type, text(" := "), pretty_var_value])
+                pretty_binding = concat(
+                    [
+                        pretty_binder_annotation(var_name, var_type),
+                        text(" := "),
+                        pretty_var_value,
+                    ]
+                )
                 return group(concat([text("let "), pretty_binding, text(" in"), line(), pretty_body]))
 
             match var_type:
@@ -565,12 +583,11 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                     )
 
                 case _:
-                    def_line = concat([text("def "), pretty_var_name, text(" : ")])
+                    def_line = concat([text("def "), pretty_binder_annotation(var_name, var_type)])
                     full_type = group(
                         concat(
                             [
                                 def_line,
-                                nest(len("def ") + len(var_name.pretty()) + DEFAULT_TAB_SIZE, pretty_var_type),
                                 line(),
                                 text(":= "),
                                 nest(DEFAULT_TAB_SIZE, pretty_var_value),
@@ -804,6 +821,16 @@ def pretty_print_sterm(term: STerm) -> str:
     return str(sterm_pretty(simplified_term))
 
 
+def pretty_print_stype(stype: SType) -> str:
+    """Render a surface type with the same rules as ``aeon --format``."""
+    return str(stype_pretty(stype))
+
+
+def pretty_print_param(param_name: Name, param_type: SType, multiplicity: Multiplicity = MOmega) -> str:
+    """Render a function parameter, inlining refined binders to the parameter name."""
+    return str(pretty_param_doc(param_name, param_type, multiplicity))
+
+
 def simplify_sterm(term: STerm) -> STerm:
     def apply_func(acc: STerm, func: Callable[[STerm], STerm]) -> STerm:
         return func(acc)
@@ -862,20 +889,29 @@ def node_pretty(node: Node) -> Doc:
                 chunks.append(pretty_rforalls)
             chunks.extend([pretty_constructors, pretty_measures])
             return group(insert_between(line(), chunks))
-        case Definition(
-            name=name,
-            foralls=foralls,
-            args=args,
-            type=type_,
-            body=body,
-            decorators=decorators,
-            rforalls=rforalls,
+        case (
+            Definition(
+                name=name,
+                foralls=foralls,
+                args=args,
+                type=type_,
+                body=body,
+                decorators=decorators,
+                rforalls=rforalls,
+            ) as defn
         ):
             for var_name, _ in reversed(args):
                 body = SAbstraction(var_name=var_name, body=body)
 
-            for var_name, var_type in reversed(args):
-                type_ = SAbstractionType(var_name=var_name, var_type=var_type, type=type_)
+            for i in range(len(args) - 1, -1, -1):
+                var_name, var_type = args[i]
+                type_ = SAbstractionType(
+                    var_name=var_name,
+                    var_type=var_type,
+                    type=type_,
+                    multiplicity=defn.multiplicity_of(i),
+                    is_instance=defn.is_instance_arg(i),
+                )
 
             for rho_name, rho_sort in reversed(rforalls):
                 type_ = SRefinementPolymorphism(name=rho_name, sort=rho_sort, body=type_)

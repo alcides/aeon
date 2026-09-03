@@ -361,6 +361,20 @@ def substitute_refinement_param_in_stype(ty: SType, old: Name, new: Name) -> STy
             return ty
 
 
+def align_refined_binder(ty: SType, param: Name) -> SType:
+    """Rename a top-level refinement binder to ``param`` (and in its predicate).
+
+    Used by the pretty printer so ``(id: {n:Int | n >= 0})`` can be shown as
+    ``(id: Int | id >= 0)``. Nested types are left unchanged.
+    """
+    if not isinstance(ty, SRefinedType):
+        return ty
+    if ty.name == param:
+        return ty
+    new_ref = substitution_sterm_in_sterm(ty.refinement, SVar(param), ty.name)
+    return SRefinedType(param, ty.type, new_ref, loc=ty.loc)
+
+
 def substitution_svartype_in_sterm(t: STerm, rep: SType, name: Name) -> STerm:
     def rec(x: STerm):
         return substitution_svartype_in_sterm(x, rep, name)
