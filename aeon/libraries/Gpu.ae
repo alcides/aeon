@@ -1,24 +1,31 @@
-# GPU computation primitives.
+# GPU tensor primitives (CuPy-backed).
 #
-# This module is imported automatically by the ``@gpu`` decorator, or can be
-# brought in explicitly with ``open Gpu``.
+# Imported automatically by the ``@gpu`` decorator, or via ``open Gpu``. Maps,
+# filters, reductions, and dot products over ``Tensor`` values. For explicit
+# CUDA device buffers with linear types, use ``Cuda`` — see ``docs/cuda.md``.
 
 type GpuConfig
 
+# Map ``f`` over every element of ``t``.
 def gpu_map (f: (x:a) -> b) (t: Tensor) : Tensor :=
     native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_map(f)(t)";
 
+# Map index ``i`` to an element with ``f``.
 def gpu_imap (f: (i:Int) -> b) (t: Tensor) : Tensor :=
     native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_imap(f)(t)";
 
+# Left-fold ``t`` with ``f`` and initial accumulator ``initial``.
 def gpu_reduce (f: (acc:a) -> (x:a) -> a) (initial: a) (t: Tensor) : a :=
     native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_reduce(f)(initial)(t)";
 
+# Keep elements where ``f`` returns ``true``.
 def gpu_filter (f: (x:a) -> Bool) (t: Tensor) : Tensor :=
     native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_filter(f)(t)";
 
+# Dot product of two tensors.
 def gpu_dot (a: Tensor) (b: Tensor) : Float :=
     native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_dot(a)(b)";
 
+# Run ``kernel`` on ``input`` with launch ``config``; return the scalar/aggregate result.
 def run_gpu (kernel: (x:Tensor) -> a) (config: GpuConfig) (input: Tensor) : a :=
     native "__import__('aeon.bindings.gpu').bindings.gpu.gpu_run(kernel)(config)(input)";

@@ -143,6 +143,10 @@ desugar to the library constructors — `[1, 2, 3]` to
 are inferred. An empty literal (`[]` / `#[]`) is fine where the element type is
 known (e.g. from an annotation: `let e : (List Int) := []`).
 
+`Array` is a **linear type** (multiplicity 1): bind with `let 1 xs := …` and
+consume each array exactly once. See [Linear `Array` buffers](array) for the
+transform/read/copy API and how `Cuda.upload_*` consumes host arrays.
+
 `[` is always a list literal — type application uses braces (`f{Int}`), so the
 two never collide.
 
@@ -509,39 +513,18 @@ let numpy := native_import "numpy";
 
 For a step-by-step guide to wrapping a whole Python package — covering opaque types, designing refinements, uninterpreted functions, and the axiom-by-`native` pattern — see [Writing FFI bindings for a Python package](ffi).
 
-For a worked case study of taming two especially error-prone modules — turning `KeyError`, ignored exit codes, and shell injection into compile-time errors — see [Typed bindings for `os` and `subprocess`](os-subprocess). The same treatment for HTTP — mandatory timeouts, status codes you can't ignore — is in [Typed bindings for `requests`](http). For combining refinements with **linear types** (QTT) to make resource lifecycles state-safe — commit-xor-rollback, close exactly once — see [State-safe sqlite3 with `Database`](database).
+For a worked case study of taming two especially error-prone modules — turning `KeyError`, ignored exit codes, and shell injection into compile-time errors — see [Typed bindings for `os` and `subprocess`](os-subprocess). The same treatment for HTTP — mandatory timeouts, status codes you can't ignore — is in [Typed bindings for `requests`](http). For combining refinements with **linear types** (QTT) to make resource lifecycles state-safe — commit-xor-rollback, close exactly once — see [State-safe sqlite3 with `Database`](database), [linear `Array` buffers](array), and [explicit CUDA device memory](cuda).
 
 ## Libraries
 
-There are a few libraries available, but unstable as they are under development:
+The standard library lives in `aeon/libraries/`. Import with `import M`, `open M`, or
+selective `import M (f, g)`. Each module is documented in its `.ae` source (JavaDoc-style
+`#` comments) and rendered to HTML by `python -m aeon --doc`.
 
-- Database.ae
-- Http.ae
-- Image.ae
-- Learning.ae
-- List.ae
-- Map.ae
-- Math.ae
-- OS.ae
-- Plot.ae
-- PropTesting.ae
-- PSB2.ae
-- Random.ae
-- Set.ae
-- Statistics.ae
-- String.ae
-- Subprocess.ae
-- Table.ae
-- Testing.ae
-- Tuple.ae
+### Generated reference
 
-The full HTML reference for every standard-library module — generated from the
-`.ae` source by `python -m aeon --doc` — lives under [stdlib/](stdlib/). It
-documents each module's types, constructors, functions, and uninterpreted
-declarations, with refinement types rendered in surface syntax and hover
-tooltips on every argument.
-
-To regenerate the reference locally:
+The full HTML reference — types, functions, refinements, and `@example` blocks — is
+published under [stdlib/](stdlib/). Regenerate locally:
 
 ```bash
 uv run python scripts/build_stdlib_docs.py
@@ -550,6 +533,38 @@ uv run python scripts/build_stdlib_docs.py
 
 The generated files are gitignored; they are produced from source by the
 `Docs` GitHub Actions workflow and published alongside the rest of this site.
+
+### Guides (narrative + lifecycle)
+
+| Module | Focus | Guide |
+|--------|-------|-------|
+| `Array` | Linear host buffers, `size` refinements | [array.md](array) |
+| `Cuda` | Linear GPU buffers, launch/size proofs | [cuda.md](cuda) |
+| `Database` | Linear sqlite3 connections/transactions | [database.md](database) |
+| `Http` | Typed `requests` wrapper | [http.md](http) |
+| `OS` / `Subprocess` | Typed process and filesystem bindings | [os-subprocess.md](os-subprocess) |
+
+### Module index
+
+Core and data:
+
+- **Array** — linear contiguous sequences (`#[]` literals)
+- **List** — persistent linked lists (`[]` literals)
+- **Map**, **Set**, **Pair**, **Tuple**, **Maybe**
+- **String**, **Math**, **Num**, **Random**
+- **Matrix**, **Tensor**, **Image**, **Color**
+
+Systems and I/O:
+
+- **Cuda** — explicit CUDA Driver API (separate from `@gpu`)
+- **Gpu** — tensor kernels imported by `@gpu`
+- **Database** — sqlite3 with linear transactions
+- **Http**, **OS**, **Subprocess**, **Path**, **Socket**, **Sys**
+- **Json**, **Args**
+
+Machine learning (`Learning*`, **Models**, **NN**, **Statistics**, **Plot**, **Dace**, …), benchmarks (**PSB2**), and testing (**Testing**, **PropTesting**, **Certify**) are available but evolve quickly — see source comments and examples under `examples/`.
+
+The generated [stdlib index](stdlib/) is the authoritative per-symbol catalogue when a module has no separate guide.
 
 ## Command-line options
 
