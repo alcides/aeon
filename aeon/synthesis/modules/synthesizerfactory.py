@@ -20,7 +20,7 @@ from aeon.synthesis.modules.llm import (
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
-from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
+from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TDSynSynthesizer
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
 from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.modules.afta import AFTASynthesizer
@@ -60,8 +60,8 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tdsyn": "Type-directed synthesis (BFS)",
     "tdsyn_enumerative": "Type-directed synthesis (BFS)",
     "tdsyn_random": "Type-directed synthesis (Random Walk)",
-    "tdsyn_backward": "Type-directed synthesis (Backward only)",
-    "tdsyn_forward": "Type-directed synthesis (Forward only)",
+    "tdsyn_backward": "Type-directed step (backward)",
+    "tdsyn_forward": "Type-directed step (forward)",
     "synquid": "Synquid enumeration (Q-guided)",
     "tactics": "Tactic search (random)",
     "decision_tree": "Decision tree regression (from examples)",
@@ -263,9 +263,9 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "tdsyn_random":
             return TDSynSynthesizer(mode="random", seed=seed)
         case "tdsyn_backward":
-            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="backward")
+            return TDSynOneStepSynthesizer(direction="backward")
         case "tdsyn_forward":
-            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="forward")
+            return TDSynOneStepSynthesizer(direction="forward")
         case "tactics":
             return TacticRandomSynthesizer(seed=seed)
         case "lta":

@@ -114,15 +114,15 @@ Same expansion rules as `tdsyn`, but instead of a BFS worklist it performs indep
 
 ---
 
-### `tdsyn_backward` — Type-Directed Synthesis (Backward only)
+### `tdsyn_backward` — Type-Directed Step (Backward)
 
-Same BFS search as `tdsyn`, but restricted to the **backward** action: candidates are derived from the hole's expected type (literals, variables and function applications whose result type matches, abstractions, if-then-else). The forward action is disabled.
+Demonstrative single-step backend: applies the **backward** action exactly once to the hole. Candidates are derived from the hole's expected type (literals, variables and function applications whose result type matches, abstractions, if-then-else). Returns the first complete candidate that typechecks, or otherwise the first partial expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
 
 ---
 
-### `tdsyn_forward` — Type-Directed Synthesis (Forward only)
+### `tdsyn_forward` — Type-Directed Step (Forward)
 
-Same BFS search as `tdsyn`, but restricted to the **forward** action: candidates are built by applying in-scope functions to the variables already in scope, keeping only applications whose result type matches the hole. The backward action is disabled.
+Demonstrative single-step backend: applies the **forward** action exactly once to the hole. Candidates are built by applying in-scope functions to the variables already in scope, keeping only applications whose result type matches the hole. Returns the first complete candidate that typechecks, or otherwise the first partial expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
 
 ---
 
@@ -170,8 +170,8 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `llm`           | LLM generation   | Problems that are easy to describe in natural language |
 | `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
-| `tdsyn_backward` | Type-directed BFS, backward action only | Goals best decomposed from the expected type |
-| `tdsyn_forward` | Type-directed BFS, forward action only | Goals best built up from the variables in scope |
+| `tdsyn_backward` | Single backward step (no search) | Demonstrating how the backward action decomposes a goal |
+| `tdsyn_forward` | Single forward step (no search) | Demonstrating how the forward action builds from scope variables |
 | `tactics`       | Random tactic walks (Lean-style) | Goals whose proof decomposes into tactic steps |
 | `lta`           | Component-based via Liquid Tree Automata | Reusing a library of refined functions to assemble a term |
 
