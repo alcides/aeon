@@ -55,6 +55,7 @@ class TypeDoc:
     comment: str | None
     line_number: int
     is_inductive: bool = False
+    is_linear: bool = False
     constructors: list[ConstructorDoc] | None = None
     measures: list[ConstructorDoc] | None = None
 
@@ -75,7 +76,8 @@ class FunctionDoc:
 
     name: str
     type_sig: str
-    args: list[tuple[str, str]]
+    # (name, type, multiplicity prefix) — prefix is ``""`` or e.g. ``"1 "`` / ``"n "``.
+    args: list[tuple[str, str, str]]
     decorators: list[str]
     comment: str | None
     line_number: int
@@ -421,6 +423,7 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
                 comment=comment,
                 line_number=line_num,
                 is_inductive=False,
+                is_linear=type_decl.linear,
             )
         )
 
@@ -477,7 +480,11 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
         # Don't shadow the outer module-level ``header_comment``.
         func_header_comment, arg_docs, return_doc = split_arg_docs(raw_comment)
 
-        args_formatted = [(format_name(n), format_type(t)) for n, t in defn.args]
+        args_formatted = []
+        for i, (n, t) in enumerate(defn.args):
+            mult = defn.multiplicity_of(i)
+            prefix = "" if mult is MOmega else f"{mult} "
+            args_formatted.append((format_name(n), format_type(t), prefix))
         # ``@example(assertion)`` decorators are surfaced in their own block; the
         # remaining decorators are shown as chips.
         examples_formatted = [
@@ -642,6 +649,15 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
             background: #fef3c7;
             color: #92400e;
             border: 1px solid #fcd34d;
+        }}
+        .badge-linear {{
+            background: #ede9fe;
+            color: #5b21b6;
+            border: 1px solid #c4b5fd;
+        }}
+        .item.linear {{
+            background: #f5f3ff;
+            border-color: #ddd6fe;
         }}
         .badge-ctor {{
             background: #ecfdf5;
@@ -952,7 +968,10 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
         html_parts.append("                    <ul>\n")
         for t in doc.types:
             anchor = f"type-{html.escape(t.name)}-L{t.line_number}"
-            html_parts.append(f'                        <li><a href="#{anchor}">{html.escape(t.name)}</a></li>\n')
+            linear_note = ' <span class="toc-note">(linear)</span>' if t.is_linear else ""
+            html_parts.append(
+                f'                        <li><a href="#{anchor}">{html.escape(t.name)}</a>{linear_note}</li>\n'
+            )
         html_parts.append("                    </ul>\n")
         html_parts.append("                </li>\n")
     if constructors_by_type:
@@ -1001,7 +1020,10 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
         html_parts.append('        <h2 id="types">Types</h2>\n')
         for type_doc in doc.types:
             anchor = f"type-{html.escape(type_doc.name)}-L{type_doc.line_number}"
-            html_parts.append(f'        <div class="item" id="{anchor}">\n')
+            item_classes = "item"
+            if type_doc.is_linear:
+                item_classes += " linear"
+            html_parts.append(f'        <div class="{item_classes}" id="{anchor}">\n')
             html_parts.append('            <div class="item-header">\n')
 
             type_kind = "inductive" if type_doc.is_inductive else "type"
@@ -1009,12 +1031,21 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
             # that the TOC entry "Types › {name}" targets.
             html_parts.append(f'                <h3 class="item-name">{html.escape(type_doc.name)}</h3>\n')
             html_parts.append(f'                <span class="item-type">({type_kind})</span>\n')
+            if type_doc.is_linear:
+                html_parts.append(
+                    '                <span class="badge badge-linear"'
+                    ' title="Declared as `linear type`: every binder of this type must'
+                    ' use multiplicity 1 (consume exactly once).">linear</span>\n'
+                )
             html_parts.append("            </div>\n")
 
             if type_doc.comment:
                 html_parts.append(f'            <div class="comment">{html.escape(type_doc.comment)}</div>\n')
 
-            sig_parts = [type_kind, type_doc.name]
+            sig_parts = []
+            if type_doc.is_linear:
+                sig_parts.append("linear")
+            sig_parts.extend([type_kind, type_doc.name])
             if type_doc.args:
                 sig_parts.extend(type_doc.args)
             if type_doc.rforalls:
@@ -1092,15 +1123,18 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
             for rname, rsort in func.rforalls:
                 sig_html_parts.append(html.escape(f"∀<{rname}:{rsort} → Bool>"))
 
-        for idx, (arg_name, arg_type) in enumerate(func.args):
+        for idx, (arg_name, arg_type, mult_prefix) in enumerate(func.args):
             doc_text = func.arg_docs.get(arg_name)
-            tooltip = f"{arg_name} : {arg_type}"
+            display_name = f"{mult_prefix}{arg_name}"
+            tooltip = f"{display_name} : {arg_type}"
+            if mult_prefix.strip() == "1":
+                tooltip += "\n\nlinear (multiplicity 1): must be consumed exactly once"
             if doc_text:
                 tooltip += f"\n\n{doc_text}"
             color_class = f"sig-arg-{idx % 8}"
             sig_html_parts.append(
                 f'<span class="sig-arg {color_class}" data-tooltip="{html.escape(tooltip, quote=True)}">'
-                f"({html.escape(arg_name)}: {html.escape(arg_type)})"
+                f"({html.escape(display_name)}: {html.escape(arg_type)})"
                 f"</span>"
             )
 
@@ -1127,6 +1161,8 @@ def generate_html(doc: ModuleDoc, output_path: str | None = None) -> str:
         for t, entries in constructors_by_type:
             t_anchor = f"ctor-type-{html.escape(t.name)}-L{t.line_number}"
             kind_label = "inductive" if t.is_inductive else "opaque · mk*"
+            if t.is_linear:
+                kind_label = f"linear · {kind_label}"
             type_anchor = f"type-{html.escape(t.name)}-L{t.line_number}"
             html_parts.append(f'        <div class="ctor-group" id="{t_anchor}">\n')
             html_parts.append(
