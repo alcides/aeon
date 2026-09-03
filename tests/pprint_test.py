@@ -24,6 +24,16 @@ def test_refinement_comparison_operand_order():
     assert "5 ≥ y" not in rendered
 
 
+def test_pretty_param_inlines_mismatched_refinement_binder():
+    from aeon.utils.name import Name
+    from aeon.utils.pprint import pretty_print_param
+
+    ty = parse_type("{n:Int | n >= 0}")
+    rendered = pretty_print_param(Name("id", 0), ty)
+    assert rendered == "(id : Int | id ≥ 0)" or rendered.replace(" ", "") == "(id:Int|id≥0)"
+    assert "n" not in rendered.split("|")[1]
+
+
 def test_simple_pprint_1():
     expr = Mul(Add(Num(1), Num(2)), Div(Num(3), Num(4)))
     expected = "(1 + 2) * (3 / 4)"
