@@ -12,7 +12,7 @@ from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.identification import get_holes
-from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
+from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates, forward_step_candidates
 from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST, TypedHole, fresh_hole, substitute_hole
@@ -329,12 +329,16 @@ def _rename_subgoals(term: Term, fun_name: Name) -> Term:
 class TDSynOneStepSynthesizer(Synthesizer):
     """Demonstrative single-step expansion using one type-directed action.
 
-    Applies the backward or forward action exactly *once* to the hole and
-    returns the result: the first complete candidate that validates when one
-    exists, otherwise the first partial expansion, whose remaining holes are
-    renamed to fresh ``?<fun>_goal_<i>`` subgoals so the step can be applied
-    again. Deliberately performs no search — ``tdsyn`` is the backend that
-    actually synthesizes a complete, valid term.
+    Applies its action exactly *once* to the hole and returns the result: the
+    first complete candidate that validates when one exists, otherwise the
+    first partial expansion, whose remaining holes are renamed to fresh
+    ``?<fun>_goal_<i>`` subgoals so the step can be applied again. The
+    backward direction decomposes the goal type (``backward_candidates``);
+    the forward direction either closes the goal with a variable of the
+    goal's type or binds a forward application in a ``let``, reopening the
+    goal with the new variable in scope (``forward_step_candidates``).
+    Deliberately performs no search — ``tdsyn`` is the backend that actually
+    synthesizes a complete, valid term.
     """
 
     def __init__(self, direction: str):
@@ -364,7 +368,7 @@ class TDSynOneStepSynthesizer(Synthesizer):
         initial_term, _, _, initial_holes = _peel_abstractions(type, ctx)
         hole = initial_holes[0]
 
-        action_fn = backward_candidates if self.direction == "backward" else forward_candidates
+        action_fn = backward_candidates if self.direction == "backward" else forward_step_candidates
         try:
             candidates = action_fn(hole, skip)
         except Exception as e:
