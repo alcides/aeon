@@ -122,7 +122,7 @@ Demonstrative single-step backend: applies the **backward** action exactly once 
 
 ### `tdsyn_forward` — Type-Directed Step (Forward)
 
-Demonstrative single-step backend: applies the **forward** action exactly once to the hole. Candidates are built by applying in-scope functions to the variables already in scope, keeping only applications whose result type matches the hole. Returns the first complete candidate that typechecks, or otherwise the first partial expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
+Demonstrative single-step backend: applies the **forward** action exactly once to the hole. It either closes the goal with a variable whose type already proves it, or introduces a `let v := f(x, ...) in ?goal` binding — where the value is any of the regular forward applications (in-scope functions applied to in-scope variables, result type matching the goal) — reopening the goal with `v` in scope. Returns the first complete candidate that typechecks, or otherwise the first let expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
 
 ---
 
@@ -171,7 +171,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
 | `tdsyn_backward` | Single backward step (no search) | Demonstrating how the backward action decomposes a goal |
-| `tdsyn_forward` | Single forward step (no search) | Demonstrating how the forward action builds from scope variables |
+| `tdsyn_forward` | Single forward step (no search) | Demonstrating how forward reasoning grows the scope with `let` bindings |
 | `tactics`       | Random tactic walks (Lean-style) | Goals whose proof decomposes into tactic steps |
 | `lta`           | Component-based via Liquid Tree Automata | Reusing a library of refined functions to assemble a term |
 

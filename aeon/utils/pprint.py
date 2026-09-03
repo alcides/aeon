@@ -688,7 +688,10 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
             return SAbstraction(var_name=var_name, body=simplified_body)
         case SLet(var_name=var_name, var_value=var_value, body=body):
             match body:
-                case SHole(name=name):
+                # Program-tail display only: `let f := e in ?main` renders as a
+                # top-level binding returning `main`. Other hole bodies are open
+                # subgoals (e.g. one-step synthesis results) and must be kept.
+                case SHole(name=name) if name.pretty() == "main":
                     return SLet(var_name=name, var_value=normalize_term(var_value, context, seen), body=SVar(name=name))
                 case _:
                     return SLet(
@@ -757,20 +760,46 @@ def _free_value_vars(term: STerm) -> set[Name]:
             return set()
 
 
+def _contains_hole(term: STerm) -> bool:
+    """Whether ``term`` contains an open synthesis hole (``SHole``)."""
+    match term:
+        case SHole():
+            return True
+        case (
+            SAbstraction(body=body)
+            | STypeAbstraction(body=body)
+            | SRefinementAbstraction(body=body)
+            | (STypeApplication(body=body))
+        ):
+            return _contains_hole(body)
+        case SLet(var_value=val, body=body) | SRec(var_value=val, body=body):
+            return _contains_hole(val) or _contains_hole(body)
+        case SApplication(fun=fun, arg=arg):
+            return _contains_hole(fun) or _contains_hole(arg)
+        case SIf(cond=cond, then=then, otherwise=otherwise):
+            return _contains_hole(cond) or _contains_hole(then) or _contains_hole(otherwise)
+        case SAnnotation(expr=expr):
+            return _contains_hole(expr)
+        case _:
+            return False
+
+
 def rename_unused_variables(term: STerm) -> STerm:
     """Replace value-level binders that are never referenced with ``_``.
 
     Example: ``fun x => 3`` becomes ``fun _ => 3``. Applies to ``SAbstraction``,
     ``SLet`` and ``SRec``. Type and refinement abstractions are traversed
-    but not renamed (their binders live in a separate namespace).
+    but not renamed (their binders live in a separate namespace). Binders whose
+    body still contains an open hole are kept: the term that eventually fills
+    the hole may reference them.
     """
     rec = rename_unused_variables
     match term:
         case SAbstraction(var_name=name, body=body, loc=loc):
-            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) else name
+            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) and not _contains_hole(body) else name
             return SAbstraction(var_name=new_name, body=rec(body), loc=loc)
         case SLet(var_name=name, var_value=val, body=body, loc=loc, multiplicity=mult):
-            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) else name
+            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) and not _contains_hole(body) else name
             return SLet(
                 var_name=new_name,
                 var_value=rec(val),
@@ -790,7 +819,7 @@ def rename_unused_variables(term: STerm) -> STerm:
             used = _free_value_vars(val) | _free_value_vars(body)
             for m in db:
                 used |= _free_value_vars(m)
-            new_name = _WILDCARD_NAME if name not in used else name
+            new_name = _WILDCARD_NAME if name not in used and not _contains_hole(body) else name
             return SRec(
                 var_name=new_name,
                 var_type=ty,
@@ -816,9 +845,15 @@ def rename_unused_variables(term: STerm) -> STerm:
             return term
 
 
-def pretty_print_sterm(term: STerm) -> str:
+def pretty_print_sterm(term: STerm, top_level: bool = True) -> str:
+    """Pretty print a sugar term.
+
+    ``top_level`` renders ``let``/``rec`` chains as ``def`` bindings (whole
+    programs); pass ``False`` for standalone expressions (e.g. a synthesized
+    candidate), where a ``let`` must print in its inline ``let ... in`` form.
+    """
     simplified_term = simplify_sterm(term)
-    return str(sterm_pretty(simplified_term))
+    return str(sterm_pretty(simplified_term, depth=0 if top_level else 1))
 
 
 def pretty_print_stype(stype: SType) -> str:

@@ -643,7 +643,7 @@ def _run_synthesis(
     for hole_name, term in mapping.items():
         if hole_name.name == hole_name_str and term is not None:
             sterm = lift(term)
-            synthesized_str = pretty_print_sterm(sterm)
+            synthesized_str = pretty_print_sterm(sterm, top_level=False)
 
             hole_positions = aeon_adapter.find_holes_in_source(source)
             hole_range = next(
