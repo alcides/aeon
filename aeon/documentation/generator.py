@@ -33,6 +33,7 @@ from aeon.sugar.stypes import (
     SRefinementPolymorphism,
     STypeConstructor,
 )
+from aeon.sugar.substitutions import substitution_sterm_in_sterm
 from aeon.core.multiplicity import MOmega
 from aeon.utils.name import Name
 
@@ -207,6 +208,20 @@ def split_arg_docs(comment: str | None) -> tuple[str | None, dict[str, str], str
 def format_name(name: Name) -> str:
     """Render a Name for docs using its surface spelling — no alpha-renaming superscript."""
     return name.name
+
+
+def align_refined_binder(ty: SType, param: Name) -> SType:
+    """Rename a top-level refinement binder to ``param`` for documentation display.
+
+    ``id: {n: Int | n >= 0}`` becomes display-ready as ``{id: Int | id >= 0}`` so the
+    binder matches the parameter name. Nested structure is left unchanged.
+    """
+    if not isinstance(ty, SRefinedType):
+        return ty
+    if format_name(ty.name) == format_name(param) and ty.name == param:
+        return ty
+    new_ref = substitution_sterm_in_sterm(ty.refinement, SVar(param), ty.name)
+    return SRefinedType(param, ty.type, new_ref, loc=ty.loc)
 
 
 # Operator precedence ladder used to pretty-print refinements in infix form.
@@ -484,7 +499,7 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
         for i, (n, t) in enumerate(defn.args):
             mult = defn.multiplicity_of(i)
             prefix = "" if mult is MOmega else f"{mult} "
-            args_formatted.append((format_name(n), format_type(t), prefix))
+            args_formatted.append((format_name(n), format_type(align_refined_binder(t, n)), prefix))
         # ``@example(assertion)`` decorators are surfaced in their own block; the
         # remaining decorators are shown as chips.
         examples_formatted = [
