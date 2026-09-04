@@ -1,0 +1,5 @@
+open ML
+
+# CORRECT: index 1 is within a twelve-column DataFrame.
+def valid_target_index (1 df: {table: DataFrame | df_cols table = 12}) : Dataset :=
+    target df 1

@@ -1,0 +1,5 @@
+open ML
+
+# CORRECT: fitting consumes the TrainingDataset once.
+def train_once (1 training: TrainingDataset) : DecisionTreeClassifier :=
+    decision_tree_classifier training

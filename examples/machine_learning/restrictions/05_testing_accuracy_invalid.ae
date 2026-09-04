@@ -1,0 +1,10 @@
+open ML
+
+# WRONG: both evaluations try to consume the same TestingDataset.
+def evaluate_twice
+    (model: DecisionTreeClassifier)
+    (1 testing: {test: TestingDataset
+        | testing_features test = classifier_features model
+       && testing_split_id test = classifier_split_id model}) : Float :=
+    let first_score := accuracy model testing in
+    accuracy model testing

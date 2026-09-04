@@ -1,0 +1,11 @@
+open ML
+
+# WRONG: a four-feature model cannot evaluate five-feature test data.
+def incompatible_features
+    (model: {m: DecisionTreeClassifier
+        | classifier_features m = 4
+       && classifier_split_id m = 7})
+    (1 testing: {test: TestingDataset
+        | testing_features test = 5
+       && testing_split_id test = 7}) : Float :=
+    accuracy model testing

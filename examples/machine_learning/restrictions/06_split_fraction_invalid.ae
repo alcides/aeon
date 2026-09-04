@@ -1,0 +1,6 @@
+open ML
+
+# WRONG: 1.0 violates the static requirement that the fraction be below 1.0.
+def invalid_fraction
+    (1 dataset: {ds: Dataset | ds_features ds >= 1}) : DatasetSplit :=
+    split dataset 1.0
