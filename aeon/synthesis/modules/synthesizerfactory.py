@@ -20,7 +20,7 @@ from aeon.synthesis.modules.llm import (
 from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
-from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
+from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TDSynSynthesizer
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
 from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.modules.afta import AFTASynthesizer
@@ -60,8 +60,13 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tdsyn": "Type-directed synthesis (BFS)",
     "tdsyn_enumerative": "Type-directed synthesis (BFS)",
     "tdsyn_random": "Type-directed synthesis (Random Walk)",
-    "tdsyn_backward": "Type-directed synthesis (Backward only)",
-    "tdsyn_forward": "Type-directed synthesis (Forward only)",
+    "tdsyn_backward": "Type-directed step (backward)",
+    "forward_close": "Forward step (close with a variable)",
+    "forward_let_app": "Forward step (let: application)",
+    "forward_let_if": "Forward step (let: if-then-else)",
+    "forward_let_tapp": "Forward step (let: type application)",
+    "forward_let_abs": "Forward step (let: abstraction)",
+    "forward_let_tabs": "Forward step (let: type abstraction)",
     "synquid": "Synquid enumeration (Q-guided)",
     "tactics": "Tactic search (random)",
     "decision_tree": "Decision tree regression (from examples)",
@@ -101,7 +106,12 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "tdsyn_enumerative": SynthesizerFamily.TYPE_DIRECTED,
     "tdsyn_random": SynthesizerFamily.TYPE_DIRECTED,
     "tdsyn_backward": SynthesizerFamily.TYPE_DIRECTED,
-    "tdsyn_forward": SynthesizerFamily.TYPE_DIRECTED,
+    "forward_close": SynthesizerFamily.TYPE_DIRECTED,
+    "forward_let_app": SynthesizerFamily.TYPE_DIRECTED,
+    "forward_let_if": SynthesizerFamily.TYPE_DIRECTED,
+    "forward_let_tapp": SynthesizerFamily.TYPE_DIRECTED,
+    "forward_let_abs": SynthesizerFamily.TYPE_DIRECTED,
+    "forward_let_tabs": SynthesizerFamily.TYPE_DIRECTED,
     "synquid": SynthesizerFamily.TYPE_DIRECTED,
     "tactics": SynthesizerFamily.TYPE_DIRECTED,
     # Example-driven — learn from @example / @csv_data I/O.
@@ -166,7 +176,12 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "tdsyn_enumerative",
         "tdsyn_random",
         "tdsyn_backward",
-        "tdsyn_forward",
+        "forward_close",
+        "forward_let_app",
+        "forward_let_if",
+        "forward_let_tapp",
+        "forward_let_abs",
+        "forward_let_tabs",
         "tactics",
         "lta",
         "symetric",
@@ -263,9 +278,15 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "tdsyn_random":
             return TDSynSynthesizer(mode="random", seed=seed)
         case "tdsyn_backward":
-            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="backward")
-        case "tdsyn_forward":
-            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="forward")
+            return TDSynOneStepSynthesizer(action="backward")
+        case (
+            "forward_close"
+            | "forward_let_app"
+            | "forward_let_if"
+            | "forward_let_tapp"
+            | ("forward_let_abs" | "forward_let_tabs")
+        ):
+            return TDSynOneStepSynthesizer(action=module)
         case "tactics":
             return TacticRandomSynthesizer(seed=seed)
         case "lta":

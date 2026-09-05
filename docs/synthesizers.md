@@ -114,15 +114,25 @@ Same expansion rules as `tdsyn`, but instead of a BFS worklist it performs indep
 
 ---
 
-### `tdsyn_backward` — Type-Directed Synthesis (Backward only)
+### `tdsyn_backward` — Type-Directed Step (Backward)
 
-Same BFS search as `tdsyn`, but restricted to the **backward** action: candidates are derived from the hole's expected type (literals, variables and function applications whose result type matches, abstractions, if-then-else). The forward action is disabled.
+Demonstrative single-step backend: applies the **backward** action exactly once to the hole. Candidates are derived from the hole's expected type (literals, variables and function applications whose result type matches, abstractions, if-then-else). Returns the first complete candidate that typechecks, or otherwise the first partial expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
 
 ---
 
-### `tdsyn_forward` — Type-Directed Synthesis (Forward only)
+### `forward_close` / `forward_let_*` — Forward Steps
 
-Same BFS search as `tdsyn`, but restricted to the **forward** action: candidates are built by applying in-scope functions to the variables already in scope, keeping only applications whose result type matches the hole. The backward action is disabled.
+Demonstrative single-step backends: each applies its forward action exactly once to the hole. `forward_close` closes the goal with a variable whose type already proves it. The `forward_let_*` tactics grow the scope with a `let v := <value> in ?goal` binding, reopening the goal with `v` in scope; each variant binds one term former as the value:
+
+| Backend | Let value | Type of `v` |
+|---|---|---|
+| `forward_let_app` | forward application `f(x, ?...)` (in-scope function applied to an in-scope variable, result matching the goal) | the application's unrefined result type |
+| `forward_let_if` | `if ?c then ?t else ?e` with branches typed by the goal | the goal type |
+| `forward_let_tapp` | monomorphic instantiation `f[T1]...` of a polymorphic in-scope variable | the instantiated type |
+| `forward_let_abs` | `fun x -> ?body` with `?body` typed by the goal, for each built-in base domain | `(x:domain) -> goal` |
+| `forward_let_tabs` | `Λa:B. ?body` with `?body` typed by the goal | `forall a:B, goal` |
+
+Each returns the first complete candidate that typechecks, or otherwise the first expansion with fresh `?<fun>_goal_<i>` subgoal holes, so steps can be chained. No search is performed — use `tdsyn` for actual synthesis.
 
 ---
 
@@ -170,8 +180,9 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `llm`           | LLM generation   | Problems that are easy to describe in natural language |
 | `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
-| `tdsyn_backward` | Type-directed BFS, backward action only | Goals best decomposed from the expected type |
-| `tdsyn_forward` | Type-directed BFS, forward action only | Goals best built up from the variables in scope |
+| `tdsyn_backward` | Single backward step (no search) | Demonstrating how the backward action decomposes a goal |
+| `forward_close` | Single forward step (no search) | Closing a goal with a variable already in scope |
+| `forward_let_app` / `forward_let_if` / `forward_let_tapp` / `forward_let_abs` / `forward_let_tabs` | Single forward step (no search) | Demonstrating how forward reasoning grows the scope with `let` bindings |
 | `tactics`       | Random tactic walks (Lean-style) | Goals whose proof decomposes into tactic steps |
 | `lta`           | Component-based via Liquid Tree Automata | Reusing a library of refined functions to assemble a term |
 

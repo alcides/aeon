@@ -4,14 +4,16 @@ from typing import Callable
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
-from aeon.core.terms import Abstraction, Application, If, Literal, Term, Var
+from aeon.core.terms import Abstraction, Application, If, Literal, Rec, Term, TypeAbstraction, Var
 from aeon.core.types import (
     AbstractionType,
+    Kind,
     RefinedType,
     Type,
     TypeConstructor,
     TypePolymorphism,
     RefinementPolymorphism,
+    refined_to_unrefined_type,
     t_bool,
     t_float,
     t_int,
@@ -27,7 +29,7 @@ from aeon.synthesis.modules.tdsyn.helpers import (
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
-from aeon.utils.name import Name
+from aeon.utils.name import Name, fresh_counter
 
 _loc = SynthesizedLocation("tdsyn")
 
@@ -222,19 +224,20 @@ def backward_candidates(
     return candidates
 
 
-def forward_candidates(
+def _forward_applications(
     hole: TypedHole,
     skip: Callable[[Name], bool],
-) -> list[tuple[Term, list[TypedHole]]]:
-    """Forward action: from variables in scope, find functions that consume them.
+) -> list[tuple[Term, list[TypedHole], Type]]:
+    """Applications of in-scope functions to in-scope variables.
 
     Given hole expecting type T, for each variable v:A in scope, find functions
     f:(x:A)->B where A is compatible with v's type, and produce f(v) with
-    remaining holes if needed.
+    remaining holes if needed, keeping only applications whose result type
+    matches T. Returns (term, new_holes, result_type) triples.
     """
     T = hole.expected_type
     ctx = hole.context
-    candidates: list[tuple[Term, list[TypedHole]]] = []
+    results: list[tuple[Term, list[TypedHole], Type]] = []
 
     # Collect concrete (non-function) variables
     concrete_vars: list[tuple[Name, Type]] = []
@@ -267,10 +270,163 @@ def forward_candidates(
                 if not bases_match(final_ret, T):
                     continue
                 result, new_holes = _build_application(applied, remaining_params, hole)
-                candidates.append((result, new_holes))
+                results.append((result, new_holes, final_ret))
             else:
                 # Single-argument or final application
                 if bases_match(remaining_type, T):
-                    candidates.append((applied, []))
+                    results.append((applied, [], remaining_type))
 
+    return results
+
+
+def forward_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Forward action: from variables in scope, find functions that consume them.
+
+    Given hole expecting type T, for each variable v:A in scope, find functions
+    f:(x:A)->B where A is compatible with v's type, and produce f(v) with
+    remaining holes if needed.
+    """
+    return [(term, new_holes) for term, new_holes, _ in _forward_applications(hole, skip)]
+
+
+def _let_candidate(
+    hole: TypedHole,
+    value_term: Term,
+    value_holes: list[TypedHole],
+    value_type: Type,
+) -> tuple[Term, list[TypedHole]]:
+    """Wrap a value in ``let v : value_type := value in ?goal``, reopening the
+    goal with ``v`` in scope.
+
+    The let is type-annotated (a non-recursive ``Rec``) so the value is
+    *checked* against ``value_type`` — values such as abstractions have no
+    synthesizable type — and so the demonstrative insertion shows the type the
+    step brings into scope.
+    """
+    v_name = Name("v", fresh_counter.fresh())
+    goal_hole_term, goal_typed_hole = fresh_hole(
+        hole.expected_type,
+        hole.context.with_var(v_name, value_type),
+        list(hole.constraints),
+    )
+    return Rec(v_name, value_type, value_term, goal_hole_term, loc=_loc), value_holes + [goal_typed_hole]
+
+
+def forward_close_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Forward close tactic: close the goal with a variable whose type already proves it."""
+    T = hole.expected_type
+    ctx = hole.context
+    candidates: list[tuple[Term, list[TypedHole]]] = []
+    for name, var_type in ctx.vars():
+        if skip(name):
+            continue
+        if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
+            continue
+        if bases_match(var_type, T) and is_subtype(ctx, var_type, T):
+            candidates.append((Var(name, _loc), []))
     return candidates
+
+
+def forward_let_app_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Forward let-application tactic: bind a forward application and reopen the goal.
+
+    Each option ``forward_candidates`` offers becomes a
+    ``let v := f(x, ...) in ?goal`` candidate. The let-bound variable gets the
+    unrefined result type: dependent refinements on a function's return type
+    mention its parameter binders, which are not in scope at the binding site.
+    """
+    return [
+        _let_candidate(hole, value_term, value_holes, refined_to_unrefined_type(value_type))
+        for value_term, value_holes, value_type in _forward_applications(hole, skip)
+    ]
+
+
+def forward_let_if_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Forward let-if tactic: bind an if-then-else over the goal type.
+
+    Produces ``let v := if ?c then ?t else ?e in ?goal`` where the branches and
+    ``v`` carry the goal's type, so a later step can close the goal with ``v``.
+    """
+    T = hole.expected_type
+    ctx = hole.context
+    cond_hole_term, cond_typed_hole = fresh_hole(t_bool, ctx)
+    then_hole_term, then_typed_hole = fresh_hole(T, ctx)
+    else_hole_term, else_typed_hole = fresh_hole(T, ctx)
+    value = If(cond_hole_term, then_hole_term, else_hole_term, _loc)
+    return [_let_candidate(hole, value, [cond_typed_hole, then_typed_hole, else_typed_hole], T)]
+
+
+def forward_let_tapp_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Forward let-type-application tactic: instantiate a polymorphic variable.
+
+    For each polymorphic variable in scope and each of its monomorphic
+    instantiations, produces ``let v : T := f in ?goal``, bringing the
+    instantiated (usually function-typed) ``v`` into scope. Operator-named
+    variables (``==``, ``+``, ...) are skipped: they have no parseable
+    surface syntax as bare values, so the insertion could not be re-parsed.
+    """
+    ctx = hole.context
+    candidates: list[tuple[Term, list[TypedHole]]] = []
+    for name, var_type in ctx.vars():
+        if skip(name):
+            continue
+        if not name.pretty().isidentifier():
+            continue
+        if not isinstance(var_type, (TypePolymorphism, RefinementPolymorphism)):
+            continue
+        for value_term, mono_type in monomorphize(name, var_type, ctx):
+            candidates.append(_let_candidate(hole, value_term, [], mono_type))
+    return candidates
+
+
+def forward_let_abs_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Forward let-abstraction tactic: bind a function producing the goal type.
+
+    For each built-in base domain type, produces
+    ``let v := (fun x -> ?body) in ?goal`` where ``?body`` has the goal's type
+    with ``x`` in scope, so ``v : (x:domain) -> goal``.
+    """
+    T = hole.expected_type
+    ctx = hole.context
+    candidates: list[tuple[Term, list[TypedHole]]] = []
+    for domain in (t_int, t_bool, t_float):
+        x_name = Name("x", fresh_counter.fresh())
+        body_hole_term, body_typed_hole = fresh_hole(T, ctx.with_var(x_name, domain))
+        value = Abstraction(x_name, body_hole_term, _loc)
+        candidates.append(_let_candidate(hole, value, [body_typed_hole], AbstractionType(x_name, domain, T)))
+    return candidates
+
+
+def forward_let_tabs_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Forward let-type-abstraction tactic: bind a type-polymorphic value.
+
+    Produces ``let v := (Λa:B. ?body) in ?goal`` where ``?body`` has the goal's
+    type with the type variable ``a`` in scope, so ``v : forall a:B, goal``.
+    """
+    T = hole.expected_type
+    ctx = hole.context
+    a_name = Name("a", fresh_counter.fresh())
+    body_hole_term, body_typed_hole = fresh_hole(T, ctx.with_typevar(a_name, Kind.BASE))
+    value = TypeAbstraction(a_name, Kind.BASE, body_hole_term, _loc)
+    return [_let_candidate(hole, value, [body_typed_hole], TypePolymorphism(a_name, Kind.BASE, T))]

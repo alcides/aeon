@@ -212,7 +212,13 @@ def test_synthesizers_includes_defaults():
     assert "tdsyn_enumerative" in SYNTHESIZERS
     assert "tdsyn_random" in SYNTHESIZERS
     assert "tdsyn_backward" in SYNTHESIZERS
-    assert "tdsyn_forward" in SYNTHESIZERS
+    assert "forward_close" in SYNTHESIZERS
+    assert "forward_let_app" in SYNTHESIZERS
+    assert "forward_let_if" in SYNTHESIZERS
+    assert "forward_let_tapp" in SYNTHESIZERS
+    assert "forward_let_abs" in SYNTHESIZERS
+    assert "forward_let_tabs" in SYNTHESIZERS
+    assert "tdsyn_forward" not in SYNTHESIZERS
     assert "gp" in SYNTHESIZERS
     assert "enumerative" in SYNTHESIZERS
     assert "llm_qwen2.5-coder-32b" in SYNTHESIZERS
@@ -365,10 +371,11 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
 
     # These backends need a spec the plain ``Int`` hole does not provide:
     # decision_tree needs @csv_data/@example rows; symetric needs a @minimize
-    # objective; sygus needs an SMT-expressible constraint; tdsyn_forward
-    # builds terms from variables in scope, and this hole has none. They
-    # legitimately produce no term here — just verify they complete without raising.
-    if synthesizer in ("decision_tree", "sygus", "symetric", "tdsyn_forward"):
+    # objective; sygus needs an SMT-expressible constraint; forward_close and
+    # forward_let_app build terms from plain variables in scope, and this hole
+    # has none. They legitimately produce no term here — just verify they
+    # complete without raising.
+    if synthesizer in ("decision_tree", "sygus", "symetric", "forward_close", "forward_let_app"):
         result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
         assert result is None or isinstance(result, tuple)
         return
