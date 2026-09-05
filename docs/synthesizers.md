@@ -120,9 +120,19 @@ Demonstrative single-step backend: applies the **backward** action exactly once 
 
 ---
 
-### `tdsyn_forward` — Type-Directed Step (Forward)
+### `forward_close` / `forward_let_*` — Forward Steps
 
-Demonstrative single-step backend: applies the **forward** action exactly once to the hole. It either closes the goal with a variable whose type already proves it, or introduces a `let v := f(x, ...) in ?goal` binding — where the value is any of the regular forward applications (in-scope functions applied to in-scope variables, result type matching the goal) — reopening the goal with `v` in scope. Returns the first complete candidate that typechecks, or otherwise the first let expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
+Demonstrative single-step backends: each applies its forward action exactly once to the hole. `forward_close` closes the goal with a variable whose type already proves it. The `forward_let_*` tactics grow the scope with a `let v := <value> in ?goal` binding, reopening the goal with `v` in scope; each variant binds one term former as the value:
+
+| Backend | Let value | Type of `v` |
+|---|---|---|
+| `forward_let_app` | forward application `f(x, ?...)` (in-scope function applied to an in-scope variable, result matching the goal) | the application's unrefined result type |
+| `forward_let_if` | `if ?c then ?t else ?e` with branches typed by the goal | the goal type |
+| `forward_let_tapp` | monomorphic instantiation `f[T1]...` of a polymorphic in-scope variable | the instantiated type |
+| `forward_let_abs` | `fun x -> ?body` with `?body` typed by the goal, for each built-in base domain | `(x:domain) -> goal` |
+| `forward_let_tabs` | `Λa:B. ?body` with `?body` typed by the goal | `forall a:B, goal` |
+
+Each returns the first complete candidate that typechecks, or otherwise the first expansion with fresh `?<fun>_goal_<i>` subgoal holes, so steps can be chained. No search is performed — use `tdsyn` for actual synthesis.
 
 ---
 
@@ -171,7 +181,8 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
 | `tdsyn_backward` | Single backward step (no search) | Demonstrating how the backward action decomposes a goal |
-| `tdsyn_forward` | Single forward step (no search) | Demonstrating how forward reasoning grows the scope with `let` bindings |
+| `forward_close` | Single forward step (no search) | Closing a goal with a variable already in scope |
+| `forward_let_app` / `forward_let_if` / `forward_let_tapp` / `forward_let_abs` / `forward_let_tabs` | Single forward step (no search) | Demonstrating how forward reasoning grows the scope with `let` bindings |
 | `tactics`       | Random tactic walks (Lean-style) | Goals whose proof decomposes into tactic steps |
 | `lta`           | Component-based via Liquid Tree Automata | Reusing a library of refined functions to assemble a term |
 
