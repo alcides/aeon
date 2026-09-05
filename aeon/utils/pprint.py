@@ -3,6 +3,7 @@ from enum import IntEnum, Enum, auto
 from functools import reduce
 from typing import Callable, List, Tuple
 
+from aeon.core.types import Kind
 from aeon.sugar.ast_helpers import true, false
 from aeon.sugar.program import (
     SLet,
@@ -407,13 +408,14 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
 
         case STypePolymorphism(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
-            pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
+            # Grammar form (``polymorphism_t``): ASCII kinds only.
+            pretty_kind = text("B" if kind == Kind.BASE else "*")
 
             pretty_body = pretty_stype_with_parens(body, ParenthesisContext(Precedence.POLYMORPHISM, Side.RIGHT))
 
-            left = concat([text("∀"), pretty_name, text(" : "), pretty_kind])
+            left = concat([text("forall "), pretty_name, text(" : "), pretty_kind])
 
-            return group(concat([left, text(" ."), nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body]))]))
+            return group(concat([left, text(","), nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body]))]))
 
         case STypeConstructor(name=name, args=args):
             pretty_name = text(name.pretty())
@@ -598,14 +600,15 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
 
         case STypeAbstraction(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
-            pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
+            # Grammar form (``tabstraction_e``): ASCII kinds only.
+            pretty_kind = text("B" if kind == Kind.BASE else "*")
             pretty_body = pretty_sterm_with_parens(
                 body, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
             )
 
             pretty_kind_def = concat([pretty_name, text(" : "), pretty_kind])
-            pretty_binding = concat([pretty_kind_def, text("."), pretty_body])
-            return group(concat([text("ƛ"), pretty_binding]))
+            pretty_binding = concat([pretty_kind_def, text(" ↦ "), pretty_body])
+            return group(concat([text("Λ"), pretty_binding]))
 
         case SRefinementAbstraction(name=name, sort=sort, body=body):
             pretty_body = pretty_sterm_with_parens(
@@ -701,7 +704,10 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                     )
         case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=db):
             match body:
-                case SHole(name=name):
+                # Program-tail display only: `let f : T := e in ?main` renders as
+                # a top-level binding returning `main`. Other hole bodies are
+                # open subgoals (e.g. one-step synthesis results) and must be kept.
+                case SHole(name=name) if name.pretty() == "main":
                     return SRec(
                         var_name=name,
                         var_type=var_type,
