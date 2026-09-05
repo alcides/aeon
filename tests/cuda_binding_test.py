@@ -182,3 +182,83 @@ def test_unavailable_driver_is_reported_only_on_first_operation(cuda_module, mon
     assert cuda_module._DRIVER is None
     with pytest.raises(cuda_module.CUDAUnavailableError, match="not found"):
         cuda_module.Device()
+
+
+def test_launch_2d_grid_covers_extents(cuda_module):
+    launch = cuda_module.Launch2D(33, 17, 16, 8)
+    assert launch.grid_x == 3
+    assert launch.grid_y == 3
+    assert launch.grid_x * launch.block_x >= launch.width
+    assert launch.grid_y * launch.block_y >= launch.height
+    assert cuda_module.launch2d_grid_x(launch) == 3
+    with pytest.raises(ValueError):
+        cuda_module.Launch2D(8, 8, 64, 32)  # 2048 > 1024
+
+
+def test_launch_1d_warped_rejects_non_multiples(cuda_module):
+    with pytest.raises(ValueError):
+        cuda_module.launch_1d_warped(100, 33)
+    launch = cuda_module.launch_1d_warped(64, 32)
+    assert launch.require_warp_multiple
+    assert launch.block_size == 32
+
+
+def test_upload_tags_device_rw_extents(cuda_module):
+    device = _cuda_device_or_skip(cuda_module)
+    try:
+        buffer = cuda_module.upload_i32(device, [1, 2, 3])
+        assert cuda_module.buffer_mem_kind(buffer) == cuda_module.MEM_KIND_DEVICE
+        assert cuda_module.buffer_access(buffer) == cuda_module.ACCESS_READ_WRITE
+        assert cuda_module.buffer_extent_x(buffer) == 3
+        assert cuda_module.buffer_extent_y(buffer) == 1
+        buffer.free()
+    finally:
+        device.close()
+
+
+def test_as_read_only_transfers_ownership(cuda_module):
+    device = _cuda_device_or_skip(cuda_module)
+    try:
+        buffer = cuda_module.upload_i32(device, [1, 2])
+        pointer = buffer.pointer
+        readonly = cuda_module.as_read_only(buffer)
+        assert buffer._transferred and buffer._freed
+        with pytest.raises(cuda_module.CUDAStateError):
+            cuda_module.download_i32(buffer)
+        assert cuda_module.buffer_access(readonly) == cuda_module.ACCESS_READ_ONLY
+        assert readonly.pointer == pointer
+        assert cuda_module.download_i32(readonly) == [1, 2]
+        readonly.free()
+    finally:
+        device.close()
+
+
+def test_synchronize_with_status_success_path(cuda_module):
+    device = _cuda_device_or_skip(cuda_module)
+    try:
+        left = cuda_module.upload_i32(device, [1, 2])
+        right = cuda_module.upload_i32(device, [3, 4])
+        pending = cuda_module.vector_add_i32(
+            device, cuda_module.launch_1d(2, 2), left, right, cuda_module.default_stream(device)
+        )
+        result = cuda_module.synchronize_with_status(pending)
+        assert cuda_module.status_buffer_ok(result)
+        status, buffer = cuda_module.unpack_status_buffer(result)
+        assert cuda_module.status_is_ok(status)
+        assert buffer is not None
+        assert cuda_module.download_i32(buffer) == [4, 6]
+        cuda_module.check_ok(status)
+        with pytest.raises(cuda_module.CUDAStateError):
+            cuda_module.discard_status(status)
+        buffer.free()
+    finally:
+        device.close()
+
+
+def test_device_reports_warp_and_shared_limits(cuda_module):
+    device = _cuda_device_or_skip(cuda_module)
+    try:
+        assert cuda_module.warp_size(device) > 0
+        assert cuda_module.max_shared_mem_per_block(device) >= 0
+    finally:
+        device.close()

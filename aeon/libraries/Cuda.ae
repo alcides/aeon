@@ -16,6 +16,9 @@ type Device
 # One-dimensional launch configuration: logical item count and block size.
 type Launch1D
 
+# Two-dimensional launch configuration: width/height and block dims.
+type Launch2D
+
 # CUDA stream for ordered kernel enqueue on one device.
 type Stream
 
@@ -33,16 +36,49 @@ linear type Float64Download
 type I32DownloadPair
 type Float64DownloadPair
 
+# Linear completion token; must be ``check_ok`` or ``discard_status``.
+linear type Status
+
+# Linear pair from ``synchronize_with_status`` (status + optional ready buffer).
+linear type StatusBuffer a
+
+# Unrestricted pair after unpacking a ``StatusBuffer``.
+type StatusPair a
+
+# ── Kind / access constants ──────────────────────────────────────────────
+
+def mem_kind_device : Int := 0
+def mem_kind_host_pinned : Int := 1
+def mem_kind_managed : Int := 2
+def mem_kind_host : Int := 3
+
+def access_read_only : Int := 0
+def access_read_write : Int := 1
+
 # ── Uninterpreted measures (for refinements only) ────────────────────────
 
 def device_id : (d: Device) -> Int := uninterpreted
 def num_devices : (_: Unit) -> Int := uninterpreted
 def max_threads_per_block : (d: Device) -> Int := uninterpreted
 def max_allocation : (d: Device) -> Int := uninterpreted
+def warp_size : (d: Device) -> Int := uninterpreted
+def max_shared_mem_per_block : (d: Device) -> Int := uninterpreted
+
 def launch_device : (launch: Launch1D) -> Int := uninterpreted
 def launch_items : (launch: Launch1D) -> Int := uninterpreted
 def launch_threads : (launch: Launch1D) -> Int := uninterpreted
 def launch_grid_size : (launch: Launch1D) -> Int := uninterpreted
+def launch_shared_bytes : (launch: Launch1D) -> Int := uninterpreted
+
+def launch2d_device : (launch: Launch2D) -> Int := uninterpreted
+def launch2d_width : (launch: Launch2D) -> Int := uninterpreted
+def launch2d_height : (launch: Launch2D) -> Int := uninterpreted
+def launch2d_threads_x : (launch: Launch2D) -> Int := uninterpreted
+def launch2d_threads_y : (launch: Launch2D) -> Int := uninterpreted
+def launch2d_grid_x : (launch: Launch2D) -> Int := uninterpreted
+def launch2d_grid_y : (launch: Launch2D) -> Int := uninterpreted
+def launch2d_shared_bytes : (launch: Launch2D) -> Int := uninterpreted
+
 def stream_device : (stream: Stream) -> Int := uninterpreted
 def stream_id : (stream: Stream) -> Int := uninterpreted
 def pending_stream : (pending: (Pending a)) -> Int := uninterpreted
@@ -51,8 +87,14 @@ def buffer_device : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
 def buffer_size : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
 def buffer_elem_size : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
 def buffer_bytes : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+def buffer_mem_kind : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+def buffer_access : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+def buffer_extent_x : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+def buffer_extent_y : (buffer: (ReadyBuffer a)) -> Int := uninterpreted
+
 def pending_device : (pending: (Pending a)) -> Int := uninterpreted
 def pending_size : (pending: (Pending a)) -> Int := uninterpreted
+
 def i32_download_device : (p: I32Download) -> Int := uninterpreted
 def i32_download_size : (p: I32Download) -> Int := uninterpreted
 def i32_download_pair_device : (p: I32DownloadPair) -> Int := uninterpreted
@@ -61,6 +103,15 @@ def float64_download_device : (p: Float64Download) -> Int := uninterpreted
 def float64_download_size : (p: Float64Download) -> Int := uninterpreted
 def float64_download_pair_device : (p: Float64DownloadPair) -> Int := uninterpreted
 def float64_download_pair_size : (p: Float64DownloadPair) -> Int := uninterpreted
+
+def status_is_ok : (s: Status) -> Bool := uninterpreted
+def status_code : (s: Status) -> Int := uninterpreted
+def status_buffer_ok : (sb: (StatusBuffer a)) -> Bool := uninterpreted
+def status_buffer_device : (sb: (StatusBuffer a)) -> Int := uninterpreted
+def status_buffer_size : (sb: (StatusBuffer a)) -> Int := uninterpreted
+def status_pair_ok : (p: (StatusPair a)) -> Bool := uninterpreted
+def status_pair_device : (p: (StatusPair a)) -> Int := uninterpreted
+def status_pair_size : (p: (StatusPair a)) -> Int := uninterpreted
 
 # ── Device discovery ─────────────────────────────────────────────────────
 
@@ -72,14 +123,22 @@ def num_devices (_: Unit) :
 
 # Select a device by zero-based index.
 # id: must satisfy ``0 <= id < num_devices unit``.
-# returns: a handle whose ``device_id`` equals ``id`` with a positive block limit.
+# returns: a handle whose ``device_id`` equals ``id`` with positive warp/block limits.
 def device (id: {n: Int | n >= 0 && n < num_devices unit}) :
-    {d: Device | device_id d = id && max_threads_per_block d > 0} :=
+    {d: Device |
+        device_id d = id &&
+        max_threads_per_block d >= 1024 &&
+        warp_size d = 32 &&
+        max_shared_mem_per_block d >= 0} :=
     native "__import__('aeon.bindings.cuda', fromlist=['device']).device(id)"
 
 # Default CUDA device (device 0 when present).
 def default_device (_: Unit) :
-    {d: Device | device_id d >= 0 && max_threads_per_block d > 0} :=
+    {d: Device |
+        device_id d >= 0 &&
+        max_threads_per_block d >= 1024 &&
+        warp_size d = 32 &&
+        max_shared_mem_per_block d >= 0} :=
     native "__import__('aeon.bindings.cuda', fromlist=['device']).device()"
 
 # Default stream on ``device``.
@@ -89,26 +148,90 @@ def default_stream (device: Device) :
 
 # ── Launch configuration ─────────────────────────────────────────────────
 
-# Describe a non-empty 1-D launch on ``device``.
+# Describe a non-empty 1-D launch on ``device`` with zero shared memory.
 # device: target GPU.
 # items: logical element count (must be positive).
-# threads: block size; at most ``items`` and at most ``max_threads_per_block device``.
+# threads: block size; at most ``items``, ``max_threads_per_block``, and 1024.
 # returns: launch whose grid covers all ``items``.
 def launch_1d (device: Device)
     (items: {n: Int | n > 0})
-    (threads: {n: Int | n > 0 && n <= items && n <= max_threads_per_block device}) :
+    (threads: {n: Int | n > 0 && n <= items && n <= max_threads_per_block device && n <= 1024}) :
     {launch: Launch1D |
         launch_device launch = device_id device &&
         launch_items launch = items &&
         launch_threads launch = threads &&
-        launch_grid_size launch * launch_threads launch >= launch_items launch} :=
-    native "(__import__('aeon.bindings.cuda', fromlist=['launch_1d']).launch_1d(items, threads), device)"
+        launch_grid_size launch * launch_threads launch >= launch_items launch &&
+        launch_shared_bytes launch = 0} :=
+    native "(__import__('aeon.bindings.cuda', fromlist=['launch_1d']).launch_1d(items, threads, 0), device)"
+
+# Like ``launch_1d`` but records a shared-memory budget for the block.
+# shared: bytes of dynamic shared memory; at most ``max_shared_mem_per_block device``.
+def launch_1d_shared (device: Device)
+    (items: {n: Int | n > 0})
+    (threads: {n: Int | n > 0 && n <= items && n <= max_threads_per_block device && n <= 1024})
+    (shared: {s: Int | s >= 0 && s <= max_shared_mem_per_block device}) :
+    {launch: Launch1D |
+        launch_device launch = device_id device &&
+        launch_items launch = items &&
+        launch_threads launch = threads &&
+        launch_grid_size launch * launch_threads launch >= launch_items launch &&
+        launch_shared_bytes launch = shared} :=
+    native "(__import__('aeon.bindings.cuda', fromlist=['launch_1d']).launch_1d(items, threads, shared), device)"
+
+# Like ``launch_1d`` but requires warp-aligned block size (or a single-warp launch).
+def launch_1d_warped (device: Device)
+    (items: {n: Int | n > 0})
+    (threads: {n: Int |
+        n > 0 && n <= items && n <= max_threads_per_block device && n <= 1024 &&
+        (n <= warp_size device || n % warp_size device = 0)}) :
+    {launch: Launch1D |
+        launch_device launch = device_id device &&
+        launch_items launch = items &&
+        launch_threads launch = threads &&
+        launch_grid_size launch * launch_threads launch >= launch_items launch &&
+        launch_shared_bytes launch = 0} :=
+    native "(__import__('aeon.bindings.cuda', fromlist=['launch_1d_warped']).launch_1d_warped(items, threads, 0), device)"
+
+# Describe a non-empty 2-D launch whose grid covers ``width`` × ``height``.
+def launch_2d (device: Device)
+    (width: {n: Int | n > 0})
+    (height: {n: Int | n > 0})
+    (tx: {n: Int | n > 0 && n <= 1024})
+    (ty: {n: Int | n > 0 && n <= 1024 && tx * n <= max_threads_per_block device && tx * n <= 1024}) :
+    {launch: Launch2D |
+        launch2d_device launch = device_id device &&
+        launch2d_width launch = width &&
+        launch2d_height launch = height &&
+        launch2d_threads_x launch = tx &&
+        launch2d_threads_y launch = ty &&
+        launch2d_grid_x launch * launch2d_threads_x launch >= launch2d_width launch &&
+        launch2d_grid_y launch * launch2d_threads_y launch >= launch2d_height launch &&
+        launch2d_shared_bytes launch = 0} :=
+    native "(__import__('aeon.bindings.cuda', fromlist=['launch_2d']).launch_2d(width, height, tx, ty, 0), device)"
+
+# Like ``launch_2d`` with a shared-memory budget.
+def launch_2d_shared (device: Device)
+    (width: {n: Int | n > 0})
+    (height: {n: Int | n > 0})
+    (tx: {n: Int | n > 0 && n <= 1024})
+    (ty: {n: Int | n > 0 && n <= 1024 && tx * n <= max_threads_per_block device && tx * n <= 1024})
+    (shared: {s: Int | s >= 0 && s <= max_shared_mem_per_block device}) :
+    {launch: Launch2D |
+        launch2d_device launch = device_id device &&
+        launch2d_width launch = width &&
+        launch2d_height launch = height &&
+        launch2d_threads_x launch = tx &&
+        launch2d_threads_y launch = ty &&
+        launch2d_grid_x launch * launch2d_threads_x launch >= launch2d_width launch &&
+        launch2d_grid_y launch * launch2d_threads_y launch >= launch2d_height launch &&
+        launch2d_shared_bytes launch = shared} :=
+    native "(__import__('aeon.bindings.cuda', fromlist=['launch_2d']).launch_2d(width, height, tx, ty, shared), device)"
 
 # ── Host → device ────────────────────────────────────────────────────────
 
 # Upload a non-empty ``Int`` array; consumes the host buffer.
 # values: linear host array; size and byte budget must fit ``device``.
-# returns: ``ReadyBuffer Int`` with 4-byte elements on ``device``.
+# returns: device ``ReadyBuffer Int`` with RW access and 1-D extents.
 def upload_i32 (device: Device)
     (1 values: {xs: (Array Int) | Array.size xs > 0}) :
     {buffer: (ReadyBuffer Int) |
@@ -116,7 +239,11 @@ def upload_i32 (device: Device)
         buffer_size buffer = Array.size values &&
         buffer_elem_size buffer = 4 &&
         buffer_bytes buffer = buffer_size buffer * buffer_elem_size buffer &&
-        buffer_bytes buffer <= max_allocation device} :=
+        buffer_bytes buffer <= max_allocation device &&
+        buffer_mem_kind buffer = mem_kind_device &&
+        buffer_access buffer = access_read_write &&
+        buffer_extent_x buffer = buffer_size buffer &&
+        buffer_extent_y buffer = 1} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_i32']).upload_i32(device, values)"
 
 # Upload a non-empty ``Float`` array as float64; consumes the host buffer.
@@ -127,13 +254,30 @@ def upload_float64 (device: Device)
         buffer_size buffer = Array.size values &&
         buffer_elem_size buffer = 8 &&
         buffer_bytes buffer = buffer_size buffer * buffer_elem_size buffer &&
-        buffer_bytes buffer <= max_allocation device} :=
+        buffer_bytes buffer <= max_allocation device &&
+        buffer_mem_kind buffer = mem_kind_device &&
+        buffer_access buffer = access_read_write &&
+        buffer_extent_x buffer = buffer_size buffer &&
+        buffer_extent_y buffer = 1} :=
     native "__import__('aeon.bindings.cuda', fromlist=['upload_float64']).upload_float64(device, values)"
+
+# Transfer a ready buffer into a read-only view of the same allocation.
+def as_read_only (1 buffer: (ReadyBuffer a)) :
+    {r: (ReadyBuffer a) |
+        buffer_device r = buffer_device buffer &&
+        buffer_size r = buffer_size buffer &&
+        buffer_elem_size r = buffer_elem_size buffer &&
+        buffer_bytes r = buffer_bytes buffer &&
+        buffer_mem_kind r = buffer_mem_kind buffer &&
+        buffer_access r = access_read_only &&
+        buffer_extent_x r = buffer_extent_x buffer &&
+        buffer_extent_y r = buffer_extent_y buffer} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['as_read_only']).as_read_only(buffer)"
 
 # ── Kernels ──────────────────────────────────────────────────────────────
 
 # Elementwise ``Int`` vector add on ``launch``'s device via ``stream``.
-# left, right: equal-sized buffers on the launch device, covering ``launch_items``.
+# left, right: equal-sized device buffers on the launch device (RO or RW).
 # returns: ``Pending Int``; inputs are consumed.
 def add_i32
     (launch: Launch1D)
@@ -143,18 +287,22 @@ def add_i32
         buffer_elem_size buffer = 4 &&
         buffer_device buffer = launch_device launch &&
         buffer_size buffer = launch_items launch &&
+        buffer_mem_kind buffer = mem_kind_device &&
+        (buffer_access buffer = access_read_only || buffer_access buffer = access_read_write) &&
         launch_grid_size launch * launch_threads launch >= buffer_size buffer})
     (1 right: {buffer: (ReadyBuffer Int) |
         buffer_size buffer = buffer_size left &&
         buffer_elem_size buffer = buffer_elem_size left &&
-        buffer_device buffer = buffer_device left}) :
+        buffer_device buffer = buffer_device left &&
+        buffer_mem_kind buffer = mem_kind_device &&
+        (buffer_access buffer = access_read_only || buffer_access buffer = access_read_write)}) :
     {pending: (Pending Int) |
         pending_device pending = launch_device launch &&
         pending_size pending = launch_items launch &&
         pending_stream pending = stream_id stream} :=
     native "__import__('aeon.bindings.cuda', fromlist=['vector_add_i32']).vector_add_i32(launch[1], launch[0], left, right, stream)"
 
-# Elementwise ``Float`` (float64) vector add; same size/device rules as ``add_i32``.
+# Elementwise ``Float`` (float64) vector add; same size/device/kind rules as ``add_i32``.
 def add_float64
     (launch: Launch1D)
     (stream: {s: Stream | stream_device s = launch_device launch})
@@ -163,11 +311,15 @@ def add_float64
         buffer_elem_size buffer = 8 &&
         buffer_device buffer = launch_device launch &&
         buffer_size buffer = launch_items launch &&
+        buffer_mem_kind buffer = mem_kind_device &&
+        (buffer_access buffer = access_read_only || buffer_access buffer = access_read_write) &&
         launch_grid_size launch * launch_threads launch >= buffer_size buffer})
     (1 right: {buffer: (ReadyBuffer Float) |
         buffer_size buffer = buffer_size left &&
         buffer_elem_size buffer = buffer_elem_size left &&
-        buffer_device buffer = buffer_device left}) :
+        buffer_device buffer = buffer_device left &&
+        buffer_mem_kind buffer = mem_kind_device &&
+        (buffer_access buffer = access_read_only || buffer_access buffer = access_read_write)}) :
     {pending: (Pending Float) |
         pending_device pending = launch_device launch &&
         pending_size pending = launch_items launch &&
@@ -176,13 +328,57 @@ def add_float64
 
 # ── Synchronization ──────────────────────────────────────────────────────
 
-# Block until ``pending`` completes; recover a ``ReadyBuffer``.
+# Block until ``pending`` completes; recover a RW device ``ReadyBuffer``.
 def synchronize (1 pending: (Pending a)) :
     {buffer: (ReadyBuffer a) |
         buffer_device buffer = pending_device pending &&
         buffer_size buffer = pending_size pending &&
-        buffer_bytes buffer = buffer_size buffer * buffer_elem_size buffer} :=
+        buffer_bytes buffer = buffer_size buffer * buffer_elem_size buffer &&
+        buffer_mem_kind buffer = mem_kind_device &&
+        buffer_access buffer = access_read_write &&
+        buffer_extent_x buffer = buffer_size buffer &&
+        buffer_extent_y buffer = 1} :=
     native "__import__('aeon.bindings.cuda', fromlist=['synchronize']).synchronize(pending)"
+
+# Like ``synchronize`` but returns a linear status token paired with the buffer.
+def synchronize_with_status (1 pending: (Pending a)) :
+    {sb: (StatusBuffer a) |
+        status_buffer_ok sb &&
+        status_buffer_device sb = pending_device pending &&
+        status_buffer_size sb = pending_size pending} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['synchronize_with_status']).synchronize_with_status(pending)"
+
+# Unpack a successful ``StatusBuffer`` into an unrestricted status/buffer pair.
+def unpack_status_buffer (1 sb: {s: (StatusBuffer a) | status_buffer_ok s}) :
+    {pair: (StatusPair a) |
+        status_pair_ok pair &&
+        status_pair_device pair = status_buffer_device sb &&
+        status_pair_size pair = status_buffer_size sb} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['unpack_status_buffer']).unpack_status_buffer(sb)"
+
+# Status half of an unpacked pair (still linear — check or discard).
+def status_pair_status (p: {pr: (StatusPair a) | status_pair_ok pr}) :
+    {s: Status | status_is_ok s} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['status_pair_status']).status_pair_status(p)"
+
+# Ready buffer half of an unpacked ok pair.
+def status_pair_buffer (p: {pr: (StatusPair a) | status_pair_ok pr}) :
+    {b: (ReadyBuffer a) |
+        buffer_device b = status_pair_device p &&
+        buffer_size b = status_pair_size p &&
+        buffer_mem_kind b = mem_kind_device &&
+        buffer_access b = access_read_write &&
+        buffer_extent_x b = buffer_size b &&
+        buffer_extent_y b = 1} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['status_pair_buffer']).status_pair_buffer(p)"
+
+# Consume an ok status (runtime no-op when refinements already prove success).
+def check_ok (1 s: {st: Status | status_is_ok st}) : Unit :=
+    native "__import__('aeon.bindings.cuda', fromlist=['check_ok']).check_ok(s)"
+
+# Explicitly discard a status without checking.
+def discard_status (1 s: Status) : Unit :=
+    native "__import__('aeon.bindings.cuda', fromlist=['discard_status']).discard_status(s)"
 
 # ── Device → host ────────────────────────────────────────────────────────
 
@@ -226,7 +422,11 @@ def download_buffer_i32 (p: I32DownloadPair) :
         buffer_device b = i32_download_pair_device p &&
         buffer_size b = i32_download_pair_size p &&
         buffer_elem_size b = 4 &&
-        buffer_bytes b = buffer_size b * buffer_elem_size b} :=
+        buffer_bytes b = buffer_size b * buffer_elem_size b &&
+        buffer_mem_kind b = mem_kind_device &&
+        buffer_access b = access_read_write &&
+        buffer_extent_x b = buffer_size b &&
+        buffer_extent_y b = 1} :=
     native "p[1]"
 
 # Host snapshot from a ``Float64DownloadPair``.
@@ -240,7 +440,11 @@ def download_buffer_float64 (p: Float64DownloadPair) :
         buffer_device b = float64_download_pair_device p &&
         buffer_size b = float64_download_pair_size p &&
         buffer_elem_size b = 8 &&
-        buffer_bytes b = buffer_size b * buffer_elem_size b} :=
+        buffer_bytes b = buffer_size b * buffer_elem_size b &&
+        buffer_mem_kind b = mem_kind_device &&
+        buffer_access b = access_read_write &&
+        buffer_extent_x b = buffer_size b &&
+        buffer_extent_y b = 1} :=
     native "p[1]"
 
 # ── Release ──────────────────────────────────────────────────────────────
