@@ -1,0 +1,54 @@
+# Download session with typestate + progress ghost (LiquidJava ``Downloader``).
+#
+# States:
+#   created → start → downloading → (update)* → finish → completed
+#
+# ``progress`` is a ghost measure in ``[0, 100]``. Updates must strictly
+# increase it; ``finish`` requires ``progress = 100``.
+
+linear type Downloader
+
+def created : (d: Downloader) -> Bool := uninterpreted
+def downloading : (d: Downloader) -> Bool := uninterpreted
+def completed : (d: Downloader) -> Bool := uninterpreted
+def progress : (d: Downloader) -> Int := uninterpreted
+
+# Fresh session at 0% in the created state.
+def new_downloader (_: Unit) :
+    {d: Downloader |
+        created d = true &&
+        downloading d = false &&
+        completed d = false &&
+        progress d = 0} :=
+    native "__import__('aeon.bindings.downloader', fromlist=['new_downloader']).new_downloader()"
+
+# Begin downloading (created → downloading), progress stays 0.
+def start (1 d: {x: Downloader | created x = true && progress x = 0}) :
+    {out: Downloader |
+        created out = false &&
+        downloading out = true &&
+        completed out = false &&
+        progress out = 0} :=
+    native "__import__('aeon.bindings.downloader', fromlist=['start']).start(d)"
+
+# Monotonic progress update while downloading. ``p`` must exceed current
+# progress and be at most 100.
+def update (1 d: {x: Downloader | downloading x = true})
+    (p: {n: Int | n > progress d && n <= 100}) :
+    {out: Downloader |
+        downloading out = true &&
+        completed out = false &&
+        progress out = p} :=
+    native "__import__('aeon.bindings.downloader', fromlist=['update']).update(d, p)"
+
+# Complete only at 100%.
+def finish (1 d: {x: Downloader | downloading x = true && progress x = 100}) :
+    {out: Downloader |
+        downloading out = false &&
+        completed out = true &&
+        progress out = 100} :=
+    native "__import__('aeon.bindings.downloader', fromlist=['finish']).finish(d)"
+
+# Consume a completed session.
+def discard (1 d: {x: Downloader | completed x = true}) : Unit :=
+    native "None"

@@ -1,0 +1,46 @@
+# Linear (QTT) byte reader — open → read* → close, inspired by LiquidJava's
+# ``InputStreamReader`` refinements.
+#
+# Unlike ``Path.read`` (one-shot whole-file), this API exposes a streaming
+# handle. ``reader_open`` tracks whether the stream is still live; ``read``
+# returns a code in ``[-1, 255]`` (``-1`` = EOF) and threads the open reader;
+# ``close`` consumes it.
+#
+#     let 1 r0 := open_reader path in
+#     let step := read r0 in
+#     let code := read_code step in
+#     let 1 r1 := read_reader step in
+#     close r1;
+
+linear type Reader
+
+# Unrestricted token after ``read``: byte/EOF code plus the live reader.
+type ReaderStep
+
+def reader_open : (r: Reader) -> Bool := uninterpreted
+def step_code : (s: ReaderStep) -> Int := uninterpreted
+
+# Open ``path`` for binary reading. Path must be non-empty.
+def open_reader (path: {p: String | p != ""}) :
+    {r: Reader | reader_open r = true} :=
+    native "open(path, 'rb')"
+
+# Read one byte from an open reader. Returns ``-1`` at EOF, else ``0..255``.
+# Consumes the reader and recovers it via ``read_reader``.
+def read (1 r: {x: Reader | reader_open x = true}) :
+    {s: ReaderStep |
+        step_code s >= (0 - 1) &&
+        step_code s <= 255} :=
+    native "__import__('aeon.bindings.reader', fromlist=['read_step']).read_step(r)"
+
+def read_code (s: ReaderStep) :
+    {n: Int | n = step_code s && n >= (0 - 1) && n <= 255} :=
+    native "s[0]"
+
+def read_reader (s: ReaderStep) :
+    {r: Reader | reader_open r = true} :=
+    native "s[1]"
+
+# Close an open reader. Consumes the handle.
+def close (1 r: {x: Reader | reader_open x = true}) : Unit :=
+    native "r.close() or None"

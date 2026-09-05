@@ -1,0 +1,12 @@
+open Email
+
+# Fluent builder: from → to → subject → body → build.
+def compose (u: Unit) : String :=
+    let 1 e0 := new_email u in
+    let 1 e1 := set_from "alice@example.com" e0 in
+    let 1 e2 := add_to "bob@example.com" e1 in
+    let 1 e3 := set_subject "Hello" e2 in
+    let 1 e4 := set_body "Hi Bob," e3 in
+    build e4;
+
+def main (args: Int) : Unit := print "ok"
