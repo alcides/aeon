@@ -1,0 +1,38 @@
+# Linear (QTT) mutex — Python ``threading.Lock`` with locked/unlocked typestate.
+#
+# Inspired by LiquidJava's ``ReentrantLock`` external refinements. A lock is a
+# unique linear handle: you must ``acquire`` before the critical section and
+# ``release`` before destroying it. The ``lock_held`` measure tracks state so
+# double-acquire / unlock-while-free are compile-time errors.
+#
+#     let 1 l0 := new_lock unit in
+#     let 1 l1 := acquire l0 in
+#     # critical section
+#     let 1 l2 := release l1 in
+#     destroy l2;
+
+linear type Lock
+
+def threading : Unit := native_import "threading"
+
+# True exactly when this handle is in the locked state.
+def lock_held : (l: Lock) -> Bool := uninterpreted
+
+# Fresh unlocked mutex. Takes ``Unit`` so each call allocates a new lock.
+def new_lock (_: Unit) :
+    {l: Lock | lock_held l = false} :=
+    native "threading.Lock()"
+
+# Acquire an unlocked lock; returns the same lock in the held state.
+def acquire (1 l: {x: Lock | lock_held x = false}) :
+    {out: Lock | lock_held out = true} :=
+    native "(l.acquire(), l)[1]"
+
+# Release a held lock; returns an unlocked handle for reuse or ``destroy``.
+def release (1 l: {x: Lock | lock_held x = true}) :
+    {out: Lock | lock_held out = false} :=
+    native "(l.release(), l)[1]"
+
+# Drop an unlocked lock. Consumes the handle so it cannot be used again.
+def destroy (1 l: {x: Lock | lock_held x = false}) : Unit :=
+    native "None"
