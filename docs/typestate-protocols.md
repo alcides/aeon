@@ -11,12 +11,14 @@ progress ghost. Each combines **linear handles** (use exactly once) with
 | [`Reader`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Reader.ae) | `InputStreamReader` | open → read* → close; byte codes in `[-1, 255]` |
 | [`Email`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Email.ae) | fluent `Email` | from → to+ → body → build |
 | [`Downloader`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Downloader.ae) | `Downloader` | start → monotonic update → finish at 100% |
+| [`Iterator`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Iterator.ae) | `Iterator` | hasNext before next; remaining ghost |
 
 Examples (typecheck with `--no-main`):
 [`lock_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/lock_example.ae),
 [`reader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/reader_example.ae),
 [`email_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/email_example.ae),
-[`downloader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/downloader_example.ae).
+[`downloader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/downloader_example.ae),
+[`iterator_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/iterator_example.ae).
 
 ---
 
@@ -83,6 +85,34 @@ def download (u: Unit) : Unit :=
 ```
 
 Updates must strictly increase `progress`; `finish` requires `progress = 100`.
+
+## Iterator
+
+```aeon
+open Array
+open Iterator
+
+def sum_two (u: Unit) : Int :=
+    let 1 xs := Array.append (Array.append (Array.new{Int} u) 3) 4 in
+    let 1 it0 := from_array xs in
+    let p0 := has_next it0 in
+    let 1 it1 := ready_iterator p0 in
+    let s0 := next it1 in
+    let a := next_value s0 in
+    let 1 it2 := next_iterator s0 in
+    let p1 := has_next it2 in
+    let 1 it3 := ready_iterator p1 in
+    let s1 := next it3 in
+    let b := next_value s1 in
+    let 1 it4 := next_iterator s1 in
+    let p2 := has_next it4 in
+    let 1 it5 := exhausted_iterator p2 in
+    let _ := discard it5 in
+    a + b;
+```
+
+`next` is illegal until `has_next` returns true (`ready_iterator`); after a false
+probe only `exhausted_iterator` + `discard` remain.
 
 ---
 
