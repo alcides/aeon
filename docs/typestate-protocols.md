@@ -3,7 +3,8 @@
 Four small libraries port the LiquidJava demos that fit Aeon best: a mutex,
 a streaming reader, a fluent email builder, and a download session with a
 progress ghost. Each combines **linear handles** (use exactly once) with
-**refinement measures** (legal orderings / numeric bounds).
+**refinement measures** (legal orderings / numeric bounds). An ``Order``
+module adds the classic state × price-ghost shopping protocol.
 
 | Module | LiquidJava analogue | Idea |
 |--------|---------------------|------|
@@ -11,12 +12,14 @@ progress ghost. Each combines **linear handles** (use exactly once) with
 | [`Reader`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Reader.ae) | `InputStreamReader` | open → read* → close; byte codes in `[-1, 255]` |
 | [`Email`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Email.ae) | fluent `Email` | from → to+ → body → build |
 | [`Downloader`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Downloader.ae) | `Downloader` | start → monotonic update → finish at 100% |
+| [`Order`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Order.ae) | gift `Order` | empty → adding → checkout → closed + `total_price` |
 
 Examples (typecheck with `--no-main`):
 [`lock_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/lock_example.ae),
 [`reader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/reader_example.ae),
 [`email_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/email_example.ae),
-[`downloader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/downloader_example.ae).
+[`downloader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/downloader_example.ae),
+[`order_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/order_example.ae).
 
 ---
 
@@ -83,6 +86,24 @@ def download (u: Unit) : Unit :=
 ```
 
 Updates must strictly increase `progress`; `finish` requires `progress = 100`.
+
+## Order
+
+```aeon
+open Order
+
+def checkout_flow (u: Unit) : Int :=
+    let 1 o0 := new_order u in
+    let 1 o1 := add_item "book" 15 o0 in
+    let 1 o2 := add_item "mug" 10 o1 in
+    let 1 o3 := pay 424242 o2 in
+    let 1 o4 := add_gift o3 in
+    let 1 o5 := ship "1 Main St" o4 in
+    finalize o5;
+```
+
+`total_price` accumulates item prices; `add_gift` requires checkout and
+`total_price > 20`. Shipping before pay, or a zero-price item, is rejected.
 
 ---
 
