@@ -128,11 +128,13 @@ Demonstrative single-step backends: each applies its forward action exactly once
 |---|---|---|
 | `forward_let_app` | forward application `f(x, ?...)` (in-scope function applied to an in-scope variable, result matching the goal) | the application's unrefined result type |
 | `forward_let_if` | `if ?c then ?t else ?e` with branches typed by the goal | the goal type |
-| `forward_let_tapp` | monomorphic instantiation `f[T1]...` of a polymorphic in-scope variable | the instantiated type |
+| `forward_let_tapp` | monomorphic instantiation of a polymorphic in-scope variable (operators insert as sections, e.g. `(=)`) | the instantiated type |
 | `forward_let_abs` | `fun x -> ?body` with `?body` typed by the goal, for each built-in base domain | `(x:domain) -> goal` |
 | `forward_let_tabs` | `Λa:B. ?body` with `?body` typed by the goal | `forall a:B, goal` |
 
 Each returns the first complete candidate that typechecks, or otherwise the first expansion with fresh `?<fun>_goal_<i>` subgoal holes, so steps can be chained. No search is performed — use `tdsyn` for actual synthesis.
+
+When a function has several holes (e.g. the subgoals a previous step inserted), the LSP Synthesize action targets exactly the hole it was invoked on and leaves the siblings open; on the CLI, synthesis fills the first hole of each function.
 
 ---
 

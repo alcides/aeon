@@ -390,6 +390,42 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Multiple holes in one function: synthesis targets the requested hole only
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("synthesizer", ["tdsyn", "tactics"])
+@pytest.mark.parametrize("hole", ["g1", "g2"])
+def test_run_synthesis_multi_hole_targets_requested_hole(synthesizer, hole):
+    source = "def synth (x:Int) : Int := ?g1 + ?g2;"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+
+    result = _run_synthesis(driver, mock_ls, "file:///test.ae", hole, synthesizer)
+
+    assert result is not None, f"'{synthesizer}' on ?{hole} returned None. Messages: {mock_ls.messages}"
+    synthesized_str, hole_range = result
+    assert isinstance(synthesized_str, str) and len(synthesized_str) > 0
+    # The edit range covers the requested hole, not the sibling.
+    assert hole_range.start.character == source.index(f"?{hole}")
+
+
+def test_run_synthesis_one_step_tactic_on_subgoal_hole():
+    # Chaining: a one-step tactic can be applied to one of several sibling
+    # subgoal holes (e.g. the ones a previous one-step expansion inserted).
+    source = "def synth (b:Bool) : Bool := if ?g1 then ?g2 else false;"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+
+    result = _run_synthesis(driver, mock_ls, "file:///test.ae", "g1", "forward_close")
+
+    assert result is not None, f"Messages: {mock_ls.messages}"
+    synthesized_str, hole_range = result
+    assert synthesized_str == "b"
+    assert hole_range.start.character == source.index("?g1")
+
+
+# ---------------------------------------------------------------------------
 # Parse diagnostics for invalid source
 # ---------------------------------------------------------------------------
 

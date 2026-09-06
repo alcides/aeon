@@ -605,7 +605,14 @@ def _run_synthesis(
         ls.window_show_message(ShowMessageParams(type=MessageType.Info, message="No holes found in file"))
         return None
 
-    targets = [(fn, holes) for fn, holes in driver.incomplete_functions if any(h.name == hole_name_str for h in holes)]
+    # Target only the hole the user invoked the action on: a function may have
+    # several holes (e.g. subgoals of a one-step tactic), and synthesis fills
+    # one hole per function, leaving the siblings open.
+    targets = [
+        (fn, [h for h in holes if h.name == hole_name_str])
+        for fn, holes in driver.incomplete_functions
+        if any(h.name == hole_name_str for h in holes)
+    ]
 
     if not targets:
         ls.window_show_message(

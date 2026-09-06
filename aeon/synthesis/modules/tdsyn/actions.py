@@ -30,6 +30,7 @@ from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name, fresh_counter
+from aeon.utils.pprint import AEON_INFIX_OPERATORS
 
 _loc = SynthesizedLocation("tdsyn")
 
@@ -377,15 +378,18 @@ def forward_let_tapp_candidates(
     For each polymorphic variable in scope and each of its monomorphic
     instantiations, produces ``let v : T := f in ?goal``, bringing the
     instantiated (usually function-typed) ``v`` into scope. Operator-named
-    variables (``==``, ``+``, ...) are skipped: they have no parseable
-    surface syntax as bare values, so the insertion could not be re-parsed.
+    variables (``==``, ``+``, ...) print as operator sections (``(=)``,
+    ``(+)``, ...).
     """
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
     for name, var_type in ctx.vars():
         if skip(name):
             continue
-        if not name.pretty().isidentifier():
+        # Only variables with a printable surface form: identifiers, or the
+        # standard infix operators (printed as sections). Exotic names such
+        # as ``$`` have no parseable spelling as a bare value.
+        if not (name.pretty().isidentifier() or name.pretty() in AEON_INFIX_OPERATORS):
             continue
         if not isinstance(var_type, (TypePolymorphism, RefinementPolymorphism)):
             continue

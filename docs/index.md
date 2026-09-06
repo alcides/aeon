@@ -202,6 +202,19 @@ let celsius := 36.6;
 let fahrenheit := celsius * 1.8 + 32.0;
 ```
 
+#### Operator sections
+
+An infix operator wrapped in parentheses (with no spaces) is a first-class
+value — its underlying (polymorphic) function:
+
+```
+let eq : (x:Int) -> (y:Int) -> Bool := (=);
+let plus3 := (+) 3;
+```
+
+Sections exist for `(=)` (or `(==)`), `(!=)`/`(≠)`, `(<)`, `(<=)`/`(≤)`, `(>)`,
+`(>=)`/`(≥)`, `(+)`, `(-)`, `(*)`, `(/)`, `(%)`, `(&&)`, and `(||)`.
+
 ## Functions
 
 ```

@@ -191,6 +191,34 @@ def test_forward_let_tapp_binds_type_application():
     _assert_let_step(term, TypeApplication)
 
 
+def _tapp_base_name(value) -> str:
+    while isinstance(value, TypeApplication):
+        value = value.body
+    assert isinstance(value, Var)
+    return value.name.pretty()
+
+
+def test_forward_let_tapp_includes_operator_variables():
+    # Operator-named polymorphic variables (e.g. ``==``) are candidates: they
+    # print as operator sections (``(=)``), which are parseable.
+    _, typed_hole = fresh_hole(t_int, _prelude_ctx())
+    candidates = tdsyn_module.ONE_STEP_ACTIONS["forward_let_tapp"](typed_hole, lambda name: False)
+    names = {_tapp_base_name(let_term.var_value) for let_term, _ in candidates}
+    assert "==" in names
+    assert "+" in names
+    assert "print" in names
+    # ``$`` has no parseable spelling as a bare value and stays excluded.
+    assert "$" not in names
+
+
+def test_forward_let_tapp_operator_value_prints_as_section():
+    _, typed_hole = fresh_hole(t_int, _prelude_ctx())
+    candidates = tdsyn_module.ONE_STEP_ACTIONS["forward_let_tapp"](typed_hole, lambda name: False)
+    eq_let = next(let_term for let_term, _ in candidates if _tapp_base_name(let_term.var_value) == "==")
+    printed = pretty_print_sterm(lift(eq_let), top_level=False)
+    assert ":= (=) in" in printed
+
+
 def test_forward_let_abs_binds_abstraction():
     term = _one_step("forward_let_abs", TypingContext(), t_int, validate=lambda t: False)
     _assert_let_step(term, Abstraction)

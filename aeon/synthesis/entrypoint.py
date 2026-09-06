@@ -470,13 +470,16 @@ def synthesize_holes(
     budget_eval: Optional[float] = None,
     constructor_names: set[str] | None = None,
 ) -> dict[Name, Optional[Term]]:
-    """Synthesizes code for multiple functions, each with one hole.
+    """Synthesizes code for multiple functions, one hole per function.
 
-    Independent functions are synthesised one at a time. Members of a Lean
-    ``mutual ... end`` block are co-synthesised together (Contata's relational
-    recursive synthesis), so a candidate for one member may call its siblings.
-    ``constructor_names`` (data-constructor names) is forwarded to the
-    ``@property`` runner used as a relational/k-safety acceptance oracle."""
+    When a function has several holes, only its *first* listed hole is
+    synthesised (the candidate search and validation see the sibling holes
+    still open); the others stay untouched and absent from the returned
+    mapping. Independent functions are synthesised one at a time. Members of a
+    Lean ``mutual ... end`` block are co-synthesised together (Contata's
+    relational recursive synthesis), so a candidate for one member may call its
+    siblings. ``constructor_names`` (data-constructor names) is forwarded to
+    the ``@property`` runner used as a relational/k-safety acceptance oracle."""
 
     # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
     # hole at once rather than one function at a time.
@@ -494,7 +497,10 @@ def synthesize_holes(
     singles, mutual_groups = _partition_targets(term, targets)
 
     for fun_name, holes_names in singles:
-        assert len(holes_names) == 1, "Currently, we only support 1 hole per function"
+        if len(holes_names) > 1:
+            logger.warning(
+                f"Function {fun_name} has {len(holes_names)} holes; synthesizing only the first ({holes_names[0]})"
+            )
         hole_name = holes_names[0]
         ty, tyctx = program_holes[hole_name]
         assert isinstance(tyctx, TypingContext)
@@ -517,7 +523,10 @@ def synthesize_holes(
 
     for group in mutual_groups:
         for fun_name, holes_names in group:
-            assert len(holes_names) == 1, "Currently, we only support 1 hole per function"
+            if len(holes_names) > 1:
+                logger.warning(
+                    f"Function {fun_name} has {len(holes_names)} holes; synthesizing only the first ({holes_names[0]})"
+                )
         mapping.update(
             _cosynthesize_group(
                 ctx,

@@ -445,7 +445,12 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             return text(str(value))
 
         case SVar(name=name):
-            return text(name.pretty())
+            pretty = name.pretty()
+            # A bare operator variable prints as an operator section
+            # (``(=)``, ``(+)``, ...) so the output re-parses.
+            if pretty in AEON_INFIX_OPERATORS:
+                return text(f"({INFIX_DISPLAY.get(pretty, pretty)})")
+            return text(pretty)
 
         case SQualifiedVar(qualifier=qualifier, name=name):
             return text(f"{qualifier}.{name.pretty()}")
