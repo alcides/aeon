@@ -29,6 +29,25 @@ _DType = Literal["i32", "float64"]
 _ITEM_SIZE: dict[_DType, int] = {"i32": 4, "float64": 8}
 _KERNEL_NAME: dict[_DType, bytes] = {"i32": b"aeon_vector_add_i32", "float64": b"aeon_vector_add_float64"}
 
+# Memory kinds (refinement measures / Aeon natives).
+MEM_KIND_DEVICE = 0
+MEM_KIND_HOST_PINNED = 1
+MEM_KIND_MANAGED = 2
+MEM_KIND_HOST = 3
+
+# Access modes.
+ACCESS_READ_ONLY = 0
+ACCESS_READ_WRITE = 1
+
+# CUDA driver attribute indices used below.
+_CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK = 1
+_CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK = 8
+_CU_DEVICE_ATTRIBUTE_WARP_SIZE = 10
+
+# Architectural defaults used when validating without a live device.
+_DEFAULT_WARP_SIZE = 32
+_MAX_THREADS_PER_BLOCK = 1024
+
 
 class CUDAError(RuntimeError):
     """Base exception for CUDA binding failures."""
@@ -235,11 +254,27 @@ class Device:
             )
             self.compute_capability = (major.value, minor.value)
             max_threads = ctypes.c_int()
-            # CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK is stable value 1.
             driver.check(
-                driver.cuDeviceGetAttribute(ctypes.byref(max_threads), 1, handle.value), "cuDeviceGetAttribute"
+                driver.cuDeviceGetAttribute(
+                    ctypes.byref(max_threads), _CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, handle.value
+                ),
+                "cuDeviceGetAttribute",
             )
             self.max_threads_per_block = max_threads.value
+            max_shared = ctypes.c_int()
+            driver.check(
+                driver.cuDeviceGetAttribute(
+                    ctypes.byref(max_shared), _CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK, handle.value
+                ),
+                "cuDeviceGetAttribute",
+            )
+            self.max_shared_mem_per_block = max_shared.value
+            warp = ctypes.c_int()
+            driver.check(
+                driver.cuDeviceGetAttribute(ctypes.byref(warp), _CU_DEVICE_ATTRIBUTE_WARP_SIZE, handle.value),
+                "cuDeviceGetAttribute",
+            )
+            self.warp_size = warp.value
             total_mem = ctypes.c_size_t()
             driver.check(
                 driver.cuDeviceTotalMem(ctypes.byref(total_mem), handle.value),
@@ -355,6 +390,8 @@ class Launch1D:
 
     size: int
     block_size: int = 256
+    shared_bytes: int = 0
+    require_warp_multiple: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size <= 0:
@@ -363,12 +400,49 @@ class Launch1D:
             raise ValueError("block size must be a positive integer")
         if self.block_size > self.size:
             raise ValueError("block size cannot exceed launch size")
-        if self.block_size > 1024:
+        if self.block_size > _MAX_THREADS_PER_BLOCK:
             raise ValueError("block size cannot exceed CUDA's architectural limit of 1024")
+        if isinstance(self.shared_bytes, bool) or not isinstance(self.shared_bytes, int) or self.shared_bytes < 0:
+            raise ValueError("shared_bytes must be a non-negative integer")
+        if not isinstance(self.require_warp_multiple, bool):
+            raise ValueError("require_warp_multiple must be a bool")
 
     @property
     def grid_size(self) -> int:
         return math.ceil(self.size / self.block_size)
+
+
+@dataclass(frozen=True)
+class Launch2D:
+    """Validated two-dimensional launch geometry."""
+
+    width: int
+    height: int
+    block_x: int
+    block_y: int
+    shared_bytes: int = 0
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("width", self.width),
+            ("height", self.height),
+            ("block_x", self.block_x),
+            ("block_y", self.block_y),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                raise ValueError(f"launch {name} must be a positive integer")
+        if self.block_x * self.block_y > _MAX_THREADS_PER_BLOCK:
+            raise ValueError("block_x * block_y cannot exceed CUDA's architectural limit of 1024")
+        if isinstance(self.shared_bytes, bool) or not isinstance(self.shared_bytes, int) or self.shared_bytes < 0:
+            raise ValueError("shared_bytes must be a non-negative integer")
+
+    @property
+    def grid_x(self) -> int:
+        return math.ceil(self.width / self.block_x)
+
+    @property
+    def grid_y(self) -> int:
+        return math.ceil(self.height / self.block_y)
 
 
 class Stream:
@@ -424,28 +498,56 @@ class Stream:
 class Buffer:
     """A ready, typed device allocation."""
 
-    def __init__(self, device: Device, pointer: int, length: int, dtype: _DType) -> None:
+    def __init__(
+        self,
+        device: Device,
+        pointer: int,
+        length: int,
+        dtype: _DType,
+        *,
+        mem_kind: int = MEM_KIND_DEVICE,
+        access: int = ACCESS_READ_WRITE,
+        extent_x: int | None = None,
+        extent_y: int = 1,
+    ) -> None:
+        if mem_kind not in (MEM_KIND_DEVICE, MEM_KIND_HOST_PINNED, MEM_KIND_MANAGED, MEM_KIND_HOST):
+            raise ValueError(f"unsupported mem_kind: {mem_kind}")
+        if access not in (ACCESS_READ_ONLY, ACCESS_READ_WRITE):
+            raise ValueError(f"unsupported access mode: {access}")
+        if extent_x is None:
+            extent_x = length
+        if isinstance(extent_x, bool) or not isinstance(extent_x, int) or extent_x <= 0:
+            raise ValueError("extent_x must be a positive integer")
+        if isinstance(extent_y, bool) or not isinstance(extent_y, int) or extent_y <= 0:
+            raise ValueError("extent_y must be a positive integer")
         self.device = device
         self.pointer = pointer
         self.length = length
         self.dtype = dtype
+        self.mem_kind = mem_kind
+        self.access = access
+        self.extent_x = extent_x
+        self.extent_y = extent_y
+        # Ownership transfer (e.g. as_read_only): mark ready-state consumed without cuMemFree.
+        self._transferred = False
         self._freed = False
         device._register_buffer(self)
 
     def _ensure_ready(self) -> None:
         self.device._ensure_open()
-        if self._freed:
+        if self._freed or self._transferred:
             raise CUDAStateError("CUDA buffer has been freed")
 
     def _free_from_device(self) -> None:
-        if self._freed:
+        if self._freed or self._transferred:
             return
         self.device._driver.check(self.device._driver.cuMemFree(self.pointer), "cuMemFree")
         self._freed = True
 
     def free(self) -> None:
         with self.device._lock:
-            if self._freed:
+            if self._freed or self._transferred:
+                self._freed = True
                 return
             self.device._activate()
             self._free_from_device()
@@ -549,6 +651,28 @@ class Pending:
             pass
 
 
+class Status:
+    """Linear-style completion token that must be checked or discarded."""
+
+    def __init__(self, ok: bool, code: int = 0, message: str = "") -> None:
+        self.ok = ok
+        self.code = code
+        self.message = message
+        self._consumed = False
+
+    def _ensure_live(self) -> None:
+        if self._consumed:
+            raise CUDAStateError("CUDA status has already been consumed")
+
+
+@dataclass(frozen=True, slots=True)
+class StatusBuffer:
+    """Pair of a status token and an optional ready buffer (both must be handled)."""
+
+    status: Status
+    buffer: Buffer | None
+
+
 def device(ordinal: int = 0) -> Device:
     return Device(ordinal)
 
@@ -587,8 +711,29 @@ def pending_stream(pending: Pending) -> int:
     return pending.stream.stream_id
 
 
-def launch_1d(size: int, block_size: int | None = None) -> Launch1D:
-    return Launch1D(size, min(256, size) if block_size is None else block_size)
+def launch_1d(size: int, block_size: int | None = None, shared_bytes: int = 0) -> Launch1D:
+    return Launch1D(size, min(256, size) if block_size is None else block_size, shared_bytes=shared_bytes)
+
+
+def launch_1d_warped(size: int, block_size: int | None = None, shared_bytes: int = 0) -> Launch1D:
+    """Build a Launch1D that must be a multiple of the device warp size at launch.
+
+    Without a live device, construction uses the architectural default warp size
+    (32): ``block_size`` must be a multiple of 32, or the whole launch must fit
+    in one warp (``size <= 32``). Device-side validation uses ``device.warp_size``
+    when ``require_warp_multiple`` is true.
+    """
+    resolved = min(256, size) if block_size is None else block_size
+    if size > _DEFAULT_WARP_SIZE and resolved % _DEFAULT_WARP_SIZE != 0:
+        raise ValueError(
+            f"warped launch block size {resolved} must be a multiple of {_DEFAULT_WARP_SIZE} "
+            f"when size ({size}) exceeds one warp"
+        )
+    return Launch1D(size, resolved, shared_bytes=shared_bytes, require_warp_multiple=True)
+
+
+def launch_2d(width: int, height: int, block_x: int, block_y: int, shared_bytes: int = 0) -> Launch2D:
+    return Launch2D(width, height, block_x, block_y, shared_bytes=shared_bytes)
 
 
 def device_id(device_: Device) -> int:
@@ -597,6 +742,14 @@ def device_id(device_: Device) -> int:
 
 def max_threads_per_block(device_: Device) -> int:
     return device_.max_threads_per_block
+
+
+def max_shared_mem_per_block(device_: Device) -> int:
+    return device_.max_shared_mem_per_block
+
+
+def warp_size(device_: Device) -> int:
+    return device_.warp_size
 
 
 def launch_device(launch: Launch1D | tuple[Launch1D, Device]) -> int:
@@ -617,6 +770,40 @@ def launch_grid_size(launch: Launch1D | tuple[Launch1D, Device]) -> int:
     return launch[0].grid_size if isinstance(launch, tuple) else launch.grid_size
 
 
+def launch_shared_bytes(launch: Launch1D | Launch2D | tuple[Launch1D | Launch2D, Device]) -> int:
+    return launch[0].shared_bytes if isinstance(launch, tuple) else launch.shared_bytes
+
+
+def launch2d_width(launch: Launch2D | tuple[Launch2D, Device]) -> int:
+    return launch[0].width if isinstance(launch, tuple) else launch.width
+
+
+def launch2d_height(launch: Launch2D | tuple[Launch2D, Device]) -> int:
+    return launch[0].height if isinstance(launch, tuple) else launch.height
+
+
+def launch2d_threads_x(launch: Launch2D | tuple[Launch2D, Device]) -> int:
+    return launch[0].block_x if isinstance(launch, tuple) else launch.block_x
+
+
+def launch2d_threads_y(launch: Launch2D | tuple[Launch2D, Device]) -> int:
+    return launch[0].block_y if isinstance(launch, tuple) else launch.block_y
+
+
+def launch2d_grid_x(launch: Launch2D | tuple[Launch2D, Device]) -> int:
+    return launch[0].grid_x if isinstance(launch, tuple) else launch.grid_x
+
+
+def launch2d_grid_y(launch: Launch2D | tuple[Launch2D, Device]) -> int:
+    return launch[0].grid_y if isinstance(launch, tuple) else launch.grid_y
+
+
+def launch2d_device(launch: Launch2D | tuple[Launch2D, Device]) -> int:
+    if isinstance(launch, tuple):
+        return launch[1].ordinal
+    raise ValueError("a Launch2D descriptor alone does not own a device")
+
+
 def buffer_device(buffer: Buffer) -> int:
     return buffer.device.ordinal
 
@@ -633,6 +820,47 @@ def buffer_bytes(buffer: Buffer) -> int:
     return buffer.length * _ITEM_SIZE[buffer.dtype]
 
 
+def buffer_mem_kind(buffer: Buffer) -> int:
+    return buffer.mem_kind
+
+
+def buffer_access(buffer: Buffer) -> int:
+    return buffer.access
+
+
+def buffer_extent_x(buffer: Buffer) -> int:
+    return buffer.extent_x
+
+
+def buffer_extent_y(buffer: Buffer) -> int:
+    return buffer.extent_y
+
+
+def as_read_only(buffer: Buffer) -> Buffer:
+    """Transfer ``buffer`` into a read-only handle aliasing the same allocation.
+
+    Returns a new :class:`Buffer` with ``access=ACCESS_READ_ONLY`` that owns the
+    device pointer. The input is marked transferred (``_transferred`` / ``_freed``)
+    *without* calling ``cuMemFree``, so Aeon sees the original as consumed while
+    the returned handle remains responsible for release. Prefer this over mutating
+    ``access`` in place so linear ownership stays unambiguous.
+    """
+    buffer._ensure_ready()
+    readonly = Buffer(
+        buffer.device,
+        buffer.pointer,
+        buffer.length,
+        buffer.dtype,
+        mem_kind=buffer.mem_kind,
+        access=ACCESS_READ_ONLY,
+        extent_x=buffer.extent_x,
+        extent_y=buffer.extent_y,
+    )
+    buffer._transferred = True
+    buffer._freed = True
+    return readonly
+
+
 def max_allocation(device_: Device) -> int:
     return device_.max_allocation
 
@@ -643,6 +871,28 @@ def pending_device(pending: Pending) -> int:
 
 def pending_size(pending: Pending) -> int:
     return pending._ensure_pending().length
+
+
+def status_is_ok(status: Status) -> bool:
+    status._ensure_live()
+    return status.ok
+
+
+def status_code(status: Status) -> int:
+    status._ensure_live()
+    return status.code
+
+
+def check_ok(status: Status) -> None:
+    status._ensure_live()
+    status._consumed = True
+    if not status.ok:
+        raise CUDAError(status.message or f"CUDA status error {status.code}")
+
+
+def discard_status(status: Status) -> None:
+    status._ensure_live()
+    status._consumed = True
 
 
 def _coerce_values(values: Iterable[int] | Iterable[float], dtype: _DType) -> array.array[Any]:
@@ -757,12 +1007,20 @@ def _vector_add(
         raise ValueError("CUDA stream must belong to the launch device")
     if launch.block_size > device_.max_threads_per_block:
         raise ValueError(f"block size {launch.block_size} exceeds device limit {device_.max_threads_per_block}")
+    if launch.shared_bytes > device_.max_shared_mem_per_block:
+        raise ValueError(f"shared_bytes {launch.shared_bytes} exceeds device limit {device_.max_shared_mem_per_block}")
+    if launch.require_warp_multiple:
+        warp = device_.warp_size
+        if launch.block_size > warp and launch.block_size % warp != 0:
+            raise ValueError(f"block size {launch.block_size} must be a multiple of warp size {warp}")
     for operand in (left, right):
         operand._ensure_ready()
         if operand.device is not device_:
             raise ValueError("all CUDA buffers must belong to the launch device")
         if operand.dtype != dtype:
             raise TypeError(f"expected {dtype} CUDA buffers")
+        if operand.mem_kind != MEM_KIND_DEVICE:
+            raise ValueError("kernel operands must be device buffers")
     if left.length != right.length or launch.size != left.length:
         raise ValueError("launch size and both buffer lengths must match")
 
@@ -773,7 +1031,14 @@ def _vector_add(
             device_._driver.cuMemAlloc(ctypes.byref(pointer), max(1, launch.size) * _ITEM_SIZE[dtype]),
             "cuMemAlloc",
         )
-        output = Buffer(device_, pointer.value, launch.size, dtype)
+        output = Buffer(
+            device_,
+            pointer.value,
+            launch.size,
+            dtype,
+            mem_kind=MEM_KIND_DEVICE,
+            access=ACCESS_READ_WRITE,
+        )
         try:
             if launch.size:
                 function = device_._function(dtype)
@@ -796,7 +1061,7 @@ def _vector_add(
                         launch.block_size,
                         1,
                         1,
-                        0,
+                        launch.shared_bytes,
                         ctypes.c_void_p(stream.stream_id),
                         arguments,
                         None,
@@ -819,6 +1084,42 @@ def vector_add_float64(device_: Device, launch: Launch1D, left: Buffer, right: B
 
 def synchronize(pending: Pending) -> Buffer:
     return pending.synchronize()
+
+
+def synchronize_with_status(pending: Pending) -> StatusBuffer:
+    """Like :func:`synchronize`, but returns a :class:`StatusBuffer` instead of raising.
+
+    On success the status is ok and ``buffer`` holds the ready output. On failure
+    resources are released when possible and ``buffer`` is ``None``.
+    """
+    try:
+        buffer = pending.synchronize()
+        return StatusBuffer(Status(ok=True), buffer)
+    except CUDAError as exc:
+        try:
+            pending.discard()
+        except Exception:
+            pass
+        return StatusBuffer(Status(ok=False, code=1, message=str(exc)), None)
+
+
+def status_buffer_ok(result: StatusBuffer) -> bool:
+    return result.status.ok
+
+
+def unpack_status_buffer(result: StatusBuffer) -> tuple[Status, Buffer | None]:
+    return (result.status, result.buffer)
+
+
+def status_pair_status(pair: tuple[Status, Buffer | None]) -> Status:
+    return pair[0]
+
+
+def status_pair_buffer(pair: tuple[Status, Buffer | None]) -> Buffer:
+    buffer = pair[1]
+    if buffer is None:
+        raise CUDAStateError("CUDA status buffer has no ready allocation")
+    return buffer
 
 
 def free(buffer: Buffer) -> None:
@@ -899,7 +1200,10 @@ def _compile_vector_add_ptx(compute_capability: tuple[int, int]) -> str:
 Cuda_device = device
 Cuda_num_devices = num_devices
 Cuda_launch_1d = launch_1d
+Cuda_launch_1d_warped = launch_1d_warped
+Cuda_launch_2d = launch_2d
 Cuda_launch_grid_size = launch_grid_size
+Cuda_launch_shared_bytes = launch_shared_bytes
 Cuda_upload_i32 = upload_i32
 Cuda_upload_float64 = upload_float64
 Cuda_download_i32 = download_i32
@@ -909,40 +1213,109 @@ Cuda_download_float64_result = download_float64_result
 Cuda_vector_add_i32 = vector_add_i32
 Cuda_vector_add_float64 = vector_add_float64
 Cuda_synchronize = synchronize
+Cuda_synchronize_with_status = synchronize_with_status
+Cuda_as_read_only = as_read_only
 Cuda_free = free
 Cuda_discard = discard
 Cuda_close = close
+Cuda_buffer_mem_kind = buffer_mem_kind
+Cuda_buffer_access = buffer_access
+Cuda_buffer_extent_x = buffer_extent_x
+Cuda_buffer_extent_y = buffer_extent_y
+Cuda_max_shared_mem_per_block = max_shared_mem_per_block
+Cuda_warp_size = warp_size
+Cuda_status_is_ok = status_is_ok
+Cuda_status_code = status_code
+Cuda_check_ok = check_ok
+Cuda_discard_status = discard_status
+Cuda_status_buffer_ok = status_buffer_ok
+Cuda_unpack_status_buffer = unpack_status_buffer
+Cuda_status_pair_status = status_pair_status
+Cuda_status_pair_buffer = status_pair_buffer
+Cuda_MEM_KIND_DEVICE = MEM_KIND_DEVICE
+Cuda_MEM_KIND_HOST_PINNED = MEM_KIND_HOST_PINNED
+Cuda_MEM_KIND_MANAGED = MEM_KIND_MANAGED
+Cuda_MEM_KIND_HOST = MEM_KIND_HOST
+Cuda_ACCESS_READ_ONLY = ACCESS_READ_ONLY
+Cuda_ACCESS_READ_WRITE = ACCESS_READ_WRITE
 
 __all__ = [
+    "ACCESS_READ_ONLY",
+    "ACCESS_READ_WRITE",
     "Buffer",
     "CUDAError",
     "CUDAStateError",
     "CUDAUnavailableError",
     "Device",
+    "Float64Download",
+    "I32Download",
     "Launch1D",
+    "Launch2D",
+    "MEM_KIND_DEVICE",
+    "MEM_KIND_HOST",
+    "MEM_KIND_HOST_PINNED",
+    "MEM_KIND_MANAGED",
     "Pending",
+    "Status",
+    "StatusBuffer",
+    "Stream",
+    "as_read_only",
+    "buffer_access",
+    "buffer_bytes",
     "buffer_device",
+    "buffer_elem_size",
+    "buffer_extent_x",
+    "buffer_extent_y",
+    "buffer_mem_kind",
     "buffer_size",
+    "check_ok",
     "close",
+    "create_stream",
+    "default_stream",
     "device",
     "device_id",
     "discard",
+    "discard_status",
     "download_float64",
     "download_float64_result",
     "download_i32",
     "download_i32_result",
     "free",
+    "launch2d_device",
+    "launch2d_grid_x",
+    "launch2d_grid_y",
+    "launch2d_height",
+    "launch2d_threads_x",
+    "launch2d_threads_y",
+    "launch2d_width",
     "launch_1d",
-    "num_devices",
+    "launch_1d_warped",
+    "launch_2d",
     "launch_device",
+    "launch_grid_size",
     "launch_items",
+    "launch_shared_bytes",
     "launch_threads",
+    "max_allocation",
+    "max_shared_mem_per_block",
     "max_threads_per_block",
+    "num_devices",
     "pending_device",
     "pending_size",
+    "pending_stream",
+    "status_buffer_ok",
+    "status_code",
+    "status_is_ok",
+    "status_pair_buffer",
+    "status_pair_status",
+    "stream_device",
+    "stream_id",
     "synchronize",
+    "synchronize_with_status",
+    "unpack_status_buffer",
     "upload_float64",
     "upload_i32",
     "vector_add_float64",
     "vector_add_i32",
+    "warp_size",
 ]

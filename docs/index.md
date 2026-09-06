@@ -539,7 +539,7 @@ The generated files are gitignored; they are produced from source by the
 | Module | Focus | Guide |
 |--------|-------|-------|
 | `Array` | Linear host buffers, `size` refinements | [array.md](array) |
-| `Cuda` | Linear GPU buffers, launch/size proofs | [cuda.md](cuda) |
+| `Cuda` | Linear GPU buffers; kind/access/shape/shared/warp/status proofs | [cuda.md](cuda) |
 | `Database` | Linear sqlite3 connections/transactions | [database.md](database) |
 | `Http` | Typed `requests` wrapper | [http.md](http) |
 | `OS` / `Subprocess` | Typed process and filesystem bindings | [os-subprocess.md](os-subprocess) |
@@ -556,7 +556,7 @@ Core and data:
 
 Systems and I/O:
 
-- **Cuda** — explicit CUDA Driver API (separate from `@gpu`)
+- **Cuda** — explicit CUDA Driver API (separate from `@gpu`); memory kind, access mode, 2-D launch, shared/warp, Status
 - **Gpu** — tensor kernels imported by `@gpu`
 - **Database** — sqlite3 with linear transactions
 - **Http**, **OS**, **Subprocess**, **Path**, **Socket**, **Sys**

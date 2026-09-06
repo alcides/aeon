@@ -101,9 +101,13 @@ def test_open_cuda_exposes_descriptors_and_launch_measures():
     source = (
         IMPORTS
         + """
-def descriptors (d: Device) (l: Launch1D) : Int :=
+def descriptors (d: Device) (l: Launch1D) (l2: Launch2D) : Int :=
     device_id d + max_threads_per_block d + num_devices unit
-    + launch_items l + launch_device l + launch_threads l + launch_grid_size l;
+    + warp_size d + max_shared_mem_per_block d
+    + launch_items l + launch_device l + launch_threads l + launch_grid_size l
+    + launch_shared_bytes l
+    + launch2d_width l2 + launch2d_height l2 + launch2d_grid_x l2 + launch2d_grid_y l2
+    + mem_kind_device + access_read_write;
 """
         + MAIN
     )
@@ -500,6 +504,156 @@ def invalid (d: Device) : Unit :=
         + MAIN
     )
     assert _errors(source) != []
+
+
+# ---------------------------------------------------------------------------
+# Memory kind, access, shape, shared/warp, status
+# ---------------------------------------------------------------------------
+
+
+def test_upload_establishes_device_kind_rw_and_extents():
+    source = (
+        IMPORTS
+        + f"""
+def consume_device_rw (1 b: {{buffer: (ReadyBuffer Int) |
+    buffer_mem_kind buffer = mem_kind_device &&
+    buffer_access buffer = access_read_write &&
+    buffer_extent_x buffer = buffer_size buffer &&
+    buffer_extent_y buffer = 1}}) : Unit :=
+    free b;
+
+def tagged (d: Device) : Unit :=
+    let 1 buffer := upload_i32 d ({_int_array((1, 2, 3))}) in
+    consume_device_rw buffer;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
+def test_as_read_only_then_add_typechecks():
+    source = (
+        IMPORTS
+        + f"""
+def freeze_then_add (u: Unit) : Int :=
+    let d := default_device u in
+    let stream := default_stream d in
+    let launch := launch_1d d 2 1 in
+    let 1 xs := {_int_array((1, 2))} in
+    let 1 ys := {_int_array((3, 4))} in
+    let 1 left0 := upload_i32 d xs in
+    let 1 right0 := upload_i32 d ys in
+    let 1 left := as_read_only left0 in
+    let 1 right := as_read_only right0 in
+    let 1 pending := add_i32 launch stream left right in
+    let 1 ready := synchronize pending in
+    let 1 downloaded := download_i32 ready in
+    let pair := unpack_i32_download downloaded in
+    let 1 values := download_values_i32 pair in
+    let 1 next := download_buffer_i32 pair in
+    let total := Array.sum values in
+    let _ := free next in
+    total;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
+def test_leaked_read_only_buffer_is_rejected():
+    source = (
+        IMPORTS
+        + f"""
+def leak_ro (d: Device) : Int :=
+    let 1 buffer := upload_i32 d ({_int_array((1,))}) in
+    let 1 ro := as_read_only buffer in
+    0;
+"""
+        + MAIN
+    )
+    assert any(isinstance(error, LinearUnusedError) for error in _linearity_errors(source))
+
+
+def test_launch_2d_covers_shape_at_compile_time():
+    source = (
+        IMPORTS
+        + """
+def covered (u: Unit) : Int :=
+    let d := default_device u in
+    let launch := launch_2d d 33 17 16 8 in
+    launch2d_grid_x launch * launch2d_threads_x launch
+    + launch2d_grid_y launch * launch2d_threads_y launch;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
+def test_launch_1d_shared_and_warped_typecheck():
+    source = (
+        IMPORTS
+        + """
+def shared_ok (u: Unit) : Int :=
+    let d := default_device u in
+    let launch := launch_1d_shared d 8 4 0 in
+    launch_shared_bytes launch;
+
+def warped_ok (u: Unit) : Int :=
+    let d := default_device u in
+    let launch := launch_1d_warped d 64 32 in
+    launch_threads launch;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
+
+
+def test_synchronize_with_status_requires_status_consumption():
+    source = (
+        IMPORTS
+        + f"""
+def leak_status (u: Unit) : Int :=
+    let d := default_device u in
+    let stream := default_stream d in
+    let launch := launch_1d d 1 1 in
+    let 1 left := upload_i32 d ({_int_array((1,))}) in
+    let 1 right := upload_i32 d ({_int_array((2,))}) in
+    let 1 pending := add_i32 launch stream left right in
+    let 1 sb := synchronize_with_status pending in
+    0;
+"""
+        + MAIN
+    )
+    assert any(isinstance(error, LinearUnusedError) for error in _linearity_errors(source))
+
+
+def test_synchronize_with_status_check_ok_lifecycle():
+    source = (
+        IMPORTS
+        + f"""
+def checked (u: Unit) : Int :=
+    let d := default_device u in
+    let stream := default_stream d in
+    let launch := launch_1d d 2 1 in
+    let 1 left := upload_i32 d ({_int_array((1, 2))}) in
+    let 1 right := upload_i32 d ({_int_array((3, 4))}) in
+    let 1 pending := add_i32 launch stream left right in
+    let 1 sb := synchronize_with_status pending in
+    let pair := unpack_status_buffer sb in
+    let 1 st := status_pair_status pair in
+    let 1 buf := status_pair_buffer pair in
+    let _ := check_ok st in
+    let 1 downloaded := download_i32 buf in
+    let dl := unpack_i32_download downloaded in
+    let 1 values := download_values_i32 dl in
+    let 1 next := download_buffer_i32 dl in
+    let total := Array.sum values in
+    let _ := free next in
+    total;
+"""
+        + MAIN
+    )
+    assert _errors(source) == []
 
 
 def test_cuda_vector_add_example_typechecks():
