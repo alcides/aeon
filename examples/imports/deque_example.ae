@@ -1,0 +1,21 @@
+open Deque
+
+# push_back / push_front → pop_front → discard
+def demo (u: Unit) : Int :=
+    let 1 d0 := new_deque{Int} u in
+    let 1 d1 := push_back 1 d0 in
+    let 1 d2 := push_front 0 d1 in
+    let 1 d3 := push_back 2 d2 in
+    let po := pop_front d3 in
+    let front := pop_value po in
+    let 1 d4 := pop_deque po in
+    let po2 := pop_back d4 in
+    let _ := pop_value po2 in
+    let 1 d5 := pop_deque po2 in
+    let po3 := pop_front d5 in
+    let _ := pop_value po3 in
+    let 1 d6 := pop_deque po3 in
+    let _ := discard d6 in
+    front;
+
+def main (args: Int) : Unit := print "ok"

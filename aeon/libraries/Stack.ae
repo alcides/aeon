@@ -1,0 +1,69 @@
+# Linear stack with a ``size`` ghost (LiquidJava ``Stack`` exercise).
+#
+# ``push`` increases size; ``pop`` / ``peek`` require ``size > 0``. The stack
+# is multiplicity-1: each op consumes the handle and returns the next state.
+# ``discard`` frees an empty stack.
+
+linear type Stack a
+
+# Opaque tokens so ``pop`` / ``peek`` / ``len_of`` can return a value and the
+# recovered stack without breaking linearity.
+type StackPop a
+type StackPeek a
+type StackLen a
+
+def stack_size : (s: (Stack a)) -> Int := uninterpreted
+def pop_size : (p: (StackPop a)) -> Int := uninterpreted
+def peek_size : (p: (StackPeek a)) -> Int := uninterpreted
+def held_size : (l: (StackLen a)) -> Int := uninterpreted
+
+# Empty stack. Use as ``Stack.new_stack{Int} unit``.
+def new_stack (_: Unit) :
+    {s: (Stack a) | stack_size s = 0} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['new_stack']).new_stack()"
+
+# Push one element (size + 1).
+def push (x: a) (1 s: (Stack a)) :
+    {out: (Stack a) | stack_size out = stack_size s + 1} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['stack_push']).stack_push(x, s)"
+
+# Pop the top; requires a non-empty stack.
+def pop (1 s: {st: (Stack a) | stack_size st > 0}) :
+    {p: (StackPop a) | pop_size p = stack_size s - 1} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['stack_pop']).stack_pop(s)"
+
+def pop_value (p: (StackPop a)) : a :=
+    native "p[0]"
+
+def pop_stack (p: (StackPop a)) :
+    {s: (Stack a) | stack_size s = pop_size p} :=
+    native "p[1]"
+
+# Peek at the top without removing it.
+def peek (1 s: {st: (Stack a) | stack_size st > 0}) :
+    {p: (StackPeek a) | peek_size p = stack_size s} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['stack_peek']).stack_peek(s)"
+
+def peek_value (p: (StackPeek a)) : a :=
+    native "p[0]"
+
+def peek_stack (p: (StackPeek a)) :
+    {s: (Stack a) | stack_size s = peek_size p} :=
+    native "p[1]"
+
+# Observe length and recover the stack.
+def len_of (1 s: (Stack a)) :
+    {l: (StackLen a) | held_size l = stack_size s} :=
+    native "(len(s), s)"
+
+def len_value (l: (StackLen a)) :
+    {n: Int | n = held_size l && n >= 0} :=
+    native "l[0]"
+
+def len_stack (l: (StackLen a)) :
+    {s: (Stack a) | stack_size s = held_size l} :=
+    native "l[1]"
+
+# Drop an empty stack.
+def discard (1 s: {st: (Stack a) | stack_size st = 0}) : Unit :=
+    native "None"
