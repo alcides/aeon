@@ -11,12 +11,14 @@ progress ghost. Each combines **linear handles** (use exactly once) with
 | [`Reader`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Reader.ae) | `InputStreamReader` | open → read* → close; byte codes in `[-1, 255]` |
 | [`Email`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Email.ae) | fluent `Email` | from → to+ → body → build |
 | [`Downloader`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Downloader.ae) | `Downloader` | start → monotonic update → finish at 100% |
+| [`Writer`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Writer.ae) | stream writer | open → write* → close; `bytes_written` ghost |
 
 Examples (typecheck with `--no-main`):
 [`lock_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/lock_example.ae),
 [`reader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/reader_example.ae),
 [`email_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/email_example.ae),
-[`downloader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/downloader_example.ae).
+[`downloader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/downloader_example.ae),
+[`writer_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/writer_example.ae).
 
 ---
 
@@ -83,6 +85,21 @@ def download (u: Unit) : Unit :=
 ```
 
 Updates must strictly increase `progress`; `finish` requires `progress = 100`.
+
+## Writer
+
+```aeon
+open Writer
+
+def write_once (path: {p: String | p != ""}) : Unit :=
+    let 1 w0 := open_writer path in
+    let payload := payload_from_string "hello" in
+    let 1 w1 := write payload w0 in
+    close w1;
+```
+
+Companion to `Reader`: linear open/write/close with a `bytes_written` ghost.
+Unlike one-shot `Path.write`, the handle must be closed exactly once.
 
 ---
 

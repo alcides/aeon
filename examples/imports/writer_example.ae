@@ -1,0 +1,10 @@
+open Writer
+
+# open → write → close (path is a parameter so CI need not touch disk).
+def write_once (path: {p: String | p != ""}) : Unit :=
+    let 1 w0 := open_writer path in
+    let payload := payload_from_string "hello" in
+    let 1 w1 := write payload w0 in
+    close w1;
+
+def main (args: Int) : Unit := print "ok"
