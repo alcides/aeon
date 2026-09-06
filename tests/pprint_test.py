@@ -81,6 +81,20 @@ def test_operator_section_parses():
     assert not isinstance(parse_expr("(x = y)"), SVar)
 
 
+def test_negative_literal_operand_parenthesized():
+    # Unary minus only exists at the outermost expression level in the grammar,
+    # so a negative literal operand must print parenthesised to re-parse:
+    # `9 - -1` and `f -1` are syntax errors.
+    from aeon.sugar.parser import mk_parser
+    from aeon.utils.pprint import pretty_print_sterm
+
+    parse_expr = mk_parser("expression")
+    for source in ["9 - (-1)", "9 * (-1)", "f (-1)", "(-1) + 2", "(-1.5) + x"]:
+        printed = pretty_print_sterm(parse_expr(source), top_level=False)
+        assert printed == source
+        parse_expr(printed)
+
+
 def test_operator_section_round_trips():
     from aeon.sugar.parser import mk_parser
     from aeon.sugar.program import SVar

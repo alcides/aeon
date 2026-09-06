@@ -656,6 +656,13 @@ def _run_synthesis(
         if hole_name.name == hole_name_str and term is not None:
             sterm = lift(term)
             synthesized_str = pretty_print_sterm(sterm, top_level=False)
+            # The hole may sit inside a larger expression (e.g. ``?g1 + ?g2``),
+            # and the edit is textual: parenthesise anything that is not an
+            # atom so the insertion cannot regroup the surrounding expression.
+            from aeon.utils.pprint import get_sterm_operation, get_operation_precedence, Precedence
+
+            if get_operation_precedence(get_sterm_operation(sterm)) < Precedence.LITERAL:
+                synthesized_str = f"({synthesized_str})"
 
             hole_positions = aeon_adapter.find_holes_in_source(source)
             hole_range = next(

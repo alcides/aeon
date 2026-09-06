@@ -410,6 +410,22 @@ def test_run_synthesis_multi_hole_targets_requested_hole(synthesizer, hole):
     assert hole_range.start.character == source.index(f"?{hole}")
 
 
+def test_run_synthesis_wraps_non_atomic_insertion_in_parens():
+    # The edit is textual, so a non-atomic term inserted into a sub-expression
+    # hole must be parenthesised to preserve the surrounding grouping (e.g.
+    # inserting `9 - x` bare into `?g1 + ?g2` would regroup as `(?g1 + 9) - x`).
+    source = "def synth (x:Int) : Int := ?g1 + ?g2;"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+
+    result = _run_synthesis(driver, mock_ls, "file:///test.ae", "g2", "forward_let_if")
+
+    assert result is not None, f"Messages: {mock_ls.messages}"
+    synthesized_str, _ = result
+    assert synthesized_str.startswith("(let v : ")
+    assert synthesized_str.endswith(")")
+
+
 def test_run_synthesis_one_step_tactic_on_subgoal_hole():
     # Chaining: a one-step tactic can be applied to one of several sibling
     # subgoal holes (e.g. the ones a previous one-step expansion inserted).

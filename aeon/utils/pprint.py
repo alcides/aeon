@@ -76,6 +76,10 @@ class Operation(Enum):
     APPLICATION = auto()
     TYPE_APPLICATION = auto()
     LITERAL = auto()
+    # ``-1`` is unary minus applied to ``1``: the grammar only allows unary
+    # minus at the outermost expression level, so a negative literal must be
+    # parenthesised in any operand position (``9 - (-1)``, ``f (-1)``).
+    NEGATIVE_LITERAL = auto()
 
 
 class Precedence(IntEnum):
@@ -126,6 +130,7 @@ OPERATION_INFO = {
     Operation.APPLICATION: OperationInfo(Precedence.APPLICATION, Associativity.LEFT),
     Operation.TYPE_APPLICATION: OperationInfo(Precedence.TYPE_APPLICATION, Associativity.LEFT),
     Operation.LITERAL: OperationInfo(Precedence.LITERAL, Associativity.NONE),
+    Operation.NEGATIVE_LITERAL: OperationInfo(Precedence.LET, Associativity.NONE),
 }
 
 
@@ -176,6 +181,8 @@ def get_sterm_operation(sterm: STerm) -> Operation:
             return Operation.POLYMORPHISM
         case STypeApplication():
             return Operation.TYPE_APPLICATION
+        case SLiteral(value=value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value < 0:
+            return Operation.NEGATIVE_LITERAL
         case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SBy():
             return Operation.LITERAL
         case _:
