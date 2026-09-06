@@ -1,0 +1,11 @@
+open Lock
+
+# Linear mutex lifecycle: new → acquire → release → destroy.
+# Wrapped in a function so --no-main typechecks without racing threads.
+def critical (u: Unit) : Unit :=
+    let 1 l0 := new_lock u in
+    let 1 l1 := acquire l0 in
+    let 1 l2 := release l1 in
+    destroy l2;
+
+def main (args: Int) : Unit := print "ok"

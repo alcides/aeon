@@ -1,0 +1,12 @@
+open Downloader
+
+# Progress session: start → update → finish → discard.
+def download (u: Unit) : Unit :=
+    let 1 d0 := new_downloader u in
+    let 1 d1 := start d0 in
+    let 1 d2 := update d1 40 in
+    let 1 d3 := update d2 100 in
+    let 1 d4 := finish d3 in
+    discard d4;
+
+def main (args: Int) : Unit := print "ok"

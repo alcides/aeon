@@ -1,0 +1,48 @@
+# Fluent email builder with ordered typestate (LiquidJava ``Email`` demo).
+#
+# Acceptable construction order:
+#   new → set_from → add_to (+ optional set_subject) → set_body → build
+#
+# Phases (measure ``email_phase``):
+#   1 empty · 2 sender set · 3 receivers · 4 body set
+#
+# The draft is linear: each step consumes the previous handle so you cannot
+# skip stages or build twice.
+
+linear type EmailDraft
+
+def email_phase : (e: EmailDraft) -> Int := uninterpreted
+
+# Start with an empty draft (phase 1).
+def new_email (_: Unit) :
+    {e: EmailDraft | email_phase e = 1} :=
+    native "__import__('aeon.bindings.email', fromlist=['new_email']).new_email()"
+
+# Record the sender (phase 1 → 2). Must be non-empty.
+def set_from (sender: {s: String | s != ""})
+    (1 e: {d: EmailDraft | email_phase d = 1}) :
+    {out: EmailDraft | email_phase out = 2} :=
+    native "__import__('aeon.bindings.email', fromlist=['set_from']).set_from(sender, e)"
+
+# Add a recipient (phase 2 or 3 → 3). At least one ``add_to`` is required
+# before ``set_body``.
+def add_to (receiver: {s: String | s != ""})
+    (1 e: {d: EmailDraft | email_phase d = 2 || email_phase d = 3}) :
+    {out: EmailDraft | email_phase out = 3} :=
+    native "__import__('aeon.bindings.email', fromlist=['add_to']).add_to(receiver, e)"
+
+# Optional subject; stays in phase 3.
+def set_subject (subject: String)
+    (1 e: {d: EmailDraft | email_phase d = 3}) :
+    {out: EmailDraft | email_phase out = 3} :=
+    native "__import__('aeon.bindings.email', fromlist=['set_subject']).set_subject(subject, e)"
+
+# Set the body (phase 3 → 4).
+def set_body (body: {s: String | s != ""})
+    (1 e: {d: EmailDraft | email_phase d = 3}) :
+    {out: EmailDraft | email_phase out = 4} :=
+    native "__import__('aeon.bindings.email', fromlist=['set_body']).set_body(body, e)"
+
+# Consume a complete draft and produce the rendered email text.
+def build (1 e: {d: EmailDraft | email_phase d = 4}) : String :=
+    native "__import__('aeon.bindings.email', fromlist=['build']).build(e)"
