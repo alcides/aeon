@@ -526,7 +526,7 @@ let numpy := native_import "numpy";
 
 For a step-by-step guide to wrapping a whole Python package — covering opaque types, designing refinements, uninterpreted functions, and the axiom-by-`native` pattern — see [Writing FFI bindings for a Python package](ffi).
 
-For a worked case study of taming two especially error-prone modules — turning `KeyError`, ignored exit codes, and shell injection into compile-time errors — see [Typed bindings for `os` and `subprocess`](os-subprocess). The same treatment for HTTP — mandatory timeouts, status codes you can't ignore — is in [Typed bindings for `requests`](http). For combining refinements with **linear types** (QTT) to make resource lifecycles state-safe — commit-xor-rollback, close exactly once — see [State-safe sqlite3 with `Database`](database), [linear `Array` buffers](array), [explicit CUDA device memory](cuda), and [typestate protocols](typestate-protocols) (`Lock`, `Reader`, `Writer`, `Email`, `Downloader`, `Order`, `Stack`, `Deque`, `Iterator`).
+For a worked case study of taming two especially error-prone modules — turning `KeyError`, ignored exit codes, and shell injection into compile-time errors — see [Typed bindings for `os` and `subprocess`](os-subprocess). The same treatment for HTTP — mandatory timeouts, status codes you can't ignore — is in [Typed bindings for `requests`](http). For combining refinements with **linear types** (QTT) to make resource lifecycles state-safe — commit-xor-rollback, close exactly once — see [State-safe sqlite3 with `Database`](database), [linear `Array` buffers](array), [explicit CUDA device memory](cuda), and [typestate protocols](typestate-protocols) (`Lock`, `Reader`, `Writer`, `Email`, `Downloader`, `Order`, `Stack`, `Deque`, `Iterator`). The same pairing for **safe parallel computation** — join/shutdown exactly once, positive worker counts, size-preserving `par_map`, proven `halves` splits — is in [Fork/Join parallelism with `ForkJoin`](forkjoin).
 
 ## Libraries
 
@@ -554,6 +554,7 @@ The generated files are gitignored; they are produced from source by the
 | `Array` | Linear host buffers, `size` refinements | [array.md](array) |
 | `Cuda` | Linear GPU buffers; kind/access/shape/shared/warp/status proofs | [cuda.md](cuda) |
 | `Database` | Linear sqlite3 connections/transactions | [database.md](database) |
+| `ForkJoin` | Linear pool/futures, safe parallel splits | [forkjoin.md](forkjoin) |
 | `Lock` / `Reader` / `Writer` / `Email` / `Downloader` / `Order` / `Stack` / `Deque` / `Iterator` | Typestate protocols (LiquidJava ports) | [typestate-protocols.md](typestate-protocols) |
 | `Http` | Typed `requests` wrapper | [http.md](http) |
 | `OS` / `Subprocess` | Typed process and filesystem bindings | [os-subprocess.md](os-subprocess) |
@@ -573,6 +574,7 @@ Systems and I/O:
 - **Cuda** — explicit CUDA Driver API (separate from `@gpu`); memory kind, access mode, 2-D launch, shared/warp, Status
 - **Gpu** — tensor kernels imported by `@gpu`
 - **Database** — sqlite3 with linear transactions
+- **ForkJoin** — thread pools with linear futures and size-safe splits
 - **Lock**, **Reader**, **Writer**, **Email**, **Downloader**, **Order**, **Stack**, **Deque**, **Iterator** — typestate protocols
 - **Http**, **OS**, **Subprocess**, **Path**, **Socket**, **Sys**
 - **Json**, **Args**
