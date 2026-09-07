@@ -1,0 +1,20 @@
+open Stack
+
+# push → peek → pop → discard
+def demo (u: Unit) : Int :=
+    let 1 s0 := new_stack{Int} u in
+    let 1 s1 := push 1 s0 in
+    let 1 s2 := push 2 s1 in
+    let pk := peek s2 in
+    let top := peek_value pk in
+    let 1 s3 := peek_stack pk in
+    let po := pop s3 in
+    let _ := pop_value po in
+    let 1 s4 := pop_stack po in
+    let po2 := pop s4 in
+    let _ := pop_value po2 in
+    let 1 s5 := pop_stack po2 in
+    let _ := discard s5 in
+    top;
+
+def main (args: Int) : Unit := print "ok"
