@@ -1,0 +1,13 @@
+open Order
+
+# empty → add items → pay → (optional gift) → ship → finalize
+def checkout_flow (u: Unit) : Int :=
+    let 1 o0 := new_order u in
+    let 1 o1 := add_item "book" 15 o0 in
+    let 1 o2 := add_item "mug" 10 o1 in
+    let 1 o3 := pay 424242 o2 in
+    let 1 o4 := add_gift o3 in
+    let 1 o5 := ship "1 Main St" o4 in
+    finalize o5;
+
+def main (args: Int) : Unit := print "ok"

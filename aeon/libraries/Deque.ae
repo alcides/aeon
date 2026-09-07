@@ -1,0 +1,73 @@
+# Linear double-ended queue with a ``size`` ghost (LiquidJava ``ArrayDeque``).
+#
+# Ends support push/pop/peek; pop and peek require ``size > 0``. The deque is
+# multiplicity-1. ``discard`` frees an empty deque.
+
+linear type Deque a
+
+type DequePop a
+type DequePeek a
+type DequeLen a
+
+def deque_size : (d: (Deque a)) -> Int := uninterpreted
+def pop_size : (p: (DequePop a)) -> Int := uninterpreted
+def peek_size : (p: (DequePeek a)) -> Int := uninterpreted
+def held_size : (l: (DequeLen a)) -> Int := uninterpreted
+
+# Empty deque. Use as ``Deque.new_deque{Int} unit``.
+def new_deque (_: Unit) :
+    {d: (Deque a) | deque_size d = 0} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['new_deque']).new_deque()"
+
+def push_back (x: a) (1 d: (Deque a)) :
+    {out: (Deque a) | deque_size out = deque_size d + 1} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['deque_push_back']).deque_push_back(x, d)"
+
+def push_front (x: a) (1 d: (Deque a)) :
+    {out: (Deque a) | deque_size out = deque_size d + 1} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['deque_push_front']).deque_push_front(x, d)"
+
+def pop_back (1 d: {q: (Deque a) | deque_size q > 0}) :
+    {p: (DequePop a) | pop_size p = deque_size d - 1} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['deque_pop_back']).deque_pop_back(d)"
+
+def pop_front (1 d: {q: (Deque a) | deque_size q > 0}) :
+    {p: (DequePop a) | pop_size p = deque_size d - 1} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['deque_pop_front']).deque_pop_front(d)"
+
+def pop_value (p: (DequePop a)) : a :=
+    native "p[0]"
+
+def pop_deque (p: (DequePop a)) :
+    {d: (Deque a) | deque_size d = pop_size p} :=
+    native "p[1]"
+
+def peek_back (1 d: {q: (Deque a) | deque_size q > 0}) :
+    {p: (DequePeek a) | peek_size p = deque_size d} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['deque_peek_back']).deque_peek_back(d)"
+
+def peek_front (1 d: {q: (Deque a) | deque_size q > 0}) :
+    {p: (DequePeek a) | peek_size p = deque_size d} :=
+    native "__import__('aeon.bindings.stack_deque', fromlist=['deque_peek_front']).deque_peek_front(d)"
+
+def peek_value (p: (DequePeek a)) : a :=
+    native "p[0]"
+
+def peek_deque (p: (DequePeek a)) :
+    {d: (Deque a) | deque_size d = peek_size p} :=
+    native "p[1]"
+
+def len_of (1 d: (Deque a)) :
+    {l: (DequeLen a) | held_size l = deque_size d} :=
+    native "(len(d), d)"
+
+def len_value (l: (DequeLen a)) :
+    {n: Int | n = held_size l && n >= 0} :=
+    native "l[0]"
+
+def len_deque (l: (DequeLen a)) :
+    {d: (Deque a) | deque_size d = held_size l} :=
+    native "l[1]"
+
+def discard (1 d: {q: (Deque a) | deque_size q = 0}) : Unit :=
+    native "None"

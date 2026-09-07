@@ -1,0 +1,79 @@
+# Linear iterator protocol (LiquidJava ``Iterator`` / hasNext-before-next).
+#
+# Phases (``it_phase``):
+#   0 — must call ``has_next`` before ``next``
+#   1 — ``has_next`` returned true; ``next`` is legal
+#   2 — exhausted (``has_next`` returned false); only ``discard`` remains
+#
+# ``it_remaining`` counts unread elements. Construct with ``from_array``.
+
+open Array
+
+linear type Iterator a
+
+# After ``has_next``: flag plus recovered iterator.
+type IteratorProbe a
+
+# After ``next``: element plus recovered iterator.
+type IteratorStep a
+
+def it_phase : (it: (Iterator a)) -> Int := uninterpreted
+def it_remaining : (it: (Iterator a)) -> Int := uninterpreted
+
+def probe_has_next : (p: (IteratorProbe a)) -> Bool := uninterpreted
+def probe_remaining : (p: (IteratorProbe a)) -> Int := uninterpreted
+def step_remaining : (s: (IteratorStep a)) -> Int := uninterpreted
+
+# Consume a host array into an iterator at phase 0.
+def from_array (1 arr: (Array a)) :
+    {it: (Iterator a) |
+        it_phase it = 0 &&
+        it_remaining it = Array.size arr} :=
+    native "__import__('aeon.bindings.iterator', fromlist=['from_array']).from_array(arr)"
+
+# Probe whether more elements remain (phase 0 only).
+# If remaining > 0, recovers phase 1; otherwise phase 2.
+def has_next (1 it: {i: (Iterator a) | it_phase i = 0}) :
+    {p: (IteratorProbe a) |
+        probe_remaining p = it_remaining it &&
+        ((it_remaining it > 0 && probe_has_next p = true) ||
+         (it_remaining it = 0 && probe_has_next p = false))} :=
+    native "__import__('aeon.bindings.iterator', fromlist=['has_next']).has_next(it)"
+
+def has_next_flag (p: (IteratorProbe a)) :
+    {b: Bool | b = probe_has_next p} :=
+    native "p[0]"
+
+# Recover iterator after a true probe → phase 1, same remaining.
+def ready_iterator (p: {pr: (IteratorProbe a) | probe_has_next pr = true}) :
+    {it: (Iterator a) |
+        it_phase it = 1 &&
+        it_remaining it = probe_remaining p &&
+        it_remaining it > 0} :=
+    native "p[1]"
+
+# Recover iterator after a false probe → phase 2, remaining 0.
+def exhausted_iterator (p: {pr: (IteratorProbe a) | probe_has_next pr = false}) :
+    {it: (Iterator a) |
+        it_phase it = 2 &&
+        it_remaining it = 0 &&
+        probe_remaining p = 0} :=
+    native "p[1]"
+
+# Take the next element (phase 1 only); returns to phase 0 with remaining - 1.
+def next (1 it: {i: (Iterator a) | it_phase i = 1 && it_remaining i > 0}) :
+    {s: (IteratorStep a) | step_remaining s = it_remaining it - 1} :=
+    native "__import__('aeon.bindings.iterator', fromlist=['next_step']).next_step(it)"
+
+def next_value (s: (IteratorStep a)) : a :=
+    native "s[0]"
+
+def next_iterator (s: (IteratorStep a)) :
+    {it: (Iterator a) |
+        it_phase it = 0 &&
+        it_remaining it = step_remaining s} :=
+    native "s[1]"
+
+# Drop an exhausted iterator (phase 2).
+def discard (1 it: {i: (Iterator a) | it_phase i = 2}) : Unit :=
+    native "None"
