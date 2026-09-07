@@ -3,6 +3,7 @@ from enum import IntEnum, Enum, auto
 from functools import reduce
 from typing import Callable, List, Tuple
 
+from aeon.core.types import Kind
 from aeon.sugar.ast_helpers import true, false
 from aeon.sugar.program import (
     SLet,
@@ -75,6 +76,10 @@ class Operation(Enum):
     APPLICATION = auto()
     TYPE_APPLICATION = auto()
     LITERAL = auto()
+    # ``-1`` is unary minus applied to ``1``: the grammar only allows unary
+    # minus at the outermost expression level, so a negative literal must be
+    # parenthesised in any operand position (``9 - (-1)``, ``f (-1)``).
+    NEGATIVE_LITERAL = auto()
 
 
 class Precedence(IntEnum):
@@ -125,6 +130,7 @@ OPERATION_INFO = {
     Operation.APPLICATION: OperationInfo(Precedence.APPLICATION, Associativity.LEFT),
     Operation.TYPE_APPLICATION: OperationInfo(Precedence.TYPE_APPLICATION, Associativity.LEFT),
     Operation.LITERAL: OperationInfo(Precedence.LITERAL, Associativity.NONE),
+    Operation.NEGATIVE_LITERAL: OperationInfo(Precedence.LET, Associativity.NONE),
 }
 
 
@@ -175,6 +181,8 @@ def get_sterm_operation(sterm: STerm) -> Operation:
             return Operation.POLYMORPHISM
         case STypeApplication():
             return Operation.TYPE_APPLICATION
+        case SLiteral(value=value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value < 0:
+            return Operation.NEGATIVE_LITERAL
         case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SBy():
             return Operation.LITERAL
         case _:
@@ -407,13 +415,14 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
 
         case STypePolymorphism(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
-            pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
+            # Grammar form (``polymorphism_t``): ASCII kinds only.
+            pretty_kind = text("B" if kind == Kind.BASE else "*")
 
             pretty_body = pretty_stype_with_parens(body, ParenthesisContext(Precedence.POLYMORPHISM, Side.RIGHT))
 
-            left = concat([text("∀"), pretty_name, text(" : "), pretty_kind])
+            left = concat([text("forall "), pretty_name, text(" : "), pretty_kind])
 
-            return group(concat([left, text(" ."), nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body]))]))
+            return group(concat([left, text(","), nest(DEFAULT_TAB_SIZE, concat([line(), pretty_body]))]))
 
         case STypeConstructor(name=name, args=args):
             pretty_name = text(name.pretty())
@@ -443,7 +452,12 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             return text(str(value))
 
         case SVar(name=name):
-            return text(name.pretty())
+            pretty = name.pretty()
+            # A bare operator variable prints as an operator section
+            # (``(=)``, ``(+)``, ...) so the output re-parses.
+            if pretty in AEON_INFIX_OPERATORS:
+                return text(f"({INFIX_DISPLAY.get(pretty, pretty)})")
+            return text(pretty)
 
         case SQualifiedVar(qualifier=qualifier, name=name):
             return text(f"{qualifier}.{name.pretty()}")
@@ -598,14 +612,15 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
 
         case STypeAbstraction(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
-            pretty_kind = text(str(kind))  # should be changed to skind pretty in the future
+            # Grammar form (``tabstraction_e``): ASCII kinds only.
+            pretty_kind = text("B" if kind == Kind.BASE else "*")
             pretty_body = pretty_sterm_with_parens(
                 body, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
             )
 
             pretty_kind_def = concat([pretty_name, text(" : "), pretty_kind])
-            pretty_binding = concat([pretty_kind_def, text("."), pretty_body])
-            return group(concat([text("ƛ"), pretty_binding]))
+            pretty_binding = concat([pretty_kind_def, text(" ↦ "), pretty_body])
+            return group(concat([text("Λ"), pretty_binding]))
 
         case SRefinementAbstraction(name=name, sort=sort, body=body):
             pretty_body = pretty_sterm_with_parens(
@@ -688,7 +703,10 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
             return SAbstraction(var_name=var_name, body=simplified_body)
         case SLet(var_name=var_name, var_value=var_value, body=body):
             match body:
-                case SHole(name=name):
+                # Program-tail display only: `let f := e in ?main` renders as a
+                # top-level binding returning `main`. Other hole bodies are open
+                # subgoals (e.g. one-step synthesis results) and must be kept.
+                case SHole(name=name) if name.pretty() == "main":
                     return SLet(var_name=name, var_value=normalize_term(var_value, context, seen), body=SVar(name=name))
                 case _:
                     return SLet(
@@ -698,7 +716,10 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                     )
         case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=db):
             match body:
-                case SHole(name=name):
+                # Program-tail display only: `let f : T := e in ?main` renders as
+                # a top-level binding returning `main`. Other hole bodies are
+                # open subgoals (e.g. one-step synthesis results) and must be kept.
+                case SHole(name=name) if name.pretty() == "main":
                     return SRec(
                         var_name=name,
                         var_type=var_type,
@@ -757,20 +778,46 @@ def _free_value_vars(term: STerm) -> set[Name]:
             return set()
 
 
+def _contains_hole(term: STerm) -> bool:
+    """Whether ``term`` contains an open synthesis hole (``SHole``)."""
+    match term:
+        case SHole():
+            return True
+        case (
+            SAbstraction(body=body)
+            | STypeAbstraction(body=body)
+            | SRefinementAbstraction(body=body)
+            | (STypeApplication(body=body))
+        ):
+            return _contains_hole(body)
+        case SLet(var_value=val, body=body) | SRec(var_value=val, body=body):
+            return _contains_hole(val) or _contains_hole(body)
+        case SApplication(fun=fun, arg=arg):
+            return _contains_hole(fun) or _contains_hole(arg)
+        case SIf(cond=cond, then=then, otherwise=otherwise):
+            return _contains_hole(cond) or _contains_hole(then) or _contains_hole(otherwise)
+        case SAnnotation(expr=expr):
+            return _contains_hole(expr)
+        case _:
+            return False
+
+
 def rename_unused_variables(term: STerm) -> STerm:
     """Replace value-level binders that are never referenced with ``_``.
 
     Example: ``fun x => 3`` becomes ``fun _ => 3``. Applies to ``SAbstraction``,
     ``SLet`` and ``SRec``. Type and refinement abstractions are traversed
-    but not renamed (their binders live in a separate namespace).
+    but not renamed (their binders live in a separate namespace). Binders whose
+    body still contains an open hole are kept: the term that eventually fills
+    the hole may reference them.
     """
     rec = rename_unused_variables
     match term:
         case SAbstraction(var_name=name, body=body, loc=loc):
-            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) else name
+            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) and not _contains_hole(body) else name
             return SAbstraction(var_name=new_name, body=rec(body), loc=loc)
         case SLet(var_name=name, var_value=val, body=body, loc=loc, multiplicity=mult):
-            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) else name
+            new_name = _WILDCARD_NAME if name not in _free_value_vars(body) and not _contains_hole(body) else name
             return SLet(
                 var_name=new_name,
                 var_value=rec(val),
@@ -790,7 +837,7 @@ def rename_unused_variables(term: STerm) -> STerm:
             used = _free_value_vars(val) | _free_value_vars(body)
             for m in db:
                 used |= _free_value_vars(m)
-            new_name = _WILDCARD_NAME if name not in used else name
+            new_name = _WILDCARD_NAME if name not in used and not _contains_hole(body) else name
             return SRec(
                 var_name=new_name,
                 var_type=ty,
@@ -816,9 +863,15 @@ def rename_unused_variables(term: STerm) -> STerm:
             return term
 
 
-def pretty_print_sterm(term: STerm) -> str:
+def pretty_print_sterm(term: STerm, top_level: bool = True) -> str:
+    """Pretty print a sugar term.
+
+    ``top_level`` renders ``let``/``rec`` chains as ``def`` bindings (whole
+    programs); pass ``False`` for standalone expressions (e.g. a synthesized
+    candidate), where a ``let`` must print in its inline ``let ... in`` form.
+    """
     simplified_term = simplify_sterm(term)
-    return str(sterm_pretty(simplified_term))
+    return str(sterm_pretty(simplified_term, depth=0 if top_level else 1))
 
 
 def pretty_print_stype(stype: SType) -> str:

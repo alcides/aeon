@@ -54,6 +54,61 @@ def test_complex_pretty_print():
     assert expected == expr.to_doc().best(80, 0).layout(0)
 
 
+def test_operator_section_prints_parseably():
+    # A bare operator variable prints as an operator section so the output
+    # re-parses (e.g. `let v : ... := (=) in ...`).
+    from aeon.sugar.program import SVar
+    from aeon.utils.name import Name
+    from aeon.utils.pprint import pretty_print_sterm
+
+    assert pretty_print_sterm(SVar(Name("==", 0)), top_level=False) == "(=)"
+    assert pretty_print_sterm(SVar(Name("+", 0)), top_level=False) == "(+)"
+    assert pretty_print_sterm(SVar(Name("<=", 0)), top_level=False) == "(≤)"
+    assert pretty_print_sterm(SVar(Name("&&", 0)), top_level=False) == "(&&)"
+
+
+def test_operator_section_parses():
+    from aeon.sugar.parser import mk_parser
+    from aeon.sugar.program import SVar
+
+    parse_expr = mk_parser("expression")
+    for source, op in [("(=)", "=="), ("(==)", "=="), ("(+)", "+"), ("(≤)", "<="), ("(<=)", "<="), ("(||)", "||")]:
+        term = parse_expr(source)
+        assert isinstance(term, SVar)
+        assert term.name.pretty() == op
+    # Parenthesised expressions are unaffected.
+    assert not isinstance(parse_expr("(- 1)"), SVar)
+    assert not isinstance(parse_expr("(x = y)"), SVar)
+
+
+def test_negative_literal_operand_parenthesized():
+    # Unary minus only exists at the outermost expression level in the grammar,
+    # so a negative literal operand must print parenthesised to re-parse:
+    # `9 - -1` and `f -1` are syntax errors.
+    from aeon.sugar.parser import mk_parser
+    from aeon.utils.pprint import pretty_print_sterm
+
+    parse_expr = mk_parser("expression")
+    for source in ["9 - (-1)", "9 * (-1)", "f (-1)", "(-1) + 2", "(-1.5) + x"]:
+        printed = pretty_print_sterm(parse_expr(source), top_level=False)
+        assert printed == source
+        parse_expr(printed)
+
+
+def test_operator_section_round_trips():
+    from aeon.sugar.parser import mk_parser
+    from aeon.sugar.program import SVar
+    from aeon.utils.name import Name
+    from aeon.utils.pprint import pretty_print_sterm
+
+    parse_expr = mk_parser("expression")
+    for op in ["==", "!=", "<", "<=", ">", ">=", "+", "-", "*", "/", "%", "&&", "||"]:
+        printed = pretty_print_sterm(SVar(Name(op, 0)), top_level=False)
+        reparsed = parse_expr(printed)
+        assert isinstance(reparsed, SVar)
+        assert reparsed.name.pretty() == op
+
+
 # Helper Classes
 
 

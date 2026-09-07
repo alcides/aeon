@@ -286,6 +286,10 @@ non_dot_simple : "(" expression ")"                          -> same
         | ESCAPED_STRING                                     -> string_lit
         | QUALIFIED_ID                                       -> qualified_var
         | ID                                                 -> var
+        // Operator section: a bare infix operator as a value, e.g. ``(=)``
+        // or ``(+)``. Lexed as one token (no inner spaces) so it never
+        // conflicts with a parenthesised expression.
+        | OPSECTION                                          -> var_op
         | "?" ID                                             -> hole
         // Lean-style collection literals. ``[1, 2, 3]`` desugars to
         // ``List.cons``/``List.nil`` and ``#[1, 2, 3]`` to ``Array.new``/
@@ -301,6 +305,11 @@ list_items :                                                 -> empty_list
 kind : "B" -> base_kind
      | "*" -> star_kind
 
+
+// The spellings mirror the infix rules (surface ``=`` is builtin ``==``);
+// the parser canonicalises Unicode/surface forms to the internal names.
+OPSECTION.5 : "(==)" | "(=)" | "(!=)" | "(≠)" | "(<=)" | "(≤)" | "(>=)" | "(≥)" | "(<)" | "(>)"
+            | "(+)" | "(-)" | "(*)" | "(/)" | "(%)" | "(&&)" | "(||)"
 
 BOOLLIT.5 : "true" | "false"
 // QTT multiplicities. The contextual LALR lexer routes to ``MULT`` only

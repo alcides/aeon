@@ -60,7 +60,12 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "tdsyn_enumerative",
         "tdsyn_random",
         "tdsyn_backward",
-        "tdsyn_forward",
+        "forward_close",
+        "forward_let_app",
+        "forward_let_if",
+        "forward_let_tapp",
+        "forward_let_abs",
+        "forward_let_tabs",
         "tactics",
         "gp",
         "enumerative",
@@ -600,7 +605,14 @@ def _run_synthesis(
         ls.window_show_message(ShowMessageParams(type=MessageType.Info, message="No holes found in file"))
         return None
 
-    targets = [(fn, holes) for fn, holes in driver.incomplete_functions if any(h.name == hole_name_str for h in holes)]
+    # Target only the hole the user invoked the action on: a function may have
+    # several holes (e.g. subgoals of a one-step tactic), and synthesis fills
+    # one hole per function, leaving the siblings open.
+    targets = [
+        (fn, [h for h in holes if h.name == hole_name_str])
+        for fn, holes in driver.incomplete_functions
+        if any(h.name == hole_name_str for h in holes)
+    ]
 
     if not targets:
         ls.window_show_message(
@@ -643,7 +655,14 @@ def _run_synthesis(
     for hole_name, term in mapping.items():
         if hole_name.name == hole_name_str and term is not None:
             sterm = lift(term)
-            synthesized_str = pretty_print_sterm(sterm)
+            synthesized_str = pretty_print_sterm(sterm, top_level=False)
+            # The hole may sit inside a larger expression (e.g. ``?g1 + ?g2``),
+            # and the edit is textual: parenthesise anything that is not an
+            # atom so the insertion cannot regroup the surrounding expression.
+            from aeon.utils.pprint import get_sterm_operation, get_operation_precedence, Precedence
+
+            if get_operation_precedence(get_sterm_operation(sterm)) < Precedence.LITERAL:
+                synthesized_str = f"({synthesized_str})"
 
             hole_positions = aeon_adapter.find_holes_in_source(source)
             hole_range = next(

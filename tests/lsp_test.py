@@ -212,7 +212,13 @@ def test_synthesizers_includes_defaults():
     assert "tdsyn_enumerative" in SYNTHESIZERS
     assert "tdsyn_random" in SYNTHESIZERS
     assert "tdsyn_backward" in SYNTHESIZERS
-    assert "tdsyn_forward" in SYNTHESIZERS
+    assert "forward_close" in SYNTHESIZERS
+    assert "forward_let_app" in SYNTHESIZERS
+    assert "forward_let_if" in SYNTHESIZERS
+    assert "forward_let_tapp" in SYNTHESIZERS
+    assert "forward_let_abs" in SYNTHESIZERS
+    assert "forward_let_tabs" in SYNTHESIZERS
+    assert "tdsyn_forward" not in SYNTHESIZERS
     assert "gp" in SYNTHESIZERS
     assert "enumerative" in SYNTHESIZERS
     assert "llm_qwen2.5-coder-32b" in SYNTHESIZERS
@@ -365,10 +371,11 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
 
     # These backends need a spec the plain ``Int`` hole does not provide:
     # decision_tree needs @csv_data/@example rows; symetric needs a @minimize
-    # objective; sygus needs an SMT-expressible constraint; tdsyn_forward
-    # builds terms from variables in scope, and this hole has none. They
-    # legitimately produce no term here — just verify they complete without raising.
-    if synthesizer in ("decision_tree", "sygus", "symetric", "tdsyn_forward"):
+    # objective; sygus needs an SMT-expressible constraint; forward_close and
+    # forward_let_app build terms from plain variables in scope, and this hole
+    # has none. They legitimately produce no term here — just verify they
+    # complete without raising.
+    if synthesizer in ("decision_tree", "sygus", "symetric", "forward_close", "forward_let_app"):
         result = _run_synthesis(driver, mock_ls, "file:///test.ae", "hole", synthesizer)
         assert result is None or isinstance(result, tuple)
         return
@@ -380,6 +387,58 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
     assert isinstance(synthesized_str, str) and len(synthesized_str) > 0
     assert hole_range.start.line == 0
     assert hole_range.start.character == source.index("?")
+
+
+# ---------------------------------------------------------------------------
+# Multiple holes in one function: synthesis targets the requested hole only
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("synthesizer", ["tdsyn", "tactics"])
+@pytest.mark.parametrize("hole", ["g1", "g2"])
+def test_run_synthesis_multi_hole_targets_requested_hole(synthesizer, hole):
+    source = "def synth (x:Int) : Int := ?g1 + ?g2;"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+
+    result = _run_synthesis(driver, mock_ls, "file:///test.ae", hole, synthesizer)
+
+    assert result is not None, f"'{synthesizer}' on ?{hole} returned None. Messages: {mock_ls.messages}"
+    synthesized_str, hole_range = result
+    assert isinstance(synthesized_str, str) and len(synthesized_str) > 0
+    # The edit range covers the requested hole, not the sibling.
+    assert hole_range.start.character == source.index(f"?{hole}")
+
+
+def test_run_synthesis_wraps_non_atomic_insertion_in_parens():
+    # The edit is textual, so a non-atomic term inserted into a sub-expression
+    # hole must be parenthesised to preserve the surrounding grouping (e.g.
+    # inserting `9 - x` bare into `?g1 + ?g2` would regroup as `(?g1 + 9) - x`).
+    source = "def synth (x:Int) : Int := ?g1 + ?g2;"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+
+    result = _run_synthesis(driver, mock_ls, "file:///test.ae", "g2", "forward_let_if")
+
+    assert result is not None, f"Messages: {mock_ls.messages}"
+    synthesized_str, _ = result
+    assert synthesized_str.startswith("(let v : ")
+    assert synthesized_str.endswith(")")
+
+
+def test_run_synthesis_one_step_tactic_on_subgoal_hole():
+    # Chaining: a one-step tactic can be applied to one of several sibling
+    # subgoal holes (e.g. the ones a previous one-step expansion inserted).
+    source = "def synth (b:Bool) : Bool := if ?g1 then ?g2 else false;"
+    mock_ls = MockLS(source)
+    driver = make_driver()
+
+    result = _run_synthesis(driver, mock_ls, "file:///test.ae", "g1", "forward_close")
+
+    assert result is not None, f"Messages: {mock_ls.messages}"
+    synthesized_str, hole_range = result
+    assert synthesized_str == "b"
+    assert hole_range.start.character == source.index("?g1")
 
 
 # ---------------------------------------------------------------------------

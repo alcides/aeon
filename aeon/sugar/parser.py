@@ -111,6 +111,11 @@ _RECEIVER_END_TOKENS = frozenset(
 )
 
 
+# Surface spellings of operator sections whose builtin name differs
+# (the inverse of the pretty-printer's INFIX_DISPLAY map).
+_OP_SECTION_CANON = {"=": "==", "≠": "!=", "≤": "<=", "≥": ">="}
+
+
 class MethodDotPostLex(PostLex):
     """Distinguish a method/projection dot from an anonymous-constructor dot by
     whitespace, mirroring Lean (issue #27).
@@ -500,6 +505,13 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def var(self, meta, args):
         return SVar(Name(args[0]), loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def var_op(self, meta, args):
+        # Operator section ``(op)``: strip the parens and canonicalise the
+        # surface spelling to the builtin operator name (``(=)`` is ``==``).
+        op = str(args[0])[1:-1]
+        return SVar(Name(_OP_SECTION_CANON.get(op, op)), loc=self._loc(meta))
 
     @v_args(meta=True)
     def qualified_var(self, meta, args):

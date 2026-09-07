@@ -7,11 +7,21 @@ from typing import Callable
 
 from loguru import logger
 
-from aeon.core.terms import Abstraction, Term
+from aeon.core.terms import Abstraction, Hole, Term
 from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
-from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
+from aeon.synthesis.identification import get_holes
+from aeon.synthesis.modules.tdsyn.actions import (
+    backward_candidates,
+    forward_candidates,
+    forward_close_candidates,
+    forward_let_abs_candidates,
+    forward_let_app_candidates,
+    forward_let_if_candidates,
+    forward_let_tabs_candidates,
+    forward_let_tapp_candidates,
+)
 from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST, TypedHole, fresh_hole, substitute_hole
@@ -69,32 +79,17 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
 class TDSynSynthesizer(Synthesizer):
     """Type-directed synthesizer using backward and forward actions with SMT-based subtyping.
 
-    Supports both enumerative (BFS) and random exploration modes, and can be
-    restricted to a single expansion direction: ``backward`` grows terms from
-    the hole's expected type, ``forward`` grows terms from the variables in
-    scope, and ``both`` (the default) combines the two.
+    Supports both enumerative (BFS) and random exploration modes.
     Loops until the time budget is exhausted, restarting with shuffled expansion
     order on each iteration to explore different term structures.
     """
 
-    def __init__(self, mode: str = "enumerative", seed: int = 0, direction: str = "both"):
+    def __init__(self, mode: str = "enumerative", seed: int = 0):
         assert mode in ("enumerative", "random")
-        assert direction in ("both", "backward", "forward")
         self.mode = mode
         self.seed = seed
-        self.direction = direction
         self._rng = random.Random(seed)
         self._iteration = 0
-
-    def _action_fns(self) -> list[Callable]:
-        """The candidate-generating actions enabled for this synthesizer's direction."""
-        match self.direction:
-            case "backward":
-                return [backward_candidates]
-            case "forward":
-                return [forward_candidates]
-            case _:
-                return [backward_candidates, forward_candidates]
 
     def synthesize(
         self,
@@ -204,10 +199,10 @@ class TDSynSynthesizer(Synthesizer):
         hole: TypedHole,
         skip: Callable[[Name], bool],
     ) -> list[PartialAST]:
-        """Expand a single hole using the enabled backward/forward actions."""
+        """Expand a single hole using backward and forward actions."""
         results: list[PartialAST] = []
 
-        for action_fn in self._action_fns():
+        for action_fn in [backward_candidates, forward_candidates]:
             try:
                 candidates = action_fn(hole, skip)
             except Exception as e:
@@ -325,3 +320,100 @@ class TDSynSynthesizer(Synthesizer):
                 best = self._try_complete(partial, validate, evaluate, start_time, ui, best)
 
         return best
+
+
+def _rename_subgoals(term: Term, fun_name: Name) -> Term:
+    """Give the remaining holes of a partial result unique, readable names.
+
+    Fresh tdsyn holes all share the display name ``tdsyn_hole`` (they differ
+    only in their internal counter), so a partial term printed back into the
+    source would contain several indistinguishable ``?tdsyn_hole`` holes.
+    """
+    renamed = term
+    for i, hole_name in enumerate(get_holes(renamed), start=1):
+        renamed = substitute_hole(renamed, hole_name, Hole(Name(f"{fun_name.name}_goal_{i}", 0), _loc))
+    return renamed
+
+
+# The candidate-generating action behind each one-step tactic backend.
+# ``backward`` decomposes the goal type; the ``forward_*`` tactics either close
+# the goal with a variable of the goal's type (``forward_close``) or grow the
+# scope with a ``let v := <value> in ?goal`` binding whose value is one term
+# former (application, if-then-else, type application, abstraction, or type
+# abstraction).
+ONE_STEP_ACTIONS: dict[str, Callable] = {
+    "backward": backward_candidates,
+    "forward_close": forward_close_candidates,
+    "forward_let_app": forward_let_app_candidates,
+    "forward_let_if": forward_let_if_candidates,
+    "forward_let_tapp": forward_let_tapp_candidates,
+    "forward_let_abs": forward_let_abs_candidates,
+    "forward_let_tabs": forward_let_tabs_candidates,
+}
+
+
+class TDSynOneStepSynthesizer(Synthesizer):
+    """Demonstrative single-step expansion using one type-directed action.
+
+    Applies its action (see :data:`ONE_STEP_ACTIONS`) exactly *once* to the
+    hole and returns the result: the first complete candidate that validates
+    when one exists, otherwise the first partial expansion, whose remaining
+    holes are renamed to fresh ``?<fun>_goal_<i>`` subgoals so the step can be
+    applied again. Deliberately performs no search — ``tdsyn`` is the backend
+    that actually synthesizes a complete, valid term.
+    """
+
+    def __init__(self, action: str):
+        assert action in ONE_STEP_ACTIONS
+        self.action = action
+
+    def synthesize(
+        self,
+        ctx: TypingContext,
+        type: Type,
+        validate: Callable[[Term], bool],
+        evaluate: Callable[[Term], list[float]],
+        fun_name: Name,
+        metadata: Metadata,
+        budget: float = 60,
+        ui: SynthesisUI = SynthesisUI(),
+        output_value: Callable[[Term], object] | None = None,
+    ) -> Term:
+        assert isinstance(ctx, TypingContext)
+        assert isinstance(type, Type)
+
+        skip = make_skip_fn(fun_name, metadata)
+        start_time = monotonic_ns()
+        ui.register(None, None, 0, True)
+
+        # Peel abstractions from the target type
+        initial_term, _, _, initial_holes = _peel_abstractions(type, ctx)
+        hole = initial_holes[0]
+
+        action_fn = ONE_STEP_ACTIONS[self.action]
+        try:
+            candidates = action_fn(hole, skip)
+        except Exception as e:
+            raise SynthesisNotSuccessful(f"TDSynOneStepSynthesizer ({self.action}): action failed: {e}")
+
+        partial: Term | None = None
+        for replacement, new_holes in candidates:
+            term = substitute_hole(initial_term, hole.name, replacement)
+            if not new_holes:
+                try:
+                    if validate(term):
+                        ui.register(term, [], _get_elapsed_time(start_time), True)
+                        return term
+                except Exception:
+                    continue
+            elif partial is None:
+                partial = term
+
+        if partial is not None:
+            partial = _rename_subgoals(partial, fun_name)
+            ui.register(partial, [], _get_elapsed_time(start_time), True)
+            return partial
+
+        raise SynthesisNotSuccessful(
+            f"TDSynOneStepSynthesizer: the {self.action} action produced no candidates for this hole"
+        )

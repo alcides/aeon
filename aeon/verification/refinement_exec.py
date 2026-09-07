@@ -125,6 +125,96 @@ def _mentions_binder(ref: STerm, binder: Name) -> bool:
     return any(v.name == binder.name for v in sterm_free_vars(ref))
 
 
+def _erase_refinements_in_stype(ty: SType) -> SType:
+    """Drop refinements from a type, keeping only its computational shape.
+
+    Terms lowered *for evaluation only* must not carry refinements: arbitrary
+    refinement predicates (e.g. ones applying a lambda) have no liquid
+    representation, so lowering them with ``type_to_core`` would fail. The
+    evaluator never looks at refinements, so erasing them is sound here.
+    """
+    match ty:
+        case SRefinedType(_, base, _, _):
+            return _erase_refinements_in_stype(base)
+        case SAbstractionType(var_name, var_type, body, loc, multiplicity, is_instance):
+            return SAbstractionType(
+                var_name,
+                _erase_refinements_in_stype(var_type),
+                _erase_refinements_in_stype(body),
+                loc=loc,
+                multiplicity=multiplicity,
+                is_instance=is_instance,
+            )
+        case STypePolymorphism(name, kind, body, loc):
+            return STypePolymorphism(name, kind, _erase_refinements_in_stype(body), loc=loc)
+        case SRefinementPolymorphism(name, sort, body, loc):
+            return SRefinementPolymorphism(
+                name,
+                _erase_refinements_in_stype(sort),
+                _erase_refinements_in_stype(body),
+                loc=loc,
+            )
+        case STypeConstructor(name, args, loc):
+            return STypeConstructor(name, [_erase_refinements_in_stype(a) for a in args], loc=loc)
+        case _:
+            return ty
+
+
+def _erase_refinements_in_sterm(term: STerm) -> STerm:
+    """Erase refinements from every type annotation inside a term (see
+    ``_erase_refinements_in_stype``)."""
+    match term:
+        case SLiteral(value, ty, loc):
+            return SLiteral(value, _erase_refinements_in_stype(ty), loc=loc)
+        case SApplication(fun, arg, loc):
+            return SApplication(_erase_refinements_in_sterm(fun), _erase_refinements_in_sterm(arg), loc=loc)
+        case SAbstraction(var_name, body, loc):
+            return SAbstraction(var_name, _erase_refinements_in_sterm(body), loc=loc)
+        case SLet(var_name, var_value, body, loc, multiplicity):
+            return SLet(
+                var_name,
+                _erase_refinements_in_sterm(var_value),
+                _erase_refinements_in_sterm(body),
+                loc=loc,
+                multiplicity=multiplicity,
+            )
+        case SRec(var_name, var_type, var_value, body, decreasing_by, loc, multiplicity, mutual_group_id, companions):
+            return SRec(
+                var_name,
+                _erase_refinements_in_stype(var_type),
+                _erase_refinements_in_sterm(var_value),
+                _erase_refinements_in_sterm(body),
+                decreasing_by=tuple(_erase_refinements_in_sterm(m) for m in decreasing_by),
+                loc=loc,
+                multiplicity=multiplicity,
+                mutual_group_id=mutual_group_id,
+                companions=companions,
+            )
+        case SIf(cond, then, otherwise, loc):
+            return SIf(
+                _erase_refinements_in_sterm(cond),
+                _erase_refinements_in_sterm(then),
+                _erase_refinements_in_sterm(otherwise),
+                loc=loc,
+            )
+        case SAnnotation(expr, ty, loc):
+            return SAnnotation(_erase_refinements_in_sterm(expr), _erase_refinements_in_stype(ty), loc=loc)
+        case STypeApplication(expr, ty, loc):
+            return STypeApplication(_erase_refinements_in_sterm(expr), _erase_refinements_in_stype(ty), loc=loc)
+        case STypeAbstraction(name, kind, body, loc):
+            return STypeAbstraction(name, kind, _erase_refinements_in_sterm(body), loc=loc)
+        case SRefinementApplication(body, refinement, loc):
+            return SRefinementApplication(
+                _erase_refinements_in_sterm(body), _erase_refinements_in_sterm(refinement), loc=loc
+            )
+        case SRefinementAbstraction(name, sort, body, loc):
+            return SRefinementAbstraction(
+                name, _erase_refinements_in_stype(sort), _erase_refinements_in_sterm(body), loc=loc
+            )
+        case _:
+            return term
+
+
 def _bool_literal(value: bool) -> SLiteral:
     return true if value else false
 
@@ -150,7 +240,7 @@ def _try_execute_subexpr(
     if _mentions_binder(term, binder):
         return None
     try:
-        ref_core = lower_to_core(term)
+        ref_core = lower_to_core(_erase_refinements_in_sterm(term))
         linked = _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
         result = eval(linked, _refinement_eval_context())
     except HoleEvaluationError:
@@ -250,7 +340,13 @@ def _eval_context_for_refinement(
     dependency_units: list[CompiledUnit],
 ) -> Term:
     if isinstance(program_sterm, SRec):
-        return _lower_spine_with_body(program_sterm, ref_core)
+        # Erase refinements before lowering: the spine is lowered only so the
+        # evaluator can resolve the definitions the refinement references, and
+        # not-yet-executed refinements in it (including the one being executed)
+        # may have no liquid representation.
+        erased = _erase_refinements_in_sterm(program_sterm)
+        assert isinstance(erased, SRec)
+        return _lower_spine_with_body(erased, ref_core)
     if dependency_units:
         return link_rec_spines(dependency_units, ref_core)
     return ref_core
@@ -266,7 +362,7 @@ def try_execute_refinement(
     if _mentions_binder(ref, binder):
         return None
     try:
-        ref_core = lower_to_core(ref)
+        ref_core = lower_to_core(_erase_refinements_in_sterm(ref))
         linked = _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
         result = eval(linked, _refinement_eval_context())
     except HoleEvaluationError:
