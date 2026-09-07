@@ -1,6 +1,6 @@
 # Typestate protocols from LiquidJava, in Aeon
 
-Small libraries port LiquidJava-style demos into Aeon: mutex, streaming reader,
+Small libraries port LiquidJava-style demos into Aeon: mutex, streaming I/O,
 fluent email, download progress, shopping order, size-ghost collections, and
 iterator hasNext/next. Each combines **linear handles** (use exactly once) with
 **refinement measures** (legal orderings / numeric bounds).
@@ -15,6 +15,7 @@ iterator hasNext/next. Each combines **linear handles** (use exactly once) with
 | [`Stack`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Stack.ae) | `Stack` | push/pop/peek with `size` ghost |
 | [`Deque`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Deque.ae) | `ArrayDeque` | dual-ended push/pop/peek with `size` |
 | [`Iterator`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Iterator.ae) | `Iterator` | hasNext before next; remaining ghost |
+| [`Writer`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Writer.ae) | stream writer | open → write* → close; `bytes_written` ghost |
 
 Examples (typecheck with `--no-main`):
 [`lock_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/lock_example.ae),
@@ -24,7 +25,8 @@ Examples (typecheck with `--no-main`):
 [`order_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/order_example.ae),
 [`stack_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/stack_example.ae),
 [`deque_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/deque_example.ae),
-[`iterator_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/iterator_example.ae).
+[`iterator_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/iterator_example.ae),
+[`writer_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/writer_example.ae).
 
 ---
 
@@ -175,6 +177,21 @@ def sum_two (u: Unit) : Int :=
 
 `next` is illegal until `has_next` returns true (`ready_iterator`); after a false
 probe only `exhausted_iterator` + `discard` remain.
+
+## Writer
+
+```aeon
+open Writer
+
+def write_once (path: {p: String | p != ""}) : Unit :=
+    let 1 w0 := open_writer path in
+    let payload := payload_from_string "hello" in
+    let 1 w1 := write payload w0 in
+    close w1;
+```
+
+Companion to `Reader`: linear open/write/close with a `bytes_written` ghost.
+Unlike one-shot `Path.write`, the handle must be closed exactly once.
 
 ---
 

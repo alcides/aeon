@@ -1,0 +1,40 @@
+# Linear byte writer — open → write* → close, counterpart to ``Reader``.
+#
+# Completes the streaming I/O story: ``Path.write`` is one-shot; this API
+# exposes a live handle. ``writer_open`` tracks liveness; ``bytes_written``
+# is a ghost of cumulative payload length; ``close`` consumes the handle.
+#
+#     let 1 w0 := open_writer path in
+#     let 1 w1 := write payload w0 in
+#     close w1;
+
+linear type Writer
+
+# Opaque host payload (``bytes`` at runtime).
+type WriterPayload
+
+def writer_open : (w: Writer) -> Bool := uninterpreted
+def bytes_written : (w: Writer) -> Int := uninterpreted
+def payload_len : (p: WriterPayload) -> Int := uninterpreted
+
+# Build a payload from a non-empty string (UTF-8 bytes).
+def payload_from_string (s: {t: String | t != ""}) :
+    {p: WriterPayload | payload_len p > 0} :=
+    native "s.encode('utf-8')"
+
+# Open ``path`` for binary writing (truncates). Path must be non-empty.
+def open_writer (path: {p: String | p != ""}) :
+    {w: Writer | writer_open w = true && bytes_written w = 0} :=
+    native "open(path, 'wb')"
+
+# Append ``data`` to an open writer; increases ``bytes_written`` by ``payload_len``.
+def write (data: WriterPayload)
+    (1 w: {x: Writer | writer_open x = true}) :
+    {out: Writer |
+        writer_open out = true &&
+        bytes_written out = bytes_written w + payload_len data} :=
+    native "__import__('aeon.bindings.writer', fromlist=['write_payload']).write_payload(data, w)"
+
+# Close an open writer. Consumes the handle.
+def close (1 w: {x: Writer | writer_open x = true}) : Unit :=
+    native "w.close() or None"
