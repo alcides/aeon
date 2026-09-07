@@ -1,9 +1,9 @@
 # Typestate protocols from LiquidJava, in Aeon
 
 Small libraries port LiquidJava-style demos into Aeon: mutex, streaming reader,
-fluent email, download progress, shopping order, and size-ghost collections.
-Each combines **linear handles** (use exactly once) with **refinement measures**
-(legal orderings / numeric bounds).
+fluent email, download progress, shopping order, size-ghost collections, and
+iterator hasNext/next. Each combines **linear handles** (use exactly once) with
+**refinement measures** (legal orderings / numeric bounds).
 
 | Module | LiquidJava analogue | Idea |
 |--------|---------------------|------|
@@ -14,6 +14,7 @@ Each combines **linear handles** (use exactly once) with **refinement measures**
 | [`Order`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Order.ae) | gift `Order` | empty → adding → checkout → closed + `total_price` |
 | [`Stack`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Stack.ae) | `Stack` | push/pop/peek with `size` ghost |
 | [`Deque`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Deque.ae) | `ArrayDeque` | dual-ended push/pop/peek with `size` |
+| [`Iterator`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Iterator.ae) | `Iterator` | hasNext before next; remaining ghost |
 
 Examples (typecheck with `--no-main`):
 [`lock_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/lock_example.ae),
@@ -22,7 +23,8 @@ Examples (typecheck with `--no-main`):
 [`downloader_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/downloader_example.ae),
 [`order_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/order_example.ae),
 [`stack_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/stack_example.ae),
-[`deque_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/deque_example.ae).
+[`deque_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/deque_example.ae),
+[`iterator_example.ae`](https://github.com/alcides/aeon/blob/master/examples/imports/iterator_example.ae).
 
 ---
 
@@ -145,6 +147,34 @@ def demo (u: Unit) : Int :=
 ```
 
 Same size discipline as `Stack`, with operations at both ends.
+
+## Iterator
+
+```aeon
+open Array
+open Iterator
+
+def sum_two (u: Unit) : Int :=
+    let 1 xs := Array.append (Array.append (Array.new{Int} u) 3) 4 in
+    let 1 it0 := from_array xs in
+    let p0 := has_next it0 in
+    let 1 it1 := ready_iterator p0 in
+    let s0 := next it1 in
+    let a := next_value s0 in
+    let 1 it2 := next_iterator s0 in
+    let p1 := has_next it2 in
+    let 1 it3 := ready_iterator p1 in
+    let s1 := next it3 in
+    let b := next_value s1 in
+    let 1 it4 := next_iterator s1 in
+    let p2 := has_next it4 in
+    let 1 it5 := exhausted_iterator p2 in
+    let _ := discard it5 in
+    a + b;
+```
+
+`next` is illegal until `has_next` returns true (`ready_iterator`); after a false
+probe only `exhausted_iterator` + `discard` remain.
 
 ---
 
