@@ -560,7 +560,7 @@ Systems and I/O:
 - **Cuda** — explicit CUDA Driver API (separate from `@gpu`); memory kind, access mode, 2-D launch, shared/warp, Status
 - **Gpu** — tensor kernels imported by `@gpu`
 - **Database** — sqlite3 with linear transactions
-- **Lock**, **Reader**, **Email**, **Downloader**, **Order**, **Stack**, **Deque** — typestate protocols
+- **Lock**, **Reader**, **Writer**, **Email**, **Downloader**, **Order**, **Stack**, **Deque**, **Iterator** — typestate protocols
 - **Http**, **OS**, **Subprocess**, **Path**, **Socket**, **Sys**
 - **Json**, **Args**
 
