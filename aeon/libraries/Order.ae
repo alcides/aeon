@@ -1,0 +1,70 @@
+# Shopping-order protocol with typestate + price ghost (LiquidJava ``Order``).
+#
+# States (boolean measures):
+#   empty → adding (via add_item) → checkout (via pay) → closed (via ship)
+#
+# ``total_price`` tracks the sum of item prices. ``add_gift`` is only legal
+# in checkout when ``total_price > 20``. The order handle is linear.
+
+linear type Order
+
+def empty : (o: Order) -> Bool := uninterpreted
+def adding : (o: Order) -> Bool := uninterpreted
+def checkout : (o: Order) -> Bool := uninterpreted
+def closed : (o: Order) -> Bool := uninterpreted
+def total_price : (o: Order) -> Int := uninterpreted
+
+# Fresh empty order with price 0.
+def new_order (_: Unit) :
+    {o: Order |
+        empty o = true &&
+        adding o = false &&
+        checkout o = false &&
+        closed o = false &&
+        total_price o = 0} :=
+    native "__import__('aeon.bindings.order', fromlist=['new_order']).new_order()"
+
+# Add a positively priced item (empty or adding → adding).
+def add_item (name: {s: String | s != ""})
+    (price: {p: Int | p > 0})
+    (1 o: {x: Order | empty x = true || adding x = true}) :
+    {out: Order |
+        empty out = false &&
+        adding out = true &&
+        checkout out = false &&
+        closed out = false &&
+        total_price out = total_price o + price} :=
+    native "__import__('aeon.bindings.order', fromlist=['add_item']).add_item(name, price, o)"
+
+# Pay and enter checkout (adding → checkout); price unchanged.
+def pay (card: {n: Int | n > 0})
+    (1 o: {x: Order | adding x = true}) :
+    {out: Order |
+        empty out = false &&
+        adding out = false &&
+        checkout out = true &&
+        closed out = false &&
+        total_price out = total_price o} :=
+    native "__import__('aeon.bindings.order', fromlist=['pay']).pay(card, o)"
+
+# Optional gift in checkout when the cart totals more than 20.
+def add_gift (1 o: {x: Order | checkout x = true && total_price x > 20}) :
+    {out: Order |
+        checkout out = true &&
+        closed out = false &&
+        total_price out = total_price o} :=
+    native "__import__('aeon.bindings.order', fromlist=['add_gift']).add_gift(o)"
+
+# Ship to an address (checkout → closed).
+def ship (address: {s: String | s != ""})
+    (1 o: {x: Order | checkout x = true}) :
+    {out: Order |
+        checkout out = false &&
+        closed out = true &&
+        total_price out = total_price o} :=
+    native "__import__('aeon.bindings.order', fromlist=['ship']).ship(address, o)"
+
+# Consume a closed order; returns the final total.
+def finalize (1 o: {x: Order | closed x = true}) :
+    {n: Int | n = total_price o && n >= 0} :=
+    native "__import__('aeon.bindings.order', fromlist=['finalize']).finalize(o)"
