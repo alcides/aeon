@@ -1,15 +1,17 @@
 """One-step tactic backends of the type-directed synthesizer.
 
-`tdsyn_backward` and the `forward_*` backends are demonstrative: they apply
-their action exactly once to the hole and return the result — a complete
-candidate when one validates, otherwise a partial term with fresh
-`?<fun>_goal_<i>` subgoal holes — instead of searching. The backward step
-decomposes the goal type; `forward_close` closes the goal with a variable of
-the goal's type; the `forward_let_*` steps introduce a
-`let v := <value> in ?goal` binding, one per term former (application,
-if-then-else, type application, abstraction, type abstraction). `tdsyn` /
-`tdsyn_enumerative` / `tdsyn_random` remain the search backends that combine
-the full backward and forward actions.
+`tdsyn_backward`, the `backward_*` and the `forward_*` backends are
+demonstrative: they apply their action exactly once to the hole and return the
+result — a complete candidate when one validates, otherwise a partial term
+with fresh `?<fun>_goal_<i>` subgoal holes — instead of searching.
+`tdsyn_backward` decomposes the goal type with all backward constructions
+combined; the granular `backward_*` steps each apply one of them (abstraction,
+literal, close with a variable, application, if-then-else). `forward_close`
+closes the goal with a variable of the goal's type; the `forward_let_*` steps
+introduce a `let v := <value> in ?goal` binding, one per term former
+(application, if-then-else, type application, abstraction, type abstraction).
+`tdsyn` / `tdsyn_enumerative` / `tdsyn_random` remain the search backends that
+combine the full backward and forward actions.
 """
 
 from __future__ import annotations
@@ -32,8 +34,17 @@ from aeon.synthesis.modules.synthesizerfactory import (
     synthesizer_family,
     synthesizer_label,
 )
+from aeon.synthesis.modules.tdsyn import actions as actions_module
 from aeon.synthesis.modules.tdsyn import synthesizer as tdsyn_module
-from aeon.synthesis.modules.tdsyn.actions import forward_let_app_candidates
+from aeon.synthesis.modules.tdsyn.actions import (
+    backward_app_candidates,
+    backward_candidates,
+    backward_close_candidates,
+    backward_if_candidates,
+    backward_lit_candidates,
+    forward_close_candidates,
+    forward_let_app_candidates,
+)
 from aeon.synthesis.modules.tdsyn.synthesizer import ONE_STEP_ACTIONS, TDSynOneStepSynthesizer, TDSynSynthesizer
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST, TypedHole, fresh_hole
 from aeon.typechecking.context import TypingContext
@@ -43,6 +54,11 @@ from aeon.utils.pprint import pretty_print_sterm
 
 ONE_STEP_IDS = [
     "tdsyn_backward",
+    "backward_abs",
+    "backward_lit",
+    "backward_close",
+    "backward_app",
+    "backward_if",
     "forward_close",
     "forward_let_app",
     "forward_let_if",
@@ -67,7 +83,12 @@ def test_one_step_backends_are_known(backend):
 def test_one_step_backends_have_distinct_labels():
     labels = [synthesizer_label(backend) for backend in ONE_STEP_IDS]
     assert len(set(labels)) == len(labels)
-    assert synthesizer_label("tdsyn_backward") == "Type-directed step (backward)"
+    assert synthesizer_label("tdsyn_backward") == "Backward step (combined)"
+    assert synthesizer_label("backward_abs") == "Backward step (abstraction)"
+    assert synthesizer_label("backward_lit") == "Backward step (literal)"
+    assert synthesizer_label("backward_close") == "Backward step (close with a variable)"
+    assert synthesizer_label("backward_app") == "Backward step (application)"
+    assert synthesizer_label("backward_if") == "Backward step (if-then-else)"
     assert synthesizer_label("forward_close") == "Forward step (close with a variable)"
     assert synthesizer_label("forward_let_app") == "Forward step (let: application)"
     assert synthesizer_label("forward_let_if") == "Forward step (let: if-then-else)"
@@ -145,6 +166,126 @@ def test_backward_step_returns_partial_with_named_subgoals():
     names = [h.pretty() for h in holes]
     assert len(set(names)) == len(names)
     assert all(name.startswith("synth_goal_") for name in names)
+
+
+def test_backward_abs_introduces_abstraction_for_function_goal():
+    ty = AbstractionType(Name("x", 0), t_int, t_int)
+    term = _one_step("backward_abs", TypingContext(), ty, validate=lambda t: False)
+    assert isinstance(term, Abstraction)
+    assert isinstance(term.body, Hole)
+    assert term.body.name.pretty() == "synth_goal_1"
+
+
+def test_backward_abs_fails_for_base_typed_goal():
+    with pytest.raises(SynthesisNotSuccessful):
+        _one_step("backward_abs", TypingContext(), t_int, validate=lambda t: True)
+
+
+def test_backward_lit_returns_literal():
+    term = _one_step("backward_lit", TypingContext(), t_int, validate=lambda t: True)
+    assert isinstance(term, Literal)
+    assert get_holes(term) == []
+
+
+def test_backward_close_uses_matching_variable():
+    ctx = _prelude_ctx().with_var(Name("b", 42), t_bool)
+    term = _one_step("backward_close", ctx, t_bool, validate=lambda t: True)
+    assert isinstance(term, Var)
+    assert get_holes(term) == []
+
+
+def test_backward_close_fails_without_matching_variable():
+    with pytest.raises(SynthesisNotSuccessful):
+        _one_step("backward_close", TypingContext(), t_int, validate=lambda t: True)
+
+
+def test_backward_close_matches_forward_close_candidates():
+    # Closing the goal with an in-scope variable reads the same from both
+    # directions, so the two ids share one candidate set.
+    ctx = _prelude_ctx().with_var(Name("b", 42), t_bool)
+    _, typed_hole = fresh_hole(t_bool, ctx)
+    assert backward_close_candidates(typed_hole, lambda name: False) == forward_close_candidates(
+        typed_hole, lambda name: False
+    )
+
+
+def test_backward_app_applies_function_with_argument_subgoals():
+    term = _one_step("backward_app", _prelude_ctx(), t_int, validate=lambda t: False)
+    assert isinstance(term, Application)
+    names = [h.pretty() for h in get_holes(term)]
+    assert len(names) >= 1
+    assert all(name.startswith("synth_goal_") for name in names)
+
+
+def test_backward_app_fails_without_applicable_functions():
+    with pytest.raises(SynthesisNotSuccessful):
+        _one_step("backward_app", TypingContext(), t_int, validate=lambda t: True)
+
+
+def test_backward_if_returns_if_with_three_subgoals():
+    term = _one_step("backward_if", TypingContext(), t_int, validate=lambda t: False)
+    assert isinstance(term, If)
+    assert [h.pretty() for h in get_holes(term)] == ["synth_goal_1", "synth_goal_2", "synth_goal_3"]
+
+
+def test_backward_combined_delegates_to_slices_in_order(monkeypatch):
+    calls: list[str] = []
+
+    def make_fake(name, result):
+        def fake(hole, skip):
+            calls.append(name)
+            return list(result)
+
+        return fake
+
+    sentinel = (Literal(1, t_int, _loc), [])
+    monkeypatch.setattr(actions_module, "backward_abs_candidates", make_fake("abs", []))
+    monkeypatch.setattr(actions_module, "backward_lit_candidates", make_fake("lit", [sentinel]))
+    monkeypatch.setattr(actions_module, "backward_close_candidates", make_fake("close", []))
+    monkeypatch.setattr(actions_module, "backward_app_candidates", make_fake("app", []))
+    monkeypatch.setattr(actions_module, "backward_if_candidates", make_fake("if", []))
+    _, typed_hole = fresh_hole(t_int, TypingContext())
+    assert actions_module.backward_candidates(typed_hole, lambda name: False) == [sentinel]
+    assert calls == ["abs", "lit", "close", "app", "if"]
+
+
+def test_backward_combined_only_abstracts_when_abs_applies(monkeypatch):
+    # For function-typed goals, the combined backward action still produces
+    # only the abstraction candidate, without running the other slices.
+    calls: list[str] = []
+
+    def make_fake(name, result):
+        def fake(hole, skip):
+            calls.append(name)
+            return list(result)
+
+        return fake
+
+    sentinel = (Literal(1, t_int, _loc), [])
+    monkeypatch.setattr(actions_module, "backward_abs_candidates", make_fake("abs", [sentinel]))
+    monkeypatch.setattr(actions_module, "backward_lit_candidates", make_fake("lit", [sentinel]))
+    _, typed_hole = fresh_hole(AbstractionType(Name("x", 0), t_int, t_int), TypingContext())
+    assert actions_module.backward_candidates(typed_hole, lambda name: False) == [sentinel]
+    assert calls == ["abs"]
+
+
+def test_backward_combined_matches_slice_concatenation():
+    # For a base-typed goal, the combined backward action is exactly the
+    # concatenation of its slices (literals, close, applications, if). Fresh
+    # holes differ across calls, so compare candidate shapes.
+    ctx = _prelude_ctx().with_var(Name("n", 43), t_int)
+
+    def shapes(action_fn):
+        _, typed_hole = fresh_hole(t_int, ctx)
+        return [(type(term).__name__, len(new_holes)) for term, new_holes in action_fn(typed_hole, lambda name: False)]
+
+    sliced = (
+        shapes(backward_lit_candidates)
+        + shapes(backward_close_candidates)
+        + shapes(backward_app_candidates)
+        + shapes(backward_if_candidates)
+    )
+    assert shapes(backward_candidates) == sliced
 
 
 def test_forward_close_uses_matching_variable():

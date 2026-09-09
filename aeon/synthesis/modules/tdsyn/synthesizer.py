@@ -13,7 +13,12 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.identification import get_holes
 from aeon.synthesis.modules.tdsyn.actions import (
+    backward_abs_candidates,
+    backward_app_candidates,
     backward_candidates,
+    backward_close_candidates,
+    backward_if_candidates,
+    backward_lit_candidates,
     forward_candidates,
     forward_close_candidates,
     forward_let_abs_candidates,
@@ -336,13 +341,21 @@ def _rename_subgoals(term: Term, fun_name: Name) -> Term:
 
 
 # The candidate-generating action behind each one-step tactic backend.
-# ``backward`` decomposes the goal type; the ``forward_*`` tactics either close
-# the goal with a variable of the goal's type (``forward_close``) or grow the
-# scope with a ``let v := <value> in ?goal`` binding whose value is one term
-# former (application, if-then-else, type application, abstraction, or type
+# ``backward`` decomposes the goal type with all backward constructions
+# combined; the granular ``backward_*`` tactics each apply exactly one of them
+# (abstraction, literal, close with a variable, application, if-then-else).
+# The ``forward_*`` tactics either close the goal with a variable of the
+# goal's type (``forward_close``) or grow the scope with a
+# ``let v := <value> in ?goal`` binding whose value is one term former
+# (application, if-then-else, type application, abstraction, or type
 # abstraction).
 ONE_STEP_ACTIONS: dict[str, Callable] = {
     "backward": backward_candidates,
+    "backward_abs": backward_abs_candidates,
+    "backward_lit": backward_lit_candidates,
+    "backward_close": backward_close_candidates,
+    "backward_app": backward_app_candidates,
+    "backward_if": backward_if_candidates,
     "forward_close": forward_close_candidates,
     "forward_let_app": forward_let_app_candidates,
     "forward_let_if": forward_let_if_candidates,
@@ -386,9 +399,15 @@ class TDSynOneStepSynthesizer(Synthesizer):
         start_time = monotonic_ns()
         ui.register(None, None, 0, True)
 
-        # Peel abstractions from the target type
-        initial_term, _, _, initial_holes = _peel_abstractions(type, ctx)
-        hole = initial_holes[0]
+        # Peel abstractions from the target type. The ``backward_abs`` tactic
+        # *is* the abstraction-introduction step, so it acts on the unpeeled
+        # goal instead (peeling would leave it nothing to do).
+        initial_term: Term
+        if self.action == "backward_abs":
+            initial_term, hole = fresh_hole(type, ctx)
+        else:
+            initial_term, _, _, initial_holes = _peel_abstractions(type, ctx)
+            hole = initial_holes[0]
 
         action_fn = ONE_STEP_ACTIONS[self.action]
         try:

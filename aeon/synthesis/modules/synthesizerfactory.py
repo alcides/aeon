@@ -60,7 +60,12 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tdsyn": "Type-directed synthesis (BFS)",
     "tdsyn_enumerative": "Type-directed synthesis (BFS)",
     "tdsyn_random": "Type-directed synthesis (Random Walk)",
-    "tdsyn_backward": "Type-directed step (backward)",
+    "tdsyn_backward": "Backward step (combined)",
+    "backward_abs": "Backward step (abstraction)",
+    "backward_lit": "Backward step (literal)",
+    "backward_close": "Backward step (close with a variable)",
+    "backward_app": "Backward step (application)",
+    "backward_if": "Backward step (if-then-else)",
     "forward_close": "Forward step (close with a variable)",
     "forward_let_app": "Forward step (let: application)",
     "forward_let_if": "Forward step (let: if-then-else)",
@@ -106,6 +111,11 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "tdsyn_enumerative": SynthesizerFamily.TYPE_DIRECTED,
     "tdsyn_random": SynthesizerFamily.TYPE_DIRECTED,
     "tdsyn_backward": SynthesizerFamily.TYPE_DIRECTED,
+    "backward_abs": SynthesizerFamily.TYPE_DIRECTED,
+    "backward_lit": SynthesizerFamily.TYPE_DIRECTED,
+    "backward_close": SynthesizerFamily.TYPE_DIRECTED,
+    "backward_app": SynthesizerFamily.TYPE_DIRECTED,
+    "backward_if": SynthesizerFamily.TYPE_DIRECTED,
     "forward_close": SynthesizerFamily.TYPE_DIRECTED,
     "forward_let_app": SynthesizerFamily.TYPE_DIRECTED,
     "forward_let_if": SynthesizerFamily.TYPE_DIRECTED,
@@ -176,6 +186,11 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "tdsyn_enumerative",
         "tdsyn_random",
         "tdsyn_backward",
+        "backward_abs",
+        "backward_lit",
+        "backward_close",
+        "backward_app",
+        "backward_if",
         "forward_close",
         "forward_let_app",
         "forward_let_if",
@@ -280,7 +295,12 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "tdsyn_backward":
             return TDSynOneStepSynthesizer(action="backward")
         case (
-            "forward_close"
+            "backward_abs"
+            | "backward_lit"
+            | "backward_close"
+            | "backward_app"
+            | "backward_if"
+            | "forward_close"
             | "forward_let_app"
             | "forward_let_if"
             | "forward_let_tapp"

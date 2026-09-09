@@ -144,7 +144,9 @@ def _parse_common_arguments(parser: ArgumentParser):
         help=(
             "Select a synthesizer: tdsyn_enumerative (default, type-directed BFS), tdsyn (same as tdsyn_enumerative), "
             "tdsyn_random (type-directed random walk), "
-            "tdsyn_backward (single backward step, demonstrative), "
+            "tdsyn_backward (single combined backward step, demonstrative), "
+            "backward_abs / backward_lit / backward_close / backward_app / backward_if "
+            "(single backward steps, demonstrative), "
             "forward_close / forward_let_app / forward_let_if / forward_let_tapp / forward_let_abs / "
             "forward_let_tabs (single forward steps, demonstrative), "
             "tactics (random tactic search), gp, synquid, "

@@ -114,9 +114,27 @@ Same expansion rules as `tdsyn`, but instead of a BFS worklist it performs indep
 
 ---
 
-### `tdsyn_backward` — Type-Directed Step (Backward)
+### `tdsyn_backward` — Backward Step (Combined)
 
 Demonstrative single-step backend: applies the **backward** action exactly once to the hole. Candidates are derived from the hole's expected type (literals, variables and function applications whose result type matches, abstractions, if-then-else). Returns the first complete candidate that typechecks, or otherwise the first partial expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
+
+This is the union of the granular `backward_*` steps; use those to apply one backward construction at a time.
+
+---
+
+### `backward_abs` / `backward_lit` / `backward_close` / `backward_app` / `backward_if` — Backward Steps
+
+Demonstrative single-step backends: each applies one slice of the backward action exactly once to the hole, so the constructions bundled in `tdsyn_backward` can be applied one by one:
+
+| Backend | Candidates |
+|---|---|
+| `backward_abs` | `fun x -> ?body` for a function-typed goal, with `?body` typed by the codomain and `x` in scope (other steps auto-abstract function-typed goals, so this step makes that introduction explicit) |
+| `backward_lit` | literals of the goal's base type (`Int`, `Bool`, `Float`) |
+| `backward_close` | an in-scope variable whose type already proves the goal — the same candidates as `forward_close`, exposed under both directions' menus |
+| `backward_app` | `f(?h1, ..., ?hn)` for each in-scope (possibly monomorphized) function whose return type matches the goal, leaving holes for the arguments |
+| `backward_if` | `if ?c then ?t else ?e` with branches typed by the goal |
+
+Each returns the first complete candidate that typechecks, or otherwise the first expansion with fresh `?<fun>_goal_<i>` subgoal holes, so steps can be chained. No search is performed — use `tdsyn` for actual synthesis.
 
 ---
 
@@ -182,7 +200,8 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `llm`           | LLM generation   | Problems that are easy to describe in natural language |
 | `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
-| `tdsyn_backward` | Single backward step (no search) | Demonstrating how the backward action decomposes a goal |
+| `tdsyn_backward` | Single combined backward step (no search) | Demonstrating how the backward action decomposes a goal |
+| `backward_abs` / `backward_lit` / `backward_close` / `backward_app` / `backward_if` | Single backward step (no search) | Applying one backward construction at a time |
 | `forward_close` | Single forward step (no search) | Closing a goal with a variable already in scope |
 | `forward_let_app` / `forward_let_if` / `forward_let_tapp` / `forward_let_abs` / `forward_let_tabs` | Single forward step (no search) | Demonstrating how forward reasoning grows the scope with `let` bindings |
 | `tactics`       | Random tactic walks (Lean-style) | Goals whose proof decomposes into tactic steps |
