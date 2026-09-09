@@ -1,0 +1,22 @@
+# A larger version of examples/syntax/maxI.ae: every match instantiates
+# an abstract refinement, and later rounds depend on earlier results.
+# All scores are positive; the inferred predicates must preserve that fact.
+def maxI: (x : Int<p>) -> (y : Int<p>) -> Int<p> :=
+    fun x => fun y => if x < y then y else x;
+
+def tournament
+    (a: Int | a > 0) (b: Int | b > 0)
+    (c: Int | c > 0) (d: Int | d > 0)
+    (e: Int | e > 0) (f: Int | f > 0)
+    (g: Int | g > 0) (h: Int | h > 0)
+    : {winner: Int | winner > 0} :=
+    let ab := maxI a b in
+    let cd := maxI c d in
+    let ef := maxI e f in
+    let gh := maxI g h in
+    let left := maxI ab cd in
+    let right := maxI ef gh in
+    maxI left right;
+
+def main (_:Int) : Unit :=
+    print (tournament 3 5 2 9 4 8 1 7);
