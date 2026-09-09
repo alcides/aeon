@@ -1,0 +1,33 @@
+import Array;
+import ForkJoin;
+
+# Divide-and-conquer sketch: split with halves (size coverage proved),
+# measure each half, then fork2 pure length thunks and join.
+#
+# The interesting static facts:
+#   * halves requires size >= 2 and proves left + right = original, both >= 1
+#   * pool / fork2 thread a linear Pool that must reach shutdown
+#   * the two Futures from fork2 must each be joined exactly once
+
+def ret (n: Int) (u: Unit) : Int := n;
+
+def parallel_lengths (1 xs: {a: (Array Int) | Array.size a >= 2}) : Int :=
+    let h := ForkJoin.halves xs in
+    let 1 left := ForkJoin.half_left h in
+    let 1 right := ForkJoin.half_right h in
+    let l := Array.length left in
+    let r := Array.length right in
+    let 1 p0 := ForkJoin.pool 2 in
+    let f := ForkJoin.fork2 p0 (ret l) (ret r) in
+    let 1 p1 := ForkJoin.forked2_pool f in
+    let 1 fl := ForkJoin.forked2_left f in
+    let 1 fr := ForkJoin.forked2_right f in
+    let j := ForkJoin.join2 fl fr in
+    let _ := ForkJoin.shutdown p1 in
+    ForkJoin.joined_fst j + ForkJoin.joined_snd j;
+
+def main (_: Int) : Unit :=
+    let 1 xs0 := ((Array.new{Int} unit).append 10).append 20 in
+    let 1 xs1 := Array.append xs0 30 in
+    let 1 xs2 := Array.append xs1 40 in
+    print (parallel_lengths xs2);

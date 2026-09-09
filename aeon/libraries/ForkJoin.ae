@@ -1,0 +1,181 @@
+# Safe-by-construction fork/join parallelism via ``concurrent.futures``.
+#
+# Raw thread pools are easy to misuse in three ways this library closes:
+#
+#   1. **Forgotten joins / double joins (linearity).** A ``Future`` is a
+#      multiplicity-1 handle: you must ``join`` it exactly once. Dropping a
+#      future leaks unfinished work; joining twice races on a spent handle.
+#      Both are compile errors (``LinearUnusedError`` /
+#      ``LinearUsedTooManyTimesError``).
+#
+#   2. **Leaked pools (linearity).** A ``Pool`` is likewise linear: every
+#      ``pool`` must eventually reach ``shutdown``. Forgetting to shut down
+#      leaves worker threads alive; shutting down twice is rejected.
+#
+#   3. **Bogus worker counts and lost sizes (refinements).** Pool creation
+#      demands ``workers > 0`` (and a small upper bound). ``par_map`` proves
+#      the output length equals the input length. ``halves`` proves both
+#      pieces are non-empty and cover the original array — the invariant
+#      that makes divide-and-conquer parallel recursion safe to type-check.
+#
+# Linearity also prevents *data races on unique buffers*: a linear ``Array``
+# cannot be captured by two forked thunks unless you ``Array.copy`` first, so
+# parallel tasks never alias the same unique resource.
+#
+# Narrative guide: ``docs/forkjoin.md``. HTML reference:
+# ``aeon --doc libraries/ForkJoin.ae``.
+
+open Array
+
+# ── Opaque handles ───────────────────────────────────────────────────────
+
+# Thread pool. Linear: create with ``pool``, thread through ``fork`` /
+# ``fork2`` / ``invoke``, finish with ``shutdown``.
+linear type Pool
+
+# Pending asynchronous result. Linear: must be ``join``ed exactly once.
+linear type Future a
+
+# Result of ``fork``: packages the (still-open) pool with the new future so
+# both can be projected and the pool threaded onward.
+type Forked a
+
+# Result of ``fork2``: pool plus the two independent futures.
+type Forked2 a b
+
+# Result of ``invoke``: pool plus the computed value.
+type Invoked a
+
+# Result of ``join2`` / ``parallel2``: an unrestricted pair of values.
+type Joined2 a b
+
+# Result of ``halves``: two contiguous non-empty pieces of an array.
+type Halves a
+
+# ── Uninterpreted measures (refinement logic only) ───────────────────────
+
+# Worker count of a pool / forked wrapper.
+def pool_workers : (p: Pool) -> Int := uninterpreted
+def forked_workers : (f: (Forked a)) -> Int := uninterpreted
+def forked2_workers : (f: (Forked2 a b)) -> Int := uninterpreted
+def invoked_workers : (i: (Invoked a)) -> Int := uninterpreted
+
+# Sizes carried by ``halves`` so the split covers the original array.
+def half_left_size : (h: (Halves a)) -> Int := uninterpreted
+def half_right_size : (h: (Halves a)) -> Int := uninterpreted
+
+# ── Pool lifecycle ───────────────────────────────────────────────────────
+
+# Create a thread pool.
+# workers: must be positive and at most 64 (a compile-time sanity bound).
+# returns: a linear pool whose ``pool_workers`` measure equals ``workers``.
+def pool (workers: {n: Int | n > 0 && n <= 64}) :
+    {p: Pool | pool_workers p = workers} :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['pool']).pool(workers)"
+
+# Shut the pool down, waiting for in-flight work. Consumes the handle.
+def shutdown (1 p: Pool) : Unit :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['shutdown']).shutdown(p)"
+
+# ── Fork / join ──────────────────────────────────────────────────────────
+
+# Submit ``task`` (a ``Unit -> a`` thunk) to ``p``. Consumes the pool and
+# returns a ``Forked`` wrapper; project with ``forked_pool`` / ``forked_future``.
+def fork (1 p: Pool) (task: (_: Unit) -> a) :
+    {f: (Forked a) | forked_workers f = pool_workers p} :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['fork']).fork(p, task)"
+
+# Recover the pool from a ``fork`` result, with its worker count intact.
+def forked_pool (f: (Forked a)) :
+    {p: Pool | pool_workers p = forked_workers f} :=
+    native "f[0]"
+
+# Recover the linear future from a ``fork`` result. Bind it to ``let 1``.
+def forked_future (f: (Forked a)) : (Future a) :=
+    native "f[1]"
+
+# Submit two independent thunks. Project with ``forked2_pool`` /
+# ``forked2_left`` / ``forked2_right``.
+def fork2 (1 p: Pool) (left: (_: Unit) -> a) (right: (_: Unit) -> b) :
+    {f: (Forked2 a b) | forked2_workers f = pool_workers p} :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['fork2']).fork2(p, left, right)"
+
+def forked2_pool (f: (Forked2 a b)) :
+    {p: Pool | pool_workers p = forked2_workers f} :=
+    native "f[0]"
+
+def forked2_left (f: (Forked2 a b)) : (Future a) :=
+    native "f[1]"
+
+def forked2_right (f: (Forked2 a b)) : (Future b) :=
+    native "f[2]"
+
+# Run ``task`` on the pool and wait; keep the pool for further work.
+def invoke (1 p: Pool) (task: (_: Unit) -> a) :
+    {i: (Invoked a) | invoked_workers i = pool_workers p} :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['invoke']).invoke(p, task)"
+
+def invoked_pool (i: (Invoked a)) :
+    {p: Pool | pool_workers p = invoked_workers i} :=
+    native "i[0]"
+
+def invoked_value (i: (Invoked a)) : a :=
+    native "i[1]"
+
+# Block until ``future`` completes; consumes the future.
+def join (1 future: (Future a)) : a :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['join']).join(future)"
+
+# Like ``join`` but aborts after a positive timeout (seconds).
+def join_timeout (seconds: {s: Float | s > 0.0}) (1 future: (Future a)) : a :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['join_timeout']).join_timeout(seconds, future)"
+
+# Wait for both futures and return their results as a ``Joined2``.
+def join2 (1 left: (Future a)) (1 right: (Future b)) : (Joined2 a b) :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['join2']).join2(left, right)"
+
+def joined_fst (j: (Joined2 a b)) : a :=
+    native "j[0]"
+
+def joined_snd (j: (Joined2 a b)) : b :=
+    native "j[1]"
+
+# ── One-shot helpers ─────────────────────────────────────────────────────
+
+# Create a pool, run two thunks in parallel, join both, shut down.
+# workers: must be positive and at most 64.
+# returns: both results packaged in a ``Joined2``.
+def parallel2 (workers: {n: Int | n > 0 && n <= 64})
+              (left: (_: Unit) -> a)
+              (right: (_: Unit) -> b) : (Joined2 a b) :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['parallel2']).parallel2(workers, left, right)"
+
+# Map ``f`` over a linear array using a temporary pool of ``workers`` threads.
+# Preserves length: the result has the same ``size`` as the input.
+def par_map (workers: {n: Int | n > 0 && n <= 64})
+            (f: (x: {v:a | p v}) -> {w:b | q w})
+            (1 xs: (Array a)) :
+    {ys: (Array b) | size ys = size xs} :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['par_map']).par_map(workers, f, xs)"
+
+# ── Divide-and-conquer splitting ─────────────────────────────────────────
+
+# Split a non-trivial linear array into two non-empty contiguous halves.
+# The refinements guarantee coverage: ``left + right = original`` and both
+# sides have size ≥ 1 — exactly the precondition recursive parallel forks need.
+def halves (1 xs: {arr: (Array a) | size arr >= 2}) :
+    {h: (Halves a) |
+        half_left_size h + half_right_size h = size xs &&
+        half_left_size h >= 1 &&
+        half_right_size h >= 1} :=
+    native "__import__('aeon.bindings.forkjoin', fromlist=['halves']).halves(xs)"
+
+# Left half; length pinned to ``half_left_size``.
+def half_left (h: (Halves a)) :
+    {xs: (Array a) | size xs = half_left_size h && size xs >= 1} :=
+    native "h[0]"
+
+# Right half; length pinned to ``half_right_size``.
+def half_right (h: (Halves a)) :
+    {xs: (Array a) | size xs = half_right_size h && size xs >= 1} :=
+    native "h[1]"

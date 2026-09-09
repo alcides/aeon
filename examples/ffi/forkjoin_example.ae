@@ -1,0 +1,25 @@
+import Array;
+import ForkJoin;
+
+# Minimal ForkJoin demo: one-shot parallel2 + length-preserving par_map.
+#
+# Refinements guarantee workers > 0 and that par_map keeps Array.size.
+# Linearity is discharged inside the helpers (they create and shut down
+# their own pools), so the caller only sees unrestricted Joined2 values
+# and a fresh linear array result.
+
+def left (u: Unit) : Int := 20;
+
+def right (u: Unit) : Int := 22;
+
+def inc (x: Int) : Int := x + 1;
+
+def main (_: Int) : Unit :=
+    let j := ForkJoin.parallel2 2 left right in
+    let sum := ForkJoin.joined_fst j + ForkJoin.joined_snd j in
+    let 1 xs0 := ((Array.new{Int} unit).append 1).append 2 in
+    let 1 xs1 := Array.append xs0 3 in
+    let 1 ys := ForkJoin.par_map 2 inc xs1 in
+    let n := Array.length ys in
+    let _ := print sum in
+    print n;
