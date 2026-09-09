@@ -1,0 +1,80 @@
+# Evolving hardware-efficient Grover circuits --- the 2026 HUMIES Bronze result.
+#
+# From Obidiegwu, Mota Dias, Obidiegwu & Ryan, "Evolving Hardware-Efficient
+# Grover Circuits with Grammatical Evolution" (GECCO 2026; Bronze, 2026 Human-
+# Competitive awards). The paper evolves state-specific 3-qubit Grover-like
+# circuits with grammatical evolution: instead of the textbook oracle+diffuser
+# construction, the search is free to compose gates from a hardware-native set
+# and routinely discovers far shallower circuits that concentrate probability
+# on the marked basis state. Reference code: github.com/Caephas/GE-for-Grover.
+#
+# As in the paper's grammar, every candidate starts from |000> with a fixed
+# Hadamard layer on all three qubits (Grover's uniform-superposition setup);
+# the synthesised part is the gate sequence applied after that layer. The gate
+# set is the paper's non-parameterised core: x, y, z, h, s, sdg, t, tdg, cx,
+# cz, ccx (on 3 qubits the Toffoli's controls are just the non-target qubits).
+#
+# Scoring follows the paper's minimised scalar fitness (tournament mode):
+#
+#   fitness = 10 * miss + (1 - P_target) + 0.02 * gate_count
+#   miss    = 1 if P_target < 0.48 else 0
+#
+# with P_target the probability of measuring the marked state. The paper runs
+# noiseless Qiskit simulations (10k shots) and validates on ibm_torino; here
+# P_target is the exact statevector probability from grover_sim.py, a pure-
+# Python 8-amplitude simulator, so nothing beyond the repository is needed.
+# This is a noiseless reimplementation/demo, not a hardware replication.
+#
+# Run from the repository root with, e.g.:
+#   uv run python -m aeon --budget 30 -s gp examples/synthesis/grover/grover_circuits.ae
+
+open Circuit
+
+# A circuit is the gate sequence applied (left to right) after the fixed
+# initial Hadamard layer. Qubit indices follow Qiskit's little-endian
+# convention: bit i of a basis-state index is qubit i.
+inductive Circuit
+| g_end : Circuit
+| g_x   (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_y   (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_z   (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_h   (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_s   (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_sdg (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_t   (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_tdg (q: Int | q >= 0 && q <= 2) (rest: Circuit) : Circuit
+| g_cx  (cq: Int | cq >= 0 && cq <= 2) (tq: Int | tq >= 0 && tq <= 2) (rest: Circuit) : Circuit
+| g_cz  (cq: Int | cq >= 0 && cq <= 2) (tq: Int | tq >= 0 && tq <= 2) (rest: Circuit) : Circuit
+| g_ccx (tq: Int | tq >= 0 && tq <= 2) (rest: Circuit) : Circuit
+
+# The marked basis state (0..7). 0 is |000>; change it to evolve a circuit for
+# any other target, e.g. 6 marks |110> (qubit 2 = 1, qubit 1 = 1, qubit 0 = 0).
+def target_state : Int := 0;
+
+# The paper's minimised scalar fitness, from exact noiseless simulation.
+# gate_count includes the 3 fixed initial Hadamards, so for target 0 the
+# optimum is 0.12: a second H layer (3 gates) maps the superposition back to
+# |000> with P_target = 1, i.e. 10*0 + (1 - 1) + 0.02 * 6.
+def grover_fitness (c: Circuit) (target: Int) : Float :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/grover'), __import__('grover_sim').fitness(c, target))[1]";
+
+# Exact probability of measuring the target state, to inspect a solution.
+def p_target (c: Circuit) (target: Int) : Float :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/grover'), __import__('grover_sim').p_target(c, target))[1]";
+
+# (a) Synthesis: evolve the gate sequence, minimising the paper's fitness.
+# The helpers are shadowed by `unit` inside the hole so they are not offered
+# as synthesis building blocks (only Circuit constructors and Ints are).
+@minimize_float(grover_fitness circuit target_state)
+def circuit : Circuit :=
+    (let target_state := unit in
+     let grover_fitness := unit in
+     let p_target := unit in
+     let circuit_solution := unit in
+     ?hole);
+
+# (b) A known shallow optimum for target 0 (fitness 0.12, P_target = 1):
+# H is self-inverse, so a second Hadamard layer undoes the fixed one. This is
+# exactly the kind of hardware-efficient shortcut the paper's evolved circuits
+# exploit instead of the textbook oracle+diffuser Grover iteration.
+def circuit_solution : Circuit := g_h 0 (g_h 1 (g_h 2 g_end));
