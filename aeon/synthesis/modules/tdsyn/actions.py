@@ -150,34 +150,30 @@ def _build_application(
     return result, new_holes
 
 
-def backward_candidates(
+def backward_abs_candidates(
     hole: TypedHole,
     skip: Callable[[Name], bool],
 ) -> list[tuple[Term, list[TypedHole]]]:
-    """Backward action: from expected type, find terms that produce a subtype.
+    """Backward abstraction tactic: introduce an abstraction for a function-typed goal.
 
-    Given hole expecting type T:
-    1. If T is a function type, produce an abstraction
-    2. Generate literals for base types
-    3. Look up variables with matching types
-    4. Find functions whose return type matches T
-    5. Generate if-then-else
+    Produces ``fun x -> ?body`` where ``?body`` has the goal's codomain type
+    with ``x`` in scope. Only applies when the goal is a function type.
     """
-    T = hole.expected_type
-    ctx = hole.context
-    candidates: list[tuple[Term, list[TypedHole]]] = []
-
-    # 1. Abstraction for function types
-    match T:
+    match hole.expected_type:
         case AbstractionType(var_name, var_type, body_type):
-            body_hole_term, body_typed_hole = fresh_hole(body_type, ctx.with_var(var_name, var_type))
-            candidates.append((Abstraction(var_name, body_hole_term, _loc), [body_typed_hole]))
-            return candidates  # For function types, only produce abstractions
+            body_hole_term, body_typed_hole = fresh_hole(body_type, hole.context.with_var(var_name, var_type))
+            return [(Abstraction(var_name, body_hole_term, _loc), [body_typed_hole])]
         case _:
-            pass
+            return []
 
-    # 2. Literals
-    base = base_type_of(T)
+
+def backward_lit_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Backward literal tactic: literal candidates for a base-typed goal."""
+    candidates: list[tuple[Term, list[TypedHole]]] = []
+    base = base_type_of(hole.expected_type)
     if base is not None:
         match base:
             case TypeConstructor(Name("Int", _)):
@@ -191,37 +187,84 @@ def backward_candidates(
                     candidates.append((Literal(fval, t_float, _loc), []))
             case _:
                 pass
+    return candidates
 
-    # 3. Variables (non-function types)
-    for name, var_type in ctx.vars():
-        if skip(name):
-            continue
-        if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
-            continue
-        if bases_match(var_type, T):
-            if is_subtype(ctx, var_type, T):
-                candidates.append((Var(name, _loc), []))
 
-    # 4. Function applications (monomorphic + polymorphic)
-    for f_term, f_type in get_applicable_functions(ctx, skip):
+def backward_close_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Backward close tactic: close the goal with an in-scope variable of the goal's type.
+
+    Same candidates as ``forward_close``: a variable whose type already proves
+    the goal closes it regardless of the reasoning direction. Both ids are
+    exposed so each direction's tactic menu reads completely.
+    """
+    return forward_close_candidates(hole, skip)
+
+
+def backward_app_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Backward application tactic: apply a function whose return type matches the goal.
+
+    Produces ``f(?h1, ..., ?hn)`` for each in-scope (possibly monomorphized)
+    function whose return type matches the goal, leaving fresh holes for the
+    arguments.
+    """
+    T = hole.expected_type
+    candidates: list[tuple[Term, list[TypedHole]]] = []
+    for f_term, f_type in get_applicable_functions(hole.context, skip):
         assert isinstance(f_type, AbstractionType)
         ret_type = get_return_type(f_type)
         if bases_match(ret_type, T):
             params = get_param_types(f_type)
             app_term, new_holes = _build_application(f_term, params, hole)
             candidates.append((app_term, new_holes))
+    return candidates
 
-    # 5. If-then-else
+
+def backward_if_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Backward if tactic: an if-then-else whose branches are typed by the goal."""
+    T = hole.expected_type
+    ctx = hole.context
     cond_hole_term, cond_typed_hole = fresh_hole(t_bool, ctx)
     then_hole_term, then_typed_hole = fresh_hole(T, ctx)
     else_hole_term, else_typed_hole = fresh_hole(T, ctx)
-    candidates.append(
+    return [
         (
             If(cond_hole_term, then_hole_term, else_hole_term, _loc),
             [cond_typed_hole, then_typed_hole, else_typed_hole],
         )
-    )
+    ]
 
+
+def backward_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Backward action: from expected type, find terms that produce a subtype.
+
+    Combines the granular backward tactics. Given hole expecting type T:
+    1. If T is a function type, produce an abstraction (and nothing else)
+    2. Generate literals for base types
+    3. Look up variables with matching types
+    4. Find functions whose return type matches T
+    5. Generate if-then-else
+    """
+    abs_candidates = backward_abs_candidates(hole, skip)
+    if abs_candidates:
+        return abs_candidates  # For function types, only produce abstractions
+
+    candidates: list[tuple[Term, list[TypedHole]]] = []
+    candidates.extend(backward_lit_candidates(hole, skip))
+    candidates.extend(backward_close_candidates(hole, skip))
+    candidates.extend(backward_app_candidates(hole, skip))
+    candidates.extend(backward_if_candidates(hole, skip))
     return candidates
 
 
