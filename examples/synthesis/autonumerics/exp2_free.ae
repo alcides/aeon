@@ -1,0 +1,61 @@
+# Rediscovering finite approximations of 2^x --- AutoNumerics-Zero, HUMIES 2026 Gold.
+#
+# From Real et al., "AutoNumerics-Zero: Automated Discovery of State-of-the-Art
+# Mathematical Functions" (ICML 2026; arXiv:2312.08472; Gold, 2026 Human-
+# Competitive awards; code: github.com/google-deepmind/autonumerics_zero).
+# The paper evolves, from empty code, programs over {+, -, *, /}, float
+# constants and the input x that approximate 2^x on (0, 1] (all reals via
+# range reduction), minimising maximum relative error and operation count.
+# Its 10-operation champion f10 reaches ~14 significant figures -- see
+# exp2_reference.ae for f10 and smaller programs transliterated into Aeon.
+#
+# This file is the free-form search demo, in the paper's spirit: the hole is
+# an arbitrary Float -> Float expression built from arithmetic, constants and
+# x, scored by max relative error against 2^x on 128 points of (0, 1]
+# (exp2_metric.py; failures such as division by zero score a large penalty).
+#
+# Honest scope note: the paper's full search used distributed dNSGA-II with
+# CMA-ES coefficient optimisation over thousands of CPU-core-days, plus
+# interval-arithmetic (IBEX) proofs of the resulting error bounds. A
+# --budget 30 run here will NOT rediscover f10; it demonstrates the problem
+# encoding and typically improves from a random baseline (constant guesses
+# score ~5e-1) toward small-error expressions such as 1.0 + x (~6.1e-2, cf.
+# the paper's 2-operation f2 at ~4.1e-2). See exp2_pade.ae for the
+# coefficient-only variant on a fixed f3-shaped skeleton.
+#
+# Run from the repository root with, e.g.:
+#   uv run python -m aeon --budget 30 -s gp examples/synthesis/autonumerics/exp2_free.ae
+
+# Fitness: maximum relative error of a candidate against 2^x over 128 uniform
+# points of (0, 1] -- the paper's accuracy objective, on a sampled grid. The
+# candidate's parameter is an unrefined Float (like the other SR benchmarks):
+# the metric only ever feeds it values from (0, 1], and refining it would stop
+# the GP grammar from offering `x` as a building block.
+def exp2_mre (func: (y:Float) -> Float) : Float :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/autonumerics'), __import__('exp2_metric').max_rel_error(func))[1]";
+
+# Report-quality variant on a dense grid (20k uniform + 2k log-spaced points),
+# accepting domain-refined functions such as exp2_f2 below.
+def exp2_mre_dense (func: (y:{v:Float | 0.0 < v && v <= 1.0}) -> Float) : Float :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/autonumerics'), __import__('exp2_metric').mre_dense(func))[1]";
+
+# (a) Synthesis: evolve the expression. The helpers (and the known solution)
+# are shadowed by `unit` inside the hole so the search builds candidates only
+# from arithmetic, float constants and x.
+@minimize_float(exp2_mre synth)
+def synth (x: Float) : Float :=
+    (let exp2_mre := unit in
+     let exp2_mre_dense := unit in
+     let exp2_f2 := unit in
+     ?hole);
+
+# (b) A known small solution: the paper's 2-operation program f2 (Figure 11),
+# max relative error ~4.1e-2 on the dense grid. Its division is proven safe
+# on the domain by the liquid typechecker: from 0 < x <= 1 it follows that
+# c2 + x is in (-2.05, -1.04], which never hits zero.
+def exp2_f2 (x: Float | 0.0 < x && x <= 1.0) : Float :=
+    c1 := -2.1258595374472384;
+    c2 := -2.0413845597733418;
+    x1 := c2 + x;
+    x2 := c1 / x1;
+    x2;

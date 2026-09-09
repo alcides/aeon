@@ -1,0 +1,106 @@
+# AutoNumerics-Zero reference approximations of 2^x --- the 2026 HUMIES Gold result.
+#
+# From Real, Rossini, de Souza, Garg, Firsching, Le, Chen, Verghese, Cubuk &
+# Park, "AutoNumerics-Zero: Automated Discovery of State-of-the-Art
+# Mathematical Functions" (ICML 2026; arXiv:2312.08472; Gold, 2026 Human-
+# Competitive awards; code: github.com/google-deepmind/autonumerics_zero).
+# Starting from empty code, their symbolic-regression search over {+, -, *, /},
+# float constants and the input x discovered finite-precision programs
+# approximating 2^x on (0, 1] (extendable to all reals via range reduction).
+# The headline discovery is the 10-operation program f10 below, whose maximum
+# relative error is proven below ~5.4e-15 (~14 significant figures) -- more
+# than 6 orders of magnitude better than previously known approximations of
+# the same size.
+#
+# This file transliterates the paper's evolved programs f2, f3, f5 and f10
+# (Figure 11) into Aeon, constants verbatim, and measures each one's maximum
+# relative error against 2^x on a dense float64 grid over (0, 1] (uniform +
+# log-spaced points down to 1e-8; see exp2_metric.py). Expected output, in
+# program order:
+#
+#   f2  (2 ops)  ~ 4.1e-02
+#   f3  (3 ops)  ~ 1.2e-03
+#   f5  (5 ops)  ~ 6.3e-06
+#   f10 (10 ops) ~ 4.9e-15    (the paper's proven bound is ~5.4e-15; sampling
+#                              a float64 grid measures, but does not prove it)
+#
+# A bonus over the Python original: each program's input is refined to the
+# paper's domain, {v:Float | 0.0 < v && v <= 1.0}, and Aeon's liquid
+# typechecker discharges every division's nonzero-denominator obligation from
+# that refinement alone -- e.g. in f10 it proves c2 + c1/(x + c3/x) + x + c3/x
+# is never zero on the domain. The programs are verified division-safe, not
+# just observed to be.
+#
+# This file has no synthesis hole: it is the ground-truth companion to the
+# search demos exp2_free.ae and exp2_pade.ae. Run from the repository root:
+#
+#   uv run python -m aeon examples/synthesis/autonumerics/exp2_reference.ae
+
+# Maximum relative error against 2^x on the dense verification grid.
+def exp2_mre_dense (f: (y:{v:Float | 0.0 < v && v <= 1.0}) -> Float) : Float :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/autonumerics'), __import__('exp2_metric').mre_dense(f))[1]";
+
+# f2 (2 operations): a single reciprocal already beats the truncated Taylor
+# series of the same size.
+def exp2_f2 (x: Float | 0.0 < x && x <= 1.0) : Float :=
+    c1 := -2.1258595374472384;
+    c2 := -2.0413845597733418;
+    x1 := c2 + x;
+    x2 := c1 / x1;
+    x2;
+
+# f3 (3 operations): reciprocal plus a constant (a [0/1] Pade-like form).
+def exp2_f3 (x: Float | 0.0 < x && x <= 1.0) : Float :=
+    c1 := -8.387819235563974;
+    c2 := 1.4427239805682266;
+    c3 := -3.4355225277901402;
+    x1 := c3 + x;
+    x2 := c1 / x1;
+    x3 := x2 - c2;
+    x3;
+
+# f5 (5 operations): a continued-fraction-like form appears (c1 / x nested
+# inside another reciprocal).
+def exp2_f5 (x: Float | 0.0 < x && x <= 1.0) : Float :=
+    c1 := 25.596749740144819;
+    c2 := 17.746150088734609;
+    x1 := c1 / x;
+    c3 := -0.99999366143081858;
+    c4 := -8.8505996518073289;
+    x2 := x + x1;
+    x3 := c4 + x2;
+    x4 := c2 / x3;
+    x5 := x4 - c3;
+    x5;
+
+# f10 (10 operations): the gold-medal program. A continued fraction sharing
+# the subexpression x + c3/x, offset by c5 ~ -1, then raised to the 8th power
+# by three squarings. ~14 significant figures with 10 arithmetic operations.
+def exp2_f10 (x: Float | 0.0 < x && x <= 1.0) : Float :=
+    c1 := 15141.981176922711;
+    c2 := -250.55247494972059;
+    c3 := 5783.5330096027765;
+    x1 := c3 / x;
+    x2 := x + x1;
+    x3 := c1 / x2;
+    x4 := x3 + x2;
+    x5 := c2 + x4;
+    c4 := 501.10494991027866;
+    x6 := c4 / x5;
+    c5 := -0.99999999999999956;
+    x7 := x6 - c5;
+    x8 := x7 * x7;
+    x9 := x8 * x8;
+    x10 := x9 * x9;
+    x10;
+
+def main (args:Int) : Unit :=
+    _ := print "max relative error vs 2^x, dense float64 grid over (0,1]:";
+    _ := print "f2  (2 ops):";
+    _ := print (exp2_mre_dense exp2_f2);
+    _ := print "f3  (3 ops):";
+    _ := print (exp2_mre_dense exp2_f3);
+    _ := print "f5  (5 ops):";
+    _ := print (exp2_mre_dense exp2_f5);
+    _ := print "f10 (10 ops):";
+    print (exp2_mre_dense exp2_f10);
