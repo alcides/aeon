@@ -21,7 +21,7 @@
 # encoding and typically improves from a random baseline (constant guesses
 # score ~5e-1) toward small-error expressions such as 1.0 + x (~6.1e-2, cf.
 # the paper's 2-operation f2 at ~4.1e-2). See exp2_pade.ae for the
-# coefficient-only variant, which gets much further under a small budget.
+# coefficient-only variant on a fixed f3-shaped skeleton.
 #
 # Run from the repository root with, e.g.:
 #   uv run python -m aeon --budget 30 -s gp examples/synthesis/autonumerics/exp2_free.ae

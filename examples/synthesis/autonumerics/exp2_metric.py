@@ -81,19 +81,23 @@ def mre_dense(func):
 
 
 def pade_mre(a, b, c):
-    """Fitness of the fixed [0/1] Pade skeleton  a / (1 + b*x) + c.
+    """Fitness of the fixed [0/1] Pade skeleton  a*a / (1 + b*x) + c.
 
     This is the shape of the paper's evolved 3-operation program f3 (Figure
     11) -- a reciprocal plus a constant -- renormalised so the optimal
-    coefficients (~2.44, ~-0.29, ~-1.44) fit inside the +-5.12 search box of
-    Aeon's ``ng_float`` synthesizer. Evaluated natively (no Aeon interpreter
-    in the loop), so the full fitness grid costs microseconds per candidate.
-    A candidate whose pole 1 + b*x hits zero on the grid scores PENALTY via
-    ``max_rel_error``'s guard.
+    coefficients (~1.56, ~-0.29, ~-1.44) fit inside the +-5.12 search box of
+    Aeon's ``ng_float`` synthesizer. The numerator is parameterised as ``a*a``
+    (a constant fold: at runtime the program is still 3 operations): keeping
+    it positive removes a spurious sign-symmetric local optimum with a
+    negative numerator -- approximating the increasing 2^x needs an
+    increasing reciprocal branch.
+    Evaluated natively (no Aeon interpreter in the loop), so the full fitness
+    grid costs microseconds per candidate. A candidate whose pole 1 + b*x
+    hits zero on the grid scores PENALTY via ``max_rel_error``'s guard.
     """
-    return max_rel_error(lambda x: a / (1.0 + b * x) + c)
+    return max_rel_error(lambda x: (a * a) / (1.0 + b * x) + c)
 
 
 def pade_mre_dense(a, b, c):
     """Dense-grid error of the Pade skeleton, for reporting."""
-    return mre_dense(lambda x: a / (1.0 + b * x) + c)
+    return mre_dense(lambda x: (a * a) / (1.0 + b * x) + c)
