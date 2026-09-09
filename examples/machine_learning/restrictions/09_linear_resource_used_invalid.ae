@@ -1,0 +1,5 @@
+open ML
+
+# WRONG: every linear resource must be consumed exactly once.
+def abandon_dataset (1 dataset: Dataset) : Int :=
+    0

@@ -1,0 +1,9 @@
+open ML
+
+# CORRECT: accuracy consumes the compatible TestingDataset once.
+def evaluate_once
+    (model: DecisionTreeClassifier)
+    (1 testing: {test: TestingDataset
+        | testing_features test = classifier_features model
+       && testing_split_id test = classifier_split_id model}) : Float :=
+    accuracy model testing

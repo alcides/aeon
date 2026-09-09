@@ -1,0 +1,16 @@
+open ML
+
+def train_and_score
+    (1 training: TrainingDataset)
+    (1 testing: {test: TestingDataset
+        | testing_features test = training_features training
+       && testing_split_id test = training_split_id training}) : Float :=
+    let model := decision_tree_classifier training in
+    accuracy model testing
+
+
+# CORRECT: target consumes the DataFrame exactly once.
+def select_once (1 df: {table: DataFrame | df_cols table >= 2}) : Float :=
+    let 1 dataset := target df 0 in
+    let 1 parts := split dataset 0.7 in
+    consume_split parts train_and_score

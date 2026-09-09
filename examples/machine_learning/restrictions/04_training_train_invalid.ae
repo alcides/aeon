@@ -1,0 +1,6 @@
+open ML
+
+# WRONG: both fits try to consume the same TrainingDataset.
+def train_twice (1 training: TrainingDataset) : DecisionTreeClassifier :=
+    let first_model := decision_tree_classifier training in
+    decision_tree_classifier training

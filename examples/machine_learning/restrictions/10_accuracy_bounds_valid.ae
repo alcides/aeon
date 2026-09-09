@@ -1,0 +1,10 @@
+open ML
+
+# CORRECT: accuracy's postcondition proves that every score is in [0, 1].
+def bounded_accuracy
+    (model: DecisionTreeClassifier)
+    (1 testing: {test: TestingDataset
+        | testing_features test = classifier_features model
+       && testing_split_id test = classifier_split_id model}) :
+    {score: Float | 0.0 <= score && score <= 1.0} :=
+    accuracy model testing

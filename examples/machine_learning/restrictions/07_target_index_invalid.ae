@@ -1,0 +1,5 @@
+open ML
+
+# WRONG: valid indices for a twelve-column DataFrame are 0 through 11.
+def invalid_target_index (1 df: {table: DataFrame | df_cols table = 12}) : Dataset :=
+    target df 12

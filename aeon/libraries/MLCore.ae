@@ -1,0 +1,95 @@
+# A small machine-learning API whose safety properties live in Aeon's types.
+#
+# The Python binding only reads data and delegates splitting, fitting, and
+# scoring to pandas/scikit-learn. Linearity, valid arguments, compatibility,
+# provenance, and result bounds are checked statically from this interface.
+
+linear type DataFrame
+linear type Dataset
+linear type DatasetSplit
+linear type TrainingDataset
+linear type TestingDataset
+type DecisionTreeClassifier
+
+# Logical metadata used exclusively by the refinement checker.
+def df_rows : (df: DataFrame) -> Int := uninterpreted
+def df_cols : (df: DataFrame) -> Int := uninterpreted
+
+def ds_rows : (ds: Dataset) -> Int := uninterpreted
+def ds_features : (ds: Dataset) -> Int := uninterpreted
+
+def split_features : (parts: DatasetSplit) -> Int := uninterpreted
+def split_provenance : (parts: DatasetSplit) -> Int := uninterpreted
+
+def training_rows : (ds: TrainingDataset) -> Int := uninterpreted
+def training_features : (ds: TrainingDataset) -> Int := uninterpreted
+def training_split_id : (ds: TrainingDataset) -> Int := uninterpreted
+
+def testing_rows : (ds: TestingDataset) -> Int := uninterpreted
+def testing_features : (ds: TestingDataset) -> Int := uninterpreted
+def testing_split_id : (ds: TestingDataset) -> Int := uninterpreted
+
+def classifier_features : (model: DecisionTreeClassifier) -> Int := uninterpreted
+def classifier_split_id : (model: DecisionTreeClassifier) -> Int := uninterpreted
+
+# CSV shape is supplied as logical metadata. The expected values are used by
+# the refinement checker but deliberately omitted from the native expression,
+# so the Python binding remains a thin call to pandas.read_csv.
+def read_csv
+    (path: String)
+    (expected_rows: {rows: Int | rows >= 0})
+    (expected_columns: {columns: Int | columns >= 1}) :
+    {df: DataFrame | df_rows df = expected_rows
+                   && df_cols df = expected_columns} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
+
+# Select a zero-based target column. The input must be known to contain both a
+# target and at least one feature. DataFrame is linear, so target consumes it.
+def target
+    (1 df: {table: DataFrame | df_cols table >= 2})
+    (column: {index: Int | 0 <= index && index < df_cols df}) :
+    {ds: Dataset | ds_rows ds = df_rows df
+                && ds_features ds = df_cols df - 1
+                && ds_features ds >= 1} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.target(df, column)"
+
+# The fraction is checked statically. The native implementation performs a
+# deterministic stratified split but contains no duplicate argument checks.
+def split
+    (1 ds: {dataset: Dataset | ds_features dataset >= 1})
+    (train_size: {fraction: Float | 0.0 < fraction && fraction < 1.0}) :
+    {parts: DatasetSplit | split_features parts = ds_features ds} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.split(ds, train_size)"
+
+# Eliminate a split once and expose its two distinct linear halves. The
+# callback type relates their feature count and logical split provenance.
+def consume_split
+    (1 parts: DatasetSplit)
+    (1 consumer:
+        (1 training: {train: TrainingDataset | training_rows train > 0
+                                             && training_features train >= 1
+                                             && training_features train = split_features parts
+                                             && training_split_id train = split_provenance parts}) ->
+        (1 testing: {test: TestingDataset | testing_rows test > 0
+                                          && testing_features test = training_features training
+                                          && testing_split_id test = split_provenance parts}) -> result) : result :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.consume_split(parts, consumer)"
+
+# Training consumes the training half and records its static metadata in the
+# model type. No provenance or schema fields are attached to the Python object.
+def decision_tree_classifier (1 training: TrainingDataset) :
+    {model: DecisionTreeClassifier
+        | classifier_features model = training_features training
+       && classifier_split_id model = training_split_id training} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.decision_tree_classifier(training)"
+
+# Evaluation consumes a compatible held-out test half. Feature count and split
+# provenance are checked statically; the result contract proves that accuracy
+# is bounded without a Python range check.
+def accuracy
+    (model: DecisionTreeClassifier)
+    (1 testing: {test: TestingDataset
+        | testing_features test = classifier_features model
+       && testing_split_id test = classifier_split_id model}) :
+    {score: Float | 0.0 <= score && score <= 1.0} :=
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.accuracy(model, testing)"
