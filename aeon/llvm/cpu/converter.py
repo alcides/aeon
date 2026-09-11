@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import llvmlite.binding as llvm
 import llvmlite.ir as ir
 
@@ -35,7 +37,7 @@ from aeon.llvm.llvm_ast import (
     LLVMCast,
     LLVMRefinedValue,
 )
-from aeon.llvm.refinements import emit_predicate, integer_range
+from aeon.llvm.refinements import emit_predicate, integer_range, parameter_ranges
 from aeon.llvm.safety import refinement_arithmetic_is_safe
 from aeon.llvm.utils import BINARY_OPS, UNARY_OPS, sanitize_name
 from aeon.utils.name import Name
@@ -65,6 +67,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self.use_refinements = use_refinements
         self.refinements_enabled = use_refinements
         self.refinement_env: dict[Name, ir.Value] = {}
+        self.parameter_ranges: dict[str, list[tuple[int, int] | None]] = {}
 
     @staticmethod
     def _add_parameter_attributes(argument: ir.Argument) -> None:
@@ -136,7 +139,39 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         for kernel_ast in definitions:
             self._is_top_level = True
             kernel_ast.accept(self)
-        return str(self.module)
+        return self._attach_parameter_ranges(str(self.module))
+
+    def _attach_parameter_ranges(self, code: str) -> str:
+        """Add LLVM's type-level range attributes unavailable in llvmlite's API."""
+        if not self.refinements_enabled:
+            return code
+        for function_name, ranges in self.parameter_ranges.items():
+            for index, bounds in enumerate(ranges):
+                if bounds is None:
+                    continue
+                lo, hi = bounds
+                width = 32
+
+                def signed_endpoint(value: int) -> int:
+                    limit = 1 << (width - 1)
+                    return value - (1 << width) if value >= limit else value
+
+                match = re.search(rf'(define [^\n]*@"{re.escape(function_name)}"\([^\n]*\))', code)
+                if match is None:
+                    continue
+                signature = match.group(1)
+                args = re.findall(r'i(\d+) noundef %"[^\"]+"', signature)
+                if index >= len(args) or int(args[index]) != width:
+                    continue
+                matches = list(re.finditer(r'i32 noundef %"[^\"]+"', signature))
+                if index >= len(matches):
+                    continue
+                old = matches[index]
+                start = match.start(1) + old.start()
+                argument_name = old.group(0).split("noundef ", 1)[1]
+                replacement = f"i32 range(i32 {signed_endpoint(lo)}, {signed_endpoint(hi)}) noundef {argument_name}"
+                code = code[:start] + replacement + code[start + len(old.group(0)) :]
+        return code
 
     def declare_external(self, name: Name, ty: LLVMType):
         str_name = sanitize_name(name)
@@ -334,6 +369,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             self._add_parameter_attributes(func.args[i])
             self.env[str_arg_name] = func.args[i]
             self.refinement_env[arg_name] = func.args[i]
+        if isinstance(function_type, LLVMFunctionType):
+            self.parameter_ranges[func_name] = parameter_ranges(function_type.source_type, arg_names)
 
         for predicate in node.refinements:
             self._assume(predicate)

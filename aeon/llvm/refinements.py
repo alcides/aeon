@@ -12,7 +12,7 @@ from collections.abc import Mapping
 import llvmlite.ir as ir
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidTerm, LiquidVar
-from aeon.core.types import AbstractionType, RefinedType, Type
+from aeon.core.types import AbstractionType, RefinedType, Type, t_int
 from aeon.utils.name import Name
 
 
@@ -36,6 +36,25 @@ def parameter_facts(ty: Type | None, args: list[Name]) -> list[LiquidTerm]:
         names[ty.var_name] = arg
         ty = ty.type
     return facts
+
+
+def parameter_ranges(ty: Type | None, args: list[Name], bits: int = 32) -> list[tuple[int, int] | None]:
+    """Return representable integer intervals for each source parameter."""
+    ranges: list[tuple[int, int] | None] = []
+    for arg in args:
+        if not isinstance(ty, AbstractionType):
+            ranges.append(None)
+            continue
+        if isinstance(ty.var_type, RefinedType) and ty.var_type.type == t_int:
+            ranges.append(
+                integer_range(
+                    rename_predicate(ty.var_type.refinement, {ty.var_name: arg, ty.var_type.name: arg}), arg, bits
+                )
+            )
+        else:
+            ranges.append(None)
+        ty = ty.type
+    return ranges
 
 
 def result_refinement(ty: Type | None) -> RefinedType | None:

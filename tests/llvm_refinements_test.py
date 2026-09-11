@@ -36,6 +36,7 @@ def test_nonnegative_parameter_removes_signed_division_correction():
     plain = CPULLVMIRGenerator(use_refinements=False).generate_ir([function])
     hinted = CPULLVMIRGenerator().generate_ir([function])
     assert 'call void @"llvm.assume"' in hinted
+    assert "range(i32 0, -2147483648)" in hinted
     assert "llvm.assume" not in plain
     assert "lshr i32" in optimized(hinted)
     assert "sdiv i32" in optimized(plain)
