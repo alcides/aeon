@@ -1,6 +1,6 @@
 from aeon.core.terms import Literal, Application, Var, Abstraction
 from aeon.core.types import t_int
-from aeon.llvm.cpu.lowerer import CPULLVMLowerer
+from aeon.llvm.cpu.lowerer import CPULLVMLowerer, BUILTIN_FUNCTION_TYPES, POLYMORPHIC_FUNCTIONS
 from aeon.llvm.llvm_ast import LLVMFunctionType, LLVMInt, LLVMCall, LLVMFunction, LLVMLiteral
 from aeon.utils.name import Name
 
@@ -91,3 +91,39 @@ def test_lower_math_pow():
     appf = Application(Application(Var(Name("powf")), Literal(2.0, t_float)), Literal(3.0, t_float))
     llvm_powf = lowerer.lower(appf)
     assert llvm_powf.type == LLVMDouble
+
+
+def test_all_float_math_builtins_have_typed_signatures():
+    unary = {
+        "absf",
+        "cbrt",
+        "exp",
+        "expm1",
+        "exp2",
+        "sqrt",
+        "sqrtf",
+        "log",
+        "log10",
+        "log2",
+        "log1p",
+        "sin",
+        "cos",
+        "tan",
+        "asin",
+        "acos",
+        "atan",
+        "sinh",
+        "cosh",
+        "tanh",
+        "asinh",
+        "acosh",
+        "atanh",
+        "erf",
+        "erfc",
+        "lgamma",
+        "gamma",
+    }
+    binary = {"minf", "maxf", "powf", "remainder", "fmod", "atan2", "hypot", "copysign"}
+    ternary = {"fma"}
+    assert unary | binary | ternary <= BUILTIN_FUNCTION_TYPES.keys()
+    assert unary | binary | ternary <= POLYMORPHIC_FUNCTIONS

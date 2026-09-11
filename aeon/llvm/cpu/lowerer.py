@@ -83,8 +83,8 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "powf": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
     "sqrt": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "sqrtf": LLVMFunctionType([LLVMDouble], LLVMDouble),
-    "sin": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
-    "cos": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+    "sin": LLVMFunctionType([LLVMDouble], LLVMDouble),
+    "cos": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "exp": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "log": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "new": LLVMFunctionType([], _generic_ptr),
@@ -99,7 +99,49 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "count": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
 }
 
-_MATH_LIBM_BUILTINS: set[str] = {"pow", "powf", "exp", "sqrt", "sqrtf", "sin", "cos", "log"}
+_FLOAT_UNARY_MATH = {
+    "absf",
+    "cbrt",
+    "exp",
+    "expm1",
+    "exp2",
+    "sqrt",
+    "sqrtf",
+    "log",
+    "log10",
+    "log2",
+    "log1p",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "asinh",
+    "acosh",
+    "atanh",
+    "erf",
+    "erfc",
+    "lgamma",
+    "gamma",
+}
+_FLOAT_BINARY_MATH = {"powf", "remainder", "fmod", "atan2", "hypot", "copysign"}
+for _name in _FLOAT_UNARY_MATH:
+    BUILTIN_FUNCTION_TYPES.setdefault(_name, LLVMFunctionType([LLVMDouble], LLVMDouble))
+for _name in _FLOAT_BINARY_MATH:
+    BUILTIN_FUNCTION_TYPES.setdefault(_name, LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble))
+BUILTIN_FUNCTION_TYPES.update(
+    {
+        "minf": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+        "maxf": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+        "fma": LLVMFunctionType([LLVMDouble, LLVMDouble, LLVMDouble], LLVMDouble),
+    }
+)
+
+_MATH_LIBM_BUILTINS: set[str] = _FLOAT_UNARY_MATH | _FLOAT_BINARY_MATH | {"minf", "maxf", "pow", "fma"}
 
 POLYMORPHIC_FUNCTIONS: set[str] = {
     "pow",
@@ -110,6 +152,11 @@ POLYMORPHIC_FUNCTIONS: set[str] = {
     "sin",
     "cos",
     "log",
+    *_FLOAT_UNARY_MATH,
+    *_FLOAT_BINARY_MATH,
+    "minf",
+    "maxf",
+    "fma",
     "get",
     "set",
     "new",
