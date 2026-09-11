@@ -135,6 +135,9 @@ class LLVMPipeline(ABC):
 
 
 class LLVMVisitor(ABC):
+    def visit_refinement(self, node: Any) -> Any:
+        return node.value.accept(self)
+
     @abstractmethod
     def visit(self, node: LLVMTerm) -> Any:
         pass

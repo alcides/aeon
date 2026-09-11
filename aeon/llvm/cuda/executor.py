@@ -8,7 +8,7 @@ import llvmlite.binding as llvm
 from loguru import logger
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
-from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType
+from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType, LLVMVoidType
 
 
 class CUDAExecutionError(LLVMBackendError):
@@ -118,6 +118,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         ret_type: LLVMType,
     ) -> Any:
         logger.debug(f"Executing kernel {func_name} on GPU.")
+        if isinstance(ret_type, LLVMPointerType):
+            raise CUDAExecutionError("GPU pointer returns require an explicit output-buffer entry point")
 
         ir_hash = hash(llvm_ir)
         if ir_hash not in self._module_cache:
@@ -125,11 +127,13 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             self._module_cache[ir_hash] = self._load_module(ptx)
 
         module = self._module_cache[ir_hash]
-        function = self._get_function(module, func_name)
+        function = self._get_function(module, func_name + "__kernel")
 
         device_ptrs = []
         kernel_params = []
         cleanup_tasks = []
+        scalar_args = []
+        result_buffer = None
 
         try:
             for arg, ty in zip(args, arg_types):
@@ -147,7 +151,16 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     cleanup_tasks.append((d_ptr, data, size, arg))
                 else:
                     c_val = self._get_ctypes_type(ty)(arg)
+                    scalar_args.append(c_val)  # Keep every parameter alive until launch completes.
                     kernel_params.append(ctypes.addressof(c_val))
+
+            if not isinstance(ret_type, LLVMVoidType):
+                result_buffer = self._get_ctypes_type(ret_type)()
+                result_ptr = ctypes.c_void_p()
+                if self.libcuda.cuMemAlloc_v2(ctypes.byref(result_ptr), ctypes.sizeof(result_buffer)) != 0:
+                    raise CUDAExecutionError("cuMemAlloc failed for result")
+                device_ptrs.append(result_ptr)
+                kernel_params.append(ctypes.addressof(result_ptr))
 
             params_ptr = (ctypes.c_void_p * len(kernel_params))(*[ctypes.c_void_p(p) for p in kernel_params])
 
@@ -163,6 +176,13 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 if isinstance(original_arg, list):
                     original_arg[:] = list(host_data)
 
+            if result_buffer is not None:
+                if (
+                    self.libcuda.cuMemcpyDtoH_v2(ctypes.byref(result_buffer), result_ptr, ctypes.sizeof(result_buffer))
+                    != 0
+                ):
+                    raise CUDAExecutionError("cuMemcpyDtoH failed for result")
+                return result_buffer.value
             return None
 
         finally:
@@ -181,12 +201,15 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         return mapping.get(type(ty), ctypes.c_int32)
 
     def _compile_to_ptx(self, llvm_ir: str) -> str:
+        from aeon.llvm.optimization import optimize_module
+
         llvm.initialize_all_targets()
         llvm.initialize_all_asmprinters()
         mod = llvm.parse_assembly(llvm_ir)
         triple = "nvptx64-nvidia-cuda"
         target = llvm.Target.from_triple(triple)
-        tm = target.create_target_machine(chip="sm_35")  # sm_35+ for dynamic parallelism
+        tm = target.create_target_machine(cpu="sm_35")  # sm_35+ for dynamic parallelism
+        optimize_module(mod, tm)
         return tm.emit_assembly(mod)
 
     def _find_libcudadevrt(self) -> str | None:
@@ -210,8 +233,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             raise CUDAExecutionError("cuLinkCreate failed")
 
         try:
-            ptx_bytes = ptx.encode("utf-8")
-            if self.libcuda.cuLinkAddData_v2(link_state, 4, ptx_bytes, len(ptx_bytes), b"aeon.ptx", 0, None, None) != 0:
+            ptx_bytes = ptx.encode("utf-8") + b"\0"
+            if self.libcuda.cuLinkAddData_v2(link_state, 1, ptx_bytes, len(ptx_bytes), b"aeon.ptx", 0, None, None) != 0:
                 raise CUDAExecutionError("cuLinkAddData (PTX) failed")
 
             devrt_path = self._find_libcudadevrt()
@@ -220,7 +243,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     devrt_data = f.read()
                     if (
                         self.libcuda.cuLinkAddData_v2(
-                            link_state, 2, devrt_data, len(devrt_data), b"libcudadevrt.a", 0, None, None
+                            link_state, 4, devrt_data, len(devrt_data), b"libcudadevrt.a", 0, None, None
                         )
                         != 0
                     ):

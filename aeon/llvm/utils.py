@@ -69,7 +69,7 @@ def to_llvm_type(ty: Type) -> LLVMType:
             while isinstance(curr, AbstractionType):
                 args.append(to_llvm_type(curr.var_type))
                 curr = curr.type
-            return LLVMFunctionType(args, to_llvm_type(curr))
+            return LLVMFunctionType(args, to_llvm_type(curr), source_type=ty)
         case TypeConstructor(n, args):
             match n.name:
                 case "Int":

@@ -1,0 +1,63 @@
+# Out-of-place functional quicksort: the input is never modified.
+# Private partition/output buffers implement immutable vectors; temporaries
+# are freed after recursive results are concatenated. Callers free the result.
+# These native primitives have a matching LLVM implementation. Buffer sizes
+# and the signed 32-bit representation are part of the benchmark's FFI contract.
+type Vector
+
+def get (xs:Vector) (i:Int) : Int := native "lambda xs: lambda i: xs[i]";
+def set (xs:Vector) (i:Int) (v:Int) : Vector := native "lambda xs: lambda i: lambda v: (xs.__setitem__(i, v), xs)[1]";
+def malloc (bytes:Int) : Vector := native "lambda n: [0] * (n // 4)";
+def free (xs:Vector) : Unit := native "lambda xs: None";
+
+@llvm
+def partition (xs:Vector) (n:{v:Int | v >= 0 && v <= 32768})
+    (pivot:Int) (less:Bool) (dst:Vector)
+    : {r:Int | r >= 0 && r <= n && r <= 32768} decreasing_by [n] :=
+    if n <= 0 then 0 else
+    let count := partition xs (n - 1) pivot less dst in
+    let value := get xs (n - 1) in
+    if (if less then value < pivot else value > pivot) then
+        let written := set dst count value in count + 1
+    else count;
+
+@llvm
+def copy (xs:Vector) (n:{v:Int | v >= 0 && v <= 32768}) (dst:Vector) (offset:{v:Int | v >= 0 && v <= 32768}) : Int :=
+    if n <= 0 then 0 else
+    let written := set dst (offset + n - 1) (get xs (n - 1)) in
+    copy xs (n - 1) dst offset;
+
+@llvm
+def fill (dst:Vector) (n:{v:Int | v >= 0 && v <= 32768}) (offset:{v:Int | v >= 0 && v <= 32768}) (value:Int) : Int :=
+    if n <= 0 then 0 else
+    let written := set dst (offset + n - 1) value in
+    fill dst (n - 1) offset value;
+
+@llvm
+def quicksort (xs:Vector) (n:{v:Int | v >= 0 && v <= 32768}) : Vector :=
+    let result : Vector := malloc (n * 4) in
+    if n <= 1 then
+        let copied := copy xs n result 0 in result
+    else
+        let pivot := get xs (n / 2) in
+        let smaller : Vector := malloc (n * 4) in
+        let larger : Vector := malloc (n * 4) in
+        let nl := partition xs n pivot true smaller in
+        let nr := partition xs n pivot false larger in
+        let left := quicksort smaller nl in
+        let right := quicksort larger nr in
+        let equals := fill result n 0 pivot in
+        let lcopy := copy left nl result 0 in
+        let rcopy := copy right nr result (n - nr) in
+        let f1 := free smaller in
+        let f2 := free larger in
+        let f3 := free left in
+        let f4 := free right in
+        result;
+
+# GPU-friendly entry point: return data through a host-owned output buffer.
+@llvm
+def sort_into (xs:Vector) (out:Vector) (n:{v:Int | v >= 0 && v <= 32768}) : Unit :=
+    let sorted := quicksort xs n in
+    let copied := copy sorted n out 0 in
+    free sorted;

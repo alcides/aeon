@@ -33,7 +33,10 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorCount,
     VECTOR_OPERATIONS,
     LLVMCast,
+    LLVMRefinedValue,
 )
+from aeon.llvm.refinements import emit_predicate, integer_range
+from aeon.llvm.safety import refinement_arithmetic_is_safe
 from aeon.llvm.utils import BINARY_OPS, UNARY_OPS, sanitize_name
 from aeon.utils.name import Name
 from typing import Dict, Any, Callable
@@ -44,7 +47,7 @@ class LLVMIRGenerationError(LLVMBackendError):
 
 
 class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
-    def __init__(self):
+    def __init__(self, use_refinements: bool = True):
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
 
@@ -55,10 +58,39 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self.module.data_layout = str(target_machine.target_data)
         self.target_data = target_machine.target_data
 
-        self.builder = None
-        self.env = {}
+        self.builder: Any = None
+        self.env: dict[str, Any] = {}
         self.fn_count = 0
         self._is_top_level = False
+        self.use_refinements = use_refinements
+        self.refinements_enabled = use_refinements
+        self.refinement_env: dict[Name, ir.Value] = {}
+
+    def _assume(self, predicate, extra=None):
+        if not self.refinements_enabled:
+            return
+        condition = emit_predicate(self.builder, predicate, self.refinement_env | (extra or {}))
+        if condition is not None:
+            assume = self.module.declare_intrinsic("llvm.assume")
+            self.builder.call(assume, [condition])
+
+    def visit_refinement(self, node: LLVMRefinedValue):
+        value = node.value.accept(self)
+        if not self.refinements_enabled or value is None:
+            return value
+        ref = node.refinement
+        # Only annotate the instruction produced here, never a load reused
+        # through a variable: the refinement might hold only in this branch.
+        if isinstance(node.value, (LLVMLoad, LLVMCall)) and isinstance(value.type, ir.IntType):
+            bounds = integer_range(ref.refinement, ref.name, value.type.width)
+            if bounds is not None and getattr(value, "opname", None) in {"load", "call"}:
+                value.set_metadata(
+                    "range",
+                    self.module.add_metadata([ir.Constant(value.type, n % (1 << value.type.width)) for n in bounds]),
+                )
+        if not node.range_only:
+            self._assume(ref.refinement, {ref.name: value})
+        return value
 
     def to_ir_type(self, ty: LLVMType) -> ir.Type:
         return ty.to_ir()
@@ -78,6 +110,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         return self.builder.bitcast(raw_ptr, ir.PointerType(element_ty))
 
     def generate_ir(self, definitions: list[LLVMTerm], initial_env: Dict[str, Any] = None) -> str:
+        self.refinements_enabled = self.use_refinements and refinement_arithmetic_is_safe(definitions)
         if initial_env:
             self.env.update(initial_env)
 
@@ -221,7 +254,9 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self._is_top_level = False
         val_gen = var_value.accept(self)
         old_val = self.env.get(str_name)
+        old_refinement_value = self.refinement_env.get(var_name)
         self.env[str_name] = val_gen
+        self.refinement_env[var_name] = val_gen
         self._is_top_level = is_top_level
         res = body.accept(self)
 
@@ -229,6 +264,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             self.env[str_name] = old_val
         else:
             del self.env[str_name]
+        if old_refinement_value is None:
+            self.refinement_env.pop(var_name, None)
+        else:
+            self.refinement_env[var_name] = old_refinement_value
         return res
 
     def visit_function(self, node: LLVMFunction) -> ir.Function:
@@ -240,8 +279,12 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         func = self.module.globals.get(func_name) or ir.Function(
             self.module, self.to_ir_type(function_type), name=func_name
         )
+        if func.blocks:
+            return func
 
         old_builder, old_env = self.builder, self.env.copy()
+        old_refinement_env = self.refinement_env
+        self.refinement_env = {}
         self.env[func_name] = func
 
         self.builder = ir.IRBuilder(func.append_basic_block(name="entry"))
@@ -249,6 +292,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             str_arg_name = sanitize_name(arg_name)
             func.args[i].name = str_arg_name
             self.env[str_arg_name] = func.args[i]
+            self.refinement_env[arg_name] = func.args[i]
+
+        for predicate in node.refinements:
+            self._assume(predicate)
 
         self._is_top_level = False
         ret_val = body.accept(self)
@@ -258,6 +305,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             self.builder.ret(ret_val)
 
         self.builder, self.env = old_builder, old_env
+        self.refinement_env = old_refinement_env
         return func
 
     def visit_call(self, node: LLVMCall) -> ir.Value | None:
@@ -362,6 +410,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         target_ty = self.to_ir_type(ty)
         if v_val.type == target_ty:
             return v_val
+        if isinstance(v_val.type, ir.IntType) and isinstance(target_ty, ir.IntType):
+            if v_val.type.width < target_ty.width:
+                return self.builder.sext(v_val, target_ty)
+            return self.builder.trunc(v_val, target_ty)
         if isinstance(v_val.type, ir.IntType) and isinstance(target_ty, (ir.FloatType, ir.DoubleType)):
             return self.builder.sitofp(v_val, target_ty)
         if isinstance(v_val.type, (ir.FloatType, ir.DoubleType)) and isinstance(target_ty, ir.IntType):
