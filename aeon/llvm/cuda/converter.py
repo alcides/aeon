@@ -60,6 +60,8 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if returns_value:
                 args.append(ir.PointerType(func.function_type.return_type))
             kernel = ir.Function(self.module, ir.FunctionType(ir.VoidType(), args), name=name)
+            for argument in kernel.args:
+                self._add_parameter_attributes(argument)
             builder = ir.IRBuilder(kernel.append_basic_block("entry"))
             result = builder.call(func, list(kernel.args[: len(func.args)]))
             if returns_value:

@@ -66,6 +66,17 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self.refinements_enabled = use_refinements
         self.refinement_env: dict[Name, ir.Value] = {}
 
+    @staticmethod
+    def _add_parameter_attributes(argument: ir.Argument) -> None:
+        """Mark values crossing an Aeon function boundary as fully defined.
+
+        Aeon has no source-level ``undef`` or poison values. ``noundef`` is
+        therefore justified for every lowered parameter. Pointer-specific
+        claims such as ``nonnull`` or ``dereferenceable`` require explicit
+        contracts and are deliberately left out.
+        """
+        argument.add_attribute("noundef")
+
     def _assume(self, predicate, extra=None):
         if not self.refinements_enabled:
             return
@@ -320,6 +331,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         for i, arg_name in enumerate(arg_names):
             str_arg_name = sanitize_name(arg_name)
             func.args[i].name = str_arg_name
+            self._add_parameter_attributes(func.args[i])
             self.env[str_arg_name] = func.args[i]
             self.refinement_env[arg_name] = func.args[i]
 
