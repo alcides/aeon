@@ -544,11 +544,12 @@ def weaken(assign, c: Constraint) -> Assignment:
     assert isinstance(h, LiquidHornApplication)
     assert h.name in assign
     current_rep = assign[h.name]
+    premise = apply(assign, p)
 
     def keep(q: LiquidTerm) -> bool:
         assert isinstance(h, LiquidHornApplication)
         qp = fill_horn_arguments(h, q)
-        nc = constraint_builder(vs, imp(apply(assign, p), end(qp)))
+        nc = constraint_builder(vs, imp(premise, end(qp)))
         return smt_valid(nc)
 
     qsp = [q for q in current_rep if keep(q)]
@@ -556,12 +557,14 @@ def weaken(assign, c: Constraint) -> Assignment:
 
 
 def fixpoint(cs: list[Constraint], assign) -> Assignment:
-    ncs = [c for c in cs if not smt_valid(apply(assign, c))]
-    if not ncs:
-        return assign
-    else:
-        weakened_assignment = weaken(assign, ncs[0])
-        return fixpoint(cs, weakened_assignment)
+    # Restart after weakening: subsequent clauses must see the new assignment.
+    while True:
+        for c in cs:
+            if not smt_valid(apply(assign, c)):
+                assign = weaken(assign, c)
+                break
+        else:
+            return assign
 
 
 def horn_assignment(
