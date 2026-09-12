@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
 import llvmlite.ir as ir
 from aeon.utils.name import Name
 from aeon.llvm.core import LLVMVisitor
+from aeon.core.types import Type, RefinedType
+from aeon.core.liquid import LiquidTerm
 
 
 @dataclass(frozen=True)
@@ -115,6 +117,7 @@ class LLVMArrayType(LLVMType):
 class LLVMFunctionType(LLVMType):
     arg_types: list[LLVMType]
     return_type: LLVMType
+    source_type: Type | None = field(default=None, compare=False, repr=False)
 
     def __str__(self):
         args = ", ".join(str(t) for t in self.arg_types)
@@ -209,6 +212,7 @@ class LLVMFunction(LLVMTerm):
     arg_types: list[LLVMType]
     body: LLVMTerm
     name: Name | None = None
+    refinements: list[LiquidTerm] = field(default_factory=list)
 
     def __str__(self):
         args = ", ".join(f"{n.name}:{t}" for n, t in zip(self.arg_names, self.arg_types))
@@ -216,6 +220,16 @@ class LLVMFunction(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_function(self)
+
+
+@dataclass
+class LLVMRefinedValue(LLVMTerm):
+    value: LLVMTerm
+    refinement: RefinedType
+    range_only: bool = False
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_refinement(self)
 
 
 @dataclass

@@ -6,6 +6,7 @@ from typing import Any, List, Dict
 import llvmlite.binding as llvm
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
+from aeon.llvm.optimization import optimize_module
 from aeon.llvm.llvm_ast import (
     LLVMType,
     LLVMIntType,
@@ -23,10 +24,11 @@ class LLVMExecutionError(LLVMBackendError):
 
 
 class CPULLVMExecutionEngine(LLVMExecutionEngine):
-    def __init__(self):
+    def __init__(self, opt_level: int = 3):
         self._init_llvm()
         self.target_machine = self._create_target_machine()
-        self._keep_alive = []
+        self._keep_alive: list[Any] = []
+        self.opt_level = opt_level
 
     def _init_llvm(self):
         llvm.initialize_native_target()
@@ -129,7 +131,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
 
         backing_mod = llvm.parse_assembly(llvm_ir)
 
-        backing_mod.verify()
+        optimize_module(backing_mod, self.target_machine, self.opt_level)
         with llvm.create_mcjit_compiler(backing_mod, self.target_machine) as engine:
             engine.finalize_object()
             func_ptr = engine.get_function_address(func_name)

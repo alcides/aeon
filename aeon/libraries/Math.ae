@@ -158,6 +158,10 @@ def degrees (rad: Float) : Float := native "math.degrees(rad)"
 # Returns the Euclidean distance between two 2D points.
 def hypot (x: Float) (y: Float) : {v:Float | v >= 0.0} := native "math.hypot(x, y)"
 
+# Fused multiply-add and sign transfer.
+def fma (x: Float) (y: Float) (z: Float) : Float := native "math.fma(x, y, z)"
+def copysign (x: Float) (y: Float) : Float := native "math.copysign(x, y)"
+
 # ── Hyperbolic functions ──────────────────────────────────────────────
 
 # Returns the hyperbolic sine.

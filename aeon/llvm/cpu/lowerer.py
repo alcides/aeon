@@ -19,13 +19,15 @@ from aeon.core.terms import (
     RefinementApplication,
     RefinementAbstraction,
 )
-from aeon.core.types import Type
+from aeon.core.types import Type, RefinedType
+from aeon.llvm.refinements import parameter_facts, result_refinement
 from aeon.llvm.core import LLVMLowerer, LLVMValidationError, ValidationStep, ValidationContext, LLVMBackendError
 from aeon.llvm.llvm_ast import (
     LLVMType,
     LLVMTerm,
     LLVMLiteral,
     LLVMInt,
+    LLVMLong,
     LLVMDouble,
     LLVMFloatType,
     LLVMDoubleType,
@@ -51,6 +53,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorCount,
     VECTOR_OPERATIONS,
     LLVMCast,
+    LLVMRefinedValue,
 )
 from aeon.llvm.utils import (
     validate_type,
@@ -73,15 +76,15 @@ _func_ii_i = LLVMFunctionType([LLVMInt, LLVMInt], LLVMInt)
 _func_i_b = LLVMFunctionType([LLVMInt], LLVMBool)
 
 BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
-    "malloc": LLVMFunctionType([LLVMInt], _generic_ptr),
+    "malloc": LLVMFunctionType([LLVMLong], _generic_ptr),
     "free": LLVMFunctionType([_generic_ptr], LLVMVoid),
     "printf": LLVMFunctionType([_generic_ptr], LLVMInt),
     "pow": LLVMFunctionType([LLVMInt, LLVMInt], LLVMInt),
     "powf": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
     "sqrt": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "sqrtf": LLVMFunctionType([LLVMDouble], LLVMDouble),
-    "sin": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
-    "cos": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+    "sin": LLVMFunctionType([LLVMDouble], LLVMDouble),
+    "cos": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "exp": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "log": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "new": LLVMFunctionType([], _generic_ptr),
@@ -96,7 +99,49 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "count": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
 }
 
-_MATH_LIBM_BUILTINS: set[str] = {"pow", "powf", "exp", "sqrt", "sqrtf", "sin", "cos", "log"}
+_FLOAT_UNARY_MATH = {
+    "absf",
+    "cbrt",
+    "exp",
+    "expm1",
+    "exp2",
+    "sqrt",
+    "sqrtf",
+    "log",
+    "log10",
+    "log2",
+    "log1p",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "asinh",
+    "acosh",
+    "atanh",
+    "erf",
+    "erfc",
+    "lgamma",
+    "gamma",
+}
+_FLOAT_BINARY_MATH = {"powf", "remainder", "fmod", "atan2", "hypot", "copysign"}
+for _name in _FLOAT_UNARY_MATH:
+    BUILTIN_FUNCTION_TYPES.setdefault(_name, LLVMFunctionType([LLVMDouble], LLVMDouble))
+for _name in _FLOAT_BINARY_MATH:
+    BUILTIN_FUNCTION_TYPES.setdefault(_name, LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble))
+BUILTIN_FUNCTION_TYPES.update(
+    {
+        "minf": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+        "maxf": LLVMFunctionType([LLVMDouble, LLVMDouble], LLVMDouble),
+        "fma": LLVMFunctionType([LLVMDouble, LLVMDouble, LLVMDouble], LLVMDouble),
+    }
+)
+
+_MATH_LIBM_BUILTINS: set[str] = _FLOAT_UNARY_MATH | _FLOAT_BINARY_MATH | {"minf", "maxf", "pow", "fma"}
 
 POLYMORPHIC_FUNCTIONS: set[str] = {
     "pow",
@@ -107,6 +152,11 @@ POLYMORPHIC_FUNCTIONS: set[str] = {
     "sin",
     "cos",
     "log",
+    *_FLOAT_UNARY_MATH,
+    *_FLOAT_BINARY_MATH,
+    "minf",
+    "maxf",
+    "fma",
     "get",
     "set",
     "new",
@@ -374,7 +424,14 @@ class CPULLVMLowerer(LLVMLowerer):
             resolved_tys.append(actual_ty)
 
         body = self._lower_term(curr, ret_ty, new_type_env, env, allowed, in_vector_op=in_vec)
-        return LLVMFunction(LLVMFunctionType(resolved_tys, ret_ty), arg_names, resolved_tys, body)
+        source = expected.source_type if isinstance(expected, LLVMFunctionType) else None
+        return LLVMFunction(
+            LLVMFunctionType(resolved_tys, ret_ty, source_type=source),
+            arg_names,
+            resolved_tys,
+            body,
+            refinements=parameter_facts(source, arg_names),
+        )
 
     def _create_wrapper_function(self, call: LLVMCall) -> LLVMFunction:
         params, ret = self.get_signature(call.type)
@@ -407,8 +464,8 @@ class CPULLVMLowerer(LLVMLowerer):
             exp = expected_params[idx] if idx < len(expected_params) else None
             if isinstance(arg, Annotation):
                 exp = to_llvm_type(arg.type)
-                arg = arg.expr
-            lowered_args.append(self._lower_term(arg, exp, type_env, env, allowed, in_vector_op=in_vec))
+            lowered = self._lower_term(arg, exp, type_env, env, allowed, in_vector_op=in_vec)
+            lowered_args.append(lowered)
         return lowered_args
 
     def _lower_vector_op(
@@ -502,7 +559,12 @@ class CPULLVMLowerer(LLVMLowerer):
                 return LLVMLiteral(to_llvm_type(ty), val)
             case Var(name):
                 return self._lower_var(name, expected, type_env, env)
-            case Annotation(e, ty) | TypeApplication(e, ty):
+            case Annotation(e, ty):
+                lowered = self._lower_term(e, to_llvm_type(ty), type_env, env, allowed, in_vector_op)
+                if isinstance(ty, RefinedType):
+                    return LLVMRefinedValue(lowered.type, lowered, ty)
+                return lowered
+            case TypeApplication(e, ty):
                 return self._lower_term(e, to_llvm_type(ty), type_env, env, allowed, in_vector_op)
             case RefinementApplication(e, _):
                 return self._lower_term(e, expected, type_env, env, allowed, in_vector_op)
@@ -622,7 +684,12 @@ class CPULLVMLowerer(LLVMLowerer):
             if name == "set" and len(all_args) == 3:
                 return self._lower_vector_set(all_args[0], all_args[1], all_args[2])
 
-        return self._create_call_or_partial(target, all_args, params, ret)
+        if name in {"malloc", "free", "printf"}:
+            all_args = [self._cast_if_needed(a, p) for a, p in zip(all_args, params)]
+        result = self._create_call_or_partial(target, all_args, params, ret)
+        if name == "malloc" and isinstance(expected, LLVMPointerType):
+            return self._cast_if_needed(result, expected)
+        return result
 
     def _extract_call_info(self, lowered: LLVMTerm) -> tuple[LLVMTerm, list[LLVMTerm], LLVMType]:
         if isinstance(lowered, LLVMCall) and isinstance(lowered.type, LLVMFunctionType):
@@ -660,10 +727,20 @@ class CPULLVMLowerer(LLVMLowerer):
 
     def _create_call_or_partial(
         self, target: LLVMTerm, args: list[LLVMTerm], params: list[LLVMType], ret: LLVMType
-    ) -> LLVMCall:
+    ) -> LLVMTerm:
         if len(args) < len(params):
             return LLVMCall(LLVMFunctionType(params[len(args) :], ret), target, args)
-        return LLVMCall(ret, target, args)
+        call = LLVMCall(ret, target, args)
+        # Only self-contained result facts can be used at a call site. Parameter
+        # names in the callee's contract are not bound in the caller.
+        ref = result_refinement(target.type.source_type) if isinstance(target.type, LLVMFunctionType) else None
+        if ref is not None:
+            from aeon.llvm.refinements import integer_range
+            from aeon.llvm.llvm_ast import LLVMIntType
+
+            if isinstance(ret, LLVMIntType) and integer_range(ref.refinement, ref.name, ret.bits) is not None:
+                return LLVMRefinedValue(ret, call, ref, range_only=True)
+        return call
 
     def _lower_let(
         self,
@@ -698,10 +775,15 @@ class CPULLVMLowerer(LLVMLowerer):
         in_vec: bool,
     ) -> LLVMLet:
         func_type = to_llvm_type(ty)
-        params, ret_ty = self.get_signature(func_type)
-        flat_func_type = LLVMFunctionType(params, ret_ty)
+        if isinstance(func_type, LLVMFunctionType):
+            params, ret_ty = self.get_signature(func_type)
+            flat_func_type: LLVMType = LLVMFunctionType(params, ret_ty, source_type=ty)
+        else:
+            flat_func_type = func_type
         new_ty_env, new_env = {**type_env, name: flat_func_type}, {**env, name: LLVMVar(flat_func_type, name)}
         lowered_val = self._lower_term(val, flat_func_type, new_ty_env, new_env, allowed, in_vector_op=in_vec)
+        if isinstance(ty, RefinedType):
+            lowered_val = LLVMRefinedValue(lowered_val.type, lowered_val, ty)
         if isinstance(lowered_val, LLVMFunction):
             lowered_val.name = name
         lowered_body = self._lower_term(body, expected, new_ty_env, new_env, allowed, in_vector_op=in_vec)

@@ -6,6 +6,7 @@ import llvmlite.binding as llvm
 import llvmlite.ir as ir
 
 from aeon.llvm.cpu.converter import CPULLVMIRGenerator
+from aeon.llvm.utils import sanitize_name
 from aeon.llvm.llvm_ast import (
     LLVMFunction,
     LLVMPointerType,
@@ -17,8 +18,8 @@ from aeon.llvm.llvm_ast import (
 
 
 class CUDALLVMIRGenerator(CPULLVMIRGenerator):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, use_refinements: bool = True) -> None:
+        super().__init__(use_refinements=use_refinements)
         self.module.name = "aeon_cuda_module"
         self.module.triple = "nvptx64-nvidia-cuda"
         self.module.data_layout = (
@@ -43,11 +44,31 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         if func not in self.kernels:
             self.kernels.append(func)
 
-    def visit_function(self, node: LLVMFunction) -> ir.Function:
-        func = super().visit_function(node)
-        if node.name:
-            self._add_kernel_metadata(func)
-        return func
+    def generate_ir(self, definitions, initial_env=None) -> str:
+        super().generate_ir(definitions, initial_env)
+        # Device functions (including recursive helpers) must remain callable.
+        # CUDA entry points are void wrappers, with a result buffer for scalars.
+        for node in definitions:
+            if not isinstance(node, LLVMFunction) or node.name is None:
+                continue
+            func = self.module.globals[sanitize_name(node.name)]
+            name = func.name + "__kernel"
+            if name in self.module.globals:
+                continue
+            returns_value = not isinstance(func.function_type.return_type, ir.VoidType)
+            args = list(func.function_type.args)
+            if returns_value:
+                args.append(ir.PointerType(func.function_type.return_type))
+            kernel = ir.Function(self.module, ir.FunctionType(ir.VoidType(), args), name=name)
+            for argument in kernel.args:
+                self._add_parameter_attributes(argument)
+            builder = ir.IRBuilder(kernel.append_basic_block("entry"))
+            result = builder.call(func, list(kernel.args[: len(func.args)]))
+            if returns_value:
+                builder.store(result, kernel.args[-1])
+            builder.ret_void()
+            self._add_kernel_metadata(kernel)
+        return str(self.module)
 
     def _get_cuda_intrinsic(self, name: str) -> ir.Function:
         intrinsic_map = {

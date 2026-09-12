@@ -109,7 +109,7 @@ def test_generate_abstraction_and_call():
     ir_code = generator.generate_ir([program_ast])
     print(ir_code)
 
-    assert 'define i32 @"my_func"(i32 %"x", i32 %"y")' in ir_code
+    assert 'define i32 @"my_func"(i32 noundef %"x", i32 noundef %"y")' in ir_code
     assert 'define i32 @"my_caller' in ir_code
     assert 'call i32 @"my_func"(i32 42, i32 10)' in ir_code
 
