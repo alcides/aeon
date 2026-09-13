@@ -29,11 +29,11 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             raise CUDAExecutionError(f"Failed to initialize CUDA: {e}")
 
     def _setup_api(self):
-        # mem management
-        self.libcuda.cuMemAlloc_v2.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_size_t]
-        self.libcuda.cuMemFree_v2.argtypes = [ctypes.c_void_p]
-        self.libcuda.cuMemcpyHtoD_v2.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
-        self.libcuda.cuMemcpyDtoH_v2.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
+        # mem management — CUdeviceptr is an unsigned 64-bit handle on modern drivers
+        self.libcuda.cuMemAlloc_v2.argtypes = [ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t]
+        self.libcuda.cuMemFree_v2.argtypes = [ctypes.c_uint64]
+        self.libcuda.cuMemcpyHtoD_v2.argtypes = [ctypes.c_uint64, ctypes.c_void_p, ctypes.c_size_t]
+        self.libcuda.cuMemcpyDtoH_v2.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_size_t]
 
         # kernel launch
         self.libcuda.cuLaunchKernel.argtypes = [
@@ -51,6 +51,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         ]
 
         self.libcuda.cuCtxSynchronize.argtypes = []
+        self.libcuda.cuCtxSetCurrent.argtypes = [ctypes.c_void_p]
+        self.libcuda.cuCtxCreate_v2.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint, ctypes.c_int]
         self.libcuda.cuModuleLoadData.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p]
         self.libcuda.cuModuleGetFunction.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p, ctypes.c_char_p]
 
@@ -105,8 +107,11 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
 
     def _create_context(self, device):
         context = ctypes.c_void_p()
-        if self.libcuda.cuCtxCreate(ctypes.byref(context), 0, device) != 0:
+        create = getattr(self.libcuda, "cuCtxCreate_v2", self.libcuda.cuCtxCreate)
+        if create(ctypes.byref(context), 0, device) != 0:
             raise CUDAExecutionError("cuCtxCreate failed")
+        if self.libcuda.cuCtxSetCurrent(context) != 0:
+            raise CUDAExecutionError("cuCtxSetCurrent failed after create")
         return context
 
     def execute(
@@ -118,6 +123,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         ret_type: LLVMType,
     ) -> Any:
         logger.debug(f"Executing kernel {func_name} on GPU.")
+        if self.libcuda.cuCtxSetCurrent(self.context) != 0:
+            raise CUDAExecutionError("cuCtxSetCurrent failed")
         if isinstance(ret_type, LLVMPointerType):
             raise CUDAExecutionError("GPU pointer returns require an explicit output-buffer entry point")
 
@@ -141,10 +148,10 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     cty = self._get_ctypes_type(ty.element_type)
                     data = (cty * len(arg))(*arg)
                     size = ctypes.sizeof(data)
-                    d_ptr = ctypes.c_void_p()
-                    if self.libcuda.cuMemAlloc_v2(ctypes.byref(d_ptr), size) != 0:
+                    d_ptr = ctypes.c_uint64()
+                    if self.libcuda.cuMemAlloc_v2(ctypes.byref(d_ptr), max(4, size)) != 0:
                         raise CUDAExecutionError("cuMemAlloc failed")
-                    if self.libcuda.cuMemcpyHtoD_v2(d_ptr, ctypes.cast(data, ctypes.c_void_p), size) != 0:
+                    if self.libcuda.cuMemcpyHtoD_v2(d_ptr.value, ctypes.cast(data, ctypes.c_void_p), size) != 0:
                         raise CUDAExecutionError("cuMemcpyHtoD failed")
                     device_ptrs.append(d_ptr)
                     kernel_params.append(ctypes.addressof(d_ptr))
@@ -156,7 +163,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
 
             if not isinstance(ret_type, LLVMVoidType):
                 result_buffer = self._get_ctypes_type(ret_type)()
-                result_ptr = ctypes.c_void_p()
+                result_ptr = ctypes.c_uint64()
                 if self.libcuda.cuMemAlloc_v2(ctypes.byref(result_ptr), ctypes.sizeof(result_buffer)) != 0:
                     raise CUDAExecutionError("cuMemAlloc failed for result")
                 device_ptrs.append(result_ptr)
@@ -171,14 +178,16 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 raise CUDAExecutionError(f"cuCtxSynchronize failed during {func_name} execution")
 
             for d_ptr, host_data, size, original_arg in cleanup_tasks:
-                if self.libcuda.cuMemcpyDtoH_v2(ctypes.cast(host_data, ctypes.c_void_p), d_ptr, size) != 0:
+                if self.libcuda.cuMemcpyDtoH_v2(ctypes.cast(host_data, ctypes.c_void_p), d_ptr.value, size) != 0:
                     raise CUDAExecutionError("cuMemcpyDtoH failed")
                 if isinstance(original_arg, list):
                     original_arg[:] = list(host_data)
 
             if result_buffer is not None:
                 if (
-                    self.libcuda.cuMemcpyDtoH_v2(ctypes.byref(result_buffer), result_ptr, ctypes.sizeof(result_buffer))
+                    self.libcuda.cuMemcpyDtoH_v2(
+                        ctypes.byref(result_buffer), result_ptr.value, ctypes.sizeof(result_buffer)
+                    )
                     != 0
                 ):
                     raise CUDAExecutionError("cuMemcpyDtoH failed for result")
@@ -187,7 +196,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
 
         finally:
             for d_ptr in device_ptrs:
-                self.libcuda.cuMemFree_v2(d_ptr)
+                self.libcuda.cuMemFree_v2(d_ptr.value if hasattr(d_ptr, "value") else d_ptr)
 
     def _get_ctypes_type(self, ty: LLVMType):
         from aeon.llvm.llvm_ast import LLVMIntType, LLVMFloatType, LLVMDoubleType, LLVMBoolType
