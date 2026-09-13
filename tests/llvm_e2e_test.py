@@ -63,103 +63,129 @@ def test_e2e_llvm_fibonacci():
     assert res == 55
 
 
-@pytest.mark.skip(
-    reason="Elaboration does not yet support polymorphic Vector in these programs (was skip_elaboration on PR #141)."
-)
-def test_e2e_llvm_matrix_sum():
+def test_e2e_llvm_array_sum():
     source = r"""
-    open Vector
+    open Array
 
     @llvm
     def add(acc:Int) (curr:Int) : Int := acc + curr;
 
     @llvm
-    def sum_matrix(m:(Vector Int)) (s:Int) : Int := Vector.reduce{Int}{Int} add 0 m s;
+    def sum_matrix(1 m:(Array Int)) (s:Int) : Int := reduce_n_int add 0 m s;
 
-    def main (i:Int) : Int := sum_matrix (native "[1, 2, 3, 4]") 4;
+    def main (i:Int) : Int :=
+        let 1 a0 := new{Int} unit in
+        let 1 a1 := append{Int} a0 1 in
+        let 1 a2 := append{Int} a1 2 in
+        let 1 a3 := append{Int} a2 3 in
+        let 1 a4 := append{Int} a3 4 in
+        sum_matrix a4 4;
     """
     res = compile_and_run(source)
     assert res == 10
 
 
-@pytest.mark.skip(
-    reason="Elaboration does not yet support polymorphic Vector in these programs (was skip_elaboration on PR #141)."
-)
-def test_e2e_llvm_matrix_filter():
+def test_e2e_llvm_array_map():
     source = r"""
-    open Vector
+    open Array
 
     @llvm
-    def filter_even(m:(Vector Int)) (s:Int) : (Vector Int) :=
-        Vector.filter{Int} (fun (x : Int) => x % 2 = 0) m s;
-
-    def main (i:Int) : Int :=
-        let m : (Vector Int) := native "[1, 2, 3, 4, 5, 6]" in
-        let filtered : (Vector Int) := filter_even m 6 in
-        Vector.get{Int} filtered 0;
-    """
-    res = compile_and_run(source)
-    assert res == 2
-
-
-@pytest.mark.skip(
-    reason="Elaboration does not yet support polymorphic Vector in these programs (was skip_elaboration on PR #141)."
-)
-def test_e2e_llvm_matrix_zip_with():
-    source = r"""
-    open Vector
+    def inc(x:Int) : Int := x + 1;
 
     @llvm
-    def vec_add(v1:(Vector Int)) (v2:(Vector Int)) (s:Int) : (Vector Int) :=
-        Vector.zipWith{Int}{Int}{Int} (fun (x : Int) => fun (y : Int) => x + y) v1 v2 s;
+    def vec_inc(1 v:(Array Int)) (s:Int) : {r:(Array Int) | size r = s} :=
+        map_n_int inc v s;
 
     def main (i:Int) : Int :=
-        let v1 : (Vector Int) := native "[1, 2, 3]" in
-        let v2 : (Vector Int) := native "[10, 20, 30]" in
-        let v3 : (Vector Int) := vec_add v1 v2 3 in
-        Vector.get{Int} v3 1;
-    """
-    res = compile_and_run(source)
-    assert res == 22
-
-
-@pytest.mark.skip(
-    reason="Elaboration does not yet support polymorphic Vector in these programs (was skip_elaboration on PR #141)."
-)
-def test_e2e_llvm_matrix_count():
-    source = r"""
-    open Vector
-
-    @llvm
-    def count_gt_10(v:(Vector Int)) (s:Int) : Int :=
-        Vector.count{Int} (fun (x : Int) => x > 10) v s;
-
-    def main (i:Int) : Int :=
-        let v : (Vector Int) := native "[5, 15, 8, 25, 3]" in
-        count_gt_10 v 5;
-    """
-    res = compile_and_run(source)
-    assert res == 2
-
-
-@pytest.mark.skip(
-    reason="Elaboration does not yet support polymorphic Vector in these programs (was skip_elaboration on PR #141)."
-)
-def test_e2e_llvm_matrix_map():
-    source = r"""
-    open Vector
-
-    @llvm
-    def vec_inc(v:(Vector Int)) (s:Int) : (Vector Int) :=
-        Vector.map{Int}{Int} (fun (x : Int) => x + 1) v s;
-
-    def main (i:Int) : Int :=
-        let v : (Vector Int) := native "[1, 2, 3, 4, 5]" in
-        let v2 : (Vector Int) := vec_inc v 5 in
-        Vector.get{Int} v2 2;
+        let 1 a0 := new{Int} unit in
+        let 1 a1 := append{Int} a0 1 in
+        let 1 a2 := append{Int} a1 2 in
+        let 1 a3 := append{Int} a2 3 in
+        let 1 a4 := append{Int} a3 4 in
+        let 1 a5 := append{Int} a4 5 in
+        let 1 v2 := vec_inc a5 5 in
+        get{Int} v2 2;
     """
     res = compile_and_run(source)
     assert res == 4
+
+
+def test_e2e_llvm_array_count():
+    source = r"""
+    open Array
+
+    @llvm
+    def gt10(x:Int) : Bool := x > 10;
+
+    @llvm
+    def count_gt_10(1 v:(Array Int)) (s:Int) : Int :=
+        count_n_int gt10 v s;
+
+    def main (i:Int) : Int :=
+        let 1 a0 := new{Int} unit in
+        let 1 a1 := append{Int} a0 5 in
+        let 1 a2 := append{Int} a1 15 in
+        let 1 a3 := append{Int} a2 8 in
+        let 1 a4 := append{Int} a3 25 in
+        let 1 a5 := append{Int} a4 3 in
+        count_gt_10 a5 5;
+    """
+    res = compile_and_run(source)
+    assert res == 2
+
+
+@pytest.mark.skip(
+    reason="filter_n_int return length is data-dependent; size refinements not yet tracked for LLVM filter."
+)
+def test_e2e_llvm_array_filter():
+    source = r"""
+    open Array
+
+    @llvm
+    def even(x:Int) : Bool := x % 2 = 0;
+
+    @llvm
+    def filter_even(1 m:(Array Int)) (s:Int) : (Array Int) :=
+        filter_n_int even m s;
+
+    def main (i:Int) : Int :=
+        let 1 a0 := new{Int} unit in
+        let 1 a1 := append{Int} a0 1 in
+        let 1 a2 := append{Int} a1 2 in
+        let 1 a3 := append{Int} a2 3 in
+        let 1 a4 := append{Int} a3 4 in
+        let 1 filtered := filter_even a4 4 in
+        get{Int} filtered 0;
+    """
+    res = compile_and_run(source)
+    assert res == 2
+
+
+def test_e2e_llvm_array_zip_with():
+    source = r"""
+    open Array
+
+    @llvm
+    def add2(x:Int) (y:Int) : Int := x + y;
+
+    @llvm
+    def vec_add(1 v1:(Array Int)) (1 v2:(Array Int)) (s:Int) : {r:(Array Int) | size r = s} :=
+        zipWith_n_int add2 v1 v2 s;
+
+    def main (i:Int) : Int :=
+        let 1 a0 := new{Int} unit in
+        let 1 a1 := append{Int} a0 1 in
+        let 1 a2 := append{Int} a1 2 in
+        let 1 a3 := append{Int} a2 3 in
+        let 1 b0 := new{Int} unit in
+        let 1 b1 := append{Int} b0 10 in
+        let 1 b2 := append{Int} b1 20 in
+        let 1 b3 := append{Int} b2 30 in
+        let 1 v3 := vec_add a3 b3 3 in
+        get{Int} v3 1;
+    """
+    res = compile_and_run(source)
+    assert res == 22
 
 
 def test_e2e_llvm_math_integration():

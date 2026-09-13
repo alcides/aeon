@@ -3,6 +3,10 @@
 # The Python binding only reads data and delegates splitting, fitting, and
 # scoring to pandas/scikit-learn. Linearity, valid arguments, compatibility,
 # provenance, and result bounds are checked statically from this interface.
+#
+# For general tabular ETL / column kernels, prefer ``DataFrame.ae`` (pandas +
+# ``Array`` bridge). This module keeps a ML-specialized linear ``DataFrame``
+# with ``df_rows`` / ``df_cols`` measures for the toy decision-tree pipeline.
 
 linear type DataFrame
 linear type Dataset

@@ -17,7 +17,7 @@ from aeon.llvm.llvm_ast import (
     LLVMPointerType,
 )
 
-SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Vector", "String"}
+SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Array", "Vector", "String"}
 BINARY_OPS = {"+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||"}
 UNARY_OPS = {"!", "-"}
 
@@ -86,7 +86,9 @@ def to_llvm_type(ty: Type) -> LLVMType:
                     return LLVMChar
                 case "Unit":
                     return LLVMVoid
-                case "Vector":
+                case "Array" | "Vector":
+                    # ``Array`` is the stdlib host buffer; ``Vector`` remains as a
+                    # temporary alias for older LLVM tests / local quicksort buffers.
                     return LLVMPointerType(to_llvm_type(args[0])) if args else LLVMVectorInt
                 case _:
                     return LLVMInt

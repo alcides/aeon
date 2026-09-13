@@ -52,6 +52,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorZipWith,
     LLVMVectorCount,
     VECTOR_OPERATIONS,
+    VECTOR_OP_ALIASES,
     LLVMCast,
     LLVMRefinedValue,
 )
@@ -97,6 +98,19 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "filter": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
     "zipWith": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
     "count": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
+    "map_n": LLVMFunctionType([LLVMPointerType(_func_i_i), _generic_ptr, LLVMInt], _generic_ptr),
+    "reduce_n": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
+    "imap_n": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, LLVMInt], _generic_ptr),
+    "filter_n": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
+    "zipWith_n": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
+    "count_n": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
+    "map_n_int": LLVMFunctionType([LLVMPointerType(_func_i_i), _generic_ptr, LLVMInt], _generic_ptr),
+    "map_n_float": LLVMFunctionType([LLVMPointerType(_func_i_i), _generic_ptr, LLVMInt], _generic_ptr),
+    "reduce_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
+    "reduce_n_float": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
+    "filter_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
+    "count_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
+    "zipWith_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
 }
 
 _FLOAT_UNARY_MATH = {
@@ -699,17 +713,22 @@ class CPULLVMLowerer(LLVMLowerer):
     def _get_lookup_name(self, target: LLVMTerm) -> str:
         name = self._get_target_name(target)
         lookup = name.rsplit("_", 1)[0] if name.rsplit("_", 1)[-1].isdigit() else name
-        # Strip module prefix (e.g. "Math_powf" -> "powf") for builtin lookup
+        # Strip module prefix (e.g. "Math_powf" -> "powf", "Array_map_n" -> "map_n")
         if "_" in lookup and lookup not in BUILTIN_FUNCTION_TYPES and lookup not in VECTOR_OPERATIONS:
-            bare = lookup.split("_", 1)[1]
-            if bare in BUILTIN_FUNCTION_TYPES or bare in VECTOR_OPERATIONS:
-                lookup = bare
-        return lookup
+            parts = lookup.split("_")
+            # Prefer longest matching suffix for sized helpers (map_n) then bare ops.
+            for i in range(len(parts)):
+                bare = "_".join(parts[i:])
+                if bare in BUILTIN_FUNCTION_TYPES or bare in VECTOR_OPERATIONS or bare in VECTOR_OP_ALIASES:
+                    lookup = bare
+                    break
+        return VECTOR_OP_ALIASES.get(lookup, lookup)
 
     def _is_full_vector_op(self, op: str, total_args: int) -> bool:
-        if op not in VECTOR_OPERATIONS:
+        canonical = VECTOR_OP_ALIASES.get(op, op)
+        if canonical not in VECTOR_OPERATIONS:
             return False
-        threshold = 4 if op in ("reduce", "zipWith") else 3
+        threshold = 4 if canonical in ("reduce", "zipWith") else 3
         return total_args >= threshold
 
     def _lower_vector_get(self, vec: LLVMTerm, idx: LLVMTerm) -> LLVMLoad:

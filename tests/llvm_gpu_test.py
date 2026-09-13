@@ -6,23 +6,23 @@ from aeon.logger.logger import setup_logger
 setup_logger()
 
 
-@pytest.mark.skip(
-    reason="Elaboration does not yet support polymorphic Vector in this program (was skip_elaboration on PR #141)."
-)
-def test_gpu_fallback():
+def test_gpu_array_map_fallback():
     aeon_code = """
-        open Vector
+        open Array
 
         @gpu(target:="cuda", debug:=false, cache:=false, block_size:=32, thread_count:=1024)
-        def multiply_by_two (v:(Vector Int)) (size:Int) : (Vector Int) :=
-            Vector.map{Int}{Int} (fun (x : Int) => x * 2) v size;
+        def mul2 (x:Int) : Int := x * 2;
+
+        @gpu(target:="cuda", debug:=false, cache:=false, block_size:=32, thread_count:=1024)
+        def multiply_by_two (1 v:(Array Int)) (n:Int) : {r:(Array Int) | size r = n} :=
+            map_n_int mul2 v n;
 
         def main (args:Int) : Int :=
-            let v : (Vector Int) := Vector.new{Int} in
-            let v2 : (Vector Int) := Vector.append{Int} v 10 in
-            let v3 : (Vector Int) := Vector.append{Int} v2 20 in
-            let res : (Vector Int) := multiply_by_two v3 2 in
-            Vector.get{Int} res 0;
+            let 1 v0 := new{Int} unit in
+            let 1 v2 := append{Int} v0 10 in
+            let 1 v3 := append{Int} v2 20 in
+            let 1 res := multiply_by_two v3 2 in
+            get{Int} res 0;
     """
     config = AeonConfig(synthesizer="none", synthesis_ui=SynthesisUI(), synthesis_budget=0)
     driver = AeonDriver(config)

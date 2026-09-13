@@ -210,3 +210,117 @@ def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (1 arr: (Array a)) : b :=
 # Sum of an Int array. Consumes the array.
 def sum (1 arr: (Array Int)) : Int :=
     native "sum(arr)"
+
+
+# Mean of a Float array. Consumes the array.
+def mean (1 arr: (Array Float)) : Float :=
+    native "(sum(arr) / len(arr)) if len(arr) else 0.0"
+
+
+# Index-aware map: ``f`` receives ``(index, element)``. Length preserved.
+def imap (f: (i: Int) -> (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a)) :
+    {r:(Array b) | size r = size arr} :=
+    native "[f(i)(x) for i, x in enumerate(arr)]"
+
+
+# Pairwise zip-with; both arrays must share length ``size``.
+def zipWith (f: (x: {v:a | p v}) -> (y: {w:b | q w}) -> {z:c | r z})
+    (1 xs: (Array a)) (1 ys: {arr:(Array b) | size arr = size xs}) :
+    {out:(Array c) | size out = size xs} :=
+    native "[f(x)(y) for x, y in zip(xs, ys)]"
+
+
+# Count elements satisfying ``f``. Consumes the array.
+def count (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a)) : {n:Int | n >= 0 && n <= size arr} :=
+    native "sum(1 for x in arr if f(x))"
+
+
+# Scale every Float element by ``k``. Consumes the array.
+def scale (k: Float) (1 arr: (Array Float)) : {r:(Array Float) | size r = size arr} :=
+    native "[k * x for x in arr]"
+
+
+# Elementwise add of two equal-length Float arrays.
+def vadd (1 xs: (Array Float)) (1 ys: {arr:(Array Float) | size arr = size xs}) :
+    {r:(Array Float) | size r = size xs} :=
+    native "[a + b for a, b in zip(xs, ys)]"
+
+
+# ── Numpy bridge (DataFrame / Tensor interop) ───────────────────────────
+
+def np : Unit := native_import "numpy"
+
+
+def from_numpy (arr: Unit) : (Array Float) :=
+    native "list(__import__('numpy').asarray(arr, dtype=float).reshape(-1))"
+
+
+def to_numpy (1 arr: (Array Float)) : Unit :=
+    native "__import__('numpy').asarray(arr, dtype=float)"
+
+
+# ── Sized helpers for ``@llvm`` / ``@gpu`` kernels ──────────────────────
+#
+# The CPU/CUDA lowerers need an explicit length alongside the buffer pointer.
+# These ``*_n`` variants mirror the unsized Array ops for the interpreter, but
+# lower to the same LLVM vector IR when used inside ``@llvm`` / ``@gpu``.
+# Prefer the unsized ops in ordinary Aeon code; use ``*_n`` only in kernels.
+
+def map_n (f: (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a))
+    (n: Int) : (Array b) :=
+    native "list(map(f, arr))"
+
+
+def filter_n (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a))
+    (n: Int) : (Array a) :=
+    native "list(filter(f, arr))"
+
+
+# Kernel order is ``(acc, elem) -> acc`` to match the LLVM reduce lowering.
+# ``n`` must be the true length; LLVM trusts the caller (same as old Vector).
+def reduce_n (f: (acc:b) -> (x: {v:a | p v}) -> b) (z: b) (1 arr: (Array a))
+    (n: Int) : b :=
+    native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
+
+
+def imap_n (f: (i: Int) -> (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a))
+    (n: Int) : (Array b) :=
+    native "[f(i)(x) for i, x in enumerate(arr)]"
+
+
+def zipWith_n (f: (x: {v:a | p v}) -> (y: {w:b | q w}) -> {z:c | r z})
+    (1 xs: (Array a)) (1 ys: (Array b))
+    (n: Int) : (Array c) :=
+    native "[f(x)(y) for x, y in zip(xs, ys)]"
+
+
+def count_n (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a))
+    (n: Int) : Int :=
+    native "sum(1 for x in arr if f(x))"
+
+
+# Monomorphic Int/Float kernels — no refinement polymorphism, so ``@llvm`` /
+# ``@gpu`` can lower them without ``ImplicitRefinementHole``.
+def map_n_int (f: (x: Int) -> Int) (1 arr: (Array Int)) (n: Int) :
+    {r: (Array Int) | size r = n} :=
+    native "list(map(f, arr))"
+
+def map_n_float (f: (x: Float) -> Float) (1 arr: (Array Float)) (n: Int) :
+    {r: (Array Float) | size r = n} :=
+    native "list(map(f, arr))"
+
+def reduce_n_int (f: (acc: Int) -> (x: Int) -> Int) (z: Int) (1 arr: (Array Int)) (n: Int) : Int :=
+    native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
+
+def reduce_n_float (f: (acc: Float) -> (x: Float) -> Float) (z: Float) (1 arr: (Array Float)) (n: Int) : Float :=
+    native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
+
+def filter_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : (Array Int) :=
+    native "list(filter(f, arr))"
+
+def count_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : Int :=
+    native "sum(1 for x in arr if f(x))"
+
+def zipWith_n_int (f: (x: Int) -> (y: Int) -> Int) (1 xs: (Array Int)) (1 ys: (Array Int)) (n: Int) :
+    {r: (Array Int) | size r = n} :=
+    native "[f(x)(y) for x, y in zip(xs, ys)]"

@@ -1,13 +1,17 @@
 open Array
 
+# Updated GPU Array map example (replaces deleted Vector API).
 @gpu(target:="cuda", block_size:=256)
-def multiply_by_ten (1 v:(Array Int)) : (Array Int) :=
-    Array.map{Int}{Int} (fun (x : Int) => x * 10) v;
+def mul10 (x: Int) : Int := x * 10;
+
+@gpu(target:="cuda", block_size:=256)
+def multiply_by_ten (1 v:(Array Int)) (n: Int) : {r:(Array Int) | size r = n} :=
+    map_n_int mul10 v n;
 
 def main (args:Int) : Unit :=
-    let v : (Array Int) := (Array.new{Int} unit) in
-    let v1 : (Array Int) := Array.append{Int} v 1 in
-    let v2 : (Array Int) := Array.append{Int} v1 2 in
-    let v3 : (Array Int) := Array.append{Int} v2 3 in
-    let res : (Array Int) := multiply_by_ten v3 in
-    print (Array.get{Int} res 1);
+    let 1 v0 := new{Int} unit in
+    let 1 v1 := append{Int} v0 1 in
+    let 1 v2 := append{Int} v1 2 in
+    let 1 v3 := append{Int} v2 3 in
+    let 1 res := multiply_by_ten v3 3 in
+    print (get{Int} res 1);

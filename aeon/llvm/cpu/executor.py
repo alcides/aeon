@@ -148,4 +148,22 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             if isinstance(ret_type, LLVMCharType):
                 return chr(result)
 
+            # Reconstruct Python lists for Array-returning kernels.
+            if isinstance(ret_type, LLVMPointerType) and result is not None:
+                size = self._infer_result_size(args, arg_types)
+                if size is not None and size >= 0:
+                    el_cty = self._get_ctypes_type(ret_type.element_type)
+                    ptr = ctypes.cast(result, ctypes.POINTER(el_cty))
+                    return [ptr[i] for i in range(size)]
+
             return result
+
+    def _infer_result_size(self, args: List[Any], arg_types: List[LLVMType]) -> int | None:
+        """Best-effort size for pointer results: last Int arg, else len of first list."""
+        for val, ty in zip(reversed(args), reversed(arg_types)):
+            if isinstance(ty, LLVMIntType) and isinstance(val, int):
+                return val
+        for val in args:
+            if isinstance(val, list):
+                return len(val)
+        return None

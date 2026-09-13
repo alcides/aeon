@@ -64,11 +64,35 @@ projected arrays with `let 1`.
 - **`Cuda.upload_*`** consumes a linear host `Array` and returns a `ReadyBuffer`.
 - **`Database`**, **`Subprocess`**, and other modules use `Array` for argv lists
   and row materialization with ordinary refinements on top of linearity.
+- **`DataFrame.col_as_array` / `with_col`** extract numeric columns as `Array Float`
+  for `@llvm` / `@gpu` kernels (see [`dataframe.md`](dataframe.md)).
+
+## LLVM / GPU kernels
+
+Sized helpers (`map_n_int`, `reduce_n_int`, `count_n_int`, `zipWith_n_int`,
+`map_n_float`, …) take an explicit length so the CPU/CUDA lowerers can emit
+vector IR. Prefer unsized `map` / `filter` / `reduce` in ordinary Aeon code;
+use `*_n*` only inside `@llvm` / `@gpu` functions.
+
+```aeon
+open Array
+
+@llvm
+def add(acc:Int) (x:Int) : Int := acc + x;
+
+@llvm
+def sum_n (1 arr:(Array Int)) (n:Int) : Int :=
+    reduce_n_int add 0 arr n;
+```
+
+`Array` is the single stdlib host-buffer name (the old `Vector.ae` library is
+gone). Numpy LA types remain `Tensor.Vector` / `Tensor.Matrix`.
 
 ---
 
 ## Related reading
 
+- [`DataFrame` + Array column bridge](dataframe.md)
 - [`Cuda` GPU buffers](cuda.md)
 - [State-safe `Database`](database.md)
 - [Collection literals in the language guide](index.md#collection-literals)

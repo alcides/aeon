@@ -1,0 +1,17 @@
+# GPU Array map (falls back to CPU without CUDA).
+open Array
+
+@gpu
+def mul10 (x: Int) : Int := x * 10;
+
+@gpu
+def multiply_by_ten (1 v: (Array Int)) (n: Int) : {r: (Array Int) | size r = n} :=
+    map_n_int mul10 v n;
+
+def main (args: Int) : Int :=
+    let 1 v0 := new{Int} unit in
+    let 1 v1 := append{Int} v0 1 in
+    let 1 v2 := append{Int} v1 2 in
+    let 1 v3 := append{Int} v2 3 in
+    let 1 res := multiply_by_ten v3 3 in
+    get{Int} res 1;
