@@ -1,0 +1,8 @@
+# Knapsack GA on the GPU: 1000 random items, population 100, long generation
+# budget (~5 minutes). The whole evolutionary loop is one CUDA kernel — host
+# synchronisation happens only after the final generation.
+open KnapsackGA
+
+def main (args: Int) : Unit :=
+    let best : Int := run_random_gpu N_ITEMS POP_SIZE GENERATIONS SEED in
+    print best;
