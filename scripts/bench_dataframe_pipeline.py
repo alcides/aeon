@@ -58,6 +58,7 @@ def scale_col (1 col: (Array Float)) (n: Int) : {r: (Array Float) | size r = n} 
     source = f"""
 open DataFrame
 open Array
+open ArrayKernels
 {kernel}
 def main (i:Int) : Float :=
     let 1 df0 := read_csv "{path}" {n} 2 in

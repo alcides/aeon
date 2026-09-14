@@ -1,0 +1,42 @@
+# Sized Array helpers for ``@llvm`` / ``@gpu`` kernels.
+#
+# Kept out of ``Array.ae`` so ordinary ``open Array`` stays cheap to typecheck.
+# The CPU/CUDA lowerers need an explicit length alongside the buffer pointer.
+# Monomorphic Int/Float variants avoid ``ImplicitRefinementHole`` under LLVM.
+
+open Array
+
+def np : Unit := native_import "numpy"
+
+
+def from_numpy (arr: Unit) : (Array Float) :=
+    native "list(__import__('numpy').asarray(arr, dtype=float).reshape(-1))"
+
+
+def to_numpy (1 arr: (Array Float)) : Unit :=
+    native "__import__('numpy').asarray(arr, dtype=float)"
+
+
+def map_n_int (f: (x: Int) -> Int) (1 arr: (Array Int)) (n: Int) :
+    {r: (Array Int) | size r = n} :=
+    native "list(map(f, arr))"
+
+def map_n_float (f: (x: Float) -> Float) (1 arr: (Array Float)) (n: Int) :
+    {r: (Array Float) | size r = n} :=
+    native "list(map(f, arr))"
+
+def reduce_n_int (f: (acc: Int) -> (x: Int) -> Int) (z: Int) (1 arr: (Array Int)) (n: Int) : Int :=
+    native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
+
+def reduce_n_float (f: (acc: Float) -> (x: Float) -> Float) (z: Float) (1 arr: (Array Float)) (n: Int) : Float :=
+    native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
+
+def filter_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : (Array Int) :=
+    native "list(filter(f, arr))"
+
+def count_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : Int :=
+    native "sum(1 for x in arr if f(x))"
+
+def zipWith_n_int (f: (x: Int) -> (y: Int) -> Int) (1 xs: (Array Int)) (1 ys: (Array Int)) (n: Int) :
+    {r: (Array Int) | size r = n} :=
+    native "[f(x)(y) for x, y in zip(xs, ys)]"

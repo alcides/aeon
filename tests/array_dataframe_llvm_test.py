@@ -27,6 +27,7 @@ def _run(source: str):
 def test_llvm_array_reduce_sum():
     source = r"""
 open Array
+open ArrayKernels
 
 @llvm
 def add(acc:Int) (curr:Int) : Int := acc + curr;
@@ -49,6 +50,7 @@ def main (i:Int) : Int :=
 def test_llvm_array_map_inc():
     source = r"""
 open Array
+open ArrayKernels
 
 @llvm
 def inc(x:Int) : Int := x + 1;
@@ -71,6 +73,7 @@ def main (i:Int) : Int :=
 def test_llvm_array_count():
     source = r"""
 open Array
+open ArrayKernels
 
 @llvm
 def gt10(x:Int) : Bool := x > 10;
@@ -94,6 +97,7 @@ def test_gpu_array_map_fallback():
     """``@gpu`` falls back to CPU when CUDA is unavailable."""
     source = r"""
 open Array
+open ArrayKernels
 
 @gpu
 def inc(x:Int) : Int := x + 1;
@@ -124,6 +128,7 @@ def test_dataframe_etl_and_column_bridge(tmp_path: Path):
     source = rf"""
 open DataFrame
 open Array
+open ArrayKernels
 
 def main (i:Int) : Float :=
     let 1 df0 := read_csv "{csv_path}" 3 3 in

@@ -1,6 +1,7 @@
 # Feature engineering: extract a numeric column, scale with Array+LLVM, write back.
 open DataFrame
 open Array
+open ArrayKernels
 
 @llvm
 def times_two (x: Float) : Float := x * 2.0;
