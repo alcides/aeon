@@ -37,6 +37,7 @@ def _aeon_sum_source(n: int, llvm: bool) -> str:
     if llvm:
         return f"""
 open Array
+open ArrayKernels
 @llvm
 def add(acc:Int) (curr:Int) : Int := acc + curr;
 @llvm
@@ -47,6 +48,7 @@ def main (i:Int) : Int :=
 """
     return f"""
 open Array
+open ArrayKernels
 def main (i:Int) : Int :=
     let 1 xs := native "list(range({n}))" in
     sum xs;

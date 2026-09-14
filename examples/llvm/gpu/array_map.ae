@@ -1,5 +1,6 @@
 # GPU Array map (falls back to CPU without CUDA).
 open Array
+open ArrayKernels
 
 @gpu
 def mul10 (x: Int) : Int := x * 10;

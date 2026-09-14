@@ -69,13 +69,14 @@ projected arrays with `let 1`.
 
 ## LLVM / GPU kernels
 
-Sized helpers (`map_n_int`, `reduce_n_int`, `count_n_int`, `zipWith_n_int`,
+Sized helpers (``ArrayKernels.ae``) (`map_n_int`, `reduce_n_int`, `count_n_int`, `zipWith_n_int`,
 `map_n_float`, …) take an explicit length so the CPU/CUDA lowerers can emit
 vector IR. Prefer unsized `map` / `filter` / `reduce` in ordinary Aeon code;
 use `*_n*` only inside `@llvm` / `@gpu` functions.
 
 ```aeon
 open Array
+open ArrayKernels
 
 @llvm
 def add(acc:Int) (x:Int) : Int := acc + x;

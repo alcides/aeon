@@ -1,5 +1,6 @@
 # CPU LLVM Array map kernel.
 open Array
+open ArrayKernels
 
 @llvm
 def mul10 (x: Int) : Int := x * 10;

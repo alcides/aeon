@@ -8,6 +8,7 @@ setup_logger()
 def test_gpu_array_map_fallback():
     aeon_code = """
         open Array
+        open ArrayKernels
 
         @gpu(target:="cuda", debug:=false, cache:=false, block_size:=32, thread_count:=1024)
         def mul2 (x:Int) : Int := x * 2;

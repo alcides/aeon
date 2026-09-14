@@ -1,4 +1,5 @@
 open Array
+open ArrayKernels
 
 # Updated GPU Array map example (replaces deleted Vector API).
 @gpu(target:="cuda", block_size:=256)

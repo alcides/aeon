@@ -66,6 +66,7 @@ def test_e2e_llvm_fibonacci():
 def test_e2e_llvm_array_sum():
     source = r"""
     open Array
+    open ArrayKernels
 
     @llvm
     def add(acc:Int) (curr:Int) : Int := acc + curr;
@@ -88,6 +89,7 @@ def test_e2e_llvm_array_sum():
 def test_e2e_llvm_array_map():
     source = r"""
     open Array
+    open ArrayKernels
 
     @llvm
     def inc(x:Int) : Int := x + 1;
@@ -113,6 +115,7 @@ def test_e2e_llvm_array_map():
 def test_e2e_llvm_array_count():
     source = r"""
     open Array
+    open ArrayKernels
 
     @llvm
     def gt10(x:Int) : Bool := x > 10;
@@ -140,6 +143,7 @@ def test_e2e_llvm_array_count():
 def test_e2e_llvm_array_filter():
     source = r"""
     open Array
+    open ArrayKernels
 
     @llvm
     def even(x:Int) : Bool := x % 2 = 0;
@@ -164,6 +168,7 @@ def test_e2e_llvm_array_filter():
 def test_e2e_llvm_array_zip_with():
     source = r"""
     open Array
+    open ArrayKernels
 
     @llvm
     def add2(x:Int) (y:Int) : Int := x + y;
