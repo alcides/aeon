@@ -1,0 +1,7 @@
+# Group-by aggregate via pandas.
+open DataFrame
+
+def main (args: Int) : Unit :=
+    let 1 df0 := read_csv "examples/dataframe/data/people.csv" 4 4 in
+    let 1 df1 := groupby_agg df0 "dept" "score" "mean" in
+    to_csv df1 "examples/dataframe/data/dept_means.csv";

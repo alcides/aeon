@@ -149,6 +149,23 @@ VECTOR_OPERATIONS: frozenset[str] = frozenset(
     ]
 )
 
+# Sized Array helpers (``map_n``, …) lower to the same IR as the bare ops.
+VECTOR_OP_ALIASES: dict[str, str] = {
+    "map_n": "map",
+    "reduce_n": "reduce",
+    "imap_n": "imap",
+    "filter_n": "filter",
+    "zipWith_n": "zipWith",
+    "count_n": "count",
+    "map_n_int": "map",
+    "map_n_float": "map",
+    "reduce_n_int": "reduce",
+    "reduce_n_float": "reduce",
+    "filter_n_int": "filter",
+    "count_n_int": "count",
+    "zipWith_n_int": "zipWith",
+}
+
 
 @dataclass
 class LLVMTerm:

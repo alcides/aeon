@@ -1,0 +1,168 @@
+# General tabular API: pandas orchestration + Array column bridge.
+#
+# ``DataFrame`` is a linear, opaque handle over a pandas ``DataFrame``. Relational
+# work (I/O, select, join, groupby, null handling) stays in pandas. Dense numeric
+# columns cross into ``Array`` via ``with_col`` / ``set_col`` / ``map_col`` so
+# ``@llvm`` / ``@gpu`` kernels can run on contiguous buffers without compiling
+# pandas itself.
+#
+# Machine-learning pipelines (``MLCore``, ``Learning*``) sit on top of this module.
+
+open Array
+
+linear type DataFrame
+
+# Unrestricted pair from ``copy`` — project with ``fst_df`` / ``snd_df``.
+type DataFramePair
+
+# Result of ``with_col``: frame + extracted numeric column.
+type DataFrameCol
+
+# Logical shape measures (SMT only; runtime witnesses below).
+def df_nrows : (df: DataFrame) -> Int := uninterpreted
+def df_ncols : (df: DataFrame) -> Int := uninterpreted
+def pair_nrows : (pr: DataFramePair) -> Int := uninterpreted
+def pair_ncols : (pr: DataFramePair) -> Int := uninterpreted
+def wc_nrows : (w: DataFrameCol) -> Int := uninterpreted
+def wc_ncols : (w: DataFrameCol) -> Int := uninterpreted
+
+def _df : Unit := native_import "aeon.bindings.dataframe"
+
+
+# ── Construction / I/O ──────────────────────────────────────────────────
+
+def read_csv
+    (path: String)
+    (expected_rows: {rows: Int | rows >= 0})
+    (expected_cols: {cols: Int | cols >= 1}) :
+    {df: DataFrame | df_nrows df = expected_rows && df_ncols df = expected_cols} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.read_csv(path)"
+
+
+def to_csv (1 df: DataFrame) (path: String) : Unit :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.to_csv(df)(path)"
+
+
+# ── Copy / column packaging (linearity) ─────────────────────────────────
+
+def copy (1 df: DataFrame) :
+    {pr: DataFramePair | pair_nrows pr = df_nrows df && pair_ncols pr = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.copy_df(df)"
+
+
+def fst_df (pr: DataFramePair) :
+    {df: DataFrame | df_nrows df = pair_nrows pr && df_ncols df = pair_ncols pr} :=
+    native "pr[0]"
+
+
+def snd_df (pr: DataFramePair) :
+    {df: DataFrame | df_nrows df = pair_nrows pr && df_ncols df = pair_ncols pr} :=
+    native "pr[1]"
+
+
+def with_col (1 df: DataFrame) (name: String) :
+    {w: DataFrameCol | wc_nrows w = df_nrows df && wc_ncols w = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.with_col(df)(name)"
+
+
+def wc_frame (w: DataFrameCol) :
+    {df: DataFrame | df_nrows df = wc_nrows w && df_ncols df = wc_ncols w} :=
+    native "w[0]"
+
+
+def wc_array (w: DataFrameCol) :
+    {col: (Array Float) | size col = wc_nrows w} :=
+    native "w[1]"
+
+
+# ── Shape witnesses ─────────────────────────────────────────────────────
+
+def nrows (1 df: DataFrame) : {n:Int | n = df_nrows df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.nrows(df)"
+
+
+def ncols (1 df: DataFrame) : {n:Int | n = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.ncols(df)"
+
+
+def columns (1 df: DataFrame) : (Array String) :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.columns(df)"
+
+
+def has_col (1 df: DataFrame) (name: String) : Bool :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.has_col(df)(name)"
+
+
+# ── Relational transforms (consume linearly) ────────────────────────────
+
+def head (1 df: DataFrame) (n: {k:Int | k >= 0}) :
+    {r: DataFrame | df_ncols r = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.head(df)(n)"
+
+
+def select (1 df: DataFrame) (1 cols: (Array String)) : DataFrame :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.select(df)(cols)"
+
+
+def drop (1 df: DataFrame) (1 cols: (Array String)) : DataFrame :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.drop(df)(cols)"
+
+
+def rename (1 df: DataFrame) (old: String) (new: String) :
+    {r: DataFrame | df_nrows r = df_nrows df && df_ncols r = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.rename(df)(old)(new)"
+
+
+def filter_rows (1 df: DataFrame) (column: String) (pred: (x: Float) -> Bool) :
+    {r: DataFrame | df_ncols r = df_ncols df && df_nrows r <= df_nrows df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.filter_rows(df)(column)(pred)"
+
+
+def dropna (1 df: DataFrame) : {r: DataFrame | df_ncols r = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.dropna(df)"
+
+
+def fillna (1 df: DataFrame) (value: Float) :
+    {r: DataFrame | df_nrows r = df_nrows df && df_ncols r = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.fillna(df)(value)"
+
+
+def sort_values (1 df: DataFrame) (column: String) (ascending: Bool) :
+    {r: DataFrame | df_nrows r = df_nrows df && df_ncols r = df_ncols df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.sort_values(df)(column)(ascending)"
+
+
+def concat (1 left: DataFrame) (1 right: {r: DataFrame | df_ncols r = df_ncols left}) :
+    {out: DataFrame | df_ncols out = df_ncols left} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.concat(left)(right)"
+
+
+def join (1 left: DataFrame) (1 right: DataFrame) (on: String) (how: String) : DataFrame :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.join(left)(right)(on)(how)"
+
+
+def groupby_agg (1 df: DataFrame) (by: String) (column: String) (how: String) : DataFrame :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.groupby_agg(df)(by)(column)(how)"
+
+
+def assign_const (1 df: DataFrame) (name: String) (value: Float) :
+    {r: DataFrame | df_nrows r = df_nrows df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.assign_const(df)(name)(value)"
+
+
+# ── Array bridge (LLVM / GPU column kernels) ────────────────────────────
+
+def col_as_array (1 df: DataFrame) (name: String) :
+    {col: (Array Float) | size col = df_nrows df} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.col_as_array(df)(name)"
+
+
+def set_col (1 df: DataFrame) (name: String) (1 col: (Array Float)) :
+    {r: DataFrame | df_nrows r = size col} :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.set_col(df)(name)(col)"
+
+
+# Extract → transform → write back in one step (``f`` may be an ``@llvm`` kernel).
+def map_col (1 df: DataFrame) (name: String)
+    (f: (1 col: (Array Float)) -> (Array Float)) : DataFrame :=
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.map_col(df)(name)(f)"

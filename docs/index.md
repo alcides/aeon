@@ -551,7 +551,8 @@ The generated files are gitignored; they are produced from source by the
 
 | Module | Focus | Guide |
 |--------|-------|-------|
-| `Array` | Linear host buffers, `size` refinements | [array.md](array) |
+| `Array` | Linear host buffers, `size` refinements, `@llvm`/`@gpu` sized kernels | [array.md](array) |
+| `DataFrame` | Linear pandas frames + Array column bridge | [dataframe.md](dataframe) |
 | `Cuda` | Linear GPU buffers; kind/access/shape/shared/warp/status proofs | [cuda.md](cuda) |
 | `Database` | Linear sqlite3 connections/transactions | [database.md](database) |
 | `ForkJoin` | Linear pool/futures, safe parallel splits | [forkjoin.md](forkjoin) |

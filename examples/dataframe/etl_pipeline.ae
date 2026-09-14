@@ -1,0 +1,12 @@
+# ETL-style DataFrame pipeline (pandas orchestration).
+open DataFrame
+open Array
+
+def main (args: Int) : Unit :=
+    let 1 df0 := read_csv "examples/dataframe/data/people.csv" 4 4 in
+    let 1 df1 := dropna df0 in
+    let 1 cols := #["name", "age", "score"] in
+    let 1 df2 := select df1 cols in
+    let 1 df3 := sort_values df2 "age" true in
+    let 1 df4 := assign_const df3 "batch" 1.0 in
+    to_csv df4 "examples/dataframe/data/people_out.csv";
