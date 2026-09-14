@@ -1,4 +1,3 @@
-import pytest
 from aeon.facade.driver import AeonDriver, AeonConfig
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.logger.logger import setup_logger

@@ -1,7 +1,7 @@
 """Benchmark Array kernels: interpreter vs ``@llvm`` vs numpy.
 
-  uv run python scripts/bench_array_kernels.py
-  uv run python scripts/bench_array_kernels.py --sizes 100000 1000000
+uv run python scripts/bench_array_kernels.py
+uv run python scripts/bench_array_kernels.py --sizes 100000 1000000
 """
 
 from __future__ import annotations
