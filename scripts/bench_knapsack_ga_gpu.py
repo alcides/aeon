@@ -16,7 +16,7 @@ import argparse
 import json
 import time
 
-from aeon.bindings.knapsack_ga import make_random_instance, run_cpu, run_gpu, run_random_cpu, run_random_gpu
+from aeon.bindings.knapsack_ga import make_random_instance, run_cpu, run_gpu
 
 
 def main() -> None:
