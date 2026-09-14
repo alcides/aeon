@@ -1,6 +1,6 @@
 """Benchmark DataFrame column pipelines: pandas vs Aeon+Array vs Aeon+LLVM.
 
-  uv run python scripts/bench_dataframe_pipeline.py
+uv run python scripts/bench_dataframe_pipeline.py
 """
 
 from __future__ import annotations
