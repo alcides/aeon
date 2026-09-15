@@ -553,7 +553,6 @@ The generated files are gitignored; they are produced from source by the
 |--------|-------|-------|
 | `Array` | Linear host buffers, `size` refinements, `@llvm`/`@gpu` sized kernels | [array.md](array) |
 | `DataFrame` | Linear pandas frames + Array column bridge | [dataframe.md](dataframe) |
-| `KnapsackGA` | Single-kernel GPU/CPU 0-1 knapsack genetic algorithm | [knapsack_ga.md](knapsack_ga) |
 | `Cuda` | Linear GPU buffers; kind/access/shape/shared/warp/status proofs | [cuda.md](cuda) |
 | `Database` | Linear sqlite3 connections/transactions | [database.md](database) |
 | `ForkJoin` | Linear pool/futures, safe parallel splits | [forkjoin.md](forkjoin) |
@@ -566,10 +565,14 @@ The generated files are gitignored; they are produced from source by the
 Core and data:
 
 - **Array** — linear contiguous sequences (`#[]` literals)
+- **Buffer** — mutable Int buffers for `@llvm` / `@gpu` kernels
 - **List** — persistent linked lists (`[]` literals)
 - **Map**, **Set**, **Pair**, **Tuple**, **Maybe**
-- **String**, **Math**, **Num**, **Random**
+- **String**, **Math**, **Num**, **Random**, **RandomKernels** (LCG for `@llvm`)
 - **Matrix**, **Tensor**, **Image**, **Color**
+- **ArrayKernels** — sized `map_n_*` helpers for LLVM
+- **LoopKernels** — `fold_n_int` indexed loops for LLVM
+
 
 Systems and I/O:
 

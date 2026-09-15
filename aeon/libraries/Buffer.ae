@@ -1,0 +1,20 @@
+# Flat mutable Int buffers for ``@llvm`` / ``@gpu`` kernels.
+#
+# Names are prefixed (``buf_*``) so they do not clash with linear ``Array``
+# ``get``/``set`` when both libraries are open. The LLVM lowerer treats these
+# names as aliases of the buffer builtins.
+
+type Buffer
+
+def buf_get (xs: Buffer) (i: Int) : Int :=
+    native "xs[i]"
+
+def buf_set (xs: Buffer) (i: Int) (v: Int) : Buffer :=
+    native "(xs.__setitem__(i, v), xs)[1]"
+
+# ``bytes`` is the allocation size in bytes (``n_ints * 4``).
+def buf_alloc (bytes: Int) : Buffer :=
+    native "[0] * (bytes // 4)"
+
+def buf_free (xs: Buffer) : Unit :=
+    native "None"

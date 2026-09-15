@@ -27,6 +27,8 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
     def __init__(self, opt_level: int = 3):
         self._init_llvm()
         self.target_machine = self._create_target_machine()
+        # Cache before any PassBuilder run: accessing target_data afterwards can SEGV in llvmlite.
+        self._data_layout = str(self.target_machine.target_data)
         self._keep_alive: list[Any] = []
         self.opt_level = opt_level
 
@@ -77,12 +79,20 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
                 res.append(item)
         return res
 
+    def _coerce_arg(self, val: Any, ty: LLVMType) -> Any:
+        # Prelude ``/`` on Int uses Python true division; host-side Int args may arrive as float.
+        if isinstance(ty, LLVMIntType) and isinstance(val, float):
+            return int(val)
+        return val
+
     def _convert_to_ctypes(self, val: Any, ty: LLVMType) -> Any:
         if isinstance(ty, LLVMPointerType) and isinstance(val, list):
             flat_val = self._flatten_list(val)
             base_ty = ty.element_type
             element_cty = self._get_ctypes_type(base_ty)
-            processed_flat_val = [self._convert_to_ctypes(item, base_ty) for item in flat_val]
+            processed_flat_val = [
+                self._convert_to_ctypes(self._coerce_arg(item, base_ty), base_ty) for item in flat_val
+            ]
             array_type = element_cty * len(processed_flat_val)
             c_array = array_type(*processed_flat_val)
             self._keep_alive.append(c_array)
@@ -130,8 +140,10 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         )
 
         backing_mod = llvm.parse_assembly(llvm_ir)
-
+        backing_mod.verify()
         optimize_module(backing_mod, self.target_machine, self.opt_level)
+        # MCJIT asserts if the module DataLayout does not exactly match the TM.
+        backing_mod.data_layout = self._data_layout
         with llvm.create_mcjit_compiler(backing_mod, self.target_machine) as engine:
             engine.finalize_object()
             func_ptr = engine.get_function_address(func_name)
@@ -142,7 +154,9 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             ctypes_ret = self._get_ctypes_type(ret_type) if not isinstance(ret_type, LLVMVoidType) else None
 
             cfunc = ctypes.CFUNCTYPE(ctypes_ret, *ctypes_args)(func_ptr)
-            processed_args = [self._convert_to_ctypes(val, ty) for val, ty in zip(args, arg_types)]
+            processed_args = [
+                self._convert_to_ctypes(self._coerce_arg(val, ty), ty) for val, ty in zip(args, arg_types)
+            ]
             result = cfunc(*processed_args)
 
             if isinstance(ret_type, LLVMCharType):

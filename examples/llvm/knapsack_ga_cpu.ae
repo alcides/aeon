@@ -1,10 +1,8 @@
-# 0-1 knapsack genetic algorithm intended for ``@gpu``.
+# 0-1 knapsack genetic algorithm on the CPU via ``@llvm``.
 #
-# Same structure as ``examples/llvm/knapsack_ga_cpu.ae`` (individuals, variation,
-# evolutionary loop). Multi-helper ``@gpu`` device linking is not wired yet, so
-# this file currently lowers through ``@llvm`` / MCJIT like the CPU example.
-# Swap ``@llvm`` → ``@gpu`` on the kernel helpers once the CUDA pipeline can
-# emit device functions (not one kernel per helper).
+# An individual is a bitstring of length ``n_items`` stored in a ``Buffer``
+# starting at ``base``. Layout: auxiliaries (needed first), individuals,
+# variation, evolutionary loop, then host setup / ``main``.
 
 open Buffer
 

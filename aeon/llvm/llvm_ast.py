@@ -146,6 +146,7 @@ VECTOR_OPERATIONS: frozenset[str] = frozenset(
         "filter",
         "zipWith",
         "count",
+        "fold_n",
     ]
 )
 
@@ -164,6 +165,12 @@ VECTOR_OP_ALIASES: dict[str, str] = {
     "filter_n_int": "filter",
     "count_n_int": "count",
     "zipWith_n_int": "zipWith",
+    "fold_n_int": "fold_n",
+    # Buffer.ae prefixed names → same builtins as get/set/malloc/free
+    "buf_get": "get",
+    "buf_set": "set",
+    "buf_alloc": "malloc",
+    "buf_free": "free",
 }
 
 
@@ -387,3 +394,18 @@ class LLVMVectorCount(LLVMVectorOp):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_vector_count(self)
+
+
+@dataclass
+class LLVMFoldN(LLVMTerm):
+    """Indexed fold: ``acc = f(acc, i)`` for ``i`` in ``0 .. n-1``."""
+
+    f: LLVMTerm
+    initial: LLVMTerm
+    size: LLVMTerm
+
+    def __str__(self):
+        return f"fold_n {self.f}, {self.initial}, {self.size}"
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_fold_n(self)
