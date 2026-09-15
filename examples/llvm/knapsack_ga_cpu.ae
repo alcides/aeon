@@ -1,7 +1,8 @@
 # 0-1 knapsack genetic algorithm on the CPU via ``@llvm``.
 #
-# Defaults are modest so a demo finishes quickly. Uses stdlib ``Buffer``;
-# host fill helpers live in ``aeon.bindings.knapsack_host`` (not the GA loop).
+# An individual is a bitstring of length ``n_items`` stored in a ``Buffer``
+# starting at ``base``. Layout: auxiliaries (needed first), individuals,
+# variation, evolutionary loop, then host setup / ``main``.
 
 open Buffer
 
@@ -11,126 +12,181 @@ def GENERATIONS : {g: Int | g >= 0} := 30
 def SEED : Int := 20260913
 
 
+# ---------------------------------------------------------------------------
+# Auxiliary: RNG and tournament selection (defined first for call sites below)
+# ---------------------------------------------------------------------------
+
 @llvm
-def k_mod_nonneg (value: Int) (modulus: {m: Int | m > 0}) : Int :=
+def mod_nonneg (value: Int) (modulus: {m: Int | m > 0}) : Int :=
     let rem : Int := value % modulus in
     if rem < 0 then rem + modulus else rem
 
 @llvm
-def k_lcg_next (state: Int) : Int :=
-    k_mod_nonneg ((state * 1664525) + 1013904223) 2147483647
+def lcg_next (state: Int) : Int :=
+    mod_nonneg ((state * 1664525) + 1013904223) 2147483647
 
 @llvm
 def rnd (rng: Buffer) : Int :=
     let x : Int := buf_get rng 0 in
-    let y : Int := k_lcg_next x in
+    let y : Int := lcg_next x in
     let _ : Buffer := buf_set rng 0 y in
     y
 
 @llvm
-def eval_item
-    (weights: Buffer) (values: Buffer) (population: Buffer)
-    (base: Int) (n_items: Int) (j: Int) (wsum: Int) (vsum: Int) : Int :=
-    if j >= n_items then
-        wsum * 1000000 + vsum
-    else
-        let bit : Int := buf_get population (base + j) in
-        if bit = 0 then
-            eval_item weights values population base n_items (j + 1) wsum vsum
-        else
-            eval_item weights values population base n_items (j + 1)
-                (wsum + (buf_get weights j)) (vsum + (buf_get values j))
-
-@llvm
-def eval_one
-    (weights: Buffer) (values: Buffer) (population: Buffer)
-    (indiv: Int) (n_items: Int) (capacity: Int) : Int :=
-    let packed : Int := eval_item weights values population (indiv * n_items) n_items 0 0 0 in
-    let w : Int := packed / 1000000 in
-    let v : Int := packed % 1000000 in
-    if w <= capacity then v else 0
-
-@llvm
 def tournament (fitness: Buffer) (pop_size: {p: Int | p > 0}) (rng: Buffer) : Int :=
-    let a : Int := k_mod_nonneg (rnd rng) pop_size in
-    let b : Int := k_mod_nonneg (rnd rng) pop_size in
+    let a : Int := mod_nonneg (rnd rng) pop_size in
+    let b : Int := mod_nonneg (rnd rng) pop_size in
     let fa : Int := buf_get fitness a in
     let fb : Int := buf_get fitness b in
     if fa >= fb then a else b
 
+
+# ---------------------------------------------------------------------------
+# Individuals: create a bitstring and evaluate its knapsack fitness
+# ---------------------------------------------------------------------------
+
+# Write a random individual into ``dest`` starting at ``base`` (gene density ~15%).
 @llvm
-def xover_item
-    (population: Buffer) (next_pop: Buffer)
-    (base_c: Int) (base_1: Int) (base_2: Int) (cut: Int) (rng: Buffer)
-    (n_items: Int) (j: Int) : Int :=
+def create_individual
+    (dest: Buffer) (base: Int) (n_items: Int) (rng: Buffer) (j: Int) : Int :=
     if j >= n_items then 0
     else
-        let src_base : Int := if j < cut then base_1 else base_2 in
-        let bit : Int := buf_get population (src_base + j) in
-        let m : Int := k_mod_nonneg (rnd rng) 100 in
+        let r : Int := mod_nonneg (rnd rng) 100 in
+        let bit : Int := if r < 15 then 1 else 0 in
+        let _ : Buffer := buf_set dest (base + j) bit in
+        create_individual dest base n_items rng (j + 1)
+
+# Accumulate weight/value for genes ``base .. base+n_items``; pack as w*1e6+v.
+@llvm
+def accumulate_genes
+    (weights: Buffer) (values: Buffer) (genes: Buffer)
+    (base: Int) (n_items: Int) (j: Int) (wsum: Int) (vsum: Int) : Int :=
+    if j >= n_items then
+        wsum * 1000000 + vsum
+    else
+        let bit : Int := buf_get genes (base + j) in
+        if bit = 0 then
+            accumulate_genes weights values genes base n_items (j + 1) wsum vsum
+        else
+            accumulate_genes weights values genes base n_items (j + 1)
+                (wsum + (buf_get weights j)) (vsum + (buf_get values j))
+
+# Fitness of one individual: total value if weight <= capacity, else 0.
+@llvm
+def evaluate_individual
+    (weights: Buffer) (values: Buffer) (genes: Buffer)
+    (base: Int) (n_items: Int) (capacity: Int) : Int :=
+    let packed : Int := accumulate_genes weights values genes base n_items 0 0 0 in
+    let w : Int := packed / 1000000 in
+    let v : Int := packed % 1000000 in
+    if w <= capacity then v else 0
+
+
+# ---------------------------------------------------------------------------
+# Variation: crossover of two parents plus per-gene mutation → one child
+# ---------------------------------------------------------------------------
+
+# One-point crossover from parents at ``base_a`` / ``base_b`` into ``base_c``,
+# then flip each gene with probability 1/100.
+@llvm
+def crossover_mutate
+    (parents: Buffer) (base_a: Int) (base_b: Int)
+    (child: Buffer) (base_c: Int)
+    (cut: Int) (rng: Buffer) (n_items: Int) (j: Int) : Int :=
+    if j >= n_items then 0
+    else
+        let src_base : Int := if j < cut then base_a else base_b in
+        let bit : Int := buf_get parents (src_base + j) in
+        let m : Int := mod_nonneg (rnd rng) 100 in
         let out : Int := if m = 0 then 1 - bit else bit in
-        let _ : Buffer := buf_set next_pop (base_c + j) out in
-        xover_item population next_pop base_c base_1 base_2 cut rng n_items (j + 1)
+        let _ : Buffer := buf_set child (base_c + j) out in
+        crossover_mutate parents base_a base_b child base_c cut rng n_items (j + 1)
+
+# Breed two parent indices into child slot ``child_idx`` of ``next_pop``.
+@llvm
+def breed_child
+    (population: Buffer) (next_pop: Buffer) (fitness: Buffer) (rng: Buffer)
+    (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0}) (child_idx: Int) : Int :=
+    let p1 : Int := tournament fitness pop_size rng in
+    let p2 : Int := tournament fitness pop_size rng in
+    let cut : Int := mod_nonneg (rnd rng) n_items in
+    crossover_mutate population (p1 * n_items) (p2 * n_items)
+        next_pop (child_idx * n_items) cut rng n_items 0
+
+
+# ---------------------------------------------------------------------------
+# Evolutionary loop
+# ---------------------------------------------------------------------------
 
 @llvm
-def eval_pop
+def init_population
+    (population: Buffer) (rng: Buffer)
+    (n_items: Int) (pop_size: Int) (i: Int) : Int :=
+    if i >= pop_size then 0
+    else
+        let _c : Int := create_individual population (i * n_items) n_items rng 0 in
+        init_population population rng n_items pop_size (i + 1)
+
+@llvm
+def evaluate_population
     (weights: Buffer) (values: Buffer) (population: Buffer)
     (fitness: Buffer) (best: Buffer)
     (n_items: Int) (capacity: Int) (pop_size: Int) (i: Int) : Int :=
     if i >= pop_size then 0
     else
-        let fit : Int := eval_one weights values population i n_items capacity in
+        let fit : Int := evaluate_individual weights values population (i * n_items) n_items capacity in
         let _f : Buffer := buf_set fitness i fit in
         let b : Int := buf_get best 0 in
         if fit > b then
             let _b : Buffer := buf_set best 0 fit in
-            eval_pop weights values population fitness best n_items capacity pop_size (i + 1)
+            evaluate_population weights values population fitness best n_items capacity pop_size (i + 1)
         else
-            eval_pop weights values population fitness best n_items capacity pop_size (i + 1)
+            evaluate_population weights values population fitness best n_items capacity pop_size (i + 1)
 
 @llvm
-def breed_pop
+def breed_population
     (population: Buffer) (next_pop: Buffer) (fitness: Buffer) (rng: Buffer)
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0}) (i: Int) : Int :=
     if i >= pop_size then 0
     else
-        let p1 : Int := tournament fitness pop_size rng in
-        let p2 : Int := tournament fitness pop_size rng in
-        let cut : Int := k_mod_nonneg (rnd rng) n_items in
-        let _x : Int := xover_item population next_pop (i * n_items) (p1 * n_items) (p2 * n_items) cut rng n_items 0 in
-        breed_pop population next_pop fitness rng n_items pop_size (i + 1)
+        let _x : Int := breed_child population next_pop fitness rng n_items pop_size i in
+        breed_population population next_pop fitness rng n_items pop_size (i + 1)
 
 @llvm
-def copy_bits (population: Buffer) (next_pop: Buffer) (n_bits: Int) (i: Int) : Int :=
+def replace_population
+    (population: Buffer) (next_pop: Buffer) (n_bits: Int) (i: Int) : Int :=
     if i >= n_bits then 0
     else
         let _ : Buffer := buf_set population i (buf_get next_pop i) in
-        copy_bits population next_pop n_bits (i + 1)
+        replace_population population next_pop n_bits (i + 1)
 
 @llvm
-def gen_loop
+def evolve_loop
     (weights: Buffer) (values: Buffer) (population: Buffer) (next_pop: Buffer)
     (fitness: Buffer) (rng: Buffer) (best: Buffer)
     (n_items: {n: Int | n > 0}) (capacity: Int) (pop_size: {p: Int | p > 0})
     (generations: Int) (g: Int) : Int :=
     if g >= generations then buf_get best 0
     else
-        let _e : Int := eval_pop weights values population fitness best n_items capacity pop_size 0 in
-        let _b : Int := breed_pop population next_pop fitness rng n_items pop_size 0 in
-        let _c : Int := copy_bits population next_pop (pop_size * n_items) 0 in
-        gen_loop weights values population next_pop fitness rng best n_items capacity pop_size generations (g + 1)
+        let _e : Int := evaluate_population weights values population fitness best n_items capacity pop_size 0 in
+        let _b : Int := breed_population population next_pop fitness rng n_items pop_size 0 in
+        let _c : Int := replace_population population next_pop (pop_size * n_items) 0 in
+        evolve_loop weights values population next_pop fitness rng best n_items capacity pop_size generations (g + 1)
 
+# Initialize the population, then evolve for ``generations`` steps; return best fitness.
 @llvm
-def knapsack_ga
+def evolve
     (weights: Buffer) (values: Buffer) (population: Buffer) (next_pop: Buffer)
     (fitness: Buffer) (rng: Buffer) (best: Buffer)
     (n_items: {n: Int | n > 0}) (capacity: Int) (pop_size: {p: Int | p > 0})
     (generations: {g: Int | g >= 0}) : Int :=
-    gen_loop weights values population next_pop fitness rng best n_items capacity pop_size generations 0
+    let _i : Int := init_population population rng n_items pop_size 0 in
+    evolve_loop weights values population next_pop fitness rng best n_items capacity pop_size generations 0
 
 
-def fill_pop (buf: Buffer) (n: Int) (seed: Int) : Buffer :=
-    native "__import__('aeon.bindings.knapsack_host').bindings.knapsack_host.fill_pop(buf, n, seed)"
+# ---------------------------------------------------------------------------
+# Host setup (problem instance + buffers) and entry point
+# ---------------------------------------------------------------------------
 
 def fill_weights (buf: Buffer) (n: Int) (seed: Int) : Buffer :=
     native "__import__('aeon.bindings.knapsack_host').bindings.knapsack_host.fill_weights(buf, n, seed)"
@@ -154,13 +210,12 @@ def main (args: Int) : Unit :=
     let third : Int := floordiv total 3 in
     let capacity : Int := if third < 1 then 1 else third in
     let n_bits : Int := POP_SIZE * N_ITEMS in
-    let pop0 : Buffer := buf_alloc (n_bits * 4) in
-    let next0 : Buffer := buf_alloc (n_bits * 4) in
-    let fit0 : Buffer := buf_alloc (POP_SIZE * 4) in
+    let population : Buffer := buf_alloc (n_bits * 4) in
+    let next_pop : Buffer := buf_alloc (n_bits * 4) in
+    let fitness : Buffer := buf_alloc (POP_SIZE * 4) in
     let rng0 : Buffer := buf_alloc 4 in
     let best0 : Buffer := buf_alloc 4 in
-    let population : Buffer := fill_pop pop0 n_bits (SEED + 2) in
     let rng : Buffer := buf_set rng0 0 (SEED + 2) in
     let best : Buffer := buf_set best0 0 0 in
-    let result : Int := knapsack_ga weights values population next0 fit0 rng best N_ITEMS capacity POP_SIZE GENERATIONS in
+    let result : Int := evolve weights values population next_pop fitness rng best N_ITEMS capacity POP_SIZE GENERATIONS in
     print result;

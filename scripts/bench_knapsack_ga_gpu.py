@@ -1,7 +1,7 @@
 """Time the knapsack GA examples.
 
-  uv run python scripts/bench_knapsack_ga_gpu.py --cpu
-  uv run python scripts/bench_knapsack_ga_gpu.py --gpu
+uv run python scripts/bench_knapsack_ga_gpu.py --cpu
+uv run python scripts/bench_knapsack_ga_gpu.py --gpu
 """
 
 from __future__ import annotations

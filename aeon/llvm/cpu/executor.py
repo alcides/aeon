@@ -90,7 +90,9 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             flat_val = self._flatten_list(val)
             base_ty = ty.element_type
             element_cty = self._get_ctypes_type(base_ty)
-            processed_flat_val = [self._convert_to_ctypes(self._coerce_arg(item, base_ty), base_ty) for item in flat_val]
+            processed_flat_val = [
+                self._convert_to_ctypes(self._coerce_arg(item, base_ty), base_ty) for item in flat_val
+            ]
             array_type = element_cty * len(processed_flat_val)
             c_array = array_type(*processed_flat_val)
             self._keep_alive.append(c_array)
