@@ -51,6 +51,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorFilter,
     LLVMVectorZipWith,
     LLVMVectorCount,
+    LLVMFoldN,
     VECTOR_OPERATIONS,
     VECTOR_OP_ALIASES,
     LLVMCast,
@@ -111,6 +112,12 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "filter_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
     "count_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
     "zipWith_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
+    "fold_n": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, LLVMInt], LLVMInt),
+    "fold_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, LLVMInt], LLVMInt),
+    "buf_get": LLVMFunctionType([_generic_ptr, LLVMInt], LLVMInt),
+    "buf_set": LLVMFunctionType([_generic_ptr, LLVMInt, LLVMInt], _generic_ptr),
+    "buf_alloc": LLVMFunctionType([LLVMLong], _generic_ptr),
+    "buf_free": LLVMFunctionType([_generic_ptr], LLVMVoid),
 }
 
 _FLOAT_UNARY_MATH = {
@@ -173,6 +180,8 @@ POLYMORPHIC_FUNCTIONS: set[str] = {
     "fma",
     "get",
     "set",
+    "buf_get",
+    "buf_set",
     "new",
     "map",
     "reduce",
@@ -509,6 +518,19 @@ class CPULLVMLowerer(LLVMLowerer):
             )
             return LLVMVectorReduce(low_init.type, kernel, low_init, vec_cast, low_size)
 
+        if op == "fold_n":
+            kernel_term, init_term, size_term = args
+            low_init, low_size = low_term(init_term), low_term(size_term, LLVMInt)
+            kernel = self._lower_as_standalone(
+                kernel_term,
+                LLVMFunctionType([low_init.type, LLVMInt], low_init.type),
+                type_env,
+                env,
+                allowed,
+                True,
+            )
+            return LLVMFoldN(low_init.type, kernel, low_init, low_size)
+
         if op == "zipWith":
             kernel_term, v1_term, v2_term, size_term = args
             v1_low, v2_low, sz_low = low_term(v1_term), low_term(v2_term), low_term(size_term, LLVMInt)
@@ -692,16 +714,16 @@ class CPULLVMLowerer(LLVMLowerer):
                 all_args = [self._cast_if_needed(a, p) for a, p in zip(all_args, params)]
                 return LLVMCall(ret, target, all_args)
 
-            if name == "get" and len(all_args) == 2:
+            if name in {"get", "buf_get"} and len(all_args) == 2:
                 return self._lower_vector_get(all_args[0], all_args[1])
 
-            if name == "set" and len(all_args) == 3:
+            if name in {"set", "buf_set"} and len(all_args) == 3:
                 return self._lower_vector_set(all_args[0], all_args[1], all_args[2])
 
-        if name in {"malloc", "free", "printf"}:
+        if name in {"malloc", "free", "printf", "buf_alloc", "buf_free"}:
             all_args = [self._cast_if_needed(a, p) for a, p in zip(all_args, params)]
         result = self._create_call_or_partial(target, all_args, params, ret)
-        if name == "malloc" and isinstance(expected, LLVMPointerType):
+        if name in {"malloc", "buf_alloc"} and isinstance(expected, LLVMPointerType):
             return self._cast_if_needed(result, expected)
         return result
 
@@ -728,6 +750,8 @@ class CPULLVMLowerer(LLVMLowerer):
         canonical = VECTOR_OP_ALIASES.get(op, op)
         if canonical not in VECTOR_OPERATIONS:
             return False
+        if canonical == "fold_n":
+            return total_args >= 3
         threshold = 4 if canonical in ("reduce", "zipWith") else 3
         return total_args >= threshold
 

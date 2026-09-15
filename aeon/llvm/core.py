@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         LLVMVectorFilter,
         LLVMVectorZipWith,
         LLVMVectorCount,
+        LLVMFoldN,
     )
 else:
     LLVMTerm = Any
@@ -48,6 +49,7 @@ else:
     LLVMVectorFilter = Any
     LLVMVectorZipWith = Any
     LLVMVectorCount = Any
+    LLVMFoldN = Any
 
 
 class LLVMBackendError(Exception):
@@ -208,4 +210,8 @@ class LLVMVisitor(ABC):
 
     @abstractmethod
     def visit_vector_count(self, node: LLVMVectorCount) -> Any:
+        pass
+
+    @abstractmethod
+    def visit_fold_n(self, node: LLVMFoldN) -> Any:
         pass

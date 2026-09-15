@@ -1,0 +1,6 @@
+# Indexed loops for ``@llvm`` / ``@gpu`` (no ``Array`` dependency).
+#
+# ``fold_n_int`` lowers to a real LLVM loop over ``0 .. n-1``.
+
+def fold_n_int (f: (acc: Int) -> (i: Int) -> Int) (z: Int) (n: Int) : Int :=
+    native "(__import__('functools').reduce(lambda a, i: f(a)(i), range(n), z))"

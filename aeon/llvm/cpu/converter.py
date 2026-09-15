@@ -33,6 +33,7 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorFilter,
     LLVMVectorZipWith,
     LLVMVectorCount,
+    LLVMFoldN,
     VECTOR_OPERATIONS,
     LLVMCast,
     LLVMRefinedValue,
@@ -662,3 +663,23 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
 
         self.to_ir_loop(size_val, "count", body)
         return self.builder.load(count_ptr)
+
+    def visit_fold_n(self, node: LLVMFoldN) -> ir.Value:
+        ty, f, initial, size = node.type, node.f, node.initial, node.size
+        self._is_top_level = False
+        f_val, init_val, size_val = f.accept(self), initial.accept(self), size.accept(self)
+        acc_ty = self.to_ir_type(ty)
+        if isinstance(acc_ty, ir.VoidType):
+            acc_ty = ir.IntType(32)
+
+        acc_ptr = self.builder.alloca(acc_ty, name="fold_n_acc")
+        if init_val and not isinstance(init_val.type, ir.VoidType):
+            self.builder.store(init_val, acc_ptr)
+
+        def body(idx):
+            new_acc = self.builder.call(f_val, [self.builder.load(acc_ptr), idx])
+            if not isinstance(new_acc.type, ir.VoidType):
+                self.builder.store(new_acc, acc_ptr)
+
+        self.to_ir_loop(size_val, "fold_n", body)
+        return self.builder.load(acc_ptr)

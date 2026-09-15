@@ -1,10 +1,7 @@
-# 0-1 knapsack genetic algorithm intended for ``@gpu``.
+# 0-1 knapsack genetic algorithm on the CPU via ``@llvm``.
 #
-# Same Aeon algorithm as ``examples/llvm/knapsack_ga_cpu.ae``. Multi-helper
-# ``@gpu`` device linking is not wired yet, so this file currently lowers
-# through ``@llvm`` / MCJIT like the CPU example. Swap ``@llvm`` → ``@gpu`` on
-# the kernel helpers once the CUDA pipeline can emit device functions (not
-# one kernel per helper).
+# Defaults are modest so a demo finishes quickly. Uses stdlib ``Buffer``;
+# host fill helpers live in ``aeon.bindings.knapsack_host`` (not the GA loop).
 
 open Buffer
 
@@ -144,6 +141,7 @@ def fill_values (buf: Buffer) (n: Int) (seed: Int) : Buffer :=
 def sum_buf (buf: Buffer) (n: Int) : Int :=
     native "__import__('aeon.bindings.knapsack_host').bindings.knapsack_host.sum_buf(buf, n)"
 
+# Prelude ``/`` is Python true division; use floor division for host-side Int math.
 def floordiv (a: Int) (b: {x: Int | x != 0}) : Int :=
     native "a // b"
 
