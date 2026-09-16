@@ -1,0 +1,282 @@
+# Functional 0-1 knapsack genetic algorithm in pure Aeon.
+#
+# ``Individual`` and ``Population`` are inductive. Every step builds a new
+# value (no Buffer mutation). Generations use ``map_population`` /
+# ``map_population_state`` to turn the old population into the next.
+# Only stdlib may use ``native`` (``Math.floor_division``); the GA is Aeon-only.
+
+open List
+open Pair
+open Math
+
+# An individual is a cons-list of genes (0/1), ending in ``empty_ind``.
+inductive Individual
+| empty_ind : Individual
+| gene (bit: Int) (rest: Individual) : Individual
+
+# A population is a cons-list of individuals.
+inductive Population
+| empty_pop : Population
+| member (ind: Individual) (rest: Population) : Population
+
+def N_ITEMS : {n: Int | n > 0} := 12
+def POP_SIZE : {p: Int | p > 0} := 10
+def GENERATIONS : {g: Int | g >= 0} := 20
+def SEED : Int := 20260913
+
+
+# ---------------------------------------------------------------------------
+# Auxiliary: pure LCG RNG and helpers (threaded state, no mutation)
+# ---------------------------------------------------------------------------
+
+def mod_nonneg (value: Int) (modulus: {m: Int | m > 0}) : Int :=
+    let rem : Int := value % modulus in
+    if rem < 0 then rem + modulus else rem
+
+def lcg_next (state: Int) : Int :=
+    mod_nonneg ((state * 1664525) + 1013904223) 2147483647
+
+def ensure_pos (x: Int) : {v: Int | v > 0} :=
+    if x > 0 then x else 1
+
+# Draw ``value`` in ``[0, bound)``; return ``(Pair new_state value)``.
+def rnd (state: Int) (bound: Int) : (Pair Int Int) :=
+    let b : {v: Int | v > 0} := ensure_pos bound in
+    let s2 : Int := lcg_next state in
+    .mk s2 (mod_nonneg s2 b)
+
+def maximum_list (xs: (List Int)) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl =>
+        let m : Int := maximum_list tl in
+        if hd > m then hd else m
+
+def nth_list (xs: (List Int)) (i: Int) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl =>
+        if i <= 0 then hd else nth_list tl (i - 1)
+
+
+# ---------------------------------------------------------------------------
+# Individuals: create and evaluate
+# ---------------------------------------------------------------------------
+
+def length_ind (ind: Individual) : Int :=
+    match ind with
+    | empty_ind => 0
+    | gene b rest => 1 + (length_ind rest)
+
+# Zip weights/values along the gene spine; accumulate weight and value.
+def accumulate
+    (weights: (List Int)) (values: (List Int)) (ind: Individual)
+    (wsum: Int) (vsum: Int) : (Pair Int Int) :=
+    match ind with
+    | empty_ind => .mk wsum vsum
+    | gene g rest =>
+        match weights with
+        | nil => .mk wsum vsum
+        | cons w wt =>
+            match values with
+            | nil => .mk wsum vsum
+            | cons v vt =>
+                if g = 0 then
+                    accumulate wt vt rest wsum vsum
+                else
+                    accumulate wt vt rest (wsum + w) (vsum + v)
+
+# Fitness: total value if weight fits capacity, else 0.
+def evaluate_individual
+    (weights: (List Int)) (values: (List Int)) (capacity: Int)
+    (ind: Individual) : Int :=
+    let packed : (Pair Int Int) := accumulate weights values ind 0 0 in
+    match packed with
+    | mk w v => if w <= capacity then v else 0
+
+# Random individual of length ``n`` (gene density ~15%).
+def create_individual (n: Int) (rng: Int) : (Pair Int Individual) :=
+    if n <= 0 then .mk rng .empty_ind
+    else
+        let draw : (Pair Int Int) := rnd rng 100 in
+        match draw with
+        | mk rng2 r =>
+            let bit : Int := if r < 15 then 1 else 0 in
+            let rest : (Pair Int Individual) := create_individual (n - 1) rng2 in
+            match rest with
+            | mk rng3 tl => .mk rng3 (.gene bit tl)
+
+
+# ---------------------------------------------------------------------------
+# Variation: crossover + mutation of two parents → a new child
+# ---------------------------------------------------------------------------
+
+def crossover_mutate
+    (parent_a: Individual) (parent_b: Individual) (cut: Int) (j: Int) (rng: Int)
+    : (Pair Int Individual) :=
+    match parent_a with
+    | empty_ind => .mk rng .empty_ind
+    | gene ah at =>
+        match parent_b with
+        | empty_ind => .mk rng .empty_ind
+        | gene bh bt =>
+            let src : Int := if j < cut then ah else bh in
+            let draw : (Pair Int Int) := rnd rng 100 in
+            match draw with
+            | mk rng2 m =>
+                let out : Int := if m = 0 then 1 - src else src in
+                let rest : (Pair Int Individual) :=
+                    crossover_mutate at bt cut (j + 1) rng2 in
+                match rest with
+                | mk rng3 tl => .mk rng3 (.gene out tl)
+
+
+# ---------------------------------------------------------------------------
+# Population helpers and evolutionary loop (map old → new)
+# ---------------------------------------------------------------------------
+
+def length_pop (p: Population) : Int :=
+    match p with
+    | empty_pop => 0
+    | member i rest => 1 + (length_pop rest)
+
+def nth_pop (p: Population) (i: Int) : Individual :=
+    match p with
+    | empty_pop => .empty_ind
+    | member hd tl =>
+        if i <= 0 then hd else nth_pop tl (i - 1)
+
+# Pure map: each individual → a new individual (no shared mutation).
+def map_population
+    (f: (x: Individual) -> Individual) (p: Population) : Population :=
+    match p with
+    | empty_pop => .empty_pop
+    | member hd tl => .member (f hd) (map_population f tl)
+
+# Map while threading RNG state; used to breed a whole generation.
+def map_population_state
+    (f: (s: Int) -> (x: Individual) -> (Pair Int Individual))
+    (s: Int)
+    (p: Population) : (Pair Int Population) :=
+    match p with
+    | empty_pop => .mk s .empty_pop
+    | member hd tl =>
+        let step : (Pair Int Individual) := f s hd in
+        match step with
+        | mk s1 child =>
+            let rest : (Pair Int Population) := map_population_state f s1 tl in
+            match rest with
+            | mk s2 kids => .mk s2 (.member child kids)
+
+def fitnesses_of
+    (weights: (List Int)) (values: (List Int)) (capacity: Int) (p: Population)
+    : (List Int) :=
+    match p with
+    | empty_pop => nil
+    | member hd tl =>
+        cons (evaluate_individual weights values capacity hd)
+             (fitnesses_of weights values capacity tl)
+
+def best_fitness
+    (weights: (List Int)) (values: (List Int)) (capacity: Int) (p: Population) : Int :=
+    maximum_list (fitnesses_of weights values capacity p)
+
+def tournament
+    (pop: Population) (fits: (List Int)) (pop_size: {p: Int | p > 0}) (rng: Int)
+    : (Pair Int Individual) :=
+    let d1 : (Pair Int Int) := rnd rng pop_size in
+    match d1 with
+    | mk rng2 i =>
+        let d2 : (Pair Int Int) := rnd rng2 pop_size in
+        match d2 with
+        | mk rng3 j =>
+            let fa : Int := nth_list fits i in
+            let fb : Int := nth_list fits j in
+            if fa >= fb then .mk rng3 (nth_pop pop i) else .mk rng3 (nth_pop pop j)
+
+# Breed one child; the slot individual only shapes the ``map`` walk.
+def breed_child
+    (pop: Population) (fits: (List Int)) (pop_size: {p: Int | p > 0})
+    (n_items: {n: Int | n > 0}) (rng: Int) (_slot: Individual)
+    : (Pair Int Individual) :=
+    let t1 : (Pair Int Individual) := tournament pop fits pop_size rng in
+    match t1 with
+    | mk rng2 p1 =>
+        let t2 : (Pair Int Individual) := tournament pop fits pop_size rng2 in
+        match t2 with
+        | mk rng3 p2 =>
+            let dc : (Pair Int Int) := rnd rng3 n_items in
+            match dc with
+            | mk rng4 cut => crossover_mutate p1 p2 cut 0 rng4
+
+def init_population (n_items: Int) (n: Int) (rng: Int) : (Pair Int Population) :=
+    if n <= 0 then .mk rng .empty_pop
+    else
+        let one : (Pair Int Individual) := create_individual n_items rng in
+        match one with
+        | mk rng2 ind =>
+            let rest : (Pair Int Population) := init_population n_items (n - 1) rng2 in
+            match rest with
+            | mk rng3 tl => .mk rng3 (.member ind tl)
+
+# One generation: evaluate, then map each slot to a freshly bred child.
+def next_generation
+    (weights: (List Int)) (values: (List Int)) (capacity: Int)
+    (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
+    (pop: Population) (rng: Int) : (Pair Int Population) :=
+    let fits : (List Int) := fitnesses_of weights values capacity pop in
+    map_population_state (breed_child pop fits pop_size n_items) rng pop
+
+def evolve_loop
+    (weights: (List Int)) (values: (List Int)) (capacity: Int)
+    (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
+    (generations: Int) (g: Int) (pop: Population) (rng: Int) (best: Int) : Int :=
+    if g >= generations then best
+    else
+        let fit : Int := best_fitness weights values capacity pop in
+        let best2 : Int := if fit > best then fit else best in
+        let step : (Pair Int Population) :=
+            next_generation weights values capacity n_items pop_size pop rng in
+        match step with
+        | mk rng2 pop2 =>
+            evolve_loop weights values capacity n_items pop_size generations (g + 1) pop2 rng2 best2
+
+def evolve
+    (weights: (List Int)) (values: (List Int)) (capacity: Int)
+    (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
+    (generations: {g: Int | g >= 0}) (seed: Int) : Int :=
+    let started : (Pair Int Population) := init_population n_items pop_size seed in
+    match started with
+    | mk rng pop =>
+        evolve_loop weights values capacity n_items pop_size generations 0 pop rng 0
+
+
+# ---------------------------------------------------------------------------
+# Problem instance (weights/values) built in Aeon via the same LCG
+# ---------------------------------------------------------------------------
+
+def fill_ints (n: Int) (lo: Int) (hi: {y: Int | y >= lo}) (rng: Int) : (Pair Int (List Int)) :=
+    if n <= 0 then .mk rng nil
+    else
+        let span : Int := (hi - lo) + 1 in
+        let draw : (Pair Int Int) := rnd rng span in
+        match draw with
+        | mk rng2 r =>
+            let rest : (Pair Int (List Int)) := fill_ints (n - 1) lo hi rng2 in
+            match rest with
+            | mk rng3 tl => .mk rng3 (cons (lo + r) tl)
+
+def main (args: Int) : Unit :=
+    let w_built : (Pair Int (List Int)) := fill_ints N_ITEMS 1 50 SEED in
+    match w_built with
+    | mk rng1 weights =>
+        let v_built : (Pair Int (List Int)) := fill_ints N_ITEMS 1 100 rng1 in
+        match v_built with
+        | mk rng2 values =>
+            let total : Int := sum weights in
+            let capacity : Int :=
+                let third : Int := floor_division total 3 in
+                if third < 1 then 1 else third in
+            let result : Int :=
+                evolve weights values capacity N_ITEMS POP_SIZE GENERATIONS rng2 in
+            print result;

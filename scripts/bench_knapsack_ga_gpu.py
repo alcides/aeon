@@ -1,12 +1,10 @@
-"""Time the knapsack GA examples.
+"""Time the functional knapsack GA example.
 
-uv run python scripts/bench_knapsack_ga_gpu.py --cpu
-uv run python scripts/bench_knapsack_ga_gpu.py --gpu
+uv run python scripts/bench_knapsack_ga_gpu.py
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import time
 from pathlib import Path
@@ -18,14 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cpu", action="store_true")
-    parser.add_argument("--gpu", action="store_true")
-    args = parser.parse_args()
-    if not args.cpu and not args.gpu:
-        args.cpu = True
-
-    path = ROOT / ("examples/llvm/gpu/knapsack_ga.ae" if args.gpu else "examples/llvm/knapsack_ga_cpu.ae")
+    path = ROOT / "examples/knapsack_ga.ae"
     cfg = AeonConfig(synthesizer="none", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
     driver = AeonDriver(cfg)
     errors = driver.parse(filename=str(path))
@@ -38,7 +29,6 @@ def main() -> None:
         json.dumps(
             {
                 "example": str(path.relative_to(ROOT)),
-                "backend": "gpu" if args.gpu else "cpu",
                 "result": result,
                 "seconds": round(elapsed, 3),
             },

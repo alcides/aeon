@@ -3,7 +3,8 @@
 # Prefer these over ``Random.ae`` inside ``@llvm`` / ``@gpu`` bodies: they are
 # pure ``Int`` steps with no Python ``random`` object. Call sites that need a
 # compiled kernel should re-export or wrap them under ``@llvm`` / ``@gpu``
-# (see ``examples/llvm/knapsack_ga_cpu.ae``).
+# (see ``examples/knapsack_ga.ae`` for a functional GA; use these helpers inside
+# ``@llvm`` / ``@gpu`` kernels when you need a compiled PRNG).
 
 def mod_nonneg (value: Int) (modulus: Int) : Int :=
     let rem : Int := value % modulus in

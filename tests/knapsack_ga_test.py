@@ -1,4 +1,4 @@
-"""Knapsack GA examples (not stdlib): typecheck + CPU demo smoke."""
+"""Functional knapsack GA example: typecheck + smoke run."""
 
 from __future__ import annotations
 
@@ -8,13 +8,12 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
 ROOT = Path(__file__).resolve().parents[1]
-CPU_EXAMPLE = ROOT / "examples" / "llvm" / "knapsack_ga_cpu.ae"
-GPU_EXAMPLE = ROOT / "examples" / "llvm" / "gpu" / "knapsack_ga.ae"
+EXAMPLE = ROOT / "examples" / "knapsack_ga.ae"
 
 
-def _driver() -> AeonDriver:
+def _driver(*, no_main: bool = False) -> AeonDriver:
     return AeonDriver(
-        AeonConfig(synthesizer="none", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0, no_main=False)
+        AeonConfig(synthesizer="none", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0, no_main=no_main)
     )
 
 
@@ -33,11 +32,14 @@ def main (x: Int) : Int := sum_range 10;
     assert driver.run() == 45
 
 
-def test_knapsack_cpu_example_typechecks():
+def test_knapsack_ga_example_typechecks():
     driver = _driver()
-    assert not driver.parse(filename=str(CPU_EXAMPLE))
+    assert not driver.parse(filename=str(EXAMPLE))
 
 
-def test_knapsack_gpu_example_typechecks():
+def test_knapsack_ga_example_runs():
     driver = _driver()
-    assert not driver.parse(filename=str(GPU_EXAMPLE))
+    assert not driver.parse(filename=str(EXAMPLE))
+    result = driver.run()
+    assert isinstance(result, int)
+    assert result >= 0
