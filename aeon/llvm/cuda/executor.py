@@ -23,6 +23,9 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             self.device = self._get_device(0)
             self.context = self._create_context(self.device)
             self._setup_api()
+            # Inductive ADTs allocate on the device heap; the default heap is only
+            # ~8MB and deep recursion needs a larger stack than the CUDA default.
+            self._configure_device_limits()
             self._module_cache = {}
             logger.info("Successfully initialized CUDA backend.")
         except Exception as e:
@@ -34,6 +37,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         self.libcuda.cuMemFree_v2.argtypes = [ctypes.c_uint64]
         self.libcuda.cuMemcpyHtoD_v2.argtypes = [ctypes.c_uint64, ctypes.c_void_p, ctypes.c_size_t]
         self.libcuda.cuMemcpyDtoH_v2.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_size_t]
+        self.libcuda.cuCtxSetLimit.argtypes = [ctypes.c_int, ctypes.c_size_t]
+        self.libcuda.cuCtxGetLimit.argtypes = [ctypes.POINTER(ctypes.c_size_t), ctypes.c_int]
 
         # kernel launch
         self.libcuda.cuLaunchKernel.argtypes = [
@@ -98,6 +103,12 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
     def _init_cuda(self):
         if self.libcuda.cuInit(0) != 0:
             raise CUDAExecutionError("cuInit failed")
+        count = ctypes.c_int()
+        get_count = self.libcuda.cuDeviceGetCount
+        get_count.argtypes = [ctypes.POINTER(ctypes.c_int)]
+        get_count.restype = ctypes.c_int
+        if get_count(ctypes.byref(count)) != 0 or count.value < 1:
+            raise CUDAExecutionError("no CUDA devices available")
 
     def _get_device(self, ordinal: int):
         device = ctypes.c_int()
@@ -113,6 +124,42 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         if self.libcuda.cuCtxSetCurrent(context) != 0:
             raise CUDAExecutionError("cuCtxSetCurrent failed after create")
         return context
+
+    def _configure_device_limits(self) -> None:
+        # CU_LIMIT_STACK_SIZE=0, CU_LIMIT_MALLOC_HEAP_SIZE=2.
+        # Stack caps around ~160KB on consumer GPUs; larger requests return
+        # CUDA_ERROR_INVALID_VALUE. Device malloc needs an explicit heap size
+        # (default ~8MB is too small for inductive ADT allocation).
+        stack_bytes = 160 * 1024
+        heap_bytes = 2 * 1024 * 1024 * 1024
+        if self.libcuda.cuCtxSetLimit(0, stack_bytes) != 0:
+            # Fall back to the largest commonly accepted size.
+            for candidate in (128 * 1024, 96 * 1024, 64 * 1024):
+                if self.libcuda.cuCtxSetLimit(0, candidate) == 0:
+                    stack_bytes = candidate
+                    break
+            else:
+                logger.warning("cuCtxSetLimit(STACK_SIZE) failed; deep GPU recursion may fault")
+        if self.libcuda.cuCtxSetLimit(2, heap_bytes) != 0:
+            for candidate in (1024, 512, 256, 128):
+                if self.libcuda.cuCtxSetLimit(2, candidate * 1024 * 1024) == 0:
+                    heap_bytes = candidate * 1024 * 1024
+                    break
+            else:
+                logger.warning("cuCtxSetLimit(MALLOC_HEAP_SIZE) failed; device ADT malloc may return null")
+                return
+        logger.debug(f"CUDA device heap={heap_bytes} stack={stack_bytes}")
+
+    def _cuda_error_name(self, code: int) -> str:
+        get_name = getattr(self.libcuda, "cuGetErrorName", None)
+        if get_name is None:
+            return str(code)
+        get_name.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char_p)]
+        get_name.restype = ctypes.c_int
+        ptr = ctypes.c_char_p()
+        if get_name(code, ctypes.byref(ptr)) != 0 or not ptr.value:
+            return str(code)
+        return ptr.value.decode("utf-8", errors="replace")
 
     def execute(
         self,
@@ -171,11 +218,15 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
 
             params_ptr = (ctypes.c_void_p * len(kernel_params))(*[ctypes.c_void_p(p) for p in kernel_params])
 
-            if self.libcuda.cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0, None, params_ptr, None) != 0:
-                raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}")
+            launch_rc = self.libcuda.cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0, None, params_ptr, None)
+            if launch_rc != 0:
+                raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}: {self._cuda_error_name(launch_rc)}")
 
-            if self.libcuda.cuCtxSynchronize() != 0:
-                raise CUDAExecutionError(f"cuCtxSynchronize failed during {func_name} execution")
+            sync_rc = self.libcuda.cuCtxSynchronize()
+            if sync_rc != 0:
+                raise CUDAExecutionError(
+                    f"cuCtxSynchronize failed during {func_name} execution: {self._cuda_error_name(sync_rc)}"
+                )
 
             for d_ptr, host_data, size, original_arg in cleanup_tasks:
                 if self.libcuda.cuMemcpyDtoH_v2(ctypes.cast(host_data, ctypes.c_void_p), d_ptr.value, size) != 0:
@@ -217,7 +268,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         mod = llvm.parse_assembly(llvm_ir)
         triple = "nvptx64-nvidia-cuda"
         target = llvm.Target.from_triple(triple)
-        tm = target.create_target_machine(cpu="sm_35")  # sm_35+ for dynamic parallelism
+        tm = target.create_target_machine(cpu="sm_75")  # Turing+; heap malloc + recursion
         optimize_module(mod, tm)
         return tm.emit_assembly(mod)
 

@@ -16,6 +16,7 @@ from aeon.core.terms import (
     TypeAbstraction,
     Annotation,
     Hole,
+    ImplicitRefinementHole,
     RefinementApplication,
     RefinementAbstraction,
 )
@@ -51,10 +52,13 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorFilter,
     LLVMVectorZipWith,
     LLVMVectorCount,
+    LLVMFoldN,
     VECTOR_OPERATIONS,
     VECTOR_OP_ALIASES,
     LLVMCast,
     LLVMRefinedValue,
+    LLVMADTConstruct,
+    LLVMADTEliminate,
 )
 from aeon.llvm.utils import (
     validate_type,
@@ -63,6 +67,15 @@ from aeon.llvm.utils import (
     BINARY_OPS,
     get_builtin_op_type,
     sanitize_name,
+    LLVMADTPtr,
+)
+from aeon.llvm.adt import (
+    lookup_constructor,
+    lookup_recursor,
+    finalize_constructor,
+    constructor_order,
+    type_param_count,
+    resolve_field_llvm_types,
 )
 from aeon.utils.name import Name
 
@@ -111,6 +124,12 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "filter_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
     "count_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
     "zipWith_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
+    "fold_n": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, LLVMInt], LLVMInt),
+    "fold_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, LLVMInt], LLVMInt),
+    "buf_get": LLVMFunctionType([_generic_ptr, LLVMInt], LLVMInt),
+    "buf_set": LLVMFunctionType([_generic_ptr, LLVMInt, LLVMInt], _generic_ptr),
+    "buf_alloc": LLVMFunctionType([LLVMLong], _generic_ptr),
+    "buf_free": LLVMFunctionType([_generic_ptr], LLVMVoid),
 }
 
 _FLOAT_UNARY_MATH = {
@@ -173,6 +192,8 @@ POLYMORPHIC_FUNCTIONS: set[str] = {
     "fma",
     "get",
     "set",
+    "buf_get",
+    "buf_set",
     "new",
     "map",
     "reduce",
@@ -219,7 +240,7 @@ class CPUTypeValidationStep(ValidationStep):
             case If(cond, then_t, else_t):
                 for sub in (cond, then_t, else_t):
                     self.validate(sub, ctx)
-            case Hole(_):
+            case Hole(_) | ImplicitRefinementHole():
                 pass
             case Var(_):
                 pass
@@ -242,9 +263,13 @@ class CPUFunctionCallValidationStep(ValidationStep):
                 self._validate_let(var_name, var_value, body, ctx)
             case Annotation(expr, _) | TypeApplication(expr, _) | TypeAbstraction(_, _, expr) | Abstraction(_, expr):
                 self.validate(expr, ctx)
+            case RefinementApplication(expr, _) | RefinementAbstraction(_, _, expr):
+                self.validate(expr, ctx)
             case If(cond, then_t, else_t):
                 for sub in (cond, then_t, else_t):
                     self.validate(sub, ctx)
+            case Hole(_) | ImplicitRefinementHole():
+                pass
             case _:
                 pass
 
@@ -259,6 +284,8 @@ class CPUFunctionCallValidationStep(ValidationStep):
             or bare_name in BINARY_OPS
             or bare_name in UNARY_OPS
             or bare_name in BUILTIN_FUNCTION_TYPES
+            or lookup_constructor(name.name) is not None
+            or lookup_recursor(name.name) is not None
         )
         is_allowed = name in ctx.allowed_func_calls or str_name in ctx.env_names
         if not (is_builtin or is_allowed or name.name == "native" or name.name == "PI" or bare_name == "PI"):
@@ -509,6 +536,19 @@ class CPULLVMLowerer(LLVMLowerer):
             )
             return LLVMVectorReduce(low_init.type, kernel, low_init, vec_cast, low_size)
 
+        if op == "fold_n":
+            kernel_term, init_term, size_term = args
+            low_init, low_size = low_term(init_term), low_term(size_term, LLVMInt)
+            kernel = self._lower_as_standalone(
+                kernel_term,
+                LLVMFunctionType([low_init.type, LLVMInt], low_init.type),
+                type_env,
+                env,
+                allowed,
+                True,
+            )
+            return LLVMFoldN(low_init.type, kernel, low_init, low_size)
+
         if op == "zipWith":
             kernel_term, v1_term, v2_term, size_term = args
             v1_low, v2_low, sz_low = low_term(v1_term), low_term(v2_term), low_term(size_term, LLVMInt)
@@ -605,6 +645,21 @@ class CPULLVMLowerer(LLVMLowerer):
         if op_name in BINARY_OPS or op_name in UNARY_OPS:
             return LLVMVar(self._get_operator_type(op_name, expected), name)
 
+        # Nullary inductive constructor used as a value (e.g. Individual_empty_ind).
+        ctor = lookup_constructor(name.name)
+        if ctor is not None:
+            bound_ty = type_env.get(name)
+            if not isinstance(bound_ty, LLVMFunctionType):
+                info = finalize_constructor(ctor, 0)
+                return LLVMADTConstruct(
+                    LLVMADTPtr,
+                    info.type_name,
+                    info.ctor_name,
+                    info.tag,
+                    [],
+                    nullary_as_null=info.nullary_as_null,
+                )
+
         builtin_key = name.name if name.name in BUILTIN_FUNCTION_TYPES else bare
         if builtin_key in BUILTIN_FUNCTION_TYPES:
             ty = BUILTIN_FUNCTION_TYPES[builtin_key]
@@ -649,6 +704,12 @@ class CPULLVMLowerer(LLVMLowerer):
         in_vec: bool,
     ) -> LLVMTerm:
         base, args = self._uncurry(t)
+
+        # Inductive constructor / recursor applications (match desugars to Type_rec).
+        adt = self._lower_adt_app(base, args, expected, type_env, env, allowed, in_vec)
+        if adt is not None:
+            return adt
+
         lowered_base = self._lower_term(base, None, type_env, env, allowed, in_vector_op=in_vec)
         if not lowered_base:
             raise LLVMBackendError(f"could not lower base {base}")
@@ -662,6 +723,121 @@ class CPULLVMLowerer(LLVMLowerer):
 
         all_args = prev_args + self._lower_args(args, params, len(prev_args), type_env, env, allowed, in_vec)
         return self._create_call_or_partial(target, all_args, params, ret)
+
+    def _head_var_name(self, term: Term) -> Name | None:
+        cur: Term = term
+        while True:
+            match cur:
+                case TypeApplication(inner, _) | RefinementApplication(inner, _) | Annotation(inner, _):
+                    cur = inner
+                case TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
+                    cur = body
+                case Var(name):
+                    return name
+                case _:
+                    return None
+
+    def _peel_type_args(self, term: Term, n: int) -> list:
+        """Collect the first ``n`` type arguments from nested TypeApplications."""
+        apps: list = []
+        cur: Term = term
+        while True:
+            match cur:
+                case TypeApplication(inner, ty):
+                    apps.append(ty)
+                    cur = inner
+                case RefinementApplication(inner, _):
+                    cur = inner
+                case Annotation(inner, _):
+                    cur = inner
+                case _:
+                    break
+        apps.reverse()
+        return apps[:n]
+
+    def _lower_adt_app(
+        self,
+        base: Term,
+        args: list[Term],
+        expected: LLVMType | None,
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMTerm | None:
+        head = self._head_var_name(base)
+        if head is None:
+            return None
+
+        rec_type = lookup_recursor(head.name)
+        if rec_type is not None:
+            order = constructor_order(rec_type)
+            need = 1 + len(order)
+            if len(args) < need:
+                return None
+            type_args = self._peel_type_args(base, type_param_count(rec_type))
+            scrut = self._lower_term(args[0], LLVMADTPtr, type_env, env, allowed, in_vec)
+            cases: list[LLVMTerm] = []
+            arities: list[int] = []
+            field_types_per_case: list[list[LLVMType]] = []
+            result_ty: LLVMType = expected or LLVMInt
+            for i, ctor_name in enumerate(order):
+                field_tys = resolve_field_llvm_types(ctor_name, type_args)
+                field_types_per_case.append(field_tys)
+                case_expected: LLVMType | None = None
+                if field_tys:
+                    # Motive / result type still unknown; use expected or Int.
+                    case_expected = LLVMFunctionType(field_tys, expected or LLVMInt)
+                case_t = self._lower_term(args[1 + i], case_expected, type_env, env, allowed, in_vec)
+                cases.append(case_t)
+                if isinstance(case_t, LLVMFunction):
+                    arities.append(len(case_t.arg_types))
+                    if expected is None:
+                        result_ty = case_t.body.type
+                elif isinstance(case_t.type, LLVMFunctionType):
+                    params, ret = self.get_signature(case_t.type)
+                    arities.append(len(params))
+                    if expected is None:
+                        result_ty = ret
+                else:
+                    arities.append(0)
+                    if expected is None:
+                        result_ty = case_t.type
+            # If we guessed Int for the motive but a nullary case has a better type, prefer it.
+            if expected is None:
+                for case_t, arity in zip(cases, arities):
+                    if arity == 0:
+                        result_ty = case_t.type
+                        break
+            return LLVMADTEliminate(result_ty, rec_type, scrut, cases, arities, field_types_per_case)
+
+        ctor_info = lookup_constructor(head.name)
+        if ctor_info is not None:
+            bound_ty = type_env.get(head)
+            if isinstance(bound_ty, LLVMFunctionType):
+                arity = len(bound_ty.arg_types)
+            else:
+                fields_skel = resolve_field_llvm_types(ctor_info.ctor_name, [])
+                arity = len(fields_skel) if fields_skel else len(args)
+            if len(args) < arity:
+                return None
+            # Prefer registered field types; fall back to untyped lowering.
+            field_tys = resolve_field_llvm_types(
+                ctor_info.ctor_name, self._peel_type_args(base, type_param_count(ctor_info.type_name))
+            )
+            if not field_tys:
+                field_tys = [None] * arity
+            fields = [self._lower_term(a, ft, type_env, env, allowed, in_vec) for a, ft in zip(args[:arity], field_tys)]
+            info = finalize_constructor(ctor_info, arity)
+            return LLVMADTConstruct(
+                LLVMADTPtr,
+                info.type_name,
+                info.ctor_name,
+                info.tag,
+                fields,
+                nullary_as_null=info.nullary_as_null,
+            )
+        return None
 
     def _lower_builtin_call(
         self,
@@ -692,16 +868,16 @@ class CPULLVMLowerer(LLVMLowerer):
                 all_args = [self._cast_if_needed(a, p) for a, p in zip(all_args, params)]
                 return LLVMCall(ret, target, all_args)
 
-            if name == "get" and len(all_args) == 2:
+            if name in {"get", "buf_get"} and len(all_args) == 2:
                 return self._lower_vector_get(all_args[0], all_args[1])
 
-            if name == "set" and len(all_args) == 3:
+            if name in {"set", "buf_set"} and len(all_args) == 3:
                 return self._lower_vector_set(all_args[0], all_args[1], all_args[2])
 
-        if name in {"malloc", "free", "printf"}:
+        if name in {"malloc", "free", "printf", "buf_alloc", "buf_free"}:
             all_args = [self._cast_if_needed(a, p) for a, p in zip(all_args, params)]
         result = self._create_call_or_partial(target, all_args, params, ret)
-        if name == "malloc" and isinstance(expected, LLVMPointerType):
+        if name in {"malloc", "buf_alloc"} and isinstance(expected, LLVMPointerType):
             return self._cast_if_needed(result, expected)
         return result
 
@@ -728,6 +904,8 @@ class CPULLVMLowerer(LLVMLowerer):
         canonical = VECTOR_OP_ALIASES.get(op, op)
         if canonical not in VECTOR_OPERATIONS:
             return False
+        if canonical == "fold_n":
+            return total_args >= 3
         threshold = 4 if canonical in ("reduce", "zipWith") else 3
         return total_args >= threshold
 

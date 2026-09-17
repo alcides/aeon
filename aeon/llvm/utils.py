@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aeon.core.types import TypeConstructor, RefinedType, AbstractionType, Type
 from aeon.utils.name import Name
+from aeon.llvm.adt import is_registered_inductive, LLVMADTPtr as _ADT_PTR
 from aeon.llvm.core import LLVMValidationError
 from aeon.llvm.llvm_ast import (
     LLVMType,
@@ -17,9 +18,12 @@ from aeon.llvm.llvm_ast import (
     LLVMPointerType,
 )
 
-SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Array", "Vector", "String"}
+SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Array", "Vector", "Buffer", "String"}
 BINARY_OPS = {"+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||"}
 UNARY_OPS = {"!", "-"}
+
+# Opaque heap pointer for registered inductive types (Individual, List, Pair, …).
+LLVMADTPtr = _ADT_PTR
 
 
 def validate_ops(op: str):
@@ -39,7 +43,7 @@ def validate_type(ty: Type):
         case AbstractionType(_, vt, rt):
             validate_type(vt)
             validate_type(rt)
-        case TypeConstructor(n, _) if n.name not in SUPPORTED_TYPES:
+        case TypeConstructor(n, _) if n.name not in SUPPORTED_TYPES and not is_registered_inductive(n.name):
             raise LLVMValidationError(f"LLVM Backend does not support type {n.name}")
         case _:
             pass
@@ -90,6 +94,11 @@ def to_llvm_type(ty: Type) -> LLVMType:
                     # ``Array`` is the stdlib host buffer; ``Vector`` remains as a
                     # temporary alias for older LLVM tests / local quicksort buffers.
                     return LLVMPointerType(to_llvm_type(args[0])) if args else LLVMVectorInt
+                case "Buffer":
+                    # Untyped Int buffer pointer used by LLVM kernels (see Buffer.ae).
+                    return LLVMVectorInt
+                case _ if is_registered_inductive(n.name):
+                    return LLVMADTPtr
                 case _:
                     return LLVMInt
         case _:

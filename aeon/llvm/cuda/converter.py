@@ -52,6 +52,10 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if not isinstance(node, LLVMFunction) or node.name is None:
                 continue
             func = self.module.globals[sanitize_name(node.name)]
+            # Host launches only scalar/void entry points. ADT pointer returns
+            # stay device-local (nested calls), so skip __kernel wrappers for them.
+            if isinstance(func.function_type.return_type, ir.PointerType):
+                continue
             name = func.name + "__kernel"
             if name in self.module.globals:
                 continue

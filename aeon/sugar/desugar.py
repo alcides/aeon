@@ -1354,11 +1354,41 @@ def expand_inductive_decls(p: Program) -> Program:
                 def key_for(tyname: Name, constructor_name: Name) -> str:
                     return f"{tyname.name}_{constructor_name.name}"
 
+                def field_skeleton(ty: SType, type_params: list[Name], self_name: str) -> str:
+                    match ty:
+                        case SRefinedType(_, inner, _):
+                            return field_skeleton(inner, type_params, self_name)
+                        case STypeVar(n):
+                            if n.name == self_name:
+                                return self_name
+                            for i, tp in enumerate(type_params):
+                                if tp.name == n.name:
+                                    return f"#{i}"
+                            # Unresolved name used as a type var — often another
+                            # inductive in the same program; treat as ADT.
+                            return n.name
+                        case STypeConstructor(n, _):
+                            return n.name
+                        case _:
+                            return "Int"
+
                 # Register constructor groups for SMT distinctness assertions
                 from aeon.verification.constructor_registry import register_constructors
 
-                register_constructors(name.name, [key_for(name, cons.name) for cons in constructors])
+                field_types: dict[str, list[str]] = {}
+                for constructor in constructors:
+                    match constructor:
+                        case Definition(cname, _, cargs, _, _, _, _, _, _):
+                            field_types[key_for(name, cname)] = [
+                                field_skeleton(ty, args, name.name) for (_, ty) in cargs
+                            ]
 
+                register_constructors(
+                    name.name,
+                    [key_for(name, cons.name) for cons in constructors],
+                    type_param_count=len(args),
+                    field_types=field_types,
+                )
                 for constructor in constructors:
                     match constructor:
                         case Definition(cname, cforalls, cargs, crtype, _, cdecs, c_rf, c_decr, cloc):

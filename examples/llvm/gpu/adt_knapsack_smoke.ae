@@ -1,0 +1,53 @@
+# Tiny GPU inductive knapsack smoke test (decorator-only path).
+
+open List
+open Pair
+
+inductive Individual
+| empty_ind : Individual
+| gene (bit: Int) (rest: Individual) : Individual
+
+inductive Population
+| empty_pop : Population
+| member (ind: Individual) (rest: Population) : Population
+
+@gpu
+def mod_nonneg (value: Int) (modulus: {m: Int | m > 0}) : Int :=
+    let rem : Int := value % modulus in
+    if rem < 0 then rem + modulus else rem
+
+@gpu
+def lcg_next (state: Int) : Int :=
+    mod_nonneg ((state * 1664525) + 1013904223) 2147483647
+
+@gpu
+def rnd (state: Int) (bound: {b: Int | b > 0}) : (Pair Int Int) :=
+    let s2 : Int := lcg_next state in
+    .mk s2 (mod_nonneg s2 bound)
+
+@gpu
+def create_individual (n: Int) (rng: Int) : (Pair Int Individual) :=
+    if n <= 0 then .mk rng .empty_ind
+    else
+        let draw : (Pair Int Int) := rnd rng 100 in
+        match draw with
+        | mk rng2 r =>
+            let bit : Int := if r < 15 then 1 else 0 in
+            let rest : (Pair Int Individual) := create_individual (n - 1) rng2 in
+            match rest with
+            | mk rng3 tl => .mk rng3 (.gene bit tl)
+
+@gpu
+def length_ind (ind: Individual) : Int :=
+    match ind with
+    | empty_ind => 0
+    | gene b rest => 1 + (length_ind rest)
+
+@gpu
+def run (_: Int) : Int :=
+    let built : (Pair Int Individual) := create_individual 5 42 in
+    match built with
+    | mk _ ind => length_ind ind
+
+def main (args: Int) : Unit :=
+    print (run 0);

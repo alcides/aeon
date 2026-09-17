@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         LLVMVectorFilter,
         LLVMVectorZipWith,
         LLVMVectorCount,
+        LLVMFoldN,
     )
 else:
     LLVMTerm = Any
@@ -48,6 +49,7 @@ else:
     LLVMVectorFilter = Any
     LLVMVectorZipWith = Any
     LLVMVectorCount = Any
+    LLVMFoldN = Any
 
 
 class LLVMBackendError(Exception):
@@ -209,3 +211,13 @@ class LLVMVisitor(ABC):
     @abstractmethod
     def visit_vector_count(self, node: LLVMVectorCount) -> Any:
         pass
+
+    @abstractmethod
+    def visit_fold_n(self, node: LLVMFoldN) -> Any:
+        pass
+
+    def visit_adt_construct(self, node: Any) -> Any:
+        raise NotImplementedError(f"{type(self).__name__} does not support ADT construct")
+
+    def visit_adt_eliminate(self, node: Any) -> Any:
+        raise NotImplementedError(f"{type(self).__name__} does not support ADT eliminate")

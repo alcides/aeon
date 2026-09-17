@@ -29,6 +29,7 @@ class MultiBackendPipeline(LLVMPipeline):
 
     def _initialize_cuda_backend(self):
         if not self.cuda_initialized:
+            self.cuda_initialized = True
             try:
                 from aeon.llvm.cuda.lowerer import CUDALLVMLowerer
                 from aeon.llvm.cuda.converter import CUDALLVMIRGenerator
@@ -36,7 +37,6 @@ class MultiBackendPipeline(LLVMPipeline):
 
                 cuda_backend = Backend(CUDAExecutionEngine(), CUDALLVMIRGenerator(), CUDALLVMLowerer())
                 self.register_backend("cuda", cuda_backend)
-                self.cuda_initialized = True
             except Exception as e:
                 logger.debug(f"CUDA backend initialization failed: {e}")
 
@@ -45,7 +45,7 @@ class MultiBackendPipeline(LLVMPipeline):
         self.compiled_functions_by_backend[name] = {}
         self.llvm_ir_by_backend[name] = ""
 
-    def _get_target_for_function(self, name: Name) -> str:
+    def _backends_for_function(self, name: Name) -> list[str]:
         meta = self.metadata.get(name)
         if meta is None:
             for meta_key, meta_value in self.metadata.items():
@@ -53,43 +53,64 @@ class MultiBackendPipeline(LLVMPipeline):
                 if key_string == name.name:
                     meta = meta_value
                     break
-
+        backends: list[str] = []
+        if meta and meta.get("llvm"):
+            backends.append("cpu")
         if meta and meta.get("gpu"):
-            return meta.get("gpu_device", "cuda")
-        return "cpu"
+            backends.append(meta.get("gpu_device", "cuda"))
+        return backends or ["cpu"]
+
+    def _get_target_for_function(self, name: Name) -> str:
+        backends = self._backends_for_function(name)
+        # Prefer CUDA when both are requested so ``@gpu`` entries launch on device;
+        # helpers tagged with both are compiled into each backend separately.
+        if "cuda" in backends and "cuda" in self.backends:
+            return "cuda"
+        if "cpu" in backends or "cpu" in self.backends:
+            return "cpu"
+        return backends[0]
 
     def compile(self, program: Term):
         discovered_targets = self._find_compilation_targets(program)
-        if any(self._get_target_for_function(target_id) == "cuda" for target_id in discovered_targets):
+        if any("cuda" in self._backends_for_function(target_id) for target_id in discovered_targets):
             self._initialize_cuda_backend()
 
         for target_id, target_body in discovered_targets.items():
-            target_name = self._get_target_for_function(target_id)
-            if target_name not in self.backends:
-                logger.warning(f"Backend {target_name} not found for function {target_id}. Falling back to cpu.")
-                target_name = "cpu"
+            backend_names = self._backends_for_function(target_id)
+            self.function_targets[target_id] = self._get_target_for_function(target_id)
 
-            self.function_targets[target_id] = target_name
-            backend = self.backends[target_name]
+            for target_name in list(backend_names):
+                if target_name not in self.backends:
+                    logger.warning(f"Backend {target_name} not found for function {target_id}. Falling back to cpu.")
+                    target_name = "cpu"
+                    self.function_targets[target_id] = "cpu"
 
-            target_type = self.type_environment[target_id]
-            target_llvm_type = to_llvm_type(target_type)
+                backend = self.backends[target_name]
 
-            env = {}
-            for b_funcs in self.compiled_functions_by_backend.values():
-                env.update(b_funcs)
+                target_type = self.type_environment[target_id]
+                target_llvm_type = to_llvm_type(target_type)
 
-            llvm_ast = backend.lowerer.lower(
-                target_body,
-                expected_type=target_llvm_type,
-                type_env={fid: to_llvm_type(ty) for fid, ty in self.type_environment.items()},
-                env=env,
-            )
+                env = {}
+                for b_funcs in self.compiled_functions_by_backend.values():
+                    env.update(b_funcs)
 
-            if isinstance(llvm_ast, LLVMFunction):
-                llvm_ast.name = target_id
+                llvm_ast = backend.lowerer.lower(
+                    target_body,
+                    expected_type=target_llvm_type,
+                    type_env={fid: to_llvm_type(ty) for fid, ty in self.type_environment.items()},
+                    env=env,
+                )
 
-            self.compiled_functions_by_backend[target_name][target_id] = llvm_ast
+                if not isinstance(llvm_ast, LLVMFunction):
+                    # Top-level non-function values (e.g. constant ADTs) become
+                    # zero-argument getters so the IR generator has a function body.
+                    from aeon.llvm.llvm_ast import LLVMFunctionType as _FnTy
+
+                    llvm_ast = LLVMFunction(_FnTy([], llvm_ast.type), [], [], llvm_ast, name=target_id)
+                else:
+                    llvm_ast.name = target_id
+
+                self.compiled_functions_by_backend[target_name][target_id] = llvm_ast
 
         for backend_name, backend in self.backends.items():  # generate ir
             funcs = list(self.compiled_functions_by_backend[backend_name].values())

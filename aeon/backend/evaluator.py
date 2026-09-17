@@ -217,7 +217,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
             if ctx.pipeline and ctx.metadata:
                 for k, v in ctx.metadata.items():
                     k_name = k.name if isinstance(k, Name) else str(k)
-                    if k_name == var_name.name and v.get("llvm"):
+                    if k_name == var_name.name and (v.get("llvm") or v.get("gpu")):
                         found_llvm = True
                         break
 

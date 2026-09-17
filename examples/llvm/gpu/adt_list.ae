@@ -1,0 +1,21 @@
+# Recursive GPU ADT allocation smoke test.
+
+open List
+
+@gpu
+def build (n: Int) : (List Int) :=
+    if n <= 0 then nil
+    else cons n (build (n - 1))
+
+@gpu
+def sumL (xs: (List Int)) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => hd + (sumL tl)
+
+@gpu
+def run (_: Int) : Int :=
+    sumL (build 20)
+
+def main (args: Int) : Unit :=
+    print (run 0);

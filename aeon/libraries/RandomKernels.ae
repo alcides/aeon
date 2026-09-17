@@ -1,0 +1,17 @@
+# LLVM-oriented PRNG helpers shared with genetic algorithms and Monte Carlo.
+#
+# Prefer these over ``Random.ae`` inside ``@llvm`` / ``@gpu`` bodies: they are
+# pure ``Int`` steps with no Python ``random`` object. Call sites that need a
+# compiled kernel should re-export or wrap them under ``@llvm`` / ``@gpu``
+# (see ``examples/knapsack_ga.ae`` for a functional GA; use these helpers inside
+# ``@llvm`` / ``@gpu`` kernels when you need a compiled PRNG).
+
+def mod_nonneg (value: Int) (modulus: Int) : Int :=
+    let rem : Int := value % modulus in
+    if rem < 0 then rem + modulus else rem
+
+def lcg_next (state: Int) : Int :=
+    mod_nonneg ((state * 1664525) + 1013904223) 2147483647
+
+def lcg_bounded (state: Int) (bound: Int) : Int :=
+    mod_nonneg (lcg_next state) bound
