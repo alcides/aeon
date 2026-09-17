@@ -176,9 +176,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         ctypes_ret = self._get_ctypes_type(ret_type) if not isinstance(ret_type, LLVMVoidType) else None
 
         cfunc = ctypes.CFUNCTYPE(ctypes_ret, *ctypes_args)(func_ptr)
-        processed_args = [
-            self._convert_to_ctypes(self._coerce_arg(val, ty), ty) for val, ty in zip(args, arg_types)
-        ]
+        processed_args = [self._convert_to_ctypes(self._coerce_arg(val, ty), ty) for val, ty in zip(args, arg_types)]
         result = cfunc(*processed_args)
 
         if isinstance(ret_type, LLVMCharType):
