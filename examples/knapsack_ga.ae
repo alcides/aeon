@@ -5,7 +5,7 @@
 # ``map_population_state`` to turn the old population into the next.
 # Refinements capture 0-1 genes, ``ilen``/``plen`` measures, positive
 # capacity, and non-negative fitness.
-# Hot helpers are ``@llvm``-compiled.
+# Hot helpers use ``@gpu`` (swap to ``@llvm`` for the CPU backend).
 
 open List
 open Pair
@@ -37,26 +37,26 @@ def SEED : Int := 20260913
 # Remainder coerced into ``[0, modulus)``. The exact range is not a liquid
 # postcondition: ``%`` with a non-constant divisor leaves the decidable
 # fragment (see ``--strict-decidable``).
-@llvm
+@gpu
 def mod_nonneg (value: Int) (modulus: {m: Int | m > 0}) : Int :=
     let rem : Int := value % modulus in
     if rem < 0 then rem + modulus else rem
 
-@llvm
+@gpu
 def lcg_next (state: Int) : Int :=
     mod_nonneg ((state * 1664525) + 1013904223) 2147483647
 
-@llvm
+@gpu
 def ensure_pos (x: Int) : {v: Int | v > 0} :=
     if x > 0 then x else 1
 
 # Draw ``value`` in ``[0, bound)``; return ``(Pair new_state value)``.
-@llvm
+@gpu
 def rnd (state: Int) (bound: {b: Int | b > 0}) : (Pair Int Int) :=
     let s2 : Int := lcg_next state in
     .mk s2 (mod_nonneg s2 bound)
 
-@llvm
+@gpu
 def maximum_list (xs: (List Int)) : Int :=
     match xs with
     | nil => 0
@@ -64,7 +64,7 @@ def maximum_list (xs: (List Int)) : Int :=
         let m : Int := maximum_list tl in
         if hd > m then hd else m
 
-@llvm
+@gpu
 def nth_list (xs: (List Int)) (i: Int) : Int :=
     match xs with
     | nil => 0
@@ -76,14 +76,14 @@ def nth_list (xs: (List Int)) (i: Int) : Int :=
 # Individuals: create and evaluate
 # ---------------------------------------------------------------------------
 
-@llvm
+@gpu
 def length_ind (ind: Individual) : Int :=
     match ind with
     | empty_ind => 0
     | gene b rest => 1 + (length_ind rest)
 
 # Zip weights/values along the gene spine; accumulate weight and value.
-@llvm
+@gpu
 def accumulate
     (weights: (List Int)) (values: (List Int)) (ind: Individual)
     (wsum: Int) (vsum: Int) : (Pair Int Int) :=
@@ -102,7 +102,7 @@ def accumulate
                     accumulate wt vt rest (wsum + w) (vsum + v)
 
 # Fitness: total value if weight fits capacity, else 0 (never negative).
-@llvm
+@gpu
 def evaluate_individual
     (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (ind: Individual) : {fit: Int | fit >= 0} :=
@@ -114,7 +114,7 @@ def evaluate_individual
         else 0
 
 # Random individual of length ``n`` (gene density ~15%).
-@llvm
+@gpu
 def create_individual (n: {v: Int | v >= 0}) (rng: Int) : (Pair Int Individual) :=
     if n <= 0 then .mk rng .empty_ind
     else
@@ -131,7 +131,7 @@ def create_individual (n: {v: Int | v >= 0}) (rng: Int) : (Pair Int Individual) 
 # Variation: crossover + mutation of two parents → a new child
 # ---------------------------------------------------------------------------
 
-@llvm
+@gpu
 def crossover_mutate
     (parent_a: Individual) (parent_b: Individual) (cut: Int) (j: Int) (rng: Int)
     : (Pair Int Individual) :=
@@ -157,13 +157,13 @@ def crossover_mutate
 # Population helpers and evolutionary loop (map old → new)
 # ---------------------------------------------------------------------------
 
-@llvm
+@gpu
 def length_pop (p: Population) : Int :=
     match p with
     | empty_pop => 0
     | member i rest => 1 + (length_pop rest)
 
-@llvm
+@gpu
 def nth_pop (p: Population) (i: Int) : Individual :=
     match p with
     | empty_pop => .empty_ind
@@ -192,7 +192,7 @@ def map_population_state
             match rest with
             | mk s2 kids => .mk s2 (.member child kids)
 
-@llvm
+@gpu
 def fitnesses_of
     (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (p: Population) : (List Int) :=
@@ -202,13 +202,13 @@ def fitnesses_of
         cons (evaluate_individual weights values capacity hd)
              (fitnesses_of weights values capacity tl)
 
-@llvm
+@gpu
 def best_fitness
     (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (p: Population) : Int :=
     maximum_list (fitnesses_of weights values capacity p)
 
-@llvm
+@gpu
 def tournament
     (pop: Population) (fits: (List Int)) (pop_size: {p: Int | p > 0}) (rng: Int)
     : (Pair Int Individual) :=
@@ -223,7 +223,7 @@ def tournament
             if fa >= fb then .mk rng3 (nth_pop pop i) else .mk rng3 (nth_pop pop j)
 
 # Breed one child; the slot individual only shapes the ``map`` walk.
-@llvm
+@gpu
 def breed_child
     (pop: Population) (fits: (List Int)) (pop_size: {p: Int | p > 0})
     (n_items: {n: Int | n > 0}) (rng: Int) (_slot: Individual)
@@ -238,8 +238,8 @@ def breed_child
             match dc with
             | mk rng4 cut => crossover_mutate p1 p2 cut 0 rng4
 
-# Specialized map for breeding (avoids host-side closures under ``@llvm``).
-@llvm
+# Specialized map for breeding (avoids host-side closures under ``@gpu``).
+@gpu
 def breed_generation
     (pop: Population) (fits: (List Int)) (pop_size: {p: Int | p > 0})
     (n_items: {n: Int | n > 0}) (s: Int) (p: Population) : (Pair Int Population) :=
@@ -254,7 +254,7 @@ def breed_generation
             match rest with
             | mk s2 kids => .mk s2 (.member child kids)
 
-@llvm
+@gpu
 def init_population (n_items: {n: Int | n >= 0}) (n: {k: Int | k >= 0}) (rng: Int)
     : (Pair Int Population) :=
     if n <= 0 then .mk rng .empty_pop
@@ -267,7 +267,7 @@ def init_population (n_items: {n: Int | n >= 0}) (n: {k: Int | k >= 0}) (rng: In
             | mk rng3 tl => .mk rng3 (.member ind tl)
 
 # One generation: evaluate, then map each slot to a freshly bred child.
-@llvm
+@gpu
 def next_generation
     (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
@@ -275,7 +275,7 @@ def next_generation
     let fits : (List Int) := fitnesses_of weights values capacity pop in
     breed_generation pop fits pop_size n_items rng pop
 
-@llvm
+@gpu
 def evolve_loop
     (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
@@ -290,7 +290,7 @@ def evolve_loop
         | mk rng2 pop2 =>
             evolve_loop weights values capacity n_items pop_size generations (g + 1) pop2 rng2 best2
 
-@llvm
+@gpu
 def evolve
     (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
@@ -305,7 +305,7 @@ def evolve
 # Problem instance (weights/values) built in Aeon via the same LCG
 # ---------------------------------------------------------------------------
 
-@llvm
+@gpu
 def fill_ints (n: {v: Int | v >= 0}) (lo: Int) (hi: {y: Int | y >= lo}) (rng: Int)
     : (Pair Int (List Int)) :=
     if n <= 0 then .mk rng nil
@@ -318,14 +318,14 @@ def fill_ints (n: {v: Int | v >= 0}) (lo: Int) (hi: {y: Int | y >= lo}) (rng: In
             match rest with
             | mk rng3 tl => .mk rng3 (cons (lo + r) tl)
 
-@llvm
+@gpu
 def sum_ints (xs: (List Int)) : Int :=
     match xs with
     | nil => 0
     | cons hd tl => hd + (sum_ints tl)
 
 # Entire GA stays in LLVM so inductive values never cross the host boundary.
-@llvm
+@gpu
 def run_knapsack
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
     (generations: {g: Int | g >= 0}) (seed: Int) : Int :=

@@ -1,0 +1,13 @@
+# Minimal GPU ADT smoke test: construct + eliminate on device.
+
+inductive Box
+| box (x: Int) : Box
+
+@gpu
+def run_box (_: Int) : Int :=
+    let b : Box := .box 42 in
+    match b with
+    | box x => x
+
+def main (args: Int) : Unit :=
+    print (run_box 0);
