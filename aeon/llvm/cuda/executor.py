@@ -104,7 +104,10 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         if self.libcuda.cuInit(0) != 0:
             raise CUDAExecutionError("cuInit failed")
         count = ctypes.c_int()
-        if self.libcuda.cuDeviceGetCount(ctypes.byref(count)) != 0 or count.value < 1:
+        get_count = self.libcuda.cuDeviceGetCount
+        get_count.argtypes = [ctypes.POINTER(ctypes.c_int)]
+        get_count.restype = ctypes.c_int
+        if get_count(ctypes.byref(count)) != 0 or count.value < 1:
             raise CUDAExecutionError("no CUDA devices available")
 
     def _get_device(self, ordinal: int):
