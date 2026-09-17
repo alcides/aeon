@@ -29,6 +29,7 @@ class MultiBackendPipeline(LLVMPipeline):
 
     def _initialize_cuda_backend(self):
         if not self.cuda_initialized:
+            self.cuda_initialized = True
             try:
                 from aeon.llvm.cuda.lowerer import CUDALLVMLowerer
                 from aeon.llvm.cuda.converter import CUDALLVMIRGenerator
@@ -36,7 +37,6 @@ class MultiBackendPipeline(LLVMPipeline):
 
                 cuda_backend = Backend(CUDAExecutionEngine(), CUDALLVMIRGenerator(), CUDALLVMLowerer())
                 self.register_backend("cuda", cuda_backend)
-                self.cuda_initialized = True
             except Exception as e:
                 logger.debug(f"CUDA backend initialization failed: {e}")
 
@@ -64,8 +64,10 @@ class MultiBackendPipeline(LLVMPipeline):
         backends = self._backends_for_function(name)
         # Prefer CUDA when both are requested so ``@gpu`` entries launch on device;
         # helpers tagged with both are compiled into each backend separately.
-        if "cuda" in backends:
+        if "cuda" in backends and "cuda" in self.backends:
             return "cuda"
+        if "cpu" in backends or "cpu" in self.backends:
+            return "cpu"
         return backends[0]
 
     def compile(self, program: Term):
@@ -77,10 +79,11 @@ class MultiBackendPipeline(LLVMPipeline):
             backend_names = self._backends_for_function(target_id)
             self.function_targets[target_id] = self._get_target_for_function(target_id)
 
-            for target_name in backend_names:
+            for target_name in list(backend_names):
                 if target_name not in self.backends:
                     logger.warning(f"Backend {target_name} not found for function {target_id}. Falling back to cpu.")
                     target_name = "cpu"
+                    self.function_targets[target_id] = "cpu"
 
                 backend = self.backends[target_name]
 
