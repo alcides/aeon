@@ -389,7 +389,11 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if isinstance(function_type, LLVMFunctionType) and isinstance(function_type.return_type, LLVMVoidType):
             self.builder.ret_void()
         else:
-            expected_ir = self.to_ir_type(function_type.return_type) if isinstance(function_type, LLVMFunctionType) else ret_val.type
+            expected_ir = (
+                self.to_ir_type(function_type.return_type)
+                if isinstance(function_type, LLVMFunctionType)
+                else ret_val.type
+            )
             self.builder.ret(self._coerce_to_type(ret_val, expected_ir))
 
         self.builder, self.env = old_builder, old_env
@@ -413,9 +417,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if isinstance(target_func, ir.Function):
             if len(arg_vals) < len(target_func.function_type.args):
                 return None
-            coerced = [
-                self._coerce_to_type(v, t) for v, t in zip(arg_vals, target_func.function_type.args)
-            ]
+            coerced = [self._coerce_to_type(v, t) for v, t in zip(arg_vals, target_func.function_type.args)]
             return self.builder.call(target_func, coerced)
         return self.builder.call(target_func, arg_vals)
 
@@ -735,8 +737,6 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             return self.builder.bitcast(val, i64)
         raise LLVMIRGenerationError(f"cannot pack field of type {val.type} into ADT slot")
 
-
-
     def _unpack_field_i64(self, packed: ir.Value, ty: LLVMType) -> ir.Value:
         ir_ty = self.to_ir_type(ty)
         if isinstance(ir_ty, ir.PointerType):
@@ -811,17 +811,17 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
                 # cannot capture outer SSA values).
                 field_tys = self._adt_field_types(case, arity, declared)
                 old_env = {sanitize_name(n): self.env.get(sanitize_name(n)) for n in case.arg_names}
-                for i, (name, fty) in enumerate(zip(case.arg_names, field_tys)):
+                for i, (arg_name, fty) in enumerate(zip(case.arg_names, field_tys)):
                     off = self.builder.gep(scrut, [ir.Constant(ir.IntType(32), 8 + 8 * i)])
                     slot = self.builder.bitcast(off, ir.PointerType(ir.IntType(64)))
                     packed = self.builder.load(slot)
-                    self.env[sanitize_name(name)] = self._unpack_field_i64(packed, fty)
+                    self.env[sanitize_name(arg_name)] = self._unpack_field_i64(packed, fty)
                 val = case.body.accept(self)
-                for name, prev in old_env.items():
+                for key, prev in old_env.items():
                     if prev is None:
-                        self.env.pop(name, None)
+                        self.env.pop(key, None)
                     else:
-                        self.env[name] = prev
+                        self.env[key] = prev
             else:
                 field_tys = self._adt_field_types(case, arity, declared)
                 extracted: list[ir.Value] = []

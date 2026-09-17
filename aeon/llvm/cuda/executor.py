@@ -214,9 +214,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
 
             launch_rc = self.libcuda.cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0, None, params_ptr, None)
             if launch_rc != 0:
-                raise CUDAExecutionError(
-                    f"cuLaunchKernel failed for {func_name}: {self._cuda_error_name(launch_rc)}"
-                )
+                raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}: {self._cuda_error_name(launch_rc)}")
 
             sync_rc = self.libcuda.cuCtxSynchronize()
             if sync_rc != 0:

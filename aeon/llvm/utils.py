@@ -16,7 +16,6 @@ from aeon.llvm.llvm_ast import (
     LLVMFunctionType,
     LLVMVectorInt,
     LLVMPointerType,
-    LLVMCharType,
 )
 
 SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Array", "Vector", "Buffer", "String"}

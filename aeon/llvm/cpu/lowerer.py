@@ -781,8 +781,8 @@ class CPULLVMLowerer(LLVMLowerer):
             arities: list[int] = []
             field_types_per_case: list[list[LLVMType]] = []
             result_ty: LLVMType = expected or LLVMInt
-            for i, ctor in enumerate(order):
-                field_tys = resolve_field_llvm_types(ctor, type_args)
+            for i, ctor_name in enumerate(order):
+                field_tys = resolve_field_llvm_types(ctor_name, type_args)
                 field_types_per_case.append(field_tys)
                 case_expected: LLVMType | None = None
                 if field_tys:
@@ -811,25 +811,24 @@ class CPULLVMLowerer(LLVMLowerer):
                         break
             return LLVMADTEliminate(result_ty, rec_type, scrut, cases, arities, field_types_per_case)
 
-        ctor = lookup_constructor(head.name)
-        if ctor is not None:
+        ctor_info = lookup_constructor(head.name)
+        if ctor_info is not None:
             bound_ty = type_env.get(head)
             if isinstance(bound_ty, LLVMFunctionType):
                 arity = len(bound_ty.arg_types)
             else:
-                fields_skel = resolve_field_llvm_types(ctor.ctor_name, [])
+                fields_skel = resolve_field_llvm_types(ctor_info.ctor_name, [])
                 arity = len(fields_skel) if fields_skel else len(args)
             if len(args) < arity:
                 return None
             # Prefer registered field types; fall back to untyped lowering.
-            field_tys = resolve_field_llvm_types(ctor.ctor_name, self._peel_type_args(base, type_param_count(ctor.type_name)))
+            field_tys = resolve_field_llvm_types(
+                ctor_info.ctor_name, self._peel_type_args(base, type_param_count(ctor_info.type_name))
+            )
             if not field_tys:
-                field_tys = [None] * arity  # type: ignore[list-item]
-            fields = [
-                self._lower_term(a, ft, type_env, env, allowed, in_vec)
-                for a, ft in zip(args[:arity], field_tys)
-            ]
-            info = finalize_constructor(ctor, arity)
+                field_tys = [None] * arity
+            fields = [self._lower_term(a, ft, type_env, env, allowed, in_vec) for a, ft in zip(args[:arity], field_tys)]
+            info = finalize_constructor(ctor_info, arity)
             return LLVMADTConstruct(
                 LLVMADTPtr,
                 info.type_name,
