@@ -326,6 +326,37 @@ class LLVMAlloc(LLVMTerm):
 
 
 @dataclass
+class LLVMADTConstruct(LLVMTerm):
+    """Heap-allocate (or null-encode) an inductive constructor."""
+
+    type_name: str
+    ctor_name: str
+    tag: int
+    fields: list[LLVMTerm]
+    nullary_as_null: bool = False
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_adt_construct(self)
+
+
+@dataclass
+class LLVMADTEliminate(LLVMTerm):
+    """Eliminate an inductive value: nullary cases are values; others are handlers."""
+
+    type_name: str
+    scrutinee: LLVMTerm
+    # Parallel to constructor_order(type_name): either a result value (arity 0)
+    # or a function taking the ctor fields.
+    cases: list[LLVMTerm]
+    case_arities: list[int]
+    # Per-case field LLVM types (empty for arity 0).
+    case_field_types: list[list[LLVMType]] = field(default_factory=list)
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_adt_eliminate(self)
+
+
+@dataclass
 class LLVMVectorOp(LLVMTerm):
     f: LLVMTerm
     v: LLVMTerm

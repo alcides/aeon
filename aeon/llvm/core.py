@@ -215,3 +215,9 @@ class LLVMVisitor(ABC):
     @abstractmethod
     def visit_fold_n(self, node: LLVMFoldN) -> Any:
         pass
+
+    def visit_adt_construct(self, node: Any) -> Any:
+        raise NotImplementedError(f"{type(self).__name__} does not support ADT construct")
+
+    def visit_adt_eliminate(self, node: Any) -> Any:
+        raise NotImplementedError(f"{type(self).__name__} does not support ADT eliminate")

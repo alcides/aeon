@@ -179,8 +179,8 @@ def test_generate_sum_with_if():
 
     assert 'define i32 @"sum' in ir_code
     assert 'define i32 @"main' in ir_code
-    assert "add i32" in ir_code
-    assert "icmp slt i32" in ir_code
+    assert "add i64" in ir_code or "add i32" in ir_code
+    assert "icmp slt i64" in ir_code or "icmp slt i32" in ir_code
 
 
 def test_generate_unary_op():
@@ -209,7 +209,7 @@ def test_generate_unary_op():
     print(ir_code)
 
     assert 'define i32 @"my_neg' in ir_code
-    assert "sub i32 0," in ir_code
+    assert "sub i64 0," in ir_code or "sub i32 0," in ir_code
 
 
 def test_undefined_variable_raises_error():

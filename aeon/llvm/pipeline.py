@@ -98,7 +98,13 @@ class MultiBackendPipeline(LLVMPipeline):
                     env=env,
                 )
 
-                if isinstance(llvm_ast, LLVMFunction):
+                if not isinstance(llvm_ast, LLVMFunction):
+                    # Top-level non-function values (e.g. constant ADTs) become
+                    # zero-argument getters so the IR generator has a function body.
+                    from aeon.llvm.llvm_ast import LLVMFunctionType as _FnTy
+
+                    llvm_ast = LLVMFunction(_FnTy([], llvm_ast.type), [], [], llvm_ast, name=target_id)
+                else:
                     llvm_ast.name = target_id
 
                 self.compiled_functions_by_backend[target_name][target_id] = llvm_ast

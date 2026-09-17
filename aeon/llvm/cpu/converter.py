@@ -37,6 +37,8 @@ from aeon.llvm.llvm_ast import (
     VECTOR_OPERATIONS,
     LLVMCast,
     LLVMRefinedValue,
+    LLVMADTConstruct,
+    LLVMADTEliminate,
 )
 from aeon.llvm.refinements import emit_predicate, integer_range, parameter_ranges
 from aeon.llvm.safety import refinement_arithmetic_is_safe
@@ -302,18 +304,24 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             with then_block:
                 self._is_top_level = False
                 then_val = then_t.accept(self)
+                if then_val is not None and not isinstance(result_type, LLVMVoidType):
+                    then_val = self._coerce_to_type(then_val, self.to_ir_type(result_type))
                 then_exit = self.builder.basic_block
             with else_block:
                 self._is_top_level = False
                 else_val = else_t.accept(self)
+                if else_val is not None and not isinstance(result_type, LLVMVoidType):
+                    else_val = self._coerce_to_type(else_val, self.to_ir_type(result_type))
                 else_exit = self.builder.basic_block
 
         if isinstance(result_type, LLVMVoidType):
             return None
 
         phi = self.builder.phi(self.to_ir_type(result_type), name="if_res")
-        phi.add_incoming(then_val if then_val is not None else ir.Constant(phi.type, 0), then_exit)
-        phi.add_incoming(else_val if else_val is not None else ir.Constant(phi.type, 0), else_exit)
+        left = then_val if then_val is not None else ir.Constant(phi.type, 0)
+        right = else_val if else_val is not None else ir.Constant(phi.type, 0)
+        phi.add_incoming(left, then_exit)
+        phi.add_incoming(right, else_exit)
         return phi
 
     def visit_let(self, node: LLVMLet) -> ir.Value | None:
@@ -381,7 +389,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if isinstance(function_type, LLVMFunctionType) and isinstance(function_type.return_type, LLVMVoidType):
             self.builder.ret_void()
         else:
-            self.builder.ret(ret_val)
+            expected_ir = self.to_ir_type(function_type.return_type) if isinstance(function_type, LLVMFunctionType) else ret_val.type
+            self.builder.ret(self._coerce_to_type(ret_val, expected_ir))
 
         self.builder, self.env = old_builder, old_env
         self.refinement_env = old_refinement_env
@@ -404,6 +413,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         if isinstance(target_func, ir.Function):
             if len(arg_vals) < len(target_func.function_type.args):
                 return None
+            coerced = [
+                self._coerce_to_type(v, t) for v, t in zip(arg_vals, target_func.function_type.args)
+            ]
+            return self.builder.call(target_func, coerced)
         return self.builder.call(target_func, arg_vals)
 
     def to_ir_operator(self, op: str, args: list[LLVMTerm]) -> ir.Value | None:
@@ -413,67 +426,70 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             return None
         is_f = isinstance(vals[0].type, (ir.FloatType, ir.DoubleType))
 
+        def as_i64(val: ir.Value) -> ir.Value:
+            if isinstance(val.type, ir.IntType) and val.type.width < 64:
+                return self.builder.sext(val, ir.IntType(64))
+            return val
+
+        def int_binop(binop):
+            # Keep intermediate Int arithmetic in i64 so expressions like the
+            # LCG multiply-add match Python's unbounded Int before ``%``.
+            return binop(as_i64(vals[0]), as_i64(vals[1]))
+
         match op:
             case "+" if is_f:
                 return self.builder.fadd(vals[0], vals[1])
             case "+":
-                return self.builder.add(vals[0], vals[1])
+                return int_binop(self.builder.add)
             case "-" if is_f:
                 return self.builder.fsub(vals[0], vals[1]) if len(vals) == 2 else self.builder.fneg(vals[0])
             case "-":
-                return (
-                    self.builder.sub(vals[0], vals[1])
-                    if len(vals) == 2
-                    else self.builder.sub(ir.Constant(vals[0].type, 0), vals[0])
-                )
+                if len(vals) == 2:
+                    return int_binop(self.builder.sub)
+                zero = ir.Constant(ir.IntType(64), 0)
+                return self.builder.sub(zero, as_i64(vals[0]))
             case "*" if is_f:
                 return self.builder.fmul(vals[0], vals[1])
             case "*":
-                return self.builder.mul(vals[0], vals[1])
+                return int_binop(self.builder.mul)
             case "/" if is_f:
                 return self.builder.fdiv(vals[0], vals[1])
             case "/":
-                return self.builder.sdiv(vals[0], vals[1])
+                return int_binop(self.builder.sdiv)
             case "%" if is_f:
                 return self.builder.frem(vals[0], vals[1])
             case "%":
-                return self.builder.srem(vals[0], vals[1])
+                return int_binop(self.builder.srem)
             case "==":
-                return (
-                    self.builder.fcmp_ordered("==", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("==", vals[0], vals[1])
-                )
+                if is_f:
+                    return self.builder.fcmp_ordered("==", vals[0], vals[1])
+                a, b = as_i64(vals[0]), as_i64(vals[1])
+                return self.builder.icmp_signed("==", a, b)
             case "!=":
-                return (
-                    self.builder.fcmp_ordered("!=", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("!=", vals[0], vals[1])
-                )
+                if is_f:
+                    return self.builder.fcmp_ordered("!=", vals[0], vals[1])
+                a, b = as_i64(vals[0]), as_i64(vals[1])
+                return self.builder.icmp_signed("!=", a, b)
             case "<":
-                return (
-                    self.builder.fcmp_ordered("<", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("<", vals[0], vals[1])
-                )
+                if is_f:
+                    return self.builder.fcmp_ordered("<", vals[0], vals[1])
+                a, b = as_i64(vals[0]), as_i64(vals[1])
+                return self.builder.icmp_signed("<", a, b)
             case "<=":
-                return (
-                    self.builder.fcmp_ordered("<=", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed("<=", vals[0], vals[1])
-                )
+                if is_f:
+                    return self.builder.fcmp_ordered("<=", vals[0], vals[1])
+                a, b = as_i64(vals[0]), as_i64(vals[1])
+                return self.builder.icmp_signed("<=", a, b)
             case ">":
-                return (
-                    self.builder.fcmp_ordered(">", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed(">", vals[0], vals[1])
-                )
+                if is_f:
+                    return self.builder.fcmp_ordered(">", vals[0], vals[1])
+                a, b = as_i64(vals[0]), as_i64(vals[1])
+                return self.builder.icmp_signed(">", a, b)
             case ">=":
-                return (
-                    self.builder.fcmp_ordered(">=", vals[0], vals[1])
-                    if is_f
-                    else self.builder.icmp_signed(">=", vals[0], vals[1])
-                )
+                if is_f:
+                    return self.builder.fcmp_ordered(">=", vals[0], vals[1])
+                a, b = as_i64(vals[0]), as_i64(vals[1])
+                return self.builder.icmp_signed(">=", a, b)
             case "&&":
                 return self.builder.and_(vals[0], vals[1])
             case "||":
@@ -683,3 +699,194 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
 
         self.to_ir_loop(size_val, "fold_n", body)
         return self.builder.load(acc_ptr)
+
+    def _coerce_int(self, val: ir.Value, bits: int = 32) -> ir.Value:
+        """Truncate/extend integer values to ``bits`` (Aeon ``Int`` is i32 at ABI)."""
+        if not isinstance(val.type, ir.IntType):
+            return val
+        if val.type.width == bits:
+            return val
+        if val.type.width > bits:
+            return self.builder.trunc(val, ir.IntType(bits))
+        return self.builder.sext(val, ir.IntType(bits))
+
+    def _coerce_to_type(self, val: ir.Value, ir_ty: ir.Type) -> ir.Value:
+        if isinstance(ir_ty, ir.IntType) and isinstance(val.type, ir.IntType):
+            return self._coerce_int(val, ir_ty.width)
+        return val
+
+    def _i8_ptr_type(self) -> ir.PointerType:
+        return ir.PointerType(ir.IntType(8))
+
+    def _pack_field_i64(self, val: ir.Value) -> ir.Value:
+        i64 = ir.IntType(64)
+        if isinstance(val.type, ir.PointerType):
+            return self.builder.ptrtoint(val, i64)
+        if isinstance(val.type, ir.IntType):
+            # Normalize Aeon Int (possibly widened i64 intermediate) into a 32-bit
+            # payload, then store in the i64 slot.
+            narrowed = self._coerce_int(val, 32)
+            if narrowed.type.width < 64:
+                return self.builder.sext(narrowed, i64) if narrowed.type.width > 1 else self.builder.zext(narrowed, i64)
+            return narrowed
+        if isinstance(val.type, ir.FloatType):
+            return self.builder.zext(self.builder.bitcast(val, ir.IntType(32)), i64)
+        if isinstance(val.type, ir.DoubleType):
+            return self.builder.bitcast(val, i64)
+        raise LLVMIRGenerationError(f"cannot pack field of type {val.type} into ADT slot")
+
+
+
+    def _unpack_field_i64(self, packed: ir.Value, ty: LLVMType) -> ir.Value:
+        ir_ty = self.to_ir_type(ty)
+        if isinstance(ir_ty, ir.PointerType):
+            return self.builder.inttoptr(packed, ir_ty)
+        if isinstance(ir_ty, ir.IntType):
+            if ir_ty.width < 64:
+                return self.builder.trunc(packed, ir_ty)
+            return packed
+        if isinstance(ir_ty, ir.FloatType):
+            return self.builder.bitcast(self.builder.trunc(packed, ir.IntType(32)), ir_ty)
+        if isinstance(ir_ty, ir.DoubleType):
+            return self.builder.bitcast(packed, ir_ty)
+        raise LLVMIRGenerationError(f"cannot unpack ADT field to type {ty}")
+
+    def _adt_field_types(self, case: LLVMTerm, arity: int, declared: list[LLVMType] | None = None) -> list[LLVMType]:
+        if declared and len(declared) >= arity:
+            return list(declared)[:arity]
+        if isinstance(case, LLVMFunction):
+            return list(case.arg_types)[:arity]
+        if isinstance(case.type, LLVMFunctionType):
+            return list(case.type.arg_types)[:arity]
+        return [LLVMIntType(32)] * arity
+
+    def visit_adt_construct(self, node: LLVMADTConstruct) -> ir.Value:
+        if self.builder is None:
+            raise LLVMIRGenerationError("ADT construct outside of a function body")
+        i8ptr = self._i8_ptr_type()
+        if node.nullary_as_null:
+            return ir.Constant(i8ptr, None)
+
+        fields = [f.accept(self) for f in node.fields]
+        # Layout: [i32 tag][i32 pad][i64 field]*
+        nbytes = 8 + 8 * len(fields)
+        size = ir.Constant(ir.IntType(64), nbytes)
+        malloc_ty = ir.FunctionType(i8ptr, [ir.IntType(64)])
+        malloc_func = self.module.globals.get("malloc")
+        if not malloc_func:
+            malloc_func = ir.Function(self.module, malloc_ty, name="malloc")
+        raw = self.builder.call(malloc_func, [size], name=f"adt_{node.ctor_name}")
+
+        tag_ptr = self.builder.bitcast(raw, ir.PointerType(ir.IntType(32)))
+        self.builder.store(ir.Constant(ir.IntType(32), node.tag), tag_ptr)
+
+        for i, field_val in enumerate(fields):
+            off = self.builder.gep(raw, [ir.Constant(ir.IntType(32), 8 + 8 * i)])
+            slot = self.builder.bitcast(off, ir.PointerType(ir.IntType(64)))
+            self.builder.store(self._pack_field_i64(field_val), slot)
+        return raw
+
+    def visit_adt_eliminate(self, node: LLVMADTEliminate) -> ir.Value:
+        if self.builder is None:
+            raise LLVMIRGenerationError("ADT eliminate outside of a function body")
+
+        scrut = node.scrutinee.accept(self)
+        result_ty = self.to_ir_type(node.type)
+        i8ptr = self._i8_ptr_type()
+        parent = self.builder.function
+        merge = parent.append_basic_block(name=f"{node.type_name}_merge")
+        phi_incoming: list[tuple[ir.Value, ir.Block]] = []
+
+        use_null = bool(node.case_arities) and node.case_arities[0] == 0
+
+        def emit_case(idx: int) -> None:
+            case = node.cases[idx]
+            arity = node.case_arities[idx]
+            declared = node.case_field_types[idx] if idx < len(node.case_field_types) else []
+            if arity == 0:
+                val = case.accept(self)
+            elif isinstance(case, LLVMFunction):
+                # Inline the handler in this function so free variables from the
+                # enclosing Aeon scope remain visible (nested LLVM functions
+                # cannot capture outer SSA values).
+                field_tys = self._adt_field_types(case, arity, declared)
+                old_env = {sanitize_name(n): self.env.get(sanitize_name(n)) for n in case.arg_names}
+                for i, (name, fty) in enumerate(zip(case.arg_names, field_tys)):
+                    off = self.builder.gep(scrut, [ir.Constant(ir.IntType(32), 8 + 8 * i)])
+                    slot = self.builder.bitcast(off, ir.PointerType(ir.IntType(64)))
+                    packed = self.builder.load(slot)
+                    self.env[sanitize_name(name)] = self._unpack_field_i64(packed, fty)
+                val = case.body.accept(self)
+                for name, prev in old_env.items():
+                    if prev is None:
+                        self.env.pop(name, None)
+                    else:
+                        self.env[name] = prev
+            else:
+                field_tys = self._adt_field_types(case, arity, declared)
+                extracted: list[ir.Value] = []
+                for i, fty in enumerate(field_tys):
+                    off = self.builder.gep(scrut, [ir.Constant(ir.IntType(32), 8 + 8 * i)])
+                    slot = self.builder.bitcast(off, ir.PointerType(ir.IntType(64)))
+                    packed = self.builder.load(slot)
+                    extracted.append(self._unpack_field_i64(packed, fty))
+                handler = case.accept(self)
+                val = self.builder.call(handler, extracted)
+            if isinstance(result_ty, ir.VoidType):
+                self.builder.branch(merge)
+            else:
+                coerced = self._coerce_to_type(val, result_ty)
+                phi_incoming.append((coerced, self.builder.block))
+                self.builder.branch(merge)
+
+        if use_null:
+            null_bb = parent.append_basic_block(name=f"{node.type_name}_null")
+            tagged_bb = parent.append_basic_block(name=f"{node.type_name}_tagged")
+            is_null = self.builder.icmp_unsigned("==", scrut, ir.Constant(i8ptr, None))
+            self.builder.cbranch(is_null, null_bb, tagged_bb)
+
+            self.builder.position_at_start(null_bb)
+            emit_case(0)
+
+            self.builder.position_at_start(tagged_bb)
+            tag_ptr = self.builder.bitcast(scrut, ir.PointerType(ir.IntType(32)))
+            tag = self.builder.load(tag_ptr)
+            default = parent.append_basic_block(name=f"{node.type_name}_default")
+            switch = self.builder.switch(tag, default)
+            for idx in range(1, len(node.cases)):
+                bb = parent.append_basic_block(name=f"{node.type_name}_case{idx}")
+                switch.add_case(ir.Constant(ir.IntType(32), idx), bb)
+                self.builder.position_at_start(bb)
+                emit_case(idx)
+            self.builder.position_at_start(default)
+            if isinstance(result_ty, ir.VoidType):
+                self.builder.branch(merge)
+            else:
+                zero = ir.Constant(result_ty, None if isinstance(result_ty, ir.PointerType) else 0)
+                phi_incoming.append((zero, default))
+                self.builder.branch(merge)
+        else:
+            tag_ptr = self.builder.bitcast(scrut, ir.PointerType(ir.IntType(32)))
+            tag = self.builder.load(tag_ptr)
+            default = parent.append_basic_block(name=f"{node.type_name}_default")
+            switch = self.builder.switch(tag, default)
+            for idx in range(len(node.cases)):
+                bb = parent.append_basic_block(name=f"{node.type_name}_case{idx}")
+                switch.add_case(ir.Constant(ir.IntType(32), idx), bb)
+                self.builder.position_at_start(bb)
+                emit_case(idx)
+            self.builder.position_at_start(default)
+            if isinstance(result_ty, ir.VoidType):
+                self.builder.branch(merge)
+            else:
+                zero = ir.Constant(result_ty, None if isinstance(result_ty, ir.PointerType) else 0)
+                phi_incoming.append((zero, default))
+                self.builder.branch(merge)
+
+        self.builder.position_at_start(merge)
+        if isinstance(result_ty, ir.VoidType):
+            return None
+        phi = self.builder.phi(result_ty, name=f"{node.type_name}_res")
+        for val, block in phi_incoming:
+            phi.add_incoming(val, block)
+        return phi
