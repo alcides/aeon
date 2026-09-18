@@ -60,11 +60,13 @@ class AeonDriver:
     def __init__(self, cfg: AeonConfig):
         self.cfg = cfg
         self.decidability_warnings: list = []
+        self.dead_branch_warnings: list = []
 
     def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
         self.core = None
         self.typing_ctx = None
         self.decidability_warnings = []
+        self.dead_branch_warnings = []
 
         with RecordTime("ParseSugar"):
             clear_instance_registry()
@@ -108,6 +110,9 @@ class AeonDriver:
                     UndecidableRefinementError(construct=w.construct, detail=w.message, loc=w.location)
                     for w in self.decidability_warnings
                 ]
+
+        with RecordTime("DeadBranchScan"):
+            self.dead_branch_warnings = list(getattr(unit, "dead_branch_warnings", []))
 
         self.metadata = metadata
 
