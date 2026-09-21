@@ -78,3 +78,16 @@ def total_error (f: (a0:Float) -> Float) (1 xs: (Array Float)) : Float :=
 def synth (x: Float) : Float := ?hole;
 """
     assert _grammar_for_hole(code) is not None
+
+
+def test_if_productions_included_by_default():
+    """Control-flow ``if`` nodes are always part of the GE grammar."""
+    code = """def synth (n: Int) : Int := ?hole;"""
+    grammar = _grammar_for_hole(code)
+    if_names = [
+        getattr(alt, "__name__", "")
+        for alts in grammar.alternatives.values()
+        for alt in alts
+        if getattr(alt, "__name__", "").startswith("if_")
+    ]
+    assert any(name == "if_æInt" for name in if_names), if_names

@@ -749,7 +749,6 @@ aeon --test examples/testing/image_tests.ae
 ### Synthesis control decorators
 
 - `@allow_recursion` — allow recursion during synthesis
-- `@disable_control_flow` — disable control flow grammar nodes during synthesis
 - `@error_fitness(value)` — set the fitness value to use when an exception occurs during synthesis
 - `@prompt("description")` — provide a prompt for LLM-based synthesis
 

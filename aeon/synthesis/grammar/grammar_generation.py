@@ -59,6 +59,14 @@ IF_WEIGHT = 1
 APP_WEIGHT = 1000
 ABS_WEIGHT = 100
 
+# Base sorts used to instantiate foralls when the program contributes no type
+# arguments (plain ``Int``/``Float`` holes). When the program *does* mention
+# parameterized types, ``gen_grammar_nodes`` stays restricted to those arguments
+# so multi-parameter library HOFs do not explode the grammar.
+DEFAULT_POLY_INSTANTIATION_UNIVERSE: frozenset[TypeConstructor] = frozenset(
+    {t_int, t_float, t_bool, t_string}
+)
+
 
 def strip_refinements_keep_arg_refinements(ty: Type) -> Type:
     """Like ``refined_to_unrefined_type`` but preserves refinements on the
@@ -836,13 +844,22 @@ def _collect_type_arg_types(ty: Type, result: set[TypeConstructor]):
 def monomorphize_poly_type(
     ty: TypePolymorphism,
     instantiation_types: set[TypeConstructor],
+    program_types: set[TypeConstructor] | None = None,
 ) -> list[tuple[Type, list[Type]]]:
     """Monomorphize a polymorphic type by instantiating forall-bound vars with candidate types.
 
     Args:
         ty: The polymorphic type to monomorphize.
-        instantiation_types: Types to use for instantiation (should be non-parametric types
-            that actually appear as type arguments in the program).
+        instantiation_types: Concrete ``TypeConstructor``s to substitute for each
+            forall binder. Callers should usually include
+            ``DEFAULT_POLY_INSTANTIATION_UNIVERSE`` plus any type arguments
+            collected from the program.
+        program_types: Type arguments that actually appear in the program. When
+            provided and the forall has two or more binders, multi-parameter
+            instantiations use the full product of ``program_types`` plus the
+            *diagonal* of ``instantiation_types`` (``(T,T,...)`` for each ``T``)
+            instead of the full ``|instantiation_types|^n`` product, which
+            otherwise explodes on library HOFs such as ``Array.zipWith``.
 
     Returns list of (monomorphized_body, type_applications) pairs.
     """
@@ -861,8 +878,19 @@ def monomorphize_poly_type(
     if not base_types:
         return []
 
+    if len(foralls) <= 1 or program_types is None:
+        combos: list[tuple[TypeConstructor, ...]] = list(product(base_types, repeat=len(foralls)))
+    else:
+        combo_set: set[tuple[TypeConstructor, ...]] = set()
+        prog = sorted(program_types, key=repr)
+        if prog:
+            combo_set.update(product(prog, repeat=len(foralls)))
+        for t in base_types:
+            combo_set.add(tuple([t] * len(foralls)))
+        combos = sorted(combo_set, key=repr)
+
     results = []
-    for combo in product(base_types, repeat=len(foralls)):
+    for combo in combos:
         body = current
         type_apps: list[Type] = list(combo)
         for tvar_name, concrete_ty in zip(foralls, combo):
@@ -870,6 +898,48 @@ def monomorphize_poly_type(
         results.append((body, type_apps))
 
     return results
+
+
+def create_poly_target_start(
+    ty: TypePolymorphism,
+    instantiation_types: set[TypeConstructor],
+    type_info: dict[Type, TypingType],
+    program_types: set[TypeConstructor] | None = None,
+) -> tuple[TypingType, list[TypingType]] | None:
+    """Build a grammar start covering every monomorphization of a polymorphic hole.
+
+    A single usable instantiation reuses that body's nonterminal directly.
+    Several instantiations share an abstract ``poly_target_start`` nonterminal
+    with one wrapper production per body (so GeneticEngine can sample any of
+    them). Returns ``None`` when no instantiation is representable in
+    ``type_info``.
+    """
+    usable: list[tuple[Type, list[Type]]] = []
+    for body, type_apps in monomorphize_poly_type(ty, instantiation_types, program_types):
+        body_u = refined_to_unrefined_type(body)
+        if _has(type_info, body_u):
+            usable.append((body_u, type_apps))
+    if not usable:
+        return None
+    if len(usable) == 1:
+        return _get(type_info, usable[0][0]), []
+
+    start = abstract(type("poly_target_start", (ae_top, ABC), {}))
+    extras: list[TypingType] = [start]
+    for body_u, type_apps in usable:
+        tag = "_".join(mangle_type(t) for t in type_apps) or "unit"
+        dc = make_dataclass(
+            f"poly_inst_{tag}",
+            [("body", _get(type_info, body_u))],
+            bases=(start,),
+        )
+
+        def get_core(_self):
+            return _self.body.get_core()
+
+        setattr(dc, "get_core", get_core)
+        extras.append(dc)
+    return start, extras
 
 
 def create_monomorphized_var_nodes(
@@ -995,13 +1065,20 @@ def gen_grammar_nodes(
         (var_name, strip_refinements_keep_arg_refinements(var_ty)) for (var_name, var_ty) in mono_ctx_vars
     ]
 
-    # Collect types that are used as type arguments to parameterized constructors.
-    # These are the only types we need to instantiate forall-bound variables with.
-    # For example, in `List Chunk`, `Chunk` is a type argument.
-    instantiation_types: set[TypeConstructor] = set()
+    # Collect types that are used as type arguments to parameterized constructors
+    # (e.g. ``Chunk`` in ``List Chunk``). When the program mentions none, fall
+    # back to the default base universe so polymorphic prelude ops still
+    # monomorphize for plain ``Int``/``Float`` holes. When the program *does*
+    # mention type arguments, stay restricted to those — unioning the full
+    # default universe with multi-parameter library HOFs (``map``/``zipWith``)
+    # explodes the grammar.
+    program_types: set[TypeConstructor] = set()
     for _, vt in mono_ctx_vars:
-        _collect_type_arg_types(vt, instantiation_types)
-    _collect_type_arg_types(ty, instantiation_types)
+        _collect_type_arg_types(vt, program_types)
+    _collect_type_arg_types(ty, program_types)
+    instantiation_types: set[TypeConstructor] = (
+        set(program_types) if program_types else set(DEFAULT_POLY_INSTANTIATION_UNIVERSE)
+    )
 
     # Monomorphize polymorphic variables. Arithmetic operators (`+ - * / %`)
     # are declared `forall a:B, a -> a -> a` in the prelude but only make
@@ -1015,8 +1092,13 @@ def gen_grammar_nodes(
     }
     monomorphized: list[tuple[Name, Type, list[Type]]] = []
     for vn, vt in poly_ctx_vars:
-        inst_types = numeric_only_types if vn.name in numeric_arith_ops else instantiation_types
-        for mono_body, type_apps in monomorphize_poly_type(vt, inst_types):
+        if vn.name in numeric_arith_ops:
+            inst_types = numeric_only_types
+            prog_for_op: set[TypeConstructor] | None = None  # 1-binder ops; full product
+        else:
+            inst_types = instantiation_types
+            prog_for_op = program_types
+        for mono_body, type_apps in monomorphize_poly_type(vt, inst_types, prog_for_op):
             mono_body_unrefined = strip_refinements_keep_arg_refinements(mono_body)
             monomorphized.append((vn, mono_body_unrefined, type_apps))
 
@@ -1024,6 +1106,11 @@ def gen_grammar_nodes(
     mono_extra_types: set[Type] = set()
     for _, mt, _ in monomorphized:
         mono_extra_types.add(mt)
+    # Also register every monomorphization of a polymorphic synthesis target so
+    # the union start symbol (below) has concrete body nonterminals to wrap.
+    if isinstance(ty, TypePolymorphism):
+        for mono_body, _ in monomorphize_poly_type(ty, instantiation_types, program_types):
+            mono_extra_types.add(strip_refinements_keep_arg_refinements(mono_body))
 
     # Build set of all types to consider
     types_to_consider = (
@@ -1046,16 +1133,14 @@ def gen_grammar_nodes(
     ifs = create_if_nodes(type_info)
     mono_nodes = create_monomorphized_var_nodes(monomorphized, type_info)
 
-    ret = type_nodes + literals + literals_ref + vars + applications + abstractions + mono_nodes
-    if mangle_name(synth_func_name) in metadata and "disable_control_flow" in metadata[synth_func_name]:
-        ret = ret + ifs
+    ret = type_nodes + literals + literals_ref + vars + applications + abstractions + mono_nodes + ifs
     # Use the unrefined base type as the grammar starting node.
     # Refined type metahandler literals are direct alternatives for the base class,
     # so no refined abstract class is needed as a starting symbol.
     # `refined_to_unrefined_type` does not peel TypePolymorphism, and we never
     # register the forall node itself, so for a polymorphic synthesis target we
-    # derive the starting node from its first monomorphized body.
-    # TODO: synthesize across all instantiations of a polymorphic target.
+    # build a start that covers every monomorphized body (union NT when there
+    # is more than one).
     if start_override is not None:
         # Property-based testing starts generation from a refined node so the
         # metahandler enforces the refinement at generation time (no discards),
@@ -1064,11 +1149,15 @@ def gen_grammar_nodes(
         # in-range literals, so this also avoids generating arbitrary
         # value-producing expressions.
         start_ty = start_override
-    elif isinstance(ty, TypePolymorphism):
-        mono = monomorphize_poly_type(ty, instantiation_types)
-        start_ty = refined_to_unrefined_type(mono[0][0]) if mono else refined_to_unrefined_type(ty)
-    else:
+        return ret, _get(type_info, start_ty)
+    if isinstance(ty, TypePolymorphism):
+        poly_start = create_poly_target_start(ty, instantiation_types, type_info, program_types)
+        if poly_start is not None:
+            start_node, extras = poly_start
+            return ret + extras, start_node
         start_ty = refined_to_unrefined_type(ty)
+        return ret, _get(type_info, start_ty)
+    start_ty = refined_to_unrefined_type(ty)
     return ret, _get(type_info, start_ty)
 
 
