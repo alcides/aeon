@@ -422,7 +422,7 @@ class AeonLanguageServer(LanguageServer):
             uri: str,
             hole_name_str: str,
             synthesizer_name: str,
-            budget_seconds: float = 5.0,
+            budget_seconds: float = 15.0,
         ) -> None:
             _emit_synthesis_pending(ls, hole_name_str, synthesizer_name, budget_seconds)
             loop = asyncio.get_event_loop()
@@ -531,7 +531,7 @@ def _emit_synthesis_pending(
     try:
         budget = float(budget_seconds)
     except (TypeError, ValueError):
-        budget = 5.0
+        budget = 15.0
     params = {
         "hole": hole_name_str,
         "algorithm": synthesizer_label(synthesizer_name),
@@ -556,7 +556,7 @@ def _run_synthesis(
     uri: str,
     hole_name_str: str,
     synthesizer_name: str,
-    budget_seconds: float = 5.0,
+    budget_seconds: float = 15.0,
 ):
     """Blocking synthesis function, meant to run in a thread executor."""
     from . import aeon_adapter
@@ -638,7 +638,7 @@ def _run_synthesis(
     try:
         budget = float(budget_seconds)
     except (TypeError, ValueError):
-        budget = 5.0
+        budget = 15.0
 
     ui = LSPProgressUI(ls, synthesizer_name, hole_name_str)
     try:
