@@ -89,7 +89,9 @@ def _replace_type(ty: Type, old: Type, new: Type) -> Type:
         case TypeConstructor(name, args):
             return TypeConstructor(name, [_replace_type(a, old, new) for a in args])
         case RefinedType(name, it, ref):
-            return RefinedType(name, _replace_type(it, old, new), ref)
+            new_it = _replace_type(it, old, new)
+            assert isinstance(new_it, (TypeConstructor, TypeVar))
+            return RefinedType(name, new_it, ref)
         case AbstractionType(var_name, var_type, ret):
             return AbstractionType(var_name, _replace_type(var_type, old, new), _replace_type(ret, old, new))
         case TypePolymorphism(name, kind, body):
