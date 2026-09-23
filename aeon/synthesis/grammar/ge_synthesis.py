@@ -33,7 +33,10 @@ from geneticengine.evaluation.recorder import SearchRecorder
 from aeon.synthesis.decorators import Goal
 
 # Tree depth bound for GeneticEngine representations (GP, random search, HC, 1+1).
-DEFAULT_MAX_DEPTH = 30
+# Depth 30 with the current grammar makes phenotype typechecking so expensive that
+# short synthesis budgets never elapse (single-individual eval dominates). 15 keeps
+# richer trees than the historical depth-5 default without stalling CI.
+DEFAULT_MAX_DEPTH = 15
 
 
 def _knee_point_individual(

@@ -806,7 +806,14 @@ def create_if_node(ty: Type, type_info: dict[Type, TypingType]) -> TypingType:
 
 
 def create_if_nodes(type_info: dict[Type, TypingType]) -> list[TypingType]:
-    return [create_if_node(ty, type_info) for ty in type_info]
+    # Only emit ``if`` for scalar base types. Control-flow on every arrow,
+    # refinement, or ADT nonterminal blows up GeneticEngine grammars (and CI)
+    # without helping search — callers already obtain functions via vars/apps.
+    return [
+        create_if_node(ty, type_info)
+        for ty in type_info
+        if isinstance(ty, TypeConstructor) and ty in DEFAULT_POLY_INSTANTIATION_UNIVERSE
+    ]
 
 
 def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:
