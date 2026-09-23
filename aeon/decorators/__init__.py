@@ -23,7 +23,6 @@ from aeon.synthesis.decorators import (
     cluster,
     csv_data,
     csv_file,
-    disable_control_flow,
     error_fitness,
     example,
     maximize,
@@ -51,7 +50,6 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "multi_minimize_int": multi_minimize_int,
     "allow_recursion": allow_recursion,
     "error_fitness": error_fitness,
-    "disable_control_flow": disable_control_flow,
     "prompt": prompt,
     "property": property_test,
     "example": example,
@@ -75,7 +73,6 @@ _KNOWN_DECORATOR_NAMES: frozenset[str] = frozenset(sugar_decorators_environment)
 # Omitted names default to exactly one positional argument.
 _SUGAR_DECORATOR_ARITY: dict[str, int | frozenset[int]] = {
     "allow_recursion": 0,
-    "disable_control_flow": 0,
     "property": frozenset({0, 1}),
     "multi_minimize_float": 2,
     "multi_minimize_int": 2,

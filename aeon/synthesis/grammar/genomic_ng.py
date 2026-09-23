@@ -43,7 +43,7 @@ from geneticengine.representations.tree.initializations import MaxDepthDecider
 # continuous relaxation explores it well.
 CODON_MAX = 1 << 15
 GENE_LENGTH = 256
-MAX_DEPTH = 5
+MAX_DEPTH = 15
 
 # Finite penalty reported to Nevergrad for an invalid/un-evaluable candidate.
 # A large positive value keeps such candidates strictly worse than any real

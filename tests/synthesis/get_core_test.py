@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from aeon.core.terms import Literal, TypeApplication, Var
+from aeon.core.terms import Literal, TypeApplication, TypeAbstraction, Var
 from aeon.core.types import (
     AbstractionType,
     Kind,
@@ -140,3 +140,101 @@ def test_mono_var_get_core_type_application():
     ta = type_apps[0]
     assert ta.type == t_int
     assert ta.body == Var(fname)
+
+
+def test_default_instantiation_universe():
+    from aeon.synthesis.grammar.grammar_generation import DEFAULT_POLY_INSTANTIATION_UNIVERSE
+
+    assert DEFAULT_POLY_INSTANTIATION_UNIVERSE == frozenset({t_int, t_float, t_bool, t_string})
+
+
+def test_monomorphize_uses_full_default_universe():
+    """Even with no program-derived type args, foralls instantiate over the base universe."""
+    from aeon.synthesis.grammar.grammar_generation import DEFAULT_POLY_INSTANTIATION_UNIVERSE
+
+    poly = TypePolymorphism(
+        Name("a", 0),
+        Kind.BASE,
+        AbstractionType(Name("x", 0), TypeVar(Name("a", 0)), TypeVar(Name("a", 0))),
+    )
+    mono = monomorphize_poly_type(poly, set(DEFAULT_POLY_INSTANTIATION_UNIVERSE))
+    apps = {tuple(type_apps) for _, type_apps in mono}
+    assert apps == {(t_int,), (t_float,), (t_bool,), (t_string,)}
+
+
+def test_poly_target_start_wraps_type_abstraction():
+    """A polymorphic hole start re-abstracts the skolemized body with TypeAbstraction."""
+    from aeon.synthesis.grammar.grammar_generation import gen_grammar_nodes
+    from aeon.typechecking.context import TypingContext
+
+    poly = TypePolymorphism(
+        Name("a", 0),
+        Kind.BASE,
+        AbstractionType(Name("x", 0), TypeVar(Name("a", 0)), TypeVar(Name("a", 0))),
+    )
+    nodes, start = gen_grammar_nodes(TypingContext(), poly, Name("synth", 0), {})
+    assert start.__name__ == "poly_target_start"
+    assert any(c.__name__ == "poly_abs" for c in nodes)
+
+    # Instantiate the wrapper with a trivial body of the skolem arrow type.
+    abs_node = next(c for c in nodes if c.__name__ == "poly_abs")
+
+    class _Stub:
+        def get_core(self):
+            return Var(Name("x", 0))
+
+    core = abs_node(body=_Stub()).get_core()
+    assert isinstance(core, TypeAbstraction)
+    assert core.name.name == "a"
+    assert isinstance(core.body, Var)
+
+
+def test_int_hole_monomorphizes_prelude_without_type_args():
+    """Plain ``Int`` holes still get polymorphic prelude ops via the default universe."""
+    from aeon.core.types import top
+    from aeon.synthesis.grammar.grammar_generation import create_grammar
+    from aeon.synthesis.identification import get_holes_info
+    from tests.driver import check_and_return_core
+
+    term, ctx, _ectx, _metadata = check_and_return_core("def synth (n: Int) : Int := ?hole;")
+    holes = get_holes_info(ctx, term, top, [], refined_types=True)
+    ty, hole_ctx = next(iter(holes.values()))
+    grammar = create_grammar(hole_ctx, ty, Name("synth", 0), {})
+    names = {getattr(alt, "__name__", "") for alts in grammar.alternatives.values() for alt in alts}
+    # ``+`` is ``forall a. a -> a -> a``; with the default universe it must appear
+    # at least at ``Int`` (and typically ``Float``).
+    assert any("mono" in n and "æInt" in n for n in names), sorted(n for n in names if "mono" in n)[:20]
+
+
+def test_multi_binder_monomorphize_uses_diagonal_with_program_types():
+    """Multi-parameter foralls avoid the full default-universe product."""
+    from aeon.synthesis.grammar.grammar_generation import DEFAULT_POLY_INSTANTIATION_UNIVERSE
+
+    a, b = Name("a", 0), Name("b", 0)
+    # forall a b. a -> b -> a
+    poly = TypePolymorphism(
+        a,
+        Kind.BASE,
+        TypePolymorphism(
+            b,
+            Kind.BASE,
+            AbstractionType(
+                Name("x", 0),
+                TypeVar(a),
+                AbstractionType(Name("y", 0), TypeVar(b), TypeVar(a)),
+            ),
+        ),
+    )
+    inst = set(DEFAULT_POLY_INSTANTIATION_UNIVERSE)
+    program = {t_float}
+    mono = monomorphize_poly_type(poly, inst, program)
+    apps = {tuple(type_apps) for _, type_apps in mono}
+    # Full product over program types + diagonal over the default universe.
+    assert (t_float, t_float) in apps
+    assert (t_int, t_int) in apps
+    assert (t_bool, t_bool) in apps
+    assert (t_string, t_string) in apps
+    # Cross terms from the default universe alone must not appear.
+    assert (t_int, t_float) not in apps
+    assert (t_float, t_int) not in apps
+    assert len(apps) == 4

@@ -78,3 +78,61 @@ def total_error (f: (a0:Float) -> Float) (1 xs: (Array Float)) : Float :=
 def synth (x: Float) : Float := ?hole;
 """
     assert _grammar_for_hole(code) is not None
+
+
+def test_if_productions_included_by_default():
+    """Control-flow ``if`` nodes are always part of the GE grammar."""
+    code = """def synth (n: Int) : Int := ?hole;"""
+    grammar = _grammar_for_hole(code)
+    if_names = [
+        getattr(alt, "__name__", "")
+        for alts in grammar.alternatives.values()
+        for alt in alts
+        if getattr(alt, "__name__", "").startswith("if_")
+    ]
+    assert any(name == "if_æInt" for name in if_names), if_names
+
+
+def test_list_constructors_and_eliminator_as_applications():
+    """``List`` nil/cons/rec appear as (mono) applications of the list NT."""
+    code = """open List
+
+def synth (xs: (List Int)) : (List Int) := ?hole;
+"""
+    grammar = _grammar_for_hole(code)
+    names = {getattr(alt, "__name__", "") for alts in grammar.alternatives.values() for alt in alts}
+    assert any("List_nil" in n and "mono" in n for n in names), sorted(n for n in names if "nil" in n)
+    assert any(n.startswith("var_app_List_cons") for n in names), sorted(n for n in names if "cons" in n)
+    # Eliminator must be instantiable at ``List Int``, not only at ``Int``.
+    list_rec_at_list = [n for n in names if "List_rec" in n and "æList" in n]
+    assert list_rec_at_list, sorted(n for n in names if "List_rec" in n)
+
+
+def test_nat_constructors_and_eliminator_as_applications():
+    """Nullary ADT ``Nat`` exposes zero/succ apps and ``Nat_rec`` at ``Nat``."""
+    code = """
+inductive Nat
+| zero : Nat
+| succ (n: Nat) : Nat
+
+def synth (n: Nat) : Nat := ?hole;
+"""
+    grammar = _grammar_for_hole(code)
+    names = {getattr(alt, "__name__", "") for alts in grammar.alternatives.values() for alt in alts}
+    assert any("Nat_zero" in n for n in names), sorted(n for n in names if "Nat" in n)[:30]
+    assert any(n.startswith("var_app_Nat_succ") for n in names), sorted(n for n in names if "succ" in n)
+    assert any("Nat_rec" in n and "æNat" in n and "var_app_" in n for n in names), sorted(
+        n for n in names if "Nat_rec" in n
+    )
+
+
+def test_dependent_refinement_library_app_is_kept():
+    """Sibling-binder refinements no longer drop fully-applied library apps."""
+    code = """
+def clampish (x: Int) (lo: Int) (hi: {v:Int | v >= lo}) : Int := lo;
+
+def synth (n: Int) : Int := ?hole;
+"""
+    grammar = _grammar_for_hole(code)
+    names = {getattr(alt, "__name__", "") for alts in grammar.alternatives.values() for alt in alts}
+    assert any(n.startswith("var_app_clampish") for n in names), sorted(n for n in names if "clamp" in n)

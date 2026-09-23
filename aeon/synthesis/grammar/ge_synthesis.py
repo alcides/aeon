@@ -24,13 +24,19 @@ from geneticengine.evaluation import SequentialEvaluator
 from geneticengine.evaluation.tracker import ProgressTracker
 from geneticengine.algorithms.random_search import RandomSearch
 from geneticengine.algorithms.enumerative import EnumerativeSearch
-from geneticengine.algorithms.gp.gp import GeneticProgramming
+from geneticengine.algorithms.gp.parameterless import InitiallyRandomGeneticProgramming
 from geneticengine.algorithms.one_plus_one import OnePlusOne
 from geneticengine.algorithms.hill_climbing import HC
 from geneticengine.solutions import Individual
 from geneticengine.evaluation.recorder import SearchRecorder
 
 from aeon.synthesis.decorators import Goal
+
+# Tree depth bound for GeneticEngine representations (GP, random search, HC, 1+1).
+# Depth 30 with the current grammar makes phenotype typechecking so expensive that
+# short synthesis budgets never elapse (single-individual eval dominates). 15 keeps
+# richer trees than the historical depth-5 default without stalling CI.
+DEFAULT_MAX_DEPTH = 15
 
 
 def _knee_point_individual(
@@ -153,7 +159,8 @@ class GESynthesizer(Synthesizer):
         tracker = ProgressTracker(problem, evaluator=SequentialEvaluator(), recorders=[UIBackendRecorder()])
 
         representation = TreeBasedRepresentation(
-            grammar, decider=MaxDepthDecider(NativeRandomSource(self.seed), grammar, max_depth=5)
+            grammar,
+            decider=MaxDepthDecider(NativeRandomSource(self.seed), grammar, max_depth=DEFAULT_MAX_DEPTH),
         )
 
         common_args = {
@@ -170,7 +177,10 @@ class GESynthesizer(Synthesizer):
             case "enumerative":
                 alg = EnumerativeSearch(grammar=grammar, **common_args)
             case "genetic_programming":
-                alg = GeneticProgramming(**common_random_args)
+                # Parameterless GP: population size, operator rates and tournament
+                # sizes are sampled once from the RNG (GeneticEngine's
+                # InitiallyRandomGeneticProgramming), avoiding hand-tuned knobs.
+                alg = InitiallyRandomGeneticProgramming(**common_random_args)
             case "hill_climbing":
                 alg = HC(**common_random_args)
             case "one_plus_one":
