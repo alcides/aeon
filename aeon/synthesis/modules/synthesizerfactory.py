@@ -89,7 +89,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "xfta": "Metric-guided composition (diversity)",
     "enumerative": "Grammar enumeration (enumerative)",
     "random_search": "Grammar enumeration (random)",
-    "gp": "Genetic programming (default)",
+    "gp": "Genetic programming (parameterless, default)",
     "hc": "Hill climbing",
     "1p1": "(1+1) evolution strategy",
     "ng": "Nevergrad · grammar (NGOpt)",

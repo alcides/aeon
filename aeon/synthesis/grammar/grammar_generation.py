@@ -25,9 +25,19 @@ from itertools import product
 
 from aeon.core.equality import canonicalize_type
 from aeon.core.substitutions import substitute_vartype, substitution_in_type, substitution_liquid_in_type
-from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, TypeApplication
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    Hole,
+    If,
+    Literal,
+    Term,
+    TypeAbstraction,
+    TypeApplication,
+)
 from aeon.core.terms import Var
-from aeon.core.types import AbstractionType, RefinementPolymorphism, Type, TypePolymorphism, TypeVar
+from aeon.core.types import AbstractionType, Kind, RefinementPolymorphism, Type, TypePolymorphism, TypeVar
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
 from aeon.core.types import Top
@@ -60,12 +70,97 @@ APP_WEIGHT = 1000
 ABS_WEIGHT = 100
 
 # Base sorts used to instantiate foralls when the program contributes no type
-# arguments (plain ``Int``/``Float`` holes). When the program *does* mention
-# parameterized types, ``gen_grammar_nodes`` stays restricted to those arguments
-# so multi-parameter library HOFs do not explode the grammar.
-DEFAULT_POLY_INSTANTIATION_UNIVERSE: frozenset[TypeConstructor] = frozenset(
-    {t_int, t_float, t_bool, t_string}
-)
+# arguments (plain ``Int``/``Float`` holes). ADT heads from the hole/context are
+# always unioned in as well so eliminators (``*_rec``) can return the datatype.
+# Multi-binder products still use ``program_types`` (type args ∪ ADT heads) plus
+# a diagonal over the full instantiation set to avoid exploding library HOFs.
+DEFAULT_POLY_INSTANTIATION_UNIVERSE: frozenset[TypeConstructor] = frozenset({t_int, t_float, t_bool, t_string})
+
+
+def _types_equal(t1: Type, t2: Type) -> bool:
+    return canonicalize_type(t1) == canonicalize_type(t2)
+
+
+def _replace_type(ty: Type, old: Type, new: Type) -> Type:
+    """Replace every occurrence of ``old`` with ``new`` inside ``ty``."""
+    if _types_equal(ty, old):
+        return new
+    match ty:
+        case TypeConstructor(name, args):
+            return TypeConstructor(name, [_replace_type(a, old, new) for a in args])
+        case RefinedType(name, it, ref):
+            return RefinedType(name, _replace_type(it, old, new), ref)
+        case AbstractionType(var_name, var_type, ret):
+            return AbstractionType(var_name, _replace_type(var_type, old, new), _replace_type(ret, old, new))
+        case TypePolymorphism(name, kind, body):
+            return TypePolymorphism(name, kind, _replace_type(body, old, new))
+        case RefinementPolymorphism(name, sort, body):
+            return RefinementPolymorphism(name, _replace_type(sort, old, new), _replace_type(body, old, new))
+        case _:
+            return ty
+
+
+def _replace_type_in_term(term: Term, old: Type, new: Type) -> Term:
+    """Replace every occurrence of type ``old`` with ``new`` inside ``term``."""
+
+    def rec(t: Term) -> Term:
+        return _replace_type_in_term(t, old, new)
+
+    match term:
+        case Literal() | Var() | Hole():
+            return term
+        case Application(fun, arg, loc):
+            return Application(rec(fun), rec(arg), loc=loc)
+        case Abstraction(var_name, body, loc):
+            return Abstraction(var_name, rec(body), loc=loc)
+        case Annotation(expr, ty, loc):
+            return Annotation(rec(expr), _replace_type(ty, old, new), loc=loc)
+        case If(cond, then, otherwise, loc):
+            return If(rec(cond), rec(then), rec(otherwise), loc=loc)
+        case TypeAbstraction(name, kind, body, loc):
+            return TypeAbstraction(name, kind, rec(body), loc=loc)
+        case TypeApplication(body, ty, loc):
+            return TypeApplication(rec(body), _replace_type(ty, old, new), loc=loc)
+        case _:
+            # Let / Rec / refinement forms are not emitted by the GE grammar.
+            return term
+
+
+def _resolve_grammar_type(ty: Type, type_info: dict[Type, TypingType]) -> Type | None:
+    """Pick a ``type_info`` key for ``ty``, falling back to its unrefined base.
+
+    Dependent refinements (e.g. ``hi: {v:Int | v >= lo}``) are not registered as
+    their own nonterminals; using the base type keeps constructors/library apps
+    in the grammar and leaves liquid constraints to validation.
+    """
+    if _has(type_info, ty):
+        return ty
+    base = refined_to_unrefined_type(ty)
+    if _has(type_info, base):
+        return base
+    return None
+
+
+def _peel_poly_target(
+    ty: TypePolymorphism,
+) -> tuple[Type, list[tuple[Name, Kind]], list[tuple[TypeConstructor, Name]]]:
+    """Open a polymorphic hole type under fresh skolem constructors.
+
+    Returns ``(body_type, binders, skolem_map)`` where ``skolem_map`` pairs each
+    skolem ``TypeConstructor`` with the original forall binder name so
+    ``get_core`` can re-abstract and restore ``TypeVar``s.
+    """
+    binders: list[tuple[Name, Kind]] = []
+    skolems: list[tuple[TypeConstructor, Name]] = []
+    body: Type = ty
+    while isinstance(body, TypePolymorphism):
+        binders.append((body.name, body.kind))
+        skolem = TypeConstructor(Name(f"α_{body.name.name}", fresh_counter.fresh()), [])
+        skolems.append((skolem, body.name))
+        body = body.body
+    for skolem, tvar in skolems:
+        body = substitute_vartype(body, skolem, tvar)
+    return body, binders, skolems
 
 
 def strip_refinements_keep_arg_refinements(ty: Type) -> Type:
@@ -577,22 +672,29 @@ def create_var_apps_node(name: Name, ty: AbstractionType, type_info: dict[Type, 
     # matching the storage convention used by `extract_all_types`.
     for aname, _ in args:
         rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
-    # Skip functions whose argument or return types cannot be represented as
-    # grammar nodes (e.g. a dependent refinement mentioning a sibling binder,
-    # such as ``clamp``'s ``hi: {v:Int | v >= lo}``). Such a function simply
-    # does not become a synthesis building block, instead of crashing.
-    if not _has(type_info, rtype) or any(not _has(type_info, aty) for (_, aty) in args):
+    # Fall back to unrefined bases when dependent refinements are not registered
+    # as their own nonterminals (e.g. ``clamp``'s ``hi: {v:Int | v >= lo}``).
+    resolved_args: list[tuple[Name, Type]] = []
+    for aname, aty in args:
+        resolved = _resolve_grammar_type(aty, type_info)
+        if resolved is None:
+            return None
+        resolved_args.append((aname, resolved))
+    resolved_ret = _resolve_grammar_type(rtype, type_info)
+    if resolved_ret is None:
         return None
-    python_ty = _get(type_info, rtype)
+    python_ty = _get(type_info, resolved_ret)
 
     vname = mangle_var(name)
     dc = make_dataclass(
-        f"var_app_{vname}", [(mangle_name(aname), _get(type_info, ty)) for (aname, ty) in args], bases=(python_ty,)
+        f"var_app_{vname}",
+        [(mangle_name(aname), _get(type_info, aty)) for (aname, aty) in resolved_args],
+        bases=(python_ty,),
     )
 
     def get_core(_self):
         current = Var(name)
-        for aname, _ in args:
+        for aname, _ in resolved_args:
             current = Application(current, getattr(_self, mangle_name(aname)).get_core())
 
         return current
@@ -901,45 +1003,41 @@ def monomorphize_poly_type(
 
 
 def create_poly_target_start(
-    ty: TypePolymorphism,
-    instantiation_types: set[TypeConstructor],
+    body_ty: Type,
+    binders: list[tuple[Name, Kind]],
+    skolems: list[tuple[TypeConstructor, Name]],
     type_info: dict[Type, TypingType],
-    program_types: set[TypeConstructor] | None = None,
 ) -> tuple[TypingType, list[TypingType]] | None:
-    """Build a grammar start covering every monomorphization of a polymorphic hole.
+    """Start symbol for a polymorphic hole: synthesize under skolems, re-abstract.
 
-    A single usable instantiation reuses that body's nonterminal directly.
-    Several instantiations share an abstract ``poly_target_start`` nonterminal
-    with one wrapper production per body (so GeneticEngine can sample any of
-    them). Returns ``None`` when no instantiation is representable in
-    ``type_info``.
+    The body nonterminal is the skolemized (monomorphic) body type. ``get_core``
+    restores each skolem ``TypeConstructor`` to the original ``TypeVar`` and
+    wraps the term in ``TypeAbstraction`` binders so the phenotype has type
+    ``forall a [...]. T``.
     """
-    usable: list[tuple[Type, list[Type]]] = []
-    for body, type_apps in monomorphize_poly_type(ty, instantiation_types, program_types):
-        body_u = refined_to_unrefined_type(body)
-        if _has(type_info, body_u):
-            usable.append((body_u, type_apps))
-    if not usable:
+    body_u = refined_to_unrefined_type(body_ty)
+    if not _has(type_info, body_u):
         return None
-    if len(usable) == 1:
-        return _get(type_info, usable[0][0]), []
+    if not binders:
+        return _get(type_info, body_u), []
 
     start = abstract(type("poly_target_start", (ae_top, ABC), {}))
-    extras: list[TypingType] = [start]
-    for body_u, type_apps in usable:
-        tag = "_".join(mangle_type(t) for t in type_apps) or "unit"
-        dc = make_dataclass(
-            f"poly_inst_{tag}",
-            [("body", _get(type_info, body_u))],
-            bases=(start,),
-        )
+    dc = make_dataclass(
+        "poly_abs",
+        [("body", _get(type_info, body_u))],
+        bases=(start,),
+    )
 
-        def get_core(_self):
-            return _self.body.get_core()
+    def get_core(_self, _binders=binders, _skolems=skolems):
+        term: Term = _self.body.get_core()
+        for skolem, tvar in _skolems:
+            term = _replace_type_in_term(term, skolem, TypeVar(tvar))
+        for tvar, kind in reversed(_binders):
+            term = TypeAbstraction(tvar, kind, term)
+        return term
 
-        setattr(dc, "get_core", get_core)
-        extras.append(dc)
-    return start, extras
+    setattr(dc, "get_core", get_core)
+    return start, [start, dc]
 
 
 def create_monomorphized_var_nodes(
@@ -977,17 +1075,26 @@ def create_monomorphized_var_nodes(
             for aname, _ in args:
                 rtype = substitution_in_type(rtype, Var(Name("__self__", 0)), aname)
 
-            if not _has(type_info, rtype) or any(not _has(type_info, aty) for _, aty in args):
+            resolved_args: list[tuple[Name, Type]] = []
+            skip = False
+            for aname, aty in args:
+                resolved = _resolve_grammar_type(aty, type_info)
+                if resolved is None:
+                    skip = True
+                    break
+                resolved_args.append((aname, resolved))
+            resolved_ret = _resolve_grammar_type(rtype, type_info)
+            if skip or resolved_ret is None:
                 continue
 
             vname = mangle_var(name) + "_mono_" + "_".join(mangle_type(t) for t in type_apps)
             dc = make_dataclass(
                 f"var_app_{vname}",
-                [(mangle_name(aname), _get(type_info, aty)) for (aname, aty) in args],
-                bases=(_get(type_info, rtype),),
+                [(mangle_name(aname), _get(type_info, aty)) for (aname, aty) in resolved_args],
+                bases=(_get(type_info, resolved_ret),),
             )
 
-            args_names = [aname for aname, _ in args]
+            args_names = [aname for aname, _ in resolved_args]
 
             def get_core_app(_self, _name=name, _ta=type_apps, _args=args_names):
                 term = Var(_name)
@@ -1065,20 +1172,38 @@ def gen_grammar_nodes(
         (var_name, strip_refinements_keep_arg_refinements(var_ty)) for (var_name, var_ty) in mono_ctx_vars
     ]
 
-    # Collect types that are used as type arguments to parameterized constructors
-    # (e.g. ``Chunk`` in ``List Chunk``). When the program mentions none, fall
-    # back to the default base universe so polymorphic prelude ops still
-    # monomorphize for plain ``Int``/``Float`` holes. When the program *does*
-    # mention type arguments, stay restricted to those — unioning the full
-    # default universe with multi-parameter library HOFs (``map``/``zipWith``)
-    # explodes the grammar.
+    # Instantiation universe for foralls:
+    #  * type arguments (``Int`` from ``List Int``);
+    #  * the hole's own ADT head (``List Int``, ``Nat``) so ``*_rec`` can
+    #    return the datatype itself;
+    #  * the default base universe (fallback + diagonal / single-binder
+    #    candidates so eliminators can return ``Int``/``Bool``).
+    # Multi-binder products use ``program_types`` only — not the full default
+    # universe — to avoid exploding library HOFs such as ``Array.zipWith``.
+    # Context ``Unit`` shadows (fitness helpers) are intentionally *not* added
+    # as instantiation candidates.
     program_types: set[TypeConstructor] = set()
     for _, vt in mono_ctx_vars:
         _collect_type_arg_types(vt, program_types)
     _collect_type_arg_types(ty, program_types)
-    instantiation_types: set[TypeConstructor] = (
-        set(program_types) if program_types else set(DEFAULT_POLY_INSTANTIATION_UNIVERSE)
-    )
+    # Polymorphic hole: open under skolems before collecting / synthesizing.
+    poly_binders: list[tuple[Name, Kind]] = []
+    poly_skolems: list[tuple[TypeConstructor, Name]] = []
+    synth_ty = ty
+    if isinstance(ty, TypePolymorphism):
+        synth_ty, poly_binders, poly_skolems = _peel_poly_target(ty)
+        for skolem, _ in poly_skolems:
+            program_types.add(skolem)
+        _collect_type_arg_types(synth_ty, program_types)
+    synth_value = refined_to_unrefined_type(synth_ty)
+    if isinstance(synth_value, TypeConstructor):
+        program_types.add(synth_value)
+
+    instantiation_types: set[TypeConstructor] = set(program_types)
+    if not instantiation_types:
+        instantiation_types = set(DEFAULT_POLY_INSTANTIATION_UNIVERSE)
+    else:
+        instantiation_types |= set(DEFAULT_POLY_INSTANTIATION_UNIVERSE)
 
     # Monomorphize polymorphic variables. Arithmetic operators (`+ - * / %`)
     # are declared `forall a:B, a -> a -> a` in the prelude but only make
@@ -1106,15 +1231,14 @@ def gen_grammar_nodes(
     mono_extra_types: set[Type] = set()
     for _, mt, _ in monomorphized:
         mono_extra_types.add(mt)
-    # Also register every monomorphization of a polymorphic synthesis target so
-    # the union start symbol (below) has concrete body nonterminals to wrap.
-    if isinstance(ty, TypePolymorphism):
-        for mono_body, _ in monomorphize_poly_type(ty, instantiation_types, program_types):
-            mono_extra_types.add(strip_refinements_keep_arg_refinements(mono_body))
 
     # Build set of all types to consider
     types_to_consider = (
-        set([t_bool, t_float, t_int, t_string]) | set([x[1] for x in ctx_vars_unrefined]) | set([ty]) | mono_extra_types
+        set([t_bool, t_float, t_int, t_string])
+        | set([x[1] for x in ctx_vars_unrefined])
+        | set([synth_ty])
+        | mono_extra_types
+        | set(sk for sk, _ in poly_skolems)
     )
     if start_override is not None:
         types_to_consider = types_to_consider | {start_override}
@@ -1137,10 +1261,8 @@ def gen_grammar_nodes(
     # Use the unrefined base type as the grammar starting node.
     # Refined type metahandler literals are direct alternatives for the base class,
     # so no refined abstract class is needed as a starting symbol.
-    # `refined_to_unrefined_type` does not peel TypePolymorphism, and we never
-    # register the forall node itself, so for a polymorphic synthesis target we
-    # build a start that covers every monomorphized body (union NT when there
-    # is more than one).
+    # Polymorphic targets are opened under skolems above; the start wraps the
+    # body with ``TypeAbstraction`` binders via ``create_poly_target_start``.
     if start_override is not None:
         # Property-based testing starts generation from a refined node so the
         # metahandler enforces the refinement at generation time (no discards),
@@ -1150,14 +1272,14 @@ def gen_grammar_nodes(
         # value-producing expressions.
         start_ty = start_override
         return ret, _get(type_info, start_ty)
-    if isinstance(ty, TypePolymorphism):
-        poly_start = create_poly_target_start(ty, instantiation_types, type_info, program_types)
+    if poly_binders:
+        poly_start = create_poly_target_start(synth_ty, poly_binders, poly_skolems, type_info)
         if poly_start is not None:
             start_node, extras = poly_start
             return ret + extras, start_node
-        start_ty = refined_to_unrefined_type(ty)
+        start_ty = refined_to_unrefined_type(synth_ty)
         return ret, _get(type_info, start_ty)
-    start_ty = refined_to_unrefined_type(ty)
+    start_ty = refined_to_unrefined_type(synth_ty)
     return ret, _get(type_info, start_ty)
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from aeon.core.terms import Literal, TypeApplication, Var
+from aeon.core.terms import Literal, TypeApplication, TypeAbstraction, Var
 from aeon.core.types import (
     AbstractionType,
     Kind,
@@ -162,8 +162,8 @@ def test_monomorphize_uses_full_default_universe():
     assert apps == {(t_int,), (t_float,), (t_bool,), (t_string,)}
 
 
-def test_poly_target_start_covers_all_instantiations():
-    """A polymorphic hole start is a union NT with one wrapper per mono body."""
+def test_poly_target_start_wraps_type_abstraction():
+    """A polymorphic hole start re-abstracts the skolemized body with TypeAbstraction."""
     from aeon.synthesis.grammar.grammar_generation import gen_grammar_nodes
     from aeon.typechecking.context import TypingContext
 
@@ -174,13 +174,19 @@ def test_poly_target_start_covers_all_instantiations():
     )
     nodes, start = gen_grammar_nodes(TypingContext(), poly, Name("synth", 0), {})
     assert start.__name__ == "poly_target_start"
-    inst_names = sorted(c.__name__ for c in nodes if c.__name__.startswith("poly_inst_"))
-    assert inst_names == [
-        "poly_inst_æBool",
-        "poly_inst_æFloat",
-        "poly_inst_æInt",
-        "poly_inst_æString",
-    ]
+    assert any(c.__name__ == "poly_abs" for c in nodes)
+
+    # Instantiate the wrapper with a trivial body of the skolem arrow type.
+    abs_node = next(c for c in nodes if c.__name__ == "poly_abs")
+
+    class _Stub:
+        def get_core(self):
+            return Var(Name("x", 0))
+
+    core = abs_node(body=_Stub()).get_core()
+    assert isinstance(core, TypeAbstraction)
+    assert core.name.name == "a"
+    assert isinstance(core.body, Var)
 
 
 def test_int_hole_monomorphizes_prelude_without_type_args():
