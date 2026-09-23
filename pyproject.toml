@@ -1,6 +1,6 @@
 [project]
 name = "AeonLang"
-version = "4.10.0"
+version = "4.10.1"
 description = "Language with Refinement Types"
 authors = [
     { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
@@ -23,7 +23,7 @@ scripts.aeon = "aeon.__main__:main"
 dependencies = [
     'lark==1.3.1',
     'loguru',
-    'geneticengine==0.8.10',
+    'geneticengine==0.8.10.post1',
     'multiprocess==0.70.19',
     'numpy==2.2.6',
     'pandas',
@@ -158,12 +158,3 @@ max-complexity = 10
 
 [tool.pytest.ini_options]
 beartype_packages = 'aeon.core'
-
-[tool.uv]
-override-dependencies = [
-    "dill==0.4.1",
-    "lark==1.3.1",
-    "pathos==0.3.5",
-    "pytest==9.1.1",
-    "z3-solver==5.1.0.0",
-]

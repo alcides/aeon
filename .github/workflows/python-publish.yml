@@ -11,6 +11,7 @@ name: Upload Python Package
 on:
   push:
     tags: ["*"]
+  workflow_dispatch:
 
 
 jobs:
@@ -42,5 +43,7 @@ jobs:
           uv pip install  -e .
       - name: Build package
         run: uv build
+      - name: Verify dependency metadata
+        run: uv run --with pytest pytest tests/package_dependencies_test.py
       - name: Publish
         run: uv publish -t ${{ secrets.PYPI_API_TOKEN }}
