@@ -112,10 +112,37 @@ def _decompose(ty: Type) -> tuple[list[tuple[Name, Type]], Type]:
     return args, ty
 
 
+def _erase_instantiation_apps(term: Term) -> Term:
+    """Drop type/refinement applications for surface reporting.
+
+    Generation opens ``forall`` / ``forall <p>`` with ``TypeApplication`` and
+    ``ImplicitRefinementHole`` apps; evaluation already ignores them, and
+    counterexample strings should read like ``List_cons 0 List_nil``.
+    """
+    match term:
+        case TypeApplication(body, _) | RefinementApplication(body, _):
+            return _erase_instantiation_apps(body)
+        case Application(fun, arg, loc):
+            return Application(_erase_instantiation_apps(fun), _erase_instantiation_apps(arg), loc)
+        case Abstraction(name, body, loc):
+            return Abstraction(name, _erase_instantiation_apps(body), loc)
+        case Annotation(expr, ty, loc):
+            return Annotation(_erase_instantiation_apps(expr), ty, loc)
+        case If(cond, then, otherwise, loc):
+            return If(
+                _erase_instantiation_apps(cond),
+                _erase_instantiation_apps(then),
+                _erase_instantiation_apps(otherwise),
+                loc,
+            )
+        case _:
+            return term
+
+
 def _render(term: Term) -> str:
     """Best-effort surface-syntax rendering of an argument term for reporting."""
     try:
-        return pretty_print_sterm(lift(term))
+        return pretty_print_sterm(lift(_erase_instantiation_apps(term)))
     except Exception:
         return repr(term)
 

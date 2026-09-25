@@ -95,8 +95,15 @@ def remove_uninterpreted_functions_from_type(ty: Type) -> Type:
                 return RefinedType(name, type, ref_filtered)
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, remove_uninterpreted_functions_from_type(body))
-        case RefinementPolymorphism(_, _, body):
-            return remove_uninterpreted_functions_from_type(body)
+        case RefinementPolymorphism(name, sort, body):
+            # Keep the abstract-refinement binder; callers that need a bare
+            # function type peel it themselves (or open it with an
+            # ImplicitRefinementHole via monomorphize).
+            return RefinementPolymorphism(
+                name,
+                remove_uninterpreted_functions_from_type(sort),
+                remove_uninterpreted_functions_from_type(body),
+            )
         case _:
             assert False, f"Unsupported {ty}"
 

@@ -42,9 +42,11 @@ def build_adt_context(typing_ctx: TypingContext, constructor_binders: list[Varia
     them). Ordinary functions are dropped so generation yields pure constructor
     trees instead of arbitrary value-producing expressions.
 
-    Constructors often carry abstract refinements (``forall <p:a->Bool>``) that
-    the type-directed actions cannot instantiate; strip those before exposing
-    the binders so ``List_nil`` / ``List_cons`` become usable polymorphic nodes.
+    Abstract refinements (``forall <p>``) are kept on constructors —
+    ``monomorphize`` opens them with an ``ImplicitRefinementHole`` so Horn
+    inference can instantiate ``p``. Liquid atoms that mention uninterpreted
+    measures (e.g. ``List_size``) are erased so SMT subtyping does not need
+    those binders in the narrowed ADT context.
     """
     from aeon.synthesis.grammar.poly import remove_uninterpreted_functions_from_type
 

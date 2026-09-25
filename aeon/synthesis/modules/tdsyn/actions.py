@@ -383,9 +383,7 @@ def forward_close_candidates(
             continue
         if isinstance(var_type, AbstractionType):
             continue
-        if isinstance(var_type, RefinementPolymorphism):
-            continue
-        if isinstance(var_type, TypePolymorphism):
+        if isinstance(var_type, (TypePolymorphism, RefinementPolymorphism)):
             for term, mono_ty in monomorphize(name, var_type, ctx):
                 if isinstance(mono_ty, AbstractionType):
                     continue
