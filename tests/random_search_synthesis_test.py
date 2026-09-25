@@ -1,11 +1,12 @@
-"""Semantics specific to grammar-enumerative synthesis."""
+"""Semantics specific to native random-search synthesis."""
+
+import random
 
 from aeon.core.terms import Literal
 from aeon.core.types import t_int
 from aeon.synthesis.decorators import Goal
-from aeon.synthesis.modules import enumerative, native_search
-from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
-from aeon.synthesis.modules.native_search import dominates, update_pareto_front
+from aeon.synthesis.modules import native_search, random_search
+from aeon.synthesis.modules.random_search import RandomSearchSynthesizer
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -13,26 +14,15 @@ from aeon.utils.name import Name
 
 
 def _install_candidates(monkeypatch, candidates):
-    monkeypatch.setattr(enumerative, "iter_candidates", lambda *_args, **_kwargs: iter(candidates))
+    monkeypatch.setattr(
+        random_search,
+        "iter_random_candidates",
+        lambda *_args, **_kwargs: iter(candidates),
+    )
 
 
-def test_factory_uses_native_enumerator():
-    assert isinstance(make_synthesizer("enumerative"), EnumerativeSynthesizer)
-
-
-def test_pareto_helpers_respect_mixed_objective_directions():
-    assert dominates([1.0, 9.0], [2.0, 8.0], [True, False])
-    assert not dominates([1.0, 7.0], [2.0, 8.0], [True, False])
-
-    a = Literal(1, t_int)
-    b = Literal(2, t_int)
-    c = Literal(3, t_int)
-    front, added = update_pareto_front([], [1.0, 7.0], a, [True, False])
-    assert added
-    front, added = update_pareto_front(front, [2.0, 8.0], b, [True, False])
-    assert added and [candidate for _, candidate in front] == [a, b]
-    front, added = update_pareto_front(front, [0.0, 9.0], c, [True, False])
-    assert added and front == [([0.0, 9.0], c)]
+def test_factory_uses_native_random_search():
+    assert isinstance(make_synthesizer("random_search"), RandomSearchSynthesizer)
 
 
 def test_without_objectives_returns_first_valid_candidate_without_fitness(monkeypatch):
@@ -47,7 +37,7 @@ def test_without_objectives_returns_first_valid_candidate_without_fitness(monkey
     def must_not_evaluate(_candidate):
         raise AssertionError("objective evaluation is not needed when there are no objectives")
 
-    result = EnumerativeSynthesizer().synthesize(
+    result = RandomSearchSynthesizer().synthesize(
         TypingContext(),
         t_int,
         validate,
@@ -66,8 +56,6 @@ def test_with_objectives_runs_to_timeout_and_randomly_selects_from_front(monkeyp
     candidates = [Literal(0, t_int), Literal(1, t_int), Literal(2, t_int)]
     _install_candidates(monkeypatch, candidates)
 
-    # One timestamp for search start, then one after each fully evaluated
-    # candidate.  The third candidate crosses the budget.
     times = iter([0.0, 0.0, 0.0, 2.0])
     monkeypatch.setattr(native_search, "monotonic", lambda: next(times))
 
@@ -102,7 +90,7 @@ def test_with_objectives_runs_to_timeout_and_randomly_selects_from_front(monkeyp
         }
     }
 
-    result = EnumerativeSynthesizer(seed=17).synthesize(
+    result = RandomSearchSynthesizer(seed=17).synthesize(
         TypingContext(),
         t_int,
         lambda _candidate: True,
@@ -114,6 +102,41 @@ def test_with_objectives_runs_to_timeout_and_randomly_selects_from_front(monkeyp
     )
 
     assert evaluated == candidates
-    assert seeds == [17]
+    assert seeds[-1] == 17
     assert [candidate for _, candidate in chosen_fronts[0]] == candidates
     assert result == candidates[1]
+
+
+def test_sample_one_prefers_closed_expansions(monkeypatch):
+    """Closed expansions (literals/vars) beat open ones when both exist."""
+    closed = Literal(1, t_int)
+    open_partial_term = Literal(2, t_int)
+    from aeon.synthesis.modules.tdsyn.worklist import PartialAST, fresh_hole
+    from aeon.core.types import t_bool
+
+    hole_term, typed = fresh_hole(t_int, TypingContext())
+    initial = PartialAST(hole_term, [typed], 0)
+
+    closed_opt = PartialAST(closed, [], 1)
+    _, open_hole = fresh_hole(t_bool, TypingContext())
+    open_opt = PartialAST(open_partial_term, [open_hole], 1)
+
+    monkeypatch.setattr(random_search, "literal_completions", lambda _partial: [])
+    monkeypatch.setattr(
+        random_search,
+        "expansions_for_hole",
+        lambda *_args, **_kwargs: [open_opt, closed_opt],
+    )
+
+    expansion_picks = []
+
+    class _Rng(random.Random):
+        def choice(self, seq):
+            seq = list(seq)
+            if seq and isinstance(seq[0], PartialAST):
+                expansion_picks.append(seq)
+            return seq[0]
+
+    result = random_search._sample_one(initial, lambda _n: False, _Rng(0), max_depth=5)
+    assert result == closed
+    assert expansion_picks and all(opt.holes == [] for opt in expansion_picks[0])

@@ -28,7 +28,7 @@ Best suited for problems with a rich fitness landscape and sufficient budget.
 
 ### `random_search` — Random Search
 
-Randomly samples programs from the grammar at each step and validates them against the target type and refinements. Simple but effective as a baseline or for problems where the search space is small.
+Native random walks over Aeon's core term grammar (the same backward and forward actions as `enumerative`). Each sample expands holes at random until a complete term is produced (or the depth bound is hit); the shared driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Simple but effective as a baseline or for problems where the search space is small.
 
 ---
 
@@ -196,7 +196,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
 | `gp`            | Evolutionary     | Complex expressions, multi-objective problems |
-| `random_search` | Random sampling  | Baselines, small search spaces |
+| `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `hc`            | Local search     | Single-objective, unimodal problems |
 | `1p1`           | Minimal evolution | Simple problems, fast iteration |

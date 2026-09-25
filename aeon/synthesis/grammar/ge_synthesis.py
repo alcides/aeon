@@ -22,7 +22,6 @@ from geneticengine.random.sources import NativeRandomSource
 from geneticengine.representations.tree.initializations import MaxDepthDecider
 from geneticengine.evaluation import SequentialEvaluator
 from geneticengine.evaluation.tracker import ProgressTracker
-from geneticengine.algorithms.random_search import RandomSearch
 from geneticengine.algorithms.gp.parameterless import InitiallyRandomGeneticProgramming
 from geneticengine.algorithms.one_plus_one import OnePlusOne
 from geneticengine.algorithms.hill_climbing import HC
@@ -146,6 +145,13 @@ class GESynthesizer(Synthesizer):
                 ctx, type, validate, evaluate, fun_name, metadata, budget, ui, output_value
             )
 
+        if self.method == "random_search":
+            from aeon.synthesis.modules.random_search import RandomSearchSynthesizer
+
+            return RandomSearchSynthesizer(seed=self.seed).synthesize(
+                ctx, type, validate, evaluate, fun_name, metadata, budget, ui, output_value
+            )
+
         counter = [0]  # individuals generated/evaluated so far
 
         class UIBackendRecorder(SearchRecorder):
@@ -181,8 +187,6 @@ class GESynthesizer(Synthesizer):
         common_random_args = {"representation": representation, "random": NativeRandomSource(self.seed), **common_args}
 
         match self.method:
-            case "random_search":
-                alg = RandomSearch(**common_random_args)
             case "genetic_programming":
                 # Parameterless GP: population size, operator rates and tournament
                 # sizes are sampled once from the RNG (GeneticEngine's

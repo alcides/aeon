@@ -4,6 +4,7 @@ import os
 
 from aeon.synthesis.api import ProgramSynthesizer, Synthesizer, UnknownSynthesizerError
 from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
+from aeon.synthesis.modules.random_search import RandomSearchSynthesizer
 from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
@@ -86,7 +87,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "symetric": "Metric-guided composition (diversity)",
     "xfta": "Metric-guided composition (diversity)",
     "enumerative": "Native grammar enumeration (BFS)",
-    "random_search": "Grammar enumeration (random)",
+    "random_search": "Native grammar random search",
     "gp": "Genetic programming (parameterless, default)",
     "hc": "Hill climbing",
     "1p1": "(1+1) evolution strategy",
@@ -252,9 +253,7 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
     seed = int(os.environ.get("AEON_SEED", "0"))
     match module:
         case "random_search":
-            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
-
-            return GESynthesizer(seed=seed, method="random_search")
+            return RandomSearchSynthesizer(seed=seed)
         case "enumerative":
             return EnumerativeSynthesizer(seed=seed)
         case "gp":
