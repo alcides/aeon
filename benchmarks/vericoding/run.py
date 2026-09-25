@@ -219,7 +219,7 @@ def main() -> int:
     p.add_argument(
         "--synthesizer",
         default="tdsyn_enumerative",
-        help="Aeon synthesizer name (gp / tdsyn_enumerative / tdsyn_random / enumerative / random_search / hc / 1p1 / smt).",
+        help="Aeon synthesizer name (gp / tdsyn_enumerative / tdsyn_random / enumerative / random_search / smt).",
     )
     p.add_argument(
         "--translate-only",

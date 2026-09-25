@@ -34,18 +34,6 @@ Native breadth-first enumeration over Aeon's core term grammar (backward and for
 
 ---
 
-### `hc` — Hill Climbing
-
-A local search strategy that starts from a random candidate and repeatedly mutates it, keeping improvements. Faster per iteration than full genetic programming but more prone to local optima.
-
----
-
-### `1p1` — (1+1) Evolution Strategy
-
-A minimal evolutionary strategy that maintains a single candidate, mutates it, and accepts the child if it is at least as good as the parent. Lightweight and surprisingly competitive on simple problems.
-
----
-
 ### `synquid` — Type-Directed Synthesis
 
 This backend implements a **Synquid-style** enumerator: type-directed decomposition, **Q**-aware conditional guards (same finite qualifier set as Horn predicate abstraction), and search ordering heuristics.
@@ -194,8 +182,6 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `gp`            | Native linear-genome GP | Complex expressions, multi-objective problems |
 | `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
-| `hc`            | Local search     | Single-objective, unimodal problems |
-| `1p1`           | Minimal evolution | Simple problems, fast iteration |
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |

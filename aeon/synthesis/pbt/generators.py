@@ -22,7 +22,7 @@ from geneticengine.random.sources import NativeRandomSource
 from geneticengine.representations.tree.initializations import MaxDepthDecider
 from geneticengine.representations.tree.treebased import TreeBasedRepresentation
 
-# Mirrors the depth used by the GP synthesizer (``ge_synthesis.py``).
+# Mirrors a typical synthesis tree depth used by grammar-based generators.
 DEFAULT_MAX_DEPTH = 5
 
 # Base types for which generation can start from a (possibly trivial) refined

@@ -90,16 +90,6 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "enumerative": "Native grammar enumeration (BFS)",
     "random_search": "Native grammar random search",
     "gp": "Native genetic programming (linear genome)",
-    "hc": "Hill climbing",
-    "1p1": "(1+1) evolution strategy",
-    "ng": "Nevergrad · grammar (NGOpt)",
-    "genomic_ng": "Nevergrad · grammar (NGOpt)",
-    "ng_cma": "Nevergrad · grammar (CMA-ES)",
-    "ng_de": "Nevergrad · grammar (differential evolution)",
-    "ng_pso": "Nevergrad · grammar (PSO)",
-    "ng_float": "Nevergrad · float holes (NGOpt)",
-    "float_ng": "Nevergrad · float holes (NGOpt)",
-    "ng_float_cma": "Nevergrad · float holes (CMA-ES)",
     **{sid: llm_synthesizer_label(sid) for sid in LLM_OLLAMA_MODELS},
     LLM_OPENAI_SYNTHESIZER_ID: llm_synthesizer_label(LLM_OPENAI_SYNTHESIZER_ID),
 }
@@ -145,16 +135,6 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "random_search": SynthesizerFamily.GRAMMAR_SEARCH,
     # Metaheuristic — improve candidates with a fitness landscape.
     "gp": SynthesizerFamily.METAHEURISTIC,
-    "hc": SynthesizerFamily.METAHEURISTIC,
-    "1p1": SynthesizerFamily.METAHEURISTIC,
-    "ng": SynthesizerFamily.METAHEURISTIC,
-    "genomic_ng": SynthesizerFamily.METAHEURISTIC,
-    "ng_cma": SynthesizerFamily.METAHEURISTIC,
-    "ng_de": SynthesizerFamily.METAHEURISTIC,
-    "ng_pso": SynthesizerFamily.METAHEURISTIC,
-    "ng_float": SynthesizerFamily.METAHEURISTIC,
-    "float_ng": SynthesizerFamily.METAHEURISTIC,
-    "ng_float_cma": SynthesizerFamily.METAHEURISTIC,
     # LLM-assisted — generate candidates from natural language.
     **dict.fromkeys(LLM_OLLAMA_MODELS, SynthesizerFamily.LLM_ASSISTED),
     LLM_OPENAI_SYNTHESIZER_ID: SynthesizerFamily.LLM_ASSISTED,
@@ -165,16 +145,6 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "random_search",
         "enumerative",
         "gp",
-        "1p1",
-        "hc",
-        "genomic_ng",
-        "ng",
-        "ng_cma",
-        "ng_de",
-        "ng_pso",
-        "ng_float",
-        "float_ng",
-        "ng_float_cma",
         "ortools",
         "ortools_int",
         "cpsat",
@@ -259,38 +229,6 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return EnumerativeSynthesizer(seed=seed)
         case "gp":
             return GeneticProgrammingSynthesizer(seed=seed)
-        case "1p1":
-            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
-
-            return GESynthesizer(seed=seed, method="one_plus_one")
-        case "hc":
-            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
-
-            return GESynthesizer(seed=seed, method="hill_climbing")
-        case "genomic_ng" | "ng":
-            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
-
-            return GenomicNGSynthesizer(optimizer="NGOpt", seed=seed)
-        case "ng_cma":
-            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
-
-            return GenomicNGSynthesizer(optimizer="CMA", seed=seed)
-        case "ng_de":
-            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
-
-            return GenomicNGSynthesizer(optimizer="DE", seed=seed)
-        case "ng_pso":
-            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
-
-            return GenomicNGSynthesizer(optimizer="PSO", seed=seed)
-        case "ng_float" | "float_ng":
-            from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
-
-            return FloatHoleNGSynthesizer(optimizer="NGOpt", seed=seed)
-        case "ng_float_cma":
-            from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
-
-            return FloatHoleNGSynthesizer(optimizer="CMA", seed=seed)
         case "ortools" | "ortools_int" | "cpsat":
             return CPSatHoleSynthesizer(seed=seed)
         case "synquid":

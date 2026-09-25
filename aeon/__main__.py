@@ -150,7 +150,7 @@ def _parse_common_arguments(parser: ArgumentParser):
             "forward_close / forward_let_app / forward_let_if / forward_let_tapp / forward_let_abs / "
             "forward_let_tabs (single forward steps, demonstrative), "
             "tactics (random tactic search), gp (native linear-genome genetic programming), synquid, "
-            "random_search (native grammar random walks), enumerative (native grammar BFS), hc, 1p1, smt, "
+            "random_search (native grammar random walks), enumerative (native grammar BFS), smt, "
             "sygus (reduce to SyGuS and solve with cvc5), decision_tree, llm (Ollama, default qwen2.5-coder:32b), "
             "llm_<model> (per-model Ollama backends, e.g. llm_qwen2.5-coder-14b), "
             "llm_openai (OpenAI-compatible API; set AEON_LLM_BASE_URL and AEON_LLM_API_KEY), "

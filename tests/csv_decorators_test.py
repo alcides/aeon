@@ -8,7 +8,7 @@ import pytest
 from aeon.logger.logger import setup_logger
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.entrypoint import synthesize_holes
-from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+from aeon.synthesis.modules.genetic_programming import GeneticProgrammingSynthesizer
 
 from tests.driver import check_and_return_core
 
@@ -65,6 +65,6 @@ def test_csv_data_synthesis():
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete_functions = incomplete_functions_and_holes(ctx, core_ast_anf)
     mapping = synthesize_holes(
-        ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=GESynthesizer(), budget=0.5
+        ctx, ectx, core_ast_anf, incomplete_functions, metadata, synthesizer=GeneticProgrammingSynthesizer(), budget=0.5
     )
     assert len(mapping) > 0

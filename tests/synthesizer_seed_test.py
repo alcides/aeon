@@ -14,8 +14,6 @@ SEEDED_BACKENDS = [
     "random_search",
     "enumerative",
     "gp",
-    "1p1",
-    "hc",
     "tdsyn",
     "tdsyn_enumerative",
     "tdsyn_random",

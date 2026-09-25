@@ -1,6 +1,6 @@
 """CPSatHole: exact/fixed-point joint optimisation of numeric holes with OR-Tools.
 
-The discrete counterpart of FloatHoleNG. OR-Tools' CP-SAT solver is white-box —
+The discrete counterpart of continuous float-hole optimisers. OR-Tools' CP-SAT solver is white-box —
 it needs the objective and constraints as a model — so for a program whose holes
 are all numeric this synthesizer translates the objective and the holes'
 refinements into a CP-SAT model and solves it.
@@ -20,7 +20,7 @@ expression); ``+``/``-`` align scales and ``*`` adds them.
 The objective is the ``@minimize``/``@maximize`` expression over the holes
 (integer/float ``+``, ``-``, ``*``, literals, ``Array.get`` with a literal
 index, ``Array.size``, and inlined closed definitions). Anything outside this
-fragment raises :class:`SynthesisError` pointing at a grammar/Nevergrad backend.
+fragment raises :class:`SynthesisError` pointing at another synthesizer backend.
 """
 
 from __future__ import annotations
@@ -203,7 +203,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             except _Unsupported as e:
                 raise SynthesisError(
                     f"CPSatHole cannot handle hole {hole.pretty()} ({e}). "
-                    "Use a grammar-based synthesizer (e.g. -s ng / gp) instead."
+                    "Use a grammar-based synthesizer (e.g. -s gp) instead."
                 ) from e
 
         self._def_bodies = {rec.var_name: rec.var_value for rec in iterate_top_level(term)}
@@ -226,7 +226,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             except _Unsupported as e:
                 raise SynthesisError(
                     f"CPSatHole cannot translate the objective ({e}). "
-                    "Use a grammar-based synthesizer (e.g. -s ng / gp)."
+                    "Use a grammar-based synthesizer (e.g. -s gp)."
                 ) from e
             if not isinstance(value, _Num):
                 raise SynthesisError("CPSatHole objective must be a number, not an array.")

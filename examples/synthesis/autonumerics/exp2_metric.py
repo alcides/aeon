@@ -86,7 +86,7 @@ def pade_mre(a, b, c):
     This is the shape of the paper's evolved 3-operation program f3 (Figure
     11) -- a reciprocal plus a constant -- renormalised so the optimal
     coefficients (~1.56, ~-0.29, ~-1.44) fit inside the +-5.12 search box of
-    Aeon's ``ng_float`` synthesizer. The numerator is parameterised as ``a*a``
+    Aeon's float-hole synthesizers. The numerator is parameterised as ``a*a``
     (a constant fold: at runtime the program is still 3 operations): keeping
     it positive removes a spurious sign-symmetric local optimum with a
     negative numerator -- approximating the increasing 2^x needs an

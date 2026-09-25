@@ -51,9 +51,6 @@ tests = [
     "pytest==9.1.1",
     "pytest-beartype"
 ]
-synthesis-ng = [
-    "nevergrad"
-]
 synthesis-ortools = [
     "ortools"
 ]

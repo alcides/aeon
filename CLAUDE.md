@@ -39,7 +39,7 @@ uvx pre-commit run --all-files
 uv run mypy aeon
 ```
 
-**Synthesizer options:** `gp` (genetic programming, default), `synquid`, `random_search`, `enumerative`, `hc` (hill climbing), `1p1` (one plus one)
+**Synthesizer options:** `gp` (genetic programming, default), `synquid`, `random_search`, `enumerative`
 
 ## Code Style
 
@@ -86,7 +86,7 @@ Source (.ae) → Parse (lark) → Sugar AST → Desugar/Elaborate → Core AST �
 | `aeon/elaboration` | Converts sugar AST to core AST with type elaboration |
 | `aeon/typechecking` | Type inference and liquid type constraint verification |
 | `aeon/verification` | SMT-based verification via z3: horn clauses, constraint solving |
-| `aeon/synthesis` | Program synthesis: multiple backends (genetic programming via geneticengine, synquid, enumerative, LLM/ollama) |
+| `aeon/synthesis` | Program synthesis: multiple backends (genetic programming, synquid, enumerative, LLM/ollama) |
 | `aeon/backend` | Runtime evaluation |
 | `aeon/lsp` | Language Server Protocol implementation (pygls v2.1.0) |
 | `aeon/libraries` | Standard library `.ae` files (List, Math, Image, etc.) |
