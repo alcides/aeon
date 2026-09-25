@@ -121,9 +121,9 @@ def test_sample_one_prefers_closed_expansions(monkeypatch):
     _, open_hole = fresh_hole(t_bool, TypingContext())
     open_opt = PartialAST(open_partial_term, [open_hole], 1)
 
-    monkeypatch.setattr(random_search, "literal_completions", lambda _partial: [])
+    monkeypatch.setattr(native_search, "literal_completions", lambda _partial: [])
     monkeypatch.setattr(
-        random_search,
+        native_search,
         "expansions_for_hole",
         lambda *_args, **_kwargs: [open_opt, closed_opt],
     )
@@ -137,6 +137,6 @@ def test_sample_one_prefers_closed_expansions(monkeypatch):
                 expansion_picks.append(seq)
             return seq[0]
 
-    result = random_search._sample_one(initial, lambda _n: False, _Rng(0), max_depth=5)
+    result = native_search.sample_one(initial, lambda _n: False, _Rng(0), max_depth=5)
     assert result == closed
     assert expansion_picks and all(opt.holes == [] for opt in expansion_picks[0])

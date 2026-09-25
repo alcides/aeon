@@ -250,9 +250,9 @@ def _generate_property_cases(
         key = f"{idx}:{ty!r}"
         sampler = sampler_cache.get(key)
         if sampler is None:
-            # Base types use the full context (refinements resolve via the
-            # metahandler); ADTs use the constructor-only context so generation
-            # yields pure constructor trees.
+            # Base types use the full context (refinements resolve via SMT /
+            # literal actions); ADTs use the constructor-only context so
+            # generation yields pure constructor trees.
             ctx = typing_ctx if is_base_type(ty) else adt_ctx
             sampler = TypeSampler(ctx, ty, spec.name, metadata, seed=seed + idx * 7919)
             sampler_cache[key] = sampler

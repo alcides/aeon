@@ -224,7 +224,7 @@ def backward_app_candidates(
     for f_term, f_type in get_applicable_functions(hole.context, skip):
         assert isinstance(f_type, AbstractionType)
         ret_type = get_return_type(f_type)
-        if bases_match(ret_type, T):
+        if bases_match(ret_type, T) and is_subtype(hole.context, ret_type, T):
             params = get_param_types(f_type)
             app_term, new_holes = _build_application(f_term, params, hole)
             candidates.append((app_term, new_holes))
@@ -317,13 +317,13 @@ def _forward_applications(
                 # Multi-argument function: create holes for remaining args
                 remaining_params = get_param_types(remaining_type)
                 final_ret = get_return_type(remaining_type)
-                if not bases_match(final_ret, T):
+                if not bases_match(final_ret, T) or not is_subtype(ctx, final_ret, T):
                     continue
                 result, new_holes = _build_application(applied, remaining_params, hole)
                 results.append((result, new_holes, final_ret))
             else:
                 # Single-argument or final application
-                if bases_match(remaining_type, T):
+                if bases_match(remaining_type, T) and is_subtype(ctx, remaining_type, T):
                     results.append((applied, [], remaining_type))
 
     return results
@@ -369,14 +369,28 @@ def forward_close_candidates(
     hole: TypedHole,
     skip: Callable[[Name], bool],
 ) -> list[tuple[Term, list[TypedHole]]]:
-    """Forward close tactic: close the goal with a variable whose type already proves it."""
+    """Forward close tactic: close the goal with a variable whose type already proves it.
+
+    Polymorphic nullary constructors (e.g. ``List_nil : forall a. List a``) are
+    monomorphized and included when the instantiation matches the goal — needed
+    for ADT value generation as well as ordinary type-directed search.
+    """
     T = hole.expected_type
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
     for name, var_type in ctx.vars():
         if skip(name):
             continue
-        if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
+        if isinstance(var_type, AbstractionType):
+            continue
+        if isinstance(var_type, RefinementPolymorphism):
+            continue
+        if isinstance(var_type, TypePolymorphism):
+            for term, mono_ty in monomorphize(name, var_type, ctx):
+                if isinstance(mono_ty, AbstractionType):
+                    continue
+                if bases_match(mono_ty, T) and is_subtype(ctx, mono_ty, T):
+                    candidates.append((term, []))
             continue
         if bases_match(var_type, T) and is_subtype(ctx, var_type, T):
             candidates.append((Var(name, _loc), []))

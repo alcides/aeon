@@ -225,8 +225,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 value = self._translate(body, {}, frozenset())
             except _Unsupported as e:
                 raise SynthesisError(
-                    f"CPSatHole cannot translate the objective ({e}). "
-                    "Use a grammar-based synthesizer (e.g. -s gp)."
+                    f"CPSatHole cannot translate the objective ({e}). Use a grammar-based synthesizer (e.g. -s gp)."
                 ) from e
             if not isinstance(value, _Num):
                 raise SynthesisError("CPSatHole objective must be a number, not an array.")

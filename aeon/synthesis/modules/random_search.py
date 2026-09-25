@@ -19,43 +19,16 @@ from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.modules.native_search import (
     MAX_DEPTH,
     drive_candidates,
-    expansions_for_hole,
     initial_partial,
-    literal_completions,
     make_skip,
+    sample_one,
 )
-from aeon.synthesis.modules.tdsyn.worklist import PartialAST
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
-
-def _sample_one(
-    initial: PartialAST,
-    skip: Callable,
-    rng: random.Random,
-    max_depth: int,
-) -> Term | None:
-    """Grow one complete term by a random walk, or ``None`` if stuck."""
-    partial = PartialAST(initial.term, list(initial.holes), initial.depth)
-    for _ in range(max_depth * 2):
-        if partial.is_complete():
-            return partial.term
-
-        completions = literal_completions(partial)
-        if completions:
-            return rng.choice(completions)
-
-        hole = rng.choice(partial.holes)
-        options = expansions_for_hole(partial, hole, skip, max_depth)
-        if not options:
-            return None
-        # Prefer complete expansions when available so random walks often close
-        # with a literal or variable rather than always diving into apps/ifs.
-        closed = [opt for opt in options if not opt.holes]
-        partial = rng.choice(closed if closed else options)
-
-    return partial.term if partial.is_complete() else None
+# Re-exported for unit tests that patch the walk helper by module attribute.
+_sample_one = sample_one
 
 
 def iter_random_candidates(
@@ -70,7 +43,7 @@ def iter_random_candidates(
     initial = initial_partial(ctx, target)
     skip = make_skip(fun_name, metadata)
     while True:
-        sample = _sample_one(initial, skip, rng, max_depth)
+        sample = sample_one(initial, skip, rng, max_depth)
         if sample is not None:
             yield sample
 

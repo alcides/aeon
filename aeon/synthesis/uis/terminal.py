@@ -16,7 +16,7 @@ _MULTIOBJ_LABELS = ("bw_mse", "half_mse", "rows_bad", "cols_bad", "pixels_bad")
 
 
 def _format_quality(quality: Any) -> str:
-    """Pretty-print fitness from geneticengine (`Fitness`) or raw numeric lists."""
+    """Pretty-print fitness (object with fitness_components, or a raw numeric list)."""
     components: list[float] | None = None
     valid = True
     if hasattr(quality, "fitness_components"):

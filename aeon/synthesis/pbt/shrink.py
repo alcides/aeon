@@ -48,7 +48,7 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.core.substitutions import substitute_vartype
-from aeon.synthesis.grammar.grammar_generation import remove_uninterpreted_functions_from_type
+from aeon.synthesis.grammar.poly import remove_uninterpreted_functions_from_type
 from aeon.utils.name import Name
 
 # Maps a (prefixed) constructor name to its polymorphic core type.

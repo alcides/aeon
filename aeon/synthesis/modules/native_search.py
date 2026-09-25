@@ -119,6 +119,42 @@ def expansions_for_hole(
     return results
 
 
+def sample_one(
+    initial: PartialAST,
+    skip: Callable[[Name], bool],
+    rng: random.Random,
+    max_depth: int = MAX_DEPTH,
+    prefer_closed: bool = True,
+) -> Term | None:
+    """Grow one complete term by a random walk, or ``None`` if stuck.
+
+    Used by :mod:`random_search` and by PBT value generation. When
+    ``prefer_closed`` is true (default), terminal expansions are preferred so
+    walks often finish with a literal or variable; PBT ADT sampling turns this
+    off so recursive constructors are not starved by nullary ones.
+    """
+    partial = PartialAST(initial.term, list(initial.holes), initial.depth)
+    for _ in range(max_depth * 2):
+        if partial.is_complete():
+            return partial.term
+
+        completions = literal_completions(partial)
+        if completions:
+            return rng.choice(completions)
+
+        hole = rng.choice(partial.holes)
+        options = expansions_for_hole(partial, hole, skip, max_depth)
+        if not options:
+            return None
+        if prefer_closed:
+            closed = [opt for opt in options if not opt.holes]
+            if closed:
+                options = closed
+        partial = rng.choice(options)
+
+    return partial.term if partial.is_complete() else None
+
+
 def initial_partial(ctx: TypingContext, target: Type) -> PartialAST:
     root, holes = peel_abstractions(target, ctx)
     return PartialAST(root, holes, depth=0)
