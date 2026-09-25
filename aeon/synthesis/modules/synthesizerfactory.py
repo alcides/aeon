@@ -5,6 +5,7 @@ import os
 from aeon.synthesis.api import ProgramSynthesizer, Synthesizer, UnknownSynthesizerError
 from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
 from aeon.synthesis.modules.random_search import RandomSearchSynthesizer
+from aeon.synthesis.modules.genetic_programming import GeneticProgrammingSynthesizer
 from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
@@ -88,7 +89,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "xfta": "Metric-guided composition (diversity)",
     "enumerative": "Native grammar enumeration (BFS)",
     "random_search": "Native grammar random search",
-    "gp": "Genetic programming (parameterless, default)",
+    "gp": "Native genetic programming (linear genome)",
     "hc": "Hill climbing",
     "1p1": "(1+1) evolution strategy",
     "ng": "Nevergrad · grammar (NGOpt)",
@@ -257,9 +258,7 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "enumerative":
             return EnumerativeSynthesizer(seed=seed)
         case "gp":
-            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
-
-            return GESynthesizer(seed=seed, method="genetic_programming")
+            return GeneticProgrammingSynthesizer(seed=seed)
         case "1p1":
             from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
 

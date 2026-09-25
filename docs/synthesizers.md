@@ -14,13 +14,9 @@ The `--budget` flag sets the time limit in seconds (default: 60).
 
 ### `gp` — Genetic Programming *(default)*
 
-Evolves a population of candidate programs using GeneticEngine's
-**parameterless** GP (`InitiallyRandomGeneticProgramming`): population size,
-mutation/crossover rates and tournament sizes are sampled once from the RNG
-instead of being hand-tuned. Candidate programs are syntax trees from a grammar
-derived from the typing context (max depth 30). Fitness comes from the synthesis
-decorators (`@minimize_*`, `@maximize_*`, `@minimize_cputime`, `@minimize_energy`,
-`@property`, `@example`, …).
+Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
+
+Population size is chosen from a timing probe of the first ten random individuals so that initial evaluation uses at most 10% of the wall-clock budget. Crossover rate and mutation rate are sampled randomly each run; tournament size, novelty rate and related operator knobs are re-sampled every generation. Elitism keeps the best 5% of the population. Fitness comes from the synthesis decorators (`@minimize_*`, `@maximize_*`, `@property`, …). When objectives are present the shared Pareto driver returns a random non-dominated candidate; otherwise the first well-typed term wins. No GeneticEngine dependency.
 
 Best suited for problems with a rich fitness landscape and sufficient budget.
 
@@ -195,7 +191,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
-| `gp`            | Evolutionary     | Complex expressions, multi-objective problems |
+| `gp`            | Native linear-genome GP | Complex expressions, multi-objective problems |
 | `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `hc`            | Local search     | Single-objective, unimodal problems |

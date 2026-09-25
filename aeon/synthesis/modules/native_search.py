@@ -94,9 +94,13 @@ def expansions_for_hole(
     partial: PartialAST,
     hole: TypedHole,
     skip: Callable[[Name], bool],
-    max_depth: int,
+    max_depth: int | None = None,
 ) -> list[PartialAST]:
-    """Apply every grammar action to ``hole`` and return depth-bounded partials."""
+    """Apply every grammar action to ``hole``.
+
+    When ``max_depth`` is ``None``, recursive expansions are not depth-filtered
+    (used by genetic programming so tree size can grow with the genome).
+    """
     remaining = [other for other in partial.holes if other.name != hole.name]
     results: list[PartialAST] = []
     for action in (backward_candidates, forward_candidates):
@@ -109,8 +113,9 @@ def expansions_for_hole(
         for replacement, new_holes in expansions:
             term = substitute_hole(partial.term, hole.name, replacement)
             depth = partial.depth + (1 if new_holes else 0)
-            if depth <= max_depth:
-                results.append(PartialAST(term, remaining + new_holes, depth))
+            if max_depth is not None and depth > max_depth:
+                continue
+            results.append(PartialAST(term, remaining + new_holes, depth))
     return results
 
 
