@@ -9,7 +9,7 @@ from aeon.decorators import Metadata
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.entrypoint import make_program, synthesize_holes
-from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_target, run_properties
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI
@@ -177,7 +177,7 @@ def test_gp_candidate_satisfies_property_fitness():
         core,
         targets,
         metadata,
-        GESynthesizer(method="enumerative"),
+        EnumerativeSynthesizer(),
         budget=0.5,
         ui=SilentSynthesisUI(),
     )

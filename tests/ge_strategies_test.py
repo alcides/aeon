@@ -1,10 +1,10 @@
 """Functional coverage for the (1+1)-ES (``1p1``) and hill-climbing (``hc``)
 search strategies.
 
-Both reuse ``GESynthesizer`` -- the engine that ``gp``/``enumerative``/
-``random_search`` already exercise end-to-end -- so the rest of the suite only
-smoke-constructs them (``synthesizer_seed_test``). These confirm the factory
-wires each strategy and that each actually synthesizes a well-typed term for a
+Both reuse ``GESynthesizer`` -- the engine that ``gp``/``random_search``
+already exercise end-to-end -- so the rest of the suite only smoke-constructs
+them (``synthesizer_seed_test``). These confirm the factory wires each
+strategy and that each actually synthesizes a well-typed term for a
 basic-typed hole.
 """
 

@@ -23,7 +23,6 @@ from geneticengine.representations.tree.initializations import MaxDepthDecider
 from geneticengine.evaluation import SequentialEvaluator
 from geneticengine.evaluation.tracker import ProgressTracker
 from geneticengine.algorithms.random_search import RandomSearch
-from geneticengine.algorithms.enumerative import EnumerativeSearch
 from geneticengine.algorithms.gp.parameterless import InitiallyRandomGeneticProgramming
 from geneticengine.algorithms.one_plus_one import OnePlusOne
 from geneticengine.algorithms.hill_climbing import HC
@@ -118,7 +117,7 @@ def create_problem(
 
 
 class GESynthesizer(Synthesizer):
-    def __init__(self, seed: int = 0, method: str = "enumerative"):
+    def __init__(self, seed: int = 0, method: str = "genetic_programming"):
         self.seed = seed
         self.method = method
 
@@ -136,6 +135,16 @@ class GESynthesizer(Synthesizer):
     ) -> Term:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
+
+        if self.method == "enumerative":
+            # Backward-compatible direct construction. Prefer
+            # ``make_synthesizer("enumerative")`` / ``EnumerativeSynthesizer``,
+            # which never imports GeneticEngine.
+            from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
+
+            return EnumerativeSynthesizer(seed=self.seed).synthesize(
+                ctx, type, validate, evaluate, fun_name, metadata, budget, ui, output_value
+            )
 
         counter = [0]  # individuals generated/evaluated so far
 
@@ -174,8 +183,6 @@ class GESynthesizer(Synthesizer):
         match self.method:
             case "random_search":
                 alg = RandomSearch(**common_random_args)
-            case "enumerative":
-                alg = EnumerativeSearch(grammar=grammar, **common_args)
             case "genetic_programming":
                 # Parameterless GP: population size, operator rates and tournament
                 # sizes are sampled once from the RNG (GeneticEngine's

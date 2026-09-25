@@ -34,7 +34,7 @@ Randomly samples programs from the grammar at each step and validates them again
 
 ### `enumerative` — Enumerative Search
 
-Systematically enumerates all programs up to increasing size bounds (iterative deepening). Guaranteed to find a solution if one exists within the grammar, provided the budget allows. Works well for small, tightly-constrained holes.
+Native breadth-first enumeration over Aeon's core term grammar (backward and forward actions, plus SMT completion of refinement-constrained leaves). A generator yields complete terms; the driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Works well for small, tightly-constrained holes.
 
 ---
 
@@ -197,7 +197,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | --------------- | ---------------- | -------- |
 | `gp`            | Evolutionary     | Complex expressions, multi-objective problems |
 | `random_search` | Random sampling  | Baselines, small search spaces |
-| `enumerative`   | Size-ordered enumeration | Small holes, tight type constraints |
+| `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `hc`            | Local search     | Single-objective, unimodal problems |
 | `1p1`           | Minimal evolution | Simple problems, fast iteration |
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |

@@ -3,9 +3,7 @@ from enum import Enum
 import os
 
 from aeon.synthesis.api import ProgramSynthesizer, Synthesizer, UnknownSynthesizerError
-from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
-from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
-from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
+from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
 from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
@@ -87,7 +85,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "lta": "Liquid tree automata (refined compose)",
     "symetric": "Metric-guided composition (diversity)",
     "xfta": "Metric-guided composition (diversity)",
-    "enumerative": "Grammar enumeration (enumerative)",
+    "enumerative": "Native grammar enumeration (BFS)",
     "random_search": "Grammar enumeration (random)",
     "gp": "Genetic programming (parameterless, default)",
     "hc": "Hill climbing",
@@ -254,26 +252,46 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
     seed = int(os.environ.get("AEON_SEED", "0"))
     match module:
         case "random_search":
+            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+
             return GESynthesizer(seed=seed, method="random_search")
         case "enumerative":
-            return GESynthesizer(seed=seed, method="enumerative")
+            return EnumerativeSynthesizer(seed=seed)
         case "gp":
+            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+
             return GESynthesizer(seed=seed, method="genetic_programming")
         case "1p1":
+            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+
             return GESynthesizer(seed=seed, method="one_plus_one")
         case "hc":
+            from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+
             return GESynthesizer(seed=seed, method="hill_climbing")
         case "genomic_ng" | "ng":
+            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
+
             return GenomicNGSynthesizer(optimizer="NGOpt", seed=seed)
         case "ng_cma":
+            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
+
             return GenomicNGSynthesizer(optimizer="CMA", seed=seed)
         case "ng_de":
+            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
+
             return GenomicNGSynthesizer(optimizer="DE", seed=seed)
         case "ng_pso":
+            from aeon.synthesis.grammar.genomic_ng import GenomicNGSynthesizer
+
             return GenomicNGSynthesizer(optimizer="PSO", seed=seed)
         case "ng_float" | "float_ng":
+            from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
+
             return FloatHoleNGSynthesizer(optimizer="NGOpt", seed=seed)
         case "ng_float_cma":
+            from aeon.synthesis.modules.float_ng import FloatHoleNGSynthesizer
+
             return FloatHoleNGSynthesizer(optimizer="CMA", seed=seed)
         case "ortools" | "ortools_int" | "cpsat":
             return CPSatHoleSynthesizer(seed=seed)

@@ -17,6 +17,7 @@ from aeon.core.types import (
     t_bool,
     t_float,
     t_int,
+    t_string,
 )
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
@@ -185,6 +186,11 @@ def backward_lit_candidates(
             case TypeConstructor(Name("Float", _)):
                 for fval in [-1.0, -0.5, 0.0, 0.5, 1.0, 2.0]:
                     candidates.append((Literal(fval, t_float, _loc), []))
+            case TypeConstructor(Name("String", _)):
+                # Small fixed set so BFS can close String holes without
+                # expanding into recursive string operators first.
+                for sval in ("", "a", "b", "hello", " "):
+                    candidates.append((Literal(sval, t_string, _loc), []))
             case _:
                 pass
     return candidates
