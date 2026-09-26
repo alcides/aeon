@@ -76,8 +76,6 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "enumerative",
         "random_search",
         "synquid",
-        "hc",
-        "1p1",
         "smt",
         "sygus",
         "decision_tree",

@@ -28,11 +28,10 @@ def test_unknown_synthesizer_raises():
 
 
 def test_sort_groups_by_family_then_label():
-    ids = sort_synthesizer_ids(["gp", "llm", "enumerative", "random_search", "hc"])
+    ids = sort_synthesizer_ids(["gp", "llm", "enumerative", "random_search"])
     assert [synthesizer_family(i) for i in ids] == [
         SynthesizerFamily.GRAMMAR_SEARCH,
         SynthesizerFamily.GRAMMAR_SEARCH,
-        SynthesizerFamily.METAHEURISTIC,
         SynthesizerFamily.METAHEURISTIC,
         SynthesizerFamily.LLM_ASSISTED,
     ]

@@ -3,7 +3,16 @@ from __future__ import annotations
 from typing import Callable
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.terms import Term, TypeApplication, Var
+from aeon.core.substitutions import instantiate_refinement_in_type
+from aeon.core.terms import (
+    Abstraction,
+    ImplicitRefinementHole,
+    Literal,
+    RefinementApplication,
+    Term,
+    TypeApplication,
+    Var,
+)
 from aeon.core.types import (
     AbstractionType,
     RefinementPolymorphism,
@@ -20,8 +29,18 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
-from aeon.utils.name import Name
+from aeon.utils.location import SynthesizedLocation
+from aeon.utils.name import Name, fresh_counter
 from aeon.verification.sub import sub
+
+_loc = SynthesizedLocation("tdsyn")
+
+
+def _trivial_true_predicate() -> Abstraction:
+    """``λy. true`` — used only to weaken the *candidate type* while the term
+    still carries an ``ImplicitRefinementHole`` for Horn inference."""
+    y = Name("_pred_y", fresh_counter.fresh())
+    return Abstraction(y, Literal(True, t_bool, _loc), _loc)
 
 
 def is_subtype(ctx: TypingContext, t1: Type, t2: Type) -> bool:
@@ -101,25 +120,11 @@ def monomorphize(name: Name, ty: Type, ctx: TypingContext) -> list[tuple[Term, T
     Returns list of (term, monomorphic_type) pairs.
     For non-polymorphic types, returns [(Var(name), ty)].
     For polymorphic types, instantiates type variables with concrete types from context.
+    Abstract refinement quantifiers (``forall <p>``) are opened with an
+    ``ImplicitRefinementHole``, matching elaboration: Horn inference fills in
+    ``p`` when the finished term is typechecked.
     """
-    match ty:
-        case TypePolymorphism(var_name, _, body):
-            concrete_types = _collect_concrete_types(ctx)
-            results: list[tuple[Term, Type]] = []
-            for concrete_type in concrete_types:
-                substituted = type_substitution(body, var_name, concrete_type)
-                term = TypeApplication(Var(name), concrete_type)
-                if isinstance(substituted, TypePolymorphism):
-                    # Nested polymorphism: recurse (need a fresh name for the intermediate)
-                    for sub_term, sub_type in _monomorphize_term(term, substituted, ctx):
-                        results.append((sub_term, sub_type))
-                else:
-                    results.append((term, substituted))
-            return results
-        case RefinementPolymorphism():
-            return []
-        case _:
-            return [(Var(name), ty)]
+    return _monomorphize_term(Var(name, _loc), ty, ctx)
 
 
 def _monomorphize_term(base_term: Term, ty: Type, ctx: TypingContext) -> list[tuple[Term, Type]]:
@@ -130,13 +135,18 @@ def _monomorphize_term(base_term: Term, ty: Type, ctx: TypingContext) -> list[tu
             results: list[tuple[Term, Type]] = []
             for concrete_type in concrete_types:
                 substituted = type_substitution(body, var_name, concrete_type)
-                term = TypeApplication(base_term, concrete_type)
-                if isinstance(substituted, TypePolymorphism):
-                    for sub_term, sub_type in _monomorphize_term(term, substituted, ctx):
-                        results.append((sub_term, sub_type))
-                else:
-                    results.append((term, substituted))
+                applied: Term = TypeApplication(base_term, concrete_type, _loc)
+                results.extend(_monomorphize_term(applied, substituted, ctx))
             return results
+        case RefinementPolymorphism(pred_name, _sort, body):
+            # Match elaboration: open ``forall <p>`` with an implicit hole on the
+            # *term* so Horn inference can instantiate ``p`` at typecheck time.
+            # The candidate type used for search is weakened with ``λy. true``
+            # (same approximation as LTA) so argument holes stay SMT-friendly.
+            hole = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
+            applied = RefinementApplication(base_term, hole, _loc)
+            substituted = instantiate_refinement_in_type(body, pred_name, _trivial_true_predicate())
+            return _monomorphize_term(applied, substituted, ctx)
         case _:
             return [(base_term, ty)]
 

@@ -1,17 +1,10 @@
+"""Shared name / type constants for synthesis backends (no GeneticEngine)."""
+
 from typing import Type as TypingType
 
-from geneticengine.grammar.metahandlers.base import MetaHandlerGenerator
-from geneticengine.grammar.metahandlers.floats import FloatRange
-from geneticengine.grammar.metahandlers.ints import IntRange
-from geneticengine.grammar.metahandlers.strings import StringSizeBetween
-
-from aeon.core.liquid import LiquidLiteralInt, LiquidLiteralString, LiquidLiteralFloat
-from aeon.core.types import t_bool
-from aeon.core.types import t_float
-from aeon.core.types import t_int
-from aeon.core.types import t_string
-from aeon.core.types import Type
+from aeon.core.liquid import LiquidLiteralFloat, LiquidLiteralInt, LiquidLiteralString
 from aeon.core.pprint import aeon_prelude_ops_to_text
+from aeon.core.types import Type, t_bool, t_float, t_int, t_string
 
 # Names that must never appear in synthesized terms.
 SYNTHESIS_EXCLUDED_NAMES: frozenset[str] = frozenset({"native", "native_import", "print"})
@@ -47,12 +40,6 @@ aeon_to_python: dict[Type, TypingType] = {
     t_int: int,
     t_string: str,
     t_float: float,
-}
-
-aeon_to_gengy_metahandlers: dict[Type, MetaHandlerGenerator] = {
-    t_int: IntRange,
-    t_string: StringSizeBetween,
-    t_float: FloatRange,
 }
 
 aeon_to_liquid_terms: dict[str, TypingType[LiquidLiteralFloat | LiquidLiteralInt | LiquidLiteralString]] = {

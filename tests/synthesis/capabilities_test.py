@@ -6,7 +6,7 @@ from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.typechecking.typeinfer import check_type
 from tests.driver import check_and_return_core
 from aeon.utils.name import Name
-from aeon.synthesis.grammar.ge_synthesis import GESynthesizer
+from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
 from tests.synthesis_helpers import require_synthesized, synthesize_holes_or_skip
 
 
@@ -19,7 +19,7 @@ def synthesis_and_return(code):
         term,
     )
 
-    synthesizer = GESynthesizer()
+    synthesizer = EnumerativeSynthesizer()
 
     holes = synthesize_holes_or_skip(ctx, ectx, term, incomplete_functions, metadata, synthesizer, budget=0.25)
     return require_synthesized(holes[list(holes.keys())[0]]), ctx

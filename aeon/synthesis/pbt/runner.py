@@ -112,10 +112,37 @@ def _decompose(ty: Type) -> tuple[list[tuple[Name, Type]], Type]:
     return args, ty
 
 
+def _erase_instantiation_apps(term: Term) -> Term:
+    """Drop type/refinement applications for surface reporting.
+
+    Generation opens ``forall`` / ``forall <p>`` with ``TypeApplication`` and
+    ``ImplicitRefinementHole`` apps; evaluation already ignores them, and
+    counterexample strings should read like ``List_cons 0 List_nil``.
+    """
+    match term:
+        case TypeApplication(body, _) | RefinementApplication(body, _):
+            return _erase_instantiation_apps(body)
+        case Application(fun, arg, loc):
+            return Application(_erase_instantiation_apps(fun), _erase_instantiation_apps(arg), loc)
+        case Abstraction(name, body, loc):
+            return Abstraction(name, _erase_instantiation_apps(body), loc)
+        case Annotation(expr, ty, loc):
+            return Annotation(_erase_instantiation_apps(expr), ty, loc)
+        case If(cond, then, otherwise, loc):
+            return If(
+                _erase_instantiation_apps(cond),
+                _erase_instantiation_apps(then),
+                _erase_instantiation_apps(otherwise),
+                loc,
+            )
+        case _:
+            return term
+
+
 def _render(term: Term) -> str:
     """Best-effort surface-syntax rendering of an argument term for reporting."""
     try:
-        return pretty_print_sterm(lift(term))
+        return pretty_print_sterm(lift(_erase_instantiation_apps(term)))
     except Exception:
         return repr(term)
 
@@ -232,28 +259,30 @@ def _shrinkable_flags(arg_specs: tuple[tuple[Name, Type], ...]) -> list[bool]:
 
 def _generate_property_cases(
     spec: PropertySpec,
-    typing_ctx: TypingContext,
+    _typing_ctx: TypingContext,
     adt_ctx: TypingContext,
     metadata: Metadata,
     seed: int,
 ) -> list[tuple[list[Term], list[Type]]]:
     """Generate a property's inputs once, preserving dependent argument types."""
-    from aeon.synthesis.pbt.generators import TypeSampler, is_base_type
+    from aeon.synthesis.pbt.generators import TypeSampler, build_base_context, is_base_type
 
     # Cache one sampler per distinct argument type. A non-dependent argument has
     # the same type every trial, so its (expensive) grammar is built once and the
     # sampler's RNG advances across draws. A dependent argument's type differs per
     # trial (an earlier choice is substituted in), yielding a fresh key each time.
     sampler_cache: dict[str, TypeSampler] = {}
+    base_ctx = build_base_context()
 
     def sampler_for(ty: Type, idx: int) -> TypeSampler:
         key = f"{idx}:{ty!r}"
         sampler = sampler_cache.get(key)
         if sampler is None:
-            # Base types use the full context (refinements resolve via the
-            # metahandler); ADTs use the constructor-only context so generation
-            # yields pure constructor trees.
-            ctx = typing_ctx if is_base_type(ty) else adt_ctx
+            # Base types use a minimal context (literals + SMT for refinements);
+            # ADTs use the constructor-only context so generation yields pure
+            # constructor trees. Full program contexts are too large: every
+            # Instantiable prelude/library function is monomorphized per step.
+            ctx = base_ctx if is_base_type(ty) else adt_ctx
             sampler = TypeSampler(ctx, ty, spec.name, metadata, seed=seed + idx * 7919)
             sampler_cache[key] = sampler
         return sampler

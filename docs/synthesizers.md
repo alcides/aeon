@@ -14,13 +14,9 @@ The `--budget` flag sets the time limit in seconds (default: 60).
 
 ### `gp` — Genetic Programming *(default)*
 
-Evolves a population of candidate programs using GeneticEngine's
-**parameterless** GP (`InitiallyRandomGeneticProgramming`): population size,
-mutation/crossover rates and tournament sizes are sampled once from the RNG
-instead of being hand-tuned. Candidate programs are syntax trees from a grammar
-derived from the typing context (max depth 30). Fitness comes from the synthesis
-decorators (`@minimize_*`, `@maximize_*`, `@minimize_cputime`, `@minimize_energy`,
-`@property`, `@example`, …).
+Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
+
+Population size is chosen from a timing probe of the first ten random individuals so that initial evaluation uses at most 10% of the wall-clock budget. Crossover rate and mutation rate are sampled randomly each run; tournament size, novelty rate and related operator knobs are re-sampled every generation. Elitism keeps the best 5% of the population. Fitness comes from the synthesis decorators (`@minimize_*`, `@maximize_*`, `@property`, …). When objectives are present the shared Pareto driver returns a random non-dominated candidate; otherwise the first well-typed term wins. No GeneticEngine dependency.
 
 Best suited for problems with a rich fitness landscape and sufficient budget.
 
@@ -28,25 +24,13 @@ Best suited for problems with a rich fitness landscape and sufficient budget.
 
 ### `random_search` — Random Search
 
-Randomly samples programs from the grammar at each step and validates them against the target type and refinements. Simple but effective as a baseline or for problems where the search space is small.
+Native random walks over Aeon's core term grammar (the same backward and forward actions as `enumerative`). Each sample expands holes at random until a complete term is produced (or the depth bound is hit); the shared driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Simple but effective as a baseline or for problems where the search space is small.
 
 ---
 
 ### `enumerative` — Enumerative Search
 
-Systematically enumerates all programs up to increasing size bounds (iterative deepening). Guaranteed to find a solution if one exists within the grammar, provided the budget allows. Works well for small, tightly-constrained holes.
-
----
-
-### `hc` — Hill Climbing
-
-A local search strategy that starts from a random candidate and repeatedly mutates it, keeping improvements. Faster per iteration than full genetic programming but more prone to local optima.
-
----
-
-### `1p1` — (1+1) Evolution Strategy
-
-A minimal evolutionary strategy that maintains a single candidate, mutates it, and accepts the child if it is at least as good as the parent. Lightweight and surprisingly competitive on simple problems.
+Native breadth-first enumeration over Aeon's core term grammar (backward and forward actions, plus SMT completion of refinement-constrained leaves). A generator yields complete terms; the driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Works well for small, tightly-constrained holes.
 
 ---
 
@@ -195,11 +179,9 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
-| `gp`            | Evolutionary     | Complex expressions, multi-objective problems |
-| `random_search` | Random sampling  | Baselines, small search spaces |
-| `enumerative`   | Size-ordered enumeration | Small holes, tight type constraints |
-| `hc`            | Local search     | Single-objective, unimodal problems |
-| `1p1`           | Minimal evolution | Simple problems, fast iteration |
+| `gp`            | Native linear-genome GP | Complex expressions, multi-objective problems |
+| `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
+| `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |
