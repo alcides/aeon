@@ -36,6 +36,18 @@ def is_base_type(ty: Type) -> bool:
     return isinstance(ty, TypeConstructor) and ty in _BASE_TYPES
 
 
+def build_base_context() -> TypingContext:
+    """Minimal context for sampling base (or refined-base) values.
+
+    Full program contexts (e.g. after ``open List`` / ``open Testing``) expose
+    hundreds of Instantiable functions; monomorphizing them for an ``Int`` hole
+    makes type-directed walks time out or never close. Built-ins alone suffice:
+    unrefined bases become literals, and refinements are discharged by SMT after
+    dependent arguments have been substituted into the type.
+    """
+    return TypingContext([])
+
+
 def build_adt_context(typing_ctx: TypingContext, constructor_binders: list[VariableBinder]) -> TypingContext:
     """A generation context for algebraic datatypes containing ONLY data
     constructors (plus the type/type-constructor declarations needed to resolve
@@ -86,16 +98,20 @@ class TypeSampler:
         self.prefer_closed = is_base_type(ty) if prefer_closed is None else prefer_closed
 
     def sample(self) -> Term:
-        for _ in range(_SAMPLE_ATTEMPTS):
-            term = sample_one(
-                self.initial,
-                self.skip,
-                self.rng,
-                self.max_depth,
-                prefer_closed=self.prefer_closed,
-            )
-            if term is not None:
-                return term
+        # Always allow a closed-terminal fallback so ADT walks that starve
+        # recursion still finish with a nullary constructor (e.g. ``List_nil``).
+        prefer_order = (self.prefer_closed,) if self.prefer_closed else (False, True)
+        for prefer_closed in prefer_order:
+            for _ in range(_SAMPLE_ATTEMPTS):
+                term = sample_one(
+                    self.initial,
+                    self.skip,
+                    self.rng,
+                    self.max_depth,
+                    prefer_closed=prefer_closed,
+                )
+                if term is not None:
+                    return term
         raise RuntimeError(f"PBT TypeSampler failed to produce a term within {_SAMPLE_ATTEMPTS} attempts")
 
 
