@@ -10,10 +10,9 @@
 #
 #     g(x) = a*a / (1 + b*x) + c
 #
-# so that the optimal coefficients fit the +-5.12 search box of Aeon's
-# ng_float backend (joint Nevergrad optimisation of all Float holes -- the
-# same family of optimisers, including CMA-ES via -s ng_float_cma, that the
-# paper uses for its constants). The numerator is written a*a -- a constant
+# so that the optimal coefficients fit a +-5.12 search box for Aeon's
+# float-hole / CP-SAT backends (e.g. ``-s ortools`` or ``-s gp``). The
+# numerator is written a*a -- a constant
 # fold, so the runtime program is still 3 operations -- because keeping it
 # positive removes a spurious sign-symmetric local optimum (see
 # exp2_metric.py). Fitness is the paper's accuracy objective: maximum
@@ -22,15 +21,13 @@
 # paper's f3 -- pinned by the known solution below. A --budget 30-120 run
 # reliably improves random coefficients (error >= 5e-1) to a few times 1e-2,
 # i.e. the accuracy of the paper's 2-operation f2; occasional runs reach the
-# ~1e-3 optimum. (Nevergrad's NGOpt has unseeded internal randomness, so
-# results vary between runs even with the same AEON_SEED.)
+# ~1e-3 optimum.
 #
 # exp2_reference.ae holds the paper's own programs (down to the 10-operation,
 # ~5e-15 champion f10); exp2_free.ae is the free-form structural search.
 #
-# Requires the optional nevergrad backend (uv pip install -e ".[synthesis-ng]").
 # Run from the repository root with, e.g.:
-#   uv run python -m aeon --budget 30 -s ng_float examples/synthesis/autonumerics/exp2_pade.ae
+#   uv run python -m aeon --budget 30 -s ortools examples/synthesis/autonumerics/exp2_pade.ae
 
 # Max relative error of the skeleton a*a / (1 + b*x) + c against 2^x on
 # (0, 1], evaluated natively (a pole on the grid scores a large penalty).
@@ -41,7 +38,7 @@ def pade_mre (a:Float) (b:Float) (c:Float) : Float :=
 def pade_mre_dense (a:Float) (b:Float) (c:Float) : Float :=
     native "(__import__('sys').path.insert(0, 'examples/synthesis/autonumerics'), __import__('exp2_metric').pade_mre_dense(a, b, c))[1]";
 
-# (a) Synthesis: the three coefficients, jointly optimised by ng_float.
+# (a) Synthesis: the three coefficients, jointly optimised.
 def pa : Float := ?ha;
 def pb : Float := ?hb;
 def pc : Float := ?hc;

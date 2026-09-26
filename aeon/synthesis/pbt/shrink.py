@@ -39,6 +39,7 @@ from aeon.core.terms import (
 from aeon.core.types import (
     AbstractionType,
     RefinedType,
+    RefinementPolymorphism,
     Type,
     TypePolymorphism,
     refined_to_unrefined_type,
@@ -48,7 +49,7 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.core.substitutions import substitute_vartype
-from aeon.synthesis.grammar.grammar_generation import remove_uninterpreted_functions_from_type
+from aeon.synthesis.grammar.poly import remove_uninterpreted_functions_from_type
 from aeon.utils.name import Name
 
 # Maps a (prefixed) constructor name to its polymorphic core type.
@@ -88,11 +89,12 @@ def decompose_constructor(term: Term, constructor_names: set[str]) -> tuple[Name
 
 def constructor_signature(cons_type: Type, type_args: list[Type]) -> tuple[list[Type], Type]:
     """Return ``(argument_types, return_type)`` for a constructor instantiated at
-    ``type_args``. The abstract refinement (``forall <p:a->Bool>`` and the
-    ``{v:a | p v}`` element predicate) is stripped first via
-    ``remove_uninterpreted_functions_from_type`` — the same cleaning the grammar
-    applies — so the remaining type is a plain polymorphic function."""
+    ``type_args``. Uninterpreted liquid (e.g. size measures) is cleaned, then
+    abstract refinements (``forall <p>``) are peeled — shrinking only needs the
+    plain polymorphic function shape, not the predicate binder."""
     ty = remove_uninterpreted_functions_from_type(cons_type)
+    while isinstance(ty, RefinementPolymorphism):
+        ty = ty.body
     i = 0
     while isinstance(ty, TypePolymorphism):
         if i < len(type_args):
@@ -100,6 +102,10 @@ def constructor_signature(cons_type: Type, type_args: list[Type]) -> tuple[list[
         else:
             ty = ty.body
         i += 1
+    # Refinement polymorphism can sit under type polymorphism
+    # (``forall a. forall <p>. …``); peel again after substituting ``a``.
+    while isinstance(ty, RefinementPolymorphism):
+        ty = ty.body
     arg_types: list[Type] = []
     while isinstance(ty, AbstractionType):
         arg_types.append(ty.var_type)

@@ -162,7 +162,7 @@ class FTASynthesizer(Synthesizer):
         ``inst_types`` so the search can build functions of the input over them.
         The function being synthesized (no self-recursion) and the ``native``
         intrinsics are skipped, as in the grammar backend."""
-        from aeon.synthesis.grammar.grammar_generation import monomorphize_poly_type
+        from aeon.synthesis.grammar.poly import monomorphize_poly_type
 
         skip_names = {fun_name.name} | SYNTHESIS_EXCLUDED_NAMES
         builders: dict[str, list[_MonoComponent]] = {}

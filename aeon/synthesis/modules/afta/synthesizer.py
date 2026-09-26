@@ -154,7 +154,7 @@ class AFTASynthesizer(Synthesizer):
         alphabet) and atoms (nullary leaves). Polymorphic operators (``+``,
         ``*``, … : ``∀a. a -> a -> a``) are monomorphised at ``inst_types`` so
         the search can build expressions over them, matching ``fta``."""
-        from aeon.synthesis.grammar.grammar_generation import monomorphize_poly_type
+        from aeon.synthesis.grammar.poly import monomorphize_poly_type
 
         skip_names = {fun_name.name} | SYNTHESIS_EXCLUDED_NAMES
         builders: dict[str, list[Component]] = {}

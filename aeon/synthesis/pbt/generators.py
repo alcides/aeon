@@ -1,32 +1,30 @@
 """Random ``Term`` generation for property-based testing.
 
-This is a thin wrapper around the synthesis grammar machinery
-(:func:`aeon.synthesis.grammar.grammar_generation.create_grammar` +
-geneticengine's tree representation). The same code that turns a ``Type`` into a
-search space for program synthesis is reused here to turn a ``Type`` into a
-sampler of random inhabitants — so refinements (via metahandlers) constrain the
-generated values automatically and users never write their own generators.
+Uses the same native grammar random walks as ``-s random_search``: typed holes
+are expanded with Aeon's backward/forward actions (and SMT leaf completion for
+refinements), so inhabitants respect refinements without a GeneticEngine grammar.
 """
 
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidLiteralBool
+import random
+
 from aeon.core.terms import Term
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, t_string
 from aeon.decorators.api import Metadata
-from aeon.synthesis.grammar.grammar_generation import create_grammar
-from aeon.typechecking.context import TypeBinder, TypeConstructorBinder, TypingContext, VariableBinder
+from aeon.synthesis.modules.native_search import MAX_DEPTH, initial_partial, make_skip, sample_one
+from aeon.typechecking.context import (
+    TypeBinder,
+    TypeConstructorBinder,
+    TypingContext,
+    TypingContextEntry,
+    VariableBinder,
+)
 from aeon.utils.name import Name
 
-from geneticengine.random.sources import NativeRandomSource
-from geneticengine.representations.tree.initializations import MaxDepthDecider
-from geneticengine.representations.tree.treebased import TreeBasedRepresentation
+DEFAULT_MAX_DEPTH = MAX_DEPTH
+_SAMPLE_ATTEMPTS = 64
 
-# Mirrors the depth used by the GP synthesizer (``ge_synthesis.py``).
-DEFAULT_MAX_DEPTH = 5
-
-# Base types for which generation can start from a (possibly trivial) refined
-# node, yielding clean in-range literals rather than arbitrary expressions.
 _BASE_TYPES = (t_int, t_float, t_bool, t_string)
 
 
@@ -44,36 +42,30 @@ def build_adt_context(typing_ctx: TypingContext, constructor_binders: list[Varia
     them). Ordinary functions are dropped so generation yields pure constructor
     trees instead of arbitrary value-producing expressions.
 
-    Constructors carry an abstract refinement (``forall <p:a->Bool>``) that
-    ``monomorphize_poly_type`` cannot instantiate; ``create_grammar`` strips it
-    via ``remove_uninterpreted_functions`` before monomorphizing, so the cleaned
-    constructor becomes a usable polymorphic node."""
-    keep = [e for e in typing_ctx.entries if isinstance(e, (TypeConstructorBinder, TypeBinder))]
-    return TypingContext(keep + list(constructor_binders))
+    Abstract refinements (``forall <p>``) are kept on constructors —
+    ``monomorphize`` opens them with an ``ImplicitRefinementHole`` so Horn
+    inference can instantiate ``p``. Liquid atoms that mention uninterpreted
+    measures (e.g. ``List_size``) are erased so SMT subtyping does not need
+    those binders in the narrowed ADT context.
+    """
+    from aeon.synthesis.grammar.poly import remove_uninterpreted_functions_from_type
 
-
-def _refined_start(ty: Type) -> Type | None:
-    """Return the refined node to start generation from for a base-typed target,
-    or ``None`` when the type is not a base type (e.g. an ADT like ``List``).
-
-    A plain base type ``B`` is treated as ``{v:B | true}`` so generation still
-    starts from a refined literal node — producing clean literals instead of
-    value-producing expressions. A refined base type is used as-is, so its
-    metahandler constrains the draws to the refinement (no discards)."""
-    if isinstance(ty, RefinedType) and ty.type in _BASE_TYPES:
-        return ty
-    if isinstance(ty, TypeConstructor) and ty in _BASE_TYPES:
-        return RefinedType(Name("v", 0), ty, LiquidLiteralBool(True))
-    return None
+    keep: list[TypingContextEntry] = [
+        e for e in typing_ctx.entries if isinstance(e, (TypeConstructorBinder, TypeBinder))
+    ]
+    cleaned: list[TypingContextEntry] = [
+        VariableBinder(b.name, remove_uninterpreted_functions_from_type(b.type)) for b in constructor_binders
+    ]
+    return TypingContext(keep + cleaned)
 
 
 class TypeSampler:
     """Samples random ``Term``s of a fixed ``Type`` in a fixed context.
 
-    Building the grammar is the expensive step, so it is done once per
-    ``(ctx, ty)`` and reused across draws. For dependent arguments — where the
-    type changes once an earlier argument has been chosen — build a fresh
-    sampler per draw via :func:`generate_one`.
+    The initial partial AST and skip function are built once; each
+    :meth:`sample` runs an independent random walk (advancing the RNG).
+    For dependent arguments — where the type changes once an earlier argument
+    has been chosen — build a fresh sampler per draw via :func:`generate_one`.
     """
 
     def __init__(
@@ -84,20 +76,27 @@ class TypeSampler:
         metadata: Metadata,
         seed: int = 0,
         max_depth: int = DEFAULT_MAX_DEPTH,
+        prefer_closed: bool | None = None,
     ):
-        self.random = NativeRandomSource(seed)
-        grammar = create_grammar(ctx, ty, fun_name, metadata, start_override=_refined_start(ty))
-        self.representation = TreeBasedRepresentation(
-            grammar,
-            decider=MaxDepthDecider(self.random, grammar, max_depth=max_depth),
-        )
+        self.rng = random.Random(seed)
+        self.initial = initial_partial(ctx, ty)
+        self.skip = make_skip(fun_name, metadata)
+        self.max_depth = max_depth
+        # Prefer terminals for base types; explore recursive constructors for ADTs.
+        self.prefer_closed = is_base_type(ty) if prefer_closed is None else prefer_closed
 
     def sample(self) -> Term:
-        genotype = self.representation.create_genotype(self.random)
-        phenotype = self.representation.genotype_to_phenotype(genotype)
-        term = phenotype.get_core()
-        assert isinstance(term, Term)
-        return term
+        for _ in range(_SAMPLE_ATTEMPTS):
+            term = sample_one(
+                self.initial,
+                self.skip,
+                self.rng,
+                self.max_depth,
+                prefer_closed=self.prefer_closed,
+            )
+            if term is not None:
+                return term
+        raise RuntimeError(f"PBT TypeSampler failed to produce a term within {_SAMPLE_ATTEMPTS} attempts")
 
 
 def generate_one(
@@ -110,7 +109,7 @@ def generate_one(
 ) -> Term:
     """Generate a single random ``Term`` inhabiting ``ty`` under ``ctx``.
 
-    A new grammar is built each call, so this is the right entry point when the
+    A new sampler is built each call, so this is the right entry point when the
     target type depends on previously chosen arguments. For many independent
     draws of the *same* type, instantiate a :class:`TypeSampler` and call
     :meth:`TypeSampler.sample` repeatedly.

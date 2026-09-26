@@ -2,7 +2,7 @@ import pytest
 
 from aeon.synthesis.entrypoint import make_evaluators
 from aeon.synthesis.decorators import Goal
-from aeon.synthesis.grammar.ge_synthesis import GESynthesizer, create_problem
+from aeon.synthesis.modules.genetic_programming import GeneticProgrammingSynthesizer
 from aeon.synthesis.identification import incomplete_functions_and_holes, iterate_top_level
 from aeon.synthesis.resource_meters import (
     DEFAULT_POWER_W,
@@ -118,13 +118,9 @@ def test_cputime_and_energy_make_two_evaluators_and_minimize_problem():
     fun_name = next(k for k, v in metadata.items() if isinstance(v, dict) and "goals" in v)
     evaluators = make_evaluators(ectx, fun_name, metadata)
     assert len(evaluators) == 2
-    problem = create_problem(
-        validate=lambda _t: True,
-        evaluate=lambda _t: [0.0, 0.0],
-        fun_name=fun_name,
-        metadata=metadata,
-    )
-    assert problem.minimize == [True, True]
+    goals = metadata[fun_name]["goals"]
+    minimize = [goal.minimize for goal in goals for _ in range(goal.length)]
+    assert minimize == [True, True]
 
 
 def test_measure_cputime_is_nonnegative():
@@ -174,7 +170,7 @@ def test_cputime_synthesis_smoke():
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
     incomplete = incomplete_functions_and_holes(ctx, core_ast_anf)
     mapping = synthesize_holes_or_skip(
-        ctx, ectx, core_ast_anf, incomplete, metadata, synthesizer=GESynthesizer(), budget=0.25
+        ctx, ectx, core_ast_anf, incomplete, metadata, synthesizer=GeneticProgrammingSynthesizer(), budget=0.25
     )
     assert len(mapping) == 1
     first_hole_term(mapping)
