@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+from collections import OrderedDict
 from collections.abc import Callable
 from typing import Any
 
@@ -28,8 +29,22 @@ def set_program_tail(term: Term, new_tail: Term) -> Term:
 
 
 def candidate_key(term: Term) -> int:
-    """Stable hash for memo keys (structural, via ``Term.__hash__``)."""
+    """Stable structural hash for memo keys (ignores source locations)."""
     return hash(term)
+
+
+def extract_suffix(prog: Term, stop_before: Name) -> Term:
+    """Return the ``let``/``rec`` chain starting at ``stop_before`` without evaluating.
+
+    Used when the program prefix before the synthesised binding is known to be
+    identical to a previously pre-bound program (only the hole body changes).
+    """
+    t = prog
+    while isinstance(t, (Let, Rec)):
+        if t.var_name == stop_before:
+            return t
+        t = t.body
+    return prog
 
 
 def prebind_prefix(
@@ -54,22 +69,18 @@ def prebind_prefix(
 
 
 def _eval_goal(
-    prog: Term,
+    suffix: Term,
     prefix_ctx: EvaluationContext,
     goal: Goal,
-    fun_name: Name,
-    ectx: EvaluationContext,
 ) -> float:
-    """Evaluate one generated-helper goal, using a pre-bound prefix when possible."""
-    _, suffix = prebind_prefix(prog, ectx, fun_name)
+    """Evaluate one generated-helper goal against an already-extracted suffix."""
     program_for_fitness = set_program_tail(suffix, Var(goal.function))
-    ctx = prefix_ctx
     try:
         if goal.kind == "cputime":
-            return measure_cputime(lambda: aeon_eval(program_for_fitness, ctx))
+            return measure_cputime(lambda: aeon_eval(program_for_fitness, prefix_ctx))
         if goal.kind == "energy":
-            return measure_energy(lambda: aeon_eval(program_for_fitness, ctx))
-        return aeon_eval(program_for_fitness, ctx)
+            return measure_energy(lambda: aeon_eval(program_for_fitness, prefix_ctx))
+        return aeon_eval(program_for_fitness, prefix_ctx)
     except Exception:
         raise InvalidIndividualException()
 
@@ -107,13 +118,17 @@ def make_bundled_fitness_evaluator(
     Expression goals on the suffix ``rec`` chain share a single interpreter
     walk; ``cputime``/``energy`` and ``property`` goals fall back to their
     own evaluation paths.
+
+    The static prefix before ``fun_name`` is evaluated once from
+    ``prefix_prog``; each candidate only extracts its suffix (no re-eval of
+    library bindings).
     """
     prefix_ctx, _ = prebind_prefix(prefix_prog, ectx, fun_name)
     expr_functions = {g.function for g in goals if g.kind == "expression"}
 
     def fitness(prog: Term) -> list[float]:
         properties = iter(property_evaluators or [])
-        _, suffix = prebind_prefix(prog, ectx, fun_name)
+        suffix = extract_suffix(prog, fun_name)
         expr_values = _collect_expression_goals(suffix, prefix_ctx, expr_functions) if expr_functions else {}
         scores: list[float] = []
         for goal in goals:
@@ -124,9 +139,9 @@ def make_bundled_fitness_evaluator(
                 if goal.function in expr_values:
                     scores.append(expr_values[goal.function])
                 else:
-                    scores.append(_eval_goal(prog, prefix_ctx, goal, fun_name, ectx))
+                    scores.append(_eval_goal(suffix, prefix_ctx, goal))
             else:
-                scores.append(_eval_goal(prog, prefix_ctx, goal, fun_name, ectx))
+                scores.append(_eval_goal(suffix, prefix_ctx, goal))
         return scores
 
     return fitness
@@ -134,20 +149,18 @@ def make_bundled_fitness_evaluator(
 
 def memoize_fitness(comp: Computation, maxsize: int = _FITNESS_MEMO_MAX) -> Computation:
     """LRU memo keyed by ``candidate_key`` for duplicate phenotypes."""
-    cache: dict[int, Any] = {}
-    order: list[int] = []
+    cache: OrderedDict[int, Any] = OrderedDict()
 
     def wrapped(prog: Term) -> Any:
         key = candidate_key(prog)
         hit = cache.get(key)
         if hit is not None:
+            cache.move_to_end(key)
             return hit
         result = comp(prog)
-        if len(cache) >= maxsize and key not in cache:
-            evicted = order.pop(0)
-            cache.pop(evicted, None)
         cache[key] = result
-        order.append(key)
+        if len(cache) > maxsize:
+            cache.popitem(last=False)
         return result
 
     return wrapped

@@ -97,8 +97,13 @@ class TypeConstructorBinder(TypingContextEntry):
 class TypingContext:
     entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
     trusted_names: frozenset[Name] = field(default_factory=frozenset)
+    # When False, skip re-injecting builtins (used by with_var / with_typevar so
+    # synthesis-time extensions do not re-scan ``entries`` for each binder).
+    _ensure_builtins: bool = field(default=True, repr=False, compare=False)
 
     def __post_init__(self):
+        if not self._ensure_builtins:
+            return
         for bt in builtin_core_types[::-1]:
             temp = TypeConstructorBinder(bt.name, [])
             if temp not in self.entries:
@@ -109,12 +114,20 @@ class TypingContext:
         return f"[[{fields}]]"
 
     def with_var(self, name: Name, type: Type) -> TypingContext:
-        nentries = [e for e in self.entries] + [VariableBinder(name, type)]
-        return TypingContext(nentries, trusted_names=self.trusted_names)
+        """Extend with a variable binder; shares trust set and skips builtin re-scan."""
+        return TypingContext(
+            [*self.entries, VariableBinder(name, type)],
+            trusted_names=self.trusted_names,
+            _ensure_builtins=False,
+        )
 
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
-        nentries = [e for e in self.entries] + [TypeBinder(name, kind)]
-        return TypingContext(nentries, trusted_names=self.trusted_names)
+        """Extend with a type variable; shares trust set and skips builtin re-scan."""
+        return TypingContext(
+            [*self.entries, TypeBinder(name, kind)],
+            trusted_names=self.trusted_names,
+            _ensure_builtins=False,
+        )
 
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
