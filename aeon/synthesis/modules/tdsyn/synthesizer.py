@@ -27,9 +27,17 @@ from aeon.synthesis.modules.tdsyn.actions import (
     forward_let_tabs_candidates,
     forward_let_tapp_candidates,
 )
-from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
+from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
-from aeon.synthesis.modules.tdsyn.worklist import PartialAST, TypedHole, fresh_hole, substitute_hole
+from aeon.synthesis.modules.tdsyn.worklist import (
+    Child,
+    PartialAST,
+    TypedHole,
+    expand_at_hole,
+    fresh_hole,
+    substitute_hole,
+    substitute_holes_map,
+)
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -57,10 +65,9 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
     For non-function types, returns a single hole.
     """
     if not isinstance(ty, AbstractionType):
-        hole_term, typed_hole = fresh_hole(ty, ctx)
+        hole_term, typed_hole = fresh_hole(ty, ctx, path=())
         return hole_term, ty, ctx, [typed_hole]
 
-    # Peel all abstractions
     current_type: Type = ty
     current_ctx = ctx
     var_names: list[Name] = []
@@ -70,10 +77,9 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
         current_ctx = current_ctx.with_var(current_type.var_name, current_type.var_type)
         current_type = current_type.type
 
-    # Create the innermost hole
-    inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx)
+    hole_path = tuple(Child.BODY for _ in var_names)
+    inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx, path=hole_path)
 
-    # Wrap in abstractions (inside-out)
     term: Term = inner_hole_term
     for var_name in reversed(var_names):
         term = Abstraction(var_name, term, _loc)
@@ -116,6 +122,7 @@ class TDSynSynthesizer(Synthesizer):
         start_time = monotonic_ns()
         best: tuple[list[float], Term | None] = ([], None)
         ui.register(None, None, 0, True)
+        clear_tdsyn_caches()
 
         # Peel abstractions from the target type
         initial_term, inner_type, inner_ctx, initial_holes = _peel_abstractions(type, ctx)
@@ -188,11 +195,7 @@ class TDSynSynthesizer(Synthesizer):
             return best[0], best[1], False
 
         for solution in solutions:
-            # Substitute all holes with their solved values
-            term = partial.term
-            for hole_name, literal_term in solution.items():
-                term = substitute_hole(term, hole_name, literal_term)
-
+            term = substitute_holes_map(partial.term, solution)
             complete = PartialAST(term=term, holes=[], depth=partial.depth)
             best = self._try_complete(complete, validate, evaluate, start_time, ui, best)
 
@@ -215,12 +218,9 @@ class TDSynSynthesizer(Synthesizer):
                 continue
 
             for replacement, new_holes in candidates:
-                new_term = substitute_hole(partial.term, hole.name, replacement)
-                remaining_holes = [h for h in partial.holes if h.name != hole.name]
-                remaining_holes.extend(new_holes)
                 new_depth = partial.depth + (1 if new_holes else 0)
                 if new_depth <= MAX_DEPTH:
-                    results.append(PartialAST(term=new_term, holes=remaining_holes, depth=new_depth))
+                    results.append(expand_at_hole(partial, hole, replacement, new_holes, new_depth))
 
         # Shuffle on non-first iterations to explore different orderings
         if self._iteration > 0 and results:

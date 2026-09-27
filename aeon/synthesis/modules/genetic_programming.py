@@ -32,6 +32,7 @@ from aeon.synthesis.modules.native_search import (
     make_skip,
     update_pareto_front,
 )
+from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -282,6 +283,7 @@ class GeneticProgrammingSynthesizer(Synthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
+        clear_tdsyn_caches()
         goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
         minimize = [goal.minimize for goal in goals for _ in range(goal.length)]
         rng = random.Random(self.seed)

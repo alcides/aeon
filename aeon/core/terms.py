@@ -14,7 +14,9 @@ class Term:
     loc: Location
 
     def __hash__(self) -> int:
-        return str(self).__hash__()
+        # Subclasses with custom ``__eq__`` must override; dataclass-generated
+        # hashes cover the remaining frozen variants.
+        raise TypeError(f"unhashable type: '{type(self).__name__}'")
 
     def pretty(self):
         pass
@@ -33,6 +35,9 @@ class Literal(Term):
 
     def __eq__(self, other):
         return isinstance(other, Literal) and self.value == other.value and self.type == other.type
+
+    def __hash__(self) -> int:
+        return hash((Literal, self.value, self.type))
 
     def pretty(self):
         if self.type == t_string:
@@ -54,6 +59,9 @@ class Var(Term):
     def __eq__(self, other):
         return isinstance(other, Var) and self.name == other.name
 
+    def __hash__(self) -> int:
+        return hash((Var, self.name))
+
     def pretty(self):
         return self.name.pretty()
 
@@ -73,6 +81,9 @@ class Annotation(Term):
     def __eq__(self, other):
         return isinstance(other, Annotation) and self.expr == other.expr
 
+    def __hash__(self) -> int:
+        return hash((Annotation, self.expr))
+
 
 @dataclass(frozen=True)
 class Hole(Term):
@@ -87,6 +98,9 @@ class Hole(Term):
 
     def __eq__(self, other):
         return isinstance(other, Hole) and self.name == other.name
+
+    def __hash__(self) -> int:
+        return hash((Hole, self.name))
 
 
 @dataclass(frozen=True)
@@ -113,6 +127,9 @@ class ImplicitRefinementHole(Term):
     def __eq__(self, other):
         return isinstance(other, ImplicitRefinementHole) and self.name == other.name
 
+    def __hash__(self) -> int:
+        return hash((ImplicitRefinementHole, self.name))
+
 
 @dataclass(frozen=True)
 class Application(Term):
@@ -125,6 +142,9 @@ class Application(Term):
 
     def __eq__(self, other):
         return isinstance(other, Application) and self.fun == other.fun and self.arg == other.arg
+
+    def __hash__(self) -> int:
+        return hash((Application, self.fun, self.arg))
 
 
 @dataclass(frozen=True)
@@ -141,6 +161,9 @@ class Abstraction(Term):
 
     def __eq__(self, other):
         return isinstance(other, Abstraction) and self.var_name == other.var_name and self.body == other.body
+
+    def __hash__(self) -> int:
+        return hash((Abstraction, self.var_name, self.body))
 
 
 @dataclass(frozen=True)
@@ -163,6 +186,9 @@ class Let(Term):
             and self.body == other.body
             and self.multiplicity is other.multiplicity
         )
+
+    def __hash__(self) -> int:
+        return hash((Let, self.var_name, self.var_value, self.body, self.multiplicity))
 
 
 @dataclass(frozen=True)
@@ -223,6 +249,20 @@ class Rec(Term):
             and self.mutual_group_id == other.mutual_group_id
         )
 
+    def __hash__(self) -> int:
+        return hash(
+            (
+                Rec,
+                self.var_name,
+                self.var_type,
+                self.var_value,
+                self.body,
+                self.decreasing_by,
+                self.multiplicity,
+                self.mutual_group_id,
+            )
+        )
+
 
 @dataclass(frozen=True)
 class If(Term):
@@ -242,6 +282,9 @@ class If(Term):
             and self.otherwise == other.otherwise
         )
 
+    def __hash__(self) -> int:
+        return hash((If, self.cond, self.then, self.otherwise))
+
 
 @dataclass(frozen=True)
 class TypeAbstraction(Term):
@@ -252,6 +295,17 @@ class TypeAbstraction(Term):
 
     def __str__(self):
         return f"ƛ{self.name}:{self.kind}.({self.body})"
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, TypeAbstraction)
+            and self.name == other.name
+            and self.kind == other.kind
+            and self.body == other.body
+        )
+
+    def __hash__(self) -> int:
+        return hash((TypeAbstraction, self.name, self.kind, self.body))
 
 
 @dataclass(frozen=True)
@@ -264,6 +318,17 @@ class RefinementAbstraction(Term):
     def __str__(self):
         return f"Λρ{self.name}:({self.sort}).({self.body})"
 
+    def __eq__(self, other):
+        return (
+            isinstance(other, RefinementAbstraction)
+            and self.name == other.name
+            and self.sort == other.sort
+            and self.body == other.body
+        )
+
+    def __hash__(self) -> int:
+        return hash((RefinementAbstraction, self.name, self.sort, self.body))
+
 
 @dataclass(frozen=True)
 class TypeApplication(Term):
@@ -274,6 +339,12 @@ class TypeApplication(Term):
     def __str__(self):
         return f"({self.body})[{self.type}]"
 
+    def __eq__(self, other):
+        return isinstance(other, TypeApplication) and self.body == other.body and self.type == other.type
+
+    def __hash__(self) -> int:
+        return hash((TypeApplication, self.body, self.type))
+
 
 @dataclass(frozen=True)
 class RefinementApplication(Term):
@@ -283,3 +354,11 @@ class RefinementApplication(Term):
 
     def __str__(self):
         return f"({self.body})[{self.refinement}]"
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, RefinementApplication) and self.body == other.body and self.refinement == other.refinement
+        )
+
+    def __hash__(self) -> int:
+        return hash((RefinementApplication, self.body, self.refinement))

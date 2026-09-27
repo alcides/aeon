@@ -28,7 +28,7 @@ def set_program_tail(term: Term, new_tail: Term) -> Term:
 
 
 def candidate_key(term: Term) -> int:
-    """Stable hash for memo keys (structural, via ``Term.__hash__``)."""
+    """Stable structural hash for memo keys (ignores source locations)."""
     return hash(term)
 
 
