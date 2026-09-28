@@ -1,0 +1,57 @@
+# Neuroevolution of MLP topologies on (downsampled) MNIST.
+#
+# Aeon's genetic-programming synthesizer evolves an ``Arch`` — a stack of
+# hidden layers (fixed widths + activations). Each candidate is scored by a
+# fast NumPy training oracle (``mnist_fitness.py``) on a fixed MNIST subset
+# shipped as ``mnist_subset.npz``:
+#
+#     fitness = (1 - test_accuracy) + 5e-5 * n_hidden_units
+#
+# Lower is better. The NumPy oracle keeps each synthesis-worker evaluation
+# under Aeon's ~1s timeout (importing PyTorch alone exceeds it). The Aeon
+# ``NN`` library itself is PyTorch-backed for regular programs.
+#
+# Run from the repository root (PyTorch needed for ``NN``, NumPy for fitness):
+#
+#   uv pip install -e ".[nn]"
+#   # CPU wheel if disk/CUDA downloads are an issue:
+#   # uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   uv run python -m aeon --budget 60 -s random_search \
+#       examples/synthesis/neuroevolution/mnist.ae
+#   # ``-s gp`` also works; some malformed ADT candidates can trip typechecking.
+#
+# A hand-written baseline (``arch_baseline``) is included for comparison.
+
+# Hidden-layer grammar. Each constructor encodes (activation, width).
+# ``arch_out`` ends the stack; the binder always appends a linear head of
+# width 10 (MNIST digits).
+inductive Arch
+| arch_out : Arch
+| arch_relu16 (rest: Arch) : Arch
+| arch_relu32 (rest: Arch) : Arch
+| arch_relu64 (rest: Arch) : Arch
+| arch_tanh16 (rest: Arch) : Arch
+| arch_tanh32 (rest: Arch) : Arch
+| arch_sigmoid16 (rest: Arch) : Arch
+| arch_sigmoid32 (rest: Arch) : Arch
+
+# Minimised neuroevolution fitness (error + complexity).
+def mnist_fitness (a: Arch) : Float :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/neuroevolution'), __import__('mnist_fitness').fitness(a))[1]";
+
+# Test accuracy after the short training run (for inspecting solutions).
+def mnist_accuracy (a: Arch) : Float :=
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/neuroevolution'), __import__('mnist_fitness').test_accuracy(a))[1]";
+
+# (a) Synthesis: evolve the architecture, minimising fitness.
+# Helpers are shadowed by ``unit`` inside the hole so only Arch constructors
+# are offered as building blocks.
+@minimize_float(mnist_fitness evolved_arch)
+def evolved_arch : Arch :=
+    (let mnist_fitness := unit in
+     let mnist_accuracy := unit in
+     let arch_baseline := unit in
+     ?hole);
+
+# (b) A reasonable hand-written baseline: 196 -> 32 (relu) -> 10 (linear).
+def arch_baseline : Arch := .arch_relu32 .arch_out;
