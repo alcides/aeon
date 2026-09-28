@@ -24,7 +24,7 @@ def test_pool_recycles_timed_out_workers_and_closes():
         assert time.time() - t0 < 5.0
 
 
-def test_pool_spawn_evaluates_simple_fitness():
+def test_pool_evaluates_simple_fitness():
     pool = EvaluationPool(
         lambda t: t,
         {"fitness": lambda prog: [float(prog.value)]},

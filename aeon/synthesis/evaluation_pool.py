@@ -35,11 +35,12 @@ Computation = Callable[[Term], Any]
 # Per-computation result statuses.
 OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
 
-# Prefer spawn over fork: after pytest (or Queue feeder threads) have started
-# other threads, forking to create a worker can deadlock inside ``Process.start``.
-# Spawn is slower but safe; recycle paths must also tear queues down cleanly so
-# abandoned feeder threads do not accumulate.
-_CTX = mp.get_context("spawn")
+# Fork inherits the parent's address space, so the (often large, closure-heavy)
+# replace/computations payload need not be picklable. Spawn was tried to avoid
+# fork-after-threads deadlocks, but under CI load it made every eval time out.
+# We keep fork and tear queues/processes down hard on recycle so abandoned
+# Queue feeder threads cannot accumulate and later deadlock ``Process.start``.
+_CTX = mp.get_context("fork")
 
 
 class EvalPrimitives:
@@ -141,8 +142,7 @@ def _close_queues(*queues: Any) -> None:
     """Close multiprocess queues and join their feeder threads.
 
     Leaving queues open after a recycle leaks feeder threads in the parent; a
-    later ``fork``-based spawn can then deadlock. Even with spawn, joining keeps
-    process exit from hanging on abandoned queue threads.
+    later fork-based ``Process.start`` can then deadlock.
     """
     for q in queues:
         if q is None:
