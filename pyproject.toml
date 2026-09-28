@@ -53,6 +53,9 @@ tests = [
 synthesis-ortools = [
     "ortools"
 ]
+nn = [
+    "torch"
+]
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"
