@@ -30,9 +30,9 @@ from aeon.synthesis.modules.native_search import (
     initial_partial,
     literal_completions,
     make_skip,
-    update_pareto_front,
 )
 from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches
+from aeon.synthesis.pareto import minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -285,7 +285,7 @@ class GeneticProgrammingSynthesizer(Synthesizer):
 
         clear_tdsyn_caches()
         goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
-        minimize = [goal.minimize for goal in goals for _ in range(goal.length)]
+        minimize = minimize_flags_from_goals(goals)
         rng = random.Random(self.seed)
         initial = initial_partial(ctx, type)
         skip = make_skip(fun_name, metadata)
@@ -384,4 +384,4 @@ class GeneticProgrammingSynthesizer(Synthesizer):
             return None
         if not state.pareto_front:
             return None
-        return random.Random(self.seed).choice(state.pareto_front)[1]
+        return pick_pareto_member(state.pareto_front, self.seed)

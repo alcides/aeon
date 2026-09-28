@@ -8,6 +8,7 @@ from aeon.core.terms import Hole, Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.tactics.assumption import tactic_assumption
 from aeon.synthesis.tactics.builtin import tactic_apply_question, tactic_constructor
 from aeon.synthesis.tactics.by_cases import tactic_by_cases
@@ -22,12 +23,6 @@ from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name, fresh_counter
 
 _loc = SynthesizedLocation("tactics")
-
-
-def _is_better(v1: list[float], v2: list[float]) -> bool:
-    if not v2:
-        return True
-    return all(x < y for x, y in zip(v1, v2))
 
 
 class TacticRandomSynthesizer(Synthesizer):
@@ -52,7 +47,9 @@ class TacticRandomSynthesizer(Synthesizer):
         assert isinstance(type, Type)
 
         current_metadata = metadata.get(fun_name, {})
-        has_goals = bool(current_metadata.get("goals"))
+        goals = current_metadata.get("goals", [])
+        has_goals = bool(goals)
+        minimize = minimize_flags_from_goals(goals)
         rng = random.Random(self.seed)
         tactics = [
             tactic_apply_question,
@@ -66,8 +63,7 @@ class TacticRandomSynthesizer(Synthesizer):
 
         start = time.time()
         deadline = start + float(budget)
-        best_score: list[float] = []
-        best_term: Term | None = None
+        front: list[ParetoEntry] = []
         max_tactic_steps = 20
 
         while time.time() < deadline:
@@ -131,12 +127,9 @@ class TacticRandomSynthesizer(Synthesizer):
                 ui.register(state.term, "Invalid", elapsed, False)
                 continue
 
-            is_best = not best_score or _is_better(score, best_score)
-            if is_best:
-                best_score = score
-                best_term = state.term
+            front, is_best = update_pareto_front(front, score, state.term, minimize)
             ui.register(state.term, score, elapsed, is_best)
 
-        if best_term is not None:
-            return best_term
+        if front:
+            return pick_pareto_member(front, self.seed)
         raise SynthesisNotSuccessful("TacticRandomSynthesizer: no valid candidate found within budget")

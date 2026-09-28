@@ -4,7 +4,7 @@ Default order is ``size_merge`` (heap by AST size, then level); optional ``itera
 """
 
 from time import monotonic_ns
-from typing import Any, Callable
+from typing import Callable
 
 from aeon.core.terms import Term
 from aeon.core.types import Type
@@ -12,29 +12,11 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
+from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
-
-
-def _dominates(a: list[float], b: list[float]) -> bool:
-    return all(x <= y for x, y in zip(a, b)) and any(x < y for x, y in zip(a, b))
-
-
-def _update_pareto_front(
-    front: list[tuple[list[float], Any]],
-    score: list[float],
-    result: Any,
-) -> list[tuple[list[float], Any]]:
-    if any(_dominates(existing_score, score) for existing_score, _ in front):
-        return front
-    return [(s, r) for s, r in front if not _dominates(score, s)] + [(score, result)]
-
-
-def _pick_pareto_member(front: list[tuple[list[float], Any]]) -> Any:
-    _, result = min(front, key=lambda item: (sum(item[0]), item[0]))
-    return result
 
 
 def get_elapsed_time(start_time) -> float:
@@ -43,6 +25,9 @@ def get_elapsed_time(start_time) -> float:
 
 
 class SynquidSynthesizer(Synthesizer):
+    def __init__(self, seed: int = 0):
+        self.seed = seed
+
     def synthesize(
         self,
         ctx: TypingContext,
@@ -72,10 +57,11 @@ class SynquidSynthesizer(Synthesizer):
         start_time = monotonic_ns()
         done = True
         level = 0
-        pareto_front: list[tuple[list[float], Any]] = []
+        pareto_front: list[ParetoEntry] = []
         mem: dict = {}
         ui.register(None, None, 0, True)
         goals = current_metadata.get("goals", [])
+        minimize = minimize_flags_from_goals(goals)
         search_mode = current_metadata.get("synquid_search", "size_merge")
         typecheck_candidate_first = bool(current_metadata.get("synquid_typecheck_candidate_first", False))
         # Depth is unbounded by default: the search runs until the time budget
@@ -99,7 +85,7 @@ class SynquidSynthesizer(Synthesizer):
         def finish() -> Term:
             if not pareto_front:
                 raise SynthesisNotSuccessful("SynquidSynthesizer: no valid candidate found within budget")
-            return _pick_pareto_member(pareto_front)
+            return pick_pareto_member(pareto_front, self.seed)
 
         def consider(result: Term) -> bool:
             nonlocal pareto_front, done
@@ -109,12 +95,11 @@ class SynquidSynthesizer(Synthesizer):
                     done = False
                 return False
             if _safe_check(validate, result):
-                score = evaluate(result)
                 if not goals:
-                    ui.register(result, score, get_elapsed_time(start_time), True)
+                    ui.register(result, [], get_elapsed_time(start_time), True)
                     return True
-                pareto_front = _update_pareto_front(pareto_front, score, result)
-                on_front = any(r is result for _, r in pareto_front)
+                score = evaluate(result)
+                pareto_front, on_front = update_pareto_front(pareto_front, score, result, minimize)
                 ui.register(result, score, get_elapsed_time(start_time), on_front)
                 if all(s == 0.0 for s in score):
                     return True

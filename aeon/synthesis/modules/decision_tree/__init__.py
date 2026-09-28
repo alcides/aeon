@@ -9,6 +9,7 @@ from aeon.core.types import Type, t_float, t_int
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
+from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.utils.name import Name
@@ -133,9 +134,10 @@ class DecisionTreeSynthesizer(Synthesizer):
         return_type = type
 
         # Try increasing depths until budget runs out or validation passes
-        has_goals = bool(current_metadata.get("goals"))
-        best_term = None
-        best_quality = None
+        goals = current_metadata.get("goals", [])
+        has_goals = bool(goals)
+        minimize = minimize_flags_from_goals(goals)
+        front: list[ParetoEntry] = []
         max_depth_limit = self.max_depth or X.shape[0]
 
         for depth in range(1, max_depth_limit + 1):
@@ -155,11 +157,8 @@ class DecisionTreeSynthesizer(Synthesizer):
                     return candidate
                 try:
                     quality = evaluate(candidate)
-                    is_best = best_quality is None or all(q <= bq for q, bq in zip(quality, best_quality))
+                    front, is_best = update_pareto_front(front, quality, candidate, minimize)
                     ui.register(candidate, quality, elapsed, is_best)
-                    if is_best:
-                        best_term = candidate
-                        best_quality = quality
                     # Perfect fit: no need to try deeper trees
                     if all(q == 0.0 for q in quality):
                         break
@@ -168,4 +167,6 @@ class DecisionTreeSynthesizer(Synthesizer):
             else:
                 ui.register(candidate, None, elapsed, False)
 
-        return best_term
+        if front:
+            return pick_pareto_member(front, seed=0)
+        return None
