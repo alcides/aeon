@@ -17,9 +17,16 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.api import InvalidIndividualException, TimeoutInEvaluationException
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
-from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
+from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
-from aeon.synthesis.modules.tdsyn.worklist import PartialAST, TypedHole, fresh_hole, substitute_hole
+from aeon.synthesis.modules.tdsyn.worklist import (
+    Child,
+    PartialAST,
+    TypedHole,
+    expand_at_hole,
+    fresh_hole,
+    substitute_holes_map,
+)
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -59,7 +66,7 @@ def update_pareto_front(
 def peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, list[TypedHole]]:
     """Wrap a function goal as ``λ…λ.?hole`` and extend the context with binders."""
     if not isinstance(ty, AbstractionType):
-        hole_term, typed_hole = fresh_hole(ty, ctx)
+        hole_term, typed_hole = fresh_hole(ty, ctx, path=())
         return hole_term, [typed_hole]
 
     current_type: Type = ty
@@ -70,7 +77,9 @@ def peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, list[TypedHol
         current_ctx = current_ctx.with_var(current_type.var_name, current_type.var_type)
         current_type = current_type.type
 
-    inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx)
+    # Innermost hole sits under ``len(var_names)`` abstraction bodies.
+    hole_path = tuple(Child.BODY for _ in var_names)
+    inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx, path=hole_path)
     term: Term = inner_hole_term
     for var_name in reversed(var_names):
         term = Abstraction(var_name, term, _loc)
@@ -83,10 +92,7 @@ def literal_completions(partial: PartialAST) -> list[Term]:
         return []
     completed: list[Term] = []
     for solution in solve_literals(partial.holes):
-        term = partial.term
-        for hole_name, literal in solution.items():
-            term = substitute_hole(term, hole_name, literal)
-        completed.append(term)
+        completed.append(substitute_holes_map(partial.term, solution))
     return completed
 
 
@@ -101,7 +107,6 @@ def expansions_for_hole(
     When ``max_depth`` is ``None``, recursive expansions are not depth-filtered
     (used by genetic programming so tree size can grow with the genome).
     """
-    remaining = [other for other in partial.holes if other.name != hole.name]
     results: list[PartialAST] = []
     for action in (backward_candidates, forward_candidates):
         try:
@@ -111,11 +116,10 @@ def expansions_for_hole(
             # the other grammar productions must remain available.
             continue
         for replacement, new_holes in expansions:
-            term = substitute_hole(partial.term, hole.name, replacement)
             depth = partial.depth + (1 if new_holes else 0)
             if max_depth is not None and depth > max_depth:
                 continue
-            results.append(PartialAST(term, remaining + new_holes, depth))
+            results.append(expand_at_hole(partial, hole, replacement, new_holes, depth))
     return results
 
 
@@ -185,6 +189,7 @@ def drive_candidates(
     started = monotonic()
     assessed = 0
     pareto_front: list[ParetoEntry] = []
+    clear_tdsyn_caches()
 
     for candidate in candidates:
         assessed += 1

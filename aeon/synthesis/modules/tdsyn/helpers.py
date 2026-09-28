@@ -43,10 +43,40 @@ def _trivial_true_predicate() -> Abstraction:
     return Abstraction(y, Literal(True, t_bool, _loc), _loc)
 
 
+# Subtype results are stable for a given TypingContext object identity. Cleared
+# at the start of each native synthesis run via :func:`clear_tdsyn_caches`.
+_subtype_cache: dict[tuple[int, str, str], bool] = {}
+
+
+def clear_tdsyn_caches() -> None:
+    """Drop memoized subtype / component-library results for a fresh search."""
+    _subtype_cache.clear()
+    from aeon.synthesis.modules.tdsyn.library import clear_component_library_cache
+
+    clear_component_library_cache()
+
+
 def is_subtype(ctx: TypingContext, t1: Type, t2: Type) -> bool:
-    """Check if t1 is a subtype of t2 using SMT-based verification."""
+    """Check if t1 is a subtype of t2, with cheap short-circuits and a cache.
+
+    Equal types and mismatched base constructors avoid SMT; all other pairs go
+    through ``sub`` / ``entailment`` once per ``(ctx, t1, t2)`` triple.
+    """
+    if t1 == t2:
+        return True
+    b1 = base_type_of(t1)
+    b2 = base_type_of(t2)
+    if b1 is not None and b2 is not None and b1.name.name != b2.name.name:
+        return False
+
+    key = (id(ctx), repr(t1), repr(t2))
+    cached = _subtype_cache.get(key)
+    if cached is not None:
+        return cached
     constraint = sub(ctx, t1, t2)
-    return entailment(ctx, constraint)
+    result = entailment(ctx, constraint)
+    _subtype_cache[key] = result
+    return result
 
 
 def base_type_of(ty: Type) -> TypeConstructor | None:

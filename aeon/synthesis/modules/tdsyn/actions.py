@@ -27,6 +27,7 @@ from aeon.synthesis.modules.tdsyn.helpers import (
     is_subtype,
     monomorphize,
 )
+from aeon.synthesis.modules.tdsyn.library import get_component_library, iter_concrete_vars
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -42,21 +43,11 @@ def get_applicable_functions(
 ) -> list[tuple[Term, Type]]:
     """Get all applicable functions from context, monomorphizing polymorphic ones.
 
-    Returns list of (term, monomorphic_function_type) pairs where term is
-    Var(f) for monomorphic functions or TypeApplication(Var(f), T) for
-    instantiated polymorphic ones.
+    Prefer :func:`get_component_library` for indexed lookups; this remains for
+    call sites that need the flat list.
     """
-    results: list[tuple[Term, Type]] = []
-    for name, ty in ctx.vars():
-        if skip(name):
-            continue
-        if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
-            for term, mono_ty in monomorphize(name, ty, ctx):
-                if isinstance(mono_ty, AbstractionType):
-                    results.append((term, mono_ty))
-        elif isinstance(ty, AbstractionType):
-            results.append((Var(name, _loc), ty))
-    return results
+    lib = get_component_library(ctx, skip)
+    return [(term, ty) for term, ty in lib.functions]
 
 
 def _extract_refinement(ty: Type) -> tuple[Name, LiquidTerm] | None:
@@ -221,8 +212,7 @@ def backward_app_candidates(
     """
     T = hole.expected_type
     candidates: list[tuple[Term, list[TypedHole]]] = []
-    for f_term, f_type in get_applicable_functions(hole.context, skip):
-        assert isinstance(f_type, AbstractionType)
+    for f_term, f_type in get_component_library(hole.context, skip).functions_returning(T):
         ret_type = get_return_type(f_type)
         if bases_match(ret_type, T) and is_subtype(hole.context, ret_type, T):
             params = get_param_types(f_type)
@@ -288,20 +278,10 @@ def _forward_applications(
     T = hole.expected_type
     ctx = hole.context
     results: list[tuple[Term, list[TypedHole], Type]] = []
+    library = get_component_library(ctx, skip)
 
-    # Collect concrete (non-function) variables
-    concrete_vars: list[tuple[Name, Type]] = []
-    for name, var_type in ctx.vars():
-        if skip(name):
-            continue
-        if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
-            continue
-        concrete_vars.append((name, var_type))
-
-    # For each variable, find functions that accept it
-    for v_name, v_type in concrete_vars:
-        for f_term, f_type in get_applicable_functions(ctx, skip):
-            assert isinstance(f_type, AbstractionType)
+    for v_name, v_type in iter_concrete_vars(ctx, skip):
+        for f_term, f_type in library.functions_accepting(v_type):
             first_param_type = f_type.var_type
 
             if not bases_match(v_type, first_param_type):
@@ -309,12 +289,10 @@ def _forward_applications(
             if not is_subtype(ctx, v_type, first_param_type):
                 continue
 
-            # Apply f to v
             applied = Application(f_term, Var(v_name, _loc), _loc)
             remaining_type = f_type.type
 
             if isinstance(remaining_type, AbstractionType):
-                # Multi-argument function: create holes for remaining args
                 remaining_params = get_param_types(remaining_type)
                 final_ret = get_return_type(remaining_type)
                 if not bases_match(final_ret, T) or not is_subtype(ctx, final_ret, T):
@@ -322,7 +300,6 @@ def _forward_applications(
                 result, new_holes = _build_application(applied, remaining_params, hole)
                 results.append((result, new_holes, final_ret))
             else:
-                # Single-argument or final application
                 if bases_match(remaining_type, T) and is_subtype(ctx, remaining_type, T):
                     results.append((applied, [], remaining_type))
 
@@ -378,20 +355,9 @@ def forward_close_candidates(
     T = hole.expected_type
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
-    for name, var_type in ctx.vars():
-        if skip(name):
-            continue
-        if isinstance(var_type, AbstractionType):
-            continue
-        if isinstance(var_type, (TypePolymorphism, RefinementPolymorphism)):
-            for term, mono_ty in monomorphize(name, var_type, ctx):
-                if isinstance(mono_ty, AbstractionType):
-                    continue
-                if bases_match(mono_ty, T) and is_subtype(ctx, mono_ty, T):
-                    candidates.append((term, []))
-            continue
+    for term, var_type in get_component_library(ctx, skip).values_matching(T):
         if bases_match(var_type, T) and is_subtype(ctx, var_type, T):
-            candidates.append((Var(name, _loc), []))
+            candidates.append((term, []))
     return candidates
 
 

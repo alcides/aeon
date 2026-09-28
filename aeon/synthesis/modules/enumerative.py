@@ -44,12 +44,11 @@ def iter_candidates(
     """
     worklist: deque[PartialAST] = deque([initial_partial(ctx, target)])
     skip = make_skip(fun_name, metadata)
-    yielded: set[str] = set()
+    yielded: set[Term] = set()
 
     def emit(term: Term) -> Iterator[Term]:
-        key = str(term)
-        if key not in yielded:
-            yielded.add(key)
+        if term not in yielded:
+            yielded.add(term)
             yield term
 
     while worklist:

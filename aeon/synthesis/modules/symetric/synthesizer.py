@@ -829,11 +829,22 @@ class SymetricSynthesizer(Synthesizer):
         best_term: Optional[Term] = None
         best_score = INF
 
+        def out_of_time() -> bool:
+            return (time.time() - start) >= budget
+
         def consider(term: Optional[Term]) -> float:
             nonlocal best_term, best_score
             if term is None:
                 return INF
+            # Stop mid-candidate once the budget is gone: ``score`` is bounded by
+            # the eval pool, but ``validate`` (full ``check_type``) is not, and
+            # must not run after the deadline or the process can hang past the
+            # synthesis budget.
+            if out_of_time():
+                return INF
             s = score(term)
+            if out_of_time():
+                return s
             # ``score`` ranks by *evaluation* (cheap, and lets repair cross
             # type-invalid plateaus), but a candidate may evaluate well yet fail
             # refinement type-checking — e.g. a ``Chunk`` whose ``y`` is outside
@@ -844,9 +855,6 @@ class SymetricSynthesizer(Synthesizer):
                 best_term = term
                 ui.register(term, [s], time.time() - start, True)
             return s
-
-        def out_of_time() -> bool:
-            return (time.time() - start) >= budget
 
         # 1+2. Construct + cluster: a metric-guided beam-search bottom-up
         # enumeration. Each round grows programs one operator deeper, keeping at

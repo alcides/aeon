@@ -25,6 +25,26 @@ from tests.driver import check_and_return_core
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _cli_timeout(budget_s: float) -> float:
+    """Outer subprocess limit for a CLI synthesis run with ``--budget budget_s``.
+
+    The synthesizer stops at the budget, but parse/typecheck, worker-pool
+    startup/shutdown, and CI load need headroom. Scale with the budget so a
+    hung process fails fast on short runs instead of waiting a fixed 120s.
+    """
+    return float(budget_s) + max(30.0, float(budget_s))
+
+
+def _run_symetric_cli(*extra_args: str, budget: float, cwd: str = REPO) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", "aeon", "--no-main", "-s", "symetric", "--budget", str(budget), *extra_args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=_cli_timeout(budget),
+    )
+
+
 def _solve(code: str, budget: float = 20.0):
     term, ctx, ectx, metadata = check_and_return_core(code)
     targets = incomplete_functions_and_holes(ctx, term)
@@ -46,13 +66,7 @@ def test_metric_objective_is_minimised_to_zero(tmp_path):
         "@minimize_int(dist target)\n"
         "def target : Int := (let dist := unit in ?hole);\n"
     )
-    proc = subprocess.run(
-        [sys.executable, "-m", "aeon", "--no-main", "-s", "symetric", "--budget", "10", str(src)],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    proc = _run_symetric_cli(str(src), budget=10)
     out = proc.stdout + proc.stderr
     assert "Traceback" not in proc.stderr, out[-2000:]
     assert "?hole: 12" in out, out[-2000:]
@@ -70,23 +84,7 @@ def test_cluster_decorator_makes_csg_suitable():
     # rasterised scene (a numeric vector), so the inverse-CSG benchmark -- whose
     # raw output is an AST -- becomes suitable: symetric runs instead of
     # rejecting it.
-    proc = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "aeon",
-            "--no-main",
-            "-s",
-            "symetric",
-            "--budget",
-            "8",
-            "examples/synthesis/csg/csg_tiny_two_circle.ae",
-        ],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    proc = _run_symetric_cli("examples/synthesis/csg/csg_tiny_two_circle.ae", budget=8)
     out = proc.stdout + proc.stderr
     assert "Not suitable" not in out, out[-2000:]
     assert "Traceback" not in proc.stderr, out[-2000:]
@@ -150,13 +148,7 @@ def test_synthesises_adt_goal_with_polymorphic_lists(tmp_path):
     # a non-trivial ``Bag`` containing a ``List Int``.
     src = tmp_path / "bag.ae"
     src.write_text(_ADT_PROGRAM)
-    proc = subprocess.run(
-        [sys.executable, "-m", "aeon", "--no-main", "-s", "symetric", "--budget", "15", str(src)],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    proc = _run_symetric_cli(str(src), budget=15)
     out = proc.stdout + proc.stderr
     assert "Traceback" not in proc.stderr, out[-2000:]
     assert "could not build" not in out, out[-2000:]
@@ -178,13 +170,7 @@ def test_rejects_non_numeric_output(tmp_path):
         "@minimize_float(cost shape)\n"
         "def shape : Shape := (let cost := unit in ?hole);\n"
     )
-    proc = subprocess.run(
-        [sys.executable, "-m", "aeon", "--no-main", "-s", "symetric", "--budget", "10", str(src)],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    proc = _run_symetric_cli(str(src), budget=10)
     out = proc.stdout + proc.stderr
     assert proc.returncode == 2, out[-2000:]
     assert "Not suitable" in out, out[-2000:]

@@ -35,6 +35,13 @@ Computation = Callable[[Term], Any]
 # Per-computation result statuses.
 OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
 
+# Fork inherits the parent's address space, so the (often large, closure-heavy)
+# replace/computations payload need not be picklable. Spawn was tried to avoid
+# fork-after-threads deadlocks, but under CI load it made every eval time out.
+# We keep fork and tear queues/processes down hard on recycle so abandoned
+# Queue feeder threads cannot accumulate and later deadlock ``Process.start``.
+_CTX = mp.get_context("fork")
+
 
 class EvalPrimitives:
     """The building blocks a backend composes its requested computations from,
@@ -116,6 +123,40 @@ class _Worker:
     result_q: Any
 
 
+def _kill_process(proc: Any) -> None:
+    """Terminate a worker, escalating to kill, and always join."""
+    if proc is None:
+        return
+    try:
+        if proc.is_alive():
+            proc.terminate()
+            proc.join(timeout=1)
+        if proc.is_alive():
+            proc.kill()
+            proc.join(timeout=1)
+    except Exception:
+        pass
+
+
+def _close_queues(*queues: Any) -> None:
+    """Close multiprocess queues and join their feeder threads.
+
+    Leaving queues open after a recycle leaks feeder threads in the parent; a
+    later fork-based ``Process.start`` can then deadlock.
+    """
+    for q in queues:
+        if q is None:
+            continue
+        try:
+            q.close()
+        except Exception:
+            pass
+        try:
+            q.join_thread()
+        except Exception:
+            pass
+
+
 class EvaluationPool:
     def __init__(
         self,
@@ -132,17 +173,15 @@ class EvaluationPool:
         self._workers: list[_Worker] = [self._spawn() for _ in range(self._n)]
 
     def _spawn(self) -> _Worker:
-        task_q, result_q = mp.Queue(), mp.Queue()
-        proc = mp.Process(target=_worker_main, args=(self._static, task_q, result_q), daemon=True)
+        task_q, result_q = _CTX.Queue(), _CTX.Queue()
+        proc = _CTX.Process(target=_worker_main, args=(self._static, task_q, result_q), daemon=True)
         proc.start()
         return _Worker(proc, task_q, result_q)
 
     def _recycle(self, w: _Worker) -> None:
-        try:
-            w.proc.terminate()
-            w.proc.join(timeout=1)
-        except Exception:
-            pass
+        old_task, old_result = w.task_q, w.result_q
+        _kill_process(w.proc)
+        _close_queues(old_task, old_result)
         fresh = self._spawn()
         w.proc, w.task_q, w.result_q = fresh.proc, fresh.task_q, fresh.result_q
 
@@ -183,7 +222,7 @@ class EvaluationPool:
         for w in self._workers:
             try:
                 w.proc.join(timeout=1)
-                if w.proc.is_alive():
-                    w.proc.terminate()
             except Exception:
                 pass
+            _kill_process(w.proc)
+            _close_queues(w.task_q, w.result_q)
