@@ -141,6 +141,7 @@ class TDSynSynthesizer(Synthesizer):
                 return early
 
         if front:
+            ui.register_front(front, _get_elapsed_time(start_time))
             return pick_pareto_member(front, self.seed)
         raise SynthesisNotSuccessful("TDSynSynthesizer: no valid candidate found within budget")
 
@@ -168,7 +169,10 @@ class TDSynSynthesizer(Synthesizer):
                     return front, term
                 score = evaluate(term)
                 front, is_best = update_pareto_front(front, score, term, self._minimize)
-                ui.register(term, score, _get_elapsed_time(start_time), is_best)
+                elapsed = _get_elapsed_time(start_time)
+                if is_best:
+                    ui.register_front(front, elapsed)
+                ui.register(term, score, elapsed, is_best)
             else:
                 ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
         except Exception:

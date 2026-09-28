@@ -1,4 +1,6 @@
 import numbers
+import random
+from collections.abc import Sequence
 from typing import Any
 
 from aeon.backend.evaluator import EvaluationContext
@@ -6,7 +8,7 @@ from aeon.core.terms import Hole
 from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.sugar.lifting import lift
-from aeon.synthesis.uis.api import SynthesisUI
+from aeon.synthesis.uis.api import PARETO_DISPLAY_LIMIT, SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_sterm
@@ -34,11 +36,47 @@ def _format_quality(quality: Any) -> str:
     return repr(quality)
 
 
-def _pretty_program(solution: Term) -> str:
+def _pretty_program(solution: Term | None) -> str:
+    if solution is None:
+        return "<none>"
     try:
         return pretty_print_sterm(lift(solution))
     except Exception:
         return str(solution)
+
+
+def select_pareto_display(
+    front: Sequence[tuple[Any, Term | None]],
+    *,
+    limit: int = PARETO_DISPLAY_LIMIT,
+    rng: random.Random | None = None,
+) -> list[tuple[Any, Term | None]]:
+    """Return ``front`` unchanged, or ``limit`` randomly chosen members if larger."""
+    items = list(front)
+    if limit < 1 or len(items) <= limit:
+        return items
+    return (rng or random.Random()).sample(items, limit)
+
+
+def format_pareto_front_lines(
+    front: Sequence[tuple[Any, Term | None]],
+    *,
+    elapsed_time: float,
+    budget: Any,
+    limit: int = PARETO_DISPLAY_LIMIT,
+    rng: random.Random | None = None,
+) -> list[str]:
+    """Build terminal lines describing the (possibly sampled) Pareto archive."""
+    total = len(front)
+    shown = select_pareto_display(front, limit=limit, rng=rng)
+    if total > limit:
+        header = f"# pareto t={elapsed_time:.1f}s/{budget}s size={total} (showing {len(shown)} of {total})"
+    else:
+        header = f"# pareto t={elapsed_time:.1f}s/{budget}s size={total}"
+    lines = [header]
+    for quality, term in shown:
+        lines.append(f"#   {_format_quality(quality)}  {_pretty_program(term)}")
+    return lines
 
 
 class TerminalUI(SynthesisUI):
@@ -60,6 +98,9 @@ class TerminalUI(SynthesisUI):
         self.budget = budget
         self.best_solution = Hole(Name("sorry", -1))
         self.best_quality = None
+        self.pareto_front: list[tuple[Any, Term | None]] = []
+        self._uses_front = False
+        self._front_rng = random.Random(0)
         print(f"# Synthesizing ?{target_name} (budget={budget}s)", flush=True)
 
     def register(
@@ -73,11 +114,50 @@ class TerminalUI(SynthesisUI):
             return
         self.best_solution = solution
         self.best_quality = quality
+        # Pareto backends call ``register_front``; avoid a duplicate single-line
+        # "best" that would hide the rest of the archive.
+        if self._uses_front:
+            return
         q_cur = _format_quality(quality)
         print(f"# best t={elapsed_time:.1f}s/{self.budget}s fitness {q_cur}", flush=True)
 
+    def register_front(
+        self,
+        front: Sequence[tuple[Any, Term | None]],
+        elapsed_time: float,
+    ) -> None:
+        self._uses_front = True
+        self.pareto_front = list(front)
+        if front:
+            quality, term = front[-1]
+            if term is not None:
+                self.best_solution = term
+            self.best_quality = quality
+        for line in format_pareto_front_lines(
+            front,
+            elapsed_time=elapsed_time,
+            budget=self.budget,
+            rng=self._front_rng,
+        ):
+            print(line, flush=True)
+
     def end(self, solution: Term, quality: Any):
-        pass
+        if not (self._uses_front and self.pareto_front):
+            return
+        elapsed = float(self.budget) if isinstance(self.budget, numbers.Real) else 0.0
+        lines = format_pareto_front_lines(
+            self.pareto_front,
+            elapsed_time=elapsed,
+            budget=self.budget,
+            rng=self._front_rng,
+        )
+        if lines:
+            # Retitle the first line for the final dump.
+            first = lines[0]
+            if first.startswith("# pareto "):
+                lines[0] = first.replace("# pareto ", "# final ", 1)
+            for line in lines:
+                print(line, flush=True)
 
 
 class VerboseTerminalUI(TerminalUI):
@@ -96,9 +176,13 @@ class VerboseTerminalUI(TerminalUI):
         self.budget = budget
         self.best_solution = Hole(Name("sorry", -1))
         self.best_quality = None
+        self.pareto_front = []
+        self._uses_front = False
+        self._front_rng = random.Random(0)
         print(
             f"# Synthesis target: ?{target_name} :: {target_type} | "
-            f"budget={budget}s | each line is one evaluated candidate (pareto memory updates on `best`).",
+            f"budget={budget}s | each line is one evaluated candidate; "
+            f"pareto front dumps on archive updates.",
             flush=True,
         )
         if isinstance(budget, numbers.Real) and float(budget) >= 15:

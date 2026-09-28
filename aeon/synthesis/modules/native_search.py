@@ -189,6 +189,7 @@ def drive_candidates(
     assessed = 0
     pareto_front: list[ParetoEntry] = []
     clear_tdsyn_caches()
+    elapsed = 0.0
 
     for candidate in candidates:
         assessed += 1
@@ -214,6 +215,8 @@ def drive_candidates(
                 score = values
 
         elapsed = monotonic() - started
+        if is_best:
+            ui.register_front(pareto_front, elapsed)
         ui.register(candidate, score, elapsed, is_best)
         ui.progress(assessed, assessed, elapsed)
 
@@ -222,4 +225,5 @@ def drive_candidates(
 
     if not pareto_front:
         return None
+    ui.register_front(pareto_front, elapsed)
     return pick_pareto_member(pareto_front, seed)

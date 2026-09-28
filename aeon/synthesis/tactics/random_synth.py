@@ -128,8 +128,11 @@ class TacticRandomSynthesizer(Synthesizer):
                 continue
 
             front, is_best = update_pareto_front(front, score, state.term, minimize)
+            if is_best:
+                ui.register_front(front, elapsed)
             ui.register(state.term, score, elapsed, is_best)
 
         if front:
+            ui.register_front(front, time.time() - start)
             return pick_pareto_member(front, self.seed)
         raise SynthesisNotSuccessful("TacticRandomSynthesizer: no valid candidate found within budget")

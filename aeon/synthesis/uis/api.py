@@ -1,7 +1,7 @@
 import abc
 import json
 from enum import Enum
-from typing import Any
+from typing import Any, Sequence
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.core.terms import Term
@@ -10,6 +10,9 @@ from aeon.sugar.program import STerm
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_sterm
+
+# Maximum Pareto members shown in the terminal UI; larger fronts are sampled.
+PARETO_DISPLAY_LIMIT = 10
 
 
 class SynthesisFormat(Enum):
@@ -41,6 +44,18 @@ class SynthesisUI(abc.ABC):
         elapsed_time: float,
         is_best: bool,
     ): ...
+
+    def register_front(
+        self,
+        front: Sequence[tuple[Any, Term | None]],
+        elapsed_time: float,
+    ) -> None:
+        """Report the current Pareto archive ``[(quality, term), ...]``.
+
+        Default is a no-op. Terminal UIs show every member, or a random sample
+        of :data:`PARETO_DISPLAY_LIMIT` when the front is larger.
+        """
+        return None
 
     def progress(self, created: int, assessed: int, elapsed_time: float) -> None:
         """Optional: report cumulative search counts so far -- ``created`` is the

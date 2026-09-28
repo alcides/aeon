@@ -85,6 +85,7 @@ class SynquidSynthesizer(Synthesizer):
         def finish() -> Term:
             if not pareto_front:
                 raise SynthesisNotSuccessful("SynquidSynthesizer: no valid candidate found within budget")
+            ui.register_front(pareto_front, get_elapsed_time(start_time))
             return pick_pareto_member(pareto_front, self.seed)
 
         def consider(result: Term) -> bool:
@@ -100,7 +101,10 @@ class SynquidSynthesizer(Synthesizer):
                     return True
                 score = evaluate(result)
                 pareto_front, on_front = update_pareto_front(pareto_front, score, result, minimize)
-                ui.register(result, score, get_elapsed_time(start_time), on_front)
+                elapsed = get_elapsed_time(start_time)
+                if on_front:
+                    ui.register_front(pareto_front, elapsed)
+                ui.register(result, score, elapsed, on_front)
                 if all(s == 0.0 for s in score):
                     return True
             else:
