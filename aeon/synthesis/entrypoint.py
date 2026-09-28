@@ -41,8 +41,8 @@ from aeon.synthesis.api import (
     Synthesizer,
     TimeoutInEvaluationException,
 )
-from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool, set_program_tail
-from aeon.synthesis.fitness_eval import candidate_key, make_bundled_fitness_evaluator
+from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool
+from aeon.synthesis.fitness_eval import as_objective_vector, candidate_key, make_bundled_fitness_evaluator, set_program_tail
 from aeon.synthesis.modules.contata.cosynthesis import (
     _cosynthesize_group,
     _joint_accepts,  # noqa: F401  — re-exported for tests/external callers.
@@ -89,7 +89,8 @@ def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Calla
     return validate
 
 
-Evaluators: TypeAlias = list[Callable[[Term], float]]
+Evaluators: TypeAlias = list[Callable[[Term], list[float]]]
+PropertyEvaluators: TypeAlias = list[Callable[[Term], float]]
 
 
 def _ectx_for_workers(ectx: EvaluationContext) -> EvaluationContext:
@@ -103,11 +104,15 @@ def _ectx_for_workers(ectx: EvaluationContext) -> EvaluationContext:
     )
 
 
-def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float]:
-    """Build a fitness function for a generated-helper goal."""
+def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], list[float]]:
+    """Build a fitness function for a generated-helper goal.
+
+    Multi-objective helpers return a native ``Array`` (Python ``list``);
+    that value is expanded to ``goal.length`` floats.
+    """
     assert goal.kind != "property", "Property goals are backed by fixed-corpus evaluators"
 
-    def fitness(v: Term) -> float:
+    def fitness(v: Term) -> list[float]:
         # Evaluate the goal's objective function (a nullary top-level binding,
         # e.g. ``jaccard shape``) by making it the program's result. Replacing
         # the program tail works whether or not a ``main`` entry point is
@@ -117,10 +122,14 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], float
         program_for_fitness = set_program_tail(v, Var(goal.function))
         try:
             if goal.kind == "cputime":
-                return measure_cputime(lambda: eval(program_for_fitness, ectx))
-            if goal.kind == "energy":
-                return measure_energy(lambda: eval(program_for_fitness, ectx))
-            return eval(program_for_fitness, ectx)
+                raw = measure_cputime(lambda: eval(program_for_fitness, ectx))
+            elif goal.kind == "energy":
+                raw = measure_energy(lambda: eval(program_for_fitness, ectx))
+            else:
+                raw = eval(program_for_fitness, ectx)
+            return as_objective_vector(raw, goal.length)
+        except InvalidIndividualException:
+            raise
         except Exception:
             # A candidate that crashes mid-evaluation has no well-defined
             # fitness. Returning ``sys.maxsize`` made it "infinitely good"
@@ -140,17 +149,25 @@ def make_evaluators(
     ectx: EvaluationContext,
     fun_name: Name,
     metadata: Metadata,
-    property_evaluators: Evaluators | None = None,
+    property_evaluators: PropertyEvaluators | None = None,
 ) -> Evaluators:
-    """Build evaluators in the same component order as the target's goals."""
+    """Build evaluators in the same component order as the target's goals.
+
+    Each returned evaluator yields ``goal.length`` floats, so multi-objective
+    ``Array`` fitness expands to one vector component per objective.
+    """
 
     goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
     properties = iter(property_evaluators or [])
-    fitnesses: list[Callable[[Term], float]] = []
+    fitnesses: Evaluators = []
     for goal in goals:
-        assert goal.length == 1, "Currently, we only support 1 fitness value per function"
         if goal.kind == "property":
-            fitnesses.append(next(properties))
+            prop = next(properties)
+
+            def _property_fitness(prog: Term, p: Callable[[Term], float] = prop, n: int = goal.length) -> list[float]:
+                return as_objective_vector(p(prog), n)
+
+            fitnesses.append(_property_fitness)
         else:
             fitnesses.append(_make_fitness(goal, ectx))
     try:
@@ -172,7 +189,7 @@ def make_evaluator(
         start = time.time()
         try:
             try:
-                results = [ev(program) for ev in evaluators]
+                results = [score for ev in evaluators for score in ev(program)]
                 assert isinstance(results, list)
                 result_queue.put(("ok", results))
             except InvalidIndividualException:
@@ -307,7 +324,7 @@ def _synthesize_one(
     # deterministic corpus so every fitness backend sees the right objective
     # count and orientation without mutating metadata shared by other targets.
     synthesis_metadata = metadata
-    property_evaluators: Evaluators = []
+    property_evaluators: PropertyEvaluators = []
     corpora = property_corpora_for_target(
         ctx,
         prog,

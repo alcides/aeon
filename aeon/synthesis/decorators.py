@@ -3,10 +3,11 @@
 import csv
 import io
 from typing import NamedTuple
+from aeon.core.multiplicity import M1
 from aeon.decorators.api import Metadata, metadata_update
-from aeon.sugar.program import Decorator, Definition, SApplication, STerm, SVar
-from aeon.sugar.stypes import SType
-from aeon.sugar.ast_helpers import st_int, st_float, st_top, st_bool
+from aeon.sugar.program import Decorator, Definition, SAnnotation, SApplication, SLet, STerm, SVar
+from aeon.sugar.stypes import SRefinedType, SType, STypeConstructor
+from aeon.sugar.ast_helpers import st_int, st_float, st_top, st_bool, st_string
 from aeon.sugar.parser import parse_type
 from aeon.utils.name import Name, fresh_counter
 
@@ -59,6 +60,33 @@ def multi_objective_type(element: str, number_of_objectives: int) -> SType:
     return parse_type(f"{{v:(Array {element}) | Array_size v = {number_of_objectives}}}")
 
 
+def _is_native_array_type(typ: SType) -> bool:
+    """True when ``typ`` is (a refinement of) the linear ``Array`` constructor."""
+    base = typ.type if isinstance(typ, SRefinedType) else typ
+    return isinstance(base, STypeConstructor) and base.name.name == "Array"
+
+
+def _array_fitness_as_omega_float(array_expr: STerm, array_ty: SType) -> STerm:
+    """Consume a linear ``Array`` fitness expression and re-export it as ``Float``.
+
+    Top-level fitness helpers must be ``ω``-bindable (they sit unused in the
+    main program and are only evaluated by substituting them as the program
+    tail). ``Array`` is linear, so binding the raw expression at ``ω`` is
+    rejected. We therefore:
+
+    1. type-ascribe the user expression to the refined ``Array`` type;
+    2. bind it at multiplicity ``1`` (consuming it exactly once);
+    3. return it via ``native "arr"``, which yields the Python list at runtime
+       while the helper's declared type stays the non-linear ``Float``.
+
+    ``as_objective_vector`` then expands that list into one float per objective.
+    """
+    arr = Name("arr", fresh_counter.fresh())
+    ascribed = SAnnotation(array_expr, array_ty)
+    native_list = SApplication(SVar(Name("native", 0)), SLiteral("arr", st_string))
+    return SLet(arr, ascribed, native_list, multiplicity=M1)
+
+
 def make_optimizer(
     args: list[STerm],
     fun: Definition,
@@ -77,12 +105,20 @@ def make_optimizer(
     current_goals = metadata.get(fun.name, {}).get("goals", [])
     minimize_name = "minimize" if minimize else "maximize"
     function_name = Name(f"_fitness_{minimize_name}_{fun.name}_{len(current_goals)}", fresh_counter.fresh())
+    if _is_native_array_type(typ):
+        # Linear ``Array`` cannot be an unused top-level ``ω`` binding; wrap it
+        # so the helper stays ``Float``-typed while still evaluating to a list.
+        helper_type: SType = st_float
+        helper_body = _array_fitness_as_omega_float(args[0], typ)
+    else:
+        helper_type = typ
+        helper_body = args[0]
     function = Definition(
         name=function_name,
         foralls=[],
         args=[],
-        type=typ,
-        body=args[0],
+        type=helper_type,
+        body=helper_body,
     )
     goal = Goal(minimize, length, function_name, kind)
 
