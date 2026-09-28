@@ -1,26 +1,26 @@
-# Neuroevolution of MLP topologies on (downsampled) MNIST.
+# Neuroevolution of MLP topologies on (downsampled) MNIST — multi-objective.
 #
-# Aeon's genetic-programming synthesizer evolves an ``Arch`` — a stack of
-# hidden layers (fixed widths + activations). Each candidate is scored by a
-# fast NumPy training oracle (``mnist_fitness.py``) on a fixed MNIST subset
-# shipped as ``mnist_subset.npz``:
+# Aeon's synthesizer evolves an ``Arch`` (hidden widths + activations). Each
+# candidate is scored by the NumPy oracle in ``mnist_fitness.py`` on the fixed
+# subset ``mnist_subset.npz``, returning two minimised objectives:
 #
-#     fitness = (1 - test_accuracy) + 5e-5 * n_hidden_units
+#     [classification_error, n_hidden_units]
 #
-# Lower is better. The NumPy oracle keeps each synthesis-worker evaluation
-# under Aeon's ~1s timeout (importing PyTorch alone exceeds it). The Aeon
-# ``NN`` library itself is PyTorch-backed for regular programs.
+# so the Pareto archive can trade accuracy against model size. Training uses
+# NumPy (not PyTorch) so each synthesis-worker evaluation stays under Aeon's
+# ~1s timeout. The Aeon ``NN`` library itself remains PyTorch-backed.
 #
-# Run from the repository root (PyTorch needed for ``NN``, NumPy for fitness):
+# Run from the repository root:
 #
 #   uv pip install -e ".[nn]"
 #   # CPU wheel if disk/CUDA downloads are an issue:
 #   # uv pip install torch --index-url https://download.pytorch.org/whl/cpu
 #   uv run python -m aeon --budget 60 -s random_search \
 #       examples/synthesis/neuroevolution/mnist.ae
-#   # ``-s gp`` also works; some malformed ADT candidates can trip typechecking.
 #
 # A hand-written baseline (``arch_baseline``) is included for comparison.
+
+open Array
 
 # Hidden-layer grammar. Each constructor encodes (activation, width).
 # ``arch_out`` ends the stack; the binder always appends a linear head of
@@ -35,21 +35,21 @@ inductive Arch
 | arch_sigmoid16 (rest: Arch) : Arch
 | arch_sigmoid32 (rest: Arch) : Arch
 
-# Minimised neuroevolution fitness (error + complexity).
-def mnist_fitness (a: Arch) : Float :=
-    native "(__import__('sys').path.insert(0, 'examples/synthesis/neuroevolution'), __import__('mnist_fitness').fitness(a))[1]";
-
 # Test accuracy after the short training run (for inspecting solutions).
 def mnist_accuracy (a: Arch) : Float :=
     native "(__import__('sys').path.insert(0, 'examples/synthesis/neuroevolution'), __import__('mnist_fitness').test_accuracy(a))[1]";
 
-# (a) Synthesis: evolve the architecture, minimising fitness.
-# Helpers are shadowed by ``unit`` inside the hole so only Arch constructors
-# are offered as building blocks.
-@minimize_float(mnist_fitness evolved_arch)
+# (a) Synthesis: evolve the architecture under two minimised objectives
+# ``[error, n_hidden_units]``. The ``native`` call returns a Python list;
+# ``@multi_minimize_float`` ascribes it as a length-2 ``Array`` and unpacks
+# it into the Pareto vector. Helpers are shadowed by ``unit`` inside the
+# hole so only Arch constructors are offered as building blocks.
+@multi_minimize_float(
+    native "(__import__('sys').path.insert(0, 'examples/synthesis/neuroevolution'), __import__('mnist_fitness').objectives(evolved_arch))[1]",
+    2
+)
 def evolved_arch : Arch :=
-    (let mnist_fitness := unit in
-     let mnist_accuracy := unit in
+    (let mnist_accuracy := unit in
      let arch_baseline := unit in
      ?hole);
 
