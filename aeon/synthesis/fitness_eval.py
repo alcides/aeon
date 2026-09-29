@@ -68,11 +68,37 @@ def prebind_prefix(
     return ctx, t
 
 
+def as_objective_vector(value: Any, length: int) -> list[float]:
+    """Normalize a fitness helper return value to ``length`` floats.
+
+    Single-objective goals yield a scalar. Multi-objective goals
+    (``@multi_minimize_*`` / ``@multi_maximize_*``) evaluate to a native
+    ``Array``, which is a Python ``list`` at runtime (see issue #294).
+    """
+    if length < 1:
+        raise InvalidIndividualException()
+    if length == 1:
+        if isinstance(value, (list, tuple)):
+            if len(value) != 1:
+                raise InvalidIndividualException()
+            value = value[0]
+        try:
+            return [float(value)]
+        except (TypeError, ValueError):
+            raise InvalidIndividualException()
+    if not isinstance(value, (list, tuple)) or len(value) != length:
+        raise InvalidIndividualException()
+    try:
+        return [float(x) for x in value]
+    except (TypeError, ValueError):
+        raise InvalidIndividualException()
+
+
 def _eval_goal(
     suffix: Term,
     prefix_ctx: EvaluationContext,
     goal: Goal,
-) -> float:
+) -> Any:
     """Evaluate one generated-helper goal against an already-extracted suffix."""
     program_for_fitness = set_program_tail(suffix, Var(goal.function))
     try:
@@ -89,9 +115,9 @@ def _collect_expression_goals(
     suffix: Term,
     prefix_ctx: EvaluationContext,
     expr_functions: set[Name],
-) -> dict[Name, float]:
+) -> dict[Name, Any]:
     """Walk the suffix chain once, collecting expression goal values."""
-    values: dict[Name, float] = {}
+    values: dict[Name, Any] = {}
     ctx = prefix_ctx
     t = suffix
     while isinstance(t, (Let, Rec)):
@@ -117,7 +143,9 @@ def make_bundled_fitness_evaluator(
 
     Expression goals on the suffix ``rec`` chain share a single interpreter
     walk; ``cputime``/``energy`` and ``property`` goals fall back to their
-    own evaluation paths.
+    own evaluation paths. Multi-objective expression goals expand their
+    native ``Array`` return into ``goal.length`` floats so the vector lines
+    up with ``minimize_flags_from_goals``.
 
     The static prefix before ``fun_name`` is evaluated once from
     ``prefix_prog``; each candidate only extracts its suffix (no re-eval of
@@ -134,14 +162,15 @@ def make_bundled_fitness_evaluator(
         for goal in goals:
             if goal.kind == "property":
                 prop = next(properties)
-                scores.append(prop(prog))
+                scores.extend(as_objective_vector(prop(prog), goal.length))
             elif goal.kind == "expression":
                 if goal.function in expr_values:
-                    scores.append(expr_values[goal.function])
+                    raw = expr_values[goal.function]
                 else:
-                    scores.append(_eval_goal(suffix, prefix_ctx, goal))
+                    raw = _eval_goal(suffix, prefix_ctx, goal)
+                scores.extend(as_objective_vector(raw, goal.length))
             else:
-                scores.append(_eval_goal(suffix, prefix_ctx, goal))
+                scores.extend(as_objective_vector(_eval_goal(suffix, prefix_ctx, goal), goal.length))
         return scores
 
     return fitness

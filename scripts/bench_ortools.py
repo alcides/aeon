@@ -51,7 +51,9 @@ def achieved_objective(driver: AeonDriver, mapping: dict) -> float | None:
     for name, term in mapping.items():
         prog = substitution(prog, term, name)
     try:
-        return float(sum(_make_fitness(g, driver.evaluation_ctx)(prog) for g in goals))
+        # Each goal evaluator returns a flat objective vector (length 1 for
+        # single-objective helpers, N for @multi_minimize_* / @multi_maximize_*).
+        return float(sum(x for g in goals for x in _make_fitness(g, driver.evaluation_ctx)(prog)))
     except Exception:  # noqa: BLE001
         return None
 

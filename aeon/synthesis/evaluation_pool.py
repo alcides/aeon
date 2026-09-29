@@ -49,7 +49,7 @@ class EvalPrimitives:
 
     def __init__(
         self,
-        evaluators: list[Callable[[Term], float]],
+        evaluators: list[Callable[[Term], list[float]]],
         ectx: EvaluationContext,
         feature_fun: Name,
         replace: Optional[Callable[[Term], Term]] = None,
@@ -78,11 +78,15 @@ class EvalPrimitives:
 
     @property
     def fitness(self) -> Computation:
-        """Evaluate the objective(s): the list of per-goal distances."""
+        """Evaluate the objective(s): the flat list of per-goal distances.
+
+        Each evaluator may return one or more floats (multi-objective goals
+        expand a native ``Array`` into ``goal.length`` components).
+        """
         if self._bundled_fitness is not None:
             return memoize_fitness(self._bundled_fitness)
         evaluators = self._evaluators
-        return memoize_fitness(lambda prog: [ev(prog) for ev in evaluators])
+        return memoize_fitness(lambda prog: [score for ev in evaluators for score in ev(prog)])
 
     @property
     def feature(self) -> Computation:
