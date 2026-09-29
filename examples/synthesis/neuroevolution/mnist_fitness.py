@@ -1,15 +1,16 @@
 """Native helpers for the Aeon MNIST neuroevolution synthesis benchmark.
 
 Evolves a small MLP *topology* (hidden widths + activations) with Aeon's
-genetic-programming synthesizer. Fitness for an architecture ``Arch`` is:
+synthesizer. Multi-objective fitness for an architecture ``Arch`` is:
 
-    fitness = (1 - test_accuracy) + COMPLEXITY_WEIGHT * n_hidden_units
+    [1 - test_accuracy, n_hidden_units]
 
-after a short NumPy SGD run on a downsampled MNIST subset. Lower is better
-(``@minimize_float``). Training intentionally uses NumPy (not PyTorch) so
-each synthesis worker process stays under Aeon's ~1s evaluation timeout —
-importing ``torch`` alone exceeds that budget. The surface ``NN`` library
-remains PyTorch-backed; this module is only the synthesis oracle.
+after a short NumPy SGD run on a downsampled MNIST subset
+(``@multi_minimize_float``). A legacy scalar ``fitness`` keeps the old
+weighted sum for comparison. Training intentionally uses NumPy (not
+PyTorch) so each synthesis worker process stays under Aeon's ~1s evaluation
+timeout — importing ``torch`` alone exceeds that budget. The surface ``NN``
+library remains PyTorch-backed; this module is only the synthesis oracle.
 
 An ``Arch`` value arrives from Aeon as a nested-tuple ADT chain, e.g.
 
@@ -224,7 +225,22 @@ def test_accuracy(arch: Any) -> float:
     return float(np.mean(preds == yte.astype(np.int64)))
 
 
+def error(arch: Any) -> float:
+    """Classification error ``1 - accuracy`` on the held-out subset."""
+    return float(1.0 - test_accuracy(arch))
+
+
+def complexity(arch: Any) -> float:
+    """Architecture size: total hidden units (minimised as a second objective)."""
+    return float(n_hidden_units(arch))
+
+
+def objectives(arch: Any) -> list[float]:
+    """Multi-objective vector ``[error, complexity]`` (one training run)."""
+    return [error(arch), complexity(arch)]
+
+
 def fitness(arch: Any) -> float:
-    """Minimised scalar: error + small complexity penalty."""
-    acc = test_accuracy(arch)
-    return float((1.0 - acc) + COMPLEXITY_WEIGHT * n_hidden_units(arch))
+    """Legacy scalar: error + small complexity penalty."""
+    err, cx = objectives(arch)
+    return float(err + COMPLEXITY_WEIGHT * cx)
