@@ -48,6 +48,7 @@ from aeon.core.types import (
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
+from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.utils.name import Name, fresh_counter
@@ -58,13 +59,6 @@ from aeon.verification.smt import base_functions, make_variable
 # ---------------------------------------------------------------------------
 
 _SMT_BASE_NAMES = {"Int", "Bool", "Float"}
-
-
-def _is_better(v1: list[float], v2: list[float]) -> bool:
-    """True if v1 dominates v2 (all components strictly less)."""
-    if not v2:
-        return True
-    return all(x < y for x, y in zip(v1, v2))
 
 
 def _is_smt_base(ty: Type) -> bool:
@@ -406,12 +400,12 @@ class SMTSynthesizer(Synthesizer):
                         ctx_constraints.append(constraint)
 
         has_goals = bool(current_meta.get("goals"))
+        minimize = minimize_flags_from_goals(current_meta.get("goals", []))
         io_examples: list[tuple[list, object]] = current_meta.get("io_examples", [])
         io_params: list[Name] = current_meta.get("io_params", [])
         has_io_examples = bool(io_examples and io_params)
         rng = random.Random(42)
-        best_score: list[float] = []
-        best_term: Term | None = None
+        front: list[ParetoEntry] = []
         start_time = time.time()
         deadline = start_time + budget
         attempt = 0
@@ -480,14 +474,11 @@ class SMTSynthesizer(Synthesizer):
                 continue
 
             elapsed = time.time() - start_time
-            is_best = not best_score or _is_better(score, best_score)
-            if is_best:
-                best_score = score
-                best_term = concrete_term
+            front, is_best = update_pareto_front(front, score, concrete_term, minimize)
             ui.register(concrete_term, score, elapsed, is_best)
 
-        if best_term is not None:
-            return best_term
+        if front:
+            return pick_pareto_member(front, seed=42)
         raise SynthesisNotSuccessful("SMTSynthesizer: no valid candidate found within budget")
 
     def _build_term(

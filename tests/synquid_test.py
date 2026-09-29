@@ -2,13 +2,10 @@ import pytest
 
 from aeon.core.types import TypeConstructor
 from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.decorators import Goal
 from aeon.synthesis.identification import incomplete_functions_and_holes
-from aeon.synthesis.modules.synquid.synthesizer import (
-    SynquidSynthesizer,
-    _dominates,
-    _pick_pareto_member,
-    _update_pareto_front,
-)
+from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
+from aeon.synthesis.pareto import dominates, pick_pareto_member, update_pareto_front
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 from tests.driver import check_and_return_core
@@ -18,31 +15,39 @@ _INT = TypeConstructor(Name("Int", 0), [])
 
 
 def test_dominates():
-    assert _dominates([1.0, 2.0], [2.0, 3.0])
-    assert not _dominates([1.0, 2.0], [1.0, 2.0])
-    assert not _dominates([1.0, 3.0], [2.0, 2.0])
+    assert dominates([1.0, 2.0], [2.0, 3.0], [True, True])
+    assert not dominates([1.0, 2.0], [1.0, 2.0], [True, True])
+    assert not dominates([1.0, 3.0], [2.0, 2.0], [True, True])
 
 
 def test_update_pareto_front():
-    front = _update_pareto_front([], [1.0, 2.0], "a")
+    front, added = update_pareto_front([], [1.0, 2.0], "a", [True, True])
+    assert added
     assert front == [([1.0, 2.0], "a")]
 
-    front = _update_pareto_front(front, [2.0, 1.0], "b")
+    front, added = update_pareto_front(front, [2.0, 1.0], "b", [True, True])
+    assert added
     assert len(front) == 2
 
-    front = _update_pareto_front(front, [0.5, 0.5], "c")
+    front, added = update_pareto_front(front, [0.5, 0.5], "c", [True, True])
+    assert added
     assert front == [([0.5, 0.5], "c")]
 
 
-def test_pick_pareto_member_prefers_lower_sum():
+def test_pick_pareto_member_is_seeded():
     front = [([2.0, 1.0], "b"), ([1.0, 2.0], "a")]
-    assert _pick_pareto_member(front) == "a"
+    assert pick_pareto_member(front, seed=0) == pick_pareto_member(front, seed=0)
 
 
 def test_synquid_raises_when_no_valid_candidate():
     ctx = TypingContext()
     fun_name = Name("f", 0)
-    metadata = {fun_name: {"goals": ["dummy"], "synquid_max_candidates": 0}}
+    metadata = {
+        fun_name: {
+            "goals": [Goal(minimize=True, length=1, function=Name("g", 0))],
+            "synquid_max_candidates": 0,
+        }
+    }
 
     with pytest.raises(SynthesisNotSuccessful, match="SynquidSynthesizer: no valid candidate found within budget"):
         SynquidSynthesizer().synthesize(

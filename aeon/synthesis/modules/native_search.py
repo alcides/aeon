@@ -8,7 +8,7 @@ through the same validate / evaluate / Pareto archive loop.
 from __future__ import annotations
 
 import random
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator
 from time import monotonic
 
 from aeon.core.terms import Abstraction, Term
@@ -27,6 +27,13 @@ from aeon.synthesis.modules.tdsyn.worklist import (
     fresh_hole,
     substitute_holes_map,
 )
+from aeon.synthesis.pareto import (
+    ParetoEntry,
+    dominates,
+    minimize_flags_from_goals,
+    pick_pareto_member,
+    update_pareto_front,
+)
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -36,31 +43,23 @@ from aeon.utils.name import Name
 # without bound before the wall-clock budget ends.
 MAX_DEPTH = 5
 
-ParetoEntry = tuple[list[float], Term]
-
 _loc = SynthesizedLocation("native_search")
 
-
-def dominates(a: Sequence[float], b: Sequence[float], minimize: Sequence[bool]) -> bool:
-    """Return whether ``a`` strictly Pareto-dominates ``b``."""
-    if len(a) != len(b) or len(a) != len(minimize):
-        raise ValueError("fitness vectors and objective directions must have equal lengths")
-    no_worse = all(x <= y if is_min else x >= y for x, y, is_min in zip(a, b, minimize))
-    strictly_better = any(x < y if is_min else x > y for x, y, is_min in zip(a, b, minimize))
-    return no_worse and strictly_better
-
-
-def update_pareto_front(
-    front: list[ParetoEntry],
-    score: list[float],
-    candidate: Term,
-    minimize: Sequence[bool],
-) -> tuple[list[ParetoEntry], bool]:
-    """Insert an evaluated candidate and report whether it joins the front."""
-    if any(dominates(existing_score, score, minimize) for existing_score, _ in front):
-        return front, False
-    remaining = [(old_score, old) for old_score, old in front if not dominates(score, old_score, minimize)]
-    return remaining + [(score, candidate)], True
+__all__ = [
+    "MAX_DEPTH",
+    "ParetoEntry",
+    "dominates",
+    "drive_candidates",
+    "expansions_for_hole",
+    "initial_partial",
+    "literal_completions",
+    "make_skip",
+    "minimize_flags_from_goals",
+    "peel_abstractions",
+    "pick_pareto_member",
+    "sample_one",
+    "update_pareto_front",
+]
 
 
 def peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, list[TypedHole]]:
@@ -185,7 +184,7 @@ def drive_candidates(
     one candidate) and returns a seeded random member of the Pareto front.
     """
     goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
-    minimize = [goal.minimize for goal in goals for _ in range(goal.length)]
+    minimize = minimize_flags_from_goals(goals)
     started = monotonic()
     assessed = 0
     pareto_front: list[ParetoEntry] = []
@@ -223,4 +222,4 @@ def drive_candidates(
 
     if not pareto_front:
         return None
-    return random.Random(seed).choice(pareto_front)[1]
+    return pick_pareto_member(pareto_front, seed)

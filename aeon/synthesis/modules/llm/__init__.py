@@ -12,6 +12,13 @@ from aeon.sugar.parser import parse_expression
 from aeon.core.terms import Hole
 from aeon.sugar.lowering import lower_to_core
 from aeon.synthesis.decorators import Goal
+from aeon.synthesis.pareto import (
+    ParetoEntry,
+    dominates,
+    minimize_flags_from_goals,
+    pick_pareto_member,
+    update_pareto_front,
+)
 
 from aeon.synthesis.modules.llm.client import default_openai_model, generate, llm_provider
 from aeon.synthesis.modules.llm.ollama_manager import prepare_ollama_model, release_ollama_model
@@ -73,22 +80,14 @@ def get_elapsed_time(start_time) -> float:
 
 
 def is_better(a: list[float], b: list[float] | None, minimize: list[bool]) -> bool:
+    """Whether ``a`` should replace the current archive champion ``b``.
+
+    Delegates to :func:`dominates` once a previous score exists. Kept as a
+    named helper so LLM tests can still import it.
+    """
     if b is None:
         return True
-    wins = 0
-    losses = 0
-    for ai, bi, min in zip(a, b, minimize):
-        if min:
-            if ai <= bi:
-                wins += 1
-            else:
-                losses += 1
-        else:
-            if ai >= bi:
-                wins += 1
-            else:
-                losses += 1
-    return wins - losses > 0
+    return dominates(a, b, minimize)
 
 
 class LLMSynthesizer(Synthesizer):
@@ -132,10 +131,10 @@ class LLMSynthesizer(Synthesizer):
             "\nPROBLEM:```"
         )
         core_term: Term = Hole(Name("sorry", -1))
-        best_quality = None
+        front: list[ParetoEntry] = []
 
         goals: list[Goal] = current_metadata.get("goals", [])
-        minimize_list = [goal.minimize for goal in goals for _ in range(goal.length)]
+        minimize_list = minimize_flags_from_goals(goals)
         prompt = current_metadata.get("prompt", "Any program")
 
         start_time = monotonic_ns()
@@ -160,11 +159,10 @@ class LLMSynthesizer(Synthesizer):
                         if len(quality) == 0:
                             return core_tterm
                         time = get_elapsed_time(start_time)
-                        is_best = is_better(quality, best_quality, minimize_list)
+                        front, is_best = update_pareto_front(front, quality, core_tterm, minimize_list)
                         ui.register(core_tterm, quality, time, is_best)
                         if is_best:
                             core_term = core_tterm
-                            best_quality = quality
                     else:
                         time = get_elapsed_time(start_time)
                         ui.register(core_tterm, None, time, False)
@@ -174,4 +172,6 @@ class LLMSynthesizer(Synthesizer):
         finally:
             if use_ollama:
                 release_ollama_model(self.model)
+        if front:
+            return pick_pareto_member(front, seed=0)
         return core_term

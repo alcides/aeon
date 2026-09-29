@@ -232,7 +232,7 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "ortools" | "ortools_int" | "cpsat":
             return CPSatHoleSynthesizer(seed=seed)
         case "synquid":
-            return SynquidSynthesizer()
+            return SynquidSynthesizer(seed=seed)
         case id if id in LLM_OLLAMA_MODELS or id == LLM_OPENAI_SYNTHESIZER_ID:
             model, provider = resolve_llm_backend(id)
             return LLMSynthesizer(model=model, provider=provider)
