@@ -251,6 +251,8 @@ def _assess(
             score = values
 
     elapsed = monotonic() - started
+    if is_best:
+        ui.register_front(state.pareto_front, elapsed)
     ui.register(term, score, elapsed, is_best)
     ui.progress(state.assessed, state.assessed, elapsed)
     return None
@@ -384,4 +386,5 @@ class GeneticProgrammingSynthesizer(Synthesizer):
             return None
         if not state.pareto_front:
             return None
+        ui.register_front(state.pareto_front, monotonic() - started)
         return pick_pareto_member(state.pareto_front, self.seed)

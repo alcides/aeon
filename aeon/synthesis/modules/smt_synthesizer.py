@@ -475,9 +475,12 @@ class SMTSynthesizer(Synthesizer):
 
             elapsed = time.time() - start_time
             front, is_best = update_pareto_front(front, score, concrete_term, minimize)
+            if is_best:
+                ui.register_front(front, elapsed)
             ui.register(concrete_term, score, elapsed, is_best)
 
         if front:
+            ui.register_front(front, time.time() - start_time)
             return pick_pareto_member(front, seed=42)
         raise SynthesisNotSuccessful("SMTSynthesizer: no valid candidate found within budget")
 

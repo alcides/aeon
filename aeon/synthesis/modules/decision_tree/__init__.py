@@ -158,6 +158,8 @@ class DecisionTreeSynthesizer(Synthesizer):
                 try:
                     quality = evaluate(candidate)
                     front, is_best = update_pareto_front(front, quality, candidate, minimize)
+                    if is_best:
+                        ui.register_front(front, elapsed)
                     ui.register(candidate, quality, elapsed, is_best)
                     # Perfect fit: no need to try deeper trees
                     if all(q == 0.0 for q in quality):
@@ -168,5 +170,6 @@ class DecisionTreeSynthesizer(Synthesizer):
                 ui.register(candidate, None, elapsed, False)
 
         if front:
+            ui.register_front(front, get_elapsed_time(start_time))
             return pick_pareto_member(front, seed=0)
         return None

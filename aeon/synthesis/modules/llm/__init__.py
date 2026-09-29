@@ -160,9 +160,10 @@ class LLMSynthesizer(Synthesizer):
                             return core_tterm
                         time = get_elapsed_time(start_time)
                         front, is_best = update_pareto_front(front, quality, core_tterm, minimize_list)
-                        ui.register(core_tterm, quality, time, is_best)
                         if is_best:
+                            ui.register_front(front, time)
                             core_term = core_tterm
+                        ui.register(core_tterm, quality, time, is_best)
                     else:
                         time = get_elapsed_time(start_time)
                         ui.register(core_tterm, None, time, False)
@@ -173,5 +174,6 @@ class LLMSynthesizer(Synthesizer):
             if use_ollama:
                 release_ollama_model(self.model)
         if front:
+            ui.register_front(front, get_elapsed_time(start_time))
             return pick_pareto_member(front, seed=0)
         return core_term

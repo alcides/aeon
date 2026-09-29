@@ -40,6 +40,8 @@ def update_pareto_front(
     minimize: Sequence[bool],
 ) -> tuple[list[tuple[list[float], T]], bool]:
     """Insert an evaluated candidate and report whether it joins the front."""
+    if any(list(existing_score) == list(score) for existing_score, _ in front):
+        return front, False
     if any(dominates(existing_score, score, minimize) for existing_score, _ in front):
         return front, False
     remaining = [(old_score, old) for old_score, old in front if not dominates(score, old_score, minimize)]
