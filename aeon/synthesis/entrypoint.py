@@ -42,7 +42,12 @@ from aeon.synthesis.api import (
     TimeoutInEvaluationException,
 )
 from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool
-from aeon.synthesis.fitness_eval import as_objective_vector, candidate_key, make_bundled_fitness_evaluator, set_program_tail
+from aeon.synthesis.fitness_eval import (
+    as_objective_vector,
+    candidate_key,
+    make_bundled_fitness_evaluator,
+    set_program_tail,
+)
 from aeon.synthesis.modules.contata.cosynthesis import (
     _cosynthesize_group,
     _joint_accepts,  # noqa: F401  — re-exported for tests/external callers.
