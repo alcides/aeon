@@ -54,7 +54,7 @@ from aeon.core.types import t_set
 from aeon.core.types import t_unit
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
-from aeon.facade.api import (
+from aeon.errors import (
     AeonError,
     CoreInvalidApplicationError,
     CoreSubtypingError,

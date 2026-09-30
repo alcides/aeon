@@ -34,7 +34,7 @@ jobs:
           mypy aeon --no-strict-optional --ignore-missing-imports
       - name: Check install
         run: |
-          uv pip install --system -e .
+          uv pip install --system -e ".[dev]"
       - name: Test with pytest
         run: |
           pytest

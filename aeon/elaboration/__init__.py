@@ -3,7 +3,7 @@ from itertools import combinations
 from aeon.core.types import Kind
 from aeon.elaboration.context import ElaborationTypingContext
 from aeon.elaboration.instantiation import type_substitution
-from aeon.facade.api import (
+from aeon.errors import (
     AeonError,
     InstanceResolutionError,
     MethodResolutionError,

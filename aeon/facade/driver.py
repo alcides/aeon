@@ -16,7 +16,7 @@ from aeon.compilation.compile import (
 from aeon.compilation.link import collect_constructor_names
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
-from aeon.facade.api import AeonError, UndecidableRefinementError
+from aeon.errors import AeonError, UndecidableRefinementError
 from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.bind import bind_program
 from aeon.sugar.instance_registry import clear_instance_registry
