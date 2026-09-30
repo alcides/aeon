@@ -29,7 +29,7 @@ from typing import Any, Callable, Optional
 from z3 import Datatype, DatatypeSortRef
 from z3.z3 import BoolSort, IntSort, RealSort, StringSort, SortRef
 
-from aeon.core.types import Type, TypeConstructor, TypeVar, RefinedType, Top
+from aeon.core.types import Type, TypeConstructor, RefinedType
 from aeon.utils.name import Name
 from aeon.verification.constructor_registry import (
     get_constructor_fields,
@@ -90,6 +90,7 @@ def constructor_logical_name(name: str) -> str:
 def is_registered_inductive(type_name: str) -> bool:
     return get_constructor_order(type_name) is not None
 
+
 def _unrefine(ty: Type) -> Type:
     while isinstance(ty, RefinedType):
         ty = ty.type
@@ -128,14 +129,19 @@ def _inductive_sort_name(type_name: str, args: list[Type], mangle: Callable[[Typ
     parts: list[str] = [type_name]
     for a in args:
         a = _unrefine(a)
-        if isinstance(a, TypeConstructor) and not a.args and a.name.name in {
-            "Int",
-            "Bool",
-            "Float",
-            "String",
-            "Unit",
-            "Top",
-        }:
+        if (
+            isinstance(a, TypeConstructor)
+            and not a.args
+            and a.name.name
+            in {
+                "Int",
+                "Bool",
+                "Float",
+                "String",
+                "Unit",
+                "Top",
+            }
+        ):
             parts.append(a.name.name)
         else:
             parts.append(mangle(a))
@@ -261,6 +267,7 @@ def lookup_constructor(aeon_name: str, preferred_sort: str | None = None) -> Any
 
 def is_datatype_constructor_name(aeon_name: str) -> bool:
     return constructor_logical_name(aeon_name) in _ctors_by_aeon_name
+
 
 def constructors_for_env() -> dict[str, Any]:
     """Flat ``{List_nil: <z3>, List_cons: <z3>, …}`` for the SMT translation env.

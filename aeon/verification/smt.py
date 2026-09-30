@@ -1290,11 +1290,7 @@ def _constructor_distinctness(variables: dict[str, Any]) -> list[BoolRef]:
 
     assertions: list[BoolRef] = []
     for _type_name, ctor_names in get_constructor_groups().items():
-        present = [
-            base_to_var[n]
-            for n in ctor_names
-            if n in base_to_var and not is_datatype_constructor_name(n)
-        ]
+        present = [base_to_var[n] for n in ctor_names if n in base_to_var and not is_datatype_constructor_name(n)]
         if len(present) >= 2:
             assertions.append(Distinct(*present))
     return assertions
@@ -1308,12 +1304,12 @@ def translate(
     # Materialise inductive Datatypes for types mentioned in the VC so
     # constructors are registered before liquid translation (covers VCs that
     # mention ``List_nil`` without listing it under ``functions``).
-    for _name, ty in list(c.variables.items()):
-        if isinstance(ty, TypeConstructor):
-            get_sort(ty)
-    for _name, ty in list(c.functions.items()):
+    for _name, var_ty in list(c.variables.items()):
+        if isinstance(var_ty, TypeConstructor):
+            get_sort(var_ty)
+    for _name, fun_ty in list(c.functions.items()):
         try:
-            ins, out = uncurry(ty)
+            ins, out = uncurry(fun_ty)
         except UncurryError:
             continue
         for t in list(ins) + [out]:
