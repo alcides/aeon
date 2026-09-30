@@ -71,3 +71,44 @@ def test_component_library_indexes_by_return_and_arg_base():
     assert any(isinstance(term, Var) and term.name.name == "inc" for term, _ in accepting)
     values = list(lib.values_matching(t_int))
     assert any(isinstance(term, Var) and term.name.name == "n" for term, _ in values)
+
+
+def test_component_library_honors_lexical_shadowing():
+    """Inner ``let rest := unit`` must hide the outer projector from the grammar."""
+    from aeon.core.types import t_unit
+    from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches
+    from aeon.synthesis.modules.tdsyn.library import visible_vars
+
+    clear_tdsyn_caches()
+    rest = Name("Arch_ctor_rest", 0)
+    ctor = Name("Arch_ctor", 0)
+    arch_ty = t_int  # stand-in base; only names/shadowing matter here
+    ctx = (
+        TypingContext()
+        .with_var(ctor, AbstractionType(Name("r", 0), arch_ty, arch_ty))
+        .with_var(rest, AbstractionType(Name("a", 0), arch_ty, arch_ty))
+        .with_var(rest, t_unit)  # hole-local shadow
+    )
+    visible = {n.name: t for n, t in visible_vars(ctx)}
+    assert visible["Arch_ctor_rest"] == t_unit
+    lib = get_component_library(ctx, lambda _: False)
+    returning = [term.name.name for term, _ in lib.functions_returning(arch_ty) if isinstance(term, Var)]
+    assert "Arch_ctor" in returning
+    assert "Arch_ctor_rest" not in returning
+
+
+def test_monomorphize_numeric_ops_skip_adt_types():
+    from aeon.core.types import AbstractionType, Kind, TypeConstructor, TypePolymorphism, TypeVar
+    from aeon.synthesis.modules.tdsyn.helpers import base_type_of, get_return_type, monomorphize
+
+    a = Name("a", 0)
+    plus_ty = TypePolymorphism(
+        a,
+        Kind.BASE,
+        AbstractionType(Name("x", 0), TypeVar(a), AbstractionType(Name("y", 0), TypeVar(a), TypeVar(a))),
+    )
+    ctx = TypingContext().with_var(Name("Arch_out", 0), TypeConstructor(Name("Arch", 0)))
+    monos = monomorphize(Name("+", 0), plus_ty, ctx)
+    bases = {base_type_of(get_return_type(ty)).name.name for _, ty in monos if isinstance(ty, AbstractionType)}
+    assert bases == {"Int", "Float"}
+    assert "Arch" not in bases

@@ -7,7 +7,10 @@ from aeon.core.pprint import aeon_prelude_ops_to_text
 from aeon.core.types import Type, t_bool, t_float, t_int, t_string
 
 # Names that must never appear in synthesized terms.
-SYNTHESIS_EXCLUDED_NAMES: frozenset[str] = frozenset({"native", "native_import", "print"})
+# ``$`` (polymorphic apply) and ``__index__`` (tensor indexing) monomorphize
+# onto every in-scope ADT and drown constructor-only grammars; they have no
+# useful surface spelling as bare values anyway.
+SYNTHESIS_EXCLUDED_NAMES: frozenset[str] = frozenset({"native", "native_import", "print", "$", "__index__"})
 
 prelude_ops: list[str] = sorted(SYNTHESIS_EXCLUDED_NAMES)
 
