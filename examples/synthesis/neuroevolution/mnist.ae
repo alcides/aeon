@@ -20,7 +20,9 @@
 #
 # A hand-written baseline (``arch_baseline``) is included for comparison.
 
-open Array
+# Qualified so Array_* helpers stay out of the unqualified synthesis grammar;
+# ``Array_size`` is still available for the ``@multi_minimize_float`` ascription.
+import Array
 
 # Hidden-layer grammar. Each constructor encodes (activation, width).
 # ``arch_out`` ends the stack; the binder always appends a linear head of
@@ -42,8 +44,9 @@ def mnist_accuracy (a: Arch) : Float :=
 # (a) Synthesis: evolve the architecture under two minimised objectives
 # ``[error, n_hidden_units]``. The ``native`` call returns a Python list;
 # ``@multi_minimize_float`` ascribes it as a length-2 ``Array`` and unpacks
-# it into the Pareto vector. Helpers are shadowed by ``unit`` inside the
-# hole so only Arch constructors are offered as building blocks.
+# it into the Pareto vector. Helpers, the Arch recursor, and field projectors
+# are shadowed by ``unit`` inside the hole so only Arch constructors are
+# offered as building blocks.
 @multi_minimize_float(
     native "(__import__('sys').path.insert(0, 'examples/synthesis/neuroevolution'), __import__('mnist_fitness').objectives(evolved_arch))[1]",
     2
@@ -51,6 +54,18 @@ def mnist_accuracy (a: Arch) : Float :=
 def evolved_arch : Arch :=
     (let mnist_accuracy := unit in
      let arch_baseline := unit in
+     let Arch_rec := unit in
+     let Arch_arch_relu16_rest := unit in
+     let Arch_arch_relu32_rest := unit in
+     let Arch_arch_relu64_rest := unit in
+     let Arch_arch_tanh16_rest := unit in
+     let Arch_arch_tanh32_rest := unit in
+     let Arch_arch_sigmoid16_rest := unit in
+     let Arch_arch_sigmoid32_rest := unit in
+     let Array_get := unit in
+     let Array_got_value := unit in
+     let Array_head := unit in
+     let Array_reduce := unit in
      ?hole);
 
 # (b) A reasonable hand-written baseline: 196 -> 32 (relu) -> 10 (linear).

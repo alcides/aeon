@@ -127,6 +127,15 @@ def should_skip(name: Name, fun_name: Name, metadata: Metadata, is_recursion_all
 
 BUILTIN_BASE_TYPES: list[TypeConstructor] = [t_int, t_bool, t_float, t_string]
 
+# Prelude arithmetic / comparison ops are ``forall a:B``, but only Int/Float
+# (and Bool/String for equality) have runtime/liquid meaning. Instantiating
+# them at every in-scope ADT (``(+)[Arch]``, ``(==)[Circuit]``, …) floods
+# constructor-only holes with type-ok junk.
+_NUMERIC_OPS = frozenset({"+", "-", "*", "/", "%", "<", ">", "<=", ">="})
+_EQUALITY_OPS = frozenset({"==", "!="})
+_NUMERIC_MONO_TYPES: list[TypeConstructor] = [t_int, t_float]
+_EQUALITY_MONO_TYPES: list[TypeConstructor] = [t_int, t_float, t_bool, t_string]
+
 
 def _collect_concrete_types(ctx: TypingContext) -> list[TypeConstructor]:
     """Collect all concrete base types from context plus built-ins."""
@@ -144,6 +153,15 @@ def _collect_concrete_types(ctx: TypingContext) -> list[TypeConstructor]:
     return result
 
 
+def _mono_types_for(name: Name, ctx: TypingContext) -> list[TypeConstructor]:
+    """Concrete types to instantiate ``name``'s type variables with."""
+    if name.name in _NUMERIC_OPS:
+        return list(_NUMERIC_MONO_TYPES)
+    if name.name in _EQUALITY_OPS:
+        return list(_EQUALITY_MONO_TYPES)
+    return _collect_concrete_types(ctx)
+
+
 def monomorphize(name: Name, ty: Type, ctx: TypingContext) -> list[tuple[Term, Type]]:
     """Generate all monomorphic instantiations of a (possibly polymorphic) type.
 
@@ -154,19 +172,23 @@ def monomorphize(name: Name, ty: Type, ctx: TypingContext) -> list[tuple[Term, T
     ``ImplicitRefinementHole``, matching elaboration: Horn inference fills in
     ``p`` when the finished term is typechecked.
     """
-    return _monomorphize_term(Var(name, _loc), ty, ctx)
+    return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx))
 
 
-def _monomorphize_term(base_term: Term, ty: Type, ctx: TypingContext) -> list[tuple[Term, Type]]:
+def _monomorphize_term(
+    base_term: Term,
+    ty: Type,
+    ctx: TypingContext,
+    concrete_types: list[TypeConstructor],
+) -> list[tuple[Term, Type]]:
     """Continue monomorphizing an already partially applied term."""
     match ty:
         case TypePolymorphism(var_name, _, body):
-            concrete_types = _collect_concrete_types(ctx)
             results: list[tuple[Term, Type]] = []
             for concrete_type in concrete_types:
                 substituted = type_substitution(body, var_name, concrete_type)
                 applied: Term = TypeApplication(base_term, concrete_type, _loc)
-                results.extend(_monomorphize_term(applied, substituted, ctx))
+                results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types))
             return results
         case RefinementPolymorphism(pred_name, _sort, body):
             # Match elaboration: open ``forall <p>`` with an implicit hole on the
@@ -176,7 +198,7 @@ def _monomorphize_term(base_term: Term, ty: Type, ctx: TypingContext) -> list[tu
             hole = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
             applied = RefinementApplication(base_term, hole, _loc)
             substituted = instantiate_refinement_in_type(body, pred_name, _trivial_true_predicate())
-            return _monomorphize_term(applied, substituted, ctx)
+            return _monomorphize_term(applied, substituted, ctx, concrete_types)
         case _:
             return [(base_term, ty)]
 

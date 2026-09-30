@@ -27,7 +27,7 @@ from aeon.synthesis.modules.tdsyn.helpers import (
     is_subtype,
     monomorphize,
 )
-from aeon.synthesis.modules.tdsyn.library import get_component_library, iter_concrete_vars
+from aeon.synthesis.modules.tdsyn.library import get_component_library, iter_concrete_vars, visible_vars
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -410,7 +410,7 @@ def forward_let_tapp_candidates(
     """
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
-    for name, var_type in ctx.vars():
+    for name, var_type in visible_vars(ctx):
         if skip(name):
             continue
         # Only variables with a printable surface form: identifiers, or the

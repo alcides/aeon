@@ -23,7 +23,12 @@ from aeon.synthesis.modules.tdsyn.helpers import (
     get_return_type,
     monomorphize,
 )
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import (
+    ReflectedBinder,
+    TypingContext,
+    UninterpretedBinder,
+    VariableBinder,
+)
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
@@ -32,6 +37,8 @@ _loc = SynthesizedLocation("tdsyn")
 # Bucket for function/value types whose relevant position is not a base constructor
 # (e.g. higher-order parameters). Always consulted alongside a concrete key.
 _OTHER = "*"
+
+_VALUE_BINDERS = (VariableBinder, UninterpretedBinder, ReflectedBinder)
 
 FunEntry = tuple[Term, AbstractionType]
 ValueEntry = tuple[Term, Type]
@@ -46,6 +53,22 @@ def clear_component_library_cache() -> None:
 def _base_key(ty: Type) -> str:
     bt = base_type_of(ty)
     return bt.name.name if bt is not None else _OTHER
+
+
+def visible_vars(ctx: TypingContext) -> list[tuple[Name, Type]]:
+    """Value bindings reachable at ``ctx``, honoring lexical shadowing.
+
+    ``TypingContext.vars()`` returns every binder including outer names that an
+    inner ``let x := unit in …`` has shadowed. Synthesis must only see the
+    innermost binding per surface name — otherwise hole-local shadowing (used
+    to hide fitness helpers, ADT projectors, recursors, …) is a no-op for the
+    type-directed grammar.
+    """
+    latest: dict[str, tuple[Name, Type]] = {}
+    for e in ctx.entries:
+        if isinstance(e, _VALUE_BINDERS):
+            latest[e.name.name] = (e.name, e.type)
+    return list(latest.values())
 
 
 @dataclass(frozen=True)
@@ -108,7 +131,7 @@ def _build_library(ctx: TypingContext, skip: Callable[[Name], bool]) -> Componen
     functions: list[FunEntry] = []
     values: list[ValueEntry] = []
 
-    for name, ty in ctx.vars():
+    for name, ty in visible_vars(ctx):
         if skip(name):
             continue
         if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
@@ -144,7 +167,7 @@ def _build_library(ctx: TypingContext, skip: Callable[[Name], bool]) -> Componen
 
 def iter_concrete_vars(ctx: TypingContext, skip: Callable[[Name], bool]) -> Iterable[tuple[Name, Type]]:
     """Non-function variables in ``ctx`` (used when a full scan is still needed)."""
-    for name, var_type in ctx.vars():
+    for name, var_type in visible_vars(ctx):
         if skip(name):
             continue
         if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
