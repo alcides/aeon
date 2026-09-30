@@ -1082,6 +1082,15 @@ def uncurry(base: AbstractionType) -> tuple[list[TypeConstructor], TypeConstruct
 
 
 def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> Any:
+    # Nullary inductive constructors (``Pizza_pepperoni⁷``) must denote the
+    # reflected Z3 datatype constructor, not a fresh free constant of the same
+    # sort — otherwise constructor inequalities rely on ``Distinct``, which we
+    # skip for exact-data-cons inductives (ADT theory already makes the *real*
+    # constructors distinct).
+    ctor = lookup_constructor(strip_binder_id(name))
+    if ctor is not None and not callable(ctor):
+        # Nullary Z3 constructors are constants (not FuncDecls).
+        return ctor
     match base:
         case Top():
             return Int(name)
