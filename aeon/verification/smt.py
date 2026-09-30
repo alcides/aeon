@@ -59,6 +59,15 @@ from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.name import Name, fresh_counter
+from aeon.verification.smt_datatypes import (
+    clear_datatype_cache,
+    constructor_logical_name,
+    constructors_for_env,
+    is_datatype_constructor_name,
+    lookup_constructor,
+    strip_binder_id,
+    try_build_inductive_sort,
+)
 
 smt_function_types: dict[str, list[Type]] = {
     "smtEqInt": [t_int, t_int, t_bool],
@@ -454,6 +463,11 @@ def _specialize_liquid_term(
         nargs.append(sa)
 
     fname = str(t.fun)
+    # Exact datatype constructors are already monomorphic in Z3 (``List_Int.cons``);
+    # do not emit ``__spec__`` twins over opaque ``List_a`` sorts — those fight the
+    # reflected ADT (LH exact-data-cons).
+    if is_datatype_constructor_name(fname):
+        return (t if not args_changed else LiquidApp(t.fun, nargs, loc=t.loc)), nfuncs, nref
     if fname not in nfuncs:
         return (t if not args_changed else LiquidApp(t.fun, nargs, loc=t.loc)), nfuncs, nref
 
@@ -919,15 +933,51 @@ def get_sort(base: Type) -> SortRef:
             return SetSort(IntSort())
         case TypeConstructor(name, args):
             sname = _mangle_sort_name(base) if args else str(name)
-            if sname[:1].isupper():
-                if sname not in sort_cache:
+            if sname in sort_cache:
+                return sort_cache[sname]
+            # Open polymorphic instantiations (``List a``) stay opaque — Z3
+            # datatypes are monomorphic (``List_Int``). Building a datatype
+            # here would call ``get_sort`` on a ``TypeVar``.
+            from aeon.core.types import TypeVar as _TV
+
+            if any(isinstance(a if not isinstance(a, RefinedType) else a.type, _TV) for a in args):
+                if sname[:1].isupper():
                     sort_cache[sname] = DeclareSort(sname)
+                    return sort_cache[sname]
+                return IntSort()
+            # LiquidHaskell-style exact data constructors: registered inductives
+            # become monomorphic Z3 Datatypes (``List Int`` → ``List_Int`` with
+            # ``nil``/``cons``), not opaque ``DeclareSort``s.
+            if sname[:1].isupper():
+                info = try_build_inductive_sort(base, get_sort, _mangle_sort_name)
+                if info is not None:
+                    sort_cache[sname] = info.sort
+                    # Also cache under the id-free inductive name so binders
+                    # with different ``Name`` ids share the datatype.
+                    from aeon.verification.smt_datatypes import _inductive_sort_name
+
+                    logical = _inductive_sort_name(name.name, list(args), _mangle_sort_name)
+                    sort_cache[logical] = info.sort
+                    return info.sort
+                sort_cache[sname] = DeclareSort(sname)
                 return sort_cache[sname]
             return IntSort()
         case TypeVar(name):
             assert False, f"TypeVar {name} should not be used in SMT solver."
         case _:
             raise Exception(f"SMT sort of {base} not implemented.")
+
+
+def clear_smt_caches() -> None:
+    """Drop sort / helper / validity caches (e.g. between tests that re-register inductives)."""
+    global sort_cache
+    keep_unit = sort_cache.get("Unit", _unit_sort_ref)
+    sort_cache = {"Unit": keep_unit}
+    _mk_vars_cache.clear()
+    _mk_funs_cache.clear()
+    _mk_sorts_cache.clear()
+    _smt_valid_cache.clear()
+    clear_datatype_cache()
 
 
 def unrefine_type(base: Type):
@@ -1042,6 +1092,13 @@ def _coerce_numeric(a: Any) -> Any:
     return a
 
 
+def _coerce_z3_arg(a: Any) -> Any:
+    """Ensure a translated liquid arg has a Z3 ``.sort()`` for measure rebinding."""
+    if callable(getattr(a, "sort", None)):
+        return a
+    return _coerce_numeric(a)
+
+
 def translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None = None):
     """Translate a ``LiquidTerm`` into a Z3 expression.
 
@@ -1093,13 +1150,35 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
             sname = str(name)
             if sname in variables:
                 return variables[sname]
+            base = strip_binder_id(sname)
+            if base in variables:
+                return variables[base]
             if sname in base_functions:
                 return base_functions[sname]
+            if base in base_functions:
+                return base_functions[base]
+            # Exact data constructors reflected as Z3 datatype constructors
+            # (``List_nil``, ``List_cons``, …) — see smt_datatypes.py.
+            ctor = lookup_constructor(base)
+            if ctor is not None:
+                return ctor
             raise KeyError(f"Variable {sname} not found in SMT context")
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
         case LiquidApp(fun_name, args):
-            fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
+            # Prefer reflected datatype constructors over specialised uninterpreted
+            # twins (``List_cons__spec__…``) when the symbol is an exact data cons.
+            ctor = lookup_constructor(fun_name.name)
+            if ctor is None:
+                ctor = lookup_constructor(str(fun_name))
+            if ctor is not None:
+                fun = ctor
+            else:
+                fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
+                if fun is None:
+                    fun = variables.get(strip_binder_id(str(fun_name)))
+                if fun is None:
+                    fun = variables.get(constructor_logical_name(str(fun_name)))
             assert fun is not None, f"Function {fun_name} not found." + str(variables)
             args = [translate_liq(a, variables, memo) for a in args]
             if fun_name.name in ("/", "%"):
@@ -1115,9 +1194,26 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                 args = [_coerce_numeric(a) for a in args]
             try:
                 return fun(*args)
-            except Z3Exception as e:
-                raise e
+            except (Z3Exception, AttributeError, TypeError) as e:
+                # Measures / uninterpreted functions over ``List a`` may still be
+                # registered at an opaque or wrongly-specialised domain while
+                # constructors are now exact ``List_Int`` datatypes. Rebuild a
+                # domain-matching Z3 function so ``llen nil`` discharges (LH
+                # monomorphic measures). Z3 may raise ``Z3Exception`` *or*
+                # ``AttributeError`` (``is_int`` on a DatatypeSortRef) here.
+                coerced = [_coerce_z3_arg(a) for a in args]
+                if coerced and all(callable(getattr(a, "sort", None)) for a in coerced):
+                    try:
+                        from z3 import is_func_decl, Function as Z3Function
 
+                        if is_func_decl(fun):
+                            domains = [a.sort() for a in coerced]
+                            rng = fun.range()
+                            patched = Z3Function(str(fun), *domains, rng)
+                            return patched(*coerced)
+                    except (Z3Exception, AttributeError, TypeError):
+                        pass
+                raise e
         case _:
             assert False, f"Cannot translate {t}."
 
@@ -1140,6 +1236,14 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
         return hit[1]
     funs = {}
     for name, ty in functions.items():
+        base_name = strip_binder_id(name)
+        # Prefer the reflected datatype constructor over a free uninterpreted
+        # function of the same name (LH exact-data-cons).
+        ctor = lookup_constructor(base_name)
+        if ctor is not None:
+            funs[name] = ctor
+            funs.setdefault(base_name, ctor)
+            continue
         try:
             input_types, output_type = uncurry(ty)
         except UncurryError:
@@ -1147,6 +1251,15 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
             # ``_specialize_liquid_term`` emits a monomorphised twin per
             # call site that ``uncurry`` *can* process; that twin gets
             # picked up the next time this loop runs.
+            continue
+        # Force inductive result/arg sorts to materialise their Datatypes so
+        # constructors are registered before liquid translation.
+        for t in list(input_types) + [output_type]:
+            get_sort(t)
+        ctor = lookup_constructor(base_name)
+        if ctor is not None:
+            funs[name] = ctor
+            funs.setdefault(base_name, ctor)
             continue
         args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
             sorts.get(str(output_type), get_sort(output_type))
@@ -1158,7 +1271,12 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
 
 
 def _constructor_distinctness(variables: dict[str, Any]) -> list[BoolRef]:
-    """Generate Distinct(...) assertions for constructor constants of the same inductive type."""
+    """Generate Distinct(...) assertions for *opaque* constructor constants.
+
+    Inductives reflected as Z3 Datatypes already enjoy constructor
+    distinctness / injectivity from the datatype theory, so their symbols are
+    skipped here (and are functions/constants of a different shape anyway).
+    """
     from aeon.verification.constructor_registry import get_constructor_groups
 
     # Build reverse lookup: base name (no ID suffix) -> SMT variable
@@ -1172,7 +1290,11 @@ def _constructor_distinctness(variables: dict[str, Any]) -> list[BoolRef]:
 
     assertions: list[BoolRef] = []
     for _type_name, ctor_names in get_constructor_groups().items():
-        present = [base_to_var[n] for n in ctor_names if n in base_to_var]
+        present = [
+            base_to_var[n]
+            for n in ctor_names
+            if n in base_to_var and not is_datatype_constructor_name(n)
+        ]
         if len(present) >= 2:
             assertions.append(Distinct(*present))
     return assertions
@@ -1183,9 +1305,26 @@ def translate(
     memo: dict[int, tuple[LiquidTerm, Any]] | None = None,
 ) -> BoolRef | bool:
     sorts = mk_sorts(c.sorts)
+    # Materialise inductive Datatypes for types mentioned in the VC so
+    # constructors are registered before liquid translation (covers VCs that
+    # mention ``List_nil`` without listing it under ``functions``).
+    for _name, ty in list(c.variables.items()):
+        if isinstance(ty, TypeConstructor):
+            get_sort(ty)
+    for _name, ty in list(c.functions.items()):
+        try:
+            ins, out = uncurry(ty)
+        except UncurryError:
+            continue
+        for t in list(ins) + [out]:
+            get_sort(t)
+
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)
-    env = variables | functions
+    # LH exact-data-cons: constructors win over uninterpreted Functions of the
+    # same name so binder-id-free mentions (e.g. ``List_nil`` in ``@example``
+    # VCs) resolve to the datatype theory.
+    env = variables | functions | constructors_for_env()
     e1 = translate_liq(c.premise, env, memo)
     e2 = translate_liq(c.conclusion, env, memo)
     if isinstance(e2, bool) and e2 is True:

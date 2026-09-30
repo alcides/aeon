@@ -5,7 +5,7 @@ import io
 from typing import NamedTuple
 from aeon.core.multiplicity import M1
 from aeon.decorators.api import Metadata, metadata_update
-from aeon.sugar.program import Decorator, Definition, SAnnotation, SApplication, SLet, STerm, SVar
+from aeon.sugar.program import Decorator, Definition, SAnnotation, SApplication, SLet, STerm, SVar, SQualifiedVar
 from aeon.sugar.stypes import SRefinedType, SType, STypeConstructor
 from aeon.sugar.ast_helpers import st_int, st_float, st_top, st_bool, st_string
 from aeon.sugar.parser import parse_type
@@ -590,18 +590,70 @@ def _scalar_literal(t: STerm):
     return None
 
 
+def _is_list_nil(term: STerm) -> bool:
+    """Whether ``term`` is ``nil`` / ``List.nil`` / ``List_nil`` (empty list)."""
+    if isinstance(term, SQualifiedVar) and term.name.name == "nil":
+        return True
+    if isinstance(term, SVar):
+        n = term.name.name
+        return n == "nil" or n.endswith("_nil")
+    return False
+
+
+def _is_list_cons(term: STerm) -> bool:
+    """Whether ``term`` is ``cons`` / ``List.cons`` / ``List_cons``."""
+    if isinstance(term, SQualifiedVar) and term.name.name == "cons":
+        return True
+    if isinstance(term, SVar):
+        n = term.name.name
+        return n == "cons" or n.endswith("_cons")
+    return False
+
+
+def _list_literal_value(term: STerm) -> tuple | None:
+    """Decode a sugar ``[e1, …, en]`` / ``List.cons`` nest into a Python tuple of
+    scalar elements (Contata's ``List Int`` encoding), or ``None`` if the term is
+    not a ground list literal."""
+    if _is_list_nil(term):
+        return ()
+    if isinstance(term, SApplication) and isinstance(term.fun, SApplication) and _is_list_cons(term.fun.fun):
+        head = _scalar_literal(term.fun.arg)
+        tail = _list_literal_value(term.arg)
+        if head is not None and tail is not None:
+            return (head,) + tail
+    return None
+
+
+def _io_arg_value(t: STerm):
+    """A ground ``@example`` argument: scalar literal or ``List Int`` literal."""
+    v = _scalar_literal(t)
+    if v is not None:
+        return v
+    return _list_literal_value(t)
+
+
 def _io_call_args(term: STerm, fun_name: Name):
-    """If ``term`` is a fully-applied call ``fun_name(lit1)...(litN)`` with scalar
-    literal arguments, return ``[v1, ..., vN]`` (left-to-right); else ``None``."""
+    """If ``term`` is a fully-applied call ``fun_name(arg1)...(argN)`` with ground
+    scalar or ``List Int`` literal arguments, return ``[v1, ..., vN]``
+    (left-to-right); else ``None``.
+
+    Under ``open List``, calls in ``@example`` assertions are often rebound to the
+    module-prefixed canonical name (``List_length``) while the decorated hole is
+    still ``length`` — accept that suffix match so Contata/PBE still see I/O.
+    """
     args: list = []
     current = term
     while isinstance(current, SApplication):
-        v = _scalar_literal(current.arg)
+        v = _io_arg_value(current.arg)
         if v is None:
             return None
         args.append(v)
         current = current.fun
-    if not isinstance(current, SVar) or current.name.name != fun_name.name:
+    if not isinstance(current, SVar):
+        return None
+    cname = current.name.name
+    fname = fun_name.name
+    if cname != fname and not cname.endswith("_" + fname):
         return None
     args.reverse()
     return args
@@ -609,10 +661,10 @@ def _io_call_args(term: STerm, fun_name: Name):
 
 def _extract_io_example(assertion: STerm, fun_name: Name):
     """Extract a concrete I/O pair from an ``@example`` of the shape
-    ``fun_name(lit1)...(litN) == out_lit`` (in either order), where the arguments
-    and the output are scalar literals (int/string/bool). Returns
+    ``fun_name(arg1)...(argN) == out_lit`` (in either order), where arguments are
+    scalar or ``List Int`` literals and the output is a scalar. Returns
     ``(inputs, output)`` or ``None``. This is the structured PBE specification
-    consumed by example-driven synthesizers."""
+    consumed by example-driven synthesizers (``afta``, ``contata``, …)."""
     if not (isinstance(assertion, SApplication) and isinstance(assertion.fun, SApplication)):
         return None
     op = assertion.fun.fun

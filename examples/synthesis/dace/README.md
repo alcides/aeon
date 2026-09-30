@@ -27,7 +27,7 @@ Two honest gaps shape this port:
      whose refinement is the completion formula over the (constant) input cells.
      This is the faithful rendering of *FTA synthesis* itself.
 
-The DSL lives in [`libraries/Table.ae`](../../../libraries/Table.ae): the
+The DSL lives in [`aeon/libraries/Table.ae`](../../../aeon/libraries/Table.ae): the
 relational core (`select`, `filter`, `map_column`, `group_by`, `pivot`/`spread`,
 `melt`/`gather`, `summary`) was already present; this work added the spatial and
 aggregate operators DACE needs — `mutate`, `cell`, `nrow`/`ncol`, `sum_col`/
@@ -62,6 +62,8 @@ uv run python -m aeon --no-main -s fta --budget 10 examples/synthesis/dace/synth
 | `synth/complete_total.ae` | sum of two cells | `?hole: 15` |
 | `synth/complete_average.ae` | mean of three cells | `?hole: 10` |
 | `synth/complete_max.ae` | max of two cells | `?hole: 8` |
+| `synth/complete_product.ae` | product of two cells | `?hole: 24 + 32` (≡ 56) |
+| `synth/complete_diff.ae` | difference of two cells | `?hole: 5` |
 
 The FTA backend enumerates candidate cells bottom-up, keys each by its value
 (observational equivalence), checks the refinement once per value, and extracts
@@ -77,7 +79,7 @@ missing-cell index*; the spec is concrete input/output rows given with
 set, exactly as in the paper) and composes the DACE primitives — and a
 conditional — to reproduce them. The table is a `Column` global (a native list
 with a `-999999` missing sentinel); the primitives live in
-[`libraries/Dace.ae`](../../../libraries/Dace.ae).
+[`libraries/Dace.ae`](../../../aeon/libraries/Dace.ae).
 
 ```bash
 uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/<file>.ae
@@ -90,6 +92,7 @@ uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/<
 | `pbe/turns.ae` | 2.3 up to value 1, then down to first non-zero | `down_first_nonzero(colC, up_find_value(colB, i, 1))` |
 | `pbe/group_count.ae` | 2.4 group total = COUNT | `group_count(groups, i)` |
 | `pbe/fallback.ae` | 2.5 previous else next (switch) | `if … then prev_nonmissing(col, i) else next_nonmissing(col, i)` |
+| `pbe/col_at_plus.ae` | smoke: `col_at` + 1 | `1 + col_at(col, i)` |
 
 The conditional (Example 2.5) uses the FTA's `If` builder; the others are
 branch-free. Covered by `tests/dace_test.py::test_fta_pbe_completion`.

@@ -53,3 +53,20 @@ def clear_constructor_registry() -> None:
     _constructor_groups.clear()
     _type_param_counts.clear()
     _constructor_fields.clear()
+    # Keep SMT datatype / sort caches in sync so a fresh inductive registration
+    # is not shadowed by a stale Z3 Datatype from a previous program.
+    try:
+        from aeon.verification.smt_datatypes import clear_datatype_cache
+        from aeon.verification import smt as smt_mod
+
+        clear_datatype_cache()
+        unit = smt_mod.sort_cache.get("Unit")
+        smt_mod.sort_cache.clear()
+        if unit is not None:
+            smt_mod.sort_cache["Unit"] = unit
+        smt_mod._mk_vars_cache.clear()
+        smt_mod._mk_funs_cache.clear()
+        smt_mod._mk_sorts_cache.clear()
+        smt_mod._smt_valid_cache.clear()
+    except ImportError:
+        pass

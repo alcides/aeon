@@ -1,0 +1,28 @@
+# Contata PDS — synthesize ``llen`` over ``List Int`` from list-literal examples.
+# Requires Contata's List fragment + monomorphic isEmpty/head/tail wrappers.
+# SMT reflects ``List`` as a Z3 Datatype (LH-style exact constructors).
+#
+# Named ``llen`` (not ``length``) so ``open List`` does not rebind ``@example``
+# calls to the library's ``List.length``.
+#
+#   uv run python -m aeon --no-main -s contata --budget 60 \
+#     examples/synthesis/cata/synth/pds/list_length.ae
+
+open List
+
+# Contata DSL names expected by the version space (see contata.cata._OPS).
+def isEmpty (xs: (List Int)) : Bool := empty xs;
+def head (xs: (List Int)) : Int :=
+    match xs with
+    | nil => 0
+    | cons h t => h;
+def tail (xs: (List Int)) : (List Int) :=
+    match xs with
+    | nil => nil
+    | cons h t => t;
+
+@example(llen [] = 0)
+@example(llen [3] = 1)
+@example(llen [2, 3] = 2)
+@example(llen [1, 2, 3] = 3)
+def llen (xs: (List Int)) : Int := ?hole;

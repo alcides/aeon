@@ -1,0 +1,18 @@
+# Contata MR variant — even_odd2.mls properties, Int encoding.
+# Spec differs from even_odd (succ-succ / alternation), same mutual shape.
+#
+#   uv run python -m aeon --no-main -s contata --budget 30 \
+#     examples/synthesis/cata/synth/mr/even_odd2.ae
+
+mutual
+  @example(even 0 = true)
+  @example(even 1 = false)
+  @example(even 2 = true)
+  @example(even 3 = false)
+  def even (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?he;
+  @example(odd 0 = false)
+  @example(odd 1 = true)
+  @example(odd 2 = false)
+  @example(odd 3 = true)
+  def odd (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?ho;
+end

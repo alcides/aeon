@@ -1,0 +1,20 @@
+# Contata MR flagship — co-synthesize even/odd from @example I/O (Int encoding).
+# Source: ContataArtifactEvaluation/benchmarks/mutrec/even_odd.mls
+#
+#   uv run python -m aeon --no-main -s contata --budget 30 \
+#     examples/synthesis/cata/synth/mr/even_odd.ae
+
+mutual
+  @example(even 0 = true)
+  @example(even 1 = false)
+  @example(even 2 = true)
+  @example(even 3 = false)
+  @example(even 4 = true)
+  def even (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?he;
+  @example(odd 0 = false)
+  @example(odd 1 = true)
+  @example(odd 2 = false)
+  @example(odd 3 = true)
+  @example(odd 4 = false)
+  def odd (x: {v:Int | v >= 0}) : Bool decreasing_by [x] := ?ho;
+end

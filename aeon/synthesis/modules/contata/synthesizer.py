@@ -37,6 +37,7 @@ from aeon.synthesis.modules.fta.synthesizer import _safe
 from aeon.synthesis.modules.contata.cata import (
     BOOL,
     INT,
+    LIST,
     Example,
     MemberSig,
     _PARAM,
@@ -205,6 +206,10 @@ def _dsl_type(ty: Optional[Type]) -> Optional[str]:
         return INT
     if key == base_key(t_bool):
         return BOOL
+    # Contata's List Int fragment (PDS): sugar ``(List Int)`` elaborates to a
+    # type constructor keyed ``List<Int>`` by :func:`base_key`.
+    if key == "List<Int>" or key.startswith("List<Int"):
+        return LIST
     return None
 
 
@@ -213,8 +218,10 @@ def _operator_names(ctx: TypingContext) -> dict[str, Term]:
     prelude's arithmetic/comparison operators are polymorphic (``forall a:B, …``),
     so the bare ``Var`` the version space emits will not typecheck — each is
     monomorphised at ``Int`` (a ``TypeApplication`` nest), exactly as the ``cata``
-    backend does, so ``x == 0`` / ``x - 1`` discharge."""
-    wanted = {"+", "-", "==", "<", "<=", ">", ">="}
+    backend does, so ``x == 0`` / ``x - 1`` discharge. List destructors
+    (``isEmpty``/``head``/``tail``) are expected as monomorphic wrappers in scope
+    (see ``examples/synthesis/cata/synth/pds/list_length.ae``)."""
+    wanted = {"+", "-", "==", "<", "<=", ">", ">=", "isEmpty", "head", "tail"}
     found: dict[str, Term] = {}
     for n, ty in ctx.vars():
         if n.name not in wanted or n.name in found:

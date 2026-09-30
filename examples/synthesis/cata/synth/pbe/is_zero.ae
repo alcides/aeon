@@ -1,0 +1,10 @@
+# Contata-style PBE predicate (RC spirit) — recover ``x == 0``.
+#
+#   uv run python -m aeon --no-main -s contata --budget 20 \
+#     examples/synthesis/cata/synth/pbe/is_zero.ae
+
+@example(isZero 0 = true)
+@example(isZero 1 = false)
+@example(isZero 2 = false)
+@example(isZero 3 = false)
+def isZero (x: {v:Int | v >= 0}) : Bool := ?hole;

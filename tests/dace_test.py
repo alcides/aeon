@@ -53,6 +53,8 @@ def test_table_pipeline_runs(example: str, expected: str):
         ("complete_total", "15"),
         ("complete_average", "10"),
         ("complete_max", "8"),
+        ("complete_product", "24 + 32"),  # FTA may return an observationally equal sum
+        ("complete_diff", "5"),
     ],
 )
 def test_fta_completes_cell(example: str, value: str):
@@ -73,6 +75,7 @@ def test_fta_completes_cell(example: str, value: str):
         ("turns", "down_first_nonzero"),  # 2.3: up to value 1, then down to non-zero
         ("group_count", "group_count"),  # 2.4: COUNT of the group
         ("fallback", "if"),  # 2.5: previous else next (conditional)
+        ("col_at_plus", "col_at"),  # smoke: col_at + 1
     ],
 )
 def test_fta_pbe_completion(example: str, token: str):
