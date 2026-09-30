@@ -65,6 +65,8 @@ from aeon.verification.smt_datatypes import (
     constructors_for_env,
     is_datatype_constructor_name,
     lookup_constructor,
+    lookup_measure,
+    measures_for_env,
     strip_binder_id,
     try_build_inductive_sort,
 )
@@ -1166,13 +1168,18 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
         case LiquidApp(fun_name, args):
-            # Prefer reflected datatype constructors over specialised uninterpreted
-            # twins (``List_cons__spec__…``) when the symbol is an exact data cons.
+            # Prefer reflected datatype constructors / LH measures over
+            # specialised uninterpreted twins when the symbol is exact.
             ctor = lookup_constructor(fun_name.name)
             if ctor is None:
                 ctor = lookup_constructor(str(fun_name))
+            measure = lookup_measure(fun_name.name) if ctor is None else None
+            if measure is None and ctor is None:
+                measure = lookup_measure(str(fun_name))
             if ctor is not None:
                 fun = ctor
+            elif measure is not None:
+                fun = measure
             else:
                 fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
                 if fun is None:
@@ -1237,12 +1244,21 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
     funs = {}
     for name, ty in functions.items():
         base_name = strip_binder_id(name)
+        logical = constructor_logical_name(name)
         # Prefer the reflected datatype constructor over a free uninterpreted
         # function of the same name (LH exact-data-cons).
         ctor = lookup_constructor(base_name)
         if ctor is not None:
             funs[name] = ctor
             funs.setdefault(base_name, ctor)
+            continue
+        # Prefer LH RecFunction measures (``List_size``) over uninterpreted
+        # Function symbols of the same name.
+        measure = lookup_measure(logical)
+        if measure is not None:
+            funs[name] = measure
+            funs.setdefault(base_name, measure)
+            funs.setdefault(logical, measure)
             continue
         try:
             input_types, output_type = uncurry(ty)
@@ -1253,13 +1269,19 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
             # picked up the next time this loop runs.
             continue
         # Force inductive result/arg sorts to materialise their Datatypes so
-        # constructors are registered before liquid translation.
+        # constructors (and measures) are registered before liquid translation.
         for t in list(input_types) + [output_type]:
             get_sort(t)
         ctor = lookup_constructor(base_name)
         if ctor is not None:
             funs[name] = ctor
             funs.setdefault(base_name, ctor)
+            continue
+        measure = lookup_measure(logical)
+        if measure is not None:
+            funs[name] = measure
+            funs.setdefault(base_name, measure)
+            funs.setdefault(logical, measure)
             continue
         args = [sorts.get(str(x), get_sort(x)) for x in input_types] + [
             sorts.get(str(output_type), get_sort(output_type))
@@ -1317,10 +1339,9 @@ def translate(
 
     functions = mk_funs(c.functions, sorts)
     variables = mk_vars(c.variables, sorts)
-    # LH exact-data-cons: constructors win over uninterpreted Functions of the
-    # same name so binder-id-free mentions (e.g. ``List_nil`` in ``@example``
-    # VCs) resolve to the datatype theory.
-    env = variables | functions | constructors_for_env()
+    # LH exact-data-cons + measures: constructors and RecFunction measures win
+    # over uninterpreted Functions of the same name.
+    env = variables | functions | constructors_for_env() | measures_for_env()
     e1 = translate_liq(c.premise, env, memo)
     e2 = translate_liq(c.conclusion, env, memo)
     if isinstance(e2, bool) and e2 is True:

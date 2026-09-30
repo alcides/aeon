@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
-from z3 import Datatype, DatatypeSortRef
+from z3 import Datatype, DatatypeSortRef, RecFunction, RecAddDefinition, Const, If, IntVal
 from z3.z3 import BoolSort, IntSort, RealSort, StringSort, SortRef
 
 from aeon.core.types import Type, TypeConstructor, RefinedType
@@ -34,6 +34,7 @@ from aeon.utils.name import Name
 from aeon.verification.constructor_registry import (
     get_constructor_fields,
     get_constructor_order,
+    get_measures,
     get_type_param_count,
 )
 
@@ -52,20 +53,29 @@ class DatatypeInfo:
     constructors: dict[str, Any]
     # Prefixed Aeon names → short Z3 constructor name (``nil``).
     short_names: dict[str, str]
+    # Aeon measure base names (``List_size``) → Z3 ``RecFunction``.
+    measures: dict[str, Any]
 
 
 # sort mangled name → info
 _datatype_cache: dict[str, DatatypeInfo] = {}
 # Aeon constructor base name → list of (sort_name, z3_ctor) for disambiguation
 _ctors_by_aeon_name: dict[str, list[tuple[str, Any]]] = {}
+# Aeon measure base name → list of (sort_name, RecFunction)
+_measures_by_aeon_name: dict[str, list[tuple[str, Any]]] = {}
 # sorts currently under construction (guard recursion through get_sort)
 _building: set[str] = set()
+# Z3 keeps RecFunction decls for the process lifetime; freshen names on rebuild.
+_measure_rec_fresh: int = 0
 
 
 def clear_datatype_cache() -> None:
+    global _measure_rec_fresh
     _datatype_cache.clear()
     _ctors_by_aeon_name.clear()
+    _measures_by_aeon_name.clear()
     _building.clear()
+    _measure_rec_fresh += 1
 
 
 def strip_binder_id(name: str) -> str:
@@ -148,6 +158,43 @@ def _inductive_sort_name(type_name: str, args: list[Type], mangle: Callable[[Typ
     return "_".join(parts)
 
 
+def _build_measure_recfunction(
+    info_sort: DatatypeSortRef,
+    sort_name: str,
+    type_name: str,
+    order: list[str],
+    measure_name: str,
+) -> Any:
+    """LH-style structural measure: nullary → 0, else 1 + Σ measure(recursive fields)."""
+    # Include ``_measure_rec_fresh`` so a cache clear + rebuild does not collide
+    # with a RecFunction still resident in the process-wide Z3 context.
+    rec = RecFunction(f"{sort_name}__{measure_name}__{_measure_rec_fresh}", info_sort, IntSort())
+    x = Const(f"{sort_name}_{measure_name}_{_measure_rec_fresh}_x", info_sort)
+    cases: list[tuple[Any, Any]] = []
+    for i, prefixed in enumerate(order):
+        fields = get_constructor_fields(prefixed) or []
+        recog = info_sort.recognizer(i)
+        if not fields:
+            cases.append((recog, IntVal(0)))
+            continue
+        rec_sum: Any | None = None
+        for j, skel in enumerate(fields):
+            if skel != type_name:
+                continue
+            acc = info_sort.accessor(i, j)
+            term = rec(acc(x))
+            rec_sum = term if rec_sum is None else rec_sum + term
+        if rec_sum is None:
+            cases.append((recog, IntVal(1)))
+        else:
+            cases.append((recog, IntVal(1) + rec_sum))
+    body: Any = IntVal(0)
+    for recog, val in reversed(cases):
+        body = If(recog(x), val, body)
+    RecAddDefinition(rec, [x], body)
+    return rec
+
+
 def try_build_inductive_sort(
     base: TypeConstructor,
     get_sort: Callable[[Type], SortRef],
@@ -227,12 +274,28 @@ def try_build_inductive_sort(
             short_names[prefixed] = short
             _ctors_by_aeon_name.setdefault(prefixed, []).append((sname, z3_ctor))
 
+        # LH measures: recursive definitions over the datatype (size nil = 0,
+        # size (cons h t) = 1 + size t, …). One RecFunction per sort, aliased
+        # under every registered measure name (``size`` and ``List_size``).
+        measure_funs: dict[str, Any] = {}
+        measure_names = get_measures(type_name)
+        if measure_names:
+            canonical = next(
+                (n for n in measure_names if n.startswith(f"{type_name}_")),
+                measure_names[0],
+            )
+            rec = _build_measure_recfunction(created, sname, type_name, order, canonical)
+            for mname in measure_names:
+                measure_funs[mname] = rec
+                _measures_by_aeon_name.setdefault(mname, []).append((sname, rec))
+
         info = DatatypeInfo(
             sort=created,
             sort_name=sname,
             type_name=type_name,
             constructors=constructors,
             short_names=short_names,
+            measures=measure_funs,
         )
         _datatype_cache[sname] = info
         return info
@@ -267,6 +330,37 @@ def lookup_constructor(aeon_name: str, preferred_sort: str | None = None) -> Any
 
 def is_datatype_constructor_name(aeon_name: str) -> bool:
     return constructor_logical_name(aeon_name) in _ctors_by_aeon_name
+
+
+def lookup_measure(aeon_name: str, preferred_sort: str | None = None) -> Any | None:
+    """Resolve an Aeon measure (``List_size``) to its Z3 ``RecFunction``.
+
+    Same disambiguation rules as :func:`lookup_constructor`.
+    """
+    base = constructor_logical_name(aeon_name)
+    entries = _measures_by_aeon_name.get(base)
+    if not entries:
+        return None
+    if preferred_sort is not None:
+        for sname, fun in entries:
+            if sname == preferred_sort:
+                return fun
+    if len(entries) == 1:
+        return entries[0][1]
+    for sname, fun in entries:
+        if sname.endswith("_Int") or sname == "Int":
+            return fun
+    return entries[0][1]
+
+
+def measures_for_env() -> dict[str, Any]:
+    """Flat ``{List_size: <RecFunction>, …}`` for the SMT translation env."""
+    out: dict[str, Any] = {}
+    for name, entries in _measures_by_aeon_name.items():
+        fun = lookup_measure(name)
+        if fun is not None:
+            out[name] = fun
+    return out
 
 
 def constructors_for_env() -> dict[str, Any]:

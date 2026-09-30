@@ -24,6 +24,12 @@ short budget, so running all 64 on every push adds time without signal.
 The ports are faithful in structure; the remaining gaps to a 1:1 Synquid port
 are being closed in order (see *Aligning further*). Current state:
 
+0. **SMT measures (done).** Inductive `+ size` measures (e.g. `List.size`) are
+   reflected as Z3 `RecFunction`s over monomorphic datatypes (`List_Int`), so
+   equations like `size nil = 0` and `size (cons h t) = 1 + size t` discharge
+   structurally (LiquidHaskell-style), which Synquid list/tree length
+   refinements rely on.
+
 1. **Polymorphism (done).** Element types are polymorphic (`forall a`,
    inferred from lowercase type variables) wherever the element is used only
    structurally — matching the Synquid originals. `Int` is retained only where

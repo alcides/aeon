@@ -93,6 +93,7 @@ uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/<
 | `pbe/group_count.ae` | 2.4 group total = COUNT | `group_count(groups, i)` |
 | `pbe/fallback.ae` | 2.5 previous else next (switch) | `if … then prev_nonmissing(col, i) else next_nonmissing(col, i)` |
 | `pbe/col_at_plus.ae` | smoke: `col_at` + 1 | `1 + col_at(col, i)` |
+| `pbe/col_offset.ae` | smoke: previous-row spatial offset | `#410` suite growth |
 
 The conditional (Example 2.5) uses the FTA's `If` builder; the others are
 branch-free. Covered by `tests/dace_test.py::test_fta_pbe_completion`.

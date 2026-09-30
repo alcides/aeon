@@ -83,9 +83,16 @@ class ContataSynthesizer(Synthesizer):
 
         # The version space synthesises *unary* members from a ground spec.
         if not io_examples:
+            miss = entry.get("example_io_miss", [])
+            hint = ""
+            if miss:
+                hint = (
+                    " Hint: @example I/O was not extracted — avoid shadowing library "
+                    "names under `open` (e.g. use `llen` not `length` with `open List`)."
+                )
             raise SynthesisNotSuccessful(
                 f"contata: no @example I/O facts for {fun_name.name}; this backend synthesises from "
-                "ground examples (e.g. @example(f 0 = true))."
+                f"ground examples (e.g. @example(f 0 = true)).{hint}"
             )
         if len(io_params) != 1:
             raise SynthesisNotSuccessful(
@@ -98,7 +105,7 @@ class ContataSynthesizer(Synthesizer):
         ret_key = _dsl_type(type)
         if arg_key is None or ret_key is None:
             raise SynthesisNotSuccessful(
-                f"contata: {fun_name.name} has a type outside the Int/Bool DSL; not supported."
+                f"contata: {fun_name.name} has a type outside the Int/Bool/List DSL; not supported."
             )
 
         examples: list[Example] = []
@@ -219,19 +226,45 @@ def _operator_names(ctx: TypingContext) -> dict[str, Term]:
     so the bare ``Var`` the version space emits will not typecheck — each is
     monomorphised at ``Int`` (a ``TypeApplication`` nest), exactly as the ``cata``
     backend does, so ``x == 0`` / ``x - 1`` discharge. List destructors
-    (``isEmpty``/``head``/``tail``) are expected as monomorphic wrappers in scope
-    (see ``examples/synthesis/cata/synth/pds/list_length.ae``)."""
-    wanted = {"+", "-", "==", "<", "<=", ">", ">=", "isEmpty", "head", "tail"}
+    (``isEmpty``/``head``/``tail``) and constructors (``nil``/``cons``/``append``)
+    are expected as monomorphic wrappers in scope, or as the library's
+    ``List_nil`` / ``List_cons`` / ``List_append`` (monomorphised at ``Int``)."""
+    wanted = {
+        "+",
+        "-",
+        "==",
+        "<",
+        "<=",
+        ">",
+        ">=",
+        "isEmpty",
+        "head",
+        "tail",
+        "nil",
+        "cons",
+        "append",
+    }
+    # Library-prefixed aliases after ``import List`` / ``open List``.
+    aliases: dict[str, list[str]] = {
+        "nil": ["nil", "List_nil"],
+        "cons": ["cons", "List_cons"],
+        "append": ["append", "List_append"],
+        "isEmpty": ["isEmpty", "empty", "List_empty"],
+    }
     found: dict[str, Term] = {}
-    for n, ty in ctx.vars():
-        if n.name not in wanted or n.name in found:
-            continue
-        if is_polymorphic(ty):
-            insts = monomorphize(n, ty, [t_int], max_instantiations=4)
-            if insts:
-                found[n.name] = insts[0].term
-        else:
-            found[n.name] = Var(n)
+    by_name = {n.name: (n, ty) for n, ty in ctx.vars()}
+    for dsl_name in wanted:
+        candidates = aliases.get(dsl_name, [dsl_name])
+        for cname in candidates:
+            if cname not in by_name or dsl_name in found:
+                continue
+            n, ty = by_name[cname]
+            if is_polymorphic(ty):
+                insts = monomorphize(n, ty, [t_int], max_instantiations=4)
+                if insts:
+                    found[dsl_name] = insts[0].term
+            else:
+                found[dsl_name] = Var(n)
     return found
 
 

@@ -103,3 +103,57 @@ def main (x:Int) : Int :=
         filename="<list_adt>",
     )
     assert errs == []
+
+
+def test_list_size_measure_is_recfunction():
+    """LH measures become Z3 RecFunctions (size nil = 0, size (cons …) = 1+…)."""
+    from z3 import is_func_decl, simplify
+
+    from aeon.verification.smt_datatypes import lookup_measure
+
+    list_int = _load_list()
+    get_sort(list_int)
+    sz = lookup_measure("List_size")
+    assert sz is not None
+    assert is_func_decl(sz)
+    nil = lookup_constructor("List_nil")
+    cons = lookup_constructor("List_cons")
+    assert simplify(sz(nil)).as_long() == 0
+    assert simplify(sz(cons(3, nil))).as_long() == 1
+    assert simplify(sz(cons(1, cons(2, nil)))).as_long() == 2
+
+
+def test_list_size_nil_entailment():
+    """``size nil == 0`` is SMT-valid via the recursive measure definition."""
+    list_int = _load_list()
+    get_sort(list_int)
+    constraint = LiquidConstraint(
+        LiquidApp(
+            Name("==", 0),
+            [
+                LiquidApp(Name("List_size", 0), [LiquidVar(Name("List_nil", 0))]),
+                LiquidLiteralInt(0),
+            ],
+        ),
+    )
+    assert smt_valid(constraint)
+
+
+def test_list_size_cons_entailment():
+    """``size (cons 3 nil) == 1`` discharges structurally."""
+    list_int = _load_list()
+    get_sort(list_int)
+    cons_app = LiquidApp(
+        Name("List_cons", 0),
+        [LiquidLiteralInt(3), LiquidVar(Name("List_nil", 0))],
+    )
+    constraint = LiquidConstraint(
+        LiquidApp(
+            Name("==", 0),
+            [
+                LiquidApp(Name("List_size", 0), [cons_app]),
+                LiquidLiteralInt(1),
+            ],
+        ),
+    )
+    assert smt_valid(constraint)

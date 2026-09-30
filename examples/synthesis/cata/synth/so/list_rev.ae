@@ -1,0 +1,29 @@
+# Contata SO — synthesize ``rev`` over ``List Int`` (list→list) from examples.
+# Constructors resolve via ``open List`` (``List_nil``/``List_cons``/``List_append``
+# monomorphised at Int by the Contata backend).
+#
+# Empty-list literals on *both* sides of ``=`` confuse elaboration (no Int
+# anchor); use a monomorphic ``emptyI`` binding for the ``[]`` case.
+#
+#   uv run python -m aeon --no-main -s contata --budget 60 \
+#     examples/synthesis/cata/synth/so/list_rev.ae
+
+open List
+
+def isEmpty (xs: (List Int)) : Bool := empty xs;
+def head (xs: (List Int)) : Int :=
+    match xs with
+    | nil => 0
+    | cons h t => h;
+def tail (xs: (List Int)) : (List Int) :=
+    match xs with
+    | nil => nil
+    | cons h t => t;
+
+def emptyI : (List Int) := nil;
+
+@example(rev emptyI = emptyI)
+@example(rev [1] = [1])
+@example(rev [1, 2] = [2, 1])
+@example(rev [1, 2, 3] = [3, 2, 1])
+def rev (xs: (List Int)) : (List Int) := ?hole;

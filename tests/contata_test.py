@@ -120,6 +120,24 @@ def test_cata_synthesizes_list_length_pds():
     assert _mentions(body, "isEmpty"), body  # base/recursive split on emptiness
 
 
+def test_cata_synthesizes_list_rev_so():
+    """The SO (Stack Overflow / k-safety) category: list→list ``rev`` from
+    examples, using Contata constructor patterns ``nil``/``cons``/``append``."""
+    members = [MemberSig("rev", LIST, LIST)]
+    ex = [
+        Example("rev", (), ()),
+        Example("rev", (1,), (1,)),
+        Example("rev", (1, 2), (2, 1)),
+        Example("rev", (1, 2, 3), (3, 2, 1)),
+    ]
+    res = synthesize_group(members, ex, max_size=3)
+    assert res is not None
+    body = res.bodies["rev"]
+    assert isinstance(body, If)
+    assert _mentions(body, "rev"), body
+    assert _mentions(body, "append") or _mentions(body, "cons"), body
+
+
 def test_contata_backend_fills_predicate_from_examples():
     """The ``-s contata`` CLI backend: the version space synthesises a hole from
     its ``@example`` I/O facts, rebinds the body onto real in-scope names

@@ -376,6 +376,19 @@ def example(
         # example's inputs when it evaluates a candidate body.
         if "io_params" not in metadata.get(fun.name, {}):
             metadata = metadata_update(metadata, fun, {"io_params": [n for (n, _t) in fun.args]})
+    else:
+        # Hygiene: help authors who ``open List`` then shadow ``length`` — the
+        # assertion may have been rebound to ``List_length`` and I/O extraction
+        # failed. Surface a soft warning via metadata for tooling; synthesis
+        # backends already error clearly when ``io_examples`` is empty.
+        metadata = metadata_update(
+            metadata,
+            fun,
+            {
+                "example_io_miss": metadata.get(fun.name, {}).get("example_io_miss", [])
+                + [text],
+            },
+        )
 
     # (3) A synthesis goal: minimize (if assertion then 0 else 1), so a
     # fitness-based synthesizer is rewarded for satisfying the example.
@@ -632,6 +645,21 @@ def _io_arg_value(t: STerm):
     return _list_literal_value(t)
 
 
+def _io_call_target_matches(call_name: str, fun_name: Name) -> bool:
+    """Whether a call head names the decorated function.
+
+    Exact match wins. Under ``open Mod``, an assertion may be rebound to the
+    module-prefixed library symbol (``List_length``) while the hole is still
+    ``length`` — accept that *only* as a fallback, and prefer the local hole
+    name when both could apply.
+    """
+    fname = fun_name.name
+    if call_name == fname:
+        return True
+    # Prefixed library twin: ``List_length`` for hole ``length``.
+    return call_name.endswith("_" + fname) and call_name != fname
+
+
 def _io_call_args(term: STerm, fun_name: Name):
     """If ``term`` is a fully-applied call ``fun_name(arg1)...(argN)`` with ground
     scalar or ``List Int`` literal arguments, return ``[v1, ..., vN]``
@@ -640,6 +668,8 @@ def _io_call_args(term: STerm, fun_name: Name):
     Under ``open List``, calls in ``@example`` assertions are often rebound to the
     module-prefixed canonical name (``List_length``) while the decorated hole is
     still ``length`` — accept that suffix match so Contata/PBE still see I/O.
+    Prefer naming holes so they do not shadow library definitions (e.g. ``llen``
+    instead of ``length`` when ``open List`` is in scope).
     """
     args: list = []
     current = term
@@ -651,9 +681,7 @@ def _io_call_args(term: STerm, fun_name: Name):
         current = current.fun
     if not isinstance(current, SVar):
         return None
-    cname = current.name.name
-    fname = fun_name.name
-    if cname != fname and not cname.endswith("_" + fname):
+    if not _io_call_target_matches(current.name.name, fun_name):
         return None
     args.reverse()
     return args
@@ -661,10 +689,10 @@ def _io_call_args(term: STerm, fun_name: Name):
 
 def _extract_io_example(assertion: STerm, fun_name: Name):
     """Extract a concrete I/O pair from an ``@example`` of the shape
-    ``fun_name(arg1)...(argN) == out_lit`` (in either order), where arguments are
-    scalar or ``List Int`` literals and the output is a scalar. Returns
-    ``(inputs, output)`` or ``None``. This is the structured PBE specification
-    consumed by example-driven synthesizers (``afta``, ``contata``, …)."""
+    ``fun_name(arg1)...(argN) == out`` (in either order), where arguments and
+    the output are scalar or ``List Int`` literals. Returns ``(inputs, output)``
+    or ``None``. This is the structured PBE specification consumed by
+    example-driven synthesizers (``afta``, ``contata``, …)."""
     if not (isinstance(assertion, SApplication) and isinstance(assertion.fun, SApplication)):
         return None
     op = assertion.fun.fun
@@ -672,8 +700,8 @@ def _extract_io_example(assertion: STerm, fun_name: Name):
         return None
     lhs = assertion.fun.arg
     rhs = assertion.arg
-    for call_side, lit_side in ((lhs, rhs), (rhs, lhs)):
-        out = _scalar_literal(lit_side)
+    for call_side, out_side in ((lhs, rhs), (rhs, lhs)):
+        out = _io_arg_value(out_side)
         if out is None:
             continue
         args = _io_call_args(call_side, fun_name)
