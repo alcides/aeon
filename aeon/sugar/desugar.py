@@ -685,6 +685,14 @@ def desugar(
             imported_instances + p.instance_decls,
         )
 
+    # Fresh SMT constructor / measure / datatype state per top-level program so
+    # a prior ``import List`` (or test) cannot leave ``List`` registered when the
+    # next program only has an opaque ``type List``.
+    if is_main_module:
+        from aeon.verification.constructor_registry import clear_constructor_registry
+
+        clear_constructor_registry()
+
     # Lower class/instance declarations into inductives + plain definitions
     # before any inductive processing so the generated dictionary types flow
     # through the normal pipeline.

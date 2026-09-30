@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from z3 import Datatype, DatatypeSortRef, RecFunction, RecAddDefinition, Const, If, IntVal
-from z3.z3 import BoolSort, IntSort, RealSort, StringSort, SortRef
+from z3.z3 import BoolSort, IntSort, RealSort, StringSort, SortRef, Z3Exception
 
 from aeon.core.types import Type, TypeConstructor, RefinedType
 from aeon.utils.name import Name
@@ -158,6 +158,35 @@ def _inductive_sort_name(type_name: str, args: list[Type], mangle: Callable[[Typ
     return "_".join(parts)
 
 
+_SIZE_MEASURE_NAMES = frozenset({"size", "length", "len", "llen"})
+_SIZE_MEASURE_SUFFIXES = ("_size", "_length", "_len")
+
+
+def _is_structural_size_measure(measure_name: str) -> bool:
+    """Whether ``measure_name`` denotes a cardinality / size measure.
+
+    Structural RecFunction bodies (nullary → 0, else 1 + Σ recursive fields)
+    are only sound for size-like measures. User measures such as ``val``,
+    ``unwrap``, or ``fst`` are pinned by constructor refinements to payload
+    values; installing a structural RecFunction for them makes those
+    refinements unsatisfiable and vacuously discharges false match branches.
+    """
+    base = strip_binder_id(measure_name)
+    if base in _SIZE_MEASURE_NAMES:
+        return True
+    if any(base.endswith(suf) for suf in _SIZE_MEASURE_SUFFIXES):
+        return True
+    # ``List_size`` / ``Foo_length`` — last underscore segment.
+    if "_" in base and base.rsplit("_", 1)[-1] in _SIZE_MEASURE_NAMES:
+        return True
+    return False
+
+
+def _has_recursive_constructor_field(type_name: str, order: list[str]) -> bool:
+    """True when some constructor carries a recursive occurrence of ``type_name``."""
+    return any(type_name in (get_constructor_fields(prefixed) or []) for prefixed in order)
+
+
 def _build_measure_recfunction(
     info_sort: DatatypeSortRef,
     sort_name: str,
@@ -165,7 +194,7 @@ def _build_measure_recfunction(
     order: list[str],
     measure_name: str,
 ) -> Any:
-    """LH-style structural measure: nullary → 0, else 1 + Σ measure(recursive fields)."""
+    """LH-style structural size measure: nullary → 0, else 1 + Σ measure(recursive fields)."""
     # Include ``_measure_rec_fresh`` so a cache clear + rebuild does not collide
     # with a RecFunction still resident in the process-wide Z3 context.
     rec = RecFunction(f"{sort_name}__{measure_name}__{_measure_rec_fresh}", info_sort, IntSort())
@@ -193,6 +222,20 @@ def _build_measure_recfunction(
         body = If(recog(x), val, body)
     RecAddDefinition(rec, [x], body)
     return rec
+
+
+def is_measure_recfunction(fun: Any) -> bool:
+    """Whether ``fun`` is one of our registered LH measure ``RecFunction``s."""
+    for entries in _measures_by_aeon_name.values():
+        for _sname, rec in entries:
+            if fun is rec:
+                return True
+            try:
+                if hasattr(fun, "eq") and fun.eq(rec):
+                    return True
+            except (AttributeError, TypeError, Z3Exception):
+                pass
+    return False
 
 
 def try_build_inductive_sort(
@@ -274,18 +317,20 @@ def try_build_inductive_sort(
             short_names[prefixed] = short
             _ctors_by_aeon_name.setdefault(prefixed, []).append((sname, z3_ctor))
 
-        # LH measures: recursive definitions over the datatype (size nil = 0,
-        # size (cons h t) = 1 + size t, …). One RecFunction per sort, aliased
-        # under every registered measure name (``size`` and ``List_size``).
+        # LH size measures: recursive definitions over the datatype (size nil = 0,
+        # size (cons h t) = 1 + size t, …). Only for cardinality-like names on
+        # recursive inductives — payload measures (``val``, ``unwrap``, …) stay
+        # uninterpreted and are constrained by constructor refinements instead.
         measure_funs: dict[str, Any] = {}
         measure_names = get_measures(type_name)
-        if measure_names:
+        size_names = [n for n in measure_names if _is_structural_size_measure(n)]
+        if size_names and _has_recursive_constructor_field(type_name, order):
             canonical = next(
-                (n for n in measure_names if n.startswith(f"{type_name}_")),
-                measure_names[0],
+                (n for n in size_names if n.startswith(f"{type_name}_")),
+                size_names[0],
             )
             rec = _build_measure_recfunction(created, sname, type_name, order, canonical)
-            for mname in measure_names:
+            for mname in size_names:
                 measure_funs[mname] = rec
                 _measures_by_aeon_name.setdefault(mname, []).append((sname, rec))
 

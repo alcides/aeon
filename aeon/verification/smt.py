@@ -64,6 +64,8 @@ from aeon.verification.smt_datatypes import (
     constructor_logical_name,
     constructors_for_env,
     is_datatype_constructor_name,
+    is_measure_recfunction,
+    is_registered_inductive,
     lookup_constructor,
     lookup_measure,
     measures_for_env,
@@ -835,10 +837,21 @@ def model_for_invalid(constraint: Constraint) -> list[tuple[str, str]] | None:
             s.add(smt_c)
             if s.check() == sat:
                 model = s.model()
-                # Arity-0 declarations are the free constants standing for the
-                # VC's universally-quantified binders — i.e. the inputs that
-                # falsify it. Function interpretations are not shown.
-                return [(d.name(), str(model[d])) for d in model.decls() if d.arity() == 0]
+                # Restrict to the VC's universally-quantified binders. Z3's model
+                # also contains arity-0 datatype constructors and fresh witnesses
+                # from other sorts still resident in the process-wide context
+                # (``cons(…)``, ``gene(…)``, …); showing those drowns out ``x``/``n``.
+                binder_names = set(c.variables.keys())
+                binder_bases = {strip_binder_id(n) for n in binder_names}
+                pairs: list[tuple[str, str]] = []
+                for d in model.decls():
+                    if d.arity() != 0:
+                        continue
+                    name = d.name()
+                    base = strip_binder_id(name)
+                    if name in binder_names or base in binder_bases:
+                        pairs.append((name, str(model[d])))
+                return pairs if pairs else None
         finally:
             s.pop()
     return None
@@ -935,14 +948,42 @@ def get_sort(base: Type) -> SortRef:
             return SetSort(IntSort())
         case TypeConstructor(name, args):
             sname = _mangle_sort_name(base) if args else str(name)
-            if sname in sort_cache:
-                return sort_cache[sname]
+            from aeon.core.types import TypeVar as _TV
+            from aeon.verification.smt_datatypes import _inductive_sort_name
+            from z3 import DatatypeSortRef as _DTSort
+
             # Open polymorphic instantiations (``List a``) stay opaque — Z3
             # datatypes are monomorphic (``List_Int``). Building a datatype
             # here would call ``get_sort`` on a ``TypeVar``.
-            from aeon.core.types import TypeVar as _TV
+            has_type_var = any(isinstance(a if not isinstance(a, RefinedType) else a.type, _TV) for a in args)
 
-            if any(isinstance(a if not isinstance(a, RefinedType) else a.type, _TV) for a in args):
+            def _try_datatype() -> SortRef | None:
+                if has_type_var or not sname[:1].isupper():
+                    return None
+                if not is_registered_inductive(name.name):
+                    return None
+                info = try_build_inductive_sort(base, get_sort, _mangle_sort_name)
+                if info is None:
+                    return None
+                sort_cache[sname] = info.sort
+                # Also cache under the id-free inductive name so binders
+                # with different ``Name`` ids share the datatype.
+                logical = _inductive_sort_name(name.name, list(args), _mangle_sort_name)
+                sort_cache[logical] = info.sort
+                return info.sort
+
+            if sname in sort_cache:
+                cached = sort_cache[sname]
+                # Upgrade a stale opaque ``DeclareSort`` once the inductive is
+                # registered (cross-test / mid-pipeline cache hits otherwise
+                # mix Datatype constructors with DeclareSort variables → Z3
+                # ``sort mismatch`` on ``==``).
+                if not isinstance(cached, _DTSort):
+                    upgraded = _try_datatype()
+                    if upgraded is not None:
+                        return upgraded
+                return cached
+            if has_type_var:
                 if sname[:1].isupper():
                     sort_cache[sname] = DeclareSort(sname)
                     return sort_cache[sname]
@@ -951,16 +992,9 @@ def get_sort(base: Type) -> SortRef:
             # become monomorphic Z3 Datatypes (``List Int`` → ``List_Int`` with
             # ``nil``/``cons``), not opaque ``DeclareSort``s.
             if sname[:1].isupper():
-                info = try_build_inductive_sort(base, get_sort, _mangle_sort_name)
-                if info is not None:
-                    sort_cache[sname] = info.sort
-                    # Also cache under the id-free inductive name so binders
-                    # with different ``Name`` ids share the datatype.
-                    from aeon.verification.smt_datatypes import _inductive_sort_name
-
-                    logical = _inductive_sort_name(name.name, list(args), _mangle_sort_name)
-                    sort_cache[logical] = info.sort
-                    return info.sort
+                dt = _try_datatype()
+                if dt is not None:
+                    return dt
                 sort_cache[sname] = DeclareSort(sname)
                 return sort_cache[sname]
             return IntSort()
@@ -1170,12 +1204,19 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
         case LiquidApp(fun_name, args):
             # Prefer reflected datatype constructors / LH measures over
             # specialised uninterpreted twins when the symbol is exact.
+            # ``__spec__`` twins are monomorphisations over *opaque* sorts
+            # (``List a``); the RecFunction lives at ``List_Int`` and must not
+            # steal those applications (sort mismatch / unsound domain patch).
+            raw_fun = str(fun_name)
+            is_spec_twin = "__spec__" in fun_name.name or "__spec__" in raw_fun
             ctor = lookup_constructor(fun_name.name)
             if ctor is None:
-                ctor = lookup_constructor(str(fun_name))
-            measure = lookup_measure(fun_name.name) if ctor is None else None
-            if measure is None and ctor is None:
-                measure = lookup_measure(str(fun_name))
+                ctor = lookup_constructor(raw_fun)
+            measure = None
+            if ctor is None and not is_spec_twin:
+                measure = lookup_measure(fun_name.name)
+                if measure is None:
+                    measure = lookup_measure(raw_fun)
             if ctor is not None:
                 fun = ctor
             elif measure is not None:
@@ -1206,8 +1247,12 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                 # registered at an opaque or wrongly-specialised domain while
                 # constructors are now exact ``List_Int`` datatypes. Rebuild a
                 # domain-matching Z3 function so ``llen nil`` discharges (LH
-                # monomorphic measures). Z3 may raise ``Z3Exception`` *or*
-                # ``AttributeError`` (``is_int`` on a DatatypeSortRef) here.
+                # monomorphic measures). Never do this for RecFunction measures:
+                # a fresh unconstrained twin of the same name vacates path facts
+                # and accepts false match branches. Z3 may raise ``Z3Exception``
+                # *or* ``AttributeError`` (``is_int`` on a DatatypeSortRef) here.
+                if is_measure_recfunction(fun):
+                    raise e
                 coerced = [_coerce_z3_arg(a) for a in args]
                 if coerced and all(callable(getattr(a, "sort", None)) for a in coerced):
                     try:
@@ -1245,17 +1290,19 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
     for name, ty in functions.items():
         base_name = strip_binder_id(name)
         logical = constructor_logical_name(name)
+        is_spec_twin = "__spec__" in base_name or "__spec__" in name
         # Prefer the reflected datatype constructor over a free uninterpreted
         # function of the same name (LH exact-data-cons).
         ctor = lookup_constructor(base_name)
-        if ctor is not None:
+        if ctor is not None and not is_spec_twin:
             funs[name] = ctor
             funs.setdefault(base_name, ctor)
             continue
         # Prefer LH RecFunction measures (``List_size``) over uninterpreted
-        # Function symbols of the same name.
+        # Function symbols of the same name — but not for ``__spec__`` twins,
+        # which target opaque polymorphic sorts rather than ``List_Int``.
         measure = lookup_measure(logical)
-        if measure is not None:
+        if measure is not None and not is_spec_twin:
             funs[name] = measure
             funs.setdefault(base_name, measure)
             funs.setdefault(logical, measure)
@@ -1273,12 +1320,12 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
         for t in list(input_types) + [output_type]:
             get_sort(t)
         ctor = lookup_constructor(base_name)
-        if ctor is not None:
+        if ctor is not None and not is_spec_twin:
             funs[name] = ctor
             funs.setdefault(base_name, ctor)
             continue
         measure = lookup_measure(logical)
-        if measure is not None:
+        if measure is not None and not is_spec_twin:
             funs[name] = measure
             funs.setdefault(base_name, measure)
             funs.setdefault(logical, measure)
