@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import NamedTuple
 
-from aeon.core.multiplicity import MOmega, Multiplicity
+from aeon.core.multiplicity import MOmega
 from aeon.core.types import Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
 from aeon.elaboration.context import (
@@ -42,7 +42,6 @@ from aeon.sugar.program import (
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import TypeDecl, InductiveDecl
-from aeon.sugar.program import ClassMethod, InstanceMethod
 from aeon.sugar.program import ClassDecl, InstanceDecl
 from aeon.sugar.stypes import (
     SAbstractionType,
@@ -63,10 +62,14 @@ from aeon.sugar.substitutions import (
     substitution_svartype_in_sterm_by_name,
 )
 from aeon.utils.name import Name, fresh_counter
-from aeon.sugar.ast_helpers import st_int, st_string, st_unit, st_bool
-from aeon.sugar.instance_registry import InstanceInfo, register_instance
+from aeon.sugar.ast_helpers import st_int, st_bool
 
-from aeon.sugar.equality import type_equality
+from aeon.sugar.inductives import (
+    _is_implicit_refinement_param as is_implicit_refinement_param,
+    expand_inductive_decls,
+    infer_inductive_rforall_decls,
+)
+from aeon.sugar.typeclasses import expand_typeclasses
 
 
 def _stype_base_int(ty: SType) -> bool:
@@ -1795,7 +1798,7 @@ def _collect_implicit_refinement_params(ty: SType, bound_rho: set[Name], acc: di
         case SRefinedType(binder, base, ref):
             rec(base, bound_rho)
             match ref:
-                case SApplication(SVar(p), SVar(b)) if b == binder and _is_implicit_refinement_param(p, bound_rho):
+                case SApplication(SVar(p), SVar(b)) if b == binder and is_implicit_refinement_param(p, bound_rho):
                     # The inferred sort is the full predicate type ``base -> Bool``.
                     pred_ty = SAbstractionType(Name("_"), base, st_bool)
                     if p in acc:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from aeon.utils.name import Name
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType
@@ -52,12 +51,12 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
             case VariableBinder(name, ty):
                 (nname, base, cond) = extract_parts(ty)
                 match base:
-                    case TypeConstructor(_, []) | TypeVar(_):
+                    # Keep parametric constructors (``List Int``, …) intact so
+                    # SMT can reflect them as monomorphic datatypes rather than
+                    # erasing them to ``Int``.
+                    case TypeConstructor(_, _) | TypeVar(_):
                         ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
                         c = Implication(name, base, ncond, c)
-                    case TypeConstructor(_, _):
-                        ncond = substitution_in_liquid(cond, LiquidVar(name), nname)
-                        c = Implication(name, TypeConstructor(Name("Int", 0), []), ncond, c)
                     case _:
                         assert False, f"Unknown base: {base}"
             case TypeBinder(_, _):

@@ -15,7 +15,7 @@ from dataclasses import replace
 
 from aeon.core.terms import Term
 from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY, DecoratorType, Metadata
-from aeon.facade.api import UnknownDecoratorError
+from aeon.errors import UnknownDecoratorError
 from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
 from aeon.synthesis.decorators import (

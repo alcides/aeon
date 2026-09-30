@@ -6,12 +6,13 @@ authors = [
     { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
 ]
 readme = "Readme.md"
-requires-python = ">3.10, <4"
+requires-python = ">=3.10, <4"
 
 keywords = ["programming language, liquid types"]
 
 classifiers = [
     "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -25,22 +26,14 @@ dependencies = [
     'loguru',
     'multiprocess==0.70.19',
     'numpy==2.2.6',
-    'pandas',
-    'ollama',
-    'pathos==0.3.5',
-    'pillow',
-    'psb2',
     'pydantic==2.13.5',
     'pygls==2.1.1',
     'requests',
     'types-requests',
-    'scikit-image',
-    'scikit-learn',
     'sympy',
     'textdistance',
     'cvc5 >= 1.1',
     'z3-solver==5.1.0.0',
-    'zstandard==0.25.0',
     'zss',
     "llvmlite",
 ]
@@ -48,7 +41,20 @@ dependencies = [
 [project.optional-dependencies]
 tests = [
     "pytest==9.1.1",
-    "pytest-beartype"
+    "pytest-beartype",
+    "packaging",
+]
+ml = [
+    "pandas",
+    "scikit-learn",
+    "psb2",
+]
+image = [
+    "pillow",
+    "scikit-image",
+]
+llm = [
+    "ollama",
 ]
 synthesis-ortools = [
     "ortools"
@@ -56,14 +62,25 @@ synthesis-ortools = [
 nn = [
     "torch"
 ]
+# Full local/CI toolchain (core + test + ML/image/LLM extras).
+dev = [
+    "pytest==9.1.1",
+    "pytest-beartype",
+    "packaging",
+    "pandas",
+    "scikit-learn",
+    "psb2",
+    "pillow",
+    "scikit-image",
+    "ollama",
+]
 
 [project.urls]
 homepage = "https://github.com/alcides/aeon"
 repository = "https://github.com/alcides/aeon"
 documentation = "https://github.com/alcides/aeon"
 
-[project.license]
-text = "https://opensource.org/licenses/MIT"
+license = "MIT"
 
 [build-system]
 build-backend = 'setuptools.build_meta'

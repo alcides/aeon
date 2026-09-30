@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from aeon.core.liquid import LiquidTerm
 from aeon.core.terms import Term
 from aeon.core.types import Type
-from aeon.facade.api import CoreWellformnessError
+from aeon.errors import CoreWellformnessError
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment, entailment_context
 from aeon.typechecking.typeinfer import check, constraint_to_parts

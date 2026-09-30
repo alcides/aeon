@@ -9,15 +9,12 @@ from aeon.synthesis.modules.genetic_programming import GeneticProgrammingSynthes
 from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
-from aeon.synthesis.modules.llm import (
+from aeon.synthesis.modules.llm.ids import (
     LLM_OLLAMA_MODELS,
     LLM_OPENAI_SYNTHESIZER_ID,
-    LLMSynthesizer,
     is_llm_synthesizer,
     llm_synthesizer_label,
-    resolve_llm_backend,
 )
-from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TDSynSynthesizer
@@ -234,9 +231,17 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "synquid":
             return SynquidSynthesizer(seed=seed)
         case id if id in LLM_OLLAMA_MODELS or id == LLM_OPENAI_SYNTHESIZER_ID:
+            try:
+                from aeon.synthesis.modules.llm import LLMSynthesizer, resolve_llm_backend
+            except ImportError as e:
+                raise ImportError(f"{id} requires the optional 'llm' extra: pip install 'AeonLang[llm]'") from e
             model, provider = resolve_llm_backend(id)
             return LLMSynthesizer(model=model, provider=provider)
         case "decision_tree":
+            try:
+                from aeon.synthesis.modules.decision_tree import DecisionTreeSynthesizer
+            except ImportError as e:
+                raise ImportError("decision_tree requires the optional 'ml' extra: pip install 'AeonLang[ml]'") from e
             return DecisionTreeSynthesizer()
         case "smt":
             return SMTSynthesizer()

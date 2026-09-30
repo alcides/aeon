@@ -155,7 +155,8 @@ def contains_horn(t: LiquidTerm) -> bool:
     elif isinstance(t, LiquidHornApplication):
         return True
     elif isinstance(t, LiquidApp):
-        return all([contains_horn(arg) for arg in t.args])
+        # ``&&(plain, κ)`` is well-formed Horn; any arg with a horn must count.
+        return any(contains_horn(arg) for arg in t.args)
     else:
         assert False
 
