@@ -617,6 +617,32 @@ def _concrete_exec_list(
             return _concrete_list(term, x_value)
 
 
+def _concrete_list_via_pins(term: Term, x_value: Any, pins: dict[str, dict[Any, Any]]) -> Optional[tuple]:
+    """Concrete list value of ``term``, folding member calls via example pins.
+
+    Used by :func:`_denote` when building ``cons``/``append`` around a recursive
+    call whose argument appears in the ground ``@example`` set.
+    """
+    direct = _concrete_list(term, x_value)
+    if direct is not None:
+        return direct
+    head: Term = term
+    args: list[Term] = []
+    while isinstance(head, Application):
+        args.append(head.arg)
+        head = head.fun
+    args.reverse()
+    if isinstance(head, Var) and head.name.name in pins and len(args) == 1:
+        larg = _concrete_list(args[0], x_value)
+        if larg is None:
+            return None
+        out = pins[head.name.name].get(larg)
+        if out is None:
+            return None
+        return tuple(out) if isinstance(out, (tuple, list)) else None
+    return None
+
+
 def _sort(ty: str):
     import z3
 

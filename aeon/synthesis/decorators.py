@@ -385,8 +385,7 @@ def example(
             metadata,
             fun,
             {
-                "example_io_miss": metadata.get(fun.name, {}).get("example_io_miss", [])
-                + [text],
+                "example_io_miss": metadata.get(fun.name, {}).get("example_io_miss", []) + [text],
             },
         )
 
