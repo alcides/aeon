@@ -62,7 +62,7 @@ from aeon.core.types import (
     TypeConstructor,
     TypePolymorphism,
 )
-from aeon.facade.api import (
+from aeon.errors import (
     ErasedUsedAtRuntimeError,
     LinearBranchMismatchError,
     LinearityError,

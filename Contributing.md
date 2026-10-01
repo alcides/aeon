@@ -45,21 +45,22 @@ To run all hooks manually: `uvx pre-commit run --all-files`
 Aeon follows a classic compiler pipeline:
 
 ```
-Source (.ae) --> Parse (lark) --> Sugar AST --> Desugar/Elaborate --> Core AST --> ANF --> Typecheck (z3 SMT) --> Synthesize/Evaluate
+Source (.ae) --> Parse (lark) --> Sugar AST --> Desugar --> Elaborate --> Lower to Core --> Typecheck (z3 SMT) --> Synthesize/Evaluate
 ```
 
 ### Key packages
 
 | Package | Role |
 |---|---|
-| `aeon/facade` | Entry point: `AeonDriver` orchestrates the full pipeline, `AeonConfig` holds settings |
+| `aeon/facade` | Product driver: `AeonDriver` / `AeonConfig` (run, synth, LSP, export) |
+| `aeon/compilation` | Compile orchestration, import resolution, link/cache |
+| `aeon/errors` | Leaf error hierarchy (re-exported from `aeon.facade.api`) |
 | `aeon/sugar` | Surface language: AST (`STypes`/`STerm` in `program.py`), parser (lark grammar in `aeon_sugar.lark`), desugaring |
 | `aeon/core` | Core language: `Types`/`Term` (internal representation, never user-facing), substitutions, liquid constraints, core term/type parser |
-| `aeon/frontend` | ANF conversion |
 | `aeon/elaboration` | Converts sugar AST to core AST with type elaboration |
 | `aeon/typechecking` | Type inference and liquid type constraint verification |
 | `aeon/verification` | SMT-based verification via z3: horn clauses, constraint solving |
-| `aeon/synthesis` | Program synthesis: multiple backends (genetic programming, synquid, enumerative, LLM/ollama) |
+| `aeon/synthesis` | Program synthesis: multiple backends (tdsyn, gp, synquid, enumerative, LLM/ollama, …) |
 | `aeon/backend` | Runtime evaluation |
 | `aeon/lsp` | Language Server Protocol implementation (pygls) |
 | `aeon/prelude` | Built-in functions and type definitions |
@@ -67,9 +68,8 @@ Source (.ae) --> Parse (lark) --> Sugar AST --> Desugar/Elaborate --> Core AST -
 | `aeon/optimization` | Optimization passes |
 | `aeon/llvm` | LLVM backend: lowering, code generation, GPU support |
 | `aeon/bindings` | FFI bindings |
-| `aeon/locations` | Source location tracking |
 | `aeon/utils` | Shared utilities (names, locations, etc.) |
-| `libraries/` | Standard library `.ae` files (List, Math, Image, etc.) — at repo root, not a Python package |
+| `aeon/libraries/` | Standard library `.ae` files (List, Math, Image, etc.) |
 
 ### Important distinction: Sugar vs Core
 
@@ -107,7 +107,7 @@ Tests live in the `tests/` directory at the project root. Run them with `uv run 
 
 - Test files are named `*_test.py` (e.g., `end_to_end_test.py`, `elaboration_test.py`).
 - Test functions follow pytest conventions: `def test_*():`.
-- A shared test driver (`tests/driver.py`) provides helpers like `check_compile()` and `check_compile_expr()` that run the full pipeline (parse → desugar → elaborate → lower → ANF → typecheck → evaluate) on inline Aeon source code.
+- A shared test driver (`tests/driver.py`) provides helpers like `check_compile()` and `check_compile_expr()` that run the full pipeline (parse → desugar → elaborate → lower → typecheck → evaluate) on inline Aeon source code.
 - Test fixtures (`.ae` files) are stored in `tests/fixtures/`.
 - Synthesis-specific tests are grouped under `tests/synthesis/`.
 

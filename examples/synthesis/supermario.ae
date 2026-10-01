@@ -6,7 +6,7 @@
 # vector -- entirely in Aeon. The SyMetric backend (`-s symetric`) clusters
 # candidates by the distance between these vectors, so two levels are "close"
 # when their drawn layouts overlap -- the spatial feature a raw `Level` value
-# lacks. Other backends (gp, hc, 1p1, random_search, ...) ignore `@cluster` and
+# Other backends (gp, random_search, …) ignore `@cluster` and
 # just optimise the @maximize/@minimize objectives.
 
 open Array

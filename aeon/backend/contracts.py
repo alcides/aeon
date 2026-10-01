@@ -10,7 +10,7 @@ from aeon.core.liquid import LiquidLiteralBool, LiquidTerm
 from aeon.core.terms import Rec, Term
 from aeon.core.types import AbstractionType, RefinedType, Type
 from aeon.core.types import TypePolymorphism, RefinementPolymorphism
-from aeon.facade.api import ContractViolationError
+from aeon.errors import ContractViolationError
 from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.typechecking.termination import _opened_refinement_liquid
 from aeon.utils.location import Location, SynthesizedLocation

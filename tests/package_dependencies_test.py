@@ -24,3 +24,25 @@ def test_geneticengine_is_not_a_runtime_dependency():
             continue
         names.append(requirement.name.lower().replace("_", "-"))
     assert "geneticengine" not in names
+
+
+def test_dead_and_optional_deps_are_not_required():
+    """Heavy / unused packages belong in extras, not the core install."""
+    names = []
+    for raw in requires("AeonLang") or []:
+        requirement = Requirement(raw)
+        if requirement.marker and not requirement.marker.evaluate({"extra": ""}):
+            continue
+        names.append(requirement.name.lower().replace("_", "-"))
+    for forbidden in (
+        "pathos",
+        "zstandard",
+        "pandas",
+        "ollama",
+        "pillow",
+        "scikit-learn",
+        "scikit-image",
+        "psb2",
+        "torch",
+    ):
+        assert forbidden not in names, f"{forbidden} should not be a required dependency"

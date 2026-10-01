@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from enum import IntEnum
 
-from aeon.facade.api import (
+from aeon.errors import (
     AeonError,
     CoreTypeCheckingError,
     InstanceResolutionError,

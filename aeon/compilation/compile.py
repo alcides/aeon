@@ -17,7 +17,7 @@ from aeon.core.terms import Literal, Rec, Term
 from aeon.core.types import Type, t_int, top
 from aeon.decorators import Metadata, apply_core_decorators_phase
 from aeon.elaboration import elaborate_collecting_errors
-from aeon.facade.api import AeonError, ModuleNotFoundAeonError
+from aeon.errors import AeonError, ModuleNotFoundAeonError
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import _bare_name, _is_native_import_def, desugar, type_of_definition
@@ -315,7 +315,7 @@ def compile_program(
 
     dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]
     from aeon.backend.evaluator import HoleEvaluationError
-    from aeon.facade.api import RefinementExecutionHoleError
+    from aeon.errors import RefinementExecutionHoleError
     from aeon.utils.location import FileLocation
     from aeon.verification.refinement_exec import execute_refinements_in_sterm, sterm_has_user_hole
 
