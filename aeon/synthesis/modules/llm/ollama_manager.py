@@ -9,7 +9,6 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
-import ollama
 from loguru import logger
 
 # Approximate peak RAM when a model is loaded (weights + modest context) on Apple
@@ -22,6 +21,16 @@ OLLAMA_MODEL_VRAM_GB: dict[str, float] = {
     "starcoder2:15b": 11.0,
     "deepseek-coder:6.7b": 6.0,
 }
+
+
+def _ollama():
+    try:
+        import ollama
+    except ImportError as e:
+        raise ImportError(
+            "Ollama lifecycle helpers require the optional 'llm' extra: pip install 'AeonLang[llm]'"
+        ) from e
+    return ollama
 
 
 def _ollama_base_url() -> str:
@@ -64,7 +73,7 @@ def _ollama_model_tag(entry) -> str | None:
 
 def _installed_model_names() -> set[str]:
     names: set[str] = set()
-    for entry in ollama.list().models:
+    for entry in _ollama().list().models:
         tag = _ollama_model_tag(entry)
         if tag:
             names.add(tag)
@@ -82,7 +91,7 @@ def _estimate_vram_bytes(model: str) -> int:
 
 def _running_models() -> list[RunningModel]:
     try:
-        response = ollama.ps()
+        response = _ollama().ps()
     except Exception as exc:
         logger.warning("Could not list running Ollama models: {}", exc)
         return []
@@ -138,7 +147,7 @@ def pull_model(model: str) -> None:
         return
 
     logger.info("Pulling Ollama model {} …", model)
-    for progress in ollama.pull(model, stream=True):
+    for progress in _ollama().pull(model, stream=True):
         status = getattr(progress, "status", None)
         if status:
             completed = getattr(progress, "completed", None)
