@@ -1,0 +1,17 @@
+# DACE PBE — column transform ``col_at`` with offset (extra hole for suite growth).
+# Part of expanding toward the OOPSLA'17 DACE categories (#410); not a full
+# 84-benchmark scrape (artifact unavailable).
+#
+#   uv run python -m aeon --no-main -s fta --budget 30 \
+#     examples/synthesis/dace/pbe/col_offset.ae
+
+open Table
+
+def input : Table :=
+    from_rows 2 [[1, 10], [2, 20], [3, 30]];
+
+# Target: previous row's second column (spatial offset), or 0 on the first row.
+@example(complete 0 = 0)
+@example(complete 1 = 10)
+@example(complete 2 = 20)
+def complete (r: {v:Int | 0 <= v && v < 3}) : Int := ?hole;

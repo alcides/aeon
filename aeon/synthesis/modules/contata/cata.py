@@ -74,7 +74,11 @@ class ContataResult:
 
 # Operators usable as transitions: (op-name, [arg types], ret). Includes the
 # List-Int destructors so recursive list functions (the PDS category) are
-# buildable: ``isEmpty``/``head``/``tail`` of a list.
+# buildable: ``isEmpty``/``head``/``tail`` of a list. Constructors (``nil``/
+# ``cons``/``append``) are *not* free in the alphabet — they explode the bank;
+# list→list SO bodies instead inject the productive constructor patterns in
+# :func:`_enumerate_bodies` (``nil``, ``cons (head x) (f (tail x))``,
+# ``append (f (tail x)) (cons (head x) nil)``).
 _OPS: list[tuple[str, list[str], str]] = [
     ("-", [INT, INT], INT),
     ("+", [INT, INT], INT),
@@ -96,11 +100,12 @@ def _op(name: str) -> Var:
 
 
 def _atoms(arg_type: str) -> dict[str, list[Term]]:
-    """Nullary leaves per type: the parameter and a few constants."""
+    """Nullary leaves per type: the parameter, constants, and ``nil``."""
     bank: dict[str, list[Term]] = {INT: [], BOOL: [], LIST: []}
     bank[arg_type].append(Var(_PARAM))  # the parameter
     bank[INT].extend([Literal(0, t_int), Literal(1, t_int)])
     bank[BOOL].extend([Literal(True, t_bool), Literal(False, t_bool)])
+    bank[LIST].append(_op("nil"))
     return bank
 
 
@@ -196,6 +201,29 @@ def _enumerate_bodies(
             seen[ty].add(k)
             bank[ty].append(term)
 
+    # List→list SO/PDS constructor patterns (Contata productive shapes): free
+    # ``cons``/``append`` in ``_OPS`` blow up the bank, so inject only the
+    # bodies that actually show up in the paper suite.
+    if arg_type == LIST:
+        param = Var(_PARAM)
+        nil_t = _op("nil")
+        add(LIST, nil_t)
+        head_p = Application(_op("head"), param)
+        tail_p = Application(_op("tail"), param)
+        for m in members:
+            if m.arg_type != LIST:
+                continue
+            rec_tail = Application(_op(m.name), tail_p)
+            if m.ret_type == LIST:
+                # copy / map-shaped: cons (head x) (f (tail x))
+                add(LIST, Application(Application(_op("cons"), head_p), rec_tail))
+                # reverse-shaped: append (f (tail x)) (cons (head x) nil)
+                singleton = Application(Application(_op("cons"), head_p), nil_t)
+                add(LIST, Application(Application(_op("append"), rec_tail), singleton))
+            if m.ret_type == INT:
+                # length-shaped helper already covered by ``1 + f (tail)`` via +
+                pass
+
     # Conditionals are *terminal* goal candidates (the body is a base/recursive
     # split). They are collected here and NOT fed back into ``bank`` — otherwise
     # the large ``if … else 1 + length (tail xs)`` shapes compete for the bank's
@@ -276,23 +304,23 @@ def _size(t: Term) -> int:
 # ---------------------------------------------------------------------------
 
 
-_list_sort_cache: list = []  # lazily-built singleton z3 sort for List Int
-_list_consts: dict[tuple, Any] = {}  # concrete list value -> opaque z3 constant
+_list_sort_cache: list = []  # unused; lists are encoded as unique Int ids
+_list_consts: dict[tuple, Any] = {}  # concrete list value -> unique z3 IntVal
 
 
 def _list_sort():
     import z3
 
-    if not _list_sort_cache:
-        _list_sort_cache.append(z3.DeclareSort("ContataList"))
-    return _list_sort_cache[0]
+    # List values are distinct Int ids (not an uninterpreted sort): two different
+    # tuples must never be Z3-equal, or MinTree wrongly accepts ``body = x`` for
+    # ``reverse``.
+    return z3.IntSort()
 
 
 def _z3_const(v: Any):
-    """A z3 term for a concrete value. Lists are opaque constants of an
-    uninterpreted sort (their *structure* is folded concretely by the DSL
-    destructors; the constant only has to make a recursive call's argument a
-    distinct, spec-pinnable key, e.g. ``length(const_[2,3]) = 2``)."""
+    """A z3 term for a concrete value. Lists are unique integer ids so distinct
+    tuples are distinct in the solver (their *structure* is still folded by the
+    DSL destructors/constructors for well-founded recursion)."""
     import z3
 
     if isinstance(v, bool):
@@ -302,7 +330,8 @@ def _z3_const(v: Any):
     if isinstance(v, (tuple, list)):
         key = tuple(v)
         if key not in _list_consts:
-            _list_consts[key] = z3.Const(f"lst_{len(_list_consts)}", _list_sort())
+            # Offset so list ids do not collide with small Int example values.
+            _list_consts[key] = z3.IntVal(10_000 + len(_list_consts))
         return _list_consts[key]
     raise ValueError(f"unsupported constant {v!r}")
 
@@ -313,9 +342,34 @@ def _concrete_list(term: Term, x_value: Any) -> Optional[tuple]:
     match term:
         case Var(name) if name == _PARAM and isinstance(x_value, (tuple, list)):
             return tuple(x_value)
+        case Var(Name("nil", _)):
+            return ()
         case Application(Var(Name("tail", _)), e):
             inner = _concrete_list(e, x_value)
             return inner[1:] if inner else None
+        case Application():
+            head: Term = term
+            args: list[Term] = []
+            while isinstance(head, Application):
+                args.append(head.arg)
+                head = head.fun
+            args.reverse()
+            if not isinstance(head, Var):
+                return None
+            nm = head.name.name
+            if nm == "cons" and len(args) == 2:
+                h = _concrete_int(args[0], x_value)
+                t = _concrete_list(args[1], x_value)
+                if h is None or t is None:
+                    return None
+                return (h,) + t
+            if nm == "append" and len(args) == 2:
+                a = _concrete_list(args[0], x_value)
+                b = _concrete_list(args[1], x_value)
+                if a is None or b is None:
+                    return None
+                return a + b
+            return None
         case _:
             return None
 
@@ -383,29 +437,43 @@ def _concrete_bool(term: Term, x_value: Any) -> Optional[bool]:
             return None
 
 
-def _denote(term: Term, x_value: Any, member_ufs: dict[str, Any]):
+def _denote(
+    term: Term,
+    x_value: Any,
+    member_ufs: dict[str, Any],
+    example_pins: dict[str, dict[Any, Any]] | None = None,
+):
     """⟦term⟧ at ``x = x_value`` as a z3 expression. Calls to members become
     uninterpreted-function applications (the constraint annotation); everything
-    else folds concretely where possible. Raises on an unsupported shape, or on a
-    recursive call whose argument is not provably *smaller* than the current
-    input (the Function-Call rule's well-foundedness side condition ``v' ≺ v_in``,
-    Fig. 5) — without which a self-consistent non-terminating body such as
-    ``even(x) = even(x)`` would be wrongly accepted."""
+    else folds concretely where possible. When ``example_pins`` maps
+    ``member → {arg: out}`` from the ground spec, a recursive list call whose
+    argument is a pinned example folds to that concrete output so list
+    constructors (``cons``/``append``) can build SO bodies like ``reverse``.
+    Raises on an unsupported shape, or on a recursive call whose argument is not
+    provably *smaller* than the current input."""
     import z3
+
+    pins = example_pins or {}
 
     match term:
         case Literal(value, _):
             return _z3_const(value)
         case Var(name) if name == _PARAM:
             return _z3_const(x_value)
+        case Var(Name("nil", _)):
+            return _z3_const(())
         case If(c, th, el):
             cb = _concrete_bool(c, x_value)
             if cb is True:
-                return _denote(th, x_value, member_ufs)
+                return _denote(th, x_value, member_ufs, example_pins)
             if cb is False:
-                return _denote(el, x_value, member_ufs)
-            cz = _denote(c, x_value, member_ufs)
-            return z3.If(cz, _denote(th, x_value, member_ufs), _denote(el, x_value, member_ufs))
+                return _denote(el, x_value, member_ufs, example_pins)
+            cz = _denote(c, x_value, member_ufs, example_pins)
+            return z3.If(
+                cz,
+                _denote(th, x_value, member_ufs, example_pins),
+                _denote(el, x_value, member_ufs, example_pins),
+            )
         case Application():
             head: Term = term
             args: list[Term] = []
@@ -416,9 +484,6 @@ def _denote(term: Term, x_value: Any, member_ufs: dict[str, Any]):
             if not isinstance(head, Var):
                 raise ValueError(f"unsupported head {head}")
             nm = head.name.name
-            # List destructors fold concretely (the structure is known; only
-            # member-call *results* stay symbolic). isEmpty/head/tail mirror the
-            # PDS datatype operations of the paper's partial-data-structure cat.
             if nm == "isEmpty" and len(args) == 1:
                 cl = _concrete_list(args[0], x_value)
                 if cl is None:
@@ -434,12 +499,29 @@ def _denote(term: Term, x_value: Any, member_ufs: dict[str, Any]):
                 if cl is None:
                     raise ValueError("tail of an empty/non-concrete list")
                 return _z3_const(cl)
+            if nm == "nil" and len(args) == 0:
+                return _z3_const(())
+            if nm == "cons" and len(args) == 2:
+                cl = _concrete_list(term, x_value)
+                if cl is not None:
+                    return _z3_const(cl)
+                h = _concrete_int(args[0], x_value)
+                if h is None:
+                    raise ValueError("cons head not concrete")
+                t_conc = _concrete_list_via_pins(args[1], x_value, pins)
+                if t_conc is not None:
+                    return _z3_const((h,) + t_conc)
+                raise ValueError("cons of a non-concrete list")
+            if nm == "append" and len(args) == 2:
+                cl = _concrete_list(term, x_value)
+                if cl is not None:
+                    return _z3_const(cl)
+                a_conc = _concrete_list_via_pins(args[0], x_value, pins)
+                b_conc = _concrete_list_via_pins(args[1], x_value, pins)
+                if a_conc is not None and b_conc is not None:
+                    return _z3_const(a_conc + b_conc)
+                raise ValueError("append of a non-concrete list")
             if nm in member_ufs and len(args) == 1:
-                # Well-foundedness: the argument must be a concrete value strictly
-                # smaller than the current input under the member's measure (the
-                # value itself on the bounded Nat domain, or list length for a
-                # List argument). Rules out non-terminating bodies and keeps the
-                # call's argument concrete so the spec can pin it (Fig. 5).
                 iarg = _concrete_int(args[0], x_value)
                 if iarg is not None:
                     if not (isinstance(x_value, int) and 0 <= iarg < x_value):
@@ -449,9 +531,12 @@ def _denote(term: Term, x_value: Any, member_ufs: dict[str, Any]):
                 if larg is not None:
                     if not (isinstance(x_value, (tuple, list)) and len(larg) < len(x_value)):
                         raise ValueError("recursive call not on a strictly smaller list")
+                    pinned = pins.get(nm, {}).get(larg)
+                    if pinned is not None:
+                        return _z3_const(pinned if not isinstance(pinned, list) else tuple(pinned))
                     return member_ufs[nm](_z3_const(larg))
                 raise ValueError("recursive call argument is not concrete")
-            az = [_denote(a, x_value, member_ufs) for a in args]
+            az = [_denote(a, x_value, member_ufs, example_pins) for a in args]
             ops = {
                 "-": lambda: az[0] - az[1],
                 "+": lambda: az[0] + az[1],
@@ -466,6 +551,96 @@ def _denote(term: Term, x_value: Any, member_ufs: dict[str, Any]):
             raise ValueError(f"unsupported operator {nm}")
         case _:
             raise ValueError(f"unsupported term {term}")
+
+
+def _concrete_exec_list(
+    term: Term, x_value: Any, self_bodies: dict[str, Term], stack: set[tuple] | None = None
+) -> Optional[tuple]:
+    """Concrete interpreter for a list-typed candidate: recursive member calls
+    re-enter the candidate body on a smaller argument (PBE-style), so SO bodies
+    like ``reverse`` do not need every intermediate suffix to appear in
+    ``@example`` pins."""
+    stack = stack if stack is not None else set()
+    match term:
+        case Var(name) if name == _PARAM and isinstance(x_value, (tuple, list)):
+            return tuple(x_value)
+        case Var(Name("nil", _)):
+            return ()
+        case If(c, th, el):
+            cb = _concrete_bool(c, x_value)
+            if cb is True:
+                return _concrete_exec_list(th, x_value, self_bodies, stack)
+            if cb is False:
+                return _concrete_exec_list(el, x_value, self_bodies, stack)
+            return None
+        case Application():
+            head: Term = term
+            args: list[Term] = []
+            while isinstance(head, Application):
+                args.append(head.arg)
+                head = head.fun
+            args.reverse()
+            if not isinstance(head, Var):
+                return None
+            nm = head.name.name
+            if nm == "tail" and len(args) == 1:
+                inner = _concrete_exec_list(args[0], x_value, self_bodies, stack)
+                return inner[1:] if inner else None
+            if nm == "cons" and len(args) == 2:
+                h = _concrete_int(args[0], x_value)
+                t = _concrete_exec_list(args[1], x_value, self_bodies, stack)
+                if h is None or t is None:
+                    return None
+                return (h,) + t
+            if nm == "append" and len(args) == 2:
+                a = _concrete_exec_list(args[0], x_value, self_bodies, stack)
+                b = _concrete_exec_list(args[1], x_value, self_bodies, stack)
+                if a is None or b is None:
+                    return None
+                return a + b
+            if nm in self_bodies and len(args) == 1:
+                larg = _concrete_exec_list(args[0], x_value, self_bodies, stack)
+                if larg is None:
+                    return None
+                if not (isinstance(x_value, (tuple, list)) and len(larg) < len(x_value)):
+                    return None
+                key = (nm, larg)
+                if key in stack:
+                    return None  # non-termination
+                stack.add(key)
+                try:
+                    return _concrete_exec_list(self_bodies[nm], larg, self_bodies, stack)
+                finally:
+                    stack.discard(key)
+            return _concrete_list(term, x_value)
+        case _:
+            return _concrete_list(term, x_value)
+
+
+def _concrete_list_via_pins(term: Term, x_value: Any, pins: dict[str, dict[Any, Any]]) -> Optional[tuple]:
+    """Concrete list value of ``term``, folding member calls via example pins.
+
+    Used by :func:`_denote` when building ``cons``/``append`` around a recursive
+    call whose argument appears in the ground ``@example`` set.
+    """
+    direct = _concrete_list(term, x_value)
+    if direct is not None:
+        return direct
+    head: Term = term
+    args: list[Term] = []
+    while isinstance(head, Application):
+        args.append(head.arg)
+        head = head.fun
+    args.reverse()
+    if isinstance(head, Var) and head.name.name in pins and len(args) == 1:
+        larg = _concrete_list(args[0], x_value)
+        if larg is None:
+            return None
+        out = pins[head.name.name].get(larg)
+        if out is None:
+            return None
+        return tuple(out) if isinstance(out, (tuple, list)) else None
+    return None
 
 
 def _sort(ty: str):
@@ -510,6 +685,13 @@ def synthesize_group(
     by_member: dict[str, list[Example]] = {}
     for e in examples:
         by_member.setdefault(e.member, []).append(e)
+    # Ground example pins: fold recursive list calls to known outputs so
+    # ``cons``/``append`` can build list→list SO bodies.
+    example_pins: dict[str, dict[Any, Any]] = {}
+    for e in examples:
+        key = tuple(e.arg) if isinstance(e.arg, (tuple, list)) else e.arg
+        out = tuple(e.out) if isinstance(e.out, (tuple, list)) else e.out
+        example_pins.setdefault(e.member, {})[key] = out
     # The example inputs (plus their predecessors, the values recursive calls
     # reach) over which non-recursive sub-programs are merged by behaviour. For
     # Int that is each input and its decrement; for List, every suffix reachable
@@ -535,12 +717,29 @@ def synthesize_group(
             mexs = by_member.get(m.name, [])
             if not mexs:
                 continue
+            # List→list: concretely execute the candidate (recursive calls re-enter
+            # the same body on smaller lists). Avoids needing every suffix pinned.
+            if m.ret_type == LIST:
+                self_bodies = {**{n: bodies[n] for n in bodies}, m.name: body}
+                ok = True
+                for e in mexs:
+                    got = _concrete_exec_list(body, e.arg, self_bodies)
+                    want = tuple(e.out) if isinstance(e.out, (tuple, list)) else e.out
+                    if got != want:
+                        ok = False
+                        break
+                if ok:
+                    chosen = body
+                    if on_candidate is not None:
+                        on_candidate(m.name, body)
+                    break
+                continue
             solver = z3.Solver()
             for s in spec:
                 solver.add(s)
             try:
                 for e in mexs:
-                    solver.add(_denote(body, e.arg, ufs) == _z3_const(e.out))
+                    solver.add(_denote(body, e.arg, ufs, example_pins) == _z3_const(e.out))
             except ValueError:
                 continue  # body uses an unsupported shape; skip
             if solver.check() == z3.sat:

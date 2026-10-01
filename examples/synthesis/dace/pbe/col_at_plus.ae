@@ -1,0 +1,15 @@
+# DACE PBE — read a column cell (identity completion) then add a constant.
+# Minimal composition of ``col_at`` with arithmetic; useful as a smoke PBE case.
+#
+#   uv run python -m aeon --no-main -s fta --budget 30 \
+#     examples/synthesis/dace/pbe/col_at_plus.ae
+
+import Dace (Column, col_at)
+
+def col : Column := native "[10, 20, 30, 40]";
+
+@example(fill 0 = 11)
+@example(fill 1 = 21)
+@example(fill 2 = 31)
+@example(fill 3 = 41)
+def fill (i: Int) : Int := ?hole;

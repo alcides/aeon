@@ -43,7 +43,7 @@ _VALUE_BINDERS = (VariableBinder, UninterpretedBinder, ReflectedBinder)
 FunEntry = tuple[Term, AbstractionType]
 ValueEntry = tuple[Term, Type]
 
-_library_cache: dict[tuple[int, int], "ComponentLibrary"] = {}
+_library_cache: dict[int, "ComponentLibrary"] = {}
 
 
 def clear_component_library_cache() -> None:
@@ -117,8 +117,14 @@ def get_component_library(
     ctx: TypingContext,
     skip: Callable[[Name], bool],
 ) -> ComponentLibrary:
-    """Return (and memoize) the indexed library for ``ctx`` / ``skip``."""
-    key = (id(ctx), id(skip))
+    """Return (and memoize) the indexed library for ``ctx``.
+
+    Cached by ``id(ctx)`` only. ``skip`` must stay stable for the lifetime of
+    the cache entry — synthesis runs call :func:`clear_component_library_cache`
+    (via ``clear_tdsyn_caches``) before search so a fresh skip is always used.
+    Keying on ``id(skip)`` caused flaky unit tests when GC reused addresses.
+    """
+    key = id(ctx)
     cached = _library_cache.get(key)
     if cached is not None:
         return cached

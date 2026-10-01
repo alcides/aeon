@@ -3,7 +3,8 @@
 Populated during inductive expansion (desugar) and consumed during SMT
 translation so that Z3 ``Distinct(...)`` is asserted for constructor
 constants of the same inductive type. Also stores LLVM layout hints
-(type-parameter arity and per-constructor field type skeletons).
+(type-parameter arity and per-constructor field type skeletons) and
+LH-style **measure** names (``List_size``) for recursive Z3 definitions.
 """
 
 from __future__ import annotations
@@ -20,6 +21,9 @@ _type_param_counts: dict[str, int] = {}
 # type-parameter index as "#0", "#1", …
 _constructor_fields: dict[str, list[str]] = {}
 
+# Inductive type name -> measure base names (``List_size``, and bare ``size``).
+_measures: dict[str, list[str]] = {}
+
 
 def register_constructors(
     type_name: str,
@@ -31,6 +35,11 @@ def register_constructors(
     _type_param_counts[type_name] = type_param_count
     if field_types:
         _constructor_fields.update(field_types)
+
+
+def register_measures(type_name: str, measure_names: list[str]) -> None:
+    """Record LH-style measures declared with ``+ size …`` on an inductive."""
+    _measures[type_name] = list(measure_names)
 
 
 def get_constructor_groups() -> dict[str, set[str]]:
@@ -49,7 +58,37 @@ def get_constructor_fields(ctor_name: str) -> list[str] | None:
     return _constructor_fields.get(ctor_name)
 
 
+def get_measures(type_name: str) -> list[str]:
+    return list(_measures.get(type_name, []))
+
+
+def is_registered_measure(name: str) -> bool:
+    """Whether ``name`` (binder-id / ``__spec__`` stripped by caller) is a measure."""
+    for names in _measures.values():
+        if name in names:
+            return True
+    return False
+
+
 def clear_constructor_registry() -> None:
     _constructor_groups.clear()
     _type_param_counts.clear()
     _constructor_fields.clear()
+    _measures.clear()
+    # Keep SMT datatype / sort caches in sync so a fresh inductive registration
+    # is not shadowed by a stale Z3 Datatype from a previous program.
+    try:
+        from aeon.verification.smt_datatypes import clear_datatype_cache
+        from aeon.verification import smt as smt_mod
+
+        clear_datatype_cache()
+        unit = smt_mod.sort_cache.get("Unit")
+        smt_mod.sort_cache.clear()
+        if unit is not None:
+            smt_mod.sort_cache["Unit"] = unit
+        smt_mod._mk_vars_cache.clear()
+        smt_mod._mk_funs_cache.clear()
+        smt_mod._mk_sorts_cache.clear()
+        smt_mod._smt_valid_cache.clear()
+    except ImportError:
+        pass

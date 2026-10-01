@@ -1,0 +1,6 @@
+# CATA RC — relational refinement ``v = x * x`` / ``v = x + x`` style square.
+#
+#   uv run python -m aeon --no-main -s cata --budget 20 \
+#     examples/synthesis/cata/synth/rc/square.ae
+
+def square (x: Int) : {v:Int | v = x * x} := ?hole;

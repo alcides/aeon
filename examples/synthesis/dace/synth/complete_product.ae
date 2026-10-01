@@ -1,0 +1,7 @@
+# DACE per-cell completion — product of two known cells.
+#
+#   uv run python -m aeon --no-main -s fta --budget 10 \
+#     examples/synthesis/dace/synth/complete_product.ae
+#
+# Expected: ?hole: 56
+def product_cell : {v:Int | v = 7 * 8} := ?hole;

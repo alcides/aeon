@@ -1,0 +1,7 @@
+# DACE per-cell completion — difference of two known cells.
+#
+#   uv run python -m aeon --no-main -s fta --budget 10 \
+#     examples/synthesis/dace/synth/complete_diff.ae
+#
+# Expected: ?hole: 5
+def diff_cell : {v:Int | v = 12 - 7} := ?hole;
