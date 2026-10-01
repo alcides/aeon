@@ -1,26 +1,21 @@
-from typing import Callable
-from time import monotonic_ns
+"""LLM-assisted synthesizer (optional ``[llm]`` extra).
 
-from aeon.core.terms import Term
+Importing this package must not require ``ollama`` — ids and labels are always
+available; provider clients load lazily when synthesis runs.
+"""
+
+from __future__ import annotations
+
+from time import monotonic_ns
+from typing import Callable
+
+from aeon.core.terms import Hole, Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer
-from aeon.synthesis.uis.api import SynthesisUI
-from aeon.typechecking.context import TypingContext
-from aeon.utils.name import Name
-from aeon.sugar.parser import parse_expression
-from aeon.core.terms import Hole
 from aeon.sugar.lowering import lower_to_core
+from aeon.sugar.parser import parse_expression
+from aeon.synthesis.api import Synthesizer
 from aeon.synthesis.decorators import Goal
-from aeon.synthesis.pareto import (
-    ParetoEntry,
-    dominates,
-    minimize_flags_from_goals,
-    pick_pareto_member,
-    update_pareto_front,
-)
-
-from aeon.synthesis.modules.llm.client import default_openai_model, generate, llm_provider
 from aeon.synthesis.modules.llm.ids import (
     DEFAULT_LLM_SYNTHESIZER_ID,
     LLM_OLLAMA_MODELS,
@@ -29,11 +24,22 @@ from aeon.synthesis.modules.llm.ids import (
     llm_synthesizer_label as llm_synthesizer_label,
     llm_synthesizer_menu_ids as llm_synthesizer_menu_ids,
 )
-from aeon.synthesis.modules.llm.ollama_manager import prepare_ollama_model, release_ollama_model
+from aeon.synthesis.pareto import (
+    ParetoEntry,
+    dominates,
+    minimize_flags_from_goals,
+    pick_pareto_member,
+    update_pareto_front,
+)
+from aeon.synthesis.uis.api import SynthesisUI
+from aeon.typechecking.context import TypingContext
+from aeon.utils.name import Name
 
 
 def resolve_llm_backend(synthesizer_id: str) -> tuple[str, str]:
     """Return ``(model, provider)`` for synthesizer id ``synthesizer_id``."""
+    from aeon.synthesis.modules.llm.client import default_openai_model, llm_provider
+
     if synthesizer_id == LLM_OPENAI_SYNTHESIZER_ID or llm_provider() == "openai":
         return default_openai_model(), "openai"
     return LLM_OLLAMA_MODELS[synthesizer_id], "ollama"
@@ -76,6 +82,9 @@ class LLMSynthesizer(Synthesizer):
         ui: SynthesisUI = SynthesisUI(),
         output_value: Callable[[Term], object] | None = None,
     ) -> Term:
+        from aeon.synthesis.modules.llm.client import generate, llm_provider
+        from aeon.synthesis.modules.llm.ollama_manager import prepare_ollama_model, release_ollama_model
+
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 

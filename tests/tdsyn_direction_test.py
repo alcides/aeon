@@ -202,11 +202,16 @@ def test_backward_close_fails_without_matching_variable():
 def test_backward_close_matches_forward_close_candidates():
     # Closing the goal with an in-scope variable reads the same from both
     # directions, so the two ids share one candidate set.
+    from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches
+
+    clear_tdsyn_caches()
     ctx = _prelude_ctx().with_var(Name("b", 42), t_bool)
     _, typed_hole = fresh_hole(t_bool, ctx)
-    assert backward_close_candidates(typed_hole, lambda name: False) == forward_close_candidates(
-        typed_hole, lambda name: False
-    )
+
+    def skip(name: Name) -> bool:
+        return False
+
+    assert backward_close_candidates(typed_hole, skip) == forward_close_candidates(typed_hole, skip)
 
 
 def test_backward_app_applies_function_with_argument_subgoals():
