@@ -1,0 +1,17 @@
+# Reconstructed DACE benchmark 9.8
+# Category: spatial copy
+# The original Stack Overflow input was not published with the paper. This
+# runnable fixture reconstructs the category/operator shape from Fig. 19.
+# It is not a claim about the original spreadsheet.
+# Run: python -m aeon --no-main -s fta --budget 30 examples/synthesis/dace/reconstructed/c09_08.ae
+
+import Dace (Column, col_at)
+
+def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
+
+@example(fill 1 = 3)
+@example(fill 2 = 5)
+@example(fill 4 = 9)
+def fill (i: Int) : Int := ?hole;
+
+# Intended reconstruction shape: col_at(values, i)
