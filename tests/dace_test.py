@@ -7,6 +7,7 @@ by the FTA backend.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -14,6 +15,18 @@ import sys
 import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def test_reconstructed_catalog_has_84_entries():
+    manifest_path = os.path.join(REPO, "examples/synthesis/dace/reconstructed_manifest.json")
+    with open(manifest_path, encoding="utf-8") as manifest_file:
+        manifest = json.load(manifest_file)
+    assert manifest["total_tasks"] == 84
+    assert len(manifest["published_tasks"]) == 6
+    assert len(manifest["reconstructed_tasks"]) == 78
+    assert sum(manifest["paper_category_totals"].values()) == 84
+    for task in manifest["reconstructed_tasks"]:
+        assert os.path.isfile(os.path.join(REPO, task["file"]))
 
 
 def _run(args: list[str]) -> str:

@@ -47,3 +47,28 @@ def down_first_nonzero (c: Column) (k: Int) : Int :=
 # Example 2.4.
 def group_count (groups: Column) (i: Int) : Int :=
     native "sum(1 for g in groups if g == groups[i])";
+
+# Additional reconstruction vocabulary for the paper's category families.
+def mean_nonmissing (c: Column): Int :=
+    native "(sum(x for x in c if x != -999999) // sum(1 for x in c if x != -999999) if any(x != -999999 for x in c) else 0)";
+
+def max_nonmissing (c: Column): Int :=
+    native "max((x for x in c if x != -999999), default=0)";
+
+def min_nonmissing (c: Column): Int :=
+    native "min((x for x in c if x != -999999), default=0)";
+
+def sum_before (c: Column) (i: Int): Int :=
+    native "sum(x for x in c[:i] if x != -999999)";
+
+def count_nonmissing_before (c: Column) (i: Int): Int :=
+    native "sum(1 for x in c[:i] if x != -999999)";
+
+def max_previous (c: Column) (i: Int) : Int :=
+    native "max((x for x in c[max(0, i - 5):i] if x != -999999), default=0)";
+
+def interpolate (c: Column) (i: Int): Int :=
+    native "((next_nonmissing(c, i) + prev_nonmissing(c, i)) // 2 if prev_nonmissing(c, i) != -999999 and next_nonmissing(c, i) != -999999 else (prev_nonmissing(c, i) if prev_nonmissing(c, i) != -999999 else next_nonmissing(c, i)))";
+
+def extrapolate (c: Column) (i: Int): Int :=
+    native "(next_nonmissing(c, i) + (next_nonmissing(c, i) - next_nonmissing(c, i + 1)) if next_nonmissing(c, i) != -999999 and next_nonmissing(c, i + 1) != -999999 else (prev_nonmissing(c, i) + (prev_nonmissing(c, i) - prev_nonmissing(c, i - 2)) if prev_nonmissing(c, i) != -999999 and prev_nonmissing(c, i - 2) != -999999 else 0))";

@@ -1,0 +1,16 @@
+# Reconstructed DACE benchmark 1.18
+# Category: sum previous value and constant
+# The original Stack Overflow input was not published with the paper. This
+# runnable fixture reconstructs the category/operator shape from Fig. 19.
+# It is not a claim about the original spreadsheet.
+# Run: python -m aeon --no-main -s fta --budget 30 examples/synthesis/dace/reconstructed/c01_18.ae
+
+import Dace (Column, prev_nonmissing)
+
+def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
+
+@example(fill 3 = 7)
+@example(fill 6 = 14)
+def fill (i: Int) : Int := ?hole;
+
+# Intended reconstruction shape: prev_nonmissing(values, i) + 2
