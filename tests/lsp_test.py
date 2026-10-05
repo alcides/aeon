@@ -357,10 +357,6 @@ def test_code_action_commands_have_correct_arguments():
 # ---------------------------------------------------------------------------
 
 
-class _FakeOllamaResponse:
-    response = ""
-
-
 @pytest.mark.parametrize("synthesizer", SYNTHESIZERS)
 def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
     source = "def synth : Int := ?hole;"
@@ -368,9 +364,19 @@ def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
     driver = make_driver()
 
     if synthesizer.startswith("llm"):
-        monkeypatch.setattr("aeon.synthesis.modules.llm.prepare_ollama_model", lambda _model: None)
-        monkeypatch.setattr("aeon.synthesis.modules.llm.release_ollama_model", lambda _model: None)
-        monkeypatch.setattr("ollama.generate", lambda **kwargs: _FakeOllamaResponse())
+        # Patch the lazy-loading seams so no LLM extra or server is required.
+        monkeypatch.setattr(
+            "aeon.synthesis.modules.llm.ollama_manager.prepare_ollama_model",
+            lambda _model: None,
+        )
+        monkeypatch.setattr(
+            "aeon.synthesis.modules.llm.ollama_manager.release_ollama_model",
+            lambda _model: None,
+        )
+        monkeypatch.setattr(
+            "aeon.synthesis.modules.llm.client.generate",
+            lambda **kwargs: "0",
+        )
 
     # Any backend may return None: missing spec (decision_tree, sygus, …), blank
     # LLM mock, or GE search that finds no type-correct candidate in budget.

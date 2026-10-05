@@ -19,15 +19,25 @@ def default_openai_model() -> str:
     return os.environ.get("AEON_LLM_MODEL", "gpt-4o-mini")
 
 
-def generate(*, model: str, prompt: str, temperature: float, provider: str | None = None) -> str:
-    backend = provider or llm_provider()
-    if backend == "openai":
-        from aeon.synthesis.modules.llm.openai_client import generate as openai_generate
+def _openai_generate(model: str, prompt: str, *, temperature: float) -> str:
+    """Call the OpenAI-compatible backend. Module-level seam so tests can patch it."""
+    from aeon.synthesis.modules.llm.openai_client import generate as openai_generate
 
-        return openai_generate(model, prompt, temperature=temperature)
+    return openai_generate(model, prompt, temperature=temperature)
+
+
+def _ollama_generate(*, model: str, prompt: str, temperature: float) -> str:
+    """Call the Ollama backend (lazy import: ``ollama`` is an optional extra)."""
     try:
         from ollama import generate as ollama_generate
     except ImportError as e:
         raise ImportError("Ollama backend requires the optional 'llm' extra: pip install 'AeonLang[llm]'") from e
     result = ollama_generate(model=model, prompt=prompt, options={"temperature": temperature})
     return result.response
+
+
+def generate(*, model: str, prompt: str, temperature: float, provider: str | None = None) -> str:
+    backend = provider or llm_provider()
+    if backend == "openai":
+        return _openai_generate(model, prompt, temperature=temperature)
+    return _ollama_generate(model=model, prompt=prompt, temperature=temperature)

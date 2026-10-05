@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import types
-
 import aeon.synthesis.modules.llm.client as client
 
 
@@ -35,10 +33,10 @@ def test_generate_uses_openai_backend(monkeypatch):
         called["temperature"] = temperature
         return "from-openai"
 
-    monkeypatch.setattr(client, "openai_generate", fake_openai)
+    monkeypatch.setattr(client, "_openai_generate", fake_openai)
     monkeypatch.setattr(
         client,
-        "ollama_generate",
+        "_ollama_generate",
         lambda **_kwargs: (_ for _ in ()).throw(AssertionError("should not call ollama")),
     )
 
@@ -51,13 +49,13 @@ def test_generate_uses_openai_backend(monkeypatch):
 def test_generate_uses_ollama_backend(monkeypatch):
     monkeypatch.setenv("AEON_LLM_PROVIDER", "ollama")
 
-    def fake_ollama(**kwargs):
-        return types.SimpleNamespace(response="from-ollama")
+    def fake_ollama(*, model, prompt, temperature):
+        return "from-ollama"
 
-    monkeypatch.setattr(client, "ollama_generate", fake_ollama)
+    monkeypatch.setattr(client, "_ollama_generate", fake_ollama)
     monkeypatch.setattr(
         client,
-        "openai_generate",
+        "_openai_generate",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not call openai")),
     )
 
