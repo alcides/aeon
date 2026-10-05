@@ -35,6 +35,10 @@ jobs:
       - name: Check install
         run: |
           uv pip install --system -e ".[dev]"
+      - name: Install optional synthesis extras (OR-Tools, CPU-only torch)
+        run: |
+          uv pip install --system -e ".[synthesis-ortools]"
+          uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu
       - name: Test with pytest
         run: |
           pytest
