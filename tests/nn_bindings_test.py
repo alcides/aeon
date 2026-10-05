@@ -29,7 +29,6 @@ from aeon.bindings.nn import (  # noqa: E402
     NN_make_layer,
     NN_net_in,
     NN_net_out,
-    NN_predict,
     NN_predict_batch,
     NN_predict_scalar,
     NN_sequential,
@@ -226,7 +225,9 @@ def test_train_ce_epochs_learns_separable_data():
     torch.manual_seed(0)
     np.random.seed(0)
     # Linearly separable: class = 1 iff x0 > 0.
-    X = np.array([[1.0, 0.2], [2.0, -0.3], [1.5, 0.1], [0.8, -0.2], [-1.0, 0.3], [-2.0, -0.1], [-1.5, 0.2], [-0.7, 0.0]])
+    X = np.array(
+        [[1.0, 0.2], [2.0, -0.3], [1.5, 0.1], [0.8, -0.2], [-1.0, 0.3], [-2.0, -0.1], [-1.5, 0.2], [-0.7, 0.0]]
+    )
     y = np.array([1, 1, 1, 1, 0, 0, 0, 0])
     net = NN_build_mlp([2, 8, 2], ["relu", "linear"])
     trained = NN_train_ce_epochs(net, X, y, epochs=60, lr=0.05, batch_size=4)
