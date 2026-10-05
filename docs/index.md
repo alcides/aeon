@@ -65,6 +65,32 @@ The list below covers the ideas you'll meet first, with just enough context to g
 | **Entry point** | A function `main` returning `Unit` is the program's entry point. Side effects come from primitives like `print` or through the FFI. |
 | **Python FFI** | Aeon is implemented as a Python interpreter, so it ships with a direct bridge to Python: `native "expr"` evaluates a Python expression, and `native_import "module"` pulls in a Python module (numpy, sklearn, etc.). The bridge is not statically type-checked, so an incorrect annotation surfaces at runtime. |
 
+### Runtime verification
+
+Aeon normally checks refinement types statically with the SMT solver. Runtime
+verification is an opt-in safety net for values crossing trusted boundaries,
+especially `native` expressions and Python FFI code:
+
+```bash
+uv run python -m aeon --runtime-verification program.ae
+```
+
+When enabled, Aeon checks refined function arguments and results as the program
+runs. A violation raises `ContractViolationError` and reports whether the
+caller supplied an invalid argument or the callee returned an invalid result.
+This is useful for native implementations whose bodies Aeon cannot type-check,
+and for catching mismatches in an FFI annotation.
+
+Runtime verification does not replace static verification or prove arbitrary
+code: it checks only executions that actually occur, and it adds execution
+overhead. It is disabled by default. The old `--contracts` spelling remains
+accepted as a compatibility alias, but new scripts should use
+`--runtime-verification`.
+
+Predicates marked `uninterpreted` remain abstract; runtime verification cannot
+evaluate such predicates and therefore does not turn them into executable
+runtime checks.
+
 ## The Aeon interpreter
 
 Aeon is implemented as an interpreter written in Python. Despite being slow, it allows us to design [FFI interfaces](#FFI) with Python, supporting the vast ecosystem that Python offers (from numpy to sklearn or tensorflow).

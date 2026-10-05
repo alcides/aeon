@@ -118,9 +118,16 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument(
-        "--contracts",
+        "--runtime-verification",
         action="store_true",
-        help="Check argument and result refinements at run time (gradual verification; off by default).",
+        help="Check argument and result refinements at run time (opt-in; useful at native/FFI boundaries).",
+    )
+    # Compatibility alias for scripts using the former CLI spelling.
+    parser.add_argument(
+        "--contracts",
+        dest="runtime_verification",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
 
     parser.add_argument(
@@ -368,7 +375,7 @@ def main() -> None:
         no_main=(args.no_main or bool(getattr(args, "export", None))) and not run_tests,
         synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
         strict_decidable=getattr(args, "strict_decidable", False),
-        contracts=getattr(args, "contracts", False),
+        contracts=getattr(args, "runtime_verification", False),
     )
     driver = AeonDriver(cfg)
 
