@@ -101,7 +101,7 @@ def pow (i:Int) (j:{v:Int | v >= 0}) : Int := native "i ** j"
 
 both `i` and `j` are simply the Python values bound to the formal parameters at runtime. Aeon parameter names become Python identifiers — no marshalling, no wrappers.
 
-The return type of `native` is whatever you declare. Aeon **does not check it**: the prelude gives `native` the refinement `{x:a | false}`, which means the solver cannot derive anything from it, but it also means *you* are asserting the Python expression really returns a value of type `a`. A wrong annotation manifests as a runtime crash (or worse, a silent type confusion).
+The return type of `native` is whatever you declare. Aeon **does not check it statically**: the prelude gives `native` the refinement `{x:a | false}`, which means the solver cannot derive anything from it, but it also means *you* are asserting the Python expression really returns a value of type `a`. Run with `--runtime-verification` to check refined arguments and results at runtime and catch mismatches at this boundary. This checks executed calls only and adds overhead; it does not replace static verification. The former `--contracts` flag remains available as a compatibility alias.
 
 ### When to inline Python vs. when to call into a helper
 
