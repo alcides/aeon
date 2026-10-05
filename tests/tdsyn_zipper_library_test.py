@@ -97,6 +97,43 @@ def test_component_library_honors_lexical_shadowing():
     assert "Arch_ctor_rest" not in returning
 
 
+def test_component_library_cache_evicted_when_context_collected():
+    """A dead context's cache entry must not survive to poison a later context
+    that reuses the same ``id()`` (regression: backward_close found no
+    candidates when a stale library hid in-scope variables)."""
+    import gc
+
+    from aeon.synthesis.modules.tdsyn.library import _library_cache
+
+    ctx = TypingContext().with_var(Name("n", 0), t_int)
+    get_component_library(ctx, lambda _: False)
+    key = id(ctx)
+    assert key in _library_cache
+    del ctx
+    gc.collect()
+    assert key not in _library_cache
+
+
+def test_subtype_cache_evicted_when_context_collected():
+    import gc
+
+    from aeon.synthesis.modules.tdsyn.helpers import _subtype_cache, is_subtype
+
+    from aeon.core.liquid import LiquidLiteralBool
+    from aeon.core.types import RefinedType, t_int as int_ty
+
+    ctx = TypingContext().with_var(Name("n", 0), t_int)
+    # Populate the cache with a non-trivial pair (equal types and mismatched
+    # bases short-circuit before caching).
+    refined_int = RefinedType(Name("v", 0), int_ty, LiquidLiteralBool(True))
+    is_subtype(ctx, refined_int, t_int)
+    key = id(ctx)
+    assert key in _subtype_cache
+    del ctx
+    gc.collect()
+    assert key not in _subtype_cache
+
+
 def test_monomorphize_numeric_ops_skip_adt_types():
     from aeon.core.types import AbstractionType, Kind, TypeConstructor, TypePolymorphism, TypeVar
     from aeon.synthesis.modules.tdsyn.helpers import base_type_of, get_return_type, monomorphize

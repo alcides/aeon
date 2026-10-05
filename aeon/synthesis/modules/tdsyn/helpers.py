@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import weakref
 from typing import Callable
 
 from aeon.core.instantiation import type_substitution
@@ -43,9 +44,12 @@ def _trivial_true_predicate() -> Abstraction:
     return Abstraction(y, Literal(True, t_bool, _loc), _loc)
 
 
-# Subtype results are stable for a given TypingContext object identity. Cleared
-# at the start of each native synthesis run via :func:`clear_tdsyn_caches`.
-_subtype_cache: dict[tuple[int, str, str], bool] = {}
+# Subtype results are stable for a given TypingContext object identity. Keyed
+# by ``id(ctx)`` with a ``weakref.finalize`` hook that evicts the per-context
+# bucket when the context is garbage collected, so a later context reusing the
+# same address can never observe stale results. Also cleared at the start of
+# each native synthesis run via :func:`clear_tdsyn_caches`.
+_subtype_cache: dict[int, dict[tuple[str, str], bool]] = {}
 
 
 def clear_tdsyn_caches() -> None:
@@ -69,13 +73,19 @@ def is_subtype(ctx: TypingContext, t1: Type, t2: Type) -> bool:
     if b1 is not None and b2 is not None and b1.name.name != b2.name.name:
         return False
 
-    key = (id(ctx), repr(t1), repr(t2))
-    cached = _subtype_cache.get(key)
+    ctx_key = id(ctx)
+    bucket = _subtype_cache.get(ctx_key)
+    if bucket is None:
+        bucket = {}
+        _subtype_cache[ctx_key] = bucket
+        weakref.finalize(ctx, _subtype_cache.pop, ctx_key, None)
+    key = (repr(t1), repr(t2))
+    cached = bucket.get(key)
     if cached is not None:
         return cached
     constraint = sub(ctx, t1, t2)
     result = entailment(ctx, constraint)
-    _subtype_cache[key] = result
+    bucket[key] = result
     return result
 
 
