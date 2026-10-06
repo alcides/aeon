@@ -23,7 +23,9 @@ class Program:
     def check(self) -> list[Any]:
         return list(self.errors)
 
-    def synthesize(self, backend: str = "gp", budget: int = 60, ui: SynthesisUI | None = None) -> "Program":
+    def synthesize(
+        self, backend: str = "tdsyn_enumerative", budget: int = 60, ui: SynthesisUI | None = None
+    ) -> "Program":
         if not self.errors and self._driver.has_synth():
             self._driver.cfg.synthesizer = backend
             self._driver.cfg.synthesis_budget = budget
@@ -55,7 +57,7 @@ def parse(
         source = source.read_text(encoding="utf-8")
     driver = AeonDriver(
         AeonConfig(
-            synthesizer="gp",
+            synthesizer="tdsyn_enumerative",
             synthesis_ui=SilentSynthesisUI(),
             synthesis_budget=60,
             no_main=no_main,
@@ -72,7 +74,7 @@ def check(source: str | Path, **options: Any) -> list[Any]:
     return parse(source, **options).check()
 
 
-def synthesize(source: str | Path, *, backend: str = "gp", budget: int = 60, **options: Any) -> Program:
+def synthesize(source: str | Path, *, backend: str = "tdsyn_enumerative", budget: int = 60, **options: Any) -> Program:
     return parse(source, **options).synthesize(backend=backend, budget=budget)
 
 

@@ -22,10 +22,12 @@ fi
 # Worker that runs a single example. Kept self-contained (rather than an
 # exported function) so it survives across differing bash versions invoked by
 # xargs. A complete line is printed at once so parallel output doesn't interleave.
+# The image examples (examples/image, examples/synthesis/image_edits) rely on
+# the optional [image] extra (pillow, scikit-image), so sync it into the env.
 read -r -d '' RUN_ONE <<'EOF' || true
 f="$1"
 RESULT=0
-uv run python -m aeon --no-main --budget 10 "$f" > /dev/null 2>&1 || RESULT=$?
+uv run --extra image python -m aeon --no-main --budget 10 "$f" > /dev/null 2>&1 || RESULT=$?
 if [ "$RESULT" -eq 0 ]; then
     printf "Running %s ...(success)\n" "$f"
 elif [ "$RESULT" -eq 2 ]; then
@@ -56,7 +58,7 @@ fi
 for entry in examples/pbt/props_*.ae examples/pbt/examples_*.ae examples/testing/*.ae
 do
     printf "Running (pbt) %s ..." "$entry"
-    if uv run python -m aeon --test "$entry" > /dev/null 2>&1; then
+    if uv run --extra image python -m aeon --test "$entry" > /dev/null 2>&1; then
         printf "(success)\n"
     else
         printf "(failed)\n"

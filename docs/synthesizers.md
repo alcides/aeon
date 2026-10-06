@@ -3,16 +3,16 @@
 Aeon supports automatic synthesis of program holes (`?hole`). When a hole is present, a synthesizer searches for an expression of the correct type that satisfies all refinement constraints. The synthesizer is chosen with the `-s` / `--synthesizer` flag:
 
 ```
-uv run python -m aeon --budget 30 -s gp my_program.ae
+uv run python -m aeon --budget 30 -s tdsyn_enumerative my_program.ae
 ```
 
-The `--budget` flag sets the time limit in seconds (default: 60).
+The `--budget` flag sets the time limit in seconds (default: 60). The default synthesizer is **`tdsyn_enumerative`** (type-directed BFS); pass `-s gp` (or another id) to override.
 
 ---
 
 ## Available Synthesizers
 
-### `gp` — Genetic Programming *(default)*
+### `gp` — Genetic Programming
 
 Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
 
@@ -90,7 +90,7 @@ Requires Ollama to be running locally. Use the `@prompt` decorator to provide a 
 
 ---
 
-### `tdsyn` / `tdsyn_enumerative` — Type-Directed Synthesis (BFS)
+### `tdsyn` / `tdsyn_enumerative` — Type-Directed Synthesis (BFS) *(default)*
 
 Top-down, type-directed synthesizer that grows a partial AST by applying **backward** and **forward** actions to each open hole. Subtyping queries are discharged by an SMT solver, and when every remaining hole is a base-type leaf the synthesizer asks z3 to solve them all in one shot.
 

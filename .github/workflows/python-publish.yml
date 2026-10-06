@@ -1,16 +1,12 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+# Upload a release to PyPI after a full test gate.
+#
+# Publishes only on version tags (``v*``) or manual workflow_dispatch.
 
 name: Upload Python Package
 
 on:
   push:
-    tags: ["*"]
+    tags: ["v*"]
   workflow_dispatch:
 
 
@@ -19,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -29,21 +25,43 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
           cache-dependency-glob: |
-            **/requirements*.txt
             **/pyproject.toml
       - name: Create venv
         run: |
           uv venv
-      - name: Install dependencies
+      - name: Install package with test extras
         run: |
-          if [ -f requirements.txt ]; then uv pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then uv pip install -r requirements-dev.txt; fi
-      - name: Check install
+          uv pip install -e ".[dev]"
+      - name: Lint with pre-commit
         run: |
-          uv pip install  -e .
-      - name: Build package
-        run: uv build
+          uvx pre-commit run --all-files
+      - name: Test with pytest
+        run: |
+          uv run pytest
       - name: Verify dependency metadata
-        run: uv run --with pytest pytest tests/package_dependencies_test.py
+        run: |
+          uv run pytest tests/package_dependencies_test.py
+      - name: Build package
+        run: |
+          uv build
+
+  publish:
+    needs: tests
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+      - name: Create venv and build
+        run: |
+          uv venv
+          uv pip install -e ".[tests]"
+          uv build
       - name: Publish
         run: uv publish -t ${{ secrets.PYPI_API_TOKEN }}

@@ -7,6 +7,7 @@ and close tactics become map lookups instead of full-context scans.
 
 from __future__ import annotations
 
+import weakref
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
@@ -119,10 +120,13 @@ def get_component_library(
 ) -> ComponentLibrary:
     """Return (and memoize) the indexed library for ``ctx``.
 
-    Cached by ``id(ctx)`` only. ``skip`` must stay stable for the lifetime of
-    the cache entry — synthesis runs call :func:`clear_component_library_cache`
-    (via ``clear_tdsyn_caches``) before search so a fresh skip is always used.
-    Keying on ``id(skip)`` caused flaky unit tests when GC reused addresses.
+    Cached by ``id(ctx)``, with a :func:`weakref.finalize` hook that evicts the
+    entry when ``ctx`` is garbage collected — otherwise a later context reusing
+    the same address would silently receive a stale library (observed as
+    order-dependent test failures). ``skip`` must stay stable for the lifetime
+    of the cache entry — synthesis runs call
+    :func:`clear_component_library_cache` (via ``clear_tdsyn_caches``) before
+    search so a fresh skip is always used.
     """
     key = id(ctx)
     cached = _library_cache.get(key)
@@ -130,6 +134,7 @@ def get_component_library(
         return cached
     library = _build_library(ctx, skip)
     _library_cache[key] = library
+    weakref.finalize(ctx, _library_cache.pop, key, None)
     return library
 
 

@@ -12,6 +12,17 @@ def _running(name: str, vram: int):
     return types.SimpleNamespace(model=name, name=name, size_vram=vram)
 
 
+def _fake_ollama(monkeypatch, **attrs):
+    """Patch the lazy ``_ollama()`` loader with a stub module.
+
+    ``ollama`` is an optional extra loaded on demand, so tests patch the
+    loader seam instead of a (possibly uninstalled) real module.
+    """
+    fake = types.SimpleNamespace(**attrs)
+    monkeypatch.setattr(mgr, "_ollama", lambda: fake)
+    return fake
+
+
 def test_pull_skips_when_model_installed(monkeypatch):
     monkeypatch.setattr(mgr, "_auto_pull_enabled", lambda: True)
     monkeypatch.setattr(mgr, "_installed_model_names", lambda: {"qwen2.5-coder:14b"})
@@ -21,7 +32,7 @@ def test_pull_skips_when_model_installed(monkeypatch):
         called["pull"] = True
         return iter([])
 
-    monkeypatch.setattr(mgr.ollama, "pull", fake_pull)
+    _fake_ollama(monkeypatch, pull=fake_pull)
     mgr.pull_model("qwen2.5-coder:14b")
     assert called["pull"] is False
 
@@ -36,7 +47,7 @@ def test_pull_downloads_missing_model(monkeypatch):
         yield types.SimpleNamespace(status="pulling manifest")
         yield types.SimpleNamespace(status="downloading", completed=50, total=100)
 
-    monkeypatch.setattr(mgr.ollama, "pull", fake_pull)
+    _fake_ollama(monkeypatch, pull=fake_pull)
     mgr.pull_model("deepseek-coder:6.7b")
 
 
@@ -103,11 +114,11 @@ def test_release_noop_when_disabled(monkeypatch):
 def test_installed_model_names_when_name_attr_missing(monkeypatch):
     """ollama-python list entries expose ``model`` but not ``name``."""
     entry = types.SimpleNamespace(model="qwen2.5-coder:14b")
-    monkeypatch.setattr(mgr.ollama, "list", lambda: types.SimpleNamespace(models=[entry]))
+    _fake_ollama(monkeypatch, list=lambda: types.SimpleNamespace(models=[entry]))
     assert mgr.is_model_installed("qwen2.5-coder:14b")
 
 
 def test_running_models_when_name_attr_missing(monkeypatch):
     entry = types.SimpleNamespace(model="codellama:13b", size_vram=8 * 1024**3)
-    monkeypatch.setattr(mgr.ollama, "ps", lambda: types.SimpleNamespace(models=[entry]))
+    _fake_ollama(monkeypatch, ps=lambda: types.SimpleNamespace(models=[entry]))
     assert mgr._running_models() == [mgr.RunningModel(name="codellama:13b", size_vram=8 * 1024**3)]
