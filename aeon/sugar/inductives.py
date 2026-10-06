@@ -203,7 +203,8 @@ def expand_inductive_decls(p: Program) -> Program:
                             return "Int"
 
                 # Register constructor groups for SMT distinctness assertions
-                from aeon.verification.constructor_registry import register_constructors
+                # and LH-style measures (``+ size`` → recursive Z3 definitions).
+                from aeon.verification.constructor_registry import register_constructors, register_measures
 
                 field_types: dict[str, list[str]] = {}
                 for constructor in constructors:
@@ -219,6 +220,16 @@ def expand_inductive_decls(p: Program) -> Program:
                     type_param_count=len(args),
                     field_types=field_types,
                 )
+                # Register both bare (``size``) and type-prefixed (``List_size``)
+                # so SMT lookup works before/after module prefixing.
+                measure_aliases: list[str] = []
+                for measure in measures:
+                    measure_aliases.append(measure.name.name)
+                    prefixed_m = f"{name.name}_{measure.name.name}"
+                    if prefixed_m not in measure_aliases:
+                        measure_aliases.append(prefixed_m)
+                if measure_aliases:
+                    register_measures(name.name, measure_aliases)
                 for constructor in constructors:
                     match constructor:
                         case Definition(cname, cforalls, cargs, crtype, _, cdecs, c_rf, c_decr, cloc):
