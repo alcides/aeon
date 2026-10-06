@@ -1,0 +1,17 @@
+# Reconstructed DACE benchmark 10.4
+# Category: sum a range
+# The original Stack Overflow input was not published with the paper. This
+# runnable fixture reconstructs the category/operator shape from Fig. 19.
+# It is not a claim about the original spreadsheet.
+# Run: python -m aeon --no-main -s fta --budget 30 examples/synthesis/dace/reconstructed/c10_04.ae
+
+import Dace (Column, sum_before)
+
+def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
+
+@example(fill 1 = 0)
+@example(fill 3 = 8)
+@example(fill 6 = 29)
+def fill (i: Int) : Int := ?hole;
+
+# Intended reconstruction shape: sum_before(values, i)

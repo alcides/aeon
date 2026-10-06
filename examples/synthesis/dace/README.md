@@ -9,12 +9,15 @@ reasoning, using finite tree automata as a compact version space.
 
 ## How the paper maps onto Aeon
 
-Two honest gaps shape this port:
+Two honest facts shape this port:
 
-1. **The benchmark suite is not reproducible verbatim.** DACE's 84 benchmarks
-   are spreadsheets scraped from online help forums (a supplementary artifact,
-   not listed in the paper). These files instead cover the **operation
-   categories** the paper describes, one runnable task each.
+1. **The original benchmark suite is not reproducible verbatim.** DACE's 84
+   inputs are spreadsheets scraped from online help forums. The paper reports
+   category counts and aggregate results, but does not publish the individual
+   Stack Overflow inputs. The six published motivating examples are kept under
+   `pbe/`; the 78 files under `reconstructed/` are an explicit, reproducible
+   reconstruction of the paper's category/operator shapes. They are not claims
+   about the missing original spreadsheets.
 2. **Spec mechanism.** DACE is programming-by-**example**; Aeon specifies by
    **refinement type**. So the two halves of this directory take the two
    faithful routes:
@@ -27,12 +30,37 @@ Two honest gaps shape this port:
      whose refinement is the completion formula over the (constant) input cells.
      This is the faithful rendering of *FTA synthesis* itself.
 
-The DSL lives in [`aeon/libraries/Table.ae`](../../../aeon/libraries/Table.ae): the
+The DSL lives in [`aeon/libraries/Dace.ae`](../../../aeon/libraries/Dace.ae) and
+[`aeon/libraries/Table.ae`](../../../aeon/libraries/Table.ae): the
 relational core (`select`, `filter`, `map_column`, `group_by`, `pivot`/`spread`,
 `melt`/`gather`, `summary`) was already present; this work added the spatial and
 aggregate operators DACE needs — `mutate`, `cell`, `nrow`/`ncol`, `sum_col`/
 `mean_col`/`max_col`/`min_col`/`count`, `arrange`, `head`, `cumsum` (running
 total), and `join` — and fixed a broken module path in `group_by`/`pivot`/`melt`.
+
+## Reconstructed 84-task catalog
+
+The machine-readable catalog is [`reconstructed_manifest.json`](reconstructed_manifest.json).
+It contains the six published examples plus 78 reconstructed tasks, for 84
+entries total. The category counts match Fig. 19 of the paper. Category 21 is
+recorded as intentionally outside the paper DSL, matching the paper's one
+unsolved benchmark category.
+
+Regenerate the reconstructed fixtures after changing their templates with:
+
+```bash
+python scripts/generate_dace_reconstruction.py
+```
+
+Each reconstructed task is runnable with the FTA backend:
+
+```bash
+uv run python -m aeon --no-main -s fta --budget 30 \
+  examples/synthesis/dace/reconstructed/c01_01.ae
+```
+
+The generated tasks are coverage fixtures for the paper's 21 operator families;
+they should not be used to reproduce the paper's reported success rate.
 
 ## Worked pipelines (run directly)
 

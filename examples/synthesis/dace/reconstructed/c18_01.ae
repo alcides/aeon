@@ -1,0 +1,17 @@
+# Reconstructed DACE benchmark 18.1
+# Category: integer concatenation surrogate
+# The original Stack Overflow input was not published with the paper. This
+# runnable fixture reconstructs the category/operator shape from Fig. 19.
+# It is not a claim about the original spreadsheet.
+# Run: python -m aeon --no-main -s fta --budget 30 examples/synthesis/dace/reconstructed/c18_01.ae
+
+import Dace (Column, col_at)
+
+def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
+
+@example(fill 1 = 31)
+@example(fill 2 = 52)
+@example(fill 4 = 94)
+def fill (i: Int) : Int := ?hole;
+
+# Intended reconstruction shape: col_at(values, i) * 10 + i
