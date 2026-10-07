@@ -48,6 +48,9 @@ The same machinery scales up: holes can appear inside functions, take arguments,
 
 The list below covers the ideas you'll meet first, with just enough context to get oriented.
 
+For the precise boundary between proved, dynamically checked, trusted, and
+unsupported claims, see [Soundness boundaries and the trusted computing base](soundness).
+
 | Concept | What it means in Aeon |
 |---|---|
 | **Refinement types** | Types can carry a logical predicate: `{x:Int \| x > 0}` is the type of positive integers. Preconditions and postconditions live in the type itself and are checked statically by an SMT solver. |
@@ -624,6 +627,9 @@ The generated [stdlib index](stdlib/) is the authoritative per-symbol catalogue 
 | -f, --logfile | Exports the log to a file                                              |
 | -n, --no-main | Disables introducing hole in main                                     |
 | --strict-decidable | Treats out-of-fragment refinements (nonlinear arithmetic, ...) as errors — see [The decidable fragment](#the-decidable-fragment) |
+| --runtime-verification | Checks supported parameter and result refinements at runtime; see [Soundness boundaries](soundness) |
+| --trust-report | Reports explicit axioms and refined native bindings in the trusted computing base |
+| --trust-for FUN_NAME | Restricts `--trust-report` to assumptions reachable from a function |
 | --test | Runs every `@property` and `@example` as a test and reports pass/fail        |
 | --seed | Random seed for `--test` input generation (reproducible for a fixed seed)    |
 | --doc  | Generates HTML documentation from the source file                            |
