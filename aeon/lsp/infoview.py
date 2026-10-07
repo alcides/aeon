@@ -539,9 +539,7 @@ def _build_errors(errors, cursor_line: int) -> list[ErrorInfo]:
             diagnostic = err.diagnostic()
             goal_str = _strip_ids(_pp_liquid(diagnostic.predicate)) if diagnostic.predicate is not None else None
             message = f"Failed to prove: {goal_str}" if goal_str else "Failed to prove refinement"
-            counterexample = (
-                _strip_ids(diagnostic.counterexample) if diagnostic.counterexample is not None else None
-            )
+            counterexample = _strip_ids(diagnostic.counterexample) if diagnostic.counterexample is not None else None
             try:
                 vc_steps = [VCStep(label=lbl, text=_strip_ids(txt)) for lbl, txt in vc_simplification_steps(err.vc)]
             except Exception:
