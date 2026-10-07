@@ -57,9 +57,9 @@ measure_rule : "+" ID args ":" type                        -> def_ind_cons
 // of the given (possibly dependent, refined) type without a proof. The type's
 // refinements are assumed; the body is never checked. Like Lean, axioms are
 // noncomputable (applying one yields an opaque proof token).
-def : soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
-    | soft_constraint "def" def_name  args ":" type decreasing_by_opt ":=" expression ";"?     -> def_fun_eq
-    | "axiom" def_name ":" type ";"?                                         -> axiom_decl
+def : visibility soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
+    | visibility soft_constraint "def" def_name  args ":" type decreasing_by_opt ":=" expression ";"?     -> def_fun_eq
+    | visibility "axiom" def_name ":" type ";"?                                         -> axiom_decl
     | instance_decl                                                          -> same
     | mutual_block                                                           -> same
 
@@ -77,6 +77,9 @@ def : soft_constraint "def" def_name ":" type ":=" expression ";"?              
 mutual_block : "mutual" mutual_def+ "end"                                    -> mutual_block
 mutual_def : soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
            | soft_constraint "def" def_name args ":" type decreasing_by_opt ":=" expression ";"?  -> def_fun_eq
+
+visibility : "private" -> private_visibility
+           |           -> public_visibility
 
 def_name : ID                                                -> same
          | QUALIFIED_ID                                      -> same

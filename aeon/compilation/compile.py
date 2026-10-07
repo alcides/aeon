@@ -382,6 +382,14 @@ def compile_program(
         return unit, type_errors
 
     exports = _exports_from_spine(core_ast, typing_ctx, prog.definitions, export_prefix, export_sugar_types)
+    if export_prefix is not None:
+        private_exports = {
+            _bare_name(export_prefix, definition.name.name)
+            for definition in prog.definitions
+            if definition.is_private
+        }
+        for bare in private_exports:
+            exports.pop(bare, None)
     exports.update(_exports_from_uninterpreted(typing_ctx, export_prefix))
 
     metadata: Metadata = {}

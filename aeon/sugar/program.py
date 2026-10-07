@@ -461,6 +461,9 @@ class Definition(Node):
     # Parallel to ``args``: True marks an instance-implicit parameter (typeclass
     # dictionary / Lean ``[C a]``). Empty tuple ⇔ no instance-implicit params.
     instance_flags: tuple[bool, ...] = field(default_factory=tuple)
+    # Lean-compatible visibility: private names remain available while their
+    # module is compiled but are omitted from its public interface.
+    is_private: bool = False
 
     def multiplicity_of(self, i: int) -> Multiplicity:
         if i < len(self.arg_multiplicities):

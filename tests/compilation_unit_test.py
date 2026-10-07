@@ -80,3 +80,12 @@ def main (u:Int) : Int := Data.List.zero;
     driver = AeonDriver(cfg)
     assert driver.parse(aeon_code=source, filename="<namespace>") == []
     assert driver.run() == 0
+
+
+def test_private_definition_is_not_exported(tmp_path):
+    lib = tmp_path / "Secrets.ae"
+    lib.write_text("private def secret : Int := 7;\ndef public : Int := secret;\n")
+    unit, errors = compile_file(str(lib), is_main=False, write_cache=False)
+    assert errors == []
+    assert "public" in unit.exports
+    assert "secret" not in unit.exports

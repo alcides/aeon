@@ -269,6 +269,7 @@ def _bind_definition(
         mutual_group_id=df.mutual_group_id,
         arg_multiplicities=df.arg_multiplicities,
         instance_flags=df.instance_flags,
+        is_private=df.is_private,
     ), nsubs
 
 

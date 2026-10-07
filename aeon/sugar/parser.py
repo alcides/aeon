@@ -787,15 +787,27 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def def_cons(self, meta, args):
+        is_private = bool(args.pop(0)) if args and isinstance(args[0], bool) else False
         if len(args) == 3:
-            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta))
+            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta), is_private=is_private)
         else:
             decorators = args[0]
-            return Definition(Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta))
+            return Definition(
+                Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta), is_private=is_private
+            )
 
     @v_args(meta=True)
     def def_fun_eq(self, meta, args):
-        return self.def_fun(meta, args)
+        is_private = bool(args.pop(0)) if args and isinstance(args[0], bool) else False
+        definition = self.def_fun(meta, args)
+        definition.is_private = is_private
+        return definition
+
+    def private_visibility(self, args):
+        return True
+
+    def public_visibility(self, args):
+        return False
 
     @v_args(meta=True)
     def axiom_decl(self, meta, args):
@@ -806,7 +818,7 @@ class TreeToSugar(Transformer):
         # by application, ghost-lemma style). The body is a trusted ``native``
         # token: never checked against the refinement, and — like a Lean axiom
         # — not meant to be computed (applying it yields an opaque value).
-        name, ty = args[0], args[1]
+        is_private, name, ty = args
         loc = self._loc(meta)
         foralls: list = []
         rforalls: list = []
@@ -839,6 +851,7 @@ class TreeToSugar(Transformer):
             arg_multiplicities=tuple(mults),
             instance_flags=tuple(flags),
             loc=loc,
+            is_private=is_private,
         )
 
     def macros(self, args):
