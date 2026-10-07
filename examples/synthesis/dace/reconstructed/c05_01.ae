@@ -1,16 +1,16 @@
 # Reconstructed DACE benchmark 5.1
-# Category: sum previous value and constant
+# Category: group aggregate over a key column
 # The original Stack Overflow input was not published with the paper. This
 # runnable fixture reconstructs the category/operator shape from Fig. 19.
 # It is not a claim about the original spreadsheet.
 # Run: python -m aeon --no-main -s fta --budget 30 examples/synthesis/dace/reconstructed/c05_01.ae
 
-import Dace (Column, prev_nonmissing)
+import Dace (Column, group_count)
 
 def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
-
-@example(fill 3 = 7)
-@example(fill 6 = 14)
+def groups : Column := native "[1, 1, 2, 2, 2, 3, 1]";
+@example(fill 2 = 3)
+@example(fill 5 = 1)
 def fill (i: Int) : Int := ?hole;
 
-# Intended reconstruction shape: prev_nonmissing(values, i) + 2
+# Intended reconstruction shape: group_count(groups, i)

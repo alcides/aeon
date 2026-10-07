@@ -1,11 +1,14 @@
 # DACE Fig. 1: complete a cell with the difference between the last and first
 # values in its row. The original paper calls this MINUS(?1, ?2).
+# Row values vary so the examples force the two-cell subtraction rather than a
+# constant-valued expression.
 
 import Dace (Column, col_at)
 
-def first : Column := native "[4, 4, 4]";
-def last : Column := native "[15, 15, 15]";
+def first : Column := native "[4, 7, 2]";
+def last : Column := native "[15, 9, 10]";
 
-@example(fill 2 = 11)
-@example(fill 1 = 11)
+@example(fill 0 = 11)
+@example(fill 1 = 2)
+@example(fill 2 = 8)
 def fill (i: Int) : Int := ?hole;

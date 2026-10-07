@@ -1,17 +1,16 @@
 # Reconstructed DACE benchmark 3.2
-# Category: copy a related cell
+# Category: copy the previous value with the same key
 # The original Stack Overflow input was not published with the paper. This
 # runnable fixture reconstructs the category/operator shape from Fig. 19.
 # It is not a claim about the original spreadsheet.
 # Run: python -m aeon --no-main -s fta --budget 30 examples/synthesis/dace/reconstructed/c03_02.ae
 
-import Dace (Column, col_at)
+import Dace (Column, prev_sameid)
 
 def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
-
-@example(fill 1 = 3)
-@example(fill 2 = 5)
-@example(fill 4 = 9)
+def ids : Column := native "[1, 2, 1, 2, 1, 2, 2]";
+@example(fill 3 = 3)
+@example(fill 6 = 12)
 def fill (i: Int) : Int := ?hole;
 
-# Intended reconstruction shape: col_at(values, i)
+# Intended reconstruction shape: prev_sameid(ids, values, i)

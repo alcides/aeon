@@ -1,18 +1,70 @@
 {
   "suite": "DACE-inspired reconstruction",
   "total_tasks": 84,
+  "group_totals": {
+    "imputation": 46,
+    "spreadsheet": 32,
+    "relational": 6
+  },
+  "summary": {
+    "total_tasks": 84,
+    "published": 6,
+    "reconstructed_expressible": 77,
+    "reconstructed_not_expressible": 1,
+    "expressible_total": 83,
+    "not_expressible_tasks": [
+      "21.1"
+    ]
+  },
   "published_tasks": [
-    "pbe/locf.ae",
-    "pbe/prev_sameid.ae",
-    "pbe/turns.ae",
-    "pbe/group_count.ae",
-    "pbe/fallback.ae",
-    "pbe/delta.ae"
+    {
+      "file": "examples/synthesis/dace/pbe/locf.ae",
+      "category": 1,
+      "group": "imputation",
+      "description": "Example 2.1: previous non-missing value plus a constant",
+      "status": "published"
+    },
+    {
+      "file": "examples/synthesis/dace/pbe/prev_sameid.ae",
+      "category": 3,
+      "group": "relational",
+      "description": "Example 2.2: previous value with the same id (relational)",
+      "status": "published"
+    },
+    {
+      "file": "examples/synthesis/dace/pbe/turns.ae",
+      "category": 9,
+      "group": "spreadsheet",
+      "description": "Example 2.3: up to value 1, then down to first non-zero",
+      "status": "published"
+    },
+    {
+      "file": "examples/synthesis/dace/pbe/group_count.ae",
+      "category": 5,
+      "group": "relational",
+      "description": "Example 2.4: COUNT of the row's group (relational)",
+      "status": "published"
+    },
+    {
+      "file": "examples/synthesis/dace/pbe/fallback.ae",
+      "category": 4,
+      "group": "imputation",
+      "description": "Example 2.5: previous non-missing else next (conditional)",
+      "status": "published"
+    },
+    {
+      "file": "examples/synthesis/dace/pbe/delta.ae",
+      "category": 13,
+      "group": "spreadsheet",
+      "description": "Fig. 1: difference between two cells (MINUS)",
+      "status": "published"
+    }
   ],
   "reconstructed_tasks": [
     {
       "id": "1.1",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_01.ae",
       "status": "reconstructed"
@@ -20,6 +72,7 @@
     {
       "id": "1.2",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_02.ae",
       "status": "reconstructed"
@@ -27,6 +80,7 @@
     {
       "id": "1.3",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_03.ae",
       "status": "reconstructed"
@@ -34,6 +88,7 @@
     {
       "id": "1.4",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_04.ae",
       "status": "reconstructed"
@@ -41,6 +96,7 @@
     {
       "id": "1.5",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_05.ae",
       "status": "reconstructed"
@@ -48,6 +104,7 @@
     {
       "id": "1.6",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_06.ae",
       "status": "reconstructed"
@@ -55,6 +112,7 @@
     {
       "id": "1.7",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_07.ae",
       "status": "reconstructed"
@@ -62,6 +120,7 @@
     {
       "id": "1.8",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_08.ae",
       "status": "reconstructed"
@@ -69,6 +128,7 @@
     {
       "id": "1.9",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_09.ae",
       "status": "reconstructed"
@@ -76,6 +136,7 @@
     {
       "id": "1.10",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_10.ae",
       "status": "reconstructed"
@@ -83,6 +144,7 @@
     {
       "id": "1.11",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_11.ae",
       "status": "reconstructed"
@@ -90,6 +152,7 @@
     {
       "id": "1.12",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_12.ae",
       "status": "reconstructed"
@@ -97,6 +160,7 @@
     {
       "id": "1.13",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_13.ae",
       "status": "reconstructed"
@@ -104,6 +168,7 @@
     {
       "id": "1.14",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_14.ae",
       "status": "reconstructed"
@@ -111,6 +176,7 @@
     {
       "id": "1.15",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_15.ae",
       "status": "reconstructed"
@@ -118,6 +184,7 @@
     {
       "id": "1.16",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_16.ae",
       "status": "reconstructed"
@@ -125,6 +192,7 @@
     {
       "id": "1.17",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_17.ae",
       "status": "reconstructed"
@@ -132,6 +200,7 @@
     {
       "id": "1.18",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_18.ae",
       "status": "reconstructed"
@@ -139,6 +208,7 @@
     {
       "id": "1.19",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_19.ae",
       "status": "reconstructed"
@@ -146,6 +216,7 @@
     {
       "id": "1.20",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_20.ae",
       "status": "reconstructed"
@@ -153,6 +224,7 @@
     {
       "id": "1.21",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_21.ae",
       "status": "reconstructed"
@@ -160,6 +232,7 @@
     {
       "id": "1.22",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_22.ae",
       "status": "reconstructed"
@@ -167,6 +240,7 @@
     {
       "id": "1.23",
       "category": 1,
+      "group": "imputation",
       "description": "sum previous value and constant",
       "file": "examples/synthesis/dace/reconstructed/c01_23.ae",
       "status": "reconstructed"
@@ -174,6 +248,7 @@
     {
       "id": "2.1",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_01.ae",
       "status": "reconstructed"
@@ -181,6 +256,7 @@
     {
       "id": "2.2",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_02.ae",
       "status": "reconstructed"
@@ -188,6 +264,7 @@
     {
       "id": "2.3",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_03.ae",
       "status": "reconstructed"
@@ -195,6 +272,7 @@
     {
       "id": "2.4",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_04.ae",
       "status": "reconstructed"
@@ -202,6 +280,7 @@
     {
       "id": "2.5",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_05.ae",
       "status": "reconstructed"
@@ -209,6 +288,7 @@
     {
       "id": "2.6",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_06.ae",
       "status": "reconstructed"
@@ -216,6 +296,7 @@
     {
       "id": "2.7",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_07.ae",
       "status": "reconstructed"
@@ -223,27 +304,39 @@
     {
       "id": "2.8",
       "category": 2,
+      "group": "imputation",
       "description": "copy previous or next value",
       "file": "examples/synthesis/dace/reconstructed/c02_08.ae",
       "status": "reconstructed"
     },
     {
+      "id": "2.9",
+      "category": 2,
+      "group": "imputation",
+      "description": "copy previous or next value",
+      "file": "examples/synthesis/dace/reconstructed/c02_09.ae",
+      "status": "reconstructed"
+    },
+    {
       "id": "3.1",
       "category": 3,
-      "description": "copy a related cell",
+      "group": "relational",
+      "description": "copy the previous value with the same key",
       "file": "examples/synthesis/dace/reconstructed/c03_01.ae",
       "status": "reconstructed"
     },
     {
       "id": "3.2",
       "category": 3,
-      "description": "copy a related cell",
+      "group": "relational",
+      "description": "copy the previous value with the same key",
       "file": "examples/synthesis/dace/reconstructed/c03_02.ae",
       "status": "reconstructed"
     },
     {
       "id": "4.1",
       "category": 4,
+      "group": "imputation",
       "description": "conditional copy",
       "file": "examples/synthesis/dace/reconstructed/c04_01.ae",
       "status": "reconstructed"
@@ -251,20 +344,23 @@
     {
       "id": "5.1",
       "category": 5,
-      "description": "sum previous value and constant",
+      "group": "relational",
+      "description": "group aggregate over a key column",
       "file": "examples/synthesis/dace/reconstructed/c05_01.ae",
       "status": "reconstructed"
     },
     {
       "id": "5.2",
       "category": 5,
-      "description": "sum previous value and constant",
+      "group": "relational",
+      "description": "group aggregate over a key column",
       "file": "examples/synthesis/dace/reconstructed/c05_02.ae",
       "status": "reconstructed"
     },
     {
       "id": "6.1",
       "category": 6,
+      "group": "imputation",
       "description": "average non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c06_01.ae",
       "status": "reconstructed"
@@ -272,6 +368,7 @@
     {
       "id": "6.2",
       "category": 6,
+      "group": "imputation",
       "description": "average non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c06_02.ae",
       "status": "reconstructed"
@@ -279,6 +376,7 @@
     {
       "id": "6.3",
       "category": 6,
+      "group": "imputation",
       "description": "average non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c06_03.ae",
       "status": "reconstructed"
@@ -286,6 +384,7 @@
     {
       "id": "6.4",
       "category": 6,
+      "group": "imputation",
       "description": "average non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c06_04.ae",
       "status": "reconstructed"
@@ -293,6 +392,7 @@
     {
       "id": "6.5",
       "category": 6,
+      "group": "imputation",
       "description": "average non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c06_05.ae",
       "status": "reconstructed"
@@ -300,6 +400,7 @@
     {
       "id": "6.6",
       "category": 6,
+      "group": "imputation",
       "description": "average non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c06_06.ae",
       "status": "reconstructed"
@@ -307,6 +408,7 @@
     {
       "id": "6.7",
       "category": 6,
+      "group": "imputation",
       "description": "average non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c06_07.ae",
       "status": "reconstructed"
@@ -314,6 +416,7 @@
     {
       "id": "7.1",
       "category": 7,
+      "group": "imputation",
       "description": "key-independent max/min",
       "file": "examples/synthesis/dace/reconstructed/c07_01.ae",
       "status": "reconstructed"
@@ -321,6 +424,7 @@
     {
       "id": "7.2",
       "category": 7,
+      "group": "imputation",
       "description": "key-independent max/min",
       "file": "examples/synthesis/dace/reconstructed/c07_02.ae",
       "status": "reconstructed"
@@ -328,6 +432,7 @@
     {
       "id": "8.1",
       "category": 8,
+      "group": "imputation",
       "description": "linear interpolation",
       "file": "examples/synthesis/dace/reconstructed/c08_01.ae",
       "status": "reconstructed"
@@ -335,6 +440,7 @@
     {
       "id": "8.2",
       "category": 8,
+      "group": "imputation",
       "description": "linear interpolation",
       "file": "examples/synthesis/dace/reconstructed/c08_02.ae",
       "status": "reconstructed"
@@ -342,6 +448,7 @@
     {
       "id": "9.1",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_01.ae",
       "status": "reconstructed"
@@ -349,6 +456,7 @@
     {
       "id": "9.2",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_02.ae",
       "status": "reconstructed"
@@ -356,6 +464,7 @@
     {
       "id": "9.3",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_03.ae",
       "status": "reconstructed"
@@ -363,6 +472,7 @@
     {
       "id": "9.4",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_04.ae",
       "status": "reconstructed"
@@ -370,6 +480,7 @@
     {
       "id": "9.5",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_05.ae",
       "status": "reconstructed"
@@ -377,6 +488,7 @@
     {
       "id": "9.6",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_06.ae",
       "status": "reconstructed"
@@ -384,6 +496,7 @@
     {
       "id": "9.7",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_07.ae",
       "status": "reconstructed"
@@ -391,6 +504,7 @@
     {
       "id": "9.8",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_08.ae",
       "status": "reconstructed"
@@ -398,6 +512,7 @@
     {
       "id": "9.9",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_09.ae",
       "status": "reconstructed"
@@ -405,6 +520,7 @@
     {
       "id": "9.10",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_10.ae",
       "status": "reconstructed"
@@ -412,6 +528,7 @@
     {
       "id": "9.11",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_11.ae",
       "status": "reconstructed"
@@ -419,6 +536,7 @@
     {
       "id": "9.12",
       "category": 9,
+      "group": "spreadsheet",
       "description": "spatial copy",
       "file": "examples/synthesis/dace/reconstructed/c09_12.ae",
       "status": "reconstructed"
@@ -426,6 +544,7 @@
     {
       "id": "10.1",
       "category": 10,
+      "group": "spreadsheet",
       "description": "sum a range",
       "file": "examples/synthesis/dace/reconstructed/c10_01.ae",
       "status": "reconstructed"
@@ -433,6 +552,7 @@
     {
       "id": "10.2",
       "category": 10,
+      "group": "spreadsheet",
       "description": "sum a range",
       "file": "examples/synthesis/dace/reconstructed/c10_02.ae",
       "status": "reconstructed"
@@ -440,6 +560,7 @@
     {
       "id": "10.3",
       "category": 10,
+      "group": "spreadsheet",
       "description": "sum a range",
       "file": "examples/synthesis/dace/reconstructed/c10_03.ae",
       "status": "reconstructed"
@@ -447,6 +568,7 @@
     {
       "id": "10.4",
       "category": 10,
+      "group": "spreadsheet",
       "description": "sum a range",
       "file": "examples/synthesis/dace/reconstructed/c10_04.ae",
       "status": "reconstructed"
@@ -454,6 +576,7 @@
     {
       "id": "11.1",
       "category": 11,
+      "group": "spreadsheet",
       "description": "count non-missing values",
       "file": "examples/synthesis/dace/reconstructed/c11_01.ae",
       "status": "reconstructed"
@@ -461,6 +584,7 @@
     {
       "id": "12.1",
       "category": 12,
+      "group": "spreadsheet",
       "description": "sum two cells",
       "file": "examples/synthesis/dace/reconstructed/c12_01.ae",
       "status": "reconstructed"
@@ -468,6 +592,7 @@
     {
       "id": "12.2",
       "category": 12,
+      "group": "spreadsheet",
       "description": "sum two cells",
       "file": "examples/synthesis/dace/reconstructed/c12_02.ae",
       "status": "reconstructed"
@@ -475,6 +600,7 @@
     {
       "id": "13.1",
       "category": 13,
+      "group": "spreadsheet",
       "description": "difference of two cells",
       "file": "examples/synthesis/dace/reconstructed/c13_01.ae",
       "status": "reconstructed"
@@ -482,6 +608,7 @@
     {
       "id": "13.2",
       "category": 13,
+      "group": "spreadsheet",
       "description": "difference of two cells",
       "file": "examples/synthesis/dace/reconstructed/c13_02.ae",
       "status": "reconstructed"
@@ -489,20 +616,15 @@
     {
       "id": "13.3",
       "category": 13,
+      "group": "spreadsheet",
       "description": "difference of two cells",
       "file": "examples/synthesis/dace/reconstructed/c13_03.ae",
       "status": "reconstructed"
     },
     {
-      "id": "13.4",
-      "category": 13,
-      "description": "difference of two cells",
-      "file": "examples/synthesis/dace/reconstructed/c13_04.ae",
-      "status": "reconstructed"
-    },
-    {
       "id": "14.1",
       "category": 14,
+      "group": "spreadsheet",
       "description": "average two cells to the left",
       "file": "examples/synthesis/dace/reconstructed/c14_01.ae",
       "status": "reconstructed"
@@ -510,6 +632,7 @@
     {
       "id": "15.1",
       "category": 15,
+      "group": "spreadsheet",
       "description": "range sum minus fixed cell",
       "file": "examples/synthesis/dace/reconstructed/c15_01.ae",
       "status": "reconstructed"
@@ -517,6 +640,7 @@
     {
       "id": "16.1",
       "category": 16,
+      "group": "spreadsheet",
       "description": "fixed cell minus range sum",
       "file": "examples/synthesis/dace/reconstructed/c16_01.ae",
       "status": "reconstructed"
@@ -524,6 +648,7 @@
     {
       "id": "17.1",
       "category": 17,
+      "group": "spreadsheet",
       "description": "maximum of previous five cells",
       "file": "examples/synthesis/dace/reconstructed/c17_01.ae",
       "status": "reconstructed"
@@ -531,6 +656,7 @@
     {
       "id": "18.1",
       "category": 18,
+      "group": "spreadsheet",
       "description": "integer concatenation surrogate",
       "file": "examples/synthesis/dace/reconstructed/c18_01.ae",
       "status": "reconstructed"
@@ -538,6 +664,7 @@
     {
       "id": "19.1",
       "category": 19,
+      "group": "spreadsheet",
       "description": "linear extrapolation",
       "file": "examples/synthesis/dace/reconstructed/c19_01.ae",
       "status": "reconstructed"
@@ -545,6 +672,7 @@
     {
       "id": "20.1",
       "category": 20,
+      "group": "spreadsheet",
       "description": "equation over previous and next values",
       "file": "examples/synthesis/dace/reconstructed/c20_01.ae",
       "status": "reconstructed"
@@ -552,6 +680,7 @@
     {
       "id": "21.1",
       "category": 21,
+      "group": "spreadsheet",
       "description": "multi-criterion completion outside the DSL",
       "file": "examples/synthesis/dace/reconstructed/c21_01.ae",
       "status": "not-expressible"
@@ -581,5 +710,5 @@
     "20": 1,
     "21": 1
   },
-  "note": "The original Stack Overflow inputs were not published; these fixtures reconstruct the paper's category/operator shapes."
+  "note": "The original Stack Overflow inputs were not published; these fixtures reconstruct the paper's category/operator shapes. The six published examples occupy one slot each in categories 1, 3, 4, 5, 9 and 13, so they are excluded from the 78 reconstructed files. Task 21.1 is recorded as not-expressible and is not counted as a successful reconstruction."
 }

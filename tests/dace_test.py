@@ -11,22 +11,65 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 
 import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def test_reconstructed_catalog_has_84_entries():
+def _manifest() -> dict:
     manifest_path = os.path.join(REPO, "examples/synthesis/dace/reconstructed_manifest.json")
     with open(manifest_path, encoding="utf-8") as manifest_file:
-        manifest = json.load(manifest_file)
+        return json.load(manifest_file)
+
+
+def test_reconstructed_catalog_has_84_entries():
+    manifest = _manifest()
     assert manifest["total_tasks"] == 84
     assert len(manifest["published_tasks"]) == 6
     assert len(manifest["reconstructed_tasks"]) == 78
     assert sum(manifest["paper_category_totals"].values()) == 84
-    for task in manifest["reconstructed_tasks"]:
+    for task in manifest["published_tasks"] + manifest["reconstructed_tasks"]:
         assert os.path.isfile(os.path.join(REPO, task["file"]))
+
+
+def test_catalog_group_totals_match_paper():
+    # Section 6 of the paper: 46 imputation, 32 spreadsheet, 6 relational tasks.
+    manifest = _manifest()
+    required = {"imputation": 46, "spreadsheet": 32, "relational": 6}
+    assert manifest["group_totals"] == required
+    counted = Counter(task["group"] for task in manifest["published_tasks"] + manifest["reconstructed_tasks"])
+    assert dict(counted) == required
+
+
+def test_published_tasks_occupy_identified_category_slots():
+    # The six published examples are excluded from the 78 reconstructed files;
+    # each occupies one identified slot in its paper category.
+    manifest = _manifest()
+    published = manifest["published_tasks"]
+    assert sorted(task["category"] for task in published) == [1, 3, 4, 5, 9, 13]
+    assert all(task["status"] == "published" for task in published)
+    assert not {task["file"] for task in published} & {task["file"] for task in manifest["reconstructed_tasks"]}
+    per_category = Counter(task["category"] for task in published + manifest["reconstructed_tasks"])
+    assert {str(category): count for category, count in per_category.items()} == manifest["paper_category_totals"]
+
+
+def test_category_21_is_not_counted_as_a_successful_reconstruction():
+    manifest = _manifest()
+    not_expressible = [task for task in manifest["reconstructed_tasks"] if task["status"] == "not-expressible"]
+    assert [task["id"] for task in not_expressible] == ["21.1"]
+    assert all(task["category"] == 21 for task in not_expressible)
+    summary = manifest["summary"]
+    assert summary["published"] == 6
+    assert summary["reconstructed_expressible"] == 77
+    assert summary["reconstructed_not_expressible"] == 1
+    assert summary["expressible_total"] == 83
+    assert summary["not_expressible_tasks"] == ["21.1"]
+    assert (
+        summary["total_tasks"]
+        == summary["published"] + summary["reconstructed_expressible"] + summary["reconstructed_not_expressible"]
+    )
 
 
 def _run(args: list[str]) -> str:
@@ -88,6 +131,7 @@ def test_fta_completes_cell(example: str, value: str):
         ("turns", "down_first_nonzero"),  # 2.3: up to value 1, then down to non-zero
         ("group_count", "group_count"),  # 2.4: COUNT of the group
         ("fallback", "if"),  # 2.5: previous else next (conditional)
+        ("delta", "col_at"),  # Fig. 1: difference of two cells (MINUS)
         ("col_at_plus", "col_at"),  # smoke: col_at + 1
     ],
 )
