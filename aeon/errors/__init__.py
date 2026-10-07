@@ -7,7 +7,7 @@ can orchestrate without becoming a dependency of typechecking/elaboration.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Literal
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.multiplicity import Multiplicity
@@ -222,6 +222,18 @@ class CoreWellformnessError(CoreTypeCheckingError):
         return self.type.loc
 
 
+@dataclass(frozen=True)
+class RefinementDiagnostic:
+    """Structured data shared by CLI, LSP, and API refinement renderers."""
+
+    status: Literal["invalid", "unknown", "undecidable", "unsupported"]
+    location: Location
+    predicate: LiquidTerm | None
+    assumptions: str
+    counterexample: str | None
+    blame: Literal["caller", "callee"] | None = None
+
+
 @dataclass
 class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     ctx: TypingContext
@@ -253,6 +265,16 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     def assumptions(self) -> str:
         """Return the source-like rendering of facts available to the prover."""
         return pretty_print_constraint(self.vc)
+
+    def diagnostic(self) -> RefinementDiagnostic:
+        """Return a stable, renderer-independent representation of the failure."""
+        return RefinementDiagnostic(
+            status="invalid",
+            location=self.position(),
+            predicate=self.failed_predicate(),
+            assumptions=self.assumptions(),
+            counterexample=self.counterexample(),
+        )
 
     def counterexample(self) -> str | None:
         """A concrete assignment that falsifies this verification condition,
