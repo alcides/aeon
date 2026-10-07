@@ -64,6 +64,7 @@ from aeon.errors import (
     CoreWellformnessError,
     CoreWrongKindInTypeApplicationError,
     LiquidTypeCheckingFailedRelation,
+    UnreachablePatternError,
 )
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment, entailment_context
@@ -101,6 +102,45 @@ def _and(a: LiquidTerm, b: "LiquidTerm | None") -> LiquidTerm:
     if b is None:
         return a
     return LiquidApp(Name("&&", 0), [a, b])
+
+
+def _liquid_conjuncts(term: LiquidTerm) -> list[LiquidTerm]:
+    if isinstance(term, LiquidApp) and term.fun.name == "&&" and len(term.args) == 2:
+        return _liquid_conjuncts(term.args[0]) + _liquid_conjuncts(term.args[1])
+    return [term]
+
+
+def _obvious_refinement_contradiction(left: LiquidTerm, right: LiquidTerm) -> bool:
+    """Recognise simple contradictory scalar facts without losing soundness.
+
+    Datatype measures are declared in the full recursor VC, so a standalone
+    reachability query cannot always be sent to Z3 with the right specialized
+    sort.  This fallback is deliberately narrow; failure to recognize a pair
+    leaves the normal SMT constraint path untouched.
+    """
+
+    facts = _liquid_conjuncts(left) + _liquid_conjuncts(right)
+    for a in facts:
+        if not isinstance(a, LiquidApp) or len(a.args) != 2 or a.fun.name not in {"==", ">", "<"}:
+            continue
+        for b in facts:
+            if not isinstance(b, LiquidApp) or len(b.args) != 2 or a is b:
+                continue
+            if a.args[0] != b.args[0]:
+                continue
+            if a.args[1].__class__ is not LiquidLiteralInt or b.args[1].__class__ is not LiquidLiteralInt:
+                continue
+            av = a.args[1].value
+            bv = b.args[1].value
+            if a.fun.name == "==" and b.fun.name == ">" and av <= bv:
+                return True
+            if b.fun.name == "==" and a.fun.name == ">" and bv <= av:
+                return True
+            if a.fun.name == "==" and b.fun.name == "<" and av >= bv:
+                return True
+            if b.fun.name == "==" and a.fun.name == "<" and bv >= av:
+                return True
+    return False
 
 
 def _strip_type_level_wrappers(t: Term) -> Term:
@@ -782,6 +822,14 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
 
         case RefinementApplication(body, refinement):
             (c, rp) = synth(ctx, body)
+            # Datatype refinement parameters may be discharged while a
+            # polymorphic type application is elaborated.  The frontend can
+            # still leave the corresponding implicit application node in the
+            # core term; applying that already-instantiated type again is a
+            # no-op.  Explicit applications must continue to fail here so a
+            # refinement cannot be silently dropped.
+            if isinstance(refinement, ImplicitRefinementHole) and not isinstance(rp, RefinementPolymorphism):
+                return (c, rp)
             if not isinstance(rp, RefinementPolymorphism):
                 raise CoreInvalidApplicationError(t, rp)
             if isinstance(refinement, ImplicitRefinementHole):
@@ -907,17 +955,6 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
     ``t`` is not a recognisable, fully-applied eliminator on a variable
     scrutinee.
     """
-    # Only worth the extra work when the expected type carries a non-trivial
-    # refinement: that is the obligation the matched constructor's fact helps
-    # discharge. An unrefined motive is handled fine -- and far more cheaply --
-    # by the default synth-then-subtype path, so skip the whole machinery (and
-    # its per-branch re-checking) for the common case.
-    ty_r = ensure_refined(ty)
-    if not isinstance(ty_r, RefinedType) or (
-        isinstance(ty_r.refinement, LiquidLiteralBool) and ty_r.refinement.value is True
-    ):
-        return None
-
     value_args: list[Term] = []
     cur: Term = t
     while isinstance(cur, Application):
@@ -1052,6 +1089,30 @@ def _check_recursor_branch(
     fact: LiquidTerm = substitution_in_liquid(res_ref.refinement, LiquidVar(scrut.name), res_ref.name)
     for cn, fv in ctor_to_field.items():
         fact = substitution_in_liquid(fact, fv, cn)
+
+    # Reject constructor branches made impossible by the refined scrutinee.
+    # Prefer the full entailment context; the narrow fallback handles the
+    # current datatype-measure specialization where an isolated query cannot
+    # reconstruct the recursor's Z3 sort declarations.
+    scrut_ty = ctx.type_of(scrut.name)
+    scrut_refined = ensure_refined(scrut_ty) if scrut_ty is not None else None
+    if isinstance(scrut_refined, RefinedType) and not (
+        isinstance(scrut_refined.refinement, LiquidLiteralBool) and scrut_refined.refinement.value is True
+    ):
+        scrut_ref = substitution_in_liquid(scrut_refined.refinement, LiquidVar(scrut.name), scrut_refined.name)
+        unreachable = _obvious_refinement_contradiction(scrut_ref, fact)
+        if not unreachable:
+            try:
+                unreachable = entailment(ctx, LiquidConstraint(LiquidApp(Name("!", 0), [fact])))
+            except Exception:
+                # A failed auxiliary query must never make a valid program
+                # fail; the generated recursor constraint remains authoritative.
+                unreachable = False
+        if unreachable:
+            raise UnreachablePatternError(
+                handler,
+                "the constructor contradicts the refinement of the matched value",
+            )
 
     ctx2 = ctx
     for fn, ftype in fields:

@@ -341,6 +341,20 @@ class CoreSubtypingError(CoreTypeCheckingError):
         return self.term.loc
 
 
+@dataclass
+class UnreachablePatternError(CoreTypeCheckingError):
+    """A pattern is incompatible with the refinement of its scrutinee."""
+
+    term: Term
+    reason: str
+
+    def __str__(self) -> str:
+        return f"Unreachable pattern: {self.reason}"
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
 # Linearity / quantitative type theory diagnostics.
 #
 # These fire when a binder declares a non-default multiplicity (`0` or `1`)
