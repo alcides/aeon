@@ -89,3 +89,21 @@ def test_private_definition_is_not_exported(tmp_path):
     assert errors == []
     assert "public" in unit.exports
     assert "secret" not in unit.exports
+
+
+def test_nested_module_path_is_its_canonical_identity(tmp_path, monkeypatch):
+    package = tmp_path / "Pkg"
+    package.mkdir()
+    lib = package / "Counter.ae"
+    lib.write_text("def inc (n:Int) : Int := n + 1;\n")
+    main = tmp_path / "Main.ae"
+    main.write_text("import Pkg.Counter;\ndef main (u:Int) : Int := Pkg.Counter.inc 41;\n")
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(filename=str(main)) == []
+    assert driver.run() == 42
+    unit, errors = compile_file(str(lib), is_main=False, write_cache=False, module_path="Pkg.Counter")
+    assert errors == []
+    assert unit.module_path == "Pkg.Counter"
+    assert unit.exports["inc"].internal_name.name == "Pkg_Counter_inc"
