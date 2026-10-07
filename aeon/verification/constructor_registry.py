@@ -21,7 +21,7 @@ _type_param_counts: dict[str, int] = {}
 # type-parameter index as "#0", "#1", …
 _constructor_fields: dict[str, list[str]] = {}
 
-# Inductive type name -> measure base names (``List_size``, and bare ``size``).
+# Inductive type name -> canonical measure names (for example ``List_size``).
 _measures: dict[str, list[str]] = {}
 
 

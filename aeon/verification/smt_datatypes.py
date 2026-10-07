@@ -323,16 +323,12 @@ def try_build_inductive_sort(
         # uninterpreted and are constrained by constructor refinements instead.
         measure_funs: dict[str, Any] = {}
         measure_names = get_measures(type_name)
-        size_names = [n for n in measure_names if _is_structural_size_measure(n)]
-        if size_names and _has_recursive_constructor_field(type_name, order):
-            canonical = next(
-                (n for n in size_names if n.startswith(f"{type_name}_")),
-                size_names[0],
-            )
-            rec = _build_measure_recfunction(created, sname, type_name, order, canonical)
-            for mname in size_names:
-                measure_funs[mname] = rec
-                _measures_by_aeon_name.setdefault(mname, []).append((sname, rec))
+        canonical_size_names = [n for n in measure_names if _is_structural_size_measure(n)]
+        if canonical_size_names and _has_recursive_constructor_field(type_name, order):
+            for canonical in canonical_size_names:
+                rec = _build_measure_recfunction(created, sname, type_name, order, canonical)
+                measure_funs[canonical] = rec
+                _measures_by_aeon_name.setdefault(canonical, []).append((sname, rec))
 
         info = DatatypeInfo(
             sort=created,

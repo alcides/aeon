@@ -65,6 +65,7 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_int, st_bool
 
 from aeon.sugar.inductives import (
+    canonical_measure_name,
     _is_implicit_refinement_param as is_implicit_refinement_param,
     expand_inductive_decls,
     infer_inductive_rforall_decls,
@@ -772,6 +773,13 @@ def desugar(
             # "open IntList" brings constructors into bare scope
             if decl.name.name in open_inductives:
                 unqualified_scope[cons.name.name] = prefixed
+        for measure in decl.measures:
+            canonical = canonical_measure_name(decl.name, measure.name)
+            qualified_scope[(decl.name.name, measure.name.name)] = canonical
+            # Like constructors, a measure is only available without its
+            # datatype qualifier after an explicit ``open Datatype``.
+            if decl.name.name in open_inductives:
+                unqualified_scope[measure.name.name] = canonical
 
     # Register dotted definition names ``def Type.method`` for qualified access
     # (issue #27), so ``Type.method`` resolves to the same binder that a method

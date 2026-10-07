@@ -318,14 +318,25 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
         for pname, psort in ind.rforalls:
             nname, nsubs = check_name(pname, nsubs)
             drfs.append((nname, bind_stype(psort, nsubs)))
+
+        # Measures are scoped by their inductive, and constructors may mention
+        # them before the textual ``+ measure`` declaration.  Pre-bind all of
+        # them before binding a constructor so two inductives may both declare
+        # ``+ size`` without the latter accidentally resolving to the former.
+        measure_scope = list(nsubs)
+        prebound_measure_names: list[Name] = []
+        for meas in ind.measures:
+            measure_name, measure_scope = check_name(meas.name, measure_scope)
+            prebound_measure_names.append(measure_name)
         constructors = []
         for cons in ind.constructors:
-            bound_cons, nsubs = _bind_definition(cons, nsubs, subs)
+            bound_cons, measure_scope = _bind_definition(cons, measure_scope, subs)
             constructors.append(bound_cons)
         measures = []
-        for meas in ind.measures:
-            bound_meas, nsubs = _bind_definition(meas, nsubs, subs)
+        for meas, measure_name in zip(ind.measures, prebound_measure_names, strict=True):
+            bound_meas, measure_scope = _bind_definition(meas, measure_scope, subs, prebound_name=measure_name)
             measures.append(bound_meas)
+        nsubs = measure_scope
         inductive_decls.append(InductiveDecl(name, iargs, drfs, constructors, measures, loc=ind.loc))
 
     # Bind definitions, but pre-register the names of each ``mutual`` group so
