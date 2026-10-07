@@ -233,16 +233,26 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     def __str__(self) -> str:
         from aeon.verification.helpers import constraint_goal
 
-        goal = constraint_goal(self.vc)
+        goal = self.failed_predicate()
         if goal is not None:
             base = f"Failed to prove `{goal}` in {self.position()}"
-            base += f"\n    Could not establish it from the available facts:{pretty_print_constraint(self.vc)}"
+            base += f"\n    Could not establish it from the available facts:{self.assumptions()}"
         else:
-            base = f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
+            base = f"Failed to prove ({self.assumptions()}) in {self.position()}"
         cex = self.counterexample()
         if cex is not None:
             base += f"\n    counterexample: {cex}"
         return base
+
+    def failed_predicate(self) -> LiquidTerm | None:
+        """Return the refinement predicate that could not be proved."""
+        from aeon.verification.helpers import constraint_goal
+
+        return constraint_goal(self.vc)
+
+    def assumptions(self) -> str:
+        """Return the source-like rendering of facts available to the prover."""
+        return pretty_print_constraint(self.vc)
 
     def counterexample(self) -> str | None:
         """A concrete assignment that falsifies this verification condition,

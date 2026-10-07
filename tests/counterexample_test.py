@@ -41,6 +41,14 @@ def test_counterexample_on_refinement_failure():
     assert "counterexample:" in str(err)
 
 
+def test_refinement_failure_exposes_goal_and_assumptions():
+    err = _liquid_failure("def double (x:Int) : {v:Int | v >= x} := x + x ;")
+    assert err.failed_predicate() is not None
+    assumptions = err.assumptions()
+    assert "x" in assumptions
+    assert "Failed to prove" in str(err)
+
+
 def test_counterexample_witness_is_falsifying():
     # The reported `x` must actually break `x + x >= x`, i.e. be negative.
     err = _liquid_failure("def double (x:Int) : {v:Int | v >= x} := x + x ;")
