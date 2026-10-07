@@ -42,9 +42,34 @@ total), and `join` — and fixed a broken module path in `group_by`/`pivot`/`mel
 
 The machine-readable catalog is [`reconstructed_manifest.json`](reconstructed_manifest.json).
 It contains the six published examples plus 78 reconstructed tasks, for 84
-entries total. The category counts match Fig. 19 of the paper. Category 21 is
-recorded as intentionally outside the paper DSL, matching the paper's one
-unsolved benchmark category.
+entries total. The category counts match Fig. 19 of the paper, and the paper's
+benchmark-group accounting (Section 6) is machine-checked by
+`tests/dace_test.py`:
+
+| Group | Paper total | Published (`pbe/`) | Reconstructed | Categories |
+|---|--:|--:|--:|---|
+| Data imputation | 46 | 2 | 44 | 1, 2, 4, 6, 7, 8 |
+| Spreadsheet computation | 32 | 2 | 30 | 9–21 |
+| Relational completion | 6 | 2 | 4 | 3, 5 |
+
+The six published examples occupy one identified slot each in their paper
+category, so they are *excluded* from the 78 reconstructed files:
+
+| File | Paper reference | Category slot |
+|---|---|--:|
+| `pbe/locf.ae` | Example 2.1 (previous non-missing + constant) | 1 |
+| `pbe/prev_sameid.ae` | Example 2.2 (previous value with same id) | 3 |
+| `pbe/turns.ae` | Example 2.3 (up then down spatial path) | 9 |
+| `pbe/group_count.ae` | Example 2.4 (COUNT of the row's group) | 5 |
+| `pbe/fallback.ae` | Example 2.5 (previous else next) | 4 |
+| `pbe/delta.ae` | Fig. 1 (difference of two cells) | 13 |
+
+**Result summary.** Of the 84 catalog entries, **83 are expressible** in the
+reconstruction DSL: 6 published examples plus 77 reconstructed tasks. Task
+21.1 (multi-criterion completion) is recorded as `not-expressible` — matching
+the paper's one unsolved benchmark category — and is **not** counted as a
+successful reconstruction. The manifest's `summary` block carries these
+numbers and the tests assert them.
 
 Regenerate the reconstructed fixtures after changing their templates with:
 
@@ -120,6 +145,7 @@ uv run python -m aeon --no-main -s fta --budget 60 examples/synthesis/dace/pbe/<
 | `pbe/turns.ae` | 2.3 up to value 1, then down to first non-zero | `down_first_nonzero(colC, up_find_value(colB, i, 1))` |
 | `pbe/group_count.ae` | 2.4 group total = COUNT | `group_count(groups, i)` |
 | `pbe/fallback.ae` | 2.5 previous else next (switch) | `if … then prev_nonmissing(col, i) else next_nonmissing(col, i)` |
+| `pbe/delta.ae` | Fig. 1 difference of two cells (MINUS) | `col_at(last, i) - col_at(first, i)` |
 | `pbe/col_at_plus.ae` | smoke: `col_at` + 1 | `1 + col_at(col, i)` |
 | `pbe/col_offset.ae` | smoke: previous-row spatial offset | `#410` suite growth |
 
