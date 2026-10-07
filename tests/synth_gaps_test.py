@@ -3,6 +3,7 @@
 Covers:
 - #258 — `synth(If)` (path-sensitive refinement join).
 - #259 — `synth(RefinementAbstraction)` (Λρ introduction in synth mode).
+- #545 — preservation of inferred refinements through ordinary expressions.
 """
 
 from __future__ import annotations
@@ -67,6 +68,35 @@ def test_synth_if_rejects_unrelated_postcondition():
     """The join doesn't manufacture facts: `{v:Int | v > 100}` is not derivable from
     branches that return 1 or 2."""
     source = r"""let r := (if 0 < 1 then 1 else 2) in r"""
+    assert not check_compile_expr(source, parse_type("{v:Int | v > 100}"))
+
+
+# ---------------------------------------------------------------------------
+# #545 — local refinement inference and propagation
+# ---------------------------------------------------------------------------
+
+
+def test_inferred_literal_and_arithmetic_refinement_proves_postcondition():
+    """A let-bound literal keeps enough information through arithmetic."""
+    source = r"""let x := 5 in let y := x + 1 in y"""
+    assert check_compile_expr(source, parse_type("{v:Int | v > 5}"))
+
+
+def test_inferred_argument_refinement_proves_function_precondition():
+    """An arithmetic expression can satisfy a refined function parameter."""
+    source = r"""let positive : (x:{v:Int | v > 0}) -> Int := fun x => x in positive (5 + 1)"""
+    assert check_compile_expr(source, parse_type("Int"))
+
+
+def test_inferred_branch_refinement_proves_postcondition():
+    """A branch condition is propagated into the selected branch."""
+    source = r"""let x := 5 in if x > 0 then x else 0"""
+    assert check_compile_expr(source, parse_type("{v:Int | v > 0}"))
+
+
+def test_inference_does_not_invent_a_stronger_postcondition():
+    """Inference must not accept a predicate unrelated to the expression."""
+    source = r"""let x := 5 in let y := x + 1 in y"""
     assert not check_compile_expr(source, parse_type("{v:Int | v > 100}"))
 
 
