@@ -181,7 +181,8 @@ def test_collect_recursive_calls_simple():
     )
     calls = collect_recursive_calls_with_paths(f, 1, body, None, None, [n], [n])
     assert len(calls) == 1
-    call_args, _loc, path, _nested = calls[0]
+    call_args, _loc, path, _nested, scope = calls[0]
+    assert scope == ()
     assert len(call_args) == 1
     # Should have a path guard (the else branch of the if)
     assert len(path) > 0
