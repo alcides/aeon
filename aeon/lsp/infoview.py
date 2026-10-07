@@ -519,7 +519,7 @@ def _build_errors(errors, cursor_line: int) -> list[ErrorInfo]:
     contributes its rendered message. Errors covering the cursor line are listed
     first so the relevant one is on top."""
     from aeon.facade.api import LiquidTypeCheckingFailedRelation
-    from aeon.verification.helpers import constraint_goal, vc_simplification_steps
+    from aeon.verification.helpers import vc_simplification_steps
 
     out: list[ErrorInfo] = []
     for err in errors or []:
@@ -536,14 +536,10 @@ def _build_errors(errors, cursor_line: int) -> list[ErrorInfo]:
         counterexample: Optional[str] = None
         vc_steps: list[VCStep] = []
         if isinstance(err, LiquidTypeCheckingFailedRelation):
-            goal = constraint_goal(err.vc)
-            goal_str = _strip_ids(_pp_liquid(goal)) if goal is not None else None
+            diagnostic = err.diagnostic()
+            goal_str = _strip_ids(_pp_liquid(diagnostic.predicate)) if diagnostic.predicate is not None else None
             message = f"Failed to prove: {goal_str}" if goal_str else "Failed to prove refinement"
-            try:
-                cex = err.counterexample()
-                counterexample = _strip_ids(cex) if cex is not None else None
-            except Exception:
-                counterexample = None
+            counterexample = _strip_ids(diagnostic.counterexample) if diagnostic.counterexample is not None else None
             try:
                 vc_steps = [VCStep(label=lbl, text=_strip_ids(txt)) for lbl, txt in vc_simplification_steps(err.vc)]
             except Exception:

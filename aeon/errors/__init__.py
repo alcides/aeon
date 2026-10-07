@@ -7,7 +7,7 @@ can orchestrate without becoming a dependency of typechecking/elaboration.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Literal
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.multiplicity import Multiplicity
@@ -222,6 +222,18 @@ class CoreWellformnessError(CoreTypeCheckingError):
         return self.type.loc
 
 
+@dataclass(frozen=True)
+class RefinementDiagnostic:
+    """Structured data shared by CLI, LSP, and API refinement renderers."""
+
+    status: Literal["invalid", "unknown", "undecidable", "unsupported"]
+    location: Location
+    predicate: LiquidTerm | None
+    assumptions: str
+    counterexample: str | None
+    blame: Literal["caller", "callee"] | None = None
+
+
 @dataclass
 class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     ctx: TypingContext
@@ -231,18 +243,36 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     loc: Location | None = None
 
     def __str__(self) -> str:
-        from aeon.verification.helpers import constraint_goal
-
-        goal = constraint_goal(self.vc)
+        goal = self.failed_predicate()
         if goal is not None:
             base = f"Failed to prove `{goal}` in {self.position()}"
-            base += f"\n    Could not establish it from the available facts:{pretty_print_constraint(self.vc)}"
+            base += f"\n    Could not establish it from the available facts:{self.assumptions()}"
         else:
-            base = f"Failed to prove ({pretty_print_constraint(self.vc)}) in {self.position()}"
+            base = f"Failed to prove ({self.assumptions()}) in {self.position()}"
         cex = self.counterexample()
         if cex is not None:
             base += f"\n    counterexample: {cex}"
         return base
+
+    def failed_predicate(self) -> LiquidTerm | None:
+        """Return the refinement predicate that could not be proved."""
+        from aeon.verification.helpers import constraint_goal
+
+        return constraint_goal(self.vc)
+
+    def assumptions(self) -> str:
+        """Return the source-like rendering of facts available to the prover."""
+        return pretty_print_constraint(self.vc)
+
+    def diagnostic(self) -> RefinementDiagnostic:
+        """Return a stable, renderer-independent representation of the failure."""
+        return RefinementDiagnostic(
+            status="invalid",
+            location=self.position(),
+            predicate=self.failed_predicate(),
+            assumptions=self.assumptions(),
+            counterexample=self.counterexample(),
+        )
 
     def counterexample(self) -> str | None:
         """A concrete assignment that falsifies this verification condition,
