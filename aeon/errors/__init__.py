@@ -484,7 +484,7 @@ class LinearBranchMismatchError(LinearityError):
 
 @dataclass
 class ContractViolationError(AeonError):
-    """Raised when ``--contracts`` detects a refinement violation at run time."""
+    """Raised when ``--runtime-verification`` detects a refinement violation."""
 
     blame: str
     binding: str

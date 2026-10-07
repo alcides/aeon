@@ -1,4 +1,4 @@
-"""Runtime refinement contracts (--contracts, issue #443)."""
+"""Opt-in runtime refinement verification (issue #443)."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _driver(source: str, *, contracts: bool = False) -> AeonDriver:
     return driver
 
 
-def test_native_violation_raises_with_contracts():
+def test_native_violation_raises_with_runtime_verification():
     src = """
     def bad_abs (i:Int) : {v:Int | v >= 0} := native "i - 10"
     def main (a:Int) : Int := bad_abs 5 ;
