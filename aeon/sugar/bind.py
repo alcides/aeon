@@ -366,7 +366,16 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             bound_df, nsubs = _bind_definition(member, nsubs, subs, prebound_name=nname)
             definitions.append(bound_df)
 
-    return Program(p.imports, type_decls, inductive_decls, definitions)
+    return Program(
+        p.imports,
+        type_decls,
+        inductive_decls,
+        definitions,
+        p.class_decls,
+        p.instance_decls,
+        p.export_names,
+        p.reexports,
+    )
 
 
 def bind(ectx: ElaborationTypingContext, s: STerm) -> tuple[ElaborationTypingContext, STerm]:

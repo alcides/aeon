@@ -447,7 +447,10 @@ def resolve_qualified_names_in_sterm(
                 return SApplication(SMethodSelector(name, loc=loc), SVar(Name(qualifier), loc=loc), loc=loc)
             raise NameError(f"Name '{name.name}' not found in module '{qualifier}'")
         case SVar(name, loc) if name.name in unqualified_scope and name.name not in bound:
-            return SVar(unqualified_scope[name.name], loc=loc)
+            resolved = unqualified_scope[name.name]
+            if resolved.name.startswith("__ambiguous__"):
+                raise NameError(f"Ambiguous unqualified name '{name.name}'; use a module qualifier or import alias")
+            return SVar(resolved, loc=loc)
         case SApplication(fun, arg, loc):
             return SApplication(rec(fun), rec(arg), loc=loc)
         case SAbstraction(name, body, loc):
@@ -799,9 +802,26 @@ def desugar(
             combined_inductives, defs, module_export_name, qualified_scope, constructor_defs
         )
     else:
-        defs = [
-            resolve_qualified_names_in_definition(d, qualified_scope, unqualified_scope, constructor_defs) for d in defs
-        ]
+        # Declarations in a source ``namespace A.B`` retain their public dotted
+        # names, but Lean permits later declarations in that namespace to use
+        # siblings without repeating ``A.B``.  Build that lexical view only for
+        # the definition currently being resolved; it never leaks to importers.
+        namespace_members: dict[str, dict[str, Name]] = {}
+        for definition in defs:
+            qualifier, sep, bare = definition.name.name.rpartition(".")
+            if sep:
+                namespace_members.setdefault(qualifier, {})[bare] = definition.name
+
+        resolved_defs: list[Definition] = []
+        for definition in defs:
+            qualifier, sep, _ = definition.name.name.rpartition(".")
+            local_unqualified = dict(unqualified_scope)
+            if sep:
+                local_unqualified.update(namespace_members.get(qualifier, {}))
+            resolved_defs.append(
+                resolve_qualified_names_in_definition(definition, qualified_scope, local_unqualified, constructor_defs)
+            )
+        defs = resolved_defs
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
 
     # Expand the `_` reflection marker in return-type refinements into `binder == body`.
@@ -1356,6 +1376,12 @@ QualifiedScope = dict[tuple[str, str], Name]  # (qualifier, bare_name) -> origin
 UnqualifiedScope = dict[str, Name]  # bare_name -> original Name
 
 
+def _add_unqualified(scope: UnqualifiedScope, bare: str, internal: Name) -> None:
+    """Add an opened/imported name without silently choosing an import order."""
+    prior = scope.get(bare)
+    scope[bare] = internal if prior is None or prior == internal else Name(f"__ambiguous__{bare}", -1)
+
+
 def collect_imported_typeclasses(
     imports: list[ImportAe],
     inductive_names: set[str],
@@ -1576,7 +1602,7 @@ def handle_imports(
             for (qual, bare), internal_name in prior_q.items():
                 qualified_scope[(qual, bare)] = internal_name
                 if imp.is_open or (imp.selected_names and bare in imp.selected_names):
-                    unqualified_scope[bare] = internal_name
+                    _add_unqualified(unqualified_scope, bare, internal_name)
             continue
         seen_modules[imp.module_path] = {}
         import_p = resolve_import(imp)
@@ -1640,10 +1666,10 @@ def handle_imports(
             seen_modules[imp.module_path][(module_name, bare)] = internal_name
 
             if imp.is_open:
-                unqualified_scope[bare] = internal_name
+                _add_unqualified(unqualified_scope, bare, internal_name)
             elif imp.selected_names:
                 if bare in imp.selected_names:
-                    unqualified_scope[bare] = internal_name
+                    _add_unqualified(unqualified_scope, bare, internal_name)
 
         defs = defs_recursive + prefixed_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
@@ -1702,7 +1728,7 @@ def handle_imports_from_units(
             qualified_scope[(qual, bare)] = internal_name
             seen_modules[imp.module_path][(qual, bare)] = internal_name
             if imp.is_open or (imp.selected_names and bare in imp.selected_names):
-                unqualified_scope[bare] = internal_name
+                _add_unqualified(unqualified_scope, bare, internal_name)
             elif not imp.selected_names:
                 qualified_scope[(module_name, bare)] = internal_name
                 seen_modules[imp.module_path][(module_name, bare)] = internal_name
@@ -1711,9 +1737,9 @@ def handle_imports_from_units(
             qualified_scope[(module_name, bare)] = export.internal_name
             seen_modules[imp.module_path][(module_name, bare)] = export.internal_name
             if imp.is_open:
-                unqualified_scope[bare] = export.internal_name
+                _add_unqualified(unqualified_scope, bare, export.internal_name)
             elif imp.selected_names and bare in imp.selected_names:
-                unqualified_scope[bare] = export.internal_name
+                _add_unqualified(unqualified_scope, bare, export.internal_name)
 
     return defs, type_decls, imported_inductives, qualified_scope, unqualified_scope
 

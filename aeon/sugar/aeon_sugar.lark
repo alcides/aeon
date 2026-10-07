@@ -13,8 +13,11 @@ import_names : CNAME ("," CNAME)*                         -> list
 declaration : type_decl                                -> same
             | def                                      -> same
             | namespace_block                          -> same
+            | export_decl                              -> same
 
 namespace_block : "namespace" module_path declaration* "end" -> namespace_block
+export_decl : "export" "(" import_names ")" ";"? -> export_list
+            | "export" module_path "(" import_names ")" ";"? -> reexport_list
 
 // A ``linear type`` is a unique type: every binder of that type must declare
 // multiplicity 1, so values cannot be duplicated or dropped silently.

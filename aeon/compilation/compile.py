@@ -395,12 +395,23 @@ def compile_program(
     exports = _exports_from_spine(core_ast, typing_ctx, prog.definitions, export_prefix, export_sugar_types)
     if export_prefix is not None:
         private_exports = {
-            _bare_name(export_prefix, definition.name.name)
-            for definition in prog.definitions
-            if definition.is_private
+            _bare_name(export_prefix, definition.name.name) for definition in prog.definitions if definition.is_private
         }
         for bare in private_exports:
             exports.pop(bare, None)
+        if prog.export_names:
+            exports = {bare: export for bare, export in exports.items() if bare in set(prog.export_names)}
+        for module_path, names in prog.reexports:
+            dependency = dep_units.get(module_path)
+            if dependency is None:
+                continue
+            for name in names:
+                if name in exports:
+                    raise ValueError(f"duplicate exported name '{name}'")
+                export = dependency.exports.get(name)
+                if export is None:
+                    raise ValueError(f"cannot re-export '{name}' from '{module_path}'")
+                exports[name] = export
     exports.update(_exports_from_uninterpreted(typing_ctx, export_prefix))
 
     metadata: Metadata = {}

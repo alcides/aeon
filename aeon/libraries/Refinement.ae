@@ -1,0 +1,13 @@
+# Common, executable refinement predicates.  Import qualified (for example,
+# ``Refinement.non_negative n``) or ``open Refinement`` deliberately.
+
+def non_negative (n: Int) : Bool := n >= 0;
+def positive (n: Int) : Bool := n > 0;
+def non_positive (n: Int) : Bool := n <= 0;
+def negative (n: Int) : Bool := n < 0;
+def in_range (lo: Int) (hi: Int) (n: Int) : Bool := lo <= n && n < hi;
+def bounded (lo: Int) (hi: Int) (n: Int) : Bool := lo <= n && n <= hi;
+
+# Solver-friendly names for the most common collection refinements.
+def non_empty_size (size: Int) : Bool := size > 0;
+def valid_index (size: Int) (index: Int) : Bool := 0 <= index && index < size;

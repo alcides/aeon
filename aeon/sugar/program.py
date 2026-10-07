@@ -347,6 +347,12 @@ class NamespaceDecl(Node):
 
 
 @dataclass
+class ExportDecl(Node):
+    module_path: str | None
+    names: list[str]
+
+
+@dataclass
 class ImportAe(Node):
     module_path: str  # e.g. "Math" or "Math.Basic"
     selected_names: list[str] = field(default_factory=list)  # empty = all (qualified access)
@@ -575,6 +581,8 @@ class Program(Node):
     definitions: list[Definition]
     class_decls: list[ClassDecl] = field(default_factory=list)
     instance_decls: list[InstanceDecl] = field(default_factory=list)
+    export_names: list[str] = field(default_factory=list)
+    reexports: list[tuple[str, list[str]]] = field(default_factory=list)
 
     def __str__(self):
         imps = "\n".join([str(td) for td in self.imports])

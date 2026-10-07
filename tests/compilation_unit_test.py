@@ -82,6 +82,20 @@ def main (u:Int) : Int := Data.List.zero;
     assert driver.run() == 0
 
 
+def test_namespace_declarations_resolve_siblings_unqualified():
+    source = """
+namespace Data.List
+  def zero : Int := 0;
+  def one : Int := zero + 1;
+end
+def main (u:Int) : Int := Data.List.one;
+"""
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(aeon_code=source, filename="<namespace-siblings>") == []
+    assert driver.run() == 1
+
+
 def test_private_definition_is_not_exported(tmp_path):
     lib = tmp_path / "Secrets.ae"
     lib.write_text("private def secret : Int := 7;\ndef public : Int := secret;\n")

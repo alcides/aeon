@@ -37,6 +37,7 @@ from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
 from aeon.sugar.program import NamespaceDecl
+from aeon.sugar.program import ExportDecl
 from aeon.sugar.program import TypeDecl
 from aeon.sugar.program import InductiveDecl
 from aeon.sugar.program import ClassDecl, ClassMethod, InstanceDecl, InstanceMethod
@@ -578,6 +579,8 @@ class TreeToSugar(Transformer):
     def program(self, args):
         declaration_section = args[1:]
         flat_declarations: list = []
+        export_names: list[str] = []
+        reexports: list[tuple[str, list[str]]] = []
 
         def flatten(items, prefix: str = ""):
             for item in items:
@@ -587,6 +590,12 @@ class TreeToSugar(Transformer):
                 if isinstance(item, NamespaceDecl):
                     nested_prefix = f"{prefix}.{item.path}" if prefix else item.path
                     flatten(item.declarations, nested_prefix)
+                    continue
+                if isinstance(item, ExportDecl):
+                    if item.module_path is None:
+                        export_names.extend(item.names)
+                    else:
+                        reexports.append((item.module_path, item.names))
                     continue
                 if prefix and isinstance(item, (Definition, TypeDecl, InductiveDecl, ClassDecl)):
                     item.name = Name(f"{prefix}.{item.name.name}", item.name.id)
@@ -605,10 +614,16 @@ class TreeToSugar(Transformer):
         type_decls = [el for el in flat_declarations if isinstance(el, TypeDecl)]
         definitions = [el for el in flat_defs if isinstance(el, Definition)]
         instances = [el for el in flat_defs if isinstance(el, InstanceDecl)]
-        return Program(args[0], type_decls, inductive, definitions, classes, instances)
+        return Program(args[0], type_decls, inductive, definitions, classes, instances, export_names, reexports)
 
     def namespace_block(self, args):
         return NamespaceDecl(str(args[0]), list(args[1:]))
+
+    def export_list(self, args):
+        return ExportDecl(None, [str(name) for name in args[0]])
+
+    def reexport_list(self, args):
+        return ExportDecl(str(args[0]), [str(name) for name in args[1]])
 
     # ------- Typeclasses -------
 
