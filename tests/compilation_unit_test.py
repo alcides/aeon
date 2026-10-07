@@ -54,3 +54,15 @@ def test_imported_program_via_driver(tmp_path, monkeypatch):
     driver = AeonDriver(cfg)
     assert driver.parse(filename=str(main)) == []
     assert driver.run() == 42
+
+
+def test_import_alias_is_a_qualified_source_name(tmp_path, monkeypatch):
+    lib = tmp_path / "Counter.ae"
+    lib.write_text("def inc (n:Int) : Int := n + 1;\n")
+    main = tmp_path / "Main.ae"
+    main.write_text("import Counter as C;\ndef main (u:Int) : Int := C.inc 41;\n")
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(filename=str(main)) == []
+    assert driver.run() == 42

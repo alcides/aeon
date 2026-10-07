@@ -343,6 +343,7 @@ class ImportAe(Node):
     module_path: str  # e.g. "Math" or "Math.Basic"
     selected_names: list[str] = field(default_factory=list)  # empty = all (qualified access)
     is_open: bool = False  # True for `open Math`
+    alias: str | None = None  # source qualifier introduced by ``import M as N``
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     @property
@@ -356,13 +357,14 @@ class ImportAe(Node):
         return self.module_path.split(".")[0]
 
     def __str__(self):
+        alias = f" as {self.alias}" if self.alias else ""
         if self.is_open:
             return f"open {self.module_path};"
         elif self.selected_names:
             names = ", ".join(self.selected_names)
-            return f"import {self.module_path} ({names});"
+            return f"import {self.module_path}{alias} ({names});"
         else:
-            return f"import {self.module_path};"
+            return f"import {self.module_path}{alias};"
 
 
 @dataclass

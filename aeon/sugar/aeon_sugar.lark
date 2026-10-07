@@ -2,11 +2,12 @@ program :  aeimport type_decls defs                     -> program
 
 aeimport : import*                                      -> list
 
-import: "import" module_path ";"?                         -> module_imp
-      | "import" module_path "(" import_names ")" ";"?    -> module_selective_imp
+import: "import" module_path import_alias? ";"?                         -> module_imp
+      | "import" module_path import_alias? "(" import_names ")" ";"?    -> module_selective_imp
       | "open" module_path ";"?                           -> open_imp
 
-module_path : CNAME ("." CNAME)*                          -> module_path
+module_path : MODULE_PATH                                  -> module_path
+import_alias : "as" CNAME                                  -> same
 import_names : CNAME ("," CNAME)*                         -> list
 
 type_decls : type_decl*                              -> list
@@ -334,7 +335,8 @@ FLOATLIT : /[+-]?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?/
          | /[+-]?[0-9]+[eE][+-]?[0-9]+/
 
 TYPENAME : /[a-zA-Z0-9]+/
-QUALIFIED_ID.2 : /[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*/
+MODULE_PATH.3 : /[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*/
+QUALIFIED_ID.2 : /[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+/
 DOT_ID.3 : /\.[a-zA-Z_][a-zA-Z0-9_]*/
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|\$]{1,3}\)/
 

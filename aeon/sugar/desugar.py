@@ -1599,7 +1599,9 @@ def handle_imports(
             unqualified_scope.update(rec_u)
             imported_inductives.extend(rec_inductives)
 
-        module_name = imp.module_path.split(".")[-1]
+        # A module's full path is its canonical qualifier; an import alias is
+        # a source-level alternative, never an internal symbol alias.
+        module_name = imp.alias or imp.module_path
 
         local_qualified: QualifiedScope = dict(rec_q)
         local_unqualified: UnqualifiedScope = dict(rec_u)
@@ -1674,14 +1676,14 @@ def handle_imports_from_units(
             continue
 
         seen_modules[imp.module_path] = {}
-        module_name = imp.module_path.split(".")[-1]
+        module_name = imp.alias or imp.module_path
 
         rec_q: QualifiedScope = {}
         rec_u: UnqualifiedScope = {}
         for dep_module in unit.dependencies:
             dep_unit = compiled_imports.get(dep_module)
             if dep_unit is not None:
-                dep_name = dep_module.split(".")[-1]
+                dep_name = dep_module
                 imported_inductives.extend(dep_unit.inductive_decls)
                 type_decls = _merge_type_decls(type_decls, dep_unit.type_decls)
                 for (qual, bare), internal_name in dep_unit.qualified_scope.items():

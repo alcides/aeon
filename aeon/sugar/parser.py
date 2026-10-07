@@ -652,12 +652,15 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def module_imp(self, meta, args):
-        return ImportAe(args[0], loc=self._loc(meta))
+        alias = str(args[1]) if len(args) > 1 else None
+        return ImportAe(args[0], alias=alias, loc=self._loc(meta))
 
     @v_args(meta=True)
     def module_selective_imp(self, meta, args):
-        names = [str(n) for n in args[1]]
-        return ImportAe(args[0], selected_names=names, loc=self._loc(meta))
+        has_alias = len(args) == 3
+        alias = str(args[1]) if has_alias else None
+        names = [str(n) for n in args[2] if has_alias] if has_alias else [str(n) for n in args[1]]
+        return ImportAe(args[0], selected_names=names, alias=alias, loc=self._loc(meta))
 
     @v_args(meta=True)
     def open_imp(self, meta, args):
