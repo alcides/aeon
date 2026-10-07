@@ -243,8 +243,6 @@ class LiquidTypeCheckingFailedRelation(CoreTypeCheckingError):
     loc: Location | None = None
 
     def __str__(self) -> str:
-        from aeon.verification.helpers import constraint_goal
-
         goal = self.failed_predicate()
         if goal is not None:
             base = f"Failed to prove `{goal}` in {self.position()}"
