@@ -518,7 +518,10 @@ Each branch binds the constructor's fields by position. The `match` expression i
 
 ### Measures
 
-Inductive types can declare measure functions with `+`. These are used for refinements on the type itself:
+Inductive types can declare measure functions with `+`. A measure is a
+logic-level function over a value of the datatype; it is used in refinements,
+not evaluated by the Aeon runtime. Constructor result refinements state the
+facts that clients may use about it:
 
 ```
 inductive MList a
@@ -526,6 +529,40 @@ inductive MList a
 | cons (x:a) (y:(MList a)) : {z:(MList a) | len z = (len y + 1)}
 + len (m:(MList a)) : Int
 ```
+
+For conventional structural size measures (`size`, `length`, `len`, or a
+type-qualified form such as `List_size`), Aeon also reflects the datatype in
+the SMT solver and gives the measure its structural equations: an empty
+constructor has size zero, and a non-empty constructor has one plus the sizes
+of its recursive fields. Other measures are logical symbols: give their
+meaning through the constructor refinements, as `len` is above. They do not
+introduce quantified axioms.
+
+### Recursive functions and termination
+
+Write a `decreasing_by` clause when a recursive function's termination metric
+is not obvious. The metric is a lexicographic list of integer expressions:
+
+```
+def depth (n:{v:Int | v >= 0}) : Int decreasing_by [n] :=
+    if n = 0 then 0 else depth (n - 1)
+```
+
+Aeon checks every recursive (and mutually recursive) call decreases the
+metric lexicographically and that the call metric is non-negative. Once this
+is checked, the recursive call may use its declared refined result—the
+induction hypothesis needed by recursive specifications.
+
+For simple integer recursion Aeon may infer a metric, but `decreasing_by` is
+the reliable way to record the proof. Measures are available in refinements;
+automatic structural termination from an ADT subterm is not yet implemented.
+If no well-founded metric can
+be established, Aeon does *not* assume the recursive function's refined return
+type at its recursive calls; it only uses the underlying type. Thus unchecked
+recursion cannot establish an arbitrary refinement, though it may still fail
+to terminate when evaluated. Aeon deliberately provides no quantified
+induction axioms: open lemmas such as `forall xs. length (append xs ys) = ...`
+need an explicit, terminating proof function or future induction support.
 
 <a name="FFI"></a>
 
