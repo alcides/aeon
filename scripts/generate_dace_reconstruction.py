@@ -51,7 +51,7 @@ def specification(category: int) -> tuple[str, str, str, str]:
         op = "+" if category == 12 else "-"
         result = "5, 8, 14" if category == 12 else "2, 4, 8"
         extra = 'def other : Column := native "[1, 2, 3, 4, 5, 6, 7]";' if category == 12 else 'def other : Column := native "[1, 1, 1, 1, 1, 1, 1]";'
-        return f"Column, col_at", extra, f"@example(fill 1 = {result.split(', ')[0]})\n@example(fill 2 = {result.split(', ')[1]})\n@example(fill 4 = {result.split(', ')[2]})", f"col_at(values, i) {op} col_at(other, i)"
+        return "Column, col_at", extra, f"@example(fill 1 = {result.split(', ')[0]})\n@example(fill 2 = {result.split(', ')[1]})\n@example(fill 4 = {result.split(', ')[2]})", f"col_at(values, i) {op} col_at(other, i)"
     if category == 14:
         return "Column, prev_nonmissing", "", "@example(fill 3 = 5)\n@example(fill 6 = 12)", "prev_nonmissing(values, i)"
     if category == 15:
