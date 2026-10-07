@@ -33,6 +33,7 @@ from aeon.errors import (
     UnificationKindError,
     UnificationSubtypingError,
     UnificationUnknownTypeError,
+    UnreachablePatternError,
     UnknownDecoratorError,
 )
 
@@ -65,5 +66,6 @@ __all__ = [
     "UnificationKindError",
     "UnificationSubtypingError",
     "UnificationUnknownTypeError",
+    "UnreachablePatternError",
     "UnknownDecoratorError",
 ]
