@@ -1,4 +1,4 @@
-program :  aeimport type_decls defs                     -> program
+program :  aeimport declaration*                         -> program
 
 aeimport : import*                                      -> list
 
@@ -10,9 +10,11 @@ module_path : MODULE_PATH                                  -> module_path
 import_alias : "as" CNAME                                  -> same
 import_names : CNAME ("," CNAME)*                         -> list
 
-type_decls : type_decl*                              -> list
+declaration : type_decl                                -> same
+            | def                                      -> same
+            | namespace_block                          -> same
 
-defs : def*                                          -> list
+namespace_block : "namespace" module_path declaration* "end" -> namespace_block
 
 // A ``linear type`` is a unique type: every binder of that type must declare
 // multiplicity 1, so values cannot be duplicated or dropped silently.

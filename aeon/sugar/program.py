@@ -339,6 +339,14 @@ class Node:
 
 
 @dataclass
+class NamespaceDecl(Node):
+    """A lexical Lean-style namespace block, flattened after parsing."""
+
+    path: str
+    declarations: list[Node]
+
+
+@dataclass
 class ImportAe(Node):
     module_path: str  # e.g. "Math" or "Math.Basic"
     selected_names: list[str] = field(default_factory=list)  # empty = all (qualified access)

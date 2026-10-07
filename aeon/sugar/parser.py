@@ -36,6 +36,7 @@ from aeon.sugar.program import (
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
+from aeon.sugar.program import NamespaceDecl
 from aeon.sugar.program import TypeDecl
 from aeon.sugar.program import InductiveDecl
 from aeon.sugar.program import ClassDecl, ClassMethod, InstanceDecl, InstanceMethod
@@ -515,8 +516,8 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def qualified_var(self, meta, args):
-        parts = str(args[0]).split(".", 1)
-        return SQualifiedVar(parts[0], Name(parts[1]), loc=self._loc(meta))
+        qualifier, name = str(args[0]).rsplit(".", 1)
+        return SQualifiedVar(qualifier, Name(name), loc=self._loc(meta))
 
     @v_args(meta=True)
     def hole(self, meta, args):
@@ -575,20 +576,39 @@ class TreeToSugar(Transformer):
         ]
 
     def program(self, args):
-        type_section, def_section = args[1], args[2]
+        declaration_section = args[1:]
+        flat_declarations: list = []
+
+        def flatten(items, prefix: str = ""):
+            for item in items:
+                if isinstance(item, list):
+                    flatten(item, prefix)
+                    continue
+                if isinstance(item, NamespaceDecl):
+                    nested_prefix = f"{prefix}.{item.path}" if prefix else item.path
+                    flatten(item.declarations, nested_prefix)
+                    continue
+                if prefix and isinstance(item, (Definition, TypeDecl, InductiveDecl, ClassDecl)):
+                    item.name = Name(f"{prefix}.{item.name.name}", item.name.id)
+                flat_declarations.append(item)
+
+        flatten(declaration_section)
         # ``mutual`` blocks arrive as nested lists of Definitions; flatten them.
         flat_defs: list = []
-        for el in def_section:
+        for el in flat_declarations:
             if isinstance(el, list):
                 flat_defs.extend(el)
             else:
                 flat_defs.append(el)
-        inductive = [el for el in type_section if isinstance(el, InductiveDecl)]
-        classes = [el for el in type_section if isinstance(el, ClassDecl)]
-        type_decls = [el for el in type_section if isinstance(el, TypeDecl)]
+        inductive = [el for el in flat_declarations if isinstance(el, InductiveDecl)]
+        classes = [el for el in flat_declarations if isinstance(el, ClassDecl)]
+        type_decls = [el for el in flat_declarations if isinstance(el, TypeDecl)]
         definitions = [el for el in flat_defs if isinstance(el, Definition)]
         instances = [el for el in flat_defs if isinstance(el, InstanceDecl)]
         return Program(args[0], type_decls, inductive, definitions, classes, instances)
+
+    def namespace_block(self, args):
+        return NamespaceDecl(str(args[0]), list(args[1:]))
 
     # ------- Typeclasses -------
 

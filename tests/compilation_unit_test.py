@@ -66,3 +66,17 @@ def test_import_alias_is_a_qualified_source_name(tmp_path, monkeypatch):
     driver = AeonDriver(cfg)
     assert driver.parse(filename=str(main)) == []
     assert driver.run() == 42
+
+
+def test_nested_namespace_is_a_qualified_source_name():
+    source = """
+namespace Data.List
+  def zero : Int := 0;
+end
+
+def main (u:Int) : Int := Data.List.zero;
+"""
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(aeon_code=source, filename="<namespace>") == []
+    assert driver.run() == 0
