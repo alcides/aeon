@@ -98,9 +98,10 @@ inst_name :                                                  -> inst_name_none
 inst_constraints : inst_constraint*                          -> list
 inst_constraint : "[" constraint_type "]"                    -> inst_constraint
 type_atoms : type_atom*                                      -> list
-type_atom : ID                                               -> simple_t
-          | "(" ID type+ ")"                                 -> constructor_t
+type_atom : type_name                                        -> simple_t
+          | "(" type_name type+ ")"                         -> constructor_t
           | "(" type ")"                                     -> same
+type_name : ID | QUALIFIED_ID
 // A class constraint head: ``ClassName arg...`` written without outer parens.
 constraint_type : ID type_atoms                              -> constraint_type
 instance_members : instance_member*                          -> list
@@ -147,8 +148,8 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | "forall" "<" ID ":" pred_sort ">" "," type   -> refinement_polymorphism_t
      | ID "<" ID ">"                                       -> base_angle_refined_t
-     | ID                                                  -> simple_t
-     | "(" ID type+ ")"                                            -> constructor_t
+     | type_name                                           -> simple_t
+     | "(" type_name type+ ")"                            -> constructor_t
      | "(" type ")"                                        -> same
 
 

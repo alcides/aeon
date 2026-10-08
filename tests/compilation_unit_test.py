@@ -105,6 +105,64 @@ def test_private_definition_is_not_exported(tmp_path):
     assert "secret" not in unit.exports
 
 
+def test_explicit_export_list_limits_a_module_interface(tmp_path):
+    lib = tmp_path / "Interface.ae"
+    lib.write_text("def shown : Int := 1;\ndef hidden : Int := 2;\nexport (shown);\n")
+    unit, errors = compile_file(str(lib), is_main=False, write_cache=False)
+    assert errors == []
+    assert set(unit.exports) == {"shown"}
+
+
+def test_reexport_is_visible_through_the_reexporting_module(tmp_path, monkeypatch):
+    (tmp_path / "A.ae").write_text("def value : Int := 41;\n")
+    (tmp_path / "B.ae").write_text("import A;\nexport A (value);\n")
+    main = tmp_path / "Main.ae"
+    main.write_text("import B;\ndef main (u:Int) : Int := B.value + 1;\n")
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(filename=str(main)) == []
+    assert driver.run() == 42
+
+
+def test_opened_name_collision_requires_qualification(tmp_path, monkeypatch):
+    (tmp_path / "Left.ae").write_text("def shared : Int := 1;\n")
+    (tmp_path / "Right.ae").write_text("def shared : Int := 2;\n")
+    main = tmp_path / "Main.ae"
+    main.write_text("open Left;\nopen Right;\ndef main (u:Int) : Int := shared;\n")
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    errors = driver.parse(filename=str(main))
+    assert len(errors) == 1
+    assert "Ambiguous unqualified name 'shared'" in str(errors[0])
+
+
+def test_qualified_type_from_source_namespace():
+    source = """
+namespace Domain
+  type Token;
+end
+def keep (x: Domain.Token) : Domain.Token := x;
+"""
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(aeon_code=source, filename="<qualified-type>") == []
+
+
+def test_refinement_standard_library_predicates_are_usable_qualified():
+    source = """
+import Refinement;
+def int_identity (x: {v:Int | Refinement.non_negative v}) :
+    {v:Int | Refinement.non_negative v} := x;
+def float_identity (x: {v:Float | Refinement.positive_float v}) :
+    {v:Float | Refinement.positive_float v} := x;
+"""
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(aeon_code=source, filename="<refinement-stdlib>") == []
+
+
 def test_nested_module_path_is_its_canonical_identity(tmp_path, monkeypatch):
     package = tmp_path / "Pkg"
     package.mkdir()

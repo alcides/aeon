@@ -11,3 +11,9 @@ def bounded (lo: Int) (hi: Int) (n: Int) : Bool := lo <= n && n <= hi;
 # Solver-friendly names for the most common collection refinements.
 def non_empty_size (size: Int) : Bool := size > 0;
 def valid_index (size: Int) (index: Int) : Bool := 0 <= index && index < size;
+
+# Float counterparts use explicit names rather than ad-hoc overloads, keeping
+# predicate lookup predictable across the single Aeon value namespace.
+def non_negative_float (n: Float) : Bool := n >= 0.0;
+def positive_float (n: Float) : Bool := n > 0.0;
+def unit_interval_float (n: Float) : Bool := 0.0 <= n && n <= 1.0;

@@ -401,8 +401,8 @@ def compile_program(
             exports.pop(bare, None)
         if prog.export_names:
             exports = {bare: export for bare, export in exports.items() if bare in set(prog.export_names)}
-        for module_path, names in prog.reexports:
-            dependency = dep_units.get(module_path)
+        for reexport_module, names in prog.reexports:
+            dependency = dep_units.get(reexport_module)
             if dependency is None:
                 continue
             for name in names:
@@ -410,7 +410,7 @@ def compile_program(
                     raise ValueError(f"duplicate exported name '{name}'")
                 export = dependency.exports.get(name)
                 if export is None:
-                    raise ValueError(f"cannot re-export '{name}' from '{module_path}'")
+                    raise ValueError(f"cannot re-export '{name}' from '{reexport_module}'")
                 exports[name] = export
     exports.update(_exports_from_uninterpreted(typing_ctx, export_prefix))
 

@@ -215,6 +215,9 @@ class TreeToSugar(Transformer):
             name = Name(name_str)
             return STypeVar(name)
 
+    def type_name(self, args):
+        return args[0]
+
     def constructor_t(self, args):
         return STypeConstructor(Name(args[0]), args[1:])
 

@@ -133,7 +133,7 @@ open ArrayKernels
 def main (i:Int) : Float :=
     let 1 df0 := read_csv "{csv_path}" 3 3 in
     let 1 df1 := dropna df0 in
-    let pr := copy df1 in
+    let pr := DataFrame.copy df1 in
     let 1 left := fst_df pr in
     let 1 right := snd_df pr in
     let 1 col := col_as_array left "score" in

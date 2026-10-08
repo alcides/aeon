@@ -25,6 +25,7 @@ from aeon.errors import (
     CoreTypeCheckingError,
     InstanceResolutionError,
     LinearityError,
+    NameResolutionError,
     MethodResolutionError,
     ModuleNotFoundAeonError as AeonImportError,
     NonOrderableComparisonError,
@@ -74,6 +75,8 @@ def error_exit_code(err: AeonError) -> ExitCode:
         case UnificationKindError():
             return ExitCode.KIND_MISMATCH
         case UnificationUnknownTypeError():
+            return ExitCode.UNKNOWN_NAME
+        case NameResolutionError():
             return ExitCode.UNKNOWN_NAME
         case MethodResolutionError():
             return ExitCode.METHOD_RESOLUTION_ERROR

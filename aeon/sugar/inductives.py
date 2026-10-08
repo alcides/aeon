@@ -178,7 +178,16 @@ def infer_inductive_rforall_decls(p: Program) -> Program:
         else:
             inferred.append(ind)
 
-    return Program(p.imports, p.type_decls, inferred, p.definitions)
+    return Program(
+        p.imports,
+        p.type_decls,
+        inferred,
+        p.definitions,
+        p.class_decls,
+        p.instance_decls,
+        p.export_names,
+        p.reexports,
+    )
 
 
 def expand_inductive_decls(p: Program) -> Program:
@@ -378,4 +387,13 @@ def expand_inductive_decls(p: Program) -> Program:
             case _:
                 assert False, f"Unexpected inductive decl {decl} in {p}"
 
-    return Program(p.imports, p.type_decls + tds, [], defs + p.definitions)
+    return Program(
+        p.imports,
+        p.type_decls + tds,
+        [],
+        defs + p.definitions,
+        p.class_decls,
+        p.instance_decls,
+        p.export_names,
+        p.reexports,
+    )
