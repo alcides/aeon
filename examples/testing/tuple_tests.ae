@@ -8,53 +8,53 @@ open Tuple
 # ── Unit tests ───────────────────────────────────────────────────────────────
 
 @property(1)
-def test_fst : Bool := assertEqual (fst (Tuple.new 1 2)) 1;
+def test_fst : Bool := assertEqual (Tuple.fst (Tuple.new 1 2)) 1;
 
 @property(1)
-def test_snd : Bool := assertEqual (snd (Tuple.new 1 2)) 2;
+def test_snd : Bool := assertEqual (Tuple.snd (Tuple.new 1 2)) 2;
 
 @property(1)
-def test_length : Bool := assertEqual (length (Tuple.new 1 2)) 2;
+def test_length : Bool := assertEqual (Tuple.length (Tuple.new 1 2)) 2;
 
 @property(1)
 def test_eq : Bool :=
-    both (assertTrue (eq (Tuple.new 1 2) (Tuple.new 1 2)))
-         (assertFalse (eq (Tuple.new 1 2) (Tuple.new 2 1)));
+    both (assertTrue (Tuple.eq (Tuple.new 1 2) (Tuple.new 1 2)))
+         (assertFalse (Tuple.eq (Tuple.new 1 2) (Tuple.new 2 1)));
 
 @property(1)
 def test_swap : Bool :=
-    s := swap (Tuple.new 1 2);
-    both (assertEqual (fst s) 2)
-         (assertEqual (snd s) 1);
+    s := Tuple.swap (Tuple.new 1 2);
+    both (assertEqual (Tuple.fst s) 2)
+         (assertEqual (Tuple.snd s) 1);
 
 @property(1)
 def test_map_fst : Bool :=
-    t := map_fst (fun x => x + 10) (Tuple.new 1 2);
-    both (assertEqual (fst t) 11)
-         (assertEqual (snd t) 2);
+    t := Tuple.map_fst (fun x => x + 10) (Tuple.new 1 2);
+    both (assertEqual (Tuple.fst t) 11)
+         (assertEqual (Tuple.snd t) 2);
 
 @property(1)
 def test_map_snd : Bool :=
-    t := map_snd (fun x => x + 10) (Tuple.new 1 2);
-    both (assertEqual (fst t) 1)
-         (assertEqual (snd t) 12);
+    t := Tuple.map_snd (fun x => x + 10) (Tuple.new 1 2);
+    both (assertEqual (Tuple.fst t) 1)
+         (assertEqual (Tuple.snd t) 12);
 
 # ── Property-based tests ─────────────────────────────────────────────────────
 
 # Projections return the components they were built from.
 @property
 def prop_fst_snd (a : Int) (b : Int) : Bool :=
-    both (assertEqual (fst (Tuple.new a b)) a)
-         (assertEqual (snd (Tuple.new a b)) b);
+    both (assertEqual (Tuple.fst (Tuple.new a b)) a)
+         (assertEqual (Tuple.snd (Tuple.new a b)) b);
 
 # Swapping exchanges the two components.
 @property
 def prop_swap (a : Int) (b : Int) : Bool :=
-    s := swap (Tuple.new a b);
-    both (assertEqual (fst s) b)
-         (assertEqual (snd s) a);
+    s := Tuple.swap (Tuple.new a b);
+    both (assertEqual (Tuple.fst s) b)
+         (assertEqual (Tuple.snd s) a);
 
 # Swapping twice is the identity.
 @property
 def prop_swap_involution (a : Int) (b : Int) : Bool :=
-    assertTrue (eq (swap (swap (Tuple.new a b))) (Tuple.new a b));
+    assertTrue (Tuple.eq (Tuple.swap (Tuple.swap (Tuple.new a b))) (Tuple.new a b));
