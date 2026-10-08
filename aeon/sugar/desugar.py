@@ -446,7 +446,16 @@ def resolve_qualified_names_in_sterm(
             # resolves it against the receiver's type; if ``qualifier`` is not a
             # bound variable either, it raises there.
             if qualifier not in {q for (q, _) in qualified_scope}:
-                return SApplication(SMethodSelector(name, loc=loc), SVar(Name(qualifier), loc=loc), loc=loc)
+                # ``n.double.double`` is lexed as one qualified identifier.
+                # Recover its receiver recursively so it lowers to
+                # ``(.double) ((.double) n)`` rather than looking up a
+                # fictional variable named ``n.double``.
+                if "." in qualifier:
+                    receiver_qualifier, _, receiver_name = qualifier.rpartition(".")
+                    receiver = rec(SQualifiedVar(receiver_qualifier, Name(receiver_name), loc=loc))
+                else:
+                    receiver = SVar(Name(qualifier), loc=loc)
+                return SApplication(SMethodSelector(name, loc=loc), receiver, loc=loc)
             raise NameResolutionError(f"Name '{name.name}' not found in module '{qualifier}'", loc)
         case SVar(name, loc) if name.name in unqualified_scope and name.name not in bound:
             resolved = unqualified_scope[name.name]
