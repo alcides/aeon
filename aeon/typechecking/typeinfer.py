@@ -67,6 +67,7 @@ from aeon.errors import (
     UnreachablePatternError,
 )
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.branch_evidence import match_branch_evidence
 from aeon.typechecking.entailment import entailment, entailment_context
 from aeon.typechecking.termination import termination_metric_constraints
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
@@ -1052,43 +1053,10 @@ def _check_recursor_branch(
     hypothesis. Falls back to a plain check (motive only, no constructor fact)
     if the constructor's shape cannot be recovered."""
     plain = lambda: check(ctx, handler, case_type)  # noqa: E731
-    ctor_full = f"{tyname}_{case_name.name[len('case_') :]}" if case_name.name.startswith("case_") else None
-    ctor_type = next((tt for n, tt in ctx.vars() if n.name == ctor_full), None) if ctor_full else None
-    if ctor_type is None:
+    evidence = match_branch_evidence(ctx, handler, case_type, tyname, case_name, scrut)
+    if evidence is None:
         return plain()
-    # Peel the constructor's binders/fields to reach its result refinement.
-    cur: Type = ctor_type
-    while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
-        cur = cur.body
-    ctor_arg_names: list[Name] = []
-    while isinstance(cur, AbstractionType):
-        ctor_arg_names.append(cur.var_name)
-        cur = cur.type
-    res_ref = ensure_refined(cur)
-    if not isinstance(res_ref, RefinedType):
-        return plain()
-
-    # Peel the handler's field binders against the case type, recording the
-    # field types and the constructor-arg → handler-field name correspondence.
-    fields: list[tuple[Name, Type]] = []
-    ctor_to_field: dict[Name, LiquidTerm] = {}
-    hh: Term = handler
-    ct: Type = case_type
-    while isinstance(ct, AbstractionType) and isinstance(hh, Abstraction):
-        fn = hh.var_name
-        fields.append((fn, ct.var_type))
-        if len(fields) - 1 < len(ctor_arg_names):
-            ctor_to_field[ctor_arg_names[len(fields) - 1]] = LiquidVar(fn)
-        ct = substitution_in_type(ct.type, Var(fn), ct.var_name)
-        hh = hh.body
-    if isinstance(ct, AbstractionType):
-        return plain()  # handler under-applied for this case — leave it to the default
-
-    # fact = constructor result refinement, with the result binder set to the
-    # scrutinee and constructor field names mapped to the handler's binders.
-    fact: LiquidTerm = substitution_in_liquid(res_ref.refinement, LiquidVar(scrut.name), res_ref.name)
-    for cn, fv in ctor_to_field.items():
-        fact = substitution_in_liquid(fact, fv, cn)
+    fields, hh, ct, fact = evidence.fields, evidence.body, evidence.body_type, evidence.fact
 
     # Reject constructor branches made impossible by the refined scrutinee.
     # Prefer the full entailment context; the narrow fallback handles the

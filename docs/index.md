@@ -554,8 +554,22 @@ is checked, the recursive call may use its declared refined result—the
 induction hypothesis needed by recursive specifications.
 
 For simple integer recursion Aeon may infer a metric, but `decreasing_by` is
-the reliable way to record the proof. Measures are available in refinements;
-automatic structural termination from an ADT subterm is not yet implemented.
+the reliable way to record the proof. In a `match` branch, the constructor's
+result refinement is also available to the termination checker. This supports
+structural metrics when the recursive field carries the required lower bound:
+
+```
+inductive Nat
+| zero : {n:Nat | size n = 0}
+| succ (p:{q:Nat | size q >= 0}) : {n:Nat | size n = size p + 1}
++ size (n:Nat) : Int
+
+def depth (n:Nat) : Int decreasing_by [size n] :=
+    match n with
+    | zero => 0
+    | succ p => depth p + 1
+```
+
 If no well-founded metric can
 be established, Aeon does *not* assume the recursive function's refined return
 type at its recursive calls; it only uses the underlying type. Thus unchecked

@@ -21,8 +21,10 @@ from aeon.core.terms import (
 )
 from aeon.core.types import AbstractionType, RefinedType, Type
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.branch_evidence import match_branch_evidence
 from aeon.utils.location import Location
 from aeon.utils.name import Name
+from aeon.verification.sub import implication_constraint
 from aeon.verification.vcs import Conjunction, Constraint, LiquidConstraint
 
 ctrue = LiquidConstraint(LiquidLiteralBool(True))
@@ -114,7 +116,7 @@ def collect_recursive_calls_with_paths(
     inner_expect_ty: Type | None,
     term_formals: list[Name],
     type_formals: list[Name],
-) -> list[tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...]]]:
+) -> list[tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...], tuple[tuple[Name, Type], ...]]]:
     """Self-calls with ``arity`` args, ``If`` path guards, and nested binder refinements.
 
     The walk traverses the *original* body — ``let`` bindings are not inlined
@@ -130,7 +132,9 @@ def collect_recursive_calls_with_paths(
       attached at the let's position in the walk, never hoisted, so a fact
       established under one branch cannot leak into another.
     """
-    found: list[tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...]]] = []
+    found: list[
+        tuple[list[Term], Location | None, tuple[Term, ...], tuple[LiquidTerm, ...], tuple[tuple[Name, Type], ...]]
+    ] = []
     base_vars = set(term_formals) | {fn}
     if typing_ctx is not None:
         base_vars |= {n for n, _ in typing_ctx.vars()}
@@ -162,66 +166,109 @@ def collect_recursive_calls_with_paths(
         ctx: TypingContext | None,
         expect_ty: Type | None,
         env: tuple[tuple[Name, Term], ...],
+        scope: tuple[tuple[Name, Type], ...],
     ) -> None:
         match tt:
             case Application(_, _, _):
                 head, args = peel_application_chain(tt)
                 if isinstance(head, Var) and head.name == fn and len(args) == arity:
-                    found.append(([apply_env(a, env) for a in args], tt.loc, path, nested_refs))
+                    found.append(([apply_env(a, env) for a in args], tt.loc, path, nested_refs, scope))
             case _:
                 pass
         match tt:
             case Application(Abstraction(bname, abody, _), arg, _):
                 # Beta redex: bind like a let so recorded terms stay closed.
-                walk(arg, path, nested_refs, ctx, None, env)
-                walk(abody, path, nested_refs, ctx, expect_ty, env + ((bname, apply_env(arg, env)),))
+                walk(arg, path, nested_refs, ctx, None, env, scope)
+                walk(abody, path, nested_refs, ctx, expect_ty, env + ((bname, apply_env(arg, env)),), scope)
             case Application(fun, arg, _):
+                # A fully-applied generated recursor is a lowered ``match``.
+                # Walk its case bodies under the same constructor fact used by
+                # the path-sensitive match checker (#555).
+                raw_head, rec_args = peel_application_chain(tt)
+                rec_head = raw_head
+                while isinstance(rec_head, (TypeApplication, RefinementApplication)):
+                    rec_head = rec_head.body
+                if isinstance(rec_head, Var) and rec_head.name.name.endswith("_rec") and rec_args:
+                    from aeon.verification.constructor_registry import get_constructor_order
+
+                    tyname = rec_head.name.name[: -len("_rec")]
+                    order = get_constructor_order(tyname)
+                    if order is not None and len(rec_args) == len(order) + 1 and isinstance(rec_args[0], Var):
+                        partial = raw_head
+                        walk(rec_args[0], path, nested_refs, ctx, None, env, scope)
+                        partial = Application(partial, rec_args[0])
+                        for handler in rec_args[1:]:
+                            fty = _synth_type(ctx, partial) if ctx is not None else None
+                            if not isinstance(fty, AbstractionType):
+                                walk(handler, path, nested_refs, ctx, None, env, scope)
+                            else:
+                                evidence = match_branch_evidence(
+                                    ctx, handler, fty.var_type, tyname, fty.var_name, rec_args[0]
+                                )
+                                if evidence is None:
+                                    walk(handler, path, nested_refs, ctx, fty.var_type, env, scope)
+                                else:
+                                    nctx = ctx
+                                    for field, field_ty in evidence.fields:
+                                        nctx = nctx.with_var(field, field_ty) if nctx is not None else None
+                                    walk(
+                                        evidence.body,
+                                        path,
+                                        nested_refs
+                                        + (align_liquid_to_type_formals(evidence.fact, term_formals, type_formals),),
+                                        nctx,
+                                        evidence.body_type,
+                                        env,
+                                        scope + evidence.fields,
+                                    )
+                            partial = Application(partial, handler)
+                        return
                 f_ty = _synth_type(ctx, fun) if ctx is not None else None
-                walk(fun, path, nested_refs, ctx, f_ty, env)
+                walk(fun, path, nested_refs, ctx, f_ty, env, scope)
                 arg_ty: Type | None = None
                 match f_ty:
                     case AbstractionType(_, vt, _):
                         arg_ty = vt
-                walk(arg, path, nested_refs, ctx, arg_ty, env)
+                walk(arg, path, nested_refs, ctx, arg_ty, env, scope)
             case Abstraction(name, body, _):
                 if isinstance(expect_ty, AbstractionType):
                     vty = expect_ty.var_type
                     new_ctx = ctx.with_var(name, vty) if ctx is not None else None
                     ref_l = _opened_refinement_liquid(vty, name, term_formals, type_formals)
                     nrefs = nested_refs + (ref_l,) if ref_l is not None else nested_refs
-                    walk(body, path, nrefs, new_ctx, expect_ty.type, env)
+                    walk(body, path, nrefs, new_ctx, expect_ty.type, env, scope + ((name, vty),))
                 else:
-                    walk(body, path, nested_refs, ctx, None, env)
+                    walk(body, path, nested_refs, ctx, None, env, scope)
             case Let(name, val, body, _):
-                walk(val, path, nested_refs, ctx, None, env)
+                walk(val, path, nested_refs, ctx, None, env, scope)
                 ty_v = _synth_type(ctx, val) if ctx is not None else None
                 fact = let_fact(name, val, ty_v, env)
                 nrefs = nested_refs + (fact,) if fact is not None else nested_refs
                 new_ctx = ctx.with_var(name, ty_v) if ctx is not None and ty_v is not None else ctx
-                walk(body, path, nrefs, new_ctx, expect_ty, env + ((name, apply_env(val, env)),))
+                walk(body, path, nrefs, new_ctx, expect_ty, env + ((name, apply_env(val, env)),), scope)
             case Rec(name, _, val, body, _, _):
-                walk(val, path, nested_refs, ctx, None, env)
-                walk(body, path, nested_refs, ctx, expect_ty, env + ((name, apply_env(val, env)),))
+                walk(val, path, nested_refs, ctx, None, env, scope)
+                walk(body, path, nested_refs, ctx, expect_ty, env + ((name, apply_env(val, env)),), scope)
             case Annotation(expr, _, _):
-                walk(expr, path, nested_refs, ctx, expect_ty, env)
+                walk(expr, path, nested_refs, ctx, expect_ty, env, scope)
             case If(cond, then, otherwise, _):
                 cond_s = apply_env(cond, env)
-                walk(cond, path, nested_refs, ctx, None, env)
-                walk(then, path + (cond_s,), nested_refs, ctx, expect_ty, env)
-                walk(otherwise, path + (_term_bool_not(cond_s),), nested_refs, ctx, expect_ty, env)
+                walk(cond, path, nested_refs, ctx, None, env, scope)
+                walk(then, path + (cond_s,), nested_refs, ctx, expect_ty, env, scope)
+                walk(otherwise, path + (_term_bool_not(cond_s),), nested_refs, ctx, expect_ty, env, scope)
             case TypeApplication(body, _, _):
-                walk(body, path, nested_refs, ctx, expect_ty, env)
+                walk(body, path, nested_refs, ctx, expect_ty, env, scope)
             case TypeAbstraction(_, _, body, _):
-                walk(body, path, nested_refs, ctx, expect_ty, env)
+                walk(body, path, nested_refs, ctx, expect_ty, env, scope)
             case RefinementApplication(body, refinement, _):
-                walk(body, path, nested_refs, ctx, expect_ty, env)
-                walk(refinement, path, nested_refs, ctx, None, env)
+                walk(body, path, nested_refs, ctx, expect_ty, env, scope)
+                walk(refinement, path, nested_refs, ctx, None, env, scope)
             case RefinementAbstraction(_, _, body, _):
-                walk(body, path, nested_refs, ctx, expect_ty, env)
+                walk(body, path, nested_refs, ctx, expect_ty, env, scope)
             case _:
                 pass
 
-    walk(t, (), (), typing_ctx, inner_expect_ty, ())
+    walk(t, (), (), typing_ctx, inner_expect_ty, (), ())
     return found
 
 
@@ -436,7 +483,7 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
                 parts.append(LiquidConstraint(LiquidLiteralBool(False)))
             continue
         calls = collect_recursive_calls_with_paths(tname, tarity, inner, inner_ctx, inner_expect, formals, type_formals)
-        for call_args, _loc, path, nested_refs in calls:
+        for call_args, _loc, path, nested_refs, scope in calls:
             if len(call_args) != tarity:
                 parts.append(LiquidConstraint(LiquidLiteralBool(False)))
                 continue
@@ -452,7 +499,10 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
                 parts.append(LiquidConstraint(LiquidLiteralBool(False)))
                 continue
             lex = _lexicographic_less(call_ms, caller_entry_ms)
-            parts.append(_termination_obligation(path, lex, call_ms, formals, type_formals, entry_refs, nested_refs))
+            obligation = _termination_obligation(path, lex, call_ms, formals, type_formals, entry_refs, nested_refs)
+            for name, ty in reversed(scope):
+                obligation = implication_constraint(name, ty, obligation)
+            parts.append(obligation)
 
     if not parts:
         return ctrue

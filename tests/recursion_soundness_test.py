@@ -86,6 +86,43 @@ def test_inferred_metric_guarded_nat_is_accepted():
     assert _typechecks(src)
 
 
+def test_structural_measure_metric_in_match_is_accepted():
+    """A constructor equation is available to the termination VC as well.
+
+    The field's lower-bound refinement supplies the well-foundedness premise;
+    the ``succ`` result refinement supplies the strict decrease.
+    """
+    src = """
+        inductive Nat
+        | zero : {n:Nat | size n = 0}
+        | succ (p:{q:Nat | size q >= 0}) : {n:Nat | size n = size p + 1}
+        + size (n:Nat) : Int
+
+        def depth (n:Nat) : Int decreasing_by [size n] :=
+          match n with
+          | zero => 0
+          | succ p => depth p + 1;
+        def main (_:Int) : Int := 0
+    """
+    assert _typechecks(src)
+
+
+def test_structural_measure_metric_rejects_non_decreasing_branch_call():
+    src = """
+        inductive Nat
+        | zero : {n:Nat | size n = 0}
+        | succ (p:{q:Nat | size q >= 0}) : {n:Nat | size n = size p + 1}
+        + size (n:Nat) : Int
+
+        def loop (n:Nat) : Int decreasing_by [size n] :=
+          match n with
+          | zero => 0
+          | succ p => loop n;
+        def main (_:Int) : Int := 0
+    """
+    assert not _typechecks(src)
+
+
 # ---------------------------------------------------------------------------
 # Negative: non-well-founded recursion must be rejected.
 # ---------------------------------------------------------------------------
