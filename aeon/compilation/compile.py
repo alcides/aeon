@@ -184,6 +184,53 @@ def _exports_from_uninterpreted(
     return exports
 
 
+def _add_inductive_member_export_aliases(
+    exports: dict[str, ModuleExport],
+    inductive_decls: list,
+    export_prefix: str | None,
+) -> dict[str, ModuleExport]:
+    """Publish local ADT constructors and measures by their source names.
+
+    Inductive lowering gives a constructor such as ``mk`` on ``Public`` an
+    internal name like ``Interface_Public_mk``.  The generic spine exporter
+    can only recover ``Public_mk`` from that name, which means an explicit
+    ``export (mk)`` neither publishes nor re-exports the constructor.  Module
+    interfaces use source-level names, so add aliases for the constructor and
+    canonical measure member while retaining the same internal binder and
+    type.  Ordinary definitions already arrive under their source names.
+    """
+    if export_prefix is None:
+        return exports
+
+    aliases = dict(exports)
+
+    def alias(source_name: str, internal_name: str) -> None:
+        member = next((export for export in exports.values() if export.internal_name.name == internal_name), None)
+        if member is None:
+            return
+        # Do not silently choose between two identically named namespace
+        # members.  Such a declaration remains addressable through its
+        # datatype-qualified name, but cannot be exported as one bare module
+        # member.
+        existing = aliases.get(source_name)
+        if existing is not None and existing.internal_name != member.internal_name:
+            return
+        aliases[source_name] = ModuleExport(source_name, member.internal_name, member.sugar_type, member.core_type)
+
+    for decl in inductive_decls:
+        for constructor in decl.constructors:
+            alias(
+                constructor.name.name,
+                f"{export_prefix}_{decl.name.name}_{constructor.name.name}",
+            )
+        for measure in decl.measures:
+            alias(
+                measure.name.name,
+                f"{export_prefix}_{decl.name.name}_{measure.name.name}",
+            )
+    return aliases
+
+
 def _module_constructor_defs(
     inductive_decls: list,
     constructor_defs: dict[str, Name],
@@ -394,6 +441,11 @@ def compile_program(
 
     exports = _exports_from_spine(core_ast, typing_ctx, prog.definitions, export_prefix, export_sugar_types)
     if export_prefix is not None:
+        exports = _add_inductive_member_export_aliases(
+            exports,
+            desugared.local_inductive_decls,
+            export_prefix,
+        )
         private_exports = {
             _bare_name(export_prefix, definition.name.name) for definition in prog.definitions if definition.is_private
         }

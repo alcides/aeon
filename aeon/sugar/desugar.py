@@ -1693,6 +1693,17 @@ def handle_imports(
         import_p = resolve_import(imp)
         import_p = infer_inductive_rforall_decls(import_p)
         imported_inductives.extend(import_p.inductive_decls)
+        # ``expand_inductive_decls`` lowers members such as ``Public.mk`` to
+        # implementation names such as ``Public_mk``.  The public module
+        # namespace must retain the source member name, otherwise an explicit
+        # ``export (mk)`` can never publish a constructor (and measures have
+        # the same problem).
+        inductive_member_aliases: dict[str, str] = {}
+        for decl in import_p.inductive_decls:
+            for constructor in decl.constructors:
+                inductive_member_aliases[f"{decl.name.name}_{constructor.name.name}"] = constructor.name.name
+            for measure in decl.measures:
+                inductive_member_aliases[f"{decl.name.name}_{measure.name.name}"] = measure.name.name
         import_p = expand_inductive_decls(import_p)
         import_p_definitions = import_p.definitions
         defs_recursive: list[Definition] = []
@@ -1720,9 +1731,16 @@ def handle_imports(
         # importer.
         declared_exports = set(import_p.export_names)
         public_definitions = {
-            _bare_name(module_name, d.name.name)
+            inductive_member_aliases.get(_bare_name(module_name, d.name.name), _bare_name(module_name, d.name.name))
             for d in import_p_definitions
-            if not d.is_private and (not declared_exports or _bare_name(module_name, d.name.name) in declared_exports)
+            if not d.is_private
+            and (
+                not declared_exports
+                or inductive_member_aliases.get(
+                    _bare_name(module_name, d.name.name), _bare_name(module_name, d.name.name)
+                )
+                in declared_exports
+            )
         }
 
         local_qualified: QualifiedScope = dict(rec_q)
@@ -1730,8 +1748,9 @@ def handle_imports(
         for d in import_p_definitions:
             if _is_native_import_def(d):
                 continue
-            bare = _bare_name(module_name, d.name.name)
-            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            raw_bare = _bare_name(module_name, d.name.name)
+            bare = inductive_member_aliases.get(raw_bare, raw_bare)
+            internal_name = Name(f"{module_name}_{raw_bare}", d.name.id)
             local_qualified[(module_name, bare)] = internal_name
             # A definition can refer to a same-named sibling even when an
             # imported module exports that name.  This is lexical shadowing,
@@ -1740,11 +1759,12 @@ def handle_imports(
 
         prefixed_definitions: list[Definition] = []
         for d in import_p_definitions:
-            bare = _bare_name(module_name, d.name.name)
+            raw_bare = _bare_name(module_name, d.name.name)
+            bare = inductive_member_aliases.get(raw_bare, raw_bare)
             if _is_native_import_def(d):
                 prefixed_definitions.append(d)
                 continue
-            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            internal_name = Name(f"{module_name}_{raw_bare}", d.name.id)
             resolved_d = resolve_qualified_names_in_definition(d, local_qualified, local_unqualified)
             prefixed_d = Definition(
                 internal_name,

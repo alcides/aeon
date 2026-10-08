@@ -113,6 +113,59 @@ def test_explicit_export_list_limits_a_module_interface(tmp_path):
     assert set(unit.exports) == {"shown"}
 
 
+def test_explicit_export_list_hides_inductive_constructors(tmp_path, monkeypatch):
+    # An export list is the complete module interface, not merely a filter on
+    # ordinary ``def`` declarations.  ADT constructors must not leak through
+    # the compiler's imported-inductive metadata.
+    (tmp_path / "Interface.ae").write_text(
+        "inductive Hidden\n| mk_hidden : Hidden\ndef shown : Int := 1;\nexport (shown);\n"
+    )
+    main = tmp_path / "Main.ae"
+    main.write_text("import Interface;\ndef main (u:Int) : Int := Interface.mk_hidden;\n")
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    errors = AeonDriver(cfg).parse(filename=str(main))
+    assert len(errors) == 1
+    assert type(errors[0]).__name__ == "NameResolutionError"
+    assert "mk_hidden" in str(errors[0])
+
+
+def test_explicit_export_list_can_publish_an_inductive_constructor(tmp_path, monkeypatch):
+    (tmp_path / "Interface.ae").write_text("inductive Public\n| mk_public : Public\nexport (mk_public);\n")
+    main = tmp_path / "Main.ae"
+    main.write_text(
+        "import Interface;\ndef main (u:Int) : Int := if Interface.mk_public = Interface.mk_public then 0 else 1;\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(filename=str(main)) == []
+    assert driver.run() == 0
+
+
+def test_explicit_export_list_can_publish_an_inductive_measure(tmp_path, monkeypatch):
+    (tmp_path / "Interface.ae").write_text(
+        "inductive Counter\n| zero : Counter\n+ size (value: Counter) : Int\nexport (size);\n"
+    )
+    main = tmp_path / "Main.ae"
+    main.write_text("import Interface;\ndef keep (x: {v:Counter | Interface.size v >= 0}) : Counter := x;\n")
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    assert AeonDriver(cfg).parse(filename=str(main)) == []
+
+
+def test_reexport_can_publish_an_inductive_constructor(tmp_path, monkeypatch):
+    (tmp_path / "A.ae").write_text("inductive Public\n| mk_public : Public\nexport (mk_public);\n")
+    (tmp_path / "B.ae").write_text("import A;\nexport A (mk_public);\n")
+    main = tmp_path / "Main.ae"
+    main.write_text("import B;\ndef main (u:Int) : Int := if B.mk_public = B.mk_public then 0 else 1;\n")
+    monkeypatch.chdir(tmp_path)
+    cfg = AeonConfig(synthesizer="gp", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0)
+    driver = AeonDriver(cfg)
+    assert driver.parse(filename=str(main)) == []
+    assert driver.run() == 0
+
+
 def test_reexport_is_visible_through_the_reexporting_module(tmp_path, monkeypatch):
     (tmp_path / "A.ae").write_text("def value : Int := 41;\n")
     (tmp_path / "B.ae").write_text("import A;\nexport A (value);\n")
