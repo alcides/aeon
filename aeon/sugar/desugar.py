@@ -843,7 +843,12 @@ def desugar(
             qualified_scope[(decl.name.name, measure.name.name)] = canonical
             # Like constructors, a measure is only available without its
             # datatype qualifier after an explicit ``open Datatype``.
-            if decl.name.name in open_inductives:
+            # A declaration in the same source module may use its own measure
+            # bare in a refinement (``val x`` for ``Bit``).  This resolves it
+            # to the canonical ``Bit_val`` binder before lowering; it does not
+            # export a process-wide bare measure alias.  Competing local
+            # measures still become an ambiguity via ``_add_unqualified``.
+            if decl.name.name in open_inductives or decl.name.name in inductive_names:
                 _add_unqualified(unqualified_scope, measure.name.name, canonical)
 
     # Register dotted definition names ``def Type.method`` for qualified access
