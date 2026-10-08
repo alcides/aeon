@@ -59,6 +59,7 @@ from aeon.sugar.substitutions import (
     _type_name_key,
     substitute_svartype_in_stype,
     substitute_svartype_in_stype_by_name,
+    substitution_sterm_in_sterm,
     substitution_svartype_in_sterm,
     substitution_svartype_in_sterm_by_name,
 )
@@ -548,6 +549,60 @@ def resolve_qualified_names_in_stype(
             return ty
 
 
+def inline_refinement_library_predicates(definitions: list[Definition]) -> list[Definition]:
+    """Inline executable predicates from ``Refinement`` in refinement logic.
+
+    Library predicates remain ordinary Aeon functions at runtime.  In a
+    refinement, however, the SMT encoding must see their arithmetic bodies;
+    treating an imported predicate call as an uninterpreted function would
+    weaken a contract.  This small, hygienic beta-reduction is deliberately
+    restricted to the standard refinement library and to predicate positions.
+    """
+
+    predicates = {
+        d.name: d for d in definitions if d.name.name.startswith("Refinement_") and d.body is not None and d.args
+    }
+
+    def uncurry(term: STerm) -> tuple[STerm, list[STerm]]:
+        args: list[STerm] = []
+        while isinstance(term, SApplication):
+            args.append(term.arg)
+            term = term.fun
+        return term, list(reversed(args))
+
+    def term(t: STerm) -> STerm:
+        head, args = uncurry(t)
+        if isinstance(head, SVar) and head.name in predicates:
+            predicate = predicates[head.name]
+            if len(args) == len(predicate.args):
+                body = predicate.body
+                for (parameter, _), value in zip(predicate.args, args, strict=True):
+                    body = substitution_sterm_in_sterm(body, term(value), parameter)
+                return term(body)
+        if isinstance(t, SApplication):
+            return SApplication(term(t.fun), term(t.arg), loc=t.loc)
+        return t
+
+    def ty(t: SType) -> SType:
+        match t:
+            case SRefinedType(name, base, refinement, loc):
+                return SRefinedType(name, ty(base), term(refinement), loc=loc)
+            case SAbstractionType(name, domain, codomain, loc):
+                return SAbstractionType(
+                    name, ty(domain), ty(codomain), loc=loc, multiplicity=t.multiplicity, is_instance=t.is_instance
+                )
+            case STypeConstructor(name, args, loc):
+                return STypeConstructor(name, [ty(arg) for arg in args], loc=loc)
+            case STypePolymorphism(name, kind, body, loc):
+                return STypePolymorphism(name, kind, ty(body), loc=loc)
+            case SRefinementPolymorphism(name, sort, body, loc):
+                return SRefinementPolymorphism(name, ty(sort), ty(body), loc=loc)
+            case _:
+                return t
+
+    return [replace(d, args=[(name, ty(arg_ty)) for name, arg_ty in d.args], type=ty(d.type)) for d in definitions]
+
+
 def resolve_qualified_names_in_definition(
     d: Definition,
     qualified_scope: QualifiedScope,
@@ -830,6 +885,8 @@ def desugar(
             )
         defs = resolved_defs
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
+
+    defs = inline_refinement_library_predicates(defs)
 
     # Expand the `_` reflection marker in return-type refinements into `binder == body`.
     defs = reflect_underscore_in_definitions(defs)
