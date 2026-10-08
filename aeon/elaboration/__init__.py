@@ -1022,6 +1022,39 @@ def _class_types_match(requested: SType, given: SType) -> bool:
             return requested == given
 
 
+def _class_types_compatible_with_unresolved_vars(requested: SType, given: SType) -> bool:
+    """Whether a lexical instance can satisfy a still-polymorphic request.
+
+    During elaboration of a constrained instance, a method projection may get
+    a freshly-instantiated type variable even though its eventual receiver is
+    the type variable carried by the instance constraint.  The two names are
+    distinct, so :func:`_class_types_match` deliberately (and correctly) does
+    not treat them as equal.  At that point, however, a unique lexical
+    dictionary for the same class is the only sound candidate: the surrounding
+    method typechecking constrains the variable to its receiver type.
+
+    This is only a fallback after exact matching and only accepts type
+    *variables* as wildcards.  Concrete constructors must still agree, and
+    competing lexical constraints remain an error rather than being selected
+    by traversal order.
+    """
+    if isinstance(requested, SRefinedType):
+        return _class_types_compatible_with_unresolved_vars(requested.type, given)
+    if isinstance(given, SRefinedType):
+        return _class_types_compatible_with_unresolved_vars(requested, given.type)
+    match (requested, given):
+        case (STypeVar(_), _) | (_, STypeVar(_)):
+            return True
+        case (STypeConstructor(rn, ra), STypeConstructor(gn, ga)):
+            return (
+                rn.name == gn.name
+                and len(ra) == len(ga)
+                and all(_class_types_compatible_with_unresolved_vars(r, g) for r, g in zip(ra, ga))
+            )
+        case _:
+            return requested == given
+
+
 def _resolve_instance_hole(ctx: ElaborationTypingContext, class_type: SType, loc) -> STerm:
     """Replace a resolved instance-class type (e.g. ``Eq Int``) with a reference
     to the generated instance dictionary. ``class_type`` must have its unification
@@ -1036,6 +1069,15 @@ def _resolve_instance_hole(ctx: ElaborationTypingContext, class_type: SType, loc
     for inst_name, inst_class in ctx.instances:
         if _class_types_match(class_type, inst_class):
             return SVar(inst_name, loc=loc)
+    # See ``_class_types_compatible_with_unresolved_vars``.  Never let an
+    # unresolved type choose arbitrarily between two lexical dictionaries.
+    compatible = [
+        inst_name
+        for inst_name, inst_class in ctx.instances
+        if _class_types_compatible_with_unresolved_vars(class_type, inst_class)
+    ]
+    if len(compatible) == 1:
+        return SVar(compatible[0], loc=loc)
     match class_type:
         case STypeConstructor(class_name, args) if args:
             head = _extract_base_type_name(args[0])
