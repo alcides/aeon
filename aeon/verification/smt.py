@@ -51,6 +51,7 @@ from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_set, t_string, t_unit
 from aeon.verification.sub import lower_constraint_type
+from aeon.verification.trace import Status
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import alpha_key
 from aeon.verification.vcs import Constraint
@@ -751,11 +752,27 @@ s = Solver()
 (s.set(timeout=200),)
 
 _smt_valid_cache: dict[str, bool] = {}
+_smt_status_cache: dict[str, tuple["Status", str | None]] = {}
 
 
 def smt_valid(constraint: Constraint) -> bool:
-    """Verifies if a constraint is true using Z3."""
+    """Check validity and publish opt-in evidence without changing acceptance."""
+    from aeon.verification.trace import VerificationResult, record_verification
+
     key = alpha_key(constraint)
+    cached = key in _smt_valid_cache
+    try:
+        valid = _smt_valid(constraint, key)
+    except Z3Exception as exc:
+        record_verification(VerificationResult(constraint, "unsupported", str(exc)))
+        raise
+    status, reason = _smt_status_cache.get(key, ("valid" if valid else "invalid", None))
+    record_verification(VerificationResult(constraint, status, reason, cached))
+    return valid
+
+
+def _smt_valid(constraint: Constraint, key: str) -> bool:
+    """Verifies if a constraint is true using Z3."""
     cached = _smt_valid_cache.get(key)
     if cached is not None:
         return cached
@@ -790,6 +807,7 @@ def smt_valid(constraint: Constraint) -> bool:
                 # spec was "satisfied" by a literal ``/ 0``). An obligation we
                 # cannot even define is not proven, so report it invalid.
                 _smt_valid_cache[key] = False
+                _smt_status_cache[key] = ("unsupported", "Undefined constant division or modulo by zero")
                 return False
             if smt_c is False:
                 continue
@@ -797,9 +815,11 @@ def smt_valid(constraint: Constraint) -> bool:
             result = s.check()
             if result == sat:
                 _smt_valid_cache[key] = False
+                _smt_status_cache[key] = ("invalid", None)
                 return False
             elif result == unknown:
                 _smt_valid_cache[key] = False
+                _smt_status_cache[key] = ("unknown", s.reason_unknown())
                 return False
         finally:
             # Always balance the matching ``push`` -- ``s`` is a reused global
@@ -808,6 +828,7 @@ def smt_valid(constraint: Constraint) -> bool:
             s.pop()
 
     _smt_valid_cache[key] = True
+    _smt_status_cache[key] = ("valid", None)
     return True
 
 
@@ -1013,6 +1034,7 @@ def clear_smt_caches() -> None:
     _mk_funs_cache.clear()
     _mk_sorts_cache.clear()
     _smt_valid_cache.clear()
+    _smt_status_cache.clear()
     clear_datatype_cache()
 
 
