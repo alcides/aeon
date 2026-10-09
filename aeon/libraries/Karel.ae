@@ -1,12 +1,77 @@
-# An embedded Karel DSL: programs are Aeon functions ``World -> World``.
+# Embedded 2D Karel. Coordinates start at the top left; north/east/south/west are 0/1/2/3.
+# Worlds are immutable. Blocked moves and empty picks are no-ops.
+# Native primitives implement the grid; program composition is ordinary Aeon code.
 type World
-def world (cells: String) : World := native "{'cells': cells, 'pos': 0, 'dir': 0, 'markers': 0}"
-def render (w: World) : String := native "w['cells'] + '|p=' + str(w['pos']) + '|d=' + str(w['dir']) + '|m=' + str(w['markers'])"
-def markers_present (w: World) : Bool := native "w['markers'] > 0"
-def move (w: World) : World := native "dict(w, pos=(w['pos'] + 1 if w['pos'] < len(w['cells']) - 1 else w['pos']))"
-def turn_left (w: World) : World := native "dict(w, dir=(w['dir'] - 1) % 4)"
-def turn_right (w: World) : World := native "dict(w, dir=(w['dir'] + 1) % 4)"
-def pick_marker (w: World) : World := native "dict(w, markers=max(0, w['markers'] - 1))"
-def put_marker (w: World) : World := native "dict(w, markers=w['markers'] + 1)"
-def repeat (n: Int) (step: (w: World) -> World) (w: World) : World := if n <= 0 then w else repeat (n - 1) step (step w)
-def if_karel (test: (w: World) -> Bool) (yes: (w: World) -> World) (no: (w: World) -> World) (w: World) : World := if test w then yes w else no w
+type Examples
+type Dataset
+def north : Int := 0
+def east : Int := 1
+def south : Int := 2
+def west : Int := 3
+def world (width: Int) (height: Int) (x: Int) (y: Int) (facing: Int) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['world']).world(width, height, x, y, facing)"
+def with_wall (w: World) (x: Int) (y: Int) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['with_wall']).with_wall(w, x, y)"
+def random_world (width: Int) (height: Int) (seed: Int) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['random_world']).random_world(width, height, seed)"
+def with_markers (w: World) (x: Int) (y: Int) (count: Int) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['with_markers']).with_markers(w, x, y, count)"
+def marker_count_at (w: World) (x: Int) (y: Int) : Int :=
+    native "__import__('aeon.bindings.karel', fromlist=['marker_count_at']).marker_count_at(w, x, y)"
+def front_is_clear (w: World) : Bool :=
+    native "__import__('aeon.bindings.karel', fromlist=['front_is_clear']).front_is_clear(w)"
+def left_is_clear (w: World) : Bool :=
+    native "__import__('aeon.bindings.karel', fromlist=['left_is_clear']).left_is_clear(w)"
+def right_is_clear (w: World) : Bool :=
+    native "__import__('aeon.bindings.karel', fromlist=['right_is_clear']).right_is_clear(w)"
+def markers_present (w: World) : Bool :=
+    native "__import__('aeon.bindings.karel', fromlist=['markers_present']).markers_present(w)"
+def move (w: World) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['move']).move(w)"
+def turn_left (w: World) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['turn_left']).turn_left(w)"
+def turn_right (w: World) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['turn_right']).turn_right(w)"
+def pick_marker (w: World) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['pick_marker']).pick_marker(w)"
+def put_marker (w: World) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['put_marker']).put_marker(w)"
+def marker_count (w: World) : Int :=
+    native "__import__('aeon.bindings.karel', fromlist=['marker_count']).marker_count(w)"
+def render (w: World) : String :=
+    native "__import__('aeon.bindings.karel', fromlist=['render']).render(w)"
+def same_world (a: World) (b: World) : Bool :=
+    native "__import__('aeon.bindings.karel', fromlist=['same_world']).same_world(a, b)"
+def example (initial: World) (expected: World) : Examples :=
+    native "__import__('aeon.bindings.karel', fromlist=['example']).example(initial, expected)"
+def append_examples (a: Examples) (b: Examples) : Examples :=
+    native "__import__('aeon.bindings.karel', fromlist=['append_examples']).append_examples(a, b)"
+def load_dataset (path: String) : Dataset :=
+    native "__import__('aeon.bindings.karel', fromlist=['load_examples']).load_examples(path)"
+def dataset_size (dataset: Dataset) : Int := native "len(dataset)"
+def dataset_task (dataset: Dataset) (index: Int) : Examples := native "dataset[index]"
+def fitness (program: (w: World) -> World) (examples: Examples) : Float :=
+    native "__import__('aeon.bindings.karel', fromlist=['fitness']).fitness(program, examples)"
+def require_finished (fuel: Int) (test: (w: World) -> Bool) (w: World) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['require_finished']).require_finished(fuel, test, w)"
+def robot_x (w: World) : Int := native "w.x"
+def robot_y (w: World) : Int := native "w.y"
+def direction (w: World) : Int := native "w.facing"
+def width (w: World) : Int := native "w.width"
+def height (w: World) : Int := native "w.height"
+
+def no_markers_present (w: World) : Bool := if markers_present w then false else true
+def not_karel (test: (w: World) -> Bool) (w: World) : Bool := if test w then false else true
+def stay (w: World) : World := w
+def sequence (first: (w: World) -> World) (second: (w: World) -> World) (w: World) : World :=
+    second (first w)
+def repeat (count: Int) (step: (w: World) -> World) (w: World) : World :=
+    if count <= 0 then w else repeat (count - 1) step (step w)
+def if_karel (test: (w: World) -> Bool) (yes: (w: World) -> World) (no: (w: World) -> World) (w: World) : World :=
+    if test w then yes w else no w
+def when_karel (test: (w: World) -> Bool) (step: (w: World) -> World) (w: World) : World :=
+    if test w then step w else w
+# Exhaustion raises a runtime error when the guard remains true, never a partial success.
+def while_karel (fuel: Int) (test: (w: World) -> Bool) (step: (w: World) -> World) (w: World) : World :=
+    if fuel <= 0 then require_finished fuel test w
+    else if test w then while_karel (fuel - 1) test step (step w) else w

@@ -3,4 +3,4 @@ import Karel;
 open Karel
 def walk3 (w: World) : World := repeat 3 move w
 def collect_or_turn (w: World) : World := if_karel markers_present pick_marker turn_right w
-def main (_: Int) : Unit := print (render (collect_or_turn (walk3 (world "...."))))
+def main (_: Int) : Unit := print (render (collect_or_turn (walk3 (with_markers (world 5 3 0 1 east) 3 1 2))))
