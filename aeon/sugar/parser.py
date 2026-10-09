@@ -36,6 +36,8 @@ from aeon.sugar.program import (
 from aeon.sugar.program import Definition
 from aeon.sugar.program import ImportAe
 from aeon.sugar.program import Program
+from aeon.sugar.program import NamespaceDecl
+from aeon.sugar.program import ExportDecl
 from aeon.sugar.program import TypeDecl
 from aeon.sugar.program import InductiveDecl
 from aeon.sugar.program import ClassDecl, ClassMethod, InstanceDecl, InstanceMethod
@@ -212,6 +214,9 @@ class TreeToSugar(Transformer):
         else:
             name = Name(name_str)
             return STypeVar(name)
+
+    def type_name(self, args):
+        return args[0]
 
     def constructor_t(self, args):
         return STypeConstructor(Name(args[0]), args[1:])
@@ -515,8 +520,8 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def qualified_var(self, meta, args):
-        parts = str(args[0]).split(".", 1)
-        return SQualifiedVar(parts[0], Name(parts[1]), loc=self._loc(meta))
+        qualifier, name = str(args[0]).rsplit(".", 1)
+        return SQualifiedVar(qualifier, Name(name), loc=self._loc(meta))
 
     @v_args(meta=True)
     def hole(self, meta, args):
@@ -575,20 +580,53 @@ class TreeToSugar(Transformer):
         ]
 
     def program(self, args):
-        type_section, def_section = args[1], args[2]
+        declaration_section = args[1:]
+        flat_declarations: list = []
+        export_names: list[str] = []
+        reexports: list[tuple[str, list[str]]] = []
+
+        def flatten(items, prefix: str = ""):
+            for item in items:
+                if isinstance(item, list):
+                    flatten(item, prefix)
+                    continue
+                if isinstance(item, NamespaceDecl):
+                    nested_prefix = f"{prefix}.{item.path}" if prefix else item.path
+                    flatten(item.declarations, nested_prefix)
+                    continue
+                if isinstance(item, ExportDecl):
+                    if item.module_path is None:
+                        export_names.extend(item.names)
+                    else:
+                        reexports.append((item.module_path, item.names))
+                    continue
+                if prefix and isinstance(item, (Definition, TypeDecl, InductiveDecl, ClassDecl)):
+                    item.name = Name(f"{prefix}.{item.name.name}", item.name.id)
+                flat_declarations.append(item)
+
+        flatten(declaration_section)
         # ``mutual`` blocks arrive as nested lists of Definitions; flatten them.
         flat_defs: list = []
-        for el in def_section:
+        for el in flat_declarations:
             if isinstance(el, list):
                 flat_defs.extend(el)
             else:
                 flat_defs.append(el)
-        inductive = [el for el in type_section if isinstance(el, InductiveDecl)]
-        classes = [el for el in type_section if isinstance(el, ClassDecl)]
-        type_decls = [el for el in type_section if isinstance(el, TypeDecl)]
+        inductive = [el for el in flat_declarations if isinstance(el, InductiveDecl)]
+        classes = [el for el in flat_declarations if isinstance(el, ClassDecl)]
+        type_decls = [el for el in flat_declarations if isinstance(el, TypeDecl)]
         definitions = [el for el in flat_defs if isinstance(el, Definition)]
         instances = [el for el in flat_defs if isinstance(el, InstanceDecl)]
-        return Program(args[0], type_decls, inductive, definitions, classes, instances)
+        return Program(args[0], type_decls, inductive, definitions, classes, instances, export_names, reexports)
+
+    def namespace_block(self, args):
+        return NamespaceDecl(str(args[0]), list(args[1:]))
+
+    def export_list(self, args):
+        return ExportDecl(None, [str(name) for name in args[0]])
+
+    def reexport_list(self, args):
+        return ExportDecl(str(args[0]), [str(name) for name in args[1]])
 
     # ------- Typeclasses -------
 
@@ -652,12 +690,15 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def module_imp(self, meta, args):
-        return ImportAe(args[0], loc=self._loc(meta))
+        alias = str(args[1]) if len(args) > 1 else None
+        return ImportAe(args[0], alias=alias, loc=self._loc(meta))
 
     @v_args(meta=True)
     def module_selective_imp(self, meta, args):
-        names = [str(n) for n in args[1]]
-        return ImportAe(args[0], selected_names=names, loc=self._loc(meta))
+        has_alias = len(args) == 3
+        alias = str(args[1]) if has_alias else None
+        names = [str(n) for n in args[2] if has_alias] if has_alias else [str(n) for n in args[1]]
+        return ImportAe(args[0], selected_names=names, alias=alias, loc=self._loc(meta))
 
     @v_args(meta=True)
     def open_imp(self, meta, args):
@@ -764,15 +805,27 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def def_cons(self, meta, args):
+        is_private = bool(args.pop(0)) if args and isinstance(args[0], bool) else False
         if len(args) == 3:
-            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta))
+            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta), is_private=is_private)
         else:
             decorators = args[0]
-            return Definition(Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta))
+            return Definition(
+                Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta), is_private=is_private
+            )
 
     @v_args(meta=True)
     def def_fun_eq(self, meta, args):
-        return self.def_fun(meta, args)
+        is_private = bool(args.pop(0)) if args and isinstance(args[0], bool) else False
+        definition = self.def_fun(meta, args)
+        definition.is_private = is_private
+        return definition
+
+    def private_visibility(self, args):
+        return True
+
+    def public_visibility(self, args):
+        return False
 
     @v_args(meta=True)
     def axiom_decl(self, meta, args):
@@ -783,7 +836,7 @@ class TreeToSugar(Transformer):
         # by application, ghost-lemma style). The body is a trusted ``native``
         # token: never checked against the refinement, and — like a Lean axiom
         # — not meant to be computed (applying it yields an opaque value).
-        name, ty = args[0], args[1]
+        is_private, name, ty = args
         loc = self._loc(meta)
         foralls: list = []
         rforalls: list = []
@@ -816,6 +869,7 @@ class TreeToSugar(Transformer):
             arg_multiplicities=tuple(mults),
             instance_flags=tuple(flags),
             loc=loc,
+            is_private=is_private,
         )
 
     def macros(self, args):

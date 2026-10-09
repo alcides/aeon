@@ -1,17 +1,23 @@
-program :  aeimport type_decls defs                     -> program
+program :  aeimport declaration*                         -> program
 
 aeimport : import*                                      -> list
 
-import: "import" module_path ";"?                         -> module_imp
-      | "import" module_path "(" import_names ")" ";"?    -> module_selective_imp
+import: "import" module_path import_alias? ";"?                         -> module_imp
+      | "import" module_path import_alias? "(" import_names ")" ";"?    -> module_selective_imp
       | "open" module_path ";"?                           -> open_imp
 
-module_path : CNAME ("." CNAME)*                          -> module_path
+module_path : MODULE_PATH                                  -> module_path
+import_alias : "as" CNAME                                  -> same
 import_names : CNAME ("," CNAME)*                         -> list
 
-type_decls : type_decl*                              -> list
+declaration : type_decl                                -> same
+            | def                                      -> same
+            | namespace_block                          -> same
+            | export_decl                              -> same
 
-defs : def*                                          -> list
+namespace_block : "namespace" module_path declaration* "end" -> namespace_block
+export_decl : "export" "(" import_names ")" ";"? -> export_list
+            | "export" module_path "(" import_names ")" ";"? -> reexport_list
 
 // A ``linear type`` is a unique type: every binder of that type must declare
 // multiplicity 1, so values cannot be duplicated or dropped silently.
@@ -54,9 +60,9 @@ measure_rule : "+" ID args ":" type                        -> def_ind_cons
 // of the given (possibly dependent, refined) type without a proof. The type's
 // refinements are assumed; the body is never checked. Like Lean, axioms are
 // noncomputable (applying one yields an opaque proof token).
-def : soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
-    | soft_constraint "def" def_name  args ":" type decreasing_by_opt ":=" expression ";"?     -> def_fun_eq
-    | "axiom" def_name ":" type ";"?                                         -> axiom_decl
+def : visibility soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
+    | visibility soft_constraint "def" def_name  args ":" type decreasing_by_opt ":=" expression ";"?     -> def_fun_eq
+    | visibility "axiom" def_name ":" type ";"?                                         -> axiom_decl
     | instance_decl                                                          -> same
     | mutual_block                                                           -> same
 
@@ -75,6 +81,9 @@ mutual_block : "mutual" mutual_def+ "end"                                    -> 
 mutual_def : soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
            | soft_constraint "def" def_name args ":" type decreasing_by_opt ":=" expression ";"?  -> def_fun_eq
 
+visibility : "private" -> private_visibility
+           |           -> public_visibility
+
 def_name : ID                                                -> same
          | QUALIFIED_ID                                      -> same
 
@@ -89,9 +98,10 @@ inst_name :                                                  -> inst_name_none
 inst_constraints : inst_constraint*                          -> list
 inst_constraint : "[" constraint_type "]"                    -> inst_constraint
 type_atoms : type_atom*                                      -> list
-type_atom : ID                                               -> simple_t
-          | "(" ID type+ ")"                                 -> constructor_t
+type_atom : type_name                                        -> simple_t
+          | "(" type_name type+ ")"                         -> constructor_t
           | "(" type ")"                                     -> same
+type_name : ID | QUALIFIED_ID
 // A class constraint head: ``ClassName arg...`` written without outer parens.
 constraint_type : ID type_atoms                              -> constraint_type
 instance_members : instance_member*                          -> list
@@ -138,8 +148,8 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | "forall" "<" ID ":" pred_sort ">" "," type   -> refinement_polymorphism_t
      | ID "<" ID ">"                                       -> base_angle_refined_t
-     | ID                                                  -> simple_t
-     | "(" ID type+ ")"                                            -> constructor_t
+     | type_name                                           -> simple_t
+     | "(" type_name type+ ")"                            -> constructor_t
      | "(" type ")"                                        -> same
 
 
@@ -334,7 +344,8 @@ FLOATLIT : /[+-]?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?/
          | /[+-]?[0-9]+[eE][+-]?[0-9]+/
 
 TYPENAME : /[a-zA-Z0-9]+/
-QUALIFIED_ID.2 : /[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*/
+MODULE_PATH.3 : /[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*/
+QUALIFIED_ID.2 : /[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+/
 DOT_ID.3 : /\.[a-zA-Z_][a-zA-Z0-9_]*/
 ID.0 : CNAME | /\([\+=\>\<!\*\-&\|\$]{1,3}\)/
 

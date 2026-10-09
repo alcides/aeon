@@ -1,3 +1,5 @@
+import Refinement;
+
 def math : Unit := native_import "math"
 
 # ── Constants ──────────────────────────────────────────────────────────
@@ -32,22 +34,22 @@ def min (i: Int) (j: Int) : Int := native "min(i, j)"
 def max (i: Int) (j: Int) : Int := native "max(i, j)"
 
 # Returns the absolute value of an integer.
-def abs (i:Int) : {v:Int | v >= 0} := native "abs(i)"
+def abs (i:Int) : {v:Int | Refinement.non_negative v} := native "abs(i)"
 
 # Raises an integer to the power of a non-negative integer.
-def pow (i:Int) (j:{v:Int | v >= 0}) : Int := native "i ** j"
+def pow (i:Int) (j:{v:Int | Refinement.non_negative v}) : Int := native "i ** j"
 
 # Performs integer division (floor division). Divisor must be nonzero.
 def floor_division (i:Int) (j:{v:Int | v != 0}) : Int := native "i // j"
 
 # Returns the greatest common divisor of two integers.
-def gcd (i:Int) (j:Int) : {v:Int | v >= 0} := native "math.gcd(i, j)"
+def gcd (i:Int) (j:Int) : {v:Int | Refinement.non_negative v} := native "math.gcd(i, j)"
 
 # Returns the least common multiple of two integers.
-def lcm (i:Int) (j:Int) : {v:Int | v >= 0} := native "math.lcm(i, j)"
+def lcm (i:Int) (j:Int) : {v:Int | Refinement.non_negative v} := native "math.lcm(i, j)"
 
 # Returns the factorial of a non-negative integer.
-def factorial (i:{v:Int | v >= 0}) : {v:Int | v >= 1} := native "math.factorial(i)"
+def factorial (i:{v:Int | Refinement.non_negative v}) : {v:Int | v >= 1} := native "math.factorial(i)"
 
 # Returns n choose k (binomial coefficient).
 def comb (n:{v:Int | v >= 0}) (k:{v:Int | v >= 0}) : {v:Int | v >= 0} := native "math.comb(n, k)"
@@ -64,7 +66,7 @@ def minf (i: Float) (j: Float): Float := native "min(i, j)"
 def maxf (i: Float) (j: Float): Float := native "max(i, j)"
 
 # Returns the absolute value of a float.
-def absf (i:Float) : {v:Float | v >= 0.0} := native "abs(i)"
+def absf (i:Float) : {v:Float | Refinement.non_negative_float v} := native "abs(i)"
 
 # Raises a float to the power of another float.
 def powf (i:Float) (j:Float) : Float := native "i ** j"
@@ -92,36 +94,36 @@ def trunc (i:Float) : Int := native "math.trunc(i)"
 # ── Powers, roots, and exponentials ───────────────────────────────────
 
 # Returns the square root of a non-negative integer as a float.
-def sqrt (i:{v:Int | v >= 0}) : {v:Float | v >= 0.0} := native "math.sqrt(i)"
+def sqrt (i:{v:Int | Refinement.non_negative v}) : {v:Float | Refinement.non_negative_float v} := native "math.sqrt(i)"
 
 # Returns the square root of a non-negative float.
-def sqrtf (i:{v:Float | v >= 0.0}) : {v:Float | v >= 0.0} := native "math.sqrt(i)"
+def sqrtf (i:{v:Float | Refinement.non_negative_float v}) : {v:Float | Refinement.non_negative_float v} := native "math.sqrt(i)"
 
 # Returns the integer square root of a non-negative integer.
-def isqrt (i:{v:Int | v >= 0}) : {v:Int | v >= 0} := native "math.isqrt(i)"
+def isqrt (i:{v:Int | Refinement.non_negative v}) : {v:Int | Refinement.non_negative v} := native "math.isqrt(i)"
 
 # Returns the cube root of a float.
 def cbrt (i:Float) : Float := native "math.cbrt(i)"
 
 # Returns e raised to the power of the given float.
-def exp (i: Float) : {v:Float | v > 0.0} := native "math.exp(i)"
+def exp (i: Float) : {v:Float | Refinement.positive_float v} := native "math.exp(i)"
 
 # Returns e**x - 1, more precise for small x.
 def expm1 (i: Float) : Float := native "math.expm1(i)"
 
 # Returns 2 raised to the power of the given float.
-def exp2 (i: Float) : {v:Float | v > 0.0} := native "2.0 ** i"
+def exp2 (i: Float) : {v:Float | Refinement.positive_float v} := native "2.0 ** i"
 
 # ── Logarithms ────────────────────────────────────────────────────────
 
 # Returns the natural logarithm (base e) of a positive float.
-def log (i: {v:Float | v > 0.0}) : Float := native "math.log(i)"
+def log (i: {v:Float | Refinement.positive_float v}) : Float := native "math.log(i)"
 
 # Returns the base-10 logarithm of a positive float.
-def log10 (i: {v:Float | v > 0.0}) : Float := native "math.log10(i)"
+def log10 (i: {v:Float | Refinement.positive_float v}) : Float := native "math.log10(i)"
 
 # Returns the base-2 logarithm of a positive float.
-def log2 (i: {v:Float | v > 0.0}) : Float := native "math.log2(i)"
+def log2 (i: {v:Float | Refinement.positive_float v}) : Float := native "math.log2(i)"
 
 # Returns log(1 + x), more precise for small x.
 def log1p (i: {v:Float | v > -1.0}) : Float := native "math.log1p(i)"

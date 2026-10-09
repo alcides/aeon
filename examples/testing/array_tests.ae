@@ -12,12 +12,12 @@ open Array
 
 @property(1)
 def test_new_is_empty : Bool :=
-    both (assertTrue (empty (new unit)))
-         (assertEqual (length (new unit)) 0);
+    both (assertTrue (empty (Array.new unit)))
+         (assertEqual (length (Array.new unit)) 0);
 
 @property(1)
 def test_append_grows : Bool :=
-    let 1 arr := append (append (new unit) 5) 9 in
+    let 1 arr := append (append (Array.new unit) 5) 9 in
     let lo := len_of arr in
     let n := len_value lo in
     let 1 arr2 := len_array lo in
@@ -26,7 +26,7 @@ def test_append_grows : Bool :=
 
 @property(1)
 def test_get : Bool :=
-    let 1 arr := append (append (new unit) 5) 9 in
+    let 1 arr := append (append (Array.new unit) 5) 9 in
     let g0 := get_at arr 0 in
     let v0 := got_value g0 in
     let 1 arr2 := got_array g0 in
@@ -36,7 +36,7 @@ def test_get : Bool :=
 
 @property(1)
 def test_cons_prepends : Bool :=
-    let 1 arr := cons (append (new unit) 9) 5 in
+    let 1 arr := cons (append (Array.new unit) 9) 5 in
     let g0 := get_at arr 0 in
     let v0 := got_value g0 in
     let 1 arr2 := got_array g0 in
@@ -44,11 +44,11 @@ def test_cons_prepends : Bool :=
          (assertEqual (get arr2 1) 9);
 
 @property(1)
-def test_head : Bool := assertEqual (head (cons (append (new unit) 9) 5)) 5;
+def test_head : Bool := assertEqual (head (cons (append (Array.new unit) 9) 5)) 5;
 
 @property(1)
 def test_set_preserves_length : Bool :=
-    let 1 arr := set (append (append (new unit) 5) 9) 0 7 in
+    let 1 arr := set (append (append (Array.new unit) 5) 9) 0 7 in
     let lo := len_of arr in
     let n := len_value lo in
     let 1 arr2 := len_array lo in
@@ -57,7 +57,7 @@ def test_set_preserves_length : Bool :=
 
 @property(1)
 def test_reversed : Bool :=
-    let 1 arr := reversed (append (append (new unit) 5) 9) in
+    let 1 arr := reversed (append (append (Array.new unit) 5) 9) in
     let g0 := get_at arr 0 in
     let v0 := got_value g0 in
     let 1 arr2 := got_array g0 in
@@ -66,16 +66,16 @@ def test_reversed : Bool :=
 
 @property(1)
 def test_map : Bool :=
-    let 1 arr := map (fun x => x + 1) (append (append (new unit) 5) 9) in
+    let 1 arr := map (fun x => x + 1) (append (append (Array.new unit) 5) 9) in
     assertEqual (sum arr) 16;
 
 @property(1)
-def test_sum : Bool := assertEqual (sum (append (append (new unit) 2) 3)) 5;
+def test_sum : Bool := assertEqual (sum (append (append (Array.new unit) 2) 3)) 5;
 
 # ``copy`` splits one linear reference into two independent arrays.
 @property(1)
 def test_copy_duplicates : Bool :=
-    let 1 a := append (append (new unit) 5) 9 in
+    let 1 a := append (append (Array.new unit) 5) 9 in
     let p := copy a in
     let 1 left := fst_array p in
     let 1 right := snd_array p in
@@ -86,7 +86,7 @@ def test_copy_duplicates : Bool :=
 # untouched.
 @property(1)
 def test_copy_independent : Bool :=
-    let 1 a := append (append (new unit) 1) 2 in
+    let 1 a := append (append (Array.new unit) 1) 2 in
     let p := copy a in
     let 1 left := fst_array p in
     let 1 right := snd_array p in
@@ -98,15 +98,15 @@ def test_copy_independent : Bool :=
 
 @property
 def prop_singleton_get (x : Int) : Bool :=
-    assertEqual (get (append (new unit) x) 0) x;
+    assertEqual (get (append (Array.new unit) x) 0) x;
 
 @property
 def prop_append_length (x : Int) (y : Int) : Bool :=
-    assertEqual (length (append (append (new unit) x) y)) 2;
+    assertEqual (length (append (append (Array.new unit) x) y)) 2;
 
 @property
 def prop_set_overwrites (x : Int) (y : Int) : Bool :=
-    let 1 arr := set (append (new unit) x) 0 y in
+    let 1 arr := set (append (Array.new unit) x) 0 y in
     let g := get_at arr 0 in
     let v := got_value g in
     let 1 arr2 := got_array g in
@@ -115,4 +115,4 @@ def prop_set_overwrites (x : Int) (y : Int) : Bool :=
 
 @property
 def prop_sum_two (x : Int) (y : Int) : Bool :=
-    assertEqual (sum (append (append (new unit) x) y)) (x + y);
+    assertEqual (sum (append (append (Array.new unit) x) y)) (x + y);

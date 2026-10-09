@@ -62,7 +62,9 @@ def _ensure_dependencies_cached(module_paths: list[str]) -> None:
         source = _resolve_module_source(module_path)
         if source is None:
             continue
-        dep_unit, errors = compile_file(source, is_main=False, use_cache=True, write_cache=False)
+        dep_unit, errors = compile_file(
+            source, is_main=False, use_cache=True, write_cache=False, module_path=module_path
+        )
         if errors:
             continue
         pending.extend(dep_unit.dependencies)
@@ -74,7 +76,8 @@ def _file_imports(program: Program) -> list[ImportAe]:
 
 
 def _module_export_name(module_path: str) -> str:
-    return module_path.split(".")[-1]
+    """Canonical internal prefix for a dotted source module path."""
+    return module_path.replace(".", "_")
 
 
 def _collect_trusted_names(units: list[CompiledUnit]) -> frozenset[Name]:
@@ -181,6 +184,53 @@ def _exports_from_uninterpreted(
     return exports
 
 
+def _add_inductive_member_export_aliases(
+    exports: dict[str, ModuleExport],
+    inductive_decls: list,
+    export_prefix: str | None,
+) -> dict[str, ModuleExport]:
+    """Publish local ADT constructors and measures by their source names.
+
+    Inductive lowering gives a constructor such as ``mk`` on ``Public`` an
+    internal name like ``Interface_Public_mk``.  The generic spine exporter
+    can only recover ``Public_mk`` from that name, which means an explicit
+    ``export (mk)`` neither publishes nor re-exports the constructor.  Module
+    interfaces use source-level names, so add aliases for the constructor and
+    canonical measure member while retaining the same internal binder and
+    type.  Ordinary definitions already arrive under their source names.
+    """
+    if export_prefix is None:
+        return exports
+
+    aliases = dict(exports)
+
+    def alias(source_name: str, internal_name: str) -> None:
+        member = next((export for export in exports.values() if export.internal_name.name == internal_name), None)
+        if member is None:
+            return
+        # Do not silently choose between two identically named namespace
+        # members.  Such a declaration remains addressable through its
+        # datatype-qualified name, but cannot be exported as one bare module
+        # member.
+        existing = aliases.get(source_name)
+        if existing is not None and existing.internal_name != member.internal_name:
+            return
+        aliases[source_name] = ModuleExport(source_name, member.internal_name, member.sugar_type, member.core_type)
+
+    for decl in inductive_decls:
+        for constructor in decl.constructors:
+            alias(
+                constructor.name.name,
+                f"{export_prefix}_{decl.name.name}_{constructor.name.name}",
+            )
+        for measure in decl.measures:
+            alias(
+                measure.name.name,
+                f"{export_prefix}_{decl.name.name}_{measure.name.name}",
+            )
+    return aliases
+
+
 def _module_constructor_defs(
     inductive_decls: list,
     constructor_defs: dict[str, Name],
@@ -208,8 +258,7 @@ def _module_constructor_defs(
 
 
 def _qualified_scope(exports: dict[str, ModuleExport], module_path: str) -> dict[tuple[str, str], Name]:
-    qual = _module_export_name(module_path)
-    return {(qual, bare): export.internal_name for bare, export in exports.items()}
+    return {(module_path, bare): export.internal_name for bare, export in exports.items()}
 
 
 def compile_file(
@@ -219,6 +268,7 @@ def compile_file(
     is_main_hole: bool | None = None,
     use_cache: bool = True,
     write_cache: bool = True,
+    module_path: str | None = None,
 ) -> tuple[CompiledUnit, list[AeonError]]:
     path = str(Path(filename).resolve())
     contents = Path(path).read_text(encoding="utf-8")
@@ -229,6 +279,7 @@ def compile_file(
         is_main_hole=is_main_hole,
         use_cache=use_cache,
         write_cache=write_cache,
+        module_path=module_path,
     )
 
 
@@ -240,6 +291,7 @@ def compile_program(
     is_main_hole: bool | None = None,
     use_cache: bool = True,
     write_cache: bool = True,
+    module_path: str | None = None,
 ) -> tuple[CompiledUnit, list[AeonError]]:
     if filename is None:
         filename = "<stdin>"
@@ -284,13 +336,19 @@ def compile_program(
         dep_path = resolve_import_path(imp)
         if dep_path is None:
             continue
-        _unit, errors = compile_file(dep_path, is_main=False, use_cache=use_cache, write_cache=write_cache)
+        _unit, errors = compile_file(
+            dep_path,
+            is_main=False,
+            use_cache=use_cache,
+            write_cache=write_cache,
+            module_path=imp.module_path,
+        )
         dep_errors.extend(errors)
 
     if dep_errors:
         return _placeholder_unit(path, digest, dep_module_paths), dep_errors
 
-    module_path = Path(path).stem if path != "<stdin>" else "Main"
+    module_path = module_path or (Path(path).stem if path != "<stdin>" else "Main")
     export_prefix = None if is_main else _module_export_name(module_path)
     main_hole = is_main if is_main_hole is None else is_main_hole
 
@@ -382,6 +440,30 @@ def compile_program(
         return unit, type_errors
 
     exports = _exports_from_spine(core_ast, typing_ctx, prog.definitions, export_prefix, export_sugar_types)
+    if export_prefix is not None:
+        exports = _add_inductive_member_export_aliases(
+            exports,
+            desugared.local_inductive_decls,
+            export_prefix,
+        )
+        private_exports = {
+            _bare_name(export_prefix, definition.name.name) for definition in prog.definitions if definition.is_private
+        }
+        for bare in private_exports:
+            exports.pop(bare, None)
+        if prog.export_names:
+            exports = {bare: export for bare, export in exports.items() if bare in set(prog.export_names)}
+        for reexport_module, names in prog.reexports:
+            dependency = dep_units.get(reexport_module)
+            if dependency is None:
+                continue
+            for name in names:
+                if name in exports:
+                    raise ValueError(f"duplicate exported name '{name}'")
+                export = dependency.exports.get(name)
+                if export is None:
+                    raise ValueError(f"cannot re-export '{name}' from '{reexport_module}'")
+                exports[name] = export
     exports.update(_exports_from_uninterpreted(typing_ctx, export_prefix))
 
     metadata: Metadata = {}
@@ -462,7 +544,9 @@ def compile_imports_for_desugar(imports: list[ImportAe]) -> dict[str, CompiledUn
         dep_path = resolve_import_path(imp)
         if dep_path is None:
             continue
-        dep_unit, errors = compile_file(dep_path, is_main=False, use_cache=True, write_cache=False)
+        dep_unit, errors = compile_file(
+            dep_path, is_main=False, use_cache=True, write_cache=False, module_path=imp.module_path
+        )
         if not errors:
             units[imp.module_path] = dep_unit
             pending.extend(ImportAe(module_path=dep) for dep in dep_unit.dependencies)

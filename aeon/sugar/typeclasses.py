@@ -248,4 +248,13 @@ def expand_typeclasses(p: Program) -> Program:
                     ),
                 )
 
-    return Program(p.imports, p.type_decls, new_inductives, gen_defs + list(p.definitions))
+    return Program(
+        p.imports,
+        p.type_decls,
+        new_inductives,
+        gen_defs + list(p.definitions),
+        p.class_decls,
+        p.instance_decls,
+        p.export_names,
+        p.reexports,
+    )

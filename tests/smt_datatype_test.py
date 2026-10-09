@@ -115,6 +115,7 @@ def test_list_size_measure_is_recfunction():
     get_sort(list_int)
     sz = lookup_measure("List_size")
     assert sz is not None
+    assert lookup_measure("size") is None
     assert is_func_decl(sz)
     nil = lookup_constructor("List_nil")
     cons = lookup_constructor("List_cons")

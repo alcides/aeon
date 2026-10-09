@@ -114,6 +114,20 @@ class UnificationUnknownTypeError(AeonError):
 
 
 @dataclass
+class NameResolutionError(AeonError):
+    """A source name cannot be resolved unambiguously during desugaring."""
+
+    message: str
+    loc: Location
+
+    def __str__(self) -> str:
+        return self.message
+
+    def position(self) -> Location:
+        return self.loc
+
+
+@dataclass
 class MethodResolutionError(AeonError):
     """Raised when a method-call ``receiver.method`` (issue #27) cannot be
     resolved: either the receiver's type is not concrete enough to pick a

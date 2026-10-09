@@ -18,6 +18,7 @@ from aeon.sugar.program import (
     TypeDecl,
 )
 from aeon.sugar.equality import type_equality
+from aeon.sugar.substitutions import substitution_sterm_in_stype
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
@@ -36,6 +37,33 @@ def _merge_inductive_rforalls(
     """Datatype-level abstract refinements (Liquid Haskell ``data T <p>``) scope over every constructor."""
     seen = {n for n, _ in dtype_rfs}
     return list(dtype_rfs) + [(n, t) for n, t in local_rfs if n not in seen]
+
+
+def canonical_measure_name(inductive: Name, measure: Name) -> Name:
+    """Return the unique compiler name for a measure declared by an inductive.
+
+    Surface declarations use a short name (usually ``size``), but that name is
+    scoped by the inductive declaration.  The rest of the compiler and SMT
+    backend must never see that short alias: ``List.size`` is always represented
+    as ``List_size``.
+    """
+    return Name(f"{inductive.name}_{measure.name}", measure.id)
+
+
+def _canonicalize_measure_references(ty: SType, inductive: Name, measures: list[Definition]) -> SType:
+    """Qualify this inductive's unbound measure references in a type.
+
+    Constructor signatures are expanded before general name resolution.  Their
+    measure uses are therefore still unbound ``size?`` variables; resolving a
+    shared short name later would associate two ``+ size`` declarations with
+    whichever happened to be visited last.  Rewrite them while the owning
+    inductive is known.
+    """
+    result = ty
+    for measure in measures:
+        canonical = canonical_measure_name(inductive, measure.name)
+        result = substitution_sterm_in_stype(result, SVar(canonical), measure.name)
+    return result
 
 
 def _eligible_refinement_base_for_inductive(ind: InductiveDecl, base: SType) -> bool:
@@ -150,7 +178,16 @@ def infer_inductive_rforall_decls(p: Program) -> Program:
         else:
             inferred.append(ind)
 
-    return Program(p.imports, p.type_decls, inferred, p.definitions)
+    return Program(
+        p.imports,
+        p.type_decls,
+        inferred,
+        p.definitions,
+        p.class_decls,
+        p.instance_decls,
+        p.export_names,
+        p.reexports,
+    )
 
 
 def expand_inductive_decls(p: Program) -> Program:
@@ -169,10 +206,13 @@ def expand_inductive_decls(p: Program) -> Program:
                         case Definition(mname, mforalls, margs, mrtype, _, mdecs, m_rf, m_decr, mloc):
                             merged_m_rf = _merge_inductive_rforalls(dtype_rfs, m_rf)
                             de = Definition(
-                                mname,
+                                canonical_measure_name(name, mname),
                                 mforalls,
-                                margs,
-                                mrtype,
+                                [
+                                    (arg_name, _canonicalize_measure_references(arg_ty, name, measures))
+                                    for arg_name, arg_ty in margs
+                                ],
+                                _canonicalize_measure_references(mrtype, name, measures),
                                 uninterpreted_lit,
                                 mdecs,
                                 merged_m_rf,
@@ -220,16 +260,9 @@ def expand_inductive_decls(p: Program) -> Program:
                     type_param_count=len(args),
                     field_types=field_types,
                 )
-                # Register both bare (``size``) and type-prefixed (``List_size``)
-                # so SMT lookup works before/after module prefixing.
-                measure_aliases: list[str] = []
-                for measure in measures:
-                    measure_aliases.append(measure.name.name)
-                    prefixed_m = f"{name.name}_{measure.name.name}"
-                    if prefixed_m not in measure_aliases:
-                        measure_aliases.append(prefixed_m)
-                if measure_aliases:
-                    register_measures(name.name, measure_aliases)
+                canonical_measures = [canonical_measure_name(name, measure.name).name for measure in measures]
+                if canonical_measures:
+                    register_measures(name.name, canonical_measures)
                 for constructor in constructors:
                     match constructor:
                         case Definition(cname, cforalls, cargs, crtype, _, cdecs, c_rf, c_decr, cloc):
@@ -243,8 +276,11 @@ def expand_inductive_decls(p: Program) -> Program:
                             de = Definition(
                                 prefixed_cname,
                                 cforalls,
-                                cargs,
-                                crtype,
+                                [
+                                    (arg_name, _canonicalize_measure_references(arg_ty, name, measures))
+                                    for arg_name, arg_ty in cargs
+                                ],
+                                _canonicalize_measure_references(crtype, name, measures),
                                 mk_tuple,
                                 cdecs,
                                 merged_c_rf,
@@ -351,4 +387,13 @@ def expand_inductive_decls(p: Program) -> Program:
             case _:
                 assert False, f"Unexpected inductive decl {decl} in {p}"
 
-    return Program(p.imports, p.type_decls + tds, [], defs + p.definitions)
+    return Program(
+        p.imports,
+        p.type_decls + tds,
+        [],
+        defs + p.definitions,
+        p.class_decls,
+        p.instance_decls,
+        p.export_names,
+        p.reexports,
+    )

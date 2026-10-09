@@ -6,6 +6,7 @@ from typing import NamedTuple
 from aeon.core.multiplicity import MOmega
 from aeon.core.types import Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
+from aeon.errors import NameResolutionError
 from aeon.elaboration.context import (
     ElabUninterpretedBinder,
     ElabVariableBinder,
@@ -58,6 +59,7 @@ from aeon.sugar.substitutions import (
     _type_name_key,
     substitute_svartype_in_stype,
     substitute_svartype_in_stype_by_name,
+    substitution_sterm_in_sterm,
     substitution_svartype_in_sterm,
     substitution_svartype_in_sterm_by_name,
 )
@@ -65,6 +67,7 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_int, st_bool
 
 from aeon.sugar.inductives import (
+    canonical_measure_name,
     _is_implicit_refinement_param as is_implicit_refinement_param,
     expand_inductive_decls,
     infer_inductive_rforall_decls,
@@ -443,10 +446,24 @@ def resolve_qualified_names_in_sterm(
             # resolves it against the receiver's type; if ``qualifier`` is not a
             # bound variable either, it raises there.
             if qualifier not in {q for (q, _) in qualified_scope}:
-                return SApplication(SMethodSelector(name, loc=loc), SVar(Name(qualifier), loc=loc), loc=loc)
-            raise NameError(f"Name '{name.name}' not found in module '{qualifier}'")
+                # ``n.double.double`` is lexed as one qualified identifier.
+                # Recover its receiver recursively so it lowers to
+                # ``(.double) ((.double) n)`` rather than looking up a
+                # fictional variable named ``n.double``.
+                if "." in qualifier:
+                    receiver_qualifier, _, receiver_name = qualifier.rpartition(".")
+                    receiver = rec(SQualifiedVar(receiver_qualifier, Name(receiver_name), loc=loc))
+                else:
+                    receiver = SVar(Name(qualifier), loc=loc)
+                return SApplication(SMethodSelector(name, loc=loc), receiver, loc=loc)
+            raise NameResolutionError(f"Name '{name.name}' not found in module '{qualifier}'", loc)
         case SVar(name, loc) if name.name in unqualified_scope and name.name not in bound:
-            return SVar(unqualified_scope[name.name], loc=loc)
+            resolved = unqualified_scope[name.name]
+            if resolved.name.startswith("__ambiguous__"):
+                raise NameResolutionError(
+                    f"Ambiguous unqualified name '{name.name}'; use a module qualifier or import alias", loc
+                )
+            return SVar(resolved, loc=loc)
         case SApplication(fun, arg, loc):
             return SApplication(rec(fun), rec(arg), loc=loc)
         case SAbstraction(name, body, loc):
@@ -539,6 +556,60 @@ def resolve_qualified_names_in_stype(
             return STypeConstructor(name, new_args, loc=loc)
         case _:
             return ty
+
+
+def inline_refinement_library_predicates(definitions: list[Definition]) -> list[Definition]:
+    """Inline executable predicates from ``Refinement`` in refinement logic.
+
+    Library predicates remain ordinary Aeon functions at runtime.  In a
+    refinement, however, the SMT encoding must see their arithmetic bodies;
+    treating an imported predicate call as an uninterpreted function would
+    weaken a contract.  This small, hygienic beta-reduction is deliberately
+    restricted to the standard refinement library and to predicate positions.
+    """
+
+    predicates = {
+        d.name: d for d in definitions if d.name.name.startswith("Refinement_") and d.body is not None and d.args
+    }
+
+    def uncurry(term: STerm) -> tuple[STerm, list[STerm]]:
+        args: list[STerm] = []
+        while isinstance(term, SApplication):
+            args.append(term.arg)
+            term = term.fun
+        return term, list(reversed(args))
+
+    def term(t: STerm) -> STerm:
+        head, args = uncurry(t)
+        if isinstance(head, SVar) and head.name in predicates:
+            predicate = predicates[head.name]
+            if len(args) == len(predicate.args):
+                body = predicate.body
+                for (parameter, _), value in zip(predicate.args, args, strict=True):
+                    body = substitution_sterm_in_sterm(body, term(value), parameter)
+                return term(body)
+        if isinstance(t, SApplication):
+            return SApplication(term(t.fun), term(t.arg), loc=t.loc)
+        return t
+
+    def ty(t: SType) -> SType:
+        match t:
+            case SRefinedType(name, base, refinement, loc):
+                return SRefinedType(name, ty(base), term(refinement), loc=loc)
+            case SAbstractionType(name, domain, codomain, loc):
+                return SAbstractionType(
+                    name, ty(domain), ty(codomain), loc=loc, multiplicity=t.multiplicity, is_instance=t.is_instance
+                )
+            case STypeConstructor(name, args, loc):
+                return STypeConstructor(name, [ty(arg) for arg in args], loc=loc)
+            case STypePolymorphism(name, kind, body, loc):
+                return STypePolymorphism(name, kind, ty(body), loc=loc)
+            case SRefinementPolymorphism(name, sort, body, loc):
+                return SRefinementPolymorphism(name, ty(sort), ty(body), loc=loc)
+            case _:
+                return t
+
+    return [replace(d, args=[(name, ty(arg_ty)) for name, arg_ty in d.args], type=ty(d.type)) for d in definitions]
 
 
 def resolve_qualified_names_in_definition(
@@ -641,6 +712,8 @@ def _inject_gpu_import_if_needed(p: Program) -> Program:
         definitions=p.definitions,
         class_decls=p.class_decls,
         instance_decls=p.instance_decls,
+        export_names=p.export_names,
+        reexports=p.reexports,
     )
 
 
@@ -686,6 +759,8 @@ def desugar(
             p.definitions,
             imported_classes + p.class_decls,
             imported_instances + p.instance_decls,
+            p.export_names,
+            p.reexports,
         )
 
     # Fresh SMT constructor / measure / datatype state per top-level program so
@@ -771,7 +846,19 @@ def desugar(
             constructor_defs[cons.name.name] = prefixed
             # "open IntList" brings constructors into bare scope
             if decl.name.name in open_inductives:
-                unqualified_scope[cons.name.name] = prefixed
+                _add_unqualified(unqualified_scope, cons.name.name, prefixed)
+        for measure in decl.measures:
+            canonical = canonical_measure_name(decl.name, measure.name)
+            qualified_scope[(decl.name.name, measure.name.name)] = canonical
+            # Like constructors, a measure is only available without its
+            # datatype qualifier after an explicit ``open Datatype``.
+            # A declaration in the same source module may use its own measure
+            # bare in a refinement (``val x`` for ``Bit``).  This resolves it
+            # to the canonical ``Bit_val`` binder before lowering; it does not
+            # export a process-wide bare measure alias.  Competing local
+            # measures still become an ambiguity via ``_add_unqualified``.
+            if decl.name.name in open_inductives or decl.name.name in inductive_names:
+                _add_unqualified(unqualified_scope, measure.name.name, canonical)
 
     # Register dotted definition names ``def Type.method`` for qualified access
     # (issue #27), so ``Type.method`` resolves to the same binder that a method
@@ -791,10 +878,29 @@ def desugar(
             combined_inductives, defs, module_export_name, qualified_scope, constructor_defs
         )
     else:
-        defs = [
-            resolve_qualified_names_in_definition(d, qualified_scope, unqualified_scope, constructor_defs) for d in defs
-        ]
+        # Declarations in a source ``namespace A.B`` retain their public dotted
+        # names, but Lean permits later declarations in that namespace to use
+        # siblings without repeating ``A.B``.  Build that lexical view only for
+        # the definition currently being resolved; it never leaks to importers.
+        namespace_members: dict[str, dict[str, Name]] = {}
+        for definition in defs:
+            qualifier, sep, bare = definition.name.name.rpartition(".")
+            if sep:
+                namespace_members.setdefault(qualifier, {})[bare] = definition.name
+
+        resolved_defs: list[Definition] = []
+        for definition in defs:
+            qualifier, sep, _ = definition.name.name.rpartition(".")
+            local_unqualified = dict(unqualified_scope)
+            if sep:
+                local_unqualified.update(namespace_members.get(qualifier, {}))
+            resolved_defs.append(
+                resolve_qualified_names_in_definition(definition, qualified_scope, local_unqualified, constructor_defs)
+            )
+        defs = resolved_defs
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
+
+    defs = inline_refinement_library_predicates(defs)
 
     # Expand the `_` reflection marker in return-type refinements into `binder == body`.
     defs = reflect_underscore_in_definitions(defs)
@@ -1123,6 +1229,8 @@ def expand_bare_parametric_type_ctors(defs: list[Definition], type_decls: list[T
                 d.loc,
                 arg_multiplicities=d.arg_multiplicities,
                 instance_flags=d.instance_flags,
+                is_private=d.is_private,
+                mutual_group_id=d.mutual_group_id,
             )
         )
     return ndefs
@@ -1348,6 +1456,12 @@ QualifiedScope = dict[tuple[str, str], Name]  # (qualifier, bare_name) -> origin
 UnqualifiedScope = dict[str, Name]  # bare_name -> original Name
 
 
+def _add_unqualified(scope: UnqualifiedScope, bare: str, internal: Name) -> None:
+    """Add an opened/imported name without silently choosing an import order."""
+    prior = scope.get(bare)
+    scope[bare] = internal if prior is None or prior == internal else Name(f"__ambiguous__{bare}", -1)
+
+
 def collect_imported_typeclasses(
     imports: list[ImportAe],
     inductive_names: set[str],
@@ -1458,6 +1572,9 @@ def build_module_scopes(
         bare = _bare_name(module_name, d.name.name)
         internal_name = Name(f"{module_name}_{bare}", d.name.id)
         local_qualified[(module_name, bare)] = internal_name
+        # Local module declarations deliberately shadow imports in their own
+        # bodies; ambiguity diagnostics apply to competing imports, not this
+        # lexical binding rule.
         local_unqualified[bare] = internal_name
         if "_" in bare:
             type_part, ctor_part = bare.rsplit("_", 1)
@@ -1485,6 +1602,8 @@ def build_module_scopes(
                 resolved_d.loc,
                 arg_multiplicities=resolved_d.arg_multiplicities,
                 instance_flags=resolved_d.instance_flags,
+                is_private=resolved_d.is_private,
+                mutual_group_id=resolved_d.mutual_group_id,
             )
         )
         qualified_scope[(module_name, bare)] = internal_name
@@ -1568,12 +1687,23 @@ def handle_imports(
             for (qual, bare), internal_name in prior_q.items():
                 qualified_scope[(qual, bare)] = internal_name
                 if imp.is_open or (imp.selected_names and bare in imp.selected_names):
-                    unqualified_scope[bare] = internal_name
+                    _add_unqualified(unqualified_scope, bare, internal_name)
             continue
         seen_modules[imp.module_path] = {}
         import_p = resolve_import(imp)
         import_p = infer_inductive_rforall_decls(import_p)
         imported_inductives.extend(import_p.inductive_decls)
+        # ``expand_inductive_decls`` lowers members such as ``Public.mk`` to
+        # implementation names such as ``Public_mk``.  The public module
+        # namespace must retain the source member name, otherwise an explicit
+        # ``export (mk)`` can never publish a constructor (and measures have
+        # the same problem).
+        inductive_member_aliases: dict[str, str] = {}
+        for decl in import_p.inductive_decls:
+            for constructor in decl.constructors:
+                inductive_member_aliases[f"{decl.name.name}_{constructor.name.name}"] = constructor.name.name
+            for measure in decl.measures:
+                inductive_member_aliases[f"{decl.name.name}_{measure.name.name}"] = measure.name.name
         import_p = expand_inductive_decls(import_p)
         import_p_definitions = import_p.definitions
         defs_recursive: list[Definition] = []
@@ -1591,25 +1721,50 @@ def handle_imports(
             unqualified_scope.update(rec_u)
             imported_inductives.extend(rec_inductives)
 
-        module_name = imp.module_path.split(".")[-1]
+        # A module's full path is its canonical qualifier; an import alias is
+        # a source-level alternative, never an internal symbol alias.
+        module_name = imp.alias or imp.module_path
+        # Main programs inline imported source definitions so their bodies can
+        # be evaluated.  Their *scope* must nevertheless reflect the module's
+        # declared interface: private definitions and omitted explicit exports
+        # remain available to sibling definitions while being invisible to an
+        # importer.
+        declared_exports = set(import_p.export_names)
+        public_definitions = {
+            inductive_member_aliases.get(_bare_name(module_name, d.name.name), _bare_name(module_name, d.name.name))
+            for d in import_p_definitions
+            if not d.is_private
+            and (
+                not declared_exports
+                or inductive_member_aliases.get(
+                    _bare_name(module_name, d.name.name), _bare_name(module_name, d.name.name)
+                )
+                in declared_exports
+            )
+        }
 
         local_qualified: QualifiedScope = dict(rec_q)
         local_unqualified: UnqualifiedScope = dict(rec_u)
         for d in import_p_definitions:
             if _is_native_import_def(d):
                 continue
-            bare = _bare_name(module_name, d.name.name)
-            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            raw_bare = _bare_name(module_name, d.name.name)
+            bare = inductive_member_aliases.get(raw_bare, raw_bare)
+            internal_name = Name(f"{module_name}_{raw_bare}", d.name.id)
             local_qualified[(module_name, bare)] = internal_name
+            # A definition can refer to a same-named sibling even when an
+            # imported module exports that name.  This is lexical shadowing,
+            # not an import-order choice.
             local_unqualified[bare] = internal_name
 
         prefixed_definitions: list[Definition] = []
         for d in import_p_definitions:
-            bare = _bare_name(module_name, d.name.name)
+            raw_bare = _bare_name(module_name, d.name.name)
+            bare = inductive_member_aliases.get(raw_bare, raw_bare)
             if _is_native_import_def(d):
                 prefixed_definitions.append(d)
                 continue
-            internal_name = Name(f"{module_name}_{bare}", d.name.id)
+            internal_name = Name(f"{module_name}_{raw_bare}", d.name.id)
             resolved_d = resolve_qualified_names_in_definition(d, local_qualified, local_unqualified)
             prefixed_d = Definition(
                 internal_name,
@@ -1623,17 +1778,34 @@ def handle_imports(
                 resolved_d.loc,
                 arg_multiplicities=resolved_d.arg_multiplicities,
                 instance_flags=resolved_d.instance_flags,
+                is_private=resolved_d.is_private,
+                mutual_group_id=resolved_d.mutual_group_id,
             )
             prefixed_definitions.append(prefixed_d)
 
-            qualified_scope[(module_name, bare)] = internal_name
-            seen_modules[imp.module_path][(module_name, bare)] = internal_name
+            if bare in public_definitions:
+                qualified_scope[(module_name, bare)] = internal_name
+                seen_modules[imp.module_path][(module_name, bare)] = internal_name
 
-            if imp.is_open:
-                unqualified_scope[bare] = internal_name
-            elif imp.selected_names:
-                if bare in imp.selected_names:
-                    unqualified_scope[bare] = internal_name
+                if imp.is_open:
+                    _add_unqualified(unqualified_scope, bare, internal_name)
+                elif imp.selected_names:
+                    if bare in imp.selected_names:
+                        _add_unqualified(unqualified_scope, bare, internal_name)
+
+        # A re-export has no local definition to prefix: it deliberately keeps
+        # the dependency's internal binder while publishing it under this
+        # module's qualifier.  The dependency was processed recursively above,
+        # so its qualified entry is already available in ``rec_q``.
+        for reexport_module, names in import_p.reexports:
+            for name in names:
+                internal_name = rec_q.get((reexport_module, name))
+                if internal_name is None:
+                    continue
+                qualified_scope[(module_name, name)] = internal_name
+                seen_modules[imp.module_path][(module_name, name)] = internal_name
+                if imp.is_open or (imp.selected_names and name in imp.selected_names):
+                    _add_unqualified(unqualified_scope, name, internal_name)
 
         defs = defs_recursive + prefixed_definitions + defs
         type_decls = type_decls_recursive + import_p.type_decls + type_decls
@@ -1658,7 +1830,7 @@ def handle_imports_from_units(
             for (qual, bare), internal_name in prior_q.items():
                 qualified_scope[(qual, bare)] = internal_name
                 if imp.is_open or (imp.selected_names and bare in imp.selected_names):
-                    unqualified_scope[bare] = internal_name
+                    _add_unqualified(unqualified_scope, bare, internal_name)
             continue
 
         unit = compiled_imports.get(imp.module_path)
@@ -1666,14 +1838,14 @@ def handle_imports_from_units(
             continue
 
         seen_modules[imp.module_path] = {}
-        module_name = imp.module_path.split(".")[-1]
+        module_name = imp.alias or imp.module_path
 
         rec_q: QualifiedScope = {}
         rec_u: UnqualifiedScope = {}
         for dep_module in unit.dependencies:
             dep_unit = compiled_imports.get(dep_module)
             if dep_unit is not None:
-                dep_name = dep_module.split(".")[-1]
+                dep_name = dep_module
                 imported_inductives.extend(dep_unit.inductive_decls)
                 type_decls = _merge_type_decls(type_decls, dep_unit.type_decls)
                 for (qual, bare), internal_name in dep_unit.qualified_scope.items():
@@ -1692,7 +1864,7 @@ def handle_imports_from_units(
             qualified_scope[(qual, bare)] = internal_name
             seen_modules[imp.module_path][(qual, bare)] = internal_name
             if imp.is_open or (imp.selected_names and bare in imp.selected_names):
-                unqualified_scope[bare] = internal_name
+                _add_unqualified(unqualified_scope, bare, internal_name)
             elif not imp.selected_names:
                 qualified_scope[(module_name, bare)] = internal_name
                 seen_modules[imp.module_path][(module_name, bare)] = internal_name
@@ -1701,9 +1873,9 @@ def handle_imports_from_units(
             qualified_scope[(module_name, bare)] = export.internal_name
             seen_modules[imp.module_path][(module_name, bare)] = export.internal_name
             if imp.is_open:
-                unqualified_scope[bare] = export.internal_name
+                _add_unqualified(unqualified_scope, bare, export.internal_name)
             elif imp.selected_names and bare in imp.selected_names:
-                unqualified_scope[bare] = export.internal_name
+                _add_unqualified(unqualified_scope, bare, export.internal_name)
 
     return defs, type_decls, imported_inductives, qualified_scope, unqualified_scope
 
@@ -1727,6 +1899,10 @@ def apply_decorators_in_program(prog: Program) -> Program:
         type_decls=prog.type_decls,
         inductive_decls=prog.inductive_decls,
         definitions=defs,
+        class_decls=prog.class_decls,
+        instance_decls=prog.instance_decls,
+        export_names=prog.export_names,
+        reexports=prog.reexports,
     )
 
 

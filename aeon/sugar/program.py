@@ -339,10 +339,25 @@ class Node:
 
 
 @dataclass
+class NamespaceDecl(Node):
+    """A lexical Lean-style namespace block, flattened after parsing."""
+
+    path: str
+    declarations: list[Node]
+
+
+@dataclass
+class ExportDecl(Node):
+    module_path: str | None
+    names: list[str]
+
+
+@dataclass
 class ImportAe(Node):
     module_path: str  # e.g. "Math" or "Math.Basic"
     selected_names: list[str] = field(default_factory=list)  # empty = all (qualified access)
     is_open: bool = False  # True for `open Math`
+    alias: str | None = None  # source qualifier introduced by ``import M as N``
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     @property
@@ -356,13 +371,14 @@ class ImportAe(Node):
         return self.module_path.split(".")[0]
 
     def __str__(self):
+        alias = f" as {self.alias}" if self.alias else ""
         if self.is_open:
             return f"open {self.module_path};"
         elif self.selected_names:
             names = ", ".join(self.selected_names)
-            return f"import {self.module_path} ({names});"
+            return f"import {self.module_path}{alias} ({names});"
         else:
-            return f"import {self.module_path};"
+            return f"import {self.module_path}{alias};"
 
 
 @dataclass
@@ -451,6 +467,9 @@ class Definition(Node):
     # Parallel to ``args``: True marks an instance-implicit parameter (typeclass
     # dictionary / Lean ``[C a]``). Empty tuple ⇔ no instance-implicit params.
     instance_flags: tuple[bool, ...] = field(default_factory=tuple)
+    # Lean-compatible visibility: private names remain available while their
+    # module is compiled but are omitted from its public interface.
+    is_private: bool = False
 
     def multiplicity_of(self, i: int) -> Multiplicity:
         if i < len(self.arg_multiplicities):
@@ -562,6 +581,8 @@ class Program(Node):
     definitions: list[Definition]
     class_decls: list[ClassDecl] = field(default_factory=list)
     instance_decls: list[InstanceDecl] = field(default_factory=list)
+    export_names: list[str] = field(default_factory=list)
+    reexports: list[tuple[str, list[str]]] = field(default_factory=list)
 
     def __str__(self):
         imps = "\n".join([str(td) for td in self.imports])
