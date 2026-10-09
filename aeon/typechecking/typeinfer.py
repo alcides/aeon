@@ -263,7 +263,9 @@ def _reflected_impl_for(
     if any(v.name in {"native", "native_import"} for v in liquid_free_vars(liq)):
         return None
     allowed = set(ty_params) | {name}
-    op_names = {op.name for op in ops}
+    # ``liquefy_if`` lowers a pure conditional to the SMT builtin ``ite``.
+    # It is not an external free function and must not disable reflection.
+    op_names = {op.name for op in ops} | {"ite"}
     if any(v not in allowed and v.name not in op_names for v in liquid_free_vars(liq)):
         return None
     is_recursive_body = any(v == name for v in liquid_free_vars(liq))

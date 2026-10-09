@@ -1,0 +1,10 @@
+# Piecewise-linear shape-constrained synthesis. Endpoints do not determine
+# the entire function: every accepted candidate must also prove monotonicity.
+def f (x:{v:Int | (0 - 5) <= v && v <= 5}) : {v:Int | v >= 0} := ?body;
+
+def monotonicity
+    (x1:{v:Int | (0 - 5) <= v && v <= 5})
+    (x2:{v:Int | x1 <= v && v <= 5})
+    : {p:Bool | p && f x1 <= f x2} := true;
+
+def endpoints (_:Unit) : {p:Bool | p && f (0 - 5) = 0 && f 0 = 0 && f 5 = 5} := true;

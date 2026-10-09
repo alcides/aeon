@@ -49,6 +49,7 @@ problem class is given.
 | Grover circuits | `examples/synthesis/grover/` | 1 | GECCO’26 HUMIES Bronze | **30s** (`gp`) |
 | Neuroevolution MNIST | `examples/synthesis/neuroevolution/` | 1 | Aeon-native NN | **60s** (`random_search`) |
 | Micro-benchmarks | `examples/benchmarks/` | 11 | Aeon-native probes | **5–15s** |
+| [Monotonicity refinements](../examples/synthesis/monotonicity/README.md) | `examples/synthesis/monotonicity/` | 5 | Aeon-native shape constraints | **10s** for basic tasks; piecewise search may need more |
 | PSB2 | `examples/PSB2/` | 65 | Program Synthesis Benchmark 2 | CI **10s** on `solved/`; research **60s+** |
 | MBPP | `examples/MBPP/` | 427 | Mostly Basic Python Problems | **30–60s** |
 | 99 problems | `examples/99problems/` | 39 | Classic list problems | CI **10s** |

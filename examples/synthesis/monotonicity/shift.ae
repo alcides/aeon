@@ -1,0 +1,9 @@
+# Synthesize a nonconstant function with a positive offset.
+def f (x:{v:Int | 0 <= v && v <= 4}) : Int := ?body;
+
+def monotonicity
+    (x1:{v:Int | 0 <= v && v <= 4})
+    (x2:{v:Int | x1 <= v && v <= 4})
+    : {p:Bool | p && f x1 <= f x2} := true;
+
+def endpoints (_:Unit) : {p:Bool | p && f 0 = 1 && f 4 = 5} := true;
