@@ -39,7 +39,7 @@ problem class is given.
 | Synquid | `examples/synthesis/synquid/` | 64 | Synquid PLDI’16 | **30s** (`synquid`/`gp`) |
 | SRBench (Feynman + Strogatz) | `examples/synthesis/srbench/` | 134 | SRBench / AI Feynman / ODE-Strogatz | **60s** (`gp`) |
 | AFTA SyGuS PBE-Strings | `examples/synthesis/afta/sygus/` | 109 | SyGuS PBE_SLIA / BLAZE POPL’18 | **60s** (`afta`) |
-| Absynthe SyGuS strings | `examples/synthesis/absynthe/` | 7 | Absynthe Rust artifact | evaluator / exact-target fitness |
+| Absynthe SyGuS strings | `examples/synthesis/absynthe/` | 27 | Absynthe artifact | evaluator / exact-target fitness |
 | AFTA matrix | `examples/synthesis/afta/matrix/` | 10 | BLAZE Fig.17 reconstruction | **60s** (`afta`) |
 | AFTA demos | `examples/synthesis/afta/*.ae` | 2 | Wang et al. POPL’18 | **10–15s** (`afta`) |
 | CATA demos | `examples/synthesis/cata/*.ae` | ~10 | Contata / CAV spirit | **30s** (`cata`) |
@@ -210,17 +210,18 @@ uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_i_6_2
 
 **Timeout.** README: **`--budget 60 -s afta`**.
 
-### Absynthe SyGuS strings — `examples/synthesis/absynthe/` (7)
+### Absynthe SyGuS strings — `examples/synthesis/absynthe/` (27)
 
-**Origin.** The [Absynthe Rust artifact](https://github.com/ngsankha/absynthe-rust),
-commit `54613a6` (issue [#561](https://github.com/alcides/aeon/issues/561)).
+**Origin.** The [official Absynthe artifact](https://github.com/ku-progsys/absynthe),
+revision `d752fa4f3583d4f438021b92bd97983202a4dd17` (issue [#561](https://github.com/alcides/aeon/issues/561)).
 
-**Description.** A representative, executable SLIA SyGuS corpus covering
-`bikes`, `phone`, and name-formatting transformations.  The files are read by
-`aeon.synthesis.benchmarks.absynthe`, a typed interpreter for the artifact's
-String/Int/Bool grammar.  Its fitness is the number of violated constraints;
-fitness `0` denotes an exact target.  These are backend-neutral data fixtures,
-not `.ae` source programs.
+**Description.** The complete artifact corpus, including `bikes`, `phone`,
+name-formatting transformations, and conditional universal tasks. The files
+are read by `aeon.synthesis.benchmarks.absynthe`, a typed interpreter for the
+artifact's String/Int/Bool grammar. Its fitness is the number of violated
+constraints; fitness `0` denotes an exact target. `artifact.json` records
+checksums and the Table 1 runner/domain parameters. These are backend-neutral
+data fixtures, not `.ae` source programs.
 
 ### Matrix domain — `afta/matrix/` (10)
 

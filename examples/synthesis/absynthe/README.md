@@ -1,9 +1,9 @@
 # Absynthe SyGuS string benchmarks
 
-This directory ports a representative, executable subset of the string
-benchmarks distributed with [Absynthe](https://github.com/ngsankha/absynthe-rust)
-(commit `54613a6`).  The original project provides `.sl` inputs but no parser;
-Aeon reads their typed SLIA SyGuS subset through
+This directory ports the complete 27-file string benchmark dataset from the
+[official Absynthe artifact](https://github.com/ku-progsys/absynthe), revision
+`d752fa4f3583d4f438021b92bd97983202a4dd17`. The original project provides
+`.sl` inputs but no parser; Aeon reads their typed SLIA SyGuS subset through
 `aeon.synthesis.benchmarks.absynthe`.
 
 The reader supports the full DSL used by the corpus: strings, integers,
@@ -23,7 +23,8 @@ candidate = parse_expression("(str.substr name 0 (- (str.len name) 3))")
 assert benchmark.fitness(candidate) == 0
 ```
 
-The curated set covers the single-input extraction tasks (`bikes`, `phone`,
-`dr-name`) and both one- and two-input name formatting variants.  The upstream
-format is parsed generically, so the remaining Absynthe `.sl` files can be
-loaded without format-specific code.
+`artifact.json` records the provenance checksums, every fixture's number of
+constraints, and the artifact's Table 1 runner parameters: 11 baseline runs,
+one run each without template inference and small-expression caching, and a
+600-second timeout. It also preserves the non-default abstract specifications,
+timeouts, and unsupported conditional tasks from `test/sygus_bench.rb`.

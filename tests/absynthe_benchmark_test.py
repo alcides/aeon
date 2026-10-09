@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -21,6 +23,7 @@ from aeon.synthesis.benchmarks.absynthe import (
 
 
 SUITE = Path(__file__).parent.parent / "examples" / "synthesis" / "absynthe"
+MANIFEST = SUITE / "artifact.json"
 
 
 def expression(source: str):
@@ -77,6 +80,26 @@ def test_parser_handles_conditional_grammar_comments_and_escaped_strings():
     assert benchmark.grammar[0].name == "Start"
     assert benchmark.constraints[0].inputs == ("input",)
     assert benchmark.constraints[0].expected == "output"
+
+
+def test_complete_artifact_dataset_and_parameters_are_preserved():
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    files = {path.name for path in SUITE.glob("*.sl")}
+    assert files == set(manifest["benchmarks"])
+    assert len(files) == 27
+    assert manifest["reproduction"] == {
+        "paper_table": 1,
+        "baseline_runs": 11,
+        "timeout_seconds": 600,
+        "additional_runs": [
+            {"name": "without-template-inference", "runs": 1, "environment": {"TEMPLATE_INFER": "1"}},
+            {"name": "without-small-expression-cache", "runs": 1, "environment": {"NO_CACHE": "1"}},
+        ],
+    }
+    for filename, metadata in manifest["benchmarks"].items():
+        path = SUITE / filename
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == metadata["sha256"]
+        assert len(load_benchmark(path).constraints) == metadata["constraints"]
 
 
 REFERENCES = {

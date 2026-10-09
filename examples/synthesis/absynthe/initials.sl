@@ -2,13 +2,13 @@
  
 (synth-fun f ((name String)) String
     ((Start String (ntString))
-     (ntString String (name " "
+     (ntString String (name " " "."
                        (str.++ ntString ntString)
                        (str.replace ntString ntString ntString)
                        (str.at ntString ntInt)
                        (int.to.str ntInt)
                        (str.substr ntString ntInt ntInt)))
-      (ntInt Int (0 1 2 3 4 5
+      (ntInt Int (0 1 2
                   (+ ntInt ntInt)
                   (- ntInt ntInt)
                   (str.len ntString)
@@ -21,12 +21,10 @@
 
 
 (declare-var name String)
-
-(constraint (= (f "938-242-504") "938"))
-(constraint (= (f "308-916-545") "308"))
-(constraint (= (f "623-599-749") "623"))
-(constraint (= (f "981-424-843") "981"))
-(constraint (= (f "118-980-214") "118"))
-(constraint (= (f "244-655-094") "244"))
-
+ 
+(constraint (= (f "Nancy FreeHafer") "N.F."))
+(constraint (= (f "Andrew Cencici") "A.C."))
+(constraint (= (f "Jan Kotas") "J.K."))
+(constraint (= (f "Mariya Sergienko") "M.S."))
+ 
 (check-synth)

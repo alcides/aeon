@@ -2,7 +2,7 @@
  
 (synth-fun f ((name String)) String
     ((Start String (ntString))
-     (ntString String (name " "
+     (ntString String (name " " "+" "-" "."
                        (str.++ ntString ntString)
                        (str.replace ntString ntString ntString)
                        (str.at ntString ntInt)
@@ -22,11 +22,12 @@
 
 (declare-var name String)
 
-(constraint (= (f "938-242-504") "938"))
-(constraint (= (f "308-916-545") "308"))
-(constraint (= (f "623-599-749") "623"))
-(constraint (= (f "981-424-843") "981"))
-(constraint (= (f "118-980-214") "118"))
-(constraint (= (f "244-655-094") "244"))
+(constraint (= (f "+106 769-858-438") "438"))
+(constraint (= (f "+83 973-757-831") "831"))
+(constraint (= (f "+62 647-787-775") "775"))
+(constraint (= (f "+172 027-507-632") "632"))
+(constraint (= (f "+72 001-050-856") "856"))
+(constraint (= (f "+95 310-537-401") "401"))
+(constraint (= (f "+6 775-969-238") "238"))
 
 (check-synth)

@@ -22,11 +22,11 @@
 
 (declare-var name String)
 
-(constraint (= (f "938-242-504") "938"))
-(constraint (= (f "308-916-545") "308"))
-(constraint (= (f "623-599-749") "623"))
-(constraint (= (f "981-424-843") "981"))
-(constraint (= (f "118-980-214") "118"))
-(constraint (= (f "244-655-094") "244"))
+(constraint (= (f "938-242-504") "504"))
+(constraint (= (f "308-916-545") "545"))
+(constraint (= (f "623-599-749") "749"))
+(constraint (= (f "981-424-843") "843"))
+(constraint (= (f "118-980-214") "214"))
+(constraint (= (f "244-655-094") "094"))
 
 (check-synth)

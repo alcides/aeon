@@ -1,0 +1,68 @@
+{
+  "source": {
+    "repository": "https://github.com/ku-progsys/absynthe",
+    "revision": "d752fa4f3583d4f438021b92bd97983202a4dd17",
+    "suite_path": "sygus-strings",
+    "content_normalization": "UTF-8 with LF line endings",
+    "license": "BSD-3-Clause"
+  },
+  "reproduction": {
+    "paper_table": 1,
+    "baseline_runs": 11,
+    "timeout_seconds": 600,
+    "additional_runs": [
+      {"name": "without-template-inference", "runs": 1, "environment": {"TEMPLATE_INFER": "1"}},
+      {"name": "without-small-expression-cache", "runs": 1, "environment": {"NO_CACHE": "1"}}
+    ]
+  },
+  "default_abstract_specification": {
+    "environment": "ProductDomain.top for every parameter",
+    "result": "ProductDomain.top"
+  },
+  "overrides": {
+    "dr-name": {"environment": {"name": "StringPrefix.top"}, "result": "StringPrefix.val(Dr. , false)"},
+    "initials": {"environment": {"name": "ProductDomain.top"}, "result": "ProductDomain(StringSuffix.val(., false), StringLength.val(4, 4))", "artifact_status": "timeout"},
+    "name-combine-2": {"environment": {"firstname": "StringSuffix.top", "lastname": "StringSuffix.top"}, "result": "StringSuffix.val(., false)"},
+    "name-combine-3": {"environment": {"firstname": "StringSuffix.top", "lastname": "StringSuffix.var(lname)"}, "result": "StringSuffix.var(lname)"},
+    "name-combine-4": {"environment": {"firstname": "ProductDomain(StringPrefix.top, StringSuffix.top)", "lastname": "ProductDomain(StringPrefix.var(lname), StringSuffix.top)"}, "result": "ProductDomain(StringPrefix.var(lname), StringSuffix.val(., false))", "artifact_status": "timeout"},
+    "phone-3": {"environment": {"name": "StringLenExt.val(11)"}, "result": "StringLenExt.val(13)", "artifact_status": "timeout"},
+    "phone-6": {"environment": {"name": "StringLenExt.var(name)"}, "result": "StringLenExt.val(3)"},
+    "phone-7": {"environment": {"name": "StringLenExt.var(name)"}, "result": "StringLenExt.val(3)"},
+    "phone-8": {"environment": {"name": "StringLenExt.var(name)"}, "result": "StringLenExt.val(3)"},
+    "phone-9": {"environment": {"name": "StringLenExt.var(name)"}, "result": "StringLenExt.val(name - 1), assert > 0", "artifact_status": "timeout"},
+    "univ_2": {"artifact_status": "not-run", "reason": "artifact runner lacks if-then-else support"},
+    "univ_3": {"artifact_status": "not-run", "reason": "artifact runner lacks if-then-else support"},
+    "univ_4": {"artifact_status": "not-run", "reason": "artifact runner lacks if-then-else support"},
+    "univ_5": {"artifact_status": "not-run", "reason": "artifact runner lacks if-then-else support"},
+    "univ_6": {"artifact_status": "not-run", "reason": "artifact runner lacks if-then-else support"}
+  },
+  "benchmarks": {
+    "bikes.sl": {"constraints": 6, "sha256": "c8e394e4736674af9470a1b0c56a051df6dfedb5f7f7a352bdbf226655344ed0"},
+    "dr-name.sl": {"constraints": 4, "sha256": "3910db9e8cdca035850e9557006f576f42bc4e878a1429c229df9632735a9e88"},
+    "firstname.sl": {"constraints": 4, "sha256": "44312f9155bf940bc793436dab2e2833a05daff9285b7d2611f1cc168a2f1a4d"},
+    "initials.sl": {"constraints": 4, "sha256": "360900ab3248350679b6c48e9801b8b24b30a7de8a7542b1d01000ccd1dd704e"},
+    "lastname.sl": {"constraints": 4, "sha256": "b13a7a33f9f55a6396ff13811948e6bb19be0d79d115b1c18b0dc2d4e19998f9"},
+    "name-combine-2.sl": {"constraints": 4, "sha256": "cfb2d380c8a6483306bd1f243e04e2f839c92273b2067994ce68954255202772"},
+    "name-combine-3.sl": {"constraints": 6, "sha256": "c515a30fcb43d8c794fe1e349ede1619b1ef9197789dd571015ad7a846e498bf"},
+    "name-combine-4.sl": {"constraints": 5, "sha256": "463fe64fed16bbf2b2582a7bc1a6c52394a6dc3e1837327e70202f0700066495"},
+    "name-combine.sl": {"constraints": 6, "sha256": "32319fc138452ce9b1007c9f41ad13aef7b88ad94c6dfa5b47b58973c1e83956"},
+    "phone-10.sl": {"constraints": 7, "sha256": "8b998dddb40f99f7f703015d8c71285beb7dccb67309f079c1b2ce69840b1232"},
+    "phone-1.sl": {"constraints": 6, "sha256": "4d2a97f02b35b48ea078d35ff7e3d33b4202a0ffb51543af67bb7c47e5771506"},
+    "phone-2.sl": {"constraints": 6, "sha256": "49bcdf7ee01445bc77646157f03955b7458f5ff1d91b26b85655a940d9c6bb9e"},
+    "phone-3.sl": {"constraints": 7, "sha256": "eaaf547525d09789c15521a0299c70950dc4f2480e950840f975267b46f3dc03"},
+    "phone-4.sl": {"constraints": 6, "sha256": "4682d772f4d887722af8536a6b1ea517c958f778a0668f163cd85ce0b23a766d"},
+    "phone-5.sl": {"constraints": 7, "sha256": "71ed9f7ca36aa3909c1d0956b0127a30598f3fbc224fff537cdea4e858f4a561"},
+    "phone-6.sl": {"constraints": 7, "sha256": "731a31da8aeee2b4479c5cdd948c2a199de57d48a178d772e7f2159994711b0e"},
+    "phone-7.sl": {"constraints": 7, "sha256": "59aa2217005f5b450d55b6a65794a1bd8784b52cf0fa727cb0d2facec5781059"},
+    "phone-8.sl": {"constraints": 7, "sha256": "781064dd97c8ece29378140d69980ba0d86e6e016624ca9052bf681ddfab233b"},
+    "phone-9.sl": {"constraints": 7, "sha256": "560f4fa139746e64628fedb9badb8d1460b6672913310f2eafe05ad354d418c2"},
+    "phone.sl": {"constraints": 6, "sha256": "fa9a0ac15e3ee8cd704b589b1c7e8daf4f9e164f9832025641cdb41ca5768cc8"},
+    "reverse-name.sl": {"constraints": 6, "sha256": "1471d3168580bf8feddbb9cc5140e001f9373093c6b97aa58b556832c2ba6def"},
+    "univ_1.sl": {"constraints": 6, "sha256": "cdafc2d2677ef32f03069bcc2b8b74860ebc501133fd13f9547c8fd5d2f34596"},
+    "univ_2.sl": {"constraints": 6, "sha256": "de5c515e68071d74735202734295d61dcb196c9a19068e8685b1fca0c15c74bb"},
+    "univ_3.sl": {"constraints": 6, "sha256": "e6090d78f495665aed88297ce170f70525f6c8cd7983905e4250b0425c743dd4"},
+    "univ_4.sl": {"constraints": 8, "sha256": "23fef8950c8dfc6a81853be0bc177c5cc5ce9f9cc7740c9be6e3334f7cbf5001"},
+    "univ_5.sl": {"constraints": 8, "sha256": "d886fc7b9e895ee9c82961f186c46f32a11a6fae2cb44761eba20420f6a939ca"},
+    "univ_6.sl": {"constraints": 8, "sha256": "ee7ecadb5f166483b542d906d480f7cf3cd33110a6e34b2a92d16fddd6f2ba41"}
+  }
+}
