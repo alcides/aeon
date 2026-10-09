@@ -7,6 +7,9 @@ from pathlib import Path
 import pytest
 
 from aeon.synthesis.benchmarks.absynthe import (
+    Apply,
+    Expression,
+    IfThenElse,
     Sort,
     SygusError,
     evaluate,
@@ -77,22 +80,25 @@ def test_parser_handles_conditional_grammar_comments_and_escaped_strings():
 
 
 REFERENCES = {
-    "bikes.sl": "(str.substr name 0 (- (str.len name) 3))",
-    "phone.sl": '(str.substr name 0 (str.indexof name "-" 0))',
-    "firstname.sl": '(str.substr name 0 (str.indexof name " " 0))',
-    "lastname.sl": '(str.substr name (+ (str.indexof name " " 0) 1) (- (str.len name) (+ (str.indexof name " " 0) 1)))',
-    "dr-name.sl": '(str.++ "Dr." (str.++ " " (str.substr name 0 (str.indexof name " " 0))))',
-    "name-combine.sl": '(str.++ firstname (str.++ " " lastname))',
-    "name-combine-2.sl": '(str.++ firstname (str.++ " " (str.++ (str.at lastname 0) ".")))',
+    # Table 1 of the Absynthe paper reports these exact target AST sizes.
+    "bikes.sl": ("(str.substr name 0 (- (str.len name) 3))", 7),
+    "phone.sl": ("(str.substr name 0 3)", 4),
+    "firstname.sl": ('(str.substr name 0 (str.indexof name " " 0))', 7),
+    "lastname.sl": ('(str.substr name (+ (str.indexof name " " 0) 1) (str.len name))', 10),
+    "dr-name.sl": ('(str.++ "Dr." (str.++ " " (str.substr name 0 (str.indexof name " " 0))))', 11),
+    "name-combine.sl": ('(str.++ firstname (str.++ " " lastname))', 5),
+    "name-combine-2.sl": ('(str.++ firstname (str.++ " " (str.++ (str.at lastname 0) ".")))', 9),
 }
 
 
 @pytest.mark.parametrize("filename", sorted(REFERENCES))
 def test_ported_benchmarks_parse_and_reference_programs_are_exact(filename: str):
     benchmark = load_benchmark(SUITE / filename)
-    candidate = parse_expression(REFERENCES[filename])
+    source, reported_size = REFERENCES[filename]
+    candidate = parse_expression(source)
     assert benchmark.fitness(candidate) == 0
     assert benchmark.satisfies(candidate)
+    assert node_count(candidate) == reported_size
     assert {rule.sort for rule in benchmark.grammar} == {Sort.STRING, Sort.INT, Sort.BOOL}
 
 
@@ -107,3 +113,13 @@ def test_invalid_candidate_has_maximum_violation_score():
     benchmark = load_benchmark(SUITE / "bikes.sl")
     ill_typed = parse_expression("0")
     assert benchmark.fitness(ill_typed) == len(benchmark.constraints)
+
+
+def node_count(candidate: Expression) -> int:
+    if isinstance(candidate, Apply):
+        return 1 + sum(node_count(argument) for argument in candidate.arguments)
+    if isinstance(candidate, IfThenElse):
+        return (
+            1 + node_count(candidate.condition) + node_count(candidate.then_branch) + node_count(candidate.else_branch)
+        )
+    return 1
