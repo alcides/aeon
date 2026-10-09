@@ -52,7 +52,94 @@ solutions execute and every hole-bearing task parses and typechecks in tests.
 Input/output globals are shadowed inside the holes to keep expected states
 out of the candidate grammar.
 
-## Source datasets
+## Full published MSR dataset
+
+The paper's corpus is hosted at the
+[MSR dataset page](https://msr-redmond.github.io/karel-dataset/), not in the
+carpedm20 generator repository. Section 6.1 of
+[Bunel et al., ICLR 2018](https://arxiv.org/abs/1805.04276) specifies one million
+training tasks, another 5,000 tasks split between validation and test, and six
+ordered I/O examples per task. The first five are the specification; the sixth
+is held out. Newly generated worlds/programs are not substitutes for these records.
+
+The importer processes **every record** of extracted `train.json`, `val.json`,
+and `test.json` (JSONL, also `.jsonl`/gzip supported). Unknown syntax, invalid
+grids, conflicting JSON/tensor representations, or incorrect example counts
+fail with a source line number instead of dropping tasks. Manifests record
+source SHA-256 digests, counts, GUIDs, and original split/example order.
+Challenge splits can be included with `--splits`; specify their actual example
+counts rather than assuming the synthetic six-example protocol.
+
+A surviving [validation mirror](https://huggingface.co/datasets/akdo00001/dataset_Karel)
+contains all 2,500 validation tasks, with six examples each and distinct GUIDs.
+The fetch command pins its revision, archive hash, and decompressed JSONL hash:
+
+```bash
+python scripts/import_karel_dataset.py fetch-validation --out /tmp/karel-source
+python scripts/import_karel_dataset.py import --source /tmp/karel-source \
+  --out /tmp/aeon-karel-validation --splits val
+python -m aeon.benchmarks.karel_runner --split /tmp/aeon-karel-validation/val \
+  --jobs 8 --results /tmp/karel-val-results.jsonl
+```
+
+This mirror supplies **validation only**, not training or test. Its exact bytes
+are pinned; the unavailable original archive prevents independently proving
+byte-for-byte identity to that host.
+All 2,500 translated validation references have been compiled and executed in
+Aeon against all six examples: **15,000 whole-world comparisons, zero failures**.
+The checked-in [validation report](published/validation-report.json) records
+the exact source hashes and coverage. This validates the translation/runtime,
+not the synthesizer's ability to solve all those tasks.
+
+```bash
+python scripts/import_karel_dataset.py import \
+  --source /path/to/1m_6ex_karel --out /tmp/aeon-karel-corpus --require-paper-size
+
+# Optional: emit reference.ae and synth.ae (with ?hole) for EVERY test task.
+python scripts/import_karel_dataset.py materialize \
+  --split /tmp/aeon-karel-corpus/test --out /tmp/aeon-karel-tasks
+
+# Execute every translated reference in Aeon against all six examples.
+python -m aeon.benchmarks.karel_runner \
+  --split /tmp/aeon-karel-corpus/test --results /tmp/karel-reference-results.jsonl
+
+# Synthesize from five examples, then independently evaluate the sixth.
+python -m aeon.benchmarks.karel_runner --mode synthesize --synthesizer enumerative \
+  --budget 60 --deadline 120 --split /tmp/aeon-karel-corpus/test \
+  --results /tmp/karel-synthesis-results.jsonl
+```
+
+Repeat validation for `train` and `val`. Neither runner nor importer implicitly
+subsamples. `--start`/`--count` allow explicit shards. Results report consistency
+separately from generalization; errors/timeouts count as failures. Summary files
+distinguish whole-split validation from subsets. Existing outputs are not overwritten.
+
+Converted splits are indexed, disk-backed JSONL: a million-task index uses
+approximately 8 MB rather than eagerly loading all worlds. Materializing all
+million task directories is optional and expensive; the runner streams without
+creating them. Observed examples, held-out examples, and references live in
+separate files. Synthesis files import only DSL operations and hide the
+specification variable inside the hole, with no reference function, world
+constructor, or held-out examples in the candidate context.
+
+Published tensors are sparse **channel-first** 16×18×18, bottom-up, with N/E/S/W
+direction channels and explicit padding boundaries, unlike carpedm20's encoding.
+References translate to Aeon combinators; Python does **not** interpret their
+control flow. Published worlds use crash semantics (blocked moves/empty picks
+fail), allow intermediate marker stacks through 101, and share a 200-tick budget
+across actions, conditions, and repeat iterations, matching `Consistency` in
+[the authors' artifact](https://github.com/bunelr/GandRL_for_NPS/tree/5ff32d9e179d52e1353ff0b9a5c11f948c9ad188).
+The ten earlier regression tasks retain carpedm20's no-op behavior.
+
+**Availability/validation status:** the complete published corpus has not been
+acquired or validated: training and test remain unavailable. The official
+OneDrive links returned HTTP 403 (the anonymous share API returned 401), and
+the later nearai/SED S3 mirror returned HTTP 404. A working full archive or
+mirror is still required. The adapter also has labeled format fixtures testing
+actual Aeon reference execution and synthesis. Matching counts alone does not
+prove provenance or reference correctness.
+
+## Additional carpedm20 generator datasets
 
 The domain and encoding follow [carpedm20/karel](https://github.com/carpedm20/karel),
 revision `ee29de7460f0e6f24ea542d6cf8e44b88694ef1a`, linked by issue #564.
@@ -61,7 +148,8 @@ programs each, 8-by-8 worlds, grammar depth 5, repeat constants 0–19, and a
 100-call interpreter budget. Its `num_examples` option defaults to 2 but is
 unused: the committed generator emits one I/O pair per program.
 
-Generate datasets using the source repository's `generate.py` and load its
+These generated datasets are **not the published MSR corpus**. Generate them
+using the source repository's `generate.py` and load its
 `train.npz`, `test.npz`, or `val.npz` directly in Aeon:
 
 ```aeon

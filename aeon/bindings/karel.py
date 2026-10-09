@@ -4,11 +4,34 @@ Coordinates start at the top left; directions are north/east/south/west (0–3).
 Blocked moves and empty picks leave the world unchanged, as in carpedm20/karel.
 """
 
-from dataclasses import dataclass, replace
+from contextvars import ContextVar
+from dataclasses import dataclass, field, replace
 import random
 
 
 DELTAS = ((0, -1), (1, 0), (0, 1), (-1, 0))
+
+
+@dataclass
+class ExecutionBudget:
+    limit: int = 200
+    ticks: int = 0
+
+
+_budget: ContextVar[ExecutionBudget | None] = ContextVar("karel_execution_budget", default=None)
+
+
+def tick() -> None:
+    budget = _budget.get()
+    if budget is not None:
+        if budget.ticks >= budget.limit:
+            raise RuntimeError("Karel program exhausted its global tick budget")
+        budget.ticks += 1
+
+
+def repeat_tick(w: "World") -> "World":
+    tick()
+    return w
 
 
 @dataclass(frozen=True)
@@ -20,6 +43,10 @@ class World:
     facing: int
     walls: frozenset[tuple[int, int]] = frozenset()
     markers: tuple[tuple[int, int, int], ...] = ()
+    # Policy is not part of physical world equality. The published MSR artifact
+    # crashes on invalid actions and permits intermediate stacks through 101.
+    strict: bool = field(default=False, compare=False)
+    marker_limit: int = field(default=10, compare=False)
 
     def __post_init__(self):
         if self.width < 1 or self.height < 1:
@@ -31,8 +58,8 @@ class World:
         if any(not self.inside(x, y) for x, y in self.walls):
             raise ValueError("walls must be inside the world")
         for x, y, count in self.markers:
-            if not self.inside(x, y) or (x, y) in self.walls or not 1 <= count <= 10:
-                raise ValueError("markers require a clear cell and a count between 1 and 10")
+            if not self.inside(x, y) or (x, y) in self.walls or not 1 <= count <= self.marker_limit:
+                raise ValueError("markers require a clear cell and a count within the world's marker limit")
 
     def inside(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
@@ -72,7 +99,7 @@ def with_wall(w: World, x: int, y: int) -> World:
 
 
 def with_markers(w: World, x: int, y: int, count: int) -> World:
-    if not w.inside(x, y) or (x, y) in w.walls or not 0 <= count <= 10:
+    if not w.inside(x, y) or (x, y) in w.walls or not 0 <= count <= w.marker_limit:
         raise ValueError("invalid marker cell or count")
     counts = {(px, py): n for px, py, n in w.markers}
     if count:
@@ -99,42 +126,59 @@ def clear(w: World, facing: int) -> bool:
 
 
 def front_is_clear(w: World) -> bool:
+    tick()
     return clear(w, w.facing)
 
 
 def left_is_clear(w: World) -> bool:
+    tick()
     return clear(w, (w.facing - 1) % 4)
 
 
 def right_is_clear(w: World) -> bool:
+    tick()
     return clear(w, (w.facing + 1) % 4)
 
 
 def markers_present(w: World) -> bool:
+    tick()
     return marker_count(w) > 0
 
 
 def move(w: World) -> World:
+    tick()
     dx, dy = DELTAS[w.facing]
-    return replace(w, x=w.x + dx, y=w.y + dy) if front_is_clear(w) else w
+    if clear(w, w.facing):
+        return replace(w, x=w.x + dx, y=w.y + dy)
+    if w.strict:
+        raise RuntimeError("Karel crashed: blocked move")
+    return w
 
 
 def turn_left(w: World) -> World:
+    tick()
     return replace(w, facing=(w.facing - 1) % 4)
 
 
 def turn_right(w: World) -> World:
+    tick()
     return replace(w, facing=(w.facing + 1) % 4)
 
 
 def pick_marker(w: World) -> World:
-    return with_markers(w, w.x, w.y, marker_count(w) - 1) if markers_present(w) else w
+    tick()
+    if marker_count(w):
+        return with_markers(w, w.x, w.y, marker_count(w) - 1)
+    if w.strict:
+        raise RuntimeError("Karel crashed: empty marker pick")
+    return w
 
 
 def put_marker(w: World) -> World:
+    tick()
     count = marker_count(w)
-    if count == 10:
-        raise ValueError("Karel tensor format supports at most 10 markers per cell")
+    if count >= w.marker_limit:
+        raise ValueError(f"Karel world supports at most {w.marker_limit} markers per cell")
     return with_markers(w, w.x, w.y, count + 1)
 
 
@@ -165,7 +209,10 @@ def to_tensor(w: World) -> list[list[list[int]]]:
     for y in range(w.height):
         for x in range(w.width):
             tensor[y][x][4] = int((x, y) in w.walls)
-            tensor[y][x][5 + marker_count_at(w, x, y)] = 1
+            count = marker_count_at(w, x, y)
+            if count > 10:
+                raise ValueError("Karel tensor format supports at most 10 markers per cell")
+            tensor[y][x][5 + count] = 1
     tensor[w.y][w.x][(0, 3, 1, 2)[w.facing]] = 1
     return tensor
 
@@ -200,6 +247,11 @@ def load_examples(path: str):
     The source generator uses N × H × W × 16 arrays (one I/O per program).
     Also accept N × E × H × W × 16 datasets with multiple examples per task.
     """
+    if not path.endswith(".npz"):
+        from aeon.benchmarks.karel import JsonlDataset
+
+        return JsonlDataset(path)
+
     import numpy as np
 
     with np.load(path, allow_pickle=False) as dataset:
@@ -215,11 +267,14 @@ def fitness(program, examples) -> float:
     """Count failed whole-world examples, including crashes and loop exhaustion."""
     failures = 0
     for initial, expected in examples:
+        token = _budget.set(ExecutionBudget() if initial.strict else None)
         try:
             actual = program(initial)
             failures += int(not isinstance(actual, World) or not same_world(actual, expected))
         except (RuntimeError, ValueError, TypeError, RecursionError):
             failures += 1
+        finally:
+            _budget.reset(token)
     return float(failures)
 
 

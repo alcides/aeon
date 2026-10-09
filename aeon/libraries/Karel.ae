@@ -54,6 +54,10 @@ def fitness (program: (w: World) -> World) (examples: Examples) : Float :=
     native "__import__('aeon.bindings.karel', fromlist=['fitness']).fitness(program, examples)"
 def require_finished (fuel: Int) (test: (w: World) -> Bool) (w: World) : World :=
     native "__import__('aeon.bindings.karel', fromlist=['require_finished']).require_finished(fuel, test, w)"
+def repeat_tick (w: World) : World :=
+    native "__import__('aeon.bindings.karel', fromlist=['repeat_tick']).repeat_tick(w)"
+def load_task_examples (path: String) : Examples :=
+    native "__import__('aeon.benchmarks.karel', fromlist=['load_task_examples']).load_task_examples(path)"
 def robot_x (w: World) : Int := native "w.x"
 def robot_y (w: World) : Int := native "w.y"
 def direction (w: World) : Int := native "w.facing"
@@ -66,7 +70,7 @@ def stay (w: World) : World := w
 def sequence (first: (w: World) -> World) (second: (w: World) -> World) (w: World) : World :=
     second (first w)
 def repeat (count: Int) (step: (w: World) -> World) (w: World) : World :=
-    if count <= 0 then w else repeat (count - 1) step (step w)
+    if count <= 0 then w else repeat (count - 1) step (step (repeat_tick w))
 def if_karel (test: (w: World) -> Bool) (yes: (w: World) -> World) (no: (w: World) -> World) (w: World) : World :=
     if test w then yes w else no w
 def when_karel (test: (w: World) -> Bool) (step: (w: World) -> World) (w: World) : World :=
