@@ -7,6 +7,8 @@ repos:
       - id: check-merge-conflict
       - id: end-of-file-fixer
       - id: trailing-whitespace
+        # Preserve checksum-pinned upstream fixtures (only CRLF -> LF normalized).
+        exclude: ^examples/synthesis/absynthe/[^/]+\.sl$
       - id: check-docstring-first
       # - id: name-tests-test       # Note: this was disabled because of driver.py https://github.com/pre-commit/pre-commit-hooks/issues/1126
       - id: requirements-txt-fixer

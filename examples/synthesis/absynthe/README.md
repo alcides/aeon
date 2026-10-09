@@ -28,3 +28,8 @@ constraints, and the artifact's Table 1 runner parameters: 11 baseline runs,
 one run each without template inference and small-expression caching, and a
 600-second timeout. It also preserves the non-default abstract specifications,
 timeouts, and unsupported conditional tasks from `test/sygus_bench.rb`.
+
+The `.sl` fixtures preserve upstream bytes except for CRLF-to-LF normalization,
+including trailing whitespace. Only these files are excluded from the
+`trailing-whitespace` pre-commit hook; documentation and code remain checked.
+The corpus regression test verifies every fixture against its manifest checksum.
