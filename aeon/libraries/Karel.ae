@@ -1,0 +1,12 @@
+# An embedded Karel DSL: programs are Aeon functions ``World -> World``.
+type World
+def world (cells: String) : World := native "{'cells': cells, 'pos': 0, 'dir': 0, 'markers': 0}"
+def render (w: World) : String := native "w['cells'] + '|p=' + str(w['pos']) + '|d=' + str(w['dir']) + '|m=' + str(w['markers'])"
+def markers_present (w: World) : Bool := native "w['markers'] > 0"
+def move (w: World) : World := native "dict(w, pos=(w['pos'] + 1 if w['pos'] < len(w['cells']) - 1 else w['pos']))"
+def turn_left (w: World) : World := native "dict(w, dir=(w['dir'] - 1) % 4)"
+def turn_right (w: World) : World := native "dict(w, dir=(w['dir'] + 1) % 4)"
+def pick_marker (w: World) : World := native "dict(w, markers=max(0, w['markers'] - 1))"
+def put_marker (w: World) : World := native "dict(w, markers=w['markers'] + 1)"
+def repeat (n: Int) (step: (w: World) -> World) (w: World) : World := if n <= 0 then w else repeat (n - 1) step (step w)
+def if_karel (test: (w: World) -> Bool) (yes: (w: World) -> World) (no: (w: World) -> World) (w: World) : World := if test w then yes w else no w

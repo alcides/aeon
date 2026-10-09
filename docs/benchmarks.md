@@ -44,7 +44,7 @@ problem class is given.
 | CATA demos | `examples/synthesis/cata/*.ae` | ~10 | Contata / CAV spirit | **30s** (`cata`) |
 | Contata transcription | `examples/synthesis/cata/contata/` | 30 | Contata artifact | **30–60s** when attempting synth; often `--test` |
 | DACE + FTA | `examples/synthesis/dace/`, `fta/` | 16 + 3 | DACE OOPSLA’17 | FTA synth **10s**; PBE **60s** |
-| Karel | `examples/synthesis/karel/` | seeded generator | carpedm20 Karel dataset | bounded interpreter |
+| Karel | `examples/synthesis/karel/` | embedded DSL demo | carpedm20 Karel dataset | Aeon-native combinators |
 | OR-Tools IntHole | `examples/synthesis/ortools/` | 7 | Aeon-native CP-SAT | **5–8s** (`ortools`) |
 | AutoNumerics | `examples/synthesis/autonumerics/` | 3 | AutoNumerics-Zero / HUMIES’26 | **30–120s** |
 | Grover circuits | `examples/synthesis/grover/` | 1 | GECCO’26 HUMIES Bronze | **30s** (`gp`) |
