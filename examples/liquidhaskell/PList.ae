@@ -1,0 +1,11 @@
+# Tutorial chapters 4 and 7: polymorphic lists with a size measure.
+inductive PList a
+| nil : {xs:(PList a) | size xs = 0}
+| cons (hd:a) (tl:{xs:(PList a) | size xs >= 0}) :
+    {xs:(PList a) | size xs = size tl + 1}
++ size (xs:(PList a)) : Int
+
+def encode (xs:(PList Int)) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => hd + 10 * encode tl;

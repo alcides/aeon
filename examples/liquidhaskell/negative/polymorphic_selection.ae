@@ -1,0 +1,5 @@
+# Tutorial_07_Measure_Int.prop_map uses id: a polymorphic selection must
+# return the specified argument, even when it cannot inspect its type.
+def first : forall a:B, (x:a) -> (y:a) -> {v:a | v = x} :=
+    Λ a:B => fun x => fun y => y;
+def main (_:Int) : Int := 0;

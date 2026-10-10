@@ -1,0 +1,3 @@
+# Tutorial_05_Datatypes.badList: a constructor cannot prepend 2 before 1.
+open IncList;
+def main (_:Int) : Int := IncList.encode (cons 2 (cons 1 (cons 3 nil)));

@@ -19,7 +19,7 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import AbstractionType, RefinedType, Type
+from aeon.core.types import AbstractionType, ExistentialType, RefinedType, Type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.branch_evidence import match_branch_evidence
 from aeon.utils.location import Location
@@ -199,6 +199,12 @@ def collect_recursive_calls_with_paths(
                         partial = Application(partial, rec_args[0])
                         for handler in rec_args[1:]:
                             fty = _synth_type(ctx, partial) if ctx is not None else None
+                            # Applying an earlier handler can introduce an
+                            # existential for its result. The remaining handler
+                            # arrows still describe this match's field binders;
+                            # losing them leaves recursive calls with free fields.
+                            while isinstance(fty, ExistentialType):
+                                fty = fty.body
                             if not isinstance(fty, AbstractionType):
                                 walk(handler, path, nested_refs, ctx, None, env, scope)
                             else:

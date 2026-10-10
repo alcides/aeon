@@ -64,6 +64,19 @@ def test_manifest_is_complete_and_attributed():
         assert case["expect"] in {"accept", "reject", "runtime-reject"}
 
 
+@pytest.mark.parametrize(
+    "feature", ["polymorphism", "higher-order", "richer-measures", "sorted-lists", "abstract-refinements"]
+)
+def test_advanced_features_have_executable_ports_and_negative_controls(feature):
+    cases = [case for case in CASES if case.get("feature") == feature]
+    assert {case["expect"] for case in cases} >= {"accept", "reject"}
+    for case in cases:
+        # These examples must be Aeon implementations, not trusted Python
+        # specifications or uninterpreted proof helpers that assert the goal.
+        source = (ROOT / case["file"]).read_text()
+        assert "native" not in source and "uninterpreted" not in source
+
+
 @pytest.mark.parametrize("case", [c for c in CASES if c["expect"] == "accept"], ids=lambda c: c["file"])
 @pytest.mark.parametrize("contracts", [False, True], ids=["static", "runtime-verification"])
 def test_positive_ports_compile_and_run(suite, case, contracts):
@@ -84,6 +97,8 @@ def test_negative_ports_fail_for_the_intended_reason(suite, case):
         assert isinstance(loc, FileLocation)
         assert Path(loc.file) == suite / case["file"]
         assert 1 <= loc.start[0] <= len((suite / case["file"]).read_text().splitlines())
+        if case["file"] == "negative/sorted_loop.ae":
+            assert loc.start[0] == 9, "Report the non-decreasing call, not the imported constructor"
     if case["category"] == "diagnostics":
         assert matching[0].failed_predicate() is not None
         assert bool(matching[0].counterexample()) == case["counterexample"]

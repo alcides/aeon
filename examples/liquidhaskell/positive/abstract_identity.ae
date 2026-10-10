@@ -1,0 +1,8 @@
+# The predicate-preservation principle of abstract max, also generalized over a.
+def identity : forall a:B, forall <p : a -> Bool>, (x:a<p>) -> a<p> :=
+    Λ a:B => Λ <p : a -> Bool> => fun x => x;
+def positive (n:{v:Int | v > 0}) : {v:Int | v > 0} :=
+    identity{Int}{|fun v => v > 0|} n;
+def truth (b:{v:Bool | v = true}) : {v:Bool | v = true} :=
+    identity{Bool}{|fun v => v = true|} b;
+def main (_:Int) : Int := if truth true then positive 7 else 0;

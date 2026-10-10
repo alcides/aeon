@@ -1,0 +1,4 @@
+# A correct abstract max must reject a call outside the chosen predicate.
+def maxInt : forall <p : Int -> Bool>, (x:Int<p>) -> (y:Int<p>) -> Int<p> :=
+    Λ <p : Int -> Bool> => fun x => fun y => if x <= y then y else x;
+def main (_:Int) : Int := maxInt{|fun v => 0 <= v && v < 256|} 255 256;
