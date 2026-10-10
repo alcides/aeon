@@ -1,0 +1,11 @@
+import Karel;
+open Karel
+
+def initial : World := with_markers (world 4 3 1 1 east) 1 1 2
+def expected : World := with_markers (world 4 3 1 1 east) 1 1 1
+def initial2 : World := with_markers (world 4 3 2 1 west) 2 1 1
+def expected2 : World := world 4 3 2 1 west
+def cases : Examples := append_examples (example initial expected) (example initial2 expected2)
+
+def solution (w: World) : World := pick_marker w
+def main (_: Int) : Unit := print (fitness solution cases)

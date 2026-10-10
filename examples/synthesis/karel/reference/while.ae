@@ -1,0 +1,11 @@
+import Karel;
+open Karel
+
+def initial : World := with_wall (world 5 3 0 1 east) 3 1
+def expected : World := with_wall (world 5 3 2 1 east) 3 1
+def initial2 : World := world 3 5 1 4 north
+def expected2 : World := world 3 5 1 0 north
+def cases : Examples := append_examples (example initial expected) (example initial2 expected2)
+
+def solution (w: World) : World := while_karel 19 front_is_clear move w
+def main (_: Int) : Unit := print (fitness solution cases)

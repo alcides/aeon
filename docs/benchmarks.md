@@ -39,11 +39,13 @@ problem class is given.
 | Synquid | `examples/synthesis/synquid/` | 64 | Synquid PLDI’16 | **30s** (`synquid`/`gp`) |
 | SRBench (Feynman + Strogatz) | `examples/synthesis/srbench/` | 134 | SRBench / AI Feynman / ODE-Strogatz | **60s** (`gp`) |
 | AFTA SyGuS PBE-Strings | `examples/synthesis/afta/sygus/` | 109 | SyGuS PBE_SLIA / BLAZE POPL’18 | **60s** (`afta`) |
+| Absynthe SyGuS strings | `examples/synthesis/absynthe/` | 27 | Absynthe artifact | evaluator / exact-target fitness |
 | AFTA matrix | `examples/synthesis/afta/matrix/` | 10 | BLAZE Fig.17 reconstruction | **60s** (`afta`) |
 | AFTA demos | `examples/synthesis/afta/*.ae` | 2 | Wang et al. POPL’18 | **10–15s** (`afta`) |
 | CATA demos | `examples/synthesis/cata/*.ae` | ~10 | Contata / CAV spirit | **30s** (`cata`) |
 | Contata transcription | `examples/synthesis/cata/contata/` | 30 | Contata artifact | **30–60s** when attempting synth; often `--test` |
 | DACE + FTA | `examples/synthesis/dace/`, `fta/` | 16 + 3 | DACE OOPSLA’17 | FTA synth **10s**; PBE **60s** |
+| Karel | `examples/synthesis/karel/` | 10 regression tasks + 2,500 mirrored validation tasks; full-corpus importer/runner | MSR adapter (training/test acquisition pending) | **5s** smoke; longer for loops |
 | OR-Tools IntHole | `examples/synthesis/ortools/` | 7 | Aeon-native CP-SAT | **5–8s** (`ortools`) |
 | AutoNumerics | `examples/synthesis/autonumerics/` | 3 | AutoNumerics-Zero / HUMIES’26 | **30–120s** |
 | Grover circuits | `examples/synthesis/grover/` | 1 | GECCO’26 HUMIES Bronze | **30s** (`gp`) |
@@ -209,6 +211,19 @@ uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_i_6_2
 (missing some String DSL ops / grammar scoping).
 
 **Timeout.** README: **`--budget 60 -s afta`**.
+
+### Absynthe SyGuS strings — `examples/synthesis/absynthe/` (27)
+
+**Origin.** The [official Absynthe artifact](https://github.com/ku-progsys/absynthe),
+revision `d752fa4f3583d4f438021b92bd97983202a4dd17` (issue [#561](https://github.com/alcides/aeon/issues/561)).
+
+**Description.** The complete artifact corpus, including `bikes`, `phone`,
+name-formatting transformations, and conditional universal tasks. The files
+are read by `aeon.synthesis.benchmarks.absynthe`, a typed interpreter for the
+artifact's String/Int/Bool grammar. Its fitness is the number of violated
+constraints; fitness `0` denotes an exact target. `artifact.json` records
+checksums and the Table 1 runner/domain parameters. These are backend-neutral
+data fixtures, not `.ae` source programs.
 
 ### Matrix domain — `afta/matrix/` (10)
 
