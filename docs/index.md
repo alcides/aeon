@@ -1,5 +1,8 @@
 # Aeon Programming Language
 
+For contributor checks, compiler-session ownership, and generated semantic
+tests, see [Project quality](project-quality.md).
+
 **Aeon** is a statically-typed functional language built around two ideas that usually live in separate research papers:
 
 1. **Liquid (refinement) types** — types that carry a logical predicate, so the compiler can rule out whole classes of bugs (negative balances, off-by-one errors, division by zero, ...) before the program ever runs. The proof obligations are discharged by an SMT solver (z3).

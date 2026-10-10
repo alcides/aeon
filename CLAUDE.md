@@ -69,6 +69,10 @@ import Math (abs, pow);   // Selective import: use abs, pow directly
 
 ## Architecture
 
+See `docs/project-quality.md` for CI gates, Hypothesis profiles, and compiler
+session ownership. Compiler APIs create independent sessions at top level;
+explicit `CompilationSession.activate()` scopes share state across operations.
+
 The codebase follows a compiler pipeline:
 
 ```

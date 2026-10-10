@@ -1,6 +1,3 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
 name: Python application
 
 on:
@@ -9,40 +6,170 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+  workflow_call:
+  schedule:
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  HYPOTHESIS_PROFILE: ci
+  PYTHONHASHSEED: "0"
+  # Environments are explicitly installed per job; do not resync away extras.
+  UV_NO_SYNC: "1"
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv venv
+      - run: uv pip install -e ".[tests]" mypy
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - run: uvx pre-commit run --all-files
+      - name: Strict types at compiler phase boundaries
+        run: uv run mypy --strict --follow-imports=silent --ignore-missing-imports aeon/compilation/session.py aeon/compilation/interface.py aeon/verification/state.py aeon/sugar/name_resolution.py
+
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-
     steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+          enable-cache: true
+      - run: uv venv
+      - run: uv pip install -e ".[tests]"
+      - run: uv run python scripts/run_core_tests.py -q --junitxml=core-results.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-results-${{ matrix.python-version }}
+          path: core-results.xml
+
+  full-suite:
+    runs-on: ubuntu-latest
+    # Instrumented research/library tests can be much slower than the core gate.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv venv
+      - run: uv pip install -e ".[dev]"
+      - name: Full suite and trusted-core coverage
+        run: uv run pytest -q -n 4 --dist worksteal --cov=aeon.compilation --cov=aeon.core --cov=aeon.typechecking --cov=aeon.verification --cov-report=xml --cov-report=term --junitxml=full-results.xml --durations=20
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-suite-results
+          path: |
+            full-results.xml
+            coverage.xml
+
+  optional-backends:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [ortools, torch]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv venv
+      - run: uv pip install -e ".[tests]"
+      - if: matrix.backend == 'ortools'
         run: |
-          python -m pip install --upgrade uv
-          uv pip install --system pytest mypy pre-commit-uv
-      - name: Lint with pre-commit
+          uv pip install -e ".[synthesis-ortools]"
+          uv run pytest tests/ortools_cpsat_test.py -q --junitxml=optional-results.xml
+      - if: matrix.backend == 'torch'
         run: |
-          pre-commit run --all-files
-      - name: Lint with mypy
+          uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+          uv run pytest tests/nn_bindings_test.py -q --junitxml=optional-results.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: optional-results-${{ matrix.backend }}
+          path: optional-results.xml
+
+  wheel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv build
+      - name: Install wheel into a clean environment
         run: |
-          mypy aeon --no-strict-optional --ignore-missing-imports
-      - name: Check install
-        run: |
-          uv pip install --system -e ".[dev]"
-      - name: Install optional synthesis extras (OR-Tools, CPU-only torch)
-        run: |
-          uv pip install --system -e ".[synthesis-ortools]"
-          uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu
-      - name: Test with pytest
-        run: |
-          pytest
-      - name: Run Benchmarks
-        run: |
-          bash run_examples.sh
+          uv venv /tmp/aeon-wheel-env
+          uv pip install --python /tmp/aeon-wheel-env/bin/python dist/*.whl
+          /tmp/aeon-wheel-env/bin/python scripts/wheel_smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/*
+
+  examples:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv venv
+      - run: uv pip install -e ".[dev]"
+      - run: bash run_examples.sh
+
+  research:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HYPOTHESIS_PROFILE: nightly
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv venv
+      - run: uv pip install -e ".[dev]"
+      - run: uv run pytest tests/core_properties_test.py tests/dace_test.py tests/csg_benchmark_test.py -q --durations=30 --junitxml=research-results.xml
+      - name: Compiler performance samples (not synthesis timings)
+        run: uv run python scripts/benchmark_compilation.py --repeats 3 examples/syntax/maxI.ae examples/verification/horn_tournament.ae > compiler-timings.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-results
+          path: |
+            research-results.xml
+            compiler-timings.json
