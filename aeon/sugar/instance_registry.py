@@ -6,7 +6,8 @@ sites. Keyed by ``(class_name, head_type_name)`` where ``head_type_name`` is the
 outermost type constructor of the class's (first) type argument — e.g. the
 instance ``Eq (List a)`` is keyed ``("Eq", "List")``.
 
-Cleared once per top-level compilation by the driver.
+Owned by the compilation session; standalone low-level calls use context-local
+compatibility state.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from dataclasses import dataclass, field
 
 from aeon.sugar.stypes import SType
 from aeon.utils.name import Name
+from aeon.compilation.session import SessionMapping, current_session
 
 
 @dataclass(frozen=True)
@@ -38,7 +40,12 @@ class InstanceInfo:
 
 
 # (class_name, head_type_name) -> InstanceInfo
-_instances: dict[tuple[str, str], InstanceInfo] = {}
+@dataclass
+class InstanceRegistry:
+    instances: dict[tuple[str, str], InstanceInfo] = field(default_factory=dict)
+
+
+_instances = SessionMapping(lambda: current_session().state(InstanceRegistry).instances)
 
 
 def register_instance(class_name: str, head: str, info: InstanceInfo) -> None:

@@ -3,15 +3,24 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import aeon
 from aeon.errors import ModuleNotFoundAeonError
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import ImportAe, Program
+from aeon.compilation.session import SessionMapping, SessionSet, current_session
 
-_import_cache: dict[str, Program] = {}
-_currently_importing: set[str] = set()
+
+@dataclass
+class ImportState:
+    parsed: dict[str, Program] = field(default_factory=dict)
+    importing: set[str] = field(default_factory=set)
+
+
+_import_cache = SessionMapping(lambda: current_session().state(ImportState).parsed)
+_currently_importing = SessionSet(lambda: current_session().state(ImportState).importing)
 
 
 def clear_import_cache() -> None:
