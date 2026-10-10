@@ -33,6 +33,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[tests]" mypy
       - uses: actions/cache@v4
@@ -56,6 +57,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[tests]"
       - run: uv run python scripts/run_core_tests.py -q --junitxml=core-results.xml
@@ -75,6 +77,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[dev]"
       - name: Full suite and trusted-core coverage
@@ -100,6 +103,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[tests]"
       - if: matrix.backend == 'ortools'
@@ -125,6 +129,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - run: uv build
       - name: Install wheel into a clean environment
         run: |
@@ -145,6 +150,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[dev]"
       - run: bash run_examples.sh
@@ -161,6 +167,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[dev]"
       - run: uv run pytest tests/core_properties_test.py tests/dace_test.py tests/csg_benchmark_test.py -q --durations=30 --junitxml=research-results.xml
