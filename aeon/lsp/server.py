@@ -94,6 +94,7 @@ SYNTHESIZE_COMMAND = "aeon.synthesize"
 # (0-indexed, LSP convention). Response: the JSON form of
 # :class:`aeon.lsp.infoview.InfoViewData`.
 INFOVIEW_REQUEST = "aeon/infoView"
+VERIFICATION_REQUEST = "aeon/verification"
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +195,20 @@ class AeonLanguageServer(LanguageServer):
                 source = document.source
                 line, character = params.position.line, params.position.character
                 word = _get_word_at_position(source, line, character)
+                analysis = await aeon_adapter.parse(ls, params.text_document.uri)
+                from aeon.lsp.verification import obligations_at, verification_markdown
+
+                proofs = obligations_at(aeon_adapter.get_proof_obligations(params.text_document.uri), line, character)
+                evidence = verification_markdown(proofs)
+                cursor_range = Range(start=params.position, end=params.position)
+                warnings = [
+                    d.message
+                    for d in analysis.diagnostics
+                    if d.code == "runtime-verification" and ls._ranges_overlap(d.range, cursor_range)
+                ]
+                if warnings:
+                    evidence += "\n\n" + "\n\n".join(warnings)
+                suffix = f"\n\n{evidence}" if evidence else ""
 
                 # Position-accurate hover: the inferred (refined) type of the
                 # expression under the cursor, from the type index.
@@ -206,7 +221,7 @@ class AeonLanguageServer(LanguageServer):
                         return Hover(
                             contents=MarkupContent(
                                 kind=MarkupKind.Markdown,
-                                value=f"```aeon\n{lhs}{format_type(ty)}\n```",
+                                value=f"```aeon\n{lhs}{format_type(ty)}\n```{suffix}",
                             ),
                             range=_loc_to_range(loc),
                         )
@@ -214,20 +229,22 @@ class AeonLanguageServer(LanguageServer):
                 # Fallback: top-level name match (e.g. hovering a definition's name,
                 # which is a binder and has no synthesized-expression observation).
                 if not word:
-                    return None
+                    return Hover(contents=MarkupContent(kind=MarkupKind.Markdown, value=evidence)) if evidence else None
                 typing_ctx = aeon_adapter.get_typing_ctx(params.text_document.uri) or getattr(
                     ls.aeon_driver, "typing_ctx", None
                 )
                 if typing_ctx is None:
-                    return None
+                    return Hover(contents=MarkupContent(kind=MarkupKind.Markdown, value=evidence)) if evidence else None
                 for name, type_ in typing_ctx.vars():
                     if name.pretty() == word:
                         return Hover(
                             contents=MarkupContent(
                                 kind=MarkupKind.Markdown,
-                                value=f"```aeon\n{word} : {format_type(type_)}\n```",
+                                value=f"```aeon\n{word} : {format_type(type_)}\n```{suffix}",
                             )
                         )
+                if evidence:
+                    return Hover(contents=MarkupContent(kind=MarkupKind.Markdown, value=evidence))
             except Exception:
                 logger.exception("Hover failed for %s", params.text_document.uri)
             return None
@@ -338,6 +355,19 @@ class AeonLanguageServer(LanguageServer):
                 logger.exception("Document symbols failed for %s", params.text_document.uri)
                 return []
 
+        @self.feature(VERIFICATION_REQUEST)
+        async def verification_view(ls: AeonLanguageServer, params) -> dict:
+            from . import aeon_adapter
+
+            uri = params.textDocument.uri
+            analysis = await aeon_adapter.parse(ls, uri)
+            return {
+                "uri": uri,
+                "obligations": aeon_adapter.get_proof_obligations(uri),
+                "runtimeVerification": {"enabled": ls.aeon_driver.cfg.contracts, "executed": False},
+                "diagnostics": [{"message": d.message, "data": d.data} for d in analysis.diagnostics],
+            }
+
         @self.feature(INFOVIEW_REQUEST)
         async def info_view(
             ls: AeonLanguageServer,
@@ -373,7 +403,10 @@ class AeonLanguageServer(LanguageServer):
                 )
             except Exception:
                 return InfoViewData().to_dict()
-            return data.to_dict()
+            payload = data.to_dict()
+            payload["proofObligations"] = aeon_adapter.get_proof_obligations(uri)
+            payload["runtimeVerification"] = {"enabled": ls.aeon_driver.cfg.contracts, "executed": False}
+            return payload
 
         @self.feature(
             TEXT_DOCUMENT_CODE_ACTION,

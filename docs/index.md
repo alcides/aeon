@@ -691,7 +691,7 @@ The generated [stdlib index](stdlib/) is the authoritative per-symbol catalogue 
 | --format | Prints a pretty-printed version of the code to stdout                       |
 | --fix | Reformats the source file in place using the pretty printer                    |
 | --export | Prints a stand-alone, pure-Python version of the named function — see [Exporting to Python](#exporting-to-python) |
-| -lsp, --language-server-mode | Runs aeon in Language Server Protocol mode               |
+| -lsp, --language-server-mode | Runs aeon in [Language Server Protocol mode](language-server.md) |
 | --tcp | Specifies the TCP port or hostname:port for the LSP server                     |
 
 ## Synthesis
