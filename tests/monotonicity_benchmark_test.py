@@ -6,7 +6,7 @@ from dataclasses import asdict
 from itertools import count
 
 import pytest
-from z3 import unknown
+from z3 import Solver, unknown
 
 from aeon.benchmarks.monotonicity import DEFAULT_TASK_DIR, TASKS, MonotonicityBenchmark, main
 from aeon.core.terms import Literal
@@ -108,7 +108,9 @@ def test_domain_limits_are_not_accidentally_global():
 
 def test_unknown_solver_result_is_unproven_without_counterexample(monkeypatch):
     benchmark = MonotonicityBenchmark("nondecreasing")
-    monkeypatch.setattr(smt.s, "check", lambda: unknown)
+    # Solvers are session-owned now; patch the check operation, not the
+    # removed global instance, so fresh compilation sessions also return unknown.
+    monkeypatch.setattr(Solver, "check", lambda self: unknown)
     report = benchmark.verify("x")
     assert report.status == "unproven" and not report.accepted
     assert all(f.counterexample is None for f in report.failures)

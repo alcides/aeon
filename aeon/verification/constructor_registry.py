@@ -8,21 +8,33 @@ LH-style **measure** names (``List_size``) for recursive Z3 definitions.
 """
 
 from __future__ import annotations
+from dataclasses import dataclass, field
+
+from aeon.compilation.session import SessionMapping, current_session
+
+
+@dataclass
+class ConstructorRegistry:
+    groups: dict[str, list[str]] = field(default_factory=dict)
+    parameter_counts: dict[str, int] = field(default_factory=dict)
+    fields: dict[str, list[str]] = field(default_factory=dict)
+    measures: dict[str, list[str]] = field(default_factory=dict)
+
 
 # Maps inductive type name -> ordered prefixed constructor constant names
 # e.g. {"IntList": ["IntList_empty", "IntList_cons"]}
-_constructor_groups: dict[str, list[str]] = {}
+_constructor_groups = SessionMapping(lambda: current_session().state(ConstructorRegistry).groups)
 
 # Number of type parameters per inductive (List=1, Pair=2, Individual=0).
-_type_param_counts: dict[str, int] = {}
+_type_param_counts = SessionMapping(lambda: current_session().state(ConstructorRegistry).parameter_counts)
 
 # Prefixed ctor name -> field type skeletons.
 # Each entry is either a concrete type name ("Int", "Individual") or a
 # type-parameter index as "#0", "#1", …
-_constructor_fields: dict[str, list[str]] = {}
+_constructor_fields = SessionMapping(lambda: current_session().state(ConstructorRegistry).fields)
 
 # Inductive type name -> canonical measure names (for example ``List_size``).
-_measures: dict[str, list[str]] = {}
+_measures = SessionMapping(lambda: current_session().state(ConstructorRegistry).measures)
 
 
 def register_constructors(
@@ -78,17 +90,8 @@ def clear_constructor_registry() -> None:
     # Keep SMT datatype / sort caches in sync so a fresh inductive registration
     # is not shadowed by a stale Z3 Datatype from a previous program.
     try:
-        from aeon.verification.smt_datatypes import clear_datatype_cache
         from aeon.verification import smt as smt_mod
 
-        clear_datatype_cache()
-        unit = smt_mod.sort_cache.get("Unit")
-        smt_mod.sort_cache.clear()
-        if unit is not None:
-            smt_mod.sort_cache["Unit"] = unit
-        smt_mod._mk_vars_cache.clear()
-        smt_mod._mk_funs_cache.clear()
-        smt_mod._mk_sorts_cache.clear()
-        smt_mod._smt_valid_cache.clear()
+        smt_mod.clear_smt_caches()
     except ImportError:
         pass

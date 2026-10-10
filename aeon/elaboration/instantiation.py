@@ -13,7 +13,7 @@ from aeon.sugar.substitutions import normalize
 from aeon.utils.name import Name, fresh_counter
 
 
-def free_type_var_names(ty: SType) -> set[Name]:
+def free_type_var_names(ty: SType, *, include_bound: bool = False) -> set[Name]:
     """Best-effort set of free type-variable names of ``ty``.
 
     Unlike ``aeon.sugar.stypes.get_type_vars`` this never raises on
@@ -22,23 +22,26 @@ def free_type_var_names(ty: SType) -> set[Name]:
     surface ``SType`` grammar, so they are handled generically by recursing
     into any ``SType``-valued attributes they carry.
 
-    Only used to decide whether a binder must be alpha-renamed to avoid
-    capture, so under-approximating on exotic nodes is safe — binders carry
-    unique fresh ids, so a missed name cannot actually collide in practice.
+    ``include_bound`` also collects polymorphic binders, for choosing a new
+    binder that cannot collide with names supplied through low-level APIs.
     """
+
+    def rec(child: SType) -> set[Name]:
+        return free_type_var_names(child, include_bound=include_bound)
+
     match ty:
         case STypeVar(name):
             return {name}
         case SRefinedType(_, ity, _):
-            return free_type_var_names(ity)
+            return rec(ity)
         case SAbstractionType(_, vty, rty):
-            return free_type_var_names(vty) | free_type_var_names(rty)
+            return rec(vty) | rec(rty)
         case STypePolymorphism(name, _, body):
-            return free_type_var_names(body) - {name}
+            return rec(body) | {name} if include_bound else rec(body) - {name}
         case SRefinementPolymorphism(_, sort, body):
-            return free_type_var_names(sort) | free_type_var_names(body)
+            return rec(sort) | rec(body)
         case STypeConstructor(_, args):
-            return set().union(*(free_type_var_names(a) for a in args)) if args else set()
+            return set().union(*(rec(a) for a in args)) if args else set()
         case _:
             # Elaboration-internal variants (UnificationVar.lower/upper,
             # Union.united, Intersection.intersected) and any future node:
@@ -47,8 +50,20 @@ def free_type_var_names(ty: SType) -> set[Name]:
             for attr in ("lower", "upper", "united", "intersected"):
                 for child in getattr(ty, attr, ()) or ():
                     if isinstance(child, SType):
-                        acc |= free_type_var_names(child)
+                        acc |= rec(child)
             return acc
+
+
+def _fresh_type_binder(name: Name, alpha: Name, body: SType, replacement: SType) -> Name:
+    forbidden = (
+        {name, alpha}
+        | free_type_var_names(body, include_bound=True)
+        | free_type_var_names(replacement, include_bound=True)
+    )
+    fresh = Name(name.name, fresh_counter.fresh())
+    while fresh in forbidden:
+        fresh = Name(name.name, fresh_counter.fresh())
+    return fresh
 
 
 def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
@@ -78,7 +93,7 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
             if name in free_type_var_names(beta):
                 # The binder would capture a free type variable of beta;
                 # alpha-rename it to a fresh name first.
-                fresh = Name(name.name, fresh_counter.fresh())
+                fresh = _fresh_type_binder(name, alpha, body, beta)
                 body = type_substitution(body, name, STypeVar(fresh))
                 name = fresh
             return STypePolymorphism(name, kind, rec(body), loc=loc)
@@ -119,7 +134,7 @@ def type_variable_instantiation(ty: SType, alpha: Name, beta: SType) -> SType:
             if name == alpha:
                 return ty
             if name in free_type_var_names(beta):
-                fresh = Name(name.name, fresh_counter.fresh())
+                fresh = _fresh_type_binder(name, alpha, body, beta)
                 body = type_variable_instantiation(body, name, STypeVar(fresh))
                 name = fresh
             return STypePolymorphism(name, kind, rec(body), loc=loc)
