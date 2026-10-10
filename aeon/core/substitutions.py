@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from aeon.core.liquid import LiquidApp
 from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, TypeConstructor, TypePolymorphism
 from aeon.core.liquid import LiquidLiteralBool
@@ -68,8 +69,6 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
 
 
 def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
-    def rec(x: Term):
-        return substitute_vartype_in_term(x, rep, name)
 
     match t:
         case Literal():
@@ -81,17 +80,19 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
         case ImplicitRefinementHole():
             return t
         case Application(fun, arg, loc):
-            return Application(fun=rec(fun), arg=rec(arg), loc=loc)
+            return Application(
+                fun=substitute_vartype_in_term(fun, rep, name), arg=substitute_vartype_in_term(arg, rep, name), loc=loc
+            )
         case Abstraction(var_name, body, loc):
-            return Abstraction(var_name, rec(body), loc=loc)
+            return Abstraction(var_name, substitute_vartype_in_term(body, rep, name), loc=loc)
         case Let(var_name, var_value, body, loc):
-            n_value = rec(var_value)
-            n_body = rec(body)
+            n_value = substitute_vartype_in_term(var_value, rep, name)
+            n_body = substitute_vartype_in_term(body, rep, name)
             return Let(var_name, n_value, n_body, loc=loc, multiplicity=t.multiplicity)
         case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
-            n_value = rec(var_value)
+            n_value = substitute_vartype_in_term(var_value, rep, name)
             n_type = substitute_vartype(var_type, rep, name)
-            n_body = rec(body)
+            n_body = substitute_vartype_in_term(body, rep, name)
             return Rec(
                 var_name,
                 n_type,
@@ -105,20 +106,26 @@ def substitute_vartype_in_term(t: Term, rep: Type, name: Name) -> Term:
             )
         case Annotation(expr, type, loc):
             n_type = substitute_vartype(type, rep, name)
-            return Annotation(rec(expr), n_type, loc=loc)
+            return Annotation(substitute_vartype_in_term(expr, rep, name), n_type, loc=loc)
         case If(cond, then, otherwise, loc):
-            n_cond = rec(cond)
-            n_then = rec(then)
-            n_otherwise = rec(otherwise)
+            n_cond = substitute_vartype_in_term(cond, rep, name)
+            n_then = substitute_vartype_in_term(then, rep, name)
+            n_otherwise = substitute_vartype_in_term(otherwise, rep, name)
             return If(n_cond, n_then, n_otherwise, loc=loc)
         case TypeAbstraction(pname, kind, body, loc):
-            return TypeAbstraction(pname, kind, rec(body), loc=loc)
+            return TypeAbstraction(pname, kind, substitute_vartype_in_term(body, rep, name), loc=loc)
         case TypeApplication(body, ty, loc):
-            return TypeApplication(rec(body), substitute_vartype(ty, rep, name), loc=loc)
+            return TypeApplication(
+                substitute_vartype_in_term(body, rep, name), substitute_vartype(ty, rep, name), loc=loc
+            )
         case RefinementApplication(body, refinement, loc):
-            return RefinementApplication(rec(body), rec(refinement), loc=loc)
+            return RefinementApplication(
+                substitute_vartype_in_term(body, rep, name), substitute_vartype_in_term(refinement, rep, name), loc=loc
+            )
         case RefinementAbstraction(pname, sort, body, loc):
-            return RefinementAbstraction(pname, substitute_vartype(sort, rep, name), rec(body), loc=loc)
+            return RefinementAbstraction(
+                pname, substitute_vartype(sort, rep, name), substitute_vartype_in_term(body, rep, name), loc=loc
+            )
         case _:
             assert False
 
@@ -261,9 +268,6 @@ def instantiate_refinement_with_horn_in_liquid(
 ) -> LiquidTerm:
     """Replace LiquidApp(ρ, args) with LiquidHornApplication(horn_name, ...) for implicit Syn-RApp."""
 
-    def rec(lt: LiquidTerm) -> LiquidTerm:
-        return instantiate_refinement_with_horn_in_liquid(lt, pred_name, sort, horn_name)
-
     match t:
         case LiquidVar(_):
             return t
@@ -286,11 +290,18 @@ def instantiate_refinement_with_horn_in_liquid(
                     assert isinstance(d, (TypeConstructor, TypeVar))
                     paired.append((a, d))
                 return LiquidHornApplication(horn_name, paired, loc=loc)
-            return LiquidApp(aname, [rec(a) for a in args], loc=loc)
+            return LiquidApp(
+                aname,
+                [instantiate_refinement_with_horn_in_liquid(a, pred_name, sort, horn_name) for a in args],
+                loc=loc,
+            )
         case LiquidHornApplication(aname, argtypes, loc):
             return LiquidHornApplication(
                 aname,
-                [(rec(a), ty) for (a, ty) in argtypes],
+                [
+                    (instantiate_refinement_with_horn_in_liquid(a, pred_name, sort, horn_name), ty)
+                    for (a, ty) in argtypes
+                ],
                 loc=loc,
             )
         case _:
@@ -305,20 +316,25 @@ def instantiate_refinement_with_horn_in_type(
 ) -> Type:
     """Walk types and apply instantiate_refinement_with_horn_in_liquid in refinements."""
 
-    def rec(ty: Type) -> Type:
-        return instantiate_refinement_with_horn_in_type(ty, pred_name, sort, horn_name)
-
     match t:
         case Top():
             return t
         case TypeVar(_):
             return t
         case TypeConstructor(name, args, loc):
-            return TypeConstructor(name, [rec(a) for a in args], loc=loc)
+            return TypeConstructor(
+                name, [instantiate_refinement_with_horn_in_type(a, pred_name, sort, horn_name) for a in args], loc=loc
+            )
         case AbstractionType(aname, atype, rtype, loc):
-            return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, multiplicity=t.multiplicity)
+            return AbstractionType(
+                aname,
+                instantiate_refinement_with_horn_in_type(atype, pred_name, sort, horn_name),
+                instantiate_refinement_with_horn_in_type(rtype, pred_name, sort, horn_name),
+                loc=loc,
+                multiplicity=t.multiplicity,
+            )
         case RefinedType(vname, ity, ref, loc):
-            nity = rec(ity)
+            nity = instantiate_refinement_with_horn_in_type(ity, pred_name, sort, horn_name)
             assert isinstance(nity, TypeConstructor) or isinstance(nity, TypeVar)
             return RefinedType(
                 vname,
@@ -327,11 +343,25 @@ def instantiate_refinement_with_horn_in_type(
                 loc=loc,
             )
         case TypePolymorphism(pname, kind, body, loc):
-            return TypePolymorphism(pname, kind, rec(body), loc=loc)
+            return TypePolymorphism(
+                pname, kind, instantiate_refinement_with_horn_in_type(body, pred_name, sort, horn_name), loc=loc
+            )
         case RefinementPolymorphism(rname, rsort, rbody, loc):
-            return RefinementPolymorphism(rname, rec(rsort), rec(rbody), loc=loc)
+            return RefinementPolymorphism(
+                rname,
+                instantiate_refinement_with_horn_in_type(rsort, pred_name, sort, horn_name),
+                instantiate_refinement_with_horn_in_type(rbody, pred_name, sort, horn_name),
+                loc=loc,
+            )
         case ExistentialType(binders, body, loc):
-            return ExistentialType(tuple((bn, rec(bt)) for (bn, bt) in binders), rec(body), loc=loc)
+            return ExistentialType(
+                tuple(
+                    (bn, instantiate_refinement_with_horn_in_type(bt, pred_name, sort, horn_name))
+                    for (bn, bt) in binders
+                ),
+                instantiate_refinement_with_horn_in_type(body, pred_name, sort, horn_name),
+                loc=loc,
+            )
         case _:
             assert False, f"instantiate_refinement_with_horn_in_type: unknown type {t}"
 
@@ -378,8 +408,6 @@ def substitution_in_liquid(
 
 
 def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
-    def rec(t: Type) -> Type:
-        return substitution_liquid_in_type(t, rep, name)
 
     match t:
         case Top() | TypeVar(_):
@@ -388,24 +416,35 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
             if aname == name:
                 return t
             else:
-                return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, multiplicity=t.multiplicity)
+                return AbstractionType(
+                    aname,
+                    substitution_liquid_in_type(atype, rep, name),
+                    substitution_liquid_in_type(rtype, rep, name),
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                )
         case RefinedType(vname, ity, ref, loc):
             # The base is not under the refinement binder, so it is substituted
             # even when ``name`` is shadowed by ``vname``.
-            nity = rec(ity)
+            nity = substitution_liquid_in_type(ity, rep, name)
             assert isinstance(nity, (TypeConstructor, TypeVar))
             if name == vname:
                 return RefinedType(vname, nity, ref, loc=loc)
             else:
                 return RefinedType(vname, nity, substitution_in_liquid(ref, rep, name), loc=loc)
         case TypePolymorphism(tvname, kind, body, loc):
-            return TypePolymorphism(tvname, kind, rec(body), loc=loc)
+            return TypePolymorphism(tvname, kind, substitution_liquid_in_type(body, rep, name), loc=loc)
         case RefinementPolymorphism(rname, rsort, rbody, loc):
             if rname == name:
                 return t
-            return RefinementPolymorphism(rname, rec(rsort), rec(rbody), loc=loc)
+            return RefinementPolymorphism(
+                rname,
+                substitution_liquid_in_type(rsort, rep, name),
+                substitution_liquid_in_type(rbody, rep, name),
+                loc=loc,
+            )
         case TypeConstructor(cname, args, loc):
-            return TypeConstructor(cname, [rec(arg) for arg in args], loc=loc)
+            return TypeConstructor(cname, [substitution_liquid_in_type(arg, rep, name) for arg in args], loc=loc)
         case ExistentialType(binders, body, loc):
             # If `name` is shadowed by a binder, stop the substitution from
             # entering the body — but still recurse into binder types preceding
@@ -414,17 +453,17 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
             new_binders: list[tuple[Name, Type]] = []
             shadowed = False
             for bn, bt in binders:
-                new_binders.append((bn, bt if shadowed else rec(bt)))
+                new_binders.append((bn, bt if shadowed else substitution_liquid_in_type(bt, rep, name)))
                 if bn == name:
                     shadowed = True
-            return ExistentialType(tuple(new_binders), body if shadowed else rec(body), loc=loc)
+            return ExistentialType(
+                tuple(new_binders), body if shadowed else substitution_liquid_in_type(body, rep, name), loc=loc
+            )
         case _:
             assert False, f"{t} not allowed"
 
 
 def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
-    def rec(x: Term) -> Term:
-        return substitution_liquid_in_term(x, rep, name)
 
     match t:
         case Literal(val, ty, loc):
@@ -436,18 +475,28 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
         case ImplicitRefinementHole():
             return t
         case Application(fun, arg, loc):
-            return Application(fun=rec(fun), arg=rec(arg), loc=loc)
+            return Application(
+                fun=substitution_liquid_in_term(fun, rep, name),
+                arg=substitution_liquid_in_term(arg, rep, name),
+                loc=loc,
+            )
         case Abstraction(var_name, body, loc):
-            return Abstraction(var_name, rec(body), loc=loc)
+            return Abstraction(var_name, substitution_liquid_in_term(body, rep, name), loc=loc)
         case Let(var_name, var_value, body, loc):
-            return Let(var_name, rec(var_value), rec(body), loc=loc, multiplicity=t.multiplicity)
+            return Let(
+                var_name,
+                substitution_liquid_in_term(var_value, rep, name),
+                substitution_liquid_in_term(body, rep, name),
+                loc=loc,
+                multiplicity=t.multiplicity,
+            )
         case Rec(var_name, var_type, var_value, body, decreasing_by, loc):
             n_type = substitution_liquid_in_type(var_type, rep, name)
             return Rec(
                 var_name,
                 n_type,
-                rec(var_value),
-                rec(body),
+                substitution_liquid_in_term(var_value, rep, name),
+                substitution_liquid_in_term(body, rep, name),
                 decreasing_by=decreasing_by,
                 loc=loc,
                 multiplicity=t.multiplicity,
@@ -456,18 +505,32 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
             )
         case Annotation(expr, ty, loc):
             n_type = substitution_liquid_in_type(ty, rep, name)
-            return Annotation(rec(expr), n_type, loc=loc)
+            return Annotation(substitution_liquid_in_term(expr, rep, name), n_type, loc=loc)
         case If(cond, then, otherwise, loc):
-            return If(rec(cond), rec(then), rec(otherwise), loc=loc)
+            return If(
+                substitution_liquid_in_term(cond, rep, name),
+                substitution_liquid_in_term(then, rep, name),
+                substitution_liquid_in_term(otherwise, rep, name),
+                loc=loc,
+            )
         case TypeAbstraction(pname, kind, body, loc):
-            return TypeAbstraction(pname, kind, rec(body), loc=loc)
+            return TypeAbstraction(pname, kind, substitution_liquid_in_term(body, rep, name), loc=loc)
         case RefinementAbstraction(pname, sort, body, loc):
-            return RefinementAbstraction(pname, substitution_liquid_in_type(sort, rep, name), rec(body), loc=loc)
+            return RefinementAbstraction(
+                pname,
+                substitution_liquid_in_type(sort, rep, name),
+                substitution_liquid_in_term(body, rep, name),
+                loc=loc,
+            )
         case TypeApplication(body, ty, loc):
             n_type = substitution_liquid_in_type(ty, rep, name)
-            return TypeApplication(rec(body), n_type, loc=loc)
+            return TypeApplication(substitution_liquid_in_term(body, rep, name), n_type, loc=loc)
         case RefinementApplication(body, refinement, loc):
-            return RefinementApplication(rec(body), rec(refinement), loc=loc)
+            return RefinementApplication(
+                substitution_liquid_in_term(body, rep, name),
+                substitution_liquid_in_term(refinement, rep, name),
+                loc=loc,
+            )
         case _:
             assert False, f"{t} not allowed"
 
@@ -478,8 +541,8 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
     if replacement is None:
         return t
 
-    def rec(t: Type) -> Type:
-        return substitution_in_type(t, rep, name)
+    # Reuse the typed function boundary rather than generating another typed
+    # function on every recursion (expensive under runtime instrumentation).
 
     match t:
         case Top() | TypeVar(_):
@@ -488,37 +551,42 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
             if aname == name:
                 return t
             else:
-                return AbstractionType(aname, rec(atype), rec(rtype), loc=loc, multiplicity=t.multiplicity)
+                return AbstractionType(
+                    aname,
+                    substitution_in_type(atype, rep, name),
+                    substitution_in_type(rtype, rep, name),
+                    loc=loc,
+                    multiplicity=t.multiplicity,
+                )
         case RefinedType(vname, ity, ref, loc):
             # The base is not under the refinement binder, so it is substituted
             # even when ``name`` is shadowed by ``vname``.
-            nity = rec(ity)
+            nity = substitution_in_type(ity, rep, name)
             assert isinstance(nity, (TypeConstructor, TypeVar))
             if name == vname:
                 return RefinedType(vname, nity, ref, loc=loc)
             else:
                 return RefinedType(vname, nity, substitution_in_liquid(ref, replacement, name), loc=loc)
         case TypePolymorphism(tvname, kind, body, loc):
-            return TypePolymorphism(tvname, kind, rec(body), loc=loc)
+            return TypePolymorphism(tvname, kind, substitution_in_type(body, rep, name), loc=loc)
         case TypeConstructor(cname, args, loc):
-            return TypeConstructor(cname, [rec(arg) for arg in args], loc=loc)
+            return TypeConstructor(cname, [substitution_in_type(arg, rep, name) for arg in args], loc=loc)
         case ExistentialType(binders, body, loc):
             new_binders: list[tuple[Name, Type]] = []
             shadowed = False
             for bn, bt in binders:
-                new_binders.append((bn, bt if shadowed else rec(bt)))
+                new_binders.append((bn, bt if shadowed else substitution_in_type(bt, rep, name)))
                 if bn == name:
                     shadowed = True
-            return ExistentialType(tuple(new_binders), body if shadowed else rec(body), loc=loc)
+            return ExistentialType(
+                tuple(new_binders), body if shadowed else substitution_in_type(body, rep, name), loc=loc
+            )
         case _:
             assert False, f"{t} not allowed"
 
 
 def substitution(t: Term, rep: Term, name: Name) -> Term:
     """Substitutes name in term t with the new replacement term rep."""
-
-    def rec(x: Term):
-        return substitution(x, rep, name)
 
     match t:
         case Literal(_):
@@ -533,27 +601,27 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
             # never by term-level substitution. Treat as a leaf.
             return t
         case Application(fun, arg, loc):
-            return Application(fun=rec(fun), arg=rec(arg), loc=loc)
+            return Application(fun=substitution(fun, rep, name), arg=substitution(arg, rep, name), loc=loc)
         case Abstraction(vname, body, loc):
             if vname == name:
                 return t
             else:
-                return Abstraction(vname, rec(t.body), loc=loc)
+                return Abstraction(vname, substitution(t.body, rep, name), loc=loc)
         case Let(tname, val, body, loc):
             if tname == name:
                 n_value = val
                 n_body = body
             else:
-                n_value = rec(val)
-                n_body = rec(body)
+                n_value = substitution(val, rep, name)
+                n_body = substitution(body, rep, name)
             return Let(tname, n_value, n_body, loc=loc, multiplicity=t.multiplicity)
         case Rec(tname, ty, val, body, decreasing_by, loc):
             if tname == name:
                 n_value = val
                 n_body = body
             else:
-                n_value = rec(val)
-                n_body = rec(body)
+                n_value = substitution(val, rep, name)
+                n_body = substitution(body, rep, name)
             return Rec(
                 tname,
                 ty,
@@ -566,17 +634,22 @@ def substitution(t: Term, rep: Term, name: Name) -> Term:
                 companions=t.companions,
             )
         case Annotation(body, ty, loc):
-            return Annotation(rec(body), ty, loc=loc)
+            return Annotation(substitution(body, rep, name), ty, loc=loc)
         case If(cond, then, otherwise, loc):
-            return If(rec(cond), rec(then), rec(otherwise), loc=loc)
+            return If(
+                substitution(cond, rep, name),
+                substitution(then, rep, name),
+                substitution(otherwise, rep, name),
+                loc=loc,
+            )
         case TypeApplication(expr, ty, loc):
-            return TypeApplication(rec(expr), ty, loc=loc)
+            return TypeApplication(substitution(expr, rep, name), ty, loc=loc)
         case TypeAbstraction(pname, kind, body, loc):
-            return TypeAbstraction(pname, kind, rec(body), loc=loc)
+            return TypeAbstraction(pname, kind, substitution(body, rep, name), loc=loc)
         case RefinementAbstraction(pname, sort, body, loc):
-            return RefinementAbstraction(pname, sort, rec(body), loc=loc)
+            return RefinementAbstraction(pname, sort, substitution(body, rep, name), loc=loc)
         case RefinementApplication(body, refinement, loc):
-            return RefinementApplication(rec(body), rec(refinement), loc=loc)
+            return RefinementApplication(substitution(body, rep, name), substitution(refinement, rep, name), loc=loc)
         case _:
             assert False, f"{t} not supported."
 

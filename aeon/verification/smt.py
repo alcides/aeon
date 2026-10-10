@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import reduce
-from typing import Any
+from typing import Any, TypeVar as TypingTypeVar
+from collections.abc import MutableMapping
 from typing import Generator
 from loguru import logger
 
@@ -12,7 +13,6 @@ from z3 import Length
 from z3 import IntVal
 from z3 import Real
 from z3 import RealVal
-from z3 import Solver
 from z3 import StringVal
 from z3 import sat
 from z3 import unknown
@@ -51,7 +51,6 @@ from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_set, t_string, t_unit
 from aeon.verification.sub import lower_constraint_type
-from aeon.verification.trace import Status
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import alpha_key
 from aeon.verification.vcs import Constraint
@@ -60,6 +59,8 @@ from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 from aeon.utils.name import Name, fresh_counter
+from aeon.compilation.session import SessionMapping, current_session
+from aeon.verification.state import VerificationState
 from aeon.verification.smt_datatypes import (
     clear_datatype_cache,
     constructor_logical_name,
@@ -235,7 +236,7 @@ def _ple_unfold_once(
 # premise objects shared across the conjuncts of a solve (see
 # ``_specialize_liquid_term``), the same unfolding is requested repeatedly;
 # unfolding is a pure function of its inputs, so reusing the result is sound.
-_ple_cache: dict[tuple[int, int], tuple[LiquidTerm, dict, LiquidTerm]] = {}
+_ple_cache = SessionMapping(lambda: current_session().state(VerificationState).ple)
 
 
 def ple_unfold_fixpoint(
@@ -748,11 +749,8 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             assert False, f"Cannot flatten {c}."
 
 
-s = Solver()
-(s.set(timeout=200),)
-
-_smt_valid_cache: dict[str, bool] = {}
-_smt_status_cache: dict[str, tuple["Status", str | None]] = {}
+_smt_valid_cache = SessionMapping(lambda: current_session().state(VerificationState).validity)
+_smt_status_cache = SessionMapping(lambda: current_session().state(VerificationState).statuses)
 
 
 def smt_valid(constraint: Constraint) -> bool:
@@ -773,6 +771,7 @@ def smt_valid(constraint: Constraint) -> bool:
 
 def _smt_valid(constraint: Constraint, key: str) -> bool:
     """Verifies if a constraint is true using Z3."""
+    s = current_session().state(VerificationState).get_solver()
     cached = _smt_valid_cache.get(key)
     if cached is not None:
         return cached
@@ -807,7 +806,9 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
                 # spec was "satisfied" by a literal ``/ 0``). An obligation we
                 # cannot even define is not proven, so report it invalid.
                 _smt_valid_cache[key] = False
+                _bound(_smt_valid_cache)
                 _smt_status_cache[key] = ("unsupported", "Undefined constant division or modulo by zero")
+                _bound(_smt_status_cache)
                 return False
             if smt_c is False:
                 continue
@@ -815,20 +816,26 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
             result = s.check()
             if result == sat:
                 _smt_valid_cache[key] = False
+                _bound(_smt_valid_cache)
                 _smt_status_cache[key] = ("invalid", None)
+                _bound(_smt_status_cache)
                 return False
             elif result == unknown:
                 _smt_valid_cache[key] = False
+                _bound(_smt_valid_cache)
                 _smt_status_cache[key] = ("unknown", s.reason_unknown())
+                _bound(_smt_status_cache)
                 return False
         finally:
-            # Always balance the matching ``push`` -- ``s`` is a reused global
+            # Always balance the matching ``push`` -- ``s`` is session-owned
             # solver, so an early ``return``/``continue`` that skipped the pop
             # would leak scope state into later constraints and queries.
             s.pop()
 
     _smt_valid_cache[key] = True
+    _bound(_smt_valid_cache)
     _smt_status_cache[key] = ("valid", None)
+    _bound(_smt_status_cache)
     return True
 
 
@@ -845,6 +852,7 @@ def model_for_invalid(constraint: Constraint) -> list[tuple[str, str]] | None:
 
     Used only to enrich an already-emitted failure message, so re-solving here
     is off the hot path."""
+    s = current_session().state(VerificationState).get_solver()
     translate_memo: dict[int, tuple[LiquidTerm, Any]] = {}
     for c in flatten(constraint):
         s.push()
@@ -901,7 +909,7 @@ def type_of_variable(variables: list[tuple[str, Any]], name: str) -> Any:
     assert False
 
 
-sort_cache: dict[str, SortRef] = {}
+sort_cache = SessionMapping(lambda: current_session().state(VerificationState).sorts)
 
 
 def _build_unit_sort() -> tuple[SortRef, Any]:
@@ -926,13 +934,16 @@ sort_cache["Unit"] = _unit_sort_ref
 # so the `variables`, `functions`, and `sorts` collections are the same Python
 # objects across many calls. We key by `id` because dict/list are not hashable;
 # the cached dict is held strongly so the id cannot be reused while cached.
-_mk_vars_cache: dict[int, tuple[dict[str, TypeConstructor], dict[str, Any]]] = {}
-_mk_funs_cache: dict[int, tuple[dict[str, AbstractionType], dict[str, Any]]] = {}
-_mk_sorts_cache: dict[tuple[str, ...], dict[str, SortRef]] = {}
-_SMT_HELPER_CACHE_MAX = 1024
+_mk_vars_cache = SessionMapping(lambda: current_session().state(VerificationState).variables)
+_mk_funs_cache = SessionMapping(lambda: current_session().state(VerificationState).functions)
+_mk_sorts_cache = SessionMapping(lambda: current_session().state(VerificationState).sort_sets)
+_CacheKey = TypingTypeVar("_CacheKey")
+_CacheValue = TypingTypeVar("_CacheValue")
 
 
-def _bound(cache: dict, limit: int = _SMT_HELPER_CACHE_MAX) -> None:
+def _bound(cache: MutableMapping[_CacheKey, _CacheValue], limit: int | None = None) -> None:
+    if limit is None:
+        limit = current_session().options.cache_limit
     if len(cache) > limit:
         # Drop ~10% oldest entries (insertion order in CPython dicts).
         drop = max(1, limit // 10)
@@ -1027,13 +1038,14 @@ def get_sort(base: Type) -> SortRef:
 
 def clear_smt_caches() -> None:
     """Drop sort / helper / validity caches (e.g. between tests that re-register inductives)."""
-    global sort_cache
     keep_unit = sort_cache.get("Unit", _unit_sort_ref)
-    sort_cache = {"Unit": keep_unit}
+    sort_cache.clear()
+    sort_cache["Unit"] = keep_unit
     _mk_vars_cache.clear()
     _mk_funs_cache.clear()
     _mk_sorts_cache.clear()
     _smt_valid_cache.clear()
+    _ple_cache.clear()
     _smt_status_cache.clear()
     clear_datatype_cache()
 

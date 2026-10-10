@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from collections.abc import Mapping
 
 from aeon.compilation.unit import CompiledUnit
 from aeon.core.terms import (
@@ -186,7 +187,7 @@ def link_compiled_units(
 
 def collect_dependency_units(
     unit: CompiledUnit,
-    cache: dict[str, CompiledUnit],
+    cache: Mapping[str, CompiledUnit],
 ) -> list[CompiledUnit]:
     """Return dependency units in link order (outermost first)."""
     ordered: list[CompiledUnit] = []

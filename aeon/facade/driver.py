@@ -1,25 +1,27 @@
+from __future__ import annotations
+
 import sys
 import tempfile
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any, Iterable, Callable, Concatenate, ParamSpec, TypeVar
+from functools import wraps
 
 from aeon.backend.evaluator import EvaluationContext
 from aeon.backend.evaluator import eval
 from aeon.backend.contracts import ContractState, build_runtime_liquid_env, collect_top_level_fn_types
 from aeon.backend.python_export import export_function
 from aeon.compilation.compile import (
-    clear_unit_cache,
     compile_and_link,
     compile_and_link_program,
     dependency_units_for,
 )
 from aeon.compilation.link import collect_constructor_names
+from aeon.compilation.session import CompilationOptions, CompilationSession
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.errors import AeonError, UndecidableRefinementError
 from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.bind import bind_program
-from aeon.sugar.instance_registry import clear_instance_registry
 from aeon.sugar.lifting import lift
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
@@ -51,6 +53,21 @@ class AeonConfig:
     # arithmetic, ...) as errors instead of warnings (issue #438).
     strict_decidable: bool = False
     contracts: bool = False
+    smt_timeout_ms: int = 200
+    cache_limit: int = 1024
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def _in_driver_session(method: Callable[Concatenate[AeonDriver, P], R]) -> Callable[Concatenate[AeonDriver, P], R]:
+    @wraps(method)
+    def wrapped(self: AeonDriver, /, *args: P.args, **kwargs: P.kwargs) -> R:
+        with self.session.activate():
+            return method(self, *args, **kwargs)
+
+    return wrapped
 
 
 class AeonDriver:
@@ -60,15 +77,22 @@ class AeonDriver:
     def __init__(self, cfg: AeonConfig):
         self.cfg = cfg
         self.decidability_warnings: list = []
+        self.session = self._new_session()
+
+    def _new_session(self) -> CompilationSession:
+        return CompilationSession(CompilationOptions(self.cfg.smt_timeout_ms, self.cfg.cache_limit))
 
     def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
+        self.session = self._new_session()
+        with self.session.activate():
+            errors = list(self._parse(filename=filename, aeon_code=aeon_code))
+            self.session.diagnostics.extend(errors)
+            return errors
+
+    def _parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
         self.core = None
         self.typing_ctx = None
         self.decidability_warnings = []
-
-        with RecordTime("ParseSugar"):
-            clear_instance_registry()
-            clear_unit_cache()
 
         with RecordTime("Compile"):
             if aeon_code is not None:
@@ -134,6 +158,7 @@ class AeonDriver:
 
         return []
 
+    @_in_driver_session
     def run(self) -> Any:
         with RecordTime("Evaluation"):
             from aeon.backend.evaluator import EvaluationContext
@@ -159,6 +184,7 @@ class AeonDriver:
         report = compute_trust_report(self.core, filename=filename, for_func=for_func)
         return render_report(report)
 
+    @_in_driver_session
     def export(self, fun_name: str) -> str:
         """Return a stand-alone, pure-Python definition of ``fun_name``.
 
@@ -177,6 +203,7 @@ class AeonDriver:
             isinstance(entry, dict) and ("property" in entry or "examples" in entry) for entry in self.metadata.values()
         )
 
+    @_in_driver_session
     def run_tests(self, seed: int = 0) -> list:
         """Check every ``@property`` function and ``@example`` assertion, print a
         pytest-style report, and return the list of failing results (empty when
@@ -201,6 +228,7 @@ class AeonDriver:
         print(f"\n{passed} passed, {len(failures)} failed, {len(results)} total")
         return failures
 
+    @_in_driver_session
     def has_synth(self) -> bool:
         with RecordTime("DetectSynthesis"):
             self.incomplete_functions: list[
@@ -214,6 +242,7 @@ class AeonDriver:
             )
             return bool(self.incomplete_functions)
 
+    @_in_driver_session
     def _run_synthesis(self, ui: SynthesisUI) -> dict[Name, STerm]:
         """Synthesize the open holes, substitute the results into ``self.core``
         in place, and return the per-hole solutions lifted to sugar terms."""

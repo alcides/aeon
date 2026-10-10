@@ -12,6 +12,8 @@ the recursive call.
 
 from __future__ import annotations
 
+import pytest
+
 from aeon.core.bind import bind_ids
 from aeon.core.types import top
 from aeon.elaboration import elaborate
@@ -21,9 +23,11 @@ from aeon.sugar.desugar import DesugaredProgram, desugar
 from aeon.sugar.lowering import lower_to_core, lower_to_core_context
 from aeon.sugar.parser import parse_main_program
 from aeon.typechecking.typeinfer import check_type_errors
+from aeon.typechecking.typeinfer import synth
+from aeon.typechecking.entailment import entailment
 
 
-def _typechecks(src: str) -> bool:
+def _typechecks(src: str, mode: str = "check") -> bool:
     """Full front-to-typecheck pipeline; True iff no type errors (mirrors
     ``recursion_soundness_test.py``)."""
     prog = parse_main_program(src, filename="<test>")
@@ -43,6 +47,9 @@ def _typechecks(src: str) -> bool:
     typing_ctx = lower_to_core_context(desugared.elabcontext)
     core_ast = lower_to_core(sterm)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
+    if mode == "synth":
+        constraints, _ = synth(typing_ctx, core_ast)
+        return entailment(typing_ctx, constraints)
     errors = list(check_type_errors(typing_ctx, core_ast, top))
     return errors == []
 
@@ -148,11 +155,13 @@ def main (_:Int) : Int := count 44
     assert not _typechecks(src)
 
 
-def test_nontermination_still_rejected():
+@pytest.mark.parametrize("mode", ["check", "synth"])
+@pytest.mark.parametrize("metric", ["", "decreasing_by [n]"])
+def test_nontermination_still_rejected(mode, metric):
     src = """
-def loopy (n : {v:Int | v >= 0}) : Int :=
+def loopy (n : {v:Int | v >= 0}) : Int METRIC :=
     if n = 0 then 0 else 1 + loopy n;
 
 def main (_:Int) : Int := loopy 1
 """
-    assert not _typechecks(src)
+    assert not _typechecks(src.replace("METRIC", metric), mode)

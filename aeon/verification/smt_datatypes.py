@@ -23,7 +23,7 @@ by base name (``List_nil``, ``List_cons``, …), independent of binder ids.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from z3 import Datatype, DatatypeSortRef, RecFunction, RecAddDefinition, Const, If, IntVal
@@ -31,6 +31,7 @@ from z3.z3 import BoolSort, IntSort, RealSort, StringSort, SortRef, Z3Exception
 
 from aeon.core.types import Type, TypeConstructor, RefinedType
 from aeon.utils.name import Name
+from aeon.compilation.session import SessionMapping, SessionSet, current_session
 from aeon.verification.constructor_registry import (
     get_constructor_fields,
     get_constructor_order,
@@ -58,13 +59,21 @@ class DatatypeInfo:
 
 
 # sort mangled name → info
-_datatype_cache: dict[str, DatatypeInfo] = {}
+@dataclass
+class DatatypeState:
+    datatypes: dict[str, DatatypeInfo] = field(default_factory=dict)
+    constructors: dict[str, list[tuple[str, Any]]] = field(default_factory=dict)
+    measures: dict[str, list[tuple[str, Any]]] = field(default_factory=dict)
+    building: set[str] = field(default_factory=set)
+
+
+_datatype_cache = SessionMapping(lambda: current_session().state(DatatypeState).datatypes)
 # Aeon constructor base name → list of (sort_name, z3_ctor) for disambiguation
-_ctors_by_aeon_name: dict[str, list[tuple[str, Any]]] = {}
+_ctors_by_aeon_name = SessionMapping(lambda: current_session().state(DatatypeState).constructors)
 # Aeon measure base name → list of (sort_name, RecFunction)
-_measures_by_aeon_name: dict[str, list[tuple[str, Any]]] = {}
+_measures_by_aeon_name = SessionMapping(lambda: current_session().state(DatatypeState).measures)
 # sorts currently under construction (guard recursion through get_sort)
-_building: set[str] = set()
+_building = SessionSet(lambda: current_session().state(DatatypeState).building)
 # Z3 keeps RecFunction decls for the process lifetime; freshen names on rebuild.
 _measure_rec_fresh: int = 0
 
