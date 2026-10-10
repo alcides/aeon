@@ -3,6 +3,7 @@
 import json
 import re
 from dataclasses import asdict
+from itertools import count
 
 import pytest
 from z3 import unknown
@@ -131,7 +132,12 @@ def test_search_scope_does_not_contain_pair_inputs_or_trusted_helpers():
 
 
 @pytest.mark.parametrize("task", ["nondecreasing", "strict", "identity", "shift"])
-def test_actual_enumerative_synthesis_is_proved(task):
+def test_actual_enumerative_synthesis_is_proved(task, monkeypatch):
+    # This is a search-correctness test, not a machine-speed benchmark. Give
+    # the real enumerator a deterministic allowance of 500 assessments rather
+    # than making success depend on ten seconds of shared CI runner time.
+    ticks = count(step=0.02)
+    monkeypatch.setattr("aeon.synthesis.modules.native_search.monotonic", lambda: next(ticks))
     benchmark = MonotonicityBenchmark(task)
     result = benchmark.synthesize(budget=10)
     assert result is not None and result.accepted
