@@ -25,7 +25,9 @@ dependencies = [
     'lark==1.3.1',
     'loguru',
     'multiprocess==0.70.19',
-    'numpy==2.2.6',
+    # NumPy 2.2 has no CPython 3.14 wheels.
+    'numpy==2.2.6; python_version < "3.14"',
+    'numpy==2.3.4; python_version >= "3.14"',
     'pydantic==2.13.5',
     'pygls==2.1.1',
     'requests',
