@@ -586,7 +586,10 @@ def horn_assignment(
     else:
         atoms = qualifier_atoms
     csk = [cp for cp in flat(c) if has_k_head(cp)]
-    return fixpoint(csk, build_initial_assignment(c, typing_ctx, atoms))
+    from aeon.verification.trace import suspend_verification
+
+    with suspend_verification():
+        return fixpoint(csk, build_initial_assignment(c, typing_ctx, atoms))
 
 
 def solve(

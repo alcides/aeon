@@ -74,6 +74,12 @@ _constructor_names_cache: "Dict[URI, object]" = {}
 # the info view's error tab can present the live verification failures — their
 # counterexamples and the simplification chain of the failing VC.
 _errors_cache: "Dict[URI, list]" = {}
+_proof_cache: "Dict[URI, list[dict]]" = {}
+
+
+def get_proof_obligations(uri: URI) -> list[dict]:
+    """Evidence from the current verification pass, never last-good evidence."""
+    return _proof_cache.get(uri, [])
 
 
 def get_type_index(uri: URI):
@@ -178,6 +184,7 @@ def clear_cache(uri: URI) -> None:
     logger.debug("Clearing cache for %s", uri)
     _parse_result_cache.pop(uri, None)
     _errors_cache.pop(uri, None)
+    _proof_cache.pop(uri, None)
     logger.debug("DONE!")
 
 
@@ -296,10 +303,18 @@ async def _parse(
     # errors below repopulates them (a syntax error leaves this empty and the
     # error is surfaced as a diagnostic instead).
     _errors_cache[uri] = []
+    _proof_cache[uri] = []
 
     try:
         content = fp.read()
-        errors = list(driver.parse(filename=uri, aeon_code=content))
+        from aeon.verification.trace import collect_verification
+        from aeon.lsp.verification import proof_obligations, runtime_warnings
+
+        with collect_verification() as verification:
+            try:
+                errors = list(driver.parse(filename=uri, aeon_code=content))
+            finally:
+                _proof_cache[uri] = proof_obligations(verification, uri)
 
         # Keep the structured errors of this parse so the info view can render
         # their counterexamples and the failing VC's simplification chain.
@@ -310,14 +325,41 @@ async def _parse(
         _refresh_analysis(driver, uri)
 
         for error in errors:
+            from aeon.errors import LiquidTypeCheckingFailedRelation
+
+            data = None
+            if isinstance(error, LiquidTypeCheckingFailedRelation):
+                from aeon.verification.vcs import alpha_key
+
+                matching = [p for p in verification if alpha_key(p.constraint) == alpha_key(error.vc)]
+                if not matching:
+                    from aeon.verification.trace import goal_location
+
+                    matching = [
+                        p
+                        for p in verification
+                        if p.status != "valid" and goal_location(p.constraint) == error.position()
+                    ]
+                status = matching[-1].status if matching else "unknown"
+                data = {
+                    "kind": "refinement",
+                    "status": status,
+                    "obligation": error.assumptions(),
+                    "counterexample": error.counterexample() if status == "invalid" else None,
+                    "reason": matching[-1].reason if matching else None,
+                }
             diagnostics.append(
                 Diagnostic(
                     message=str(error),
                     range=_loc_to_range(error.position()),
                     source="aeon",
                     severity=DiagnosticSeverity.Error,
+                    code="refinement" if data else None,
+                    data=data,
                 )
             )
+
+        diagnostics.extend(runtime_warnings(getattr(driver, "core", None), driver.cfg.contracts, uri))
 
         # Non-fatal decidability warnings (issue #438): refinements that leave
         # the decidable fragment z3 can reliably decide. Surface them as

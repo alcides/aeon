@@ -33,13 +33,16 @@ def test_solvers_and_validity_caches_are_session_owned():
         assert smt_valid(LiquidConstraint(LiquidLiteralBool(True)))
         state = first.state(VerificationState)
         assert state.validity
+        assert state.statuses
         solver = state.get_solver()
     with second.activate():
         other = second.state(VerificationState)
         assert not other.validity
+        assert not other.statuses
         assert other.get_solver() is not solver
         clear_smt_caches()
     assert state.validity
+    assert state.statuses
 
 
 def test_lazy_state_uses_its_owner_configuration_outside_activation():
@@ -96,6 +99,9 @@ def test_validity_cache_is_bounded():
         for value in range(12):
             assert smt_valid(LiquidConstraint(LiquidApp(Name("==", 0), [LiquidLiteralInt(value)] * 2)))
         assert len(session.state(VerificationState).validity) <= 3
+        assert len(session.state(VerificationState).statuses) <= 3
+        clear_smt_caches()
+        assert not session.state(VerificationState).statuses
 
 
 def test_interleaved_tasks_keep_their_own_registry():

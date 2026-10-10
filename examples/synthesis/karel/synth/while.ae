@@ -1,0 +1,13 @@
+import Karel;
+open Karel
+
+def initial : World := with_wall (world 5 3 0 1 east) 3 1
+def expected : World := with_wall (world 5 3 2 1 east) 3 1
+def initial2 : World := world 3 5 1 4 north
+def expected2 : World := world 3 5 1 0 north
+def cases : Examples := append_examples (example initial expected) (example initial2 expected2)
+
+@minimize(fitness solve cases)
+def solve (w: World) : World :=
+    let initial := unit in let expected := unit in
+    let initial2 := unit in let expected2 := unit in let cases := unit in ?hole

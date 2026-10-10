@@ -12,6 +12,7 @@ from aeon.compilation.session import current_session
 from aeon.core.liquid import LiquidTerm
 from aeon.core.types import AbstractionType, TypeConstructor
 from aeon.utils.name import Name
+from aeon.verification.trace import Status
 
 
 @dataclass
@@ -19,6 +20,7 @@ class VerificationState:
     timeout_ms: int = field(default_factory=lambda: current_session().options.smt_timeout_ms)
     solver: Solver | None = field(default=None, init=False, repr=False)
     validity: dict[str, bool] = field(default_factory=dict)
+    statuses: dict[str, tuple[Status, str | None]] = field(default_factory=dict)
     ple: dict[tuple[int, int], tuple[LiquidTerm, dict[str, tuple[tuple[Name, ...], LiquidTerm]], LiquidTerm]] = field(
         default_factory=dict
     )

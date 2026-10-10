@@ -750,12 +750,28 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
 
 
 _smt_valid_cache = SessionMapping(lambda: current_session().state(VerificationState).validity)
+_smt_status_cache = SessionMapping(lambda: current_session().state(VerificationState).statuses)
 
 
 def smt_valid(constraint: Constraint) -> bool:
+    """Check validity and publish opt-in evidence without changing acceptance."""
+    from aeon.verification.trace import VerificationResult, record_verification
+
+    key = alpha_key(constraint)
+    cached = key in _smt_valid_cache
+    try:
+        valid = _smt_valid(constraint, key)
+    except Z3Exception as exc:
+        record_verification(VerificationResult(constraint, "unsupported", str(exc)))
+        raise
+    status, reason = _smt_status_cache.get(key, ("valid" if valid else "invalid", None))
+    record_verification(VerificationResult(constraint, status, reason, cached))
+    return valid
+
+
+def _smt_valid(constraint: Constraint, key: str) -> bool:
     """Verifies if a constraint is true using Z3."""
     s = current_session().state(VerificationState).get_solver()
-    key = alpha_key(constraint)
     cached = _smt_valid_cache.get(key)
     if cached is not None:
         return cached
@@ -791,6 +807,8 @@ def smt_valid(constraint: Constraint) -> bool:
                 # cannot even define is not proven, so report it invalid.
                 _smt_valid_cache[key] = False
                 _bound(_smt_valid_cache)
+                _smt_status_cache[key] = ("unsupported", "Undefined constant division or modulo by zero")
+                _bound(_smt_status_cache)
                 return False
             if smt_c is False:
                 continue
@@ -799,10 +817,14 @@ def smt_valid(constraint: Constraint) -> bool:
             if result == sat:
                 _smt_valid_cache[key] = False
                 _bound(_smt_valid_cache)
+                _smt_status_cache[key] = ("invalid", None)
+                _bound(_smt_status_cache)
                 return False
             elif result == unknown:
                 _smt_valid_cache[key] = False
                 _bound(_smt_valid_cache)
+                _smt_status_cache[key] = ("unknown", s.reason_unknown())
+                _bound(_smt_status_cache)
                 return False
         finally:
             # Always balance the matching ``push`` -- ``s`` is session-owned
@@ -812,6 +834,8 @@ def smt_valid(constraint: Constraint) -> bool:
 
     _smt_valid_cache[key] = True
     _bound(_smt_valid_cache)
+    _smt_status_cache[key] = ("valid", None)
+    _bound(_smt_status_cache)
     return True
 
 
@@ -1022,6 +1046,7 @@ def clear_smt_caches() -> None:
     _mk_sorts_cache.clear()
     _smt_valid_cache.clear()
     _ple_cache.clear()
+    _smt_status_cache.clear()
     clear_datatype_cache()
 
 

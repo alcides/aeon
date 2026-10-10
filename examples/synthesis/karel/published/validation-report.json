@@ -1,0 +1,20 @@
+{
+  "split": "val",
+  "mirror": "https://huggingface.co/datasets/akdo00001/dataset_Karel",
+  "mirror_revision": "86ec5251bf3956d598c6e34c4b1b996de3d9e8d8",
+  "archive_sha256": "967dc1c557595e7c4a5ff08a636ec3fe2b5a5320fd6548be50295cf36c5ab4cd",
+  "source_jsonl_sha256": "612d8564801c80bd39d80fca306e18d76f1694d3fe98cc58215ac96452728b63",
+  "tasks": 2500,
+  "unique_guids": 2500,
+  "observed_examples_per_task": 5,
+  "heldout_examples_per_task": 1,
+  "world_comparisons": 15000,
+  "consistent_references": 2500,
+  "generalizing_references": 2500,
+  "errors": 0,
+  "full_validation_split": true,
+  "execution": "Translated reference functions compiled and executed in Aeon",
+  "full_published_corpus": false,
+  "missing_splits": ["train", "test"],
+  "provenance_note": "Pinned mirror bytes; original archive unavailable for independent byte-identity comparison"
+}
