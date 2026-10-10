@@ -5,6 +5,8 @@ from aeon.core.substitutions import substitution_in_type
 from aeon.core.parser import parse_term
 from aeon.core.parser import parse_type
 from aeon.utils.name import Name
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
+from aeon.core.substitutions import substitution_in_liquid
 
 
 def test_substitution_term():
@@ -53,3 +55,28 @@ def test_substitution_type_abs():
     assert substitution_in_type(ty, parse_term("3"), Name("z")) == parse_type(
         r"(y:Int) -> {x : Int | x > 3}",
     )
+
+
+def test_liquid_substitution_preserves_shared_subterms():
+    x = Name("x")
+    term = LiquidVar(x)
+    # Only 17 distinct nodes, but over 2**16 paths if sharing is lost.
+    # Keep the depth bounded so a regression fails without hanging CI.
+    for _ in range(16):
+        term = LiquidApp(Name("+"), [term, term])
+    replacement = LiquidLiteralInt(7)
+    result = substitution_in_liquid(term, replacement, x)
+    for _ in range(16):
+        assert isinstance(result, LiquidApp)
+        assert result.args[0] is result.args[1]
+        result = result.args[0]
+    assert result is replacement
+
+
+def test_liquid_substitution_memo_is_per_call():
+    x, y = Name("x", 1), Name("x", 2)
+    term = LiquidApp(Name("+"), [LiquidVar(x), LiquidVar(y)])
+    first = substitution_in_liquid(term, LiquidLiteralInt(7), x)
+    second = substitution_in_liquid(term, LiquidLiteralInt(9), y)
+    assert first == LiquidApp(Name("+"), [LiquidLiteralInt(7), LiquidVar(y)])
+    assert second == LiquidApp(Name("+"), [LiquidVar(x), LiquidLiteralInt(9)])

@@ -16,8 +16,8 @@ The Python application workflow is also the reusable release gate:
 - **Trusted-core coverage:** a separate Python 3.13 run of
   `scripts/run_core_tests.py`, reporting compilation, core AST, type-checking
   and verification coverage. This measures the selected core suite, not all
-  feature tests. Tracing the exhaustive library/synthesis suite caused the
-  full-suite gate to reach its 90-minute timeout; separating instrumentation
+  feature tests. The exhaustive library/synthesis suite with coverage reached
+  its 90-minute timeout; separating instrumentation
   keeps exhaustive correctness checks and focused coverage independently visible.
 - **Optional backends:** separate OR-Tools and CPU PyTorch jobs. They install
   only their own extras; unavailable accelerators are not claimed as tested.
@@ -82,6 +82,9 @@ resolution in `aeon.sugar.name_resolution`, and solver state in
 `aeon.verification.state`. Existing desugaring imports remain compatible.
 Core substitution recursion reuses these functions' typed boundaries instead of
 creating annotated local helpers repeatedly under runtime instrumentation.
+Liquid substitution also uses a fresh memo per call to retain shared refinement
+subterms. This avoids expanding a small expression DAG into an exponential
+tree, without caching results across replacements or compiler sessions.
 
 ## Hypothesis invariants
 

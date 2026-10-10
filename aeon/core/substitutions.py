@@ -372,6 +372,33 @@ def substitution_in_liquid(
     name: Name,
 ) -> LiquidTerm:
     """substitutes name in the term t with the new replacement term rep."""
+    return _substitution_in_liquid(t, rep, name, {})
+
+
+def _substitution_in_liquid(
+    t: LiquidTerm,
+    rep: LiquidTerm,
+    name: Name,
+    memo: dict[int, LiquidTerm],
+) -> LiquidTerm:
+    # Liquid terms are DAGs: substitution can insert the same replacement at
+    # many positions. Walking each path independently expands shared subterms
+    # exponentially. This memo is local to a single substitution, so results
+    # cannot leak between different replacements or compilation sessions.
+    key = id(t)
+    if key in memo:
+        return memo[key]
+    result = _substitution_in_liquid_node(t, rep, name, memo)
+    memo[key] = result
+    return result
+
+
+def _substitution_in_liquid_node(
+    t: LiquidTerm,
+    rep: LiquidTerm,
+    name: Name,
+    memo: dict[int, LiquidTerm],
+) -> LiquidTerm:
     match t:
         case (
             LiquidLiteralBool(_)
@@ -392,7 +419,7 @@ def substitution_in_liquid(
                 nname = rep.name
             else:
                 nname = aname
-            return LiquidApp(nname, [substitution_in_liquid(a, rep, name) for a in args], loc=loc)
+            return LiquidApp(nname, [_substitution_in_liquid(a, rep, name, memo) for a in args], loc=loc)
 
         case LiquidHornApplication(aname, argtypes, loc):
             if aname == name:
@@ -401,7 +428,7 @@ def substitution_in_liquid(
             else:
                 nname = aname
             return LiquidHornApplication(
-                aname, [(substitution_in_liquid(a, rep, name), t) for (a, t) in argtypes], loc=loc
+                aname, [(_substitution_in_liquid(a, rep, name, memo), t) for (a, t) in argtypes], loc=loc
             )
         case _:
             assert False, f"{t} ({type(t)}) not allowed in substitution."
