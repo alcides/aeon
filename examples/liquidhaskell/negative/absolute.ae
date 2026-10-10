@@ -1,0 +1,4 @@
+# Mutation of Tutorial_03_Basic.abs: omit the negative-input branch.
+# An arbitrary input yields a concrete diagnostic counterexample.
+def abs (n:Int) : {v:Int | v >= 0} := n;
+def main (_:Int) : Int := 0;

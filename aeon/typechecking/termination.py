@@ -334,6 +334,7 @@ def _termination_obligation(
     type_formals: list[Name],
     entry_refs: list[LiquidTerm],
     nested_refs: tuple[LiquidTerm, ...],
+    loc: Location | None = None,
 ) -> Constraint:
     r"""``(entry /\ nested /\ branch) => (lex and metric(call) >= 0)``.
 
@@ -346,10 +347,10 @@ def _termination_obligation(
     oblig = mk_liquid_and(lex, _metric_call_non_negative(call_ms))
     full = _full_path_guard_liquid(entry_refs, nested_refs, path, formals, type_formals)
     if full is None:
-        return LiquidConstraint(LiquidLiteralBool(False))
+        return LiquidConstraint(LiquidLiteralBool(False), loc=loc)
     if full == LiquidLiteralBool(True):
-        return LiquidConstraint(oblig)
-    return LiquidConstraint(LiquidApp(Name("-->", 0), [full, oblig]))
+        return LiquidConstraint(oblig, loc=loc)
+    return LiquidConstraint(LiquidApp(Name("-->", 0), [full, oblig]), loc=loc)
 
 
 def substitute_formals(template: Term, formals: list[Name], args: list[Term]) -> Term:
@@ -483,7 +484,7 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
                 parts.append(LiquidConstraint(LiquidLiteralBool(False)))
             continue
         calls = collect_recursive_calls_with_paths(tname, tarity, inner, inner_ctx, inner_expect, formals, type_formals)
-        for call_args, _loc, path, nested_refs, scope in calls:
+        for call_args, call_loc, path, nested_refs, scope in calls:
             if len(call_args) != tarity:
                 parts.append(LiquidConstraint(LiquidLiteralBool(False)))
                 continue
@@ -499,7 +500,9 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
                 parts.append(LiquidConstraint(LiquidLiteralBool(False)))
                 continue
             lex = _lexicographic_less(call_ms, caller_entry_ms)
-            obligation = _termination_obligation(path, lex, call_ms, formals, type_formals, entry_refs, nested_refs)
+            obligation = _termination_obligation(
+                path, lex, call_ms, formals, type_formals, entry_refs, nested_refs, loc=call_loc
+            )
             for name, ty in reversed(scope):
                 obligation = implication_constraint(name, ty, obligation)
             parts.append(obligation)

@@ -1,0 +1,8 @@
+# Compatibility difference: LH head's dead error arm is OMITTED in Aeon;
+# explicitly writing a contradictory nil arm produces UnreachablePatternError.
+open LList;
+def head (xs:{ys:LList | LList.size ys > 0}) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => hd;
+def main (_:Int) : Int := 0;

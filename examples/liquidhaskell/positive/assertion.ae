@@ -1,0 +1,4 @@
+# Tutorial_03_Basic.lAssert/yes: require the assertion at the call site.
+# Int specialization; the unreachable error branch is not encoded as a native.
+def lAssert (ok:{b:Bool | b}) (value:Int) : Int := value;
+def main (_:Int) : Int := lAssert (1 + 1 = 2) 42;

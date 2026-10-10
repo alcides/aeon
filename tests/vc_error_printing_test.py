@@ -9,6 +9,7 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.typechecking.typeinfer import constraint_to_parts
 from aeon.utils.name import Name
+from aeon.utils.location import FileLocation, SynthesizedLocation
 from aeon.verification.helpers import liquid_terms_alpha_equal
 from aeon.verification.helpers import parse_liquid, pretty_print_constraint
 from aeon.verification.vcs import Implication, LiquidConstraint
@@ -76,6 +77,29 @@ def claim (x:Int) : {r:Int | r >= x} :=
     assert failures
     rendered = pretty_print_constraint(failures[0].vc)
     assert "len" not in rendered
+
+
+def test_diagnostic_keeps_goal_span_through_disjunction_splitting():
+    name = Name("x", 0)
+    goal_loc = FileLocation("caller.ae", (5, 3), (5, 10))
+    imported_loc = FileLocation("library.ae", (2, 1), (2, 9))
+    goal = bind_lq(parse_liquid("x > 0 || x < 0"), [("x", name)])
+    constraint = Implication(name, t_int, parse_liquid("true"), LiquidConstraint(goal, loc=goal_loc), loc=imported_loc)
+    parts = list(constraint_to_parts(constraint))
+    assert parts
+    assert all(loc == goal_loc for _, loc in parts)
+
+
+def test_diagnostic_falls_back_when_goal_span_is_synthetic():
+    name = Name("x", 0)
+    source_loc = FileLocation("caller.ae", (5, 3), (5, 10))
+    goal = bind_lq(parse_liquid("x > 0"), [("x", name)])
+    constraint = Implication(
+        name, t_int, parse_liquid("true"), LiquidConstraint(goal, loc=SynthesizedLocation("default")), loc=source_loc
+    )
+    parts = list(constraint_to_parts(constraint))
+    assert parts
+    assert all(loc == source_loc for _, loc in parts)
 
 
 def test_error_message_keeps_relevant_precondition():

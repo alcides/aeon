@@ -1,0 +1,9 @@
+# Mutation of Tutorial_07_Measure_Int.map: silently discard each element.
+open LList;
+def mapPlusOne (xs:LList)
+    : {ys:LList | LList.size ys = LList.size xs && LList.size ys >= 0}
+    decreasing_by [LList.size xs] :=
+    match xs with
+    | nil => nil
+    | cons hd tl => mapPlusOne tl;
+def main (_:Int) : Int := 0;

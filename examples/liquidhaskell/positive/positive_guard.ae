@@ -1,0 +1,6 @@
+# Tutorial_03_Basic.isPositive/result: Boolean postcondition guards division.
+# The tutorial's formatted String result is replaced by an Int result.
+def isPositive (x:Int) : {b:Bool | b = (x > 0)} := x > 0;
+def divide (n:Int) (d:{v:Int | v != 0}) : Int := n / d;
+def result (n:Int) (d:Int) : Int := if isPositive d then divide n d else 0;
+def main (_:Int) : Int := result 12 3 + result 12 0;

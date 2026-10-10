@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Callable, Generator, cast
+from typing import Callable, Generator
 
 from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid import LiquidApp
@@ -757,8 +757,8 @@ def split_or_disjuncts(expr: LiquidTerm) -> list[LiquidConstraint]:
 def split_or_in_conclusion(c: Constraint) -> list[Constraint]:
     """Splits OR in the conclusion (innermost LiquidConstraint) into separate VCs."""
     match c:
-        case LiquidConstraint(expr=expr):
-            return cast(list[Constraint], split_or_disjuncts(expr))
+        case LiquidConstraint(expr=expr, loc=loc):
+            return [LiquidConstraint(part.expr, loc=loc) for part in split_or_disjuncts(expr)]
         case Implication(name=iname, base=base, pred=pred, seq=seq, loc=iloc):
             return [Implication(iname, base, pred, s, loc=iloc) for s in split_or_in_conclusion(seq)]
         case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):

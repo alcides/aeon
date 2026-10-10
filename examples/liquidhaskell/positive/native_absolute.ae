@@ -1,0 +1,4 @@
+# Aeon FFI companion to Tutorial_03_Basic.abs. Static checking TRUSTS this body.
+# Runtime verification checks only calls that are actually executed.
+def abs (n:Int) : {v:Int | v >= 0} := native "n if n >= 0 else -n";
+def main (_:Int) : Int := abs (0 - 7);

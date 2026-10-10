@@ -1,0 +1,14 @@
+# Tutorial_06_Measure_Bool.safeHead: total Maybe-like result, no error/native arm.
+open LList;
+inductive MaybeInt
+| nothing : MaybeInt
+| just (value:Int) : MaybeInt
+def safeHead (xs:LList) : MaybeInt :=
+    match xs with
+    | nil => MaybeInt.nothing
+    | cons hd tl => MaybeInt.just hd;
+def valueOrZero (m:MaybeInt) : Int :=
+    match m with
+    | MaybeInt.nothing => 0
+    | MaybeInt.just x => x;
+def main (_:Int) : Int := valueOrZero (safeHead nil) + valueOrZero (safeHead (cons 9 nil));

@@ -1,0 +1,4 @@
+# Tutorial_03_Basic.divide/avg2: nonzero precondition; Int / is integer division.
+def divide (n:Int) (d:{v:Int | v != 0}) : Int := n / d;
+def avg2 (x:Int) (y:Int) : Int := divide (x + y) 2;
+def main (_:Int) : Int := avg2 4 8;

@@ -1,0 +1,6 @@
+# Tutorial_03_Basic: zero, one, two, three.
+def zero : {v:Int | v = 0} := 0;
+def one : {v:Int | v != 0} := 1;
+def two : {v:Int | v != 0} := 2;
+def three : {v:Int | v != 0} := 3;
+def main (_:Int) : Int := zero + one + two + three;
