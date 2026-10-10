@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from lsprotocol.types import HoverParams, Position, TextDocumentIdentifier
-from z3 import unknown
+from z3 import Solver, unknown
 
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.lsp import aeon_adapter
@@ -105,8 +105,8 @@ def test_native_warning_reports_runtime_mode_without_running_code(enabled):
 def test_unknown_is_not_invalid_even_on_cache_hit(monkeypatch):
     constraint = LiquidConstraint(parse_liquid("93217 == 93218"), loc=FileLocation(URI, (1, 1), (1, 10)))
     smt.clear_smt_caches()
-    monkeypatch.setattr(smt.s, "check", lambda: unknown)
-    monkeypatch.setattr(smt.s, "reason_unknown", lambda: "test timeout")
+    monkeypatch.setattr(Solver, "check", lambda self: unknown)
+    monkeypatch.setattr(Solver, "reason_unknown", lambda self: "test timeout")
     with collect_verification() as evidence:
         assert not smt.smt_valid(constraint)
         assert not smt.smt_valid(constraint)
@@ -118,8 +118,8 @@ def test_unknown_is_not_invalid_even_on_cache_hit(monkeypatch):
 
 
 def test_unknown_diagnostic_does_not_offer_counterexample(monkeypatch):
-    monkeypatch.setattr(smt.s, "check", lambda: unknown)
-    monkeypatch.setattr(smt.s, "reason_unknown", lambda: "test timeout")
+    monkeypatch.setattr(Solver, "check", lambda self: unknown)
+    monkeypatch.setattr(Solver, "reason_unknown", lambda self: "test timeout")
     result, proofs = analyse("def bad (x:Int) : {v:Int | v > x} := x - 1;")
     assert proofs and all(p["status"] == "unknown" for p in proofs)
     diag = next(d for d in result.diagnostics if d.code == "refinement")

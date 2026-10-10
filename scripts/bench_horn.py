@@ -43,7 +43,9 @@ def worker(path: str, variant: str, baseline_ref: str) -> None:
         exec(compile(tree, "<baseline horn functions>", "exec"), horn.__dict__)
 
     metrics: dict[str, float | int] = {}
-    original_solve, original_valid, original_check = horn.solve, horn.smt_valid, smt.s.check
+    from z3 import Solver
+
+    original_solve, original_valid, original_check = horn.solve, horn.smt_valid, Solver.check
     original_weaken = horn.weaken
 
     def solve(*args, **kwargs):
@@ -57,9 +59,9 @@ def worker(path: str, variant: str, baseline_ref: str) -> None:
         metrics["smt_valid_calls"] += 1
         return original_valid(c)
 
-    def check(*args, **kwargs):
+    def check(self, *args, **kwargs):
         metrics["z3_checks"] += 1
-        result = original_check(*args, **kwargs)
+        result = original_check(self, *args, **kwargs)
         if result == smt.unknown:
             metrics["unknown"] += 1
         return result
@@ -68,16 +70,25 @@ def worker(path: str, variant: str, baseline_ref: str) -> None:
         metrics["weaken_calls"] += 1
         return original_weaken(*args, **kwargs)
 
-    horn.solve, horn.smt_valid, horn.weaken, smt.s.check = solve, valid, weaken, check
-    # Import after patching so callers bind to the instrumented solve.
-    from aeon.facade.driver import AeonConfig, AeonDriver
+    horn.solve, horn.smt_valid, horn.weaken, Solver.check = solve, valid, weaken, check
+    # ``import aeon`` eagerly loads the facade: replace already-bound aliases
+    # as well as the defining functions in this isolated benchmark process.
+    for module_name, module in list(sys.modules.items()):
+        if module_name.startswith("aeon."):
+            if getattr(module, "solve", None) is original_solve:
+                setattr(module, "solve", solve)
+            if getattr(module, "smt_valid", None) is original_valid:
+                setattr(module, "smt_valid", valid)
+    from aeon.compilation.compile import compile_and_link
+    from aeon.compilation.session import CompilationSession
 
     rows = []
+    session = CompilationSession()
     for cache in ("cold", "warm"):
         metrics.update(vc_seconds=0.0, smt_valid_calls=0, z3_checks=0, unknown=0, weaken_calls=0)
-        driver = AeonDriver(AeonConfig("gp", None, 1, no_main=True))
         start = time.perf_counter()
-        errors = list(driver.parse(filename=path))
+        with session.activate():
+            _unit, _core, _ctx, _metadata, _trusted, errors = compile_and_link(path, is_main_hole=False)
         rows.append(
             dict(metrics, cache=cache, compile_seconds=time.perf_counter() - start, errors=[str(e) for e in errors])
         )
@@ -141,7 +152,9 @@ def main() -> None:
                         "unknown",
                     )
                 }
-            row["vc_speedup"] = row["before"]["vc_seconds"] / row["after"]["vc_seconds"]
+            row["vc_speedup"] = (
+                row["before"]["vc_seconds"] / row["after"]["vc_seconds"] if row["after"]["vc_seconds"] else None
+            )
             row["compile_speedup"] = row["before"]["compile_seconds"] / row["after"]["compile_seconds"]
             summary.append(row)
     print(
