@@ -263,7 +263,9 @@ def _reflected_impl_for(
     if any(v.name in {"native", "native_import"} for v in liquid_free_vars(liq)):
         return None
     allowed = set(ty_params) | {name}
-    op_names = {op.name for op in ops}
+    # ``liquefy_if`` lowers a pure conditional to the SMT builtin ``ite``.
+    # It is not an external free function and must not disable reflection.
+    op_names = {op.name for op in ops} | {"ite"}
     if any(v not in allowed and v.name not in op_names for v in liquid_free_vars(liq)):
         return None
     is_recursive_body = any(v == name for v in liquid_free_vars(liq))
@@ -772,9 +774,11 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 var_name, var_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
             )
             term_c = termination_metric_constraints(t, term_ctx)
-            term_c = implication_constraint(
-                var_name, var_type, term_c, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
+            # Do not assume this definition while proving its termination:
+            # e.g. f n = 1 + f n is inconsistent and would prove any metric.
+            # Reflection is available for body/continuation obligations only,
+            # whose acceptance also requires this independent termination VC.
+            term_c = implication_constraint(var_name, var_type, term_c, var_value.loc, keep_refinements=keep_refs)
             # Declare mutually-recursive siblings so calls to them inside this
             # member's value (e.g. selfified applications ``v == odd (n - 1)``)
             # translate. When the whole group is well-founded and a sibling's
@@ -1167,9 +1171,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 var_name, t1, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
             )
             term_c = termination_metric_constraints(t, term_ctx)
-            term_c = implication_constraint(
-                var_name, t1, term_c, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
-            )
+            # Termination must be proved without assuming self-reflection;
+            # an inconsistent nonterminating definition cannot justify itself.
+            term_c = implication_constraint(var_name, t1, term_c, var_value.loc, keep_refinements=keep_refs)
             # Declare mutually-recursive siblings so calls to them inside this
             # member's value translate (selfified applications such as
             # ``v == odd (n - 1)``). Reflect a sibling's definition when the group
