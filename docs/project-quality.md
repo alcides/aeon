@@ -11,8 +11,14 @@ The Python application workflow is also the reusable release gate:
   Hypothesis properties, on Python 3.10–3.14. Failed versions do not cancel the
   other versions.
 - **Full suite:** all tests once on Python 3.13 in four isolated worker
-  processes with work-stealing to balance slow integration tests, and coverage reports for
-  compilation, core ASTs, type checking, and verification.
+  processes with work-stealing to balance slow integration tests. Verbose test
+  names make stalled workers diagnosable. No tests are removed from this gate.
+- **Trusted-core coverage:** a separate Python 3.13 run of
+  `scripts/run_core_tests.py`, reporting compilation, core AST, type-checking
+  and verification coverage. This measures the selected core suite, not all
+  feature tests. Tracing the exhaustive library/synthesis suite caused the
+  full-suite gate to reach its 90-minute timeout; separating instrumentation
+  keeps exhaustive correctness checks and focused coverage independently visible.
 - **Optional backends:** separate OR-Tools and CPU PyTorch jobs. They install
   only their own extras; unavailable accelerators are not claimed as tested.
 - **Wheel:** build the wheel from the source distribution, install it into a

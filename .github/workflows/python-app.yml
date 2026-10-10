@@ -69,7 +69,8 @@ jobs:
 
   full-suite:
     runs-on: ubuntu-latest
-    # Instrumented research/library tests can be much slower than the core gate.
+    # Keep this exhaustive, but do not trace every library/synthesis operation.
+    # Coverage has its own bounded trusted-core job below.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -80,14 +81,34 @@ jobs:
           cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[dev]"
-      - name: Full suite and trusted-core coverage
-        run: uv run pytest -q -n 4 --dist worksteal --cov=aeon.compilation --cov=aeon.core --cov=aeon.typechecking --cov=aeon.verification --cov-report=xml --cov-report=term --junitxml=full-results.xml --durations=20
+      - name: Full suite
+        run: uv run pytest -v -n 4 --dist worksteal --junitxml=full-results.xml --durations=20
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: full-suite-results
+          path: full-results.xml
+
+  trusted-core-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv venv
+      - run: uv pip install -e ".[tests]"
+      - name: Trusted-core coverage
+        run: uv run python scripts/run_core_tests.py -q --cov=aeon.compilation --cov=aeon.core --cov=aeon.typechecking --cov=aeon.verification --cov-report=xml --cov-report=term --junitxml=coverage-results.xml --durations=20
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trusted-core-coverage-results
           path: |
-            full-results.xml
+            coverage-results.xml
             coverage.xml
 
   optional-backends:
