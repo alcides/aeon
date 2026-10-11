@@ -79,6 +79,8 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "smt",
         "sygus",
         "decision_tree",
+        "bustle",
+        "bustle_baseline",
         *llm_synthesizer_menu_ids(),
         "fta",
         "afta",
