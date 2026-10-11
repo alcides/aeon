@@ -1,0 +1,9 @@
+# Shape constraint plus endpoint anchors; neither constant satisfies the task.
+def f (x:{v:Int | 0 <= v && v <= 4}) : Int := ?body;
+
+def monotonicity
+    (x1:{v:Int | 0 <= v && v <= 4})
+    (x2:{v:Int | x1 <= v && v <= 4})
+    : {p:Bool | p && f x1 <= f x2} := true;
+
+def endpoints (_:Unit) : {p:Bool | p && f 0 = 0 && f 4 = 4} := true;
