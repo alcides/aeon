@@ -1,0 +1,84 @@
+# Synthesis benchmark: amltk ensemble pipeline search.
+# Source: https://automl.github.io/amltk/latest/examples/hpo_with_ensembling/
+# GOAL: maximize validation accuracy on the fixed Iris 60/20/20 split.
+# SEARCH: both members' imputation, scaling, and estimator, plus mixture
+# weight. The whole ensemble expression is synthesized, including its members.
+# Run: python -m aeon --budget 30 -s random_search examples/ml/amltk_ensemble.ae
+
+type Data
+type Imputer
+type Scaler
+type Estimator
+type Member
+type Model
+type Weight
+
+# Typed building blocks form Aeon's pipeline grammar. Python only constructs
+# sklearn components; it does not sample configurations or select winners.
+def pd : Unit := native_import "pandas"
+def ms : Unit := native_import "sklearn.model_selection"
+def ensemble : Unit := native_import "sklearn.ensemble"
+def impute : Unit := native_import "sklearn.impute"
+def preprocessing : Unit := native_import "sklearn.preprocessing"
+def pipeline : Unit := native_import "sklearn.pipeline"
+def svm : Unit := native_import "sklearn.svm"
+def base : Unit := native_import "sklearn.base"
+
+def mean_imputer : Imputer := native "impute.SimpleImputer(strategy='mean')"
+def median_imputer : Imputer := native "impute.SimpleImputer(strategy='median')"
+def no_scaler : Scaler := native "'passthrough'"
+def standard_scaler : Scaler := native "preprocessing.StandardScaler()"
+def minmax_scaler : Scaler := native "preprocessing.MinMaxScaler()"
+def shallow_forest : Estimator := native "ensemble.RandomForestClassifier(n_estimators=30, max_depth=1, random_state=42, n_jobs=1)"
+def medium_forest : Estimator := native "ensemble.RandomForestClassifier(n_estimators=30, max_depth=3, random_state=42, n_jobs=1)"
+def deep_forest : Estimator := native "ensemble.RandomForestClassifier(n_estimators=30, max_depth=5, random_state=42, n_jobs=1)"
+def linear_svc : Estimator := native "svm.SVC(C=1.0, kernel='linear', probability=True, random_state=42)"
+def rbf_svc : Estimator := native "svm.SVC(C=1.0, kernel='rbf', probability=True, random_state=42)"
+
+def assemble (fill: Imputer) (scale: Scaler) (estimator: Estimator) : Member :=
+    native "pipeline.make_pipeline(fill, scale, estimator)"
+
+def load (path: String) : Data :=
+    native "(lambda df: (df.drop(columns=['species']).to_numpy(), df['species'].to_numpy()))(pd.read_csv(path))"
+
+# X_development, X_test, y_development, y_test: 80/20, stratified.
+def holdout (data: Data) : Data :=
+    native "ms.train_test_split(data[0], data[1], test_size=0.2, stratify=data[1], random_state=42)"
+
+def development : Data := holdout (load "examples/ml/data/iris.csv")
+
+# X_train, X_validation, y_train, y_validation: overall 60/20/20.
+def validation_split (outer: Data) : Data :=
+    native "ms.train_test_split(outer[0], outer[2], test_size=0.25, stratify=outer[2], random_state=43)"
+
+def training_validation : Data := validation_split development
+
+# Finite weight terminals keep the grammar small. Both endpoints are legal.
+def left_only : Weight := native "1.0"
+def left_heavy : Weight := native "0.75"
+def equal_weight : Weight := native "0.5"
+def right_heavy : Weight := native "0.25"
+def right_only : Weight := native "0.0"
+
+# Members cannot contain ensembles: the types bound the search to two
+# pipelines. VotingClassifier aligns probability columns by class labels.
+def blend (left: Member) (right: Member) (weight: Weight) : Model :=
+    native "ensemble.VotingClassifier(estimators=[('left', left), ('right', right)], voting='soft', weights=[weight, 1.0-weight], n_jobs=1)"
+
+def validation_accuracy (candidate: Model) : Float :=
+    native "float(base.clone(candidate).fit(training_validation[0], training_validation[2]).score(training_validation[1], training_validation[3]))"
+
+@maximize_float(validation_accuracy (synth 0))
+def synth (_: Int) : Model := ?ensemble;
+
+# This score is never used by synthesis. Refit the synthesized pipeline on
+# all development rows before the single final test evaluation.
+def test_accuracy (candidate: Model) : Float :=
+    native "float(base.clone(candidate).fit(development[0], development[2]).score(development[1], development[3]))"
+
+def main (_: Int) : Float :=
+    let candidate := synth 0 in
+    let objective := print (validation_accuracy candidate) in
+    let test := test_accuracy candidate in
+    let shown := print test in
+    test
