@@ -689,6 +689,7 @@ The generated [stdlib index](stdlib/) is the authoritative per-symbol catalogue 
 | -l, --log | Sets the log level (TRACE, DEBUG, INFO, WARNINGS, ERROR, CRITICAL, etc.)  |
 | -f, --logfile | Exports the log to a file                                              |
 | -n, --no-main | Disables introducing hole in main                                     |
+| --check | Typechecks, including refinements, without synthesis, runtime evaluation, or LLVM compilation; allows holes |
 | --strict-decidable | Treats out-of-fragment refinements (nonlinear arithmetic, ...) as errors — see [The decidable fragment](#the-decidable-fragment) |
 | --runtime-verification | Checks supported parameter and result refinements at runtime; see [Soundness boundaries](soundness) |
 | --trust-report | Reports explicit axioms and refined native bindings in the trusted computing base |
@@ -705,6 +706,12 @@ The generated [stdlib index](stdlib/) is the authoritative per-symbol catalogue 
 | --export | Prints a stand-alone, pure-Python version of the named function — see [Exporting to Python](#exporting-to-python) |
 | -lsp, --language-server-mode | Runs aeon in [Language Server Protocol mode](language-server.md) |
 | --tcp | Specifies the TCP port or hostname:port for the LSP server                     |
+
+Use `aeon --check file.ae` to validate a program without executing it or filling
+holes. Normal refinement verification still applies: a specification whose
+proof depends on a missing implementation may still be rejected. Compile-time
+evaluation of closed refinement expressions is unchanged. `--check` and `--test`
+are mutually exclusive.
 
 ## Synthesis
 

@@ -24,8 +24,20 @@ The Python application workflow is also the reusable release gate:
 - **Wheel:** build the wheel from the source distribution, install it into a
   clean environment, then verify packaged grammars, standard-library imports,
   and execution in an isolated process outside the checkout.
-- **Examples:** the existing example suite runs once, rather than once per
-  Python version.
+- **Examples:** every `.ae` file under `examples/` is discovered recursively
+  and assigned to exactly one of eight deterministic shards on Python 3.13.
+  Each shard uses two isolated CLI workers, with a 120-second per-file timeout.
+  `--check --no-main` parses, elaborates and verifies refinements, allowing
+  synthesis holes without running synthesis, fitness functions,
+  LLVM compilation or program evaluation. This includes nested benchmark
+  corpora such as MBPP, SRBench, DACE, Karel and SyGuS.
+  The existing `examples/testing/` suites and `props_*`/`examples_*` PBT examples
+  still execute with `--test --seed 0`. Negative cases in the typestate and
+  LiquidHaskell manifests must produce a refinement/type diagnostic, not a
+  syntax error, missing import, crash or synthesis timeout. Shards continue
+  independently after failures and retain per-file logs and JSON timing/results.
+  An aggregate `examples` check retains the original branch-protection check
+  name and succeeds only when every shard succeeds.
 - **Research:** scheduled/manual runs use a larger Hypothesis campaign and
   benchmark regression tests, retaining JUnit timings. These are regression
   checks, not claims of reproducing published synthesis results.
@@ -42,6 +54,21 @@ separately if they require the old `build (version)` or standalone Ruff job name
 The selected core suite is deliberately small; the full-suite job remains
 required to cover features outside that cross-version gate. The existing policy
 for stochastic synthesis skips is unchanged by this CI refactor.
+
+Run the expanded example gate locally (or inspect its coverage without running):
+
+```bash
+bash run_examples.sh --jobs 2
+bash run_examples.sh --list
+bash run_examples.sh --shard 0 --shards 8
+bash run_examples.sh --failures-from example-results/results.json
+uv run python -m aeon --check examples/synthesis/monotonicity/nondecreasing.ae
+```
+
+Example checking is not a claim that benchmark holes are solvable, that opaque
+native implementations are correct, or that accelerator/remote services work.
+The compiler's normal compile-time evaluation of closed refinement expressions
+still applies; `--check` suppresses runtime execution, not refinement verification.
 
 ## Compilation sessions
 

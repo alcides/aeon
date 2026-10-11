@@ -44,8 +44,7 @@ def synth (<vars>:Float) ... : Float := (let sr_errors := unit in ?hole)
 uv run python -m aeon --budget 60 -s gp examples/synthesis/srbench/feynman_i_6_20.ae
 ```
 
-These are **not** part of the default `run_examples.sh` sweep (that glob is
-non-recursive and does not descend into this subfolder), because there are 134
-of them and they are intended for longer synthesis runs than the 10-second CI
-budget. Each file is nonetheless verified to parse, type-check, and drive the
-GP engine.
+All 134 files are included in the recursive `run_examples.sh` CI sweep in
+typecheck-only mode (`--check`): CI verifies their specifications without
+running fitness functions or attempting synthesis. Use the command above for
+an actual synthesis run.

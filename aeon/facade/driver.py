@@ -55,6 +55,7 @@ class AeonConfig:
     contracts: bool = False
     smt_timeout_ms: int = 200
     cache_limit: int = 1024
+    check_only: bool = False
 
 
 P = ParamSpec("P")
@@ -134,6 +135,9 @@ class AeonDriver:
                 ]
 
         self.metadata = metadata
+
+        if self.cfg.check_only:
+            return []
 
         dep_units = dependency_units_for(unit)
         self.constructor_names = collect_constructor_names(unit, dep_units)
