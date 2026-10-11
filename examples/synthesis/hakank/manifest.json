@@ -1,0 +1,2116 @@
+{
+  "archive_url": "https://web.archive.org/web/20251201043639/https://www.hakank.org/common_cp_models/",
+  "archive_sha256": "7b26395a3793d98842465adecd745b84b3c4332c24292cd9f2f4342b5a66804b",
+  "catalogue_problem_count": 1124,
+  "upstream_commit": "2823c48d3d2e5d86acb3b8e6951172499c8946b0",
+  "scope": "25 representative models, not the complete catalogue",
+  "invalid_score": 1000000,
+  "models": [
+    {
+      "name": "all_different_except_0",
+      "archive_anchor": "alldifferentexcept0",
+      "source_path": "/z3/all_different_except_0.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/all_different_except_0.py",
+      "source_sha256": "375713c4467d685604228b7fae445136a1d412b60d6caf0f0bf5647ab7a7c184",
+      "instance": "five values in 0..5; repeated zeros allowed",
+      "variables": {
+        "x0": [
+          0,
+          5
+        ],
+        "x1": [
+          0,
+          5
+        ],
+        "x2": [
+          0,
+          5
+        ],
+        "x3": [
+          0,
+          5
+        ],
+        "x4": [
+          0,
+          5
+        ]
+      },
+      "data": {},
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "all_interval",
+      "archive_anchor": "allinterval",
+      "source_path": "/cpmpy/all_interval.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/cpmpy/all_interval.py",
+      "source_sha256": "37e627b446d01231775c01b8b5303b97f78bf6ed67eec2cea9625eee6eb9aef0",
+      "instance": "series of size 5 (reduced instance)",
+      "variables": {
+        "x0": [
+          1,
+          5
+        ],
+        "x1": [
+          1,
+          5
+        ],
+        "x2": [
+          1,
+          5
+        ],
+        "x3": [
+          1,
+          5
+        ],
+        "x4": [
+          1,
+          5
+        ],
+        "d0": [
+          1,
+          4
+        ],
+        "d1": [
+          1,
+          4
+        ],
+        "d2": [
+          1,
+          4
+        ],
+        "d3": [
+          1,
+          4
+        ]
+      },
+      "data": {
+        "n": 5
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "among",
+      "archive_anchor": "among",
+      "source_path": "/z3/among.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/among.py",
+      "source_sha256": "cd68b79ecae93919bb9336de1e8f15b8cc1a033a8875178ae4be55b48fe3b069",
+      "instance": "exactly three of five values belong to {1,5,8}",
+      "variables": {
+        "x0": [
+          1,
+          8
+        ],
+        "x1": [
+          1,
+          8
+        ],
+        "x2": [
+          1,
+          8
+        ],
+        "x3": [
+          1,
+          8
+        ],
+        "x4": [
+          1,
+          8
+        ]
+      },
+      "data": {},
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "assignment",
+      "archive_anchor": "assignment",
+      "source_path": "/z3/assignment.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/assignment.py",
+      "source_sha256": "3be308db6b894f7f33f3feb32724d95023ac978895a48629c4f0b30c2ffe737b",
+      "instance": "4 people, 5 choices (upstream data)",
+      "variables": {
+        "x0": [
+          0,
+          1
+        ],
+        "x1": [
+          0,
+          1
+        ],
+        "x2": [
+          0,
+          1
+        ],
+        "x3": [
+          0,
+          1
+        ],
+        "x4": [
+          0,
+          1
+        ],
+        "x5": [
+          0,
+          1
+        ],
+        "x6": [
+          0,
+          1
+        ],
+        "x7": [
+          0,
+          1
+        ],
+        "x8": [
+          0,
+          1
+        ],
+        "x9": [
+          0,
+          1
+        ],
+        "x10": [
+          0,
+          1
+        ],
+        "x11": [
+          0,
+          1
+        ],
+        "x12": [
+          0,
+          1
+        ],
+        "x13": [
+          0,
+          1
+        ],
+        "x14": [
+          0,
+          1
+        ],
+        "x15": [
+          0,
+          1
+        ],
+        "x16": [
+          0,
+          1
+        ],
+        "x17": [
+          0,
+          1
+        ],
+        "x18": [
+          0,
+          1
+        ],
+        "x19": [
+          0,
+          1
+        ]
+      },
+      "data": {
+        "cost": [
+          [
+            14,
+            5,
+            8,
+            7,
+            15
+          ],
+          [
+            2,
+            12,
+            6,
+            5,
+            3
+          ],
+          [
+            7,
+            8,
+            3,
+            9,
+            7
+          ],
+          [
+            2,
+            4,
+            6,
+            10,
+            1
+          ]
+        ]
+      },
+      "goal": "Minimize total assignment cost/disparity.",
+      "expected_score": 11
+    },
+    {
+      "name": "bin_packing",
+      "archive_anchor": "binpacking",
+      "source_path": "/z3/bin_packing.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/bin_packing.py",
+      "source_sha256": "9ad2f51bf25a19d208f382c13fb94b5d4a5841e55519f6004ab828753042f75a",
+      "instance": "weights [4,3,1], capacity 4 (small upstream example)",
+      "variables": {
+        "x0": [
+          0,
+          2
+        ],
+        "x1": [
+          0,
+          2
+        ],
+        "x2": [
+          0,
+          2
+        ]
+      },
+      "data": {
+        "weights": [
+          4,
+          3,
+          1
+        ],
+        "capacity": 4
+      },
+      "goal": "Minimize occupied bins.",
+      "expected_score": 2
+    },
+    {
+      "name": "discrete_tomography",
+      "archive_anchor": "discretetomography",
+      "source_path": "/z3/discrete_tomography.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/discrete_tomography.py",
+      "source_sha256": "9e84c860c592d7e3322c97cf95f6e2c85d0a38d194053eb1d2d015b282df7e3d",
+      "instance": "11x12 binary image with upstream default row/column sums",
+      "variables": {
+        "x0": [
+          0,
+          1
+        ],
+        "x1": [
+          0,
+          1
+        ],
+        "x2": [
+          0,
+          1
+        ],
+        "x3": [
+          0,
+          1
+        ],
+        "x4": [
+          0,
+          1
+        ],
+        "x5": [
+          0,
+          1
+        ],
+        "x6": [
+          0,
+          1
+        ],
+        "x7": [
+          0,
+          1
+        ],
+        "x8": [
+          0,
+          1
+        ],
+        "x9": [
+          0,
+          1
+        ],
+        "x10": [
+          0,
+          1
+        ],
+        "x11": [
+          0,
+          1
+        ],
+        "x12": [
+          0,
+          1
+        ],
+        "x13": [
+          0,
+          1
+        ],
+        "x14": [
+          0,
+          1
+        ],
+        "x15": [
+          0,
+          1
+        ],
+        "x16": [
+          0,
+          1
+        ],
+        "x17": [
+          0,
+          1
+        ],
+        "x18": [
+          0,
+          1
+        ],
+        "x19": [
+          0,
+          1
+        ],
+        "x20": [
+          0,
+          1
+        ],
+        "x21": [
+          0,
+          1
+        ],
+        "x22": [
+          0,
+          1
+        ],
+        "x23": [
+          0,
+          1
+        ],
+        "x24": [
+          0,
+          1
+        ],
+        "x25": [
+          0,
+          1
+        ],
+        "x26": [
+          0,
+          1
+        ],
+        "x27": [
+          0,
+          1
+        ],
+        "x28": [
+          0,
+          1
+        ],
+        "x29": [
+          0,
+          1
+        ],
+        "x30": [
+          0,
+          1
+        ],
+        "x31": [
+          0,
+          1
+        ],
+        "x32": [
+          0,
+          1
+        ],
+        "x33": [
+          0,
+          1
+        ],
+        "x34": [
+          0,
+          1
+        ],
+        "x35": [
+          0,
+          1
+        ],
+        "x36": [
+          0,
+          1
+        ],
+        "x37": [
+          0,
+          1
+        ],
+        "x38": [
+          0,
+          1
+        ],
+        "x39": [
+          0,
+          1
+        ],
+        "x40": [
+          0,
+          1
+        ],
+        "x41": [
+          0,
+          1
+        ],
+        "x42": [
+          0,
+          1
+        ],
+        "x43": [
+          0,
+          1
+        ],
+        "x44": [
+          0,
+          1
+        ],
+        "x45": [
+          0,
+          1
+        ],
+        "x46": [
+          0,
+          1
+        ],
+        "x47": [
+          0,
+          1
+        ],
+        "x48": [
+          0,
+          1
+        ],
+        "x49": [
+          0,
+          1
+        ],
+        "x50": [
+          0,
+          1
+        ],
+        "x51": [
+          0,
+          1
+        ],
+        "x52": [
+          0,
+          1
+        ],
+        "x53": [
+          0,
+          1
+        ],
+        "x54": [
+          0,
+          1
+        ],
+        "x55": [
+          0,
+          1
+        ],
+        "x56": [
+          0,
+          1
+        ],
+        "x57": [
+          0,
+          1
+        ],
+        "x58": [
+          0,
+          1
+        ],
+        "x59": [
+          0,
+          1
+        ],
+        "x60": [
+          0,
+          1
+        ],
+        "x61": [
+          0,
+          1
+        ],
+        "x62": [
+          0,
+          1
+        ],
+        "x63": [
+          0,
+          1
+        ],
+        "x64": [
+          0,
+          1
+        ],
+        "x65": [
+          0,
+          1
+        ],
+        "x66": [
+          0,
+          1
+        ],
+        "x67": [
+          0,
+          1
+        ],
+        "x68": [
+          0,
+          1
+        ],
+        "x69": [
+          0,
+          1
+        ],
+        "x70": [
+          0,
+          1
+        ],
+        "x71": [
+          0,
+          1
+        ],
+        "x72": [
+          0,
+          1
+        ],
+        "x73": [
+          0,
+          1
+        ],
+        "x74": [
+          0,
+          1
+        ],
+        "x75": [
+          0,
+          1
+        ],
+        "x76": [
+          0,
+          1
+        ],
+        "x77": [
+          0,
+          1
+        ],
+        "x78": [
+          0,
+          1
+        ],
+        "x79": [
+          0,
+          1
+        ],
+        "x80": [
+          0,
+          1
+        ],
+        "x81": [
+          0,
+          1
+        ],
+        "x82": [
+          0,
+          1
+        ],
+        "x83": [
+          0,
+          1
+        ],
+        "x84": [
+          0,
+          1
+        ],
+        "x85": [
+          0,
+          1
+        ],
+        "x86": [
+          0,
+          1
+        ],
+        "x87": [
+          0,
+          1
+        ],
+        "x88": [
+          0,
+          1
+        ],
+        "x89": [
+          0,
+          1
+        ],
+        "x90": [
+          0,
+          1
+        ],
+        "x91": [
+          0,
+          1
+        ],
+        "x92": [
+          0,
+          1
+        ],
+        "x93": [
+          0,
+          1
+        ],
+        "x94": [
+          0,
+          1
+        ],
+        "x95": [
+          0,
+          1
+        ],
+        "x96": [
+          0,
+          1
+        ],
+        "x97": [
+          0,
+          1
+        ],
+        "x98": [
+          0,
+          1
+        ],
+        "x99": [
+          0,
+          1
+        ],
+        "x100": [
+          0,
+          1
+        ],
+        "x101": [
+          0,
+          1
+        ],
+        "x102": [
+          0,
+          1
+        ],
+        "x103": [
+          0,
+          1
+        ],
+        "x104": [
+          0,
+          1
+        ],
+        "x105": [
+          0,
+          1
+        ],
+        "x106": [
+          0,
+          1
+        ],
+        "x107": [
+          0,
+          1
+        ],
+        "x108": [
+          0,
+          1
+        ],
+        "x109": [
+          0,
+          1
+        ],
+        "x110": [
+          0,
+          1
+        ],
+        "x111": [
+          0,
+          1
+        ],
+        "x112": [
+          0,
+          1
+        ],
+        "x113": [
+          0,
+          1
+        ],
+        "x114": [
+          0,
+          1
+        ],
+        "x115": [
+          0,
+          1
+        ],
+        "x116": [
+          0,
+          1
+        ],
+        "x117": [
+          0,
+          1
+        ],
+        "x118": [
+          0,
+          1
+        ],
+        "x119": [
+          0,
+          1
+        ],
+        "x120": [
+          0,
+          1
+        ],
+        "x121": [
+          0,
+          1
+        ],
+        "x122": [
+          0,
+          1
+        ],
+        "x123": [
+          0,
+          1
+        ],
+        "x124": [
+          0,
+          1
+        ],
+        "x125": [
+          0,
+          1
+        ],
+        "x126": [
+          0,
+          1
+        ],
+        "x127": [
+          0,
+          1
+        ],
+        "x128": [
+          0,
+          1
+        ],
+        "x129": [
+          0,
+          1
+        ],
+        "x130": [
+          0,
+          1
+        ],
+        "x131": [
+          0,
+          1
+        ]
+      },
+      "data": {
+        "rows": [
+          0,
+          0,
+          8,
+          2,
+          6,
+          4,
+          5,
+          3,
+          7,
+          0,
+          0
+        ],
+        "cols": [
+          0,
+          0,
+          7,
+          1,
+          6,
+          3,
+          4,
+          5,
+          2,
+          7,
+          0,
+          0
+        ]
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "golomb_ruler",
+      "archive_anchor": "golombruler",
+      "source_path": "/z3/golomb_ruler.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/golomb_ruler.py",
+      "source_sha256": "191defd0bee3319f6a387d3e31ffedaf34a2c4b68fbf5dc4653a3c8184f95912",
+      "instance": "four ordered marks, upper bound 10 (reduced instance)",
+      "variables": {
+        "x0": [
+          0,
+          10
+        ],
+        "x1": [
+          0,
+          10
+        ],
+        "x2": [
+          0,
+          10
+        ],
+        "x3": [
+          0,
+          10
+        ]
+      },
+      "data": {
+        "n": 4
+      },
+      "goal": "Minimize ruler length with distinct pairwise distances.",
+      "expected_score": 6
+    },
+    {
+      "name": "knapsack",
+      "archive_anchor": "knapsack",
+      "source_path": "/z3/knapsack.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/knapsack.py",
+      "source_sha256": "ae64b0a046bbf71d45317033a3d003eb08e27945ae4d1ca03d55f1fad595168d",
+      "instance": "11 binary items, capacity 102 (upstream data)",
+      "variables": {
+        "x0": [
+          0,
+          1
+        ],
+        "x1": [
+          0,
+          1
+        ],
+        "x2": [
+          0,
+          1
+        ],
+        "x3": [
+          0,
+          1
+        ],
+        "x4": [
+          0,
+          1
+        ],
+        "x5": [
+          0,
+          1
+        ],
+        "x6": [
+          0,
+          1
+        ],
+        "x7": [
+          0,
+          1
+        ],
+        "x8": [
+          0,
+          1
+        ],
+        "x9": [
+          0,
+          1
+        ],
+        "x10": [
+          0,
+          1
+        ]
+      },
+      "data": {
+        "values": [
+          15,
+          100,
+          90,
+          60,
+          40,
+          15,
+          10,
+          1,
+          12,
+          12,
+          100
+        ],
+        "weights": [
+          2,
+          20,
+          20,
+          30,
+          40,
+          30,
+          60,
+          10,
+          21,
+          12,
+          2
+        ],
+        "capacity": 102
+      },
+      "goal": "Maximize item value (minimize 455 minus value).",
+      "expected_score": 77
+    },
+    {
+      "name": "langford",
+      "archive_anchor": "langford",
+      "source_path": "/z3/langford.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/langford.py",
+      "source_sha256": "7d76dbdcf762e2494bca1c521e90d46ccd459b83f4b59bd484c2fe64dd6e900f",
+      "instance": "k=3, positions of two copies (reduced instance)",
+      "variables": {
+        "p0": [
+          0,
+          5
+        ],
+        "p1": [
+          0,
+          5
+        ],
+        "p2": [
+          0,
+          5
+        ],
+        "p3": [
+          0,
+          5
+        ],
+        "p4": [
+          0,
+          5
+        ],
+        "p5": [
+          0,
+          5
+        ]
+      },
+      "data": {
+        "k": 3
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "magic_sequence",
+      "archive_anchor": "magicsequence",
+      "source_path": "/z3/magic_sequence.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/magic_sequence.py",
+      "source_sha256": "3df0974151dc39f06ddcdfa1deb30250b332379165208b6ff705c1b1e8b37cbd",
+      "instance": "length 5 (one of upstream's sizes 1..19)",
+      "variables": {
+        "x0": [
+          0,
+          4
+        ],
+        "x1": [
+          0,
+          4
+        ],
+        "x2": [
+          0,
+          4
+        ],
+        "x3": [
+          0,
+          4
+        ],
+        "x4": [
+          0,
+          4
+        ]
+      },
+      "data": {
+        "n": 5
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "magic_square",
+      "archive_anchor": "magicsquare",
+      "source_path": "/z3/magic_square.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/magic_square.py",
+      "source_sha256": "6aedb8555ee2ed03384be2d73643f8ecd0b23058e41487ec27313804bab1f594",
+      "instance": "normal 3x3 square, line sum 15",
+      "variables": {
+        "x0": [
+          1,
+          9
+        ],
+        "x1": [
+          1,
+          9
+        ],
+        "x2": [
+          1,
+          9
+        ],
+        "x3": [
+          1,
+          9
+        ],
+        "x4": [
+          1,
+          9
+        ],
+        "x5": [
+          1,
+          9
+        ],
+        "x6": [
+          1,
+          9
+        ],
+        "x7": [
+          1,
+          9
+        ],
+        "x8": [
+          1,
+          9
+        ]
+      },
+      "data": {
+        "size": 3
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "map_coloring",
+      "archive_anchor": "mapcoloring",
+      "source_path": "/cpmpy/map_coloring.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/cpmpy/map_coloring.py",
+      "source_sha256": "db979ec196d803334281eaeeea580a3bb0ab1645159deeb53d9004373c4ed57e",
+      "instance": "Belgium/Denmark/France/Germany/Netherlands/Luxembourg, four colors",
+      "variables": {
+        "x0": [
+          1,
+          4
+        ],
+        "x1": [
+          1,
+          4
+        ],
+        "x2": [
+          1,
+          4
+        ],
+        "x3": [
+          1,
+          4
+        ],
+        "x4": [
+          1,
+          4
+        ],
+        "x5": [
+          1,
+          4
+        ]
+      },
+      "data": {
+        "edges": [
+          [
+            2,
+            0
+          ],
+          [
+            2,
+            5
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            3
+          ],
+          [
+            3,
+            4
+          ],
+          [
+            3,
+            1
+          ]
+        ]
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "nqueens",
+      "archive_anchor": "nqueens",
+      "source_path": "/google_or_tools/nqueens_sat.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/google_or_tools/nqueens_sat.py",
+      "source_sha256": "8c3514be92e3a15df83bf4084902f904f1c3091ccad09237b1cf683e6713e736",
+      "instance": "8 queens, one per column",
+      "variables": {
+        "q0": [
+          0,
+          7
+        ],
+        "q1": [
+          0,
+          7
+        ],
+        "q2": [
+          0,
+          7
+        ],
+        "q3": [
+          0,
+          7
+        ],
+        "q4": [
+          0,
+          7
+        ],
+        "q5": [
+          0,
+          7
+        ],
+        "q6": [
+          0,
+          7
+        ],
+        "q7": [
+          0,
+          7
+        ]
+      },
+      "data": {
+        "n": 8
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "nvalue",
+      "archive_anchor": "nvalue",
+      "source_path": "/z3/nvalue.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/nvalue.py",
+      "source_sha256": "8b9015e06fd1fe72e12e552f3f6de6d744974b954aeb901a17b008b2bdd7f8ce",
+      "instance": "five values in 1..5, synthesize their distinct-value count",
+      "variables": {
+        "x0": [
+          1,
+          5
+        ],
+        "x1": [
+          1,
+          5
+        ],
+        "x2": [
+          1,
+          5
+        ],
+        "x3": [
+          1,
+          5
+        ],
+        "x4": [
+          1,
+          5
+        ],
+        "count": [
+          0,
+          5
+        ]
+      },
+      "data": {},
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "quasigroup_completion",
+      "archive_anchor": "quasigroupcompletion",
+      "source_path": "/z3/quasigroup_completion.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/quasigroup_completion.py",
+      "source_sha256": "0ed58e24d6226588d44a094957ef4603b4797133764c787ac529b7d5f38bba01",
+      "instance": "5x5 completion (upstream default)",
+      "variables": {
+        "x0": [
+          1,
+          5
+        ],
+        "x1": [
+          1,
+          5
+        ],
+        "x2": [
+          1,
+          5
+        ],
+        "x3": [
+          1,
+          5
+        ],
+        "x4": [
+          1,
+          5
+        ],
+        "x5": [
+          1,
+          5
+        ],
+        "x6": [
+          1,
+          5
+        ],
+        "x7": [
+          1,
+          5
+        ],
+        "x8": [
+          1,
+          5
+        ],
+        "x9": [
+          1,
+          5
+        ],
+        "x10": [
+          1,
+          5
+        ],
+        "x11": [
+          1,
+          5
+        ],
+        "x12": [
+          1,
+          5
+        ],
+        "x13": [
+          1,
+          5
+        ],
+        "x14": [
+          1,
+          5
+        ],
+        "x15": [
+          1,
+          5
+        ],
+        "x16": [
+          1,
+          5
+        ],
+        "x17": [
+          1,
+          5
+        ],
+        "x18": [
+          1,
+          5
+        ],
+        "x19": [
+          1,
+          5
+        ],
+        "x20": [
+          1,
+          5
+        ],
+        "x21": [
+          1,
+          5
+        ],
+        "x22": [
+          1,
+          5
+        ],
+        "x23": [
+          1,
+          5
+        ],
+        "x24": [
+          1,
+          5
+        ]
+      },
+      "data": {
+        "size": 5,
+        "clues": [
+          [
+            1,
+            0,
+            0,
+            0,
+            4
+          ],
+          [
+            0,
+            5,
+            0,
+            0,
+            0
+          ],
+          [
+            4,
+            0,
+            0,
+            2,
+            0
+          ],
+          [
+            0,
+            4,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            5,
+            0,
+            1
+          ]
+        ]
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "rabbits",
+      "archive_anchor": "rabbits",
+      "source_path": "/z3/rabbits.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/rabbits.py",
+      "source_sha256": "03a276c3b30f2527aa85b529329b4434e9533d4ef01f40d9350ecd8e6be5843a",
+      "instance": "nine rabbits/pheasants with 24 legs (upstream data)",
+      "variables": {
+        "rabbits": [
+          0,
+          9
+        ],
+        "pheasants": [
+          0,
+          9
+        ]
+      },
+      "data": {},
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "schedule1",
+      "archive_anchor": "schedule1",
+      "source_path": "/cpmpy/schedule1.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/cpmpy/schedule1.py",
+      "source_sha256": "e0fc90fe4293bdfdd4ee293099d1a54fe4bced817453a3f776ace0431c7925d9",
+      "instance": "seven cumulative tasks, capacity 13, integer starts 1..30 (upstream data)",
+      "variables": {
+        "s0": [
+          1,
+          30
+        ],
+        "s1": [
+          1,
+          30
+        ],
+        "s2": [
+          1,
+          30
+        ],
+        "s3": [
+          1,
+          30
+        ],
+        "s4": [
+          1,
+          30
+        ],
+        "s5": [
+          1,
+          30
+        ],
+        "s6": [
+          1,
+          30
+        ],
+        "makespan": [
+          1,
+          50
+        ]
+      },
+      "data": {
+        "duration": [
+          16,
+          6,
+          13,
+          7,
+          5,
+          18,
+          4
+        ],
+        "resource": [
+          2,
+          9,
+          3,
+          7,
+          10,
+          1,
+          11
+        ],
+        "capacity": 13
+      },
+      "goal": "Minimize completion time without exceeding resource capacity.",
+      "expected_score": 23
+    },
+    {
+      "name": "send_more_money",
+      "archive_anchor": "sendmoremoney",
+      "source_path": "/z3/send_more_money.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/send_more_money.py",
+      "source_sha256": "684a951fc2cd6d639c3443039a92f16a8065e64e0c969ad5b29772b047e25667",
+      "instance": "base 10, eight distinct digits",
+      "variables": {
+        "s": [
+          1,
+          9
+        ],
+        "e": [
+          0,
+          9
+        ],
+        "n": [
+          0,
+          9
+        ],
+        "d": [
+          0,
+          9
+        ],
+        "m": [
+          1,
+          9
+        ],
+        "o": [
+          0,
+          9
+        ],
+        "r": [
+          0,
+          9
+        ],
+        "y": [
+          0,
+          9
+        ]
+      },
+      "data": {},
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "seseman",
+      "archive_anchor": "seseman",
+      "source_path": "/z3/seseman.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/seseman.py",
+      "source_sha256": "81a46a78ef1bca16359e7f458899641f1ea28295420b164d76f9181b3ffb728e",
+      "instance": "3x3 border, each side sums to 9 (upstream default)",
+      "variables": {
+        "x0": [
+          1,
+          9
+        ],
+        "x1": [
+          1,
+          9
+        ],
+        "x2": [
+          1,
+          9
+        ],
+        "x3": [
+          1,
+          9
+        ],
+        "x4": [
+          1,
+          9
+        ],
+        "x5": [
+          1,
+          9
+        ],
+        "x6": [
+          1,
+          9
+        ],
+        "x7": [
+          1,
+          9
+        ]
+      },
+      "data": {},
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "set_covering",
+      "archive_anchor": "setcovering",
+      "source_path": "/z3/set_covering.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/set_covering.py",
+      "source_sha256": "305bc3c3e7617a59774a94c0ac48be8c3d413bbee57c45337f8c14627179e2ef",
+      "instance": "six fire-station cities; maximum distance 15",
+      "variables": {
+        "x0": [
+          0,
+          1
+        ],
+        "x1": [
+          0,
+          1
+        ],
+        "x2": [
+          0,
+          1
+        ],
+        "x3": [
+          0,
+          1
+        ],
+        "x4": [
+          0,
+          1
+        ],
+        "x5": [
+          0,
+          1
+        ]
+      },
+      "data": {
+        "distances": [
+          [
+            0,
+            10,
+            20,
+            30,
+            30,
+            20
+          ],
+          [
+            10,
+            0,
+            25,
+            35,
+            20,
+            10
+          ],
+          [
+            20,
+            25,
+            0,
+            15,
+            30,
+            20
+          ],
+          [
+            30,
+            35,
+            15,
+            0,
+            15,
+            25
+          ],
+          [
+            30,
+            20,
+            30,
+            15,
+            0,
+            14
+          ],
+          [
+            20,
+            10,
+            20,
+            25,
+            14,
+            0
+          ]
+        ]
+      },
+      "goal": "Minimize the number of fire stations covering all cities.",
+      "expected_score": 2
+    },
+    {
+      "name": "ski_assignment",
+      "archive_anchor": "skiassignment",
+      "source_path": "/z3/ski_assignment.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/ski_assignment.py",
+      "source_sha256": "58be9fe7821b823fe69e3ac6dea21a6903a72d91c69cd431763bf7cdce226de5",
+      "instance": "5 people, 6 choices (upstream data)",
+      "variables": {
+        "x0": [
+          0,
+          1
+        ],
+        "x1": [
+          0,
+          1
+        ],
+        "x2": [
+          0,
+          1
+        ],
+        "x3": [
+          0,
+          1
+        ],
+        "x4": [
+          0,
+          1
+        ],
+        "x5": [
+          0,
+          1
+        ],
+        "x6": [
+          0,
+          1
+        ],
+        "x7": [
+          0,
+          1
+        ],
+        "x8": [
+          0,
+          1
+        ],
+        "x9": [
+          0,
+          1
+        ],
+        "x10": [
+          0,
+          1
+        ],
+        "x11": [
+          0,
+          1
+        ],
+        "x12": [
+          0,
+          1
+        ],
+        "x13": [
+          0,
+          1
+        ],
+        "x14": [
+          0,
+          1
+        ],
+        "x15": [
+          0,
+          1
+        ],
+        "x16": [
+          0,
+          1
+        ],
+        "x17": [
+          0,
+          1
+        ],
+        "x18": [
+          0,
+          1
+        ],
+        "x19": [
+          0,
+          1
+        ],
+        "x20": [
+          0,
+          1
+        ],
+        "x21": [
+          0,
+          1
+        ],
+        "x22": [
+          0,
+          1
+        ],
+        "x23": [
+          0,
+          1
+        ],
+        "x24": [
+          0,
+          1
+        ],
+        "x25": [
+          0,
+          1
+        ],
+        "x26": [
+          0,
+          1
+        ],
+        "x27": [
+          0,
+          1
+        ],
+        "x28": [
+          0,
+          1
+        ],
+        "x29": [
+          0,
+          1
+        ]
+      },
+      "data": {
+        "cost": [
+          [
+            2,
+            1,
+            2,
+            4,
+            10,
+            18
+          ],
+          [
+            3,
+            2,
+            1,
+            3,
+            9,
+            17
+          ],
+          [
+            6,
+            5,
+            2,
+            0,
+            6,
+            14
+          ],
+          [
+            10,
+            9,
+            6,
+            4,
+            2,
+            10
+          ],
+          [
+            17,
+            16,
+            13,
+            11,
+            5,
+            3
+          ]
+        ]
+      },
+      "goal": "Minimize total assignment cost/disparity.",
+      "expected_score": 7
+    },
+    {
+      "name": "subset_sum",
+      "archive_anchor": "subsetsum",
+      "source_path": "/z3/subset_sum.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/subset_sum.py",
+      "source_sha256": "fef5a0ddeb6a79538a92db61b595d4a0736838a208f7627412798bba7aa8d0d8",
+      "instance": "nonnegative counts, total 100 (upstream data)",
+      "variables": {
+        "x0": [
+          0,
+          6
+        ],
+        "x1": [
+          0,
+          6
+        ],
+        "x2": [
+          0,
+          6
+        ],
+        "x3": [
+          0,
+          6
+        ],
+        "x4": [
+          0,
+          6
+        ],
+        "x5": [
+          0,
+          6
+        ]
+      },
+      "data": {
+        "weights": [
+          16,
+          17,
+          23,
+          24,
+          39,
+          40
+        ],
+        "target": 100
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "sudoku",
+      "archive_anchor": "sudoku",
+      "source_path": "/z3/sudoku.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/sudoku.py",
+      "source_sha256": "b594aaee6718e330a6b9687096c85dac929aedc329f1ccd7bbc77c3473c33bda",
+      "instance": "4x4 completion (reduced Sudoku instance)",
+      "variables": {
+        "x0": [
+          1,
+          4
+        ],
+        "x1": [
+          1,
+          4
+        ],
+        "x2": [
+          1,
+          4
+        ],
+        "x3": [
+          1,
+          4
+        ],
+        "x4": [
+          1,
+          4
+        ],
+        "x5": [
+          1,
+          4
+        ],
+        "x6": [
+          1,
+          4
+        ],
+        "x7": [
+          1,
+          4
+        ],
+        "x8": [
+          1,
+          4
+        ],
+        "x9": [
+          1,
+          4
+        ],
+        "x10": [
+          1,
+          4
+        ],
+        "x11": [
+          1,
+          4
+        ],
+        "x12": [
+          1,
+          4
+        ],
+        "x13": [
+          1,
+          4
+        ],
+        "x14": [
+          1,
+          4
+        ],
+        "x15": [
+          1,
+          4
+        ]
+      },
+      "data": {
+        "size": 4,
+        "clues": [
+          [
+            1,
+            0,
+            0,
+            4
+          ],
+          [
+            0,
+            4,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            4,
+            0
+          ],
+          [
+            4,
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "traffic_lights",
+      "archive_anchor": "trafficlights",
+      "source_path": "/z3/traffic_lights.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/traffic_lights.py",
+      "source_sha256": "5fd13b03ea68ae7c5c74d9c4f72e3cc07e25e4dd7bd7a03f17a17522e2d6fe3c",
+      "instance": "CSPLib 016, four vehicle/pedestrian pairs",
+      "variables": {
+        "v0": [
+          0,
+          3
+        ],
+        "v1": [
+          0,
+          3
+        ],
+        "v2": [
+          0,
+          3
+        ],
+        "v3": [
+          0,
+          3
+        ],
+        "p0": [
+          0,
+          3
+        ],
+        "p1": [
+          0,
+          3
+        ],
+        "p2": [
+          0,
+          3
+        ],
+        "p3": [
+          0,
+          3
+        ]
+      },
+      "data": {
+        "allowed": [
+          [
+            0,
+            0,
+            2,
+            2
+          ],
+          [
+            1,
+            0,
+            3,
+            0
+          ],
+          [
+            2,
+            2,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            1,
+            0
+          ]
+        ]
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    },
+    {
+      "name": "xkcd",
+      "archive_anchor": "xkcd",
+      "source_path": "/z3/xkcd.py",
+      "source_url": "https://github.com/hakank/hakank/blob/2823c48d3d2e5d86acb3b8e6951172499c8946b0/z3/xkcd.py",
+      "source_sha256": "a2fc11e1f37a5af3ceaf337e1659a01ea9a8347440f7851560a93c0829057949",
+      "instance": "nonnegative counts, total 1505 (upstream data)",
+      "variables": {
+        "x0": [
+          0,
+          10
+        ],
+        "x1": [
+          0,
+          10
+        ],
+        "x2": [
+          0,
+          10
+        ],
+        "x3": [
+          0,
+          10
+        ],
+        "x4": [
+          0,
+          10
+        ],
+        "x5": [
+          0,
+          10
+        ]
+      },
+      "data": {
+        "weights": [
+          215,
+          275,
+          335,
+          355,
+          420,
+          580
+        ],
+        "target": 1505
+      },
+      "goal": "Find a feasible assignment (score 0).",
+      "expected_score": 0
+    }
+  ]
+}

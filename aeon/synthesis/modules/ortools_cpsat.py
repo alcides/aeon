@@ -18,8 +18,10 @@ value carries a *scale* (the power of ``SCALE`` baked into its integer
 expression); ``+``/``-`` align scales and ``*`` adds them.
 
 The objective is the ``@minimize``/``@maximize`` expression over the holes
-(integer/float ``+``, ``-``, ``*``, literals, ``Array.get`` with a literal
-index, ``Array.size``, and inlined closed definitions). Anything outside this
+(integer/float ``+``, ``-``, ``*``, literals, comparisons, Boolean ``&&``/``||``,
+numeric conditionals, ``Array.get`` with a literal index, ``Array.size``, and
+inlined closed definitions). Boolean intermediates do not enable Boolean holes.
+Anything outside this
 fragment raises :class:`SynthesisError` pointing at another synthesizer backend.
 """
 
@@ -42,6 +44,7 @@ from aeon.core.terms import (
     Annotation,
     Application,
     Hole,
+    If,
     Let,
     Literal,
     Rec,
@@ -88,7 +91,12 @@ class _Vec:
     items: list[_Num]
 
 
-_Value = Union[_Num, _Vec]
+@dataclass
+class _Bool:
+    expr: Any
+
+
+_Value = Union[_Num, _Vec, _Bool]
 
 
 def _base(ty: object) -> object:
@@ -317,6 +325,18 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             value = self._translate(t.var_value, env, visited)
             return self._translate(t.body, {**env, t.var_name: value}, visited)
 
+        if isinstance(t, If):
+            condition = self._boolean(self._translate(t.cond, env, visited), "if")
+            yes = self._num(self._translate(t.then, env, visited), "if")
+            no = self._num(self._translate(t.otherwise, env, visited), "if")
+            scale = max(yes.scale, no.scale)
+            yes, no = self._lift(yes, scale), self._lift(no, scale)
+            lo, hi = min(yes.lo, no.lo), max(yes.hi, no.hi)
+            result = self._model.new_int_var(lo, hi, "if_result")
+            self._model.add(result == yes.expr).only_enforce_if(condition.expr)
+            self._model.add(result == no.expr).only_enforce_if(condition.expr.Not())
+            return _Num(result, scale, lo, hi)
+
         # Array.size v  (unary application headed by Array_size).
         if isinstance(t, Application) and _head_name(t.fun) == "Array_size":
             arr = self._translate(t.arg, env, visited)
@@ -335,13 +355,32 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 if not (0 <= idx.expr < len(arr.items)):
                     raise _Unsupported(f"Array.get index {idx.expr} out of range")
                 return arr.items[idx.expr]
+            if op in ("&&", "||"):
+                a_bool = self._boolean(self._translate(a, env, visited), op).expr
+                b_bool = self._boolean(self._translate(b, env, visited), op).expr
+                result_bool = self._model.new_bool_var("logical")
+                if op == "&&":
+                    self._model.add_bool_and([a_bool, b_bool]).only_enforce_if(result_bool)
+                    self._model.add_bool_or([a_bool.Not(), b_bool.Not()]).only_enforce_if(result_bool.Not())
+                else:
+                    self._model.add_bool_or([a_bool, b_bool]).only_enforce_if(result_bool)
+                    self._model.add_bool_and([a_bool.Not(), b_bool.Not()]).only_enforce_if(result_bool.Not())
+                return _Bool(result_bool)
             ea = self._num(self._translate(a, env, visited), op)
             eb = self._num(self._translate(b, env, visited), op)
+            if op in ("<", "<=", ">", ">=", "==", "!="):
+                scale = max(ea.scale, eb.scale)
+                left, right = self._lift(ea, scale).expr, self._lift(eb, scale).expr
+                comparison = self._model.new_bool_var("comparison")
+                inverse = {"<": ">=", "<=": ">", ">": "<=", ">=": "<", "==": "!=", "!=": "=="}[op]
+                self._model.add(self._compare(op, left, right)).only_enforce_if(comparison)
+                self._model.add(self._compare(inverse, left, right)).only_enforce_if(comparison.Not())
+                return _Bool(comparison)
             return self._arith(op, ea, eb)
 
         if isinstance(t, Literal):
             if isinstance(t.value, bool):
-                raise _Unsupported("boolean literal")
+                return _Bool(self._model.new_constant(int(t.value)))
             if isinstance(t.value, int):
                 return _Num(t.value, 0, t.value, t.value)
             if isinstance(t.value, float):
@@ -365,7 +404,13 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
     def _num(v: _Value, op: str) -> _Num:
         if isinstance(v, _Num):
             return v
-        raise _Unsupported(f"array operand to '{op}'")
+        raise _Unsupported(f"non-numeric operand to '{op}'")
+
+    @staticmethod
+    def _boolean(v: _Value, op: str) -> _Bool:
+        if isinstance(v, _Bool):
+            return v
+        raise _Unsupported(f"non-boolean operand to '{op}'")
 
     def _arith(self, op: str, a: _Num, b: _Num) -> _Num:
         if op in ("+", "-"):

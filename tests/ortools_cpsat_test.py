@@ -107,6 +107,59 @@ def test_int_booth_exact_optimum():
     assert _values(_solve(_parse(src))) == {"hx": 1, "hy": 3}
 
 
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        ("x < 2 && x > 0", 1),
+        ("x <= 2 && x >= 2", 2),
+        ("x = 2", 2),
+        ("(x = 1 || x = 3) && x != 1", 3),
+    ],
+)
+def test_reified_comparisons_and_boolean_guards(condition, expected):
+    source = f"""
+        def x : {{v:Int | 0 <= v && v <= 4}} := ?hx;
+        @minimize_int(if {condition} then 0 else 100)
+        def cost : Int := if {condition} then 0 else 100;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": expected}
+
+
+@pytest.mark.parametrize("condition", ["true", "false"])
+def test_constant_condition_keeps_the_selected_numeric_branch(condition):
+    source = f"""
+        def x : {{v:Int | 0 <= v && v <= 4}} := ?hx;
+        @minimize_int(if {condition} then x else (4 - x))
+        def cost : Int := if {condition} then x else (4 - x);
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 0 if condition == "true" else 4}
+
+
+@pytest.mark.parametrize(
+    "condition,otherwise,expected",
+    [
+        ("x = 0 || x = 4", "x", 1),
+        ("x >= 1 && x <= 2", "(x - 2) * (x - 2)", 3),
+    ],
+)
+def test_false_branch_requires_the_guard_to_actually_be_false(condition, otherwise, expected):
+    source = f"""
+        def x : {{v:Int | 0 <= v && v <= 4}} := ?hx;
+        @minimize_int(if {condition} then 100 else ({otherwise}))
+        def cost : Int := if {condition} then 100 else ({otherwise});
+    """
+    assert _values(_solve(_parse(source))) == {"hx": expected}
+
+
+def test_conditional_aligns_fixed_point_branch_scales():
+    source = """
+        def x : {v:Float | 0.0 <= v && v <= 1.0} := ?hx;
+        @minimize_float(if x <= 0.5 then ((x - 0.25) * (x - 0.25)) else 1.0)
+        def cost : Float := if x <= 0.5 then ((x - 0.25) * (x - 0.25)) else 1.0;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 0.25}
+
+
 def test_refinement_constrains_optimum():
     # Unconstrained optimum is x = 3, but x is refined to [5, 20]; CP-SAT must
     # return the feasible optimum x = 5.
