@@ -162,6 +162,7 @@ def _parse_common_arguments(parser: ArgumentParser):
             "llm_<model> (per-model Ollama backends, e.g. llm_qwen2.5-coder-14b), "
             "llm_openai (OpenAI-compatible API; set AEON_LLM_BASE_URL and AEON_LLM_API_KEY), "
             "lta (Liquid Tree Automata, arXiv:2605.13456), "
+            "bustle (learning-guided bottom-up PBE), bustle_baseline (unguided bottom-up PBE), "
             "fta (Finite Tree Automata, OOPSLA'17), "
             "afta (abstraction-refinement FTA, POPL'18), "
             "cata (constraint-annotated tree automata, recursive/relational), "

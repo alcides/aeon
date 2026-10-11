@@ -113,7 +113,7 @@ include = ["aeon*"]
 [tool.setuptools.package-data]
 # Include grammar files and the bundled standard-library .ae modules
 # (aeon/libraries/*.ae) so imports resolve from an installed wheel/egg.
-aeon = ["**/*.lark", "**/*.ae"]
+aeon = ["**/*.lark", "**/*.ae", "synthesis/modules/bustle/model.json"]
 
 [tool.docformatter]
 syntax = 'google'
