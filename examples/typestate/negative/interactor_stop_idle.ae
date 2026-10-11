@@ -1,0 +1,2 @@
+open PlaidInteractor
+def main (u:Int) : Int := state (stop (create unit));

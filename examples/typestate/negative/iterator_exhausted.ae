@@ -1,0 +1,2 @@
+open PlaidIterator
+def main (u:Int) : Int := count (next (next (create 1)));

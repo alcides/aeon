@@ -1,0 +1,3 @@
+open PlaidInteractor
+def handler (i:{x:PlaidInteractor | phase x = 1}) : {x:PlaidInteractor | phase x = 1} := run i;
+def main (u:Int) : Int := state (stop (handler (start (create unit))));

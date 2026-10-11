@@ -1,0 +1,5 @@
+open OwnedAssets
+def broken_deposit (1 coin:Coin) : Coin :=
+    let 1 first := transfer_coin coin in
+    let 1 second := transfer_coin coin in
+    first;

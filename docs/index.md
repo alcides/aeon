@@ -99,6 +99,9 @@ runtime checks.
 
 ## The Aeon interpreter
 
+See also the [Aldrich typestate case studies](aldrich-typestate.md) for statically
+rejected protocol and ownership bugs with corrected Aeon counterparts.
+
 See the [LiquidHaskell compatibility suite](liquidhaskell-compatibility.md)
 for attributed Aeon ports, acceptance/rejection tests, and stability classifications.
 

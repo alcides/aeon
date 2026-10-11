@@ -1,0 +1,29 @@
+# Plural retrospective, Figures 1-3: explicit sequential interference model.
+# 0=OPEN, 1=CLOSING, 2=CLOSED; STILLOPEN is 0 or 1.
+inductive PluralQueue
+| mk (p:{v:Int | 0 <= v && v <= 2}) (n:{v:Int | v >= 0}) :
+    {q:PluralQueue | phase q = p && remaining q = n}
++ phase (q:PluralQueue) : Int
++ remaining (q:PluralQueue) : Int
+
+def create (u:Unit) : {q:PluralQueue | phase q = 0 && remaining q = 0} := PluralQueue.mk 0 0;
+def enqueue (q:{x:PluralQueue | phase x = 0}) :
+    {x:PluralQueue | phase x = 0 && remaining x = remaining q + 1} :=
+    match q with | mk p n => PluralQueue.mk 0 (n + 1);
+def enqueue_final (q:{x:PluralQueue | phase x = 0}) :
+    {x:PluralQueue | phase x = 1 && remaining x = remaining q + 1} :=
+    match q with | mk p n => PluralQueue.mk 1 (n + 1);
+def dequeue (q:{x:PluralQueue | (phase x = 0 || phase x = 1) && remaining x > 0}) :
+    {x:PluralQueue | remaining x = remaining q - 1} :=
+    match q with | mk p n =>
+        if p = 1 && n = 1 then PluralQueue.mk 2 0 else PluralQueue.mk p (n - 1);
+def close (q:PluralQueue) : {x:PluralQueue | phase x = 2 && remaining x = remaining q} :=
+    match q with | mk p n => PluralQueue.mk 2 n;
+def is_closed (q:PluralQueue) : {b:Bool | b = (phase q = 2)} :=
+    match q with | mk p n => p = 2;
+def count (q:PluralQueue) : {n:Int | n = remaining q && n >= 0} :=
+    match q with | mk p n => n;
+def may_close (q:PluralQueue) (other_thread_closes:Bool) :
+    {x:PluralQueue | 0 <= phase x && phase x <= 2 && remaining x >= 0} :=
+    match q with | mk p n =>
+        if other_thread_closes then PluralQueue.mk 2 n else PluralQueue.mk p n;
