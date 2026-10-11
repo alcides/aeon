@@ -117,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [ortools, torch]
+        backend: [ortools, torch, rl_mcts]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -135,6 +135,10 @@ jobs:
         run: |
           uv pip install torch --index-url https://download.pytorch.org/whl/cpu
           uv run pytest tests/nn_bindings_test.py tests/denser_benchmark_test.py -q --junitxml=optional-results.xml
+      - if: matrix.backend == 'rl_mcts'
+        run: |
+          uv pip install -e ".[synthesis-rl]"
+          uv run --extra tests --extra synthesis-rl pytest tests/rl_mcts_test.py -q --junitxml=optional-results.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:

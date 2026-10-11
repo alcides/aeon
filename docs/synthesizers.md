@@ -34,6 +34,82 @@ Native breadth-first enumeration over Aeon's core term grammar (backward and for
 
 ---
 
+### `rl_mcts` — Reinforcement-Learning Guided Grammar Tree Search
+
+An Aeon adaptation of Parsert and Polgreen's [Reinforcement Learning and
+Data-Generation for Syntax-Guided Synthesis](https://arxiv.org/abs/2307.09564),
+sections 3–4. Search expands the **leftmost** typed hole, uses policy-weighted
+UCT and value-guided backpropagation, and commits to the most-visited child at
+each big step. Complete programs must pass the normal whole-program verifier;
+predictions never establish correctness and no axioms are introduced.
+
+Without a checkpoint it uses the paper's baseline: policy 1 and value
+`0.95 ** remaining_holes`. Defaults follow the reported search parameters:
+30 big steps, 6500 rollouts, decay `0.98 ** big_step`. Additional safety limits
+are 100,000 nodes and eight recursive grammar expansions. These finite limits
+make search incomplete; timeout is not evidence that no solution exists.
+
+```bash
+python -m aeon -s rl_mcts --budget 10 examples/synthesis/rl_mcts.ae
+```
+
+Learned guidance is optional and requires `pip install 'AeonLang[synthesis-rl]'`.
+Set `AEON_RL_MCTS_MODEL=/path/to/checkpoint` to load it. Checkpoints contain
+XGBoost policy/value models and a versioned feature manifest, not executable
+Python pickles. Only load model files from trusted sources.
+
+Training uses hashed symbols and parent/child term walks, with hash base 4093.
+Value labels are `0.9 ** distance_to_solution` on successful paths and zero on
+visited states of failed searches. Policy labels are child visits divided by
+all sibling visits on successful paths. XGBoost tree depths are 20/25 for
+value/policy. Training iteratively reruns problems and retains replay from the
+last four iterations. Inference never updates models.
+
+To train on Aeon, supply files with exactly one independent refinement hole:
+
+```bash
+python -m aeon.synthesis.modules.rl_mcts train-aeon train1.ae train2.ae \
+  --output /tmp/aeon-model --iterations 2 --budget 10
+AEON_RL_MCTS_MODEL=/tmp/aeon-model python -m aeon -s rl_mcts held-out.ae
+```
+
+The data-generation tool instead starts from **universally valid** quantifier-free
+Int/Bool SMT formulas (satisfiability alone is insufficient). Anti-unification
+preserves repeated disagreement pairs, lifts source variables into parameters,
+and replaces selected, non-overlapping Int subterms with synthesis calls. It
+checks the resulting generalizer as a witness, but never gives it to search.
+The grammar includes constants from the source, addition/subtraction, constant
+multiplication/division/modulo, comparisons, Boolean operators, and conditionals.
+Nonlinear generalizers, quantifiers, arbitrary uninterpreted functions, other
+sorts, and unknown solver answers are rejected. Automatic selection prefers
+large same-head subterms; it does **not** reproduce the paper's corpus filtering
+or published dataset.
+
+```bash
+python -m aeon.synthesis.modules.rl_mcts generate \
+  examples/synthesis/rl_mcts_training.smt2 --output /tmp/aeon-rl-data
+python -m aeon.synthesis.modules.rl_mcts train \
+  examples/synthesis/rl_mcts_training.smt2 --output /tmp/aeon-smt-model \
+  --iterations 2 --limit 2 --budget 10
+```
+
+Both adapters share the same search/replay implementation, but SMT syntax and
+Aeon compiler ASTs have different feature vocabularies. Train on Aeon problems
+for Aeon inference; a generated-SMT checkpoint is not a demonstrated transfer
+model. Keep training and held-out tasks separate. Training fails explicitly
+if no iteration finds a successful policy path.
+
+Unlike the numerical search backends, `rl_mcts` currently supports correctness
+specifications only and rejects objective decorators (including property-fitness
+objectives). Its grammar comes from Aeon's shared backward/forward actions, not
+an imported arbitrary SyGuS grammar. Constants and supported polymorphic/ADT
+components inherit that grammar's limitations. Calls into the compiler/verifier
+are synchronous, so a final in-flight check can overrun the search time budget.
+This implementation is not a reproduction of the paper's performance results;
+no pretrained model or published 1901-task dataset is bundled.
+
+---
+
 ### `synquid` — Type-Directed Synthesis
 
 This backend implements a **Synquid-style** enumerator: type-directed decomposition, **Q**-aware conditional guards (same finite qualifier set as Horn predicate abstraction), and search ordering heuristics.
@@ -192,6 +268,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `gp`            | Native linear-genome GP | Complex expressions, multi-objective problems |
 | `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
+| `rl_mcts`       | Policy/value-guided Monte-Carlo grammar search | Refinement-only synthesis, learned search experiments |
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |

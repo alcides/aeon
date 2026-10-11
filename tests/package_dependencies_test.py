@@ -46,3 +46,17 @@ def test_dead_and_optional_deps_are_not_required():
         "torch",
     ):
         assert forbidden not in names, f"{forbidden} should not be a required dependency"
+
+
+def test_synthesis_rl_extra_includes_estimator_dependencies():
+    """Installing only synthesis-rl must support XGBRegressor training/loading."""
+    optional_names = set()
+    for raw in requires("AeonLang") or []:
+        requirement = Requirement(raw)
+        if (
+            requirement.marker
+            and requirement.marker.evaluate({"extra": "synthesis-rl"})
+            and not requirement.marker.evaluate({"extra": ""})
+        ):
+            optional_names.add(requirement.name.lower().replace("_", "-"))
+    assert {"xgboost", "scikit-learn"} <= optional_names
