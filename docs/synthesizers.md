@@ -65,11 +65,11 @@ Configurable option: `max_depth` (default 5) controls how deeply the synthesizer
 
 ### `bustle` — Learning-Guided Bottom-Up Synthesis
 
-Implements the core of [BUSTLE (ICLR 2021)](https://arxiv.org/abs/2007.14381): enumerate typed expressions bottom-up by weight, execute them on literal `@example` inputs, merge observationally equivalent output vectors, and use a trained property-signature MLP to adjust intermediate-expression weights. Predictions are batched; the paper's probability bins add penalties from 0 to 5. Inputs and constants remain at weight 1. An expression must match every example and pass Aeon's type validation before acceptance.
+Implements the core of [BUSTLE (ICLR 2021)](https://arxiv.org/abs/2007.14381): enumerate typed expressions bottom-up by weight, execute them on scalar or closed-constructor `@example` inputs, merge observationally equivalent output vectors, and use a trained property-signature MLP to adjust intermediate-expression weights. Predictions are batched; the paper's probability bins add penalties from 0 to 5. Inputs and constants remain at weight 1. An expression must match every example and pass Aeon's type validation before acceptance.
 
 The bundled model was trained reproducibly on synthetic bottom-up searches. It uses NumPy when installed and otherwise standard-library inference, with no model downloads or PyTorch dependency. `AEON_BUSTLE_MODEL` selects a compatible JSON checkpoint. `-s bustle_baseline` explicitly disables learned guidance for comparison.
 
-Supports one to three `Int`/`Bool`/`String` inputs and a scalar result, first-order in-scope components, and conditionals. This is an example-driven backend, not an optimizer for arbitrary fitness objectives; unsupported goals/types are reported explicitly. Search is bounded by adjusted weight 40, 20,000 distinct values, and the time budget. See [examples, training instructions, and differences from the paper](../examples/synthesis/bustle/README.md).
+Supports one to three scalar or registered ADT inputs, scalar or ADT results, first-order in-scope components, and conditionals. ADT guidance uses constructor identity, depth, size, and subtree relations; merging uses full structural identity, including scalar field types. Concrete polymorphic ADT instantiations are supported. ADTs are bounded to depth 16 and 128 constructor nodes. This is an example-driven backend, not an optimizer for arbitrary fitness objectives; unsupported goals/types are reported explicitly. Search is bounded by adjusted weight 40, 20,000 distinct values, and the time budget. See [examples, training instructions, and differences from the paper](../examples/synthesis/bustle/README.md).
 
 ---
 

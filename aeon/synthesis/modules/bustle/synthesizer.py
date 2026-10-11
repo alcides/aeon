@@ -1,4 +1,4 @@
-"""Aeon adapter for BUSTLE: scalar PBE with learned bottom-up guidance."""
+"""Aeon adapter for BUSTLE: scalar and structural ADT PBE with learned bottom-up guidance."""
 
 from __future__ import annotations
 
@@ -11,16 +11,29 @@ from typing import Any
 
 from loguru import logger
 
-from aeon.core.terms import Literal, Term, Var
-from aeon.core.types import Type, t_bool, t_int, t_string
+from aeon.core.terms import Literal, Term, TypeApplication, Var
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    RefinementPolymorphism,
+    Type,
+    TypeConstructor,
+    TypePolymorphism,
+    t_bool,
+    t_int,
+    t_string,
+)
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.modules.bustle.model import GuidanceModel
 from aeon.synthesis.modules.bustle.search import Operation, SearchStats, Value, enumerate_values
-from aeon.synthesis.modules.bustle.signatures import MAX_INPUTS, Scalar, valid_scalar
+from aeon.synthesis.modules.bustle.signatures import MAX_INPUTS, Scalar
 from aeon.synthesis.modules.fta.synthesizer import FTASynthesizer
-from aeon.synthesis.modules.symetric.synthesizer import base_key
+from aeon.synthesis.modules.symetric.synthesizer import base_key, _peel
+from aeon.synthesis.grammar.poly import monomorphize_poly_type
 from aeon.synthesis.uis.api import SynthesisUI
+from aeon.synthesis.modules.bustle.values import valid_value
+from aeon.verification.constructor_registry import get_constructor_groups
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
@@ -79,19 +92,73 @@ class BustleSynthesizer(Synthesizer):
     ) -> Term:
         start = time.monotonic()
         goal = base_key(type)
-        if goal not in SCALAR_TYPES:
-            raise SynthesisNotSuccessful("bustle: result must be Int, Bool, or String")
+        groups = get_constructor_groups()
+        supported = dict(SCALAR_TYPES)
+
+        def collect_types(ty: Type) -> None:
+            if isinstance(ty, RefinedType):
+                collect_types(ty.type)
+            elif isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+                collect_types(ty.body)
+            elif isinstance(ty, AbstractionType):
+                collect_types(ty.var_type)
+                collect_types(ty.type)
+            elif isinstance(ty, TypeConstructor):
+                for argument in ty.args:
+                    collect_types(argument)
+                if ty.name.name in groups and all(base_key(a) in supported for a in ty.args):
+                    supported[base_key(ty)] = ty
+
+        collect_types(type)
+        for _, ty in ctx.vars():
+            collect_types(ty)
+        if goal not in supported:
+            raise SynthesisNotSuccessful("bustle: result must be Int, Bool, or String, or a supported registered ADT")
+        collector = FTASynthesizer()
+        builders, leaves = collector._collect(ctx, set(supported.values()), fun_name)
+        schemas: dict[str, dict[str, tuple[str, ...]]] = {key: {} for key in supported if key not in SCALAR_TYPES}
+        polymorphic_leaves: list[tuple[str, Term]] = []
+        # FTA's collector omits polymorphic nullary constructors. Instantiate
+        # these explicitly, e.g. nil{Int} : List Int, without admitting opaque
+        # or unregistered values as ADTs.
+        for constructor_name, ty in ctx.concrete_vars():
+            if not isinstance(ty, TypePolymorphism):
+                continue
+            if not any(constructor_name.name in tags for tags in groups.values()):
+                continue
+            for body, type_arguments in monomorphize_poly_type(ty, set(supported.values())):
+                arguments, result_type = _peel(body)
+                result_key = base_key(result_type)
+                if arguments or result_key not in schemas:
+                    continue
+                head: Term = Var(constructor_name)
+                for argument in type_arguments:
+                    head = TypeApplication(head, argument)
+                schemas[result_key][constructor_name.name] = ()
+                polymorphic_leaves.append((result_key, head))
+        for key in schemas:
+            tags = groups[supported[key].name.name]
+            for component in builders.get(key, []):
+                if component.name.name in tags and all(k in supported for k in component.arg_keys):
+                    schemas[key][component.name.name] = component.arg_keys
+            for leaf in leaves.get(key, []):
+                if leaf.name.name in tags:
+                    schemas[key][leaf.name.name] = ()
+
+        def valid(value: object, key: str) -> bool:
+            return valid_value(value, key, schemas)
+
         entry = metadata.get(fun_name, {})
-        rows = entry.get("io_examples", [])
+        rows = entry.get("constructor_io_examples") or entry.get("io_examples", [])
         params = entry.get("io_params", [])
         probe = entry.get("pbe_probe")
         if not rows or not callable(probe):
             raise SynthesisNotSuccessful(f"bustle: {fun_name.name} needs literal @example I/O pairs")
         if not 1 <= len(params) <= MAX_INPUTS:
-            raise SynthesisNotSuccessful(f"bustle: supports 1–{MAX_INPUTS} scalar value parameters")
+            raise SynthesisNotSuccessful(f"bustle: supports 1–{MAX_INPUTS} scalar/ADT value parameters")
         if (
             len(entry.get("goals", [])) > len(entry.get("examples", []))
-            or entry.get("example_io_miss")
+            or len(rows) != len(entry.get("examples", []))
             or entry.get("property")
         ):
             raise SynthesisNotSuccessful(
@@ -99,18 +166,16 @@ class BustleSynthesizer(Synthesizer):
             )
         var_types = dict(ctx.vars())
         param_keys = [base_key(var_types[p]) for p in params]
-        if any(key not in SCALAR_TYPES for key in param_keys):
-            raise SynthesisNotSuccessful("bustle: inputs must be Int, Bool, or String")
+        if any(key not in supported for key in param_keys):
+            raise SynthesisNotSuccessful("bustle: inputs must be scalars or supported registered ADTs")
         if any(len(args) != len(params) for args, _ in rows):
             raise SynthesisNotSuccessful("bustle: inconsistent example arity")
         columns = [tuple(args[i] for args, _ in rows) for i in range(len(params))]
         expected = tuple(out for _, out in rows)
-        if not all(valid_scalar(v, key) for column, key in zip(columns, param_keys) for v in column) or not all(
-            valid_scalar(v, goal) for v in expected
+        if not all(valid(v, key) for column, key in zip(columns, param_keys) for v in column) or not all(
+            valid(v, goal) for v in expected
         ):
-            raise SynthesisNotSuccessful(
-                "bustle: examples must match their scalar types (strings <=256 chars, |integers| <=10^9)"
-            )
+            raise SynthesisNotSuccessful("bustle: examples must match their scalar/ADT types and structural bounds")
         model: GuidanceModel | None = None
         if self.guided:
             path = self.model_path or os.environ.get("AEON_BUSTLE_MODEL")
@@ -124,10 +189,15 @@ class BustleSynthesizer(Synthesizer):
         for key, values in constants.items():
             atoms.extend(Value(Literal(v, SCALAR_TYPES[key]), key, (v,) * len(rows)) for v in values)
 
-        collector = FTASynthesizer()
-        builders, leaves = collector._collect(ctx, set(SCALAR_TYPES.values()), fun_name)
+        for key, head in polymorphic_leaves:
+            try:
+                observed_values = tuple(probe(head, list(args)) for args, _ in rows)
+                atoms.append(Value(head, key, observed_values))
+            except Exception:
+                continue
+
         for key, terms in leaves.items():
-            if key not in SCALAR_TYPES:
+            if key not in supported:
                 continue
             for term in terms:
                 if term.name in params or term.name.name.startswith("_"):
@@ -139,10 +209,10 @@ class BustleSynthesizer(Synthesizer):
                     continue
         operations: list[Operation] = []
         for key, components in builders.items():
-            if key not in SCALAR_TYPES:
+            if key not in supported:
                 continue
             for comp in components:
-                if not 1 <= len(comp.arg_keys) <= 3 or any(k not in SCALAR_TYPES for k in comp.arg_keys):
+                if not 1 <= len(comp.arg_keys) <= 3 or any(k not in supported for k in comp.arg_keys):
                     continue
                 name = comp.name.name
                 if name.startswith("_") or (name in NUMERIC and comp.arg_keys != ("Int", "Int")):
@@ -164,7 +234,7 @@ class BustleSynthesizer(Synthesizer):
                     return result
 
                 operations.append(Operation(head, comp.arg_keys, key, execute))
-        for key in SCALAR_TYPES:
+        for key in supported:
             operations.append(
                 Operation(
                     Var(Name("if", 0)),
@@ -195,6 +265,7 @@ class BustleSynthesizer(Synthesizer):
             max_weight=self.max_weight,
             max_values=self.max_values,
             stats=self.stats,
+            valid=valid,
         )
         ui.progress(self.stats.generated, self.stats.unique, time.monotonic() - start)
         if result is None:

@@ -396,7 +396,7 @@ def _synthesize_one(
     # outputs), this stays in-process, so a String -> String candidate can be
     # applied to each example's inputs. This is what lets ``afta`` build a
     # tree automaton keyed by per-example outputs (the BLAZE construction).
-    if metadata.get(fun_name, {}).get("io_examples"):
+    if metadata.get(fun_name, {}).get("io_examples") or metadata.get(fun_name, {}).get("constructor_io_examples"):
         io_params: list[Name] = metadata.get(fun_name, {}).get("io_params", [])
         # Fill the hole with a harmless dummy so building the program's
         # def-environment (which includes the @example test bindings that

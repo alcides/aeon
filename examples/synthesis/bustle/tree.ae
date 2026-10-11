@@ -1,0 +1,8 @@
+# Search a first-order constructor DSL; all constructor fields remain in identity.
+inductive Tree
+| leaf (value:Int) : Tree
+| branch (left:Tree) (right:Tree) : Tree
+
+@example(duplicate (Tree.leaf 4) = Tree.branch (Tree.leaf 4) (Tree.leaf 4))
+@example(duplicate (Tree.branch (Tree.leaf 1) (Tree.leaf 2)) = Tree.branch (Tree.branch (Tree.leaf 1) (Tree.leaf 2)) (Tree.branch (Tree.leaf 1) (Tree.leaf 2)))
+def duplicate (t:Tree) : Tree := ?duplicate;

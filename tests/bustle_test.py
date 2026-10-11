@@ -32,6 +32,8 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.utils.name import Name
 from tests.driver import check_and_return_core
 
+from aeon.synthesis.modules.bustle.values import MAX_DEPTH, MAX_NODES, depth, identity, nodes, valid_value
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -334,3 +336,130 @@ assert not driver.run_tests()
 """
     process = subprocess.run([sys.executable, "-c", source], cwd=ROOT, capture_output=True, text=True, timeout=30)
     assert process.returncode == 0, process.stdout + process.stderr
+
+
+def test_adt_depth_constructor_identity_and_full_structural_observations():
+    first = ("Tree_node", ("Tree_leaf", 1), ("Tree_leaf", 2))
+    second = ("Tree_node", ("Tree_leaf", 9), ("Tree_leaf", 2))
+    assert depth(first) == depth(second) == 2
+    assert nodes(first) == 3
+    assert identity(first) != identity(second)
+    assert identity(("Box_box", True)) != identity(("Box_box", 1))
+    signature = pair_signature([first], [second])
+    assert signature[15] == -1  # Full structural identity differs.
+    assert signature[16] == 1  # Root constructor identity agrees.
+    assert signature[17] == 1  # Depth agrees.
+    assert unary_signature([first])[-5:] == (-1, 1, 1, 1, 1)
+
+
+def test_adt_validation_checks_tags_fields_types_and_structural_bounds():
+    schemas = {"Chain": {"Chain_nil": (), "Chain_cons": ("Int", "Chain")}}
+    nil = ("Chain_nil",)
+    assert valid_value(("Chain_cons", 3, nil), "Chain", schemas)
+    for malformed in [("Other_nil",), ("Chain_cons", 3), ("Chain_cons", True, nil), ("Chain_cons", 3, [])]:
+        assert not valid_value(malformed, "Chain", schemas)
+    chain = nil
+    for _ in range(MAX_DEPTH):
+        chain = ("Chain_cons", 1, chain)
+    assert not valid_value(chain, "Chain", schemas)
+    tree_schemas = {"Tree": {"Tree_leaf": (), "Tree_node": ("Tree", "Tree")}}
+    tree = ("Tree_leaf",)
+    for _ in range(7):
+        tree = ("Tree_node", tree, tree)
+    assert nodes(tree) > MAX_NODES
+    assert not valid_value(tree, "Tree", tree_schemas)
+    assert not valid_value(("native_model",), "Opaque", {})
+
+
+def test_same_depth_and_constructor_do_not_merge_different_payloads():
+    schemas = {"Box": {"Box_box": ("Int",)}}
+    atoms = [
+        Value(Var(Name("a", 0)), "Box", (("Box_box", 1), ("Box_box", 2))),
+        Value(Var(Name("b", 0)), "Box", (("Box_box", 3), ("Box_box", 4))),
+    ]
+    _, stats = _enumerate(atoms, [], max_weight=1, valid=lambda v, k: valid_value(v, k, schemas))
+    assert stats.unique == 2
+
+
+@pytest.mark.parametrize("backend", ["bustle", "bustle_baseline"])
+@pytest.mark.parametrize("example", ["list.ae", "tree.ae"])
+def test_adt_constructor_synthesis_passes_real_examples(backend, example):
+    driver = AeonDriver(
+        AeonConfig(synthesizer=backend, synthesis_ui=SilentSynthesisUI(), synthesis_budget=5, no_main=True)
+    )
+    assert not list(driver.parse(filename=str(ROOT / "examples/synthesis/bustle" / example)))
+    assert driver.has_synth()
+    driver.synth()
+    assert not driver.has_synth()
+    assert not driver.run_tests()
+
+
+def _solve_adt_file(tmp_path, source):
+    path = tmp_path / "adt.ae"
+    path.write_text(source)
+    driver = AeonDriver(
+        AeonConfig(synthesizer="bustle", synthesis_ui=SilentSynthesisUI(), synthesis_budget=5, no_main=True)
+    )
+    assert not list(driver.parse(filename=str(path)))
+    assert driver.has_synth()
+    driver.synth()
+    assert not driver.has_synth()
+    assert not driver.run_tests()
+    return driver
+
+
+def test_adt_to_scalar_synthesis_with_first_order_observer(tmp_path):
+    _solve_adt_file(
+        tmp_path,
+        """
+        inductive Box
+        | mk (value:Int) : Box
+        def read (b:Box) : Int := match b with | .mk value => value;
+        @example(unbox (Box.mk 4) = 4)
+        @example(unbox (Box.mk 7) = 7)
+        def unbox (b:Box) : Int := ?unbox;
+    """,
+    )
+
+
+def test_parametric_adt_constructor_synthesis(tmp_path):
+    _solve_adt_file(
+        tmp_path,
+        """
+        inductive Box a
+        | mk (value:a) : (Box a)
+        @example(wrap 4 = Box.mk 4)
+        @example(wrap 7 = Box.mk 7)
+        def wrap (x:Int) : (Box Int) := ?wrap;
+    """,
+    )
+
+
+def test_parametric_nullary_constructor_can_seed_a_result(tmp_path):
+    _solve_adt_file(
+        tmp_path,
+        """
+        inductive Chain a
+        | nil : (Chain a)
+        | cons (head:a) (tail:(Chain a)) : (Chain a)
+        @example(single 4 = Chain.cons 4 Chain.nil)
+        @example(single 7 = Chain.cons 7 Chain.nil)
+        def single (x:Int) : (Chain Int) := ?single;
+    """,
+    )
+
+
+def test_constructor_example_extractor_rejects_nonconstructor_calls(tmp_path):
+    path = tmp_path / "unsupported.ae"
+    path.write_text("""
+        inductive Box
+        | mk (value:Int) : Box
+        def make (x:Int) : Box := Box.mk x;
+        @example(f 1 = make 1)
+        def f (x:Int) : Box := ?f;
+    """)
+    driver = AeonDriver(
+        AeonConfig(synthesizer="bustle", synthesis_ui=SilentSynthesisUI(), synthesis_budget=5, no_main=True)
+    )
+    assert not list(driver.parse(filename=str(path)))
+    assert not any(entry.get("constructor_io_examples") for entry in driver.metadata.values())

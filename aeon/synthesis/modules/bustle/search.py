@@ -8,6 +8,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 
 from aeon.core.terms import If, Term
+from aeon.synthesis.modules.bustle.values import identity
 from aeon.synthesis.modules.bottom_up import application
 from aeon.synthesis.modules.bustle.signatures import (
     Scalar,
@@ -73,6 +74,7 @@ def enumerate_values(
     max_values: int = 20_000,
     batch_size: int = 128,
     stats: SearchStats | None = None,
+    valid: Callable[[object, str], bool] = valid_scalar,
 ) -> Value | None:
     """Store each semantic value once, then expand by *adjusted* child weights.
 
@@ -85,7 +87,7 @@ def enumerate_values(
         raise ValueError("BUSTLE search bounds must be positive")
     stats = stats if stats is not None else SearchStats()
     bank: dict[int, dict[str, list[Value]]] = {}
-    seen: set[tuple[str, tuple[Scalar, ...]]] = set()
+    seen: set[tuple] = set()
     pending: list[Value] = []
     signature = task_signature(inputs, expected) if predict is not None else ()
 
@@ -113,17 +115,17 @@ def enumerate_values(
 
     def consider(value: Value, leaf: bool = False) -> bool:
         stats.generated += 1
-        if len(value.outputs) != len(expected) or not all(valid_scalar(v, value.key) for v in value.outputs):
+        if len(value.outputs) != len(expected) or not all(valid(v, value.key) for v in value.outputs):
             stats.invalid += 1
             return False
         if accept(value):
             stats.stopped = "solution"
             return True
-        identity = (value.key, value.outputs)
-        if identity in seen:
+        observation = (value.key, tuple(identity(v) for v in value.outputs))
+        if observation in seen:
             stats.duplicates += 1
             return False
-        seen.add(identity)
+        seen.add(observation)
         stats.unique += 1
         if leaf:
             store(value)

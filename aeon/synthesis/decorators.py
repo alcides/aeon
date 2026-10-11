@@ -369,6 +369,20 @@ def example(
     # ``training_data`` (numeric only, for the decision tree) this keeps string
     # I/O, which is what the BLAZE-style string/matrix benchmarks need.
     io = _extract_io_example(assertion, fun.name)
+    # Preserve general constructor trees separately from Contata's legacy
+    # flattened list encoding. Only registered, fully applied constructors
+    # and scalar literals are decoded; arbitrary native code is never run.
+    constructor_io = _extract_io_example(assertion, fun.name, decode=_constructor_literal_value)
+    if constructor_io is not None:
+        current_constructor_io = metadata.get(fun.name, {}).get("constructor_io_examples", [])
+        metadata = metadata_update(
+            metadata,
+            fun,
+            {
+                "constructor_io_examples": current_constructor_io + [constructor_io],
+                "io_params": [n for (n, _t) in fun.args],
+            },
+        )
     if io is not None:
         current_io = metadata.get(fun.name, {}).get("io_examples", [])
         metadata = metadata_update(metadata, fun, {"io_examples": current_io + [io]})
@@ -659,7 +673,7 @@ def _io_call_target_matches(call_name: str, fun_name: Name) -> bool:
     return call_name.endswith("_" + fname) and call_name != fname
 
 
-def _io_call_args(term: STerm, fun_name: Name):
+def _io_call_args(term: STerm, fun_name: Name, decode=_io_arg_value):
     """If ``term`` is a fully-applied call ``fun_name(arg1)...(argN)`` with ground
     scalar or ``List Int`` literal arguments, return ``[v1, ..., vN]``
     (left-to-right); else ``None``.
@@ -673,7 +687,7 @@ def _io_call_args(term: STerm, fun_name: Name):
     args: list = []
     current = term
     while isinstance(current, SApplication):
-        v = _io_arg_value(current.arg)
+        v = decode(current.arg)
         if v is None:
             return None
         args.append(v)
@@ -686,7 +700,7 @@ def _io_call_args(term: STerm, fun_name: Name):
     return args
 
 
-def _extract_io_example(assertion: STerm, fun_name: Name):
+def _extract_io_example(assertion: STerm, fun_name: Name, decode=_io_arg_value):
     """Extract a concrete I/O pair from an ``@example`` of the shape
     ``fun_name(arg1)...(argN) == out`` (in either order), where arguments and
     the output are scalar or ``List Int`` literals. Returns ``(inputs, output)``
@@ -700,13 +714,43 @@ def _extract_io_example(assertion: STerm, fun_name: Name):
     lhs = assertion.fun.arg
     rhs = assertion.arg
     for call_side, out_side in ((lhs, rhs), (rhs, lhs)):
-        out = _io_arg_value(out_side)
+        out = decode(out_side)
         if out is None:
             continue
-        args = _io_call_args(call_side, fun_name)
+        args = _io_call_args(call_side, fun_name, decode)
         if args is not None:
             return (args, out)
     return None
+
+
+def _constructor_literal_value(term: STerm, level: int = 0):
+    """Decode closed scalar/registered-constructor syntax into runtime tuples."""
+    from aeon.sugar.program import STypeApplication
+    from aeon.verification.constructor_registry import get_constructor_fields
+
+    if level > 16:
+        return None
+    if isinstance(term, SAnnotation):
+        return _constructor_literal_value(term.expr, level)
+    scalar = _scalar_literal(term)
+    if scalar is not None:
+        return scalar
+    arguments: list = []
+    while isinstance(term, (SApplication, STypeApplication)):
+        if isinstance(term, STypeApplication):
+            term = term.body
+        else:
+            argument = _constructor_literal_value(term.arg, level + 1)
+            if argument is None:
+                return None
+            arguments.append(argument)
+            term = term.fun
+    if not isinstance(term, SVar):
+        return None
+    fields = get_constructor_fields(term.name.name)
+    if fields is None or len(fields) != len(arguments):
+        return None
+    return (term.name.name, *reversed(arguments))
 
 
 def _store_training_point(expr: STerm, fun: Definition, metadata: Metadata) -> Metadata:

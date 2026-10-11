@@ -22,8 +22,13 @@ from aeon.synthesis.modules.bustle.search import Operation, SearchStats, Value, 
 from aeon.synthesis.modules.bustle.signatures import Scalar, task_signature, value_signature
 from aeon.synthesis.modules.bustle.synthesizer import extract_constants
 from aeon.utils.name import Name
+from aeon.synthesis.modules.bustle.values import valid_value
 
 TYPES = {"Int": t_int, "String": t_string, "Bool": t_bool}
+TRAIN_SCHEMAS = {
+    "List": {"List_nil": (), "List_cons": ("Int", "List")},
+    "Tree": {"Tree_leaf": ("Int",), "Tree_branch": ("Tree", "Tree")},
+}
 
 
 def training_operations() -> list[Operation]:
@@ -39,6 +44,17 @@ def training_operations() -> list[Operation]:
         ("less", ("Int", "Int"), "Bool", lambda a: a[0] < a[1]),
         ("equal", ("Int", "Int"), "Bool", lambda a: a[0] == a[1]),
     ]
+    definitions.extend(
+        [
+            ("cons", ("Int", "List"), "List", lambda a: ("List_cons", a[0], a[1])),
+            ("head", ("List",), "Int", lambda a: a[0][1]),
+            ("tail", ("List",), "List", lambda a: a[0][2]),
+            ("leaf", ("Int",), "Tree", lambda a: ("Tree_leaf", a[0])),
+            ("branch", ("Tree", "Tree"), "Tree", lambda a: ("Tree_branch", a[0], a[1])),
+            ("left", ("Tree",), "Tree", lambda a: a[0][1]),
+            ("right", ("Tree",), "Tree", lambda a: a[0][2]),
+        ]
+    )
     return [Operation(Var(Name(name, 0)), args, ret, execute) for name, args, ret, execute in definitions]
 
 
@@ -51,16 +67,33 @@ def descendants(value: Value) -> list[Value]:
 
 
 def generate_search(rng: random.Random, index: int) -> tuple[list[tuple[int, ...]], list[int]]:
-    key = "String" if index % 2 else "Int"
+    key = ("Int", "String", "List", "Tree")[index % 4]
     arity = rng.randint(1, 3)
     if key == "String":
         words = ["ab", "Cd", "XYZ", "  q ", "12", "a b", "xy_z", "hello", "Z9", "pq"]
         columns: list[tuple[Scalar, ...]] = [tuple(rng.choice(words) for _ in range(4)) for _ in range(arity)]
-    else:
+    elif key == "Int":
         columns = [tuple(rng.randint(-8, 12) for _ in range(4)) for _ in range(arity)]
+    else:
+
+        def sample(level: int = 0) -> Scalar:
+            if key == "List":
+                return (
+                    ("List_nil",)
+                    if level >= 3 or rng.random() < 0.3
+                    else ("List_cons", rng.randint(0, 5), sample(level + 1))
+                )
+            return (
+                ("Tree_leaf", rng.randint(0, 5))
+                if level >= 2 or rng.random() < 0.5
+                else ("Tree_branch", sample(level + 1), sample(level + 1))
+            )
+
+        columns = [tuple(sample() for _ in range(4)) for _ in range(arity)]
     atoms = [Value(Var(Name(f"x{i}", 0)), key, values) for i, values in enumerate(columns)]
     for typ, constants in extract_constants(columns, ("",) * 4).items():
         atoms.extend(Value(Literal(v, TYPES[typ]), typ, (v,) * 4) for v in constants)
+    atoms.append(Value(Var(Name("List_nil", 0)), "List", (("List_nil",),) * 4))
     stats = SearchStats()
     enumerate_values(
         atoms,
@@ -73,6 +106,7 @@ def generate_search(rng: random.Random, index: int) -> tuple[list[tuple[int, ...
         max_weight=5,
         max_values=400,
         stats=stats,
+        valid=lambda value, typ: valid_value(value, typ, TRAIN_SCHEMAS),
     )
     candidates = [v for v in stats.values if v.children and len(set(v.outputs)) > 1]
     rng.shuffle(candidates)
@@ -121,10 +155,14 @@ def train(*, searches: int = 200, epochs: int = 40, seed: int = 0) -> GuidanceMo
     validation_accuracy = float(np.mean((probabilities >= 0.5) == np.asarray(validation_labels)))
     provenance: dict[str, Any] = {
         "trained": True,
-        "generator": "synthetic-bottom-up-search-v1",
+        "generator": "synthetic-bottom-up-search-scalar-adt-v2",
         "seed": seed,
         "searches": searches,
         "epochs": epochs,
+        "input_families": {
+            family: sum(i % 4 == n for i in range(searches))
+            for n, family in enumerate(("Int", "String", "List", "Tree"))
+        },
         "training_rows": len(train_labels),
         "validation_rows": len(validation_labels),
         "initial_training_loss": initial_loss,
