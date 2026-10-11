@@ -66,7 +66,9 @@ synthesis-ortools = [
     "ortools"
 ]
 synthesis-rl = [
-    "xgboost>=2,<4"
+    "xgboost>=2,<4",
+    # LearnedGuidance uses XGBoost's scikit-learn estimator interface.
+    "scikit-learn",
 ]
 nn = [
     "torch"
