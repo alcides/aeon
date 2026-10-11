@@ -1,0 +1,54 @@
+# Grammar: Genetics_ANN/src/cnn.grammar.txt at 8b4206d60a79e8da51f726a309fa1f4c924a4a90.
+# phase: 0=image features, 1=flattened classification, 2=ten-class head, 3=learning configuration.
+# padding: 0=valid, 1=same; activation: 0=tanh, 1=relu, 2=sigmoid; pooling: 0=average, 1=max.
+inductive Denser
+| input (d:{v:Int | v = 0 || v = 1}) :
+    {n:Denser | phase n = 0 && dataset n = d && features n = 0 && hidden n = 0 &&
+        ((d = 0 && side n = 28 && channels n = 1) || (d = 1 && side n = 32 && channels n = 3))}
+| conv (n:{v:Denser | phase v = 0 && features v < 10})
+    (filters:{v:Int | 32 <= v && v <= 256}) (kernel:{v:Int | 2 <= v && v <= 5})
+    (stride:{v:Int | 1 <= v && v <= 3}) (padding:{v:Int | v = 0 || v = 1})
+    (act:{v:Int | 0 <= v && v <= 2}) (bias:Bool)
+    (out:{v:Int | v > 0 && ((padding = 1 &&
+        ((stride = 1 && v = side n) || (stride = 2 && v = (side n + 1) / 2) ||
+         (stride = 3 && v = (side n + 2) / 3))) || (padding = 0 && kernel <= side n &&
+        ((stride = 1 && v = side n - kernel + 1) || (stride = 2 && v = (side n - kernel) / 2 + 1) ||
+         (stride = 3 && v = (side n - kernel) / 3 + 1))))}) :
+    {r:Denser | phase r = 0 && dataset r = dataset n && side r = out && channels r = filters &&
+        features r = features n + 1 && hidden r = 0}
+| pool (n:{v:Denser | phase v = 0 && features v < 10}) (kind:{v:Int | v = 0 || v = 1})
+    (kernel:{v:Int | 2 <= v && v <= 5}) (stride:{v:Int | 1 <= v && v <= 3})
+    (padding:{v:Int | v = 0 || v = 1})
+    (out:{v:Int | v > 0 && ((padding = 1 &&
+        ((stride = 1 && v = side n) || (stride = 2 && v = (side n + 1) / 2) ||
+         (stride = 3 && v = (side n + 2) / 3))) || (padding = 0 && kernel <= side n &&
+        ((stride = 1 && v = side n - kernel + 1) || (stride = 2 && v = (side n - kernel) / 2 + 1) ||
+         (stride = 3 && v = (side n - kernel) / 3 + 1))))}) :
+    {r:Denser | phase r = 0 && dataset r = dataset n && side r = out && channels r = channels n &&
+        features r = features n + 1 && hidden r = 0}
+| flatten (n:{v:Denser | phase v = 0 && features v > 0}) :
+    {r:Denser | phase r = 1 && dataset r = dataset n && features r = features n && hidden r = 0}
+| dense (n:{v:Denser | phase v = 1 && hidden v < 2})
+    (units:{v:Int | 128 <= v && v <= 2048}) (act:{v:Int | 0 <= v && v <= 2}) (bias:Bool) :
+    {r:Denser | phase r = 1 && dataset r = dataset n && features r = features n && hidden r = hidden n + 1}
+| softmax (n:{v:Denser | phase v = 1 && hidden v > 0}) :
+    {r:Denser | phase r = 2 && dataset r = dataset n}
+| sgd (n:{v:Denser | phase v = 2}) (lr:{v:Float | 0.0001 <= v && v <= 0.1})
+    (momentum:{v:Float | 0.68 <= v && v <= 0.99}) (decay:{v:Float | 0.000001 <= v && v <= 0.001})
+    (nesterov:Bool) (patience:{v:Int | 5 <= v && v <= 20}) (batch:{v:Int | 50 <= v && v <= 500}) :
+    {r:Denser | phase r = 3 && dataset r = dataset n}
+| adam (n:{v:Denser | phase v = 2}) (lr:{v:Float | 0.0001 <= v && v <= 0.1})
+    (beta1:{v:Float | 0.5 <= v && v < 1.0}) (beta2:{v:Float | 0.5 <= v && v < 1.0})
+    (decay:{v:Float | 0.000001 <= v && v <= 0.001})
+    (patience:{v:Int | 5 <= v && v <= 20}) (batch:{v:Int | 50 <= v && v <= 500}) :
+    {r:Denser | phase r = 3 && dataset r = dataset n}
+| rmsprop (n:{v:Denser | phase v = 2}) (lr:{v:Float | 0.0001 <= v && v <= 0.1})
+    (rho:{v:Float | 0.5 <= v && v < 1.0}) (decay:{v:Float | 0.000001 <= v && v <= 0.001})
+    (patience:{v:Int | 5 <= v && v <= 20}) (batch:{v:Int | 50 <= v && v <= 500}) :
+    {r:Denser | phase r = 3 && dataset r = dataset n}
++ phase (n:Denser) : Int
++ dataset (n:Denser) : Int
++ side (n:Denser) : Int
++ channels (n:Denser) : Int
++ features (n:Denser) : Int
++ hidden (n:Denser) : Int

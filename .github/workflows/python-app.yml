@@ -134,7 +134,7 @@ jobs:
       - if: matrix.backend == 'torch'
         run: |
           uv pip install torch --index-url https://download.pytorch.org/whl/cpu
-          uv run pytest tests/nn_bindings_test.py -q --junitxml=optional-results.xml
+          uv run pytest tests/nn_bindings_test.py tests/denser_benchmark_test.py -q --junitxml=optional-results.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
