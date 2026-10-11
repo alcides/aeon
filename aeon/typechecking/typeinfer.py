@@ -84,7 +84,7 @@ from aeon.verification.horn import solve
 from aeon.verification.horn import apply_constraint
 from aeon.verification.horn import contains_horn_constraint
 from aeon.verification.horn import horn_assignment
-from aeon.utils.location import Location
+from aeon.utils.location import FileLocation, Location
 from aeon.utils.name import Name, fresh_counter
 from aeon.verification.helpers import (
     constraint_location,
@@ -1304,6 +1304,8 @@ def constraint_to_parts(
     """Prepares a constraint into a list of sub-problems for error messages.
     Yields (constraint, location) pairs where location is the AST location
     associated with the failing constraint part."""
+    from aeon.verification.trace import goal_location
+
     atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
     # A Horn variable standing for an abstract refinement may occur in several
     # of the parts below, and it must be given the same solution in all of
@@ -1325,7 +1327,14 @@ def constraint_to_parts(
                             failing = [or_vc]
                         for part in failing:
                             prepared = prepare_vc_for_display(part)
-                            yield prepared, constraint_location(prepared)
+                            # Keep the original goal span before display pruning
+                            # drops context or substitutes imported binders.
+                            goal_loc = goal_location(part)
+                            if not isinstance(goal_loc, FileLocation):
+                                goal_loc = constraint_location(prepared)
+                                if not isinstance(goal_loc, FileLocation):
+                                    goal_loc = constraint_location(part)
+                            yield prepared, goal_loc
                         break
 
 

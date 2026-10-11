@@ -1,0 +1,15 @@
+# Tutorial_07_Measure_Int.map: retain f and both element type parameters.
+open PList;
+def map (f:(x:a) -> b) (xs:(PList a))
+    : {ys:(PList b) | PList.size ys = PList.size xs && PList.size ys >= 0}
+    decreasing_by [PList.size xs] :=
+    match xs with
+    | nil => nil
+    | cons hd tl => cons (f hd) (map f tl);
+def increment (n:Int) : Int := n + 1;
+def choose (b:Bool) : Int := if b then 3 else 4;
+def checkOutputs (ints:Int) (bools:Int) : Int :=
+    if ints = 32 && bools = 43 then 75 else 0;
+def main (_:Int) : Int :=
+    checkOutputs (PList.encode (map increment (cons 1 (cons 2 nil))))
+                 (PList.encode (map choose (cons true (cons false nil))));

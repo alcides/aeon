@@ -1,0 +1,4 @@
+# Mutation of Tutorial_07_Measure_Int.size: recurse on xs, not its tail.
+open LList;
+def length (xs:LList) : Int decreasing_by [LList.size xs] := length xs;
+def main (_:Int) : Int := 0;

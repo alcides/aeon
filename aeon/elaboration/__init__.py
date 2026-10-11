@@ -533,7 +533,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
                     # The core typechecker's `synth(Application)` introduces a
                     # Form B existential binder for them (see typeinfer.py),
                     # so there is no need to name the argument here.
-                    return SApplication(nfun, narg), return_type
+                    return SApplication(nfun, narg, loc=t.loc), return_type
                 case _:
                     assert False, f"Expected an abstraction type, but got {nfun_type} for {nfun}."
         case _:

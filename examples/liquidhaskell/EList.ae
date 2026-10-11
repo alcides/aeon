@@ -1,0 +1,12 @@
+# Tutorial chapter 8: length and set-of-elements equations on actual ADTs.
+inductive EList
+| nil : {xs:EList | size xs = 0 && elts xs = Set_dif (Set_sng 0) (Set_sng 0)}
+| cons (hd:Int) (tl:{xs:EList | size xs >= 0}) :
+    {xs:EList | size xs = size tl + 1 && elts xs = Set_cup (Set_sng hd) (elts tl)}
++ size (xs:EList) : Int
++ elts (xs:EList) : Set
+
+def encode (xs:EList) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => hd + 10 * encode tl;

@@ -99,6 +99,9 @@ runtime checks.
 
 ## The Aeon interpreter
 
+See the [LiquidHaskell compatibility suite](liquidhaskell-compatibility.md)
+for attributed Aeon ports, acceptance/rejection tests, and stability classifications.
+
 Aeon is implemented as an interpreter written in Python. Despite being slow, it allows us to design [FFI interfaces](#FFI) with Python, supporting the vast ecosystem that Python offers (from numpy to sklearn or tensorflow).
 
 Aeon can be executed directly from PyPI using [uvx](https://github.com/astral-sh/uv):

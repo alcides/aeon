@@ -1,0 +1,12 @@
+# Tutorial chapter 5: ordered Int lists. The minimum is the head when nonempty.
+inductive IncList
+| nil : {xs:IncList | size xs = 0}
+| cons (hd:Int) (tl:{xs:IncList | size xs >= 0 && (size xs = 0 || hd <= first xs)}) :
+    {xs:IncList | size xs = size tl + 1 && first xs = hd}
++ size (xs:IncList) : Int
++ first (xs:IncList) : Int
+
+def encode (xs:IncList) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => hd + 10 * encode tl;

@@ -1,0 +1,10 @@
+# Tutorial_07_Measure_Int.reverse/go: accumulator invariant proves preservation.
+open LList;
+def go (acc:{ys:LList | LList.size ys >= 0}) (xs:LList)
+    : {ys:LList | LList.size ys = LList.size acc + LList.size xs && LList.size ys >= 0}
+    decreasing_by [LList.size xs] :=
+    match xs with
+    | nil => acc
+    | cons hd tl => go (cons hd acc) tl;
+def reverse (xs:LList) : {ys:LList | LList.size ys = LList.size xs && LList.size ys >= 0} := go nil xs;
+def main (_:Int) : Int := LList.encode (reverse (cons 1 (cons 2 (cons 3 nil))));

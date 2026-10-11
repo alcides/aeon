@@ -1,0 +1,9 @@
+# Tutorial_07_Measure_Int.map/prop_map: specialize f to increment on Int.
+open LList;
+def mapPlusOne (xs:LList)
+    : {ys:LList | LList.size ys = LList.size xs && LList.size ys >= 0}
+    decreasing_by [LList.size xs] :=
+    match xs with
+    | nil => nil
+    | cons hd tl => cons (hd + 1) (mapPlusOne tl);
+def main (_:Int) : Int := LList.encode (mapPlusOne (cons 1 (cons 2 nil)));

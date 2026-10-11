@@ -1,0 +1,10 @@
+# Correct length is insufficient: inserting 0 instead of hd loses elements.
+open EList;
+def append (xs:EList) (ys:{zs:EList | EList.size zs >= 0})
+    : {zs:EList | EList.elts zs = Set_cup (EList.elts xs) (EList.elts ys)
+        && EList.size zs = EList.size xs + EList.size ys && EList.size zs >= 0}
+    decreasing_by [EList.size xs] :=
+    match xs with
+    | nil => ys
+    | cons hd tl => cons 0 (append tl ys);
+def main (_:Int) : Int := 0;

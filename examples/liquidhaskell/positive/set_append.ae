@@ -1,0 +1,14 @@
+# Tutorial_08_Measure_Set.append: prove both union and additive length.
+open EList;
+def append (xs:EList) (ys:{zs:EList | EList.size zs >= 0})
+    : {zs:EList | EList.elts zs = Set_cup (EList.elts xs) (EList.elts ys)
+        && EList.size zs = EList.size xs + EList.size ys && EList.size zs >= 0}
+    decreasing_by [EList.size xs] :=
+    match xs with
+    | nil => ys
+    | cons hd tl => cons hd (append tl ys);
+def main (_:Int) : Int :=
+    if EList.encode (append (cons 1 (cons 1 nil)) (cons 2 nil)) = 211 &&
+       EList.encode (append nil (cons 2 nil)) = 2 &&
+       EList.encode (append (cons 1 nil) nil) = 1
+    then 211 else 0;

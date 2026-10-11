@@ -1,0 +1,18 @@
+# Adapted from Tutorial_07_Measure_Int.size and its refined constructors.
+# See README.md and UPSTREAM-LICENSE for provenance and adaptation details.
+inductive LList
+| nil : {xs:LList | size xs = 0}
+| cons (hd:Int) (tl:{xs:LList | size xs >= 0}) : {xs:LList | size xs = size tl + 1}
++ size (xs:LList) : Int
+
+# Measures are logical symbols, so use a real Aeon function for execution.
+def count (xs:LList) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => 1 + count tl;
+
+# Small fixture values use this order-sensitive checksum as a runtime oracle.
+def encode (xs:LList) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => hd + 10 * encode tl;

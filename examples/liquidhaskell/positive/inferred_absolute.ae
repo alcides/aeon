@@ -1,0 +1,5 @@
+# Aeon inference companion to Tutorial_03_Basic.abs: ?p is a predicate hole,
+# not a term-synthesis hole; the client forces a nonnegative result.
+def abs (n:Int) : {v:Int | ?p} := if n > 0 then n else 0 - n;
+def nonnegative (n:Int) : {v:Int | v >= 0} := abs n;
+def main (_:Int) : Int := nonnegative (0 - 7);

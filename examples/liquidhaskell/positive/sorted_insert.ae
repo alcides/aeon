@@ -1,0 +1,17 @@
+# Tutorial_05_Datatypes.insert: ordered output with a preserved lower bound.
+open IncList;
+def insert (lo:Int) (y:{v:Int | lo <= v})
+    (xs:{zs:IncList | IncList.size zs >= 0 && (IncList.size zs = 0 || lo <= IncList.first zs)})
+    : {zs:IncList | IncList.size zs = IncList.size xs + 1 && IncList.size zs > 0 && lo <= IncList.first zs}
+    decreasing_by [IncList.size xs] :=
+    match xs with
+    | nil => cons y nil
+    | cons hd tl => if y <= hd then cons y xs else cons hd (insert hd y tl);
+def main (_:Int) : Int :=
+    if IncList.encode (insert 0 2 (cons 1 (cons 3 nil))) = 321 &&
+       IncList.encode (insert 0 0 (cons 1 nil)) = 10 &&
+       IncList.encode (insert 0 3 (cons 1 (cons 3 nil))) = 331 &&
+       IncList.encode (insert (-5) (-2) (cons (-1) nil)) = (-12) &&
+       IncList.encode (insert 0 4 (cons 1 nil)) = 41 &&
+       IncList.encode (insert 0 2 nil) = 2
+    then 662 else 0;

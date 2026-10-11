@@ -1,0 +1,18 @@
+# Tutorial_06_Measure_Bool.safeHead: retain generic list and Maybe parameters.
+open PList;
+inductive Maybe a
+| nothing : (Maybe a)
+| just (value:a) : (Maybe a)
+def safeHead (xs:(PList a)) : (Maybe a) :=
+    match xs with
+    | nil => Maybe.nothing
+    | cons hd tl => Maybe.just hd;
+def orElse (fallback:a) (value:(Maybe a)) : a :=
+    match value with
+    | Maybe.nothing => fallback
+    | Maybe.just x => x;
+def main (_:Int) : Int :=
+    let n : Int := orElse 0 (safeHead (cons 7 nil)) in
+    let b : Bool := orElse false (safeHead (cons true nil)) in
+    let empty : (PList Int) := nil in
+    if b then n + orElse 2 (safeHead empty) else 0;

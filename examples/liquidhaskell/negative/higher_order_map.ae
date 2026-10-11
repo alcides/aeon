@@ -1,0 +1,9 @@
+# Dropping an element violates the generic higher-order map's size contract.
+open PList;
+def map (f:(x:a) -> b) (xs:(PList a))
+    : {ys:(PList b) | PList.size ys = PList.size xs && PList.size ys >= 0}
+    decreasing_by [PList.size xs] :=
+    match xs with
+    | nil => nil
+    | cons hd tl => map f tl;
+def main (_:Int) : Int := 0;
