@@ -1,0 +1,3 @@
+open PlaidIterator
+def take_if_available (it:PlaidIterator) : PlaidIterator := if count it > 0 then next it else it;
+def main (u:Int) : Int := count (take_if_available (create 1));

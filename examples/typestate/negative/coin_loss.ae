@@ -1,0 +1,2 @@
+open OwnedAssets
+def broken_deposit (1 coin:Coin) : Unit := unit;

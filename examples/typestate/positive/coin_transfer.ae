@@ -1,0 +1,2 @@
+open OwnedAssets
+def deposit (1 coin:Coin) : Coin := transfer_coin coin;

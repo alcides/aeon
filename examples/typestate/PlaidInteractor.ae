@@ -1,0 +1,10 @@
+# Onward 2009, Listing 6: Idle/Running and a state-preserving run handler.
+inductive PlaidInteractor
+| mk (p:{v:Int | v = 0 || v = 1}) : {i:PlaidInteractor | phase i = p}
++ phase (i:PlaidInteractor) : Int
+
+def create (u:Unit) : {i:PlaidInteractor | phase i = 0} := PlaidInteractor.mk 0;
+def start (i:{x:PlaidInteractor | phase x = 0}) : {x:PlaidInteractor | phase x = 1} := PlaidInteractor.mk 1;
+def stop (i:{x:PlaidInteractor | phase x = 1}) : {x:PlaidInteractor | phase x = 0} := PlaidInteractor.mk 0;
+def run (i:{x:PlaidInteractor | phase x = 1}) : {x:PlaidInteractor | phase x = 1} := i;
+def state (i:PlaidInteractor) : {p:Int | p = phase i} := match i with | mk p => p;

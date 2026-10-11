@@ -1,0 +1,311 @@
+{
+  "papers": {
+    "plaid": {
+      "title": "Typestate-Oriented Programming",
+      "authors": "Jonathan Aldrich, Joshua Sunshine, Darpan Saini, Zachary Sparks",
+      "year": 2009,
+      "url": "https://www.cs.cmu.edu/~aldrich/papers/onward2009-state.pdf"
+    },
+    "plural": {
+      "title": "Checking Concurrent Typestate with Access Permissions in Plural: A Retrospective",
+      "authors": "Kevin Bierhoff, Nels E. Beckman, Jonathan Aldrich",
+      "year": 2011,
+      "url": "https://www.cs.cmu.edu/~aldrich/papers/bierhoff-plural-festschrift11.pdf"
+    },
+    "obsidian": {
+      "title": "Obsidian: Typestate and Assets for Safer Blockchain Programming",
+      "authors": "Michael Coblenz et al. (including Jonathan Aldrich)",
+      "year": 2020,
+      "url": "https://arxiv.org/pdf/1909.03523"
+    }
+  },
+  "cases": [
+    {
+      "file": "positive/file_lifecycle.ae",
+      "category": "file",
+      "paper": "plaid",
+      "locator": "Sections 3.1-3.3, Listings 1-2",
+      "adaptation": "Immutable file-state model; no filesystem or aliased heap.",
+      "expect": "accept",
+      "run": true,
+      "result": 42
+    },
+    {
+      "file": "negative/file_read_closed.ae",
+      "category": "file",
+      "paper": "plaid",
+      "locator": "Sections 3.1-3.3, Listings 1-2",
+      "adaptation": "Immutable file-state model; no filesystem or aliased heap.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/file_lifecycle.ae",
+      "kind": "paper-described-bug-adaptation"
+    },
+    {
+      "file": "negative/file_missing_close.ae",
+      "category": "file",
+      "paper": "plaid",
+      "locator": "Sections 3.1-3.3, Listings 1-2",
+      "adaptation": "Immutable file-state model; no filesystem or aliased heap.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/file_lifecycle.ae",
+      "kind": "paper-described-bug-adaptation"
+    },
+    {
+      "file": "negative/file_read_after_close.ae",
+      "category": "file",
+      "paper": "plaid",
+      "locator": "Sections 3.1-3.3, Listings 1-2",
+      "adaptation": "Immutable file-state model; no filesystem or aliased heap.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/file_lifecycle.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "negative/file_double_close.ae",
+      "category": "file",
+      "paper": "plaid",
+      "locator": "Sections 3.1-3.3, Listings 1-2",
+      "adaptation": "Immutable file-state model; no filesystem or aliased heap.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/file_lifecycle.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "positive/iterator_guard.ae",
+      "category": "iterator",
+      "paper": "plaid",
+      "locator": "Section 3.8, Listings 4-5",
+      "adaptation": "Remaining-count model of Avail/End, with an explicit state test.",
+      "expect": "accept",
+      "run": true,
+      "result": 0
+    },
+    {
+      "file": "negative/iterator_no_guard.ae",
+      "category": "iterator",
+      "paper": "plaid",
+      "locator": "Section 3.8, Listings 4-5",
+      "adaptation": "Remaining-count model of Avail/End, with an explicit state test.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/iterator_guard.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "negative/iterator_exhausted.ae",
+      "category": "iterator",
+      "paper": "plaid",
+      "locator": "Section 3.8, Listings 4-5",
+      "adaptation": "Remaining-count model of Avail/End, with an explicit state test.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/iterator_guard.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "positive/interactor_lifecycle.ae",
+      "category": "interactor",
+      "paper": "plaid",
+      "locator": "Section 4, Listing 6",
+      "adaptation": "Idle/Running model; run must preserve Running.",
+      "expect": "accept",
+      "run": true,
+      "result": 0
+    },
+    {
+      "file": "negative/interactor_run_idle.ae",
+      "category": "interactor",
+      "paper": "plaid",
+      "locator": "Section 4, Listing 6",
+      "adaptation": "Idle/Running model; run must preserve Running.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/interactor_lifecycle.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "negative/interactor_handler_stops.ae",
+      "category": "interactor",
+      "paper": "plaid",
+      "locator": "Section 4, Listing 6",
+      "adaptation": "Idle/Running model; run must preserve Running.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/interactor_lifecycle.ae",
+      "kind": "paper-described-bug-adaptation"
+    },
+    {
+      "file": "negative/interactor_stop_idle.ae",
+      "category": "interactor",
+      "paper": "plaid",
+      "locator": "Section 4, Listing 6",
+      "adaptation": "Idle/Running model; run must preserve Running.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/interactor_lifecycle.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "positive/queue_drain.ae",
+      "category": "queue",
+      "paper": "plural",
+      "locator": "Figures 1-2",
+      "adaptation": "Sequential model of OPEN/CLOSING/CLOSED; not concurrent execution.",
+      "expect": "accept",
+      "run": true,
+      "result": 0
+    },
+    {
+      "file": "negative/queue_enqueue_closing.ae",
+      "category": "queue",
+      "paper": "plural",
+      "locator": "Figures 1-2",
+      "adaptation": "Sequential model of OPEN/CLOSING/CLOSED; not concurrent execution.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/queue_drain.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "negative/queue_dequeue_closed.ae",
+      "category": "queue",
+      "paper": "plural",
+      "locator": "Figures 1-2",
+      "adaptation": "Sequential model of OPEN/CLOSING/CLOSED; not concurrent execution.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/queue_drain.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "positive/queue_recheck.ae",
+      "category": "queue",
+      "paper": "plural",
+      "locator": "Figure 3 and Section 3.2",
+      "adaptation": "Explicit may_close operation models a possible intervening close; recheck is not synchronization.",
+      "expect": "accept",
+      "run": true,
+      "result": 0
+    },
+    {
+      "file": "negative/queue_stale_check.ae",
+      "category": "queue",
+      "paper": "plural",
+      "locator": "Figure 3 and Section 3.2",
+      "adaptation": "Explicit may_close operation models a possible intervening close; recheck is not synchronization.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/queue_recheck.ae",
+      "kind": "paper-described-bug-adaptation"
+    },
+    {
+      "file": "positive/vending_purchase.ae",
+      "category": "vending",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Immutable Empty/Full and balance model, separate from ownership.",
+      "expect": "accept",
+      "run": true,
+      "result": 1
+    },
+    {
+      "file": "negative/vending_buy_empty.ae",
+      "category": "vending",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Immutable Empty/Full and balance model, separate from ownership.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/vending_purchase.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "negative/vending_restock_full.ae",
+      "category": "vending",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Immutable Empty/Full and balance model, separate from ownership.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/vending_purchase.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "negative/vending_missing_transition.ae",
+      "category": "vending",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Immutable Empty/Full and balance model, separate from ownership.",
+      "expect": "reject",
+      "error": "refinement",
+      "control": "positive/vending_purchase.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "positive/coin_transfer.ae",
+      "category": "coin",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Compile-only linear Coin ownership transfer; no asset factory or blockchain.",
+      "expect": "accept",
+      "run": false
+    },
+    {
+      "file": "negative/coin_loss.ae",
+      "category": "coin",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Compile-only linear Coin ownership transfer; no asset factory or blockchain.",
+      "expect": "reject",
+      "error": "unused",
+      "control": "positive/coin_transfer.ae",
+      "kind": "paper-described-bug-adaptation"
+    },
+    {
+      "file": "negative/coin_duplicate.ae",
+      "category": "coin",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Compile-only linear Coin ownership transfer; no asset factory or blockchain.",
+      "expect": "reject",
+      "error": "duplicate",
+      "control": "positive/coin_transfer.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "negative/coin_unrestricted.ae",
+      "category": "coin",
+      "paper": "obsidian",
+      "locator": "Figure 1, Section 4.1",
+      "adaptation": "Compile-only linear Coin ownership transfer; no asset factory or blockchain.",
+      "expect": "reject",
+      "error": "unrestricted",
+      "control": "positive/coin_transfer.ae",
+      "kind": "derived-mutation"
+    },
+    {
+      "file": "positive/collection_transfer.ae",
+      "category": "collection",
+      "paper": "plaid",
+      "locator": "Section 3.7, Listing 3 and collectionClient",
+      "adaptation": "Compile-only FileCapability ownership transfer, not a heap collection implementation.",
+      "expect": "accept",
+      "run": false
+    },
+    {
+      "file": "negative/collection_stale_alias.ae",
+      "category": "collection",
+      "paper": "plaid",
+      "locator": "Section 3.7, Listing 3 and collectionClient",
+      "adaptation": "Compile-only FileCapability ownership transfer, not a heap collection implementation.",
+      "expect": "reject",
+      "error": "duplicate",
+      "control": "positive/collection_transfer.ae",
+      "kind": "paper-described-bug-adaptation"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+open ObsidianVending
+def broken_buy (m:{x:ObsidianVending | phase x = 1}) : {x:ObsidianVending | phase x = 0} := m;

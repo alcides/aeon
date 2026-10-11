@@ -1,0 +1,16 @@
+# Onward 2009, Listings 1-2: immutable model of ClosedFile/OpenFile.
+inductive PlaidFile
+| mk (p: {v:Int | v = 0 || v = 1}) (data:Int) :
+    {f:PlaidFile | phase f = p && contents f = data}
++ phase (f:PlaidFile) : Int
++ contents (f:PlaidFile) : Int
+
+def create (data:Int) : {f:PlaidFile | phase f = 0} := PlaidFile.mk 0 data;
+def open_file (f:{x:PlaidFile | phase x = 0}) : {x:PlaidFile | phase x = 1} :=
+    match f with | mk p data => PlaidFile.mk 1 data;
+def read_file (f:{x:PlaidFile | phase x = 1}) : Int :=
+    match f with | mk p data => data;
+def close_file (f:{x:PlaidFile | phase x = 1}) : {x:PlaidFile | phase x = 0} :=
+    match f with | mk p data => PlaidFile.mk 0 data;
+def closed_value (f:{x:PlaidFile | phase x = 0}) : Int :=
+    match f with | mk p data => data;

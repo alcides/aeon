@@ -1,0 +1,2 @@
+open PlaidFile
+def main (u:Int) : Int := closed_value (close_file (close_file (open_file (create 42))));

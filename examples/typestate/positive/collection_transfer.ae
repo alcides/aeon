@@ -1,0 +1,4 @@
+open OwnedAssets
+def collection_client (1 file:FileCapability) : FileCapability :=
+    let 1 stored := store_file file in
+    stored;

@@ -1,0 +1,3 @@
+open PlaidFile
+def client (f:{x:PlaidFile | phase x = 0}) : {x:PlaidFile | phase x = 0} :=
+    open_file f;
