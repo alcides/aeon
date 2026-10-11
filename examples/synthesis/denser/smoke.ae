@@ -1,0 +1,21 @@
+import Denser
+
+def accuracy (candidate:Denser) : Float :=
+    native "__import__('aeon.benchmarks.denser', fromlist=['accuracy']).accuracy(candidate)";
+def parameters (candidate:Denser) : Int :=
+    native "__import__('aeon.benchmarks.denser', fromlist=['parameter_count']).parameter_count(candidate)";
+
+# A deliberately bounded activation search for integration tests, not the full grammar benchmark.
+@maximize_float(accuracy (make_experiment activation))
+@minimize_int(parameters (make_experiment activation))
+def activation : {v:Int | 0 <= v && v <= 2} := ?architecture;
+
+def make_experiment (act:{v:Int | 0 <= v && v <= 2}) :
+    {n:Denser | Denser.phase n = 3 && Denser.dataset n = 0} :=
+    Denser.sgd
+        (Denser.softmax (Denser.dense
+            (Denser.flatten (Denser.pool
+                (Denser.conv (Denser.input 0) 32 3 1 1 act true 28)
+                1 2 2 0 14))
+            128 act true))
+        0.01 0.9 0.0001 false 5 50;

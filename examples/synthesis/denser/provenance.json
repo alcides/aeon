@@ -1,0 +1,37 @@
+{
+  "repository": "https://github.com/francescortu/Genetics_ANN",
+  "branch": "denser",
+  "commit": "8b4206d60a79e8da51f726a309fa1f4c924a4a90",
+  "grammar": "src/cnn.grammar.txt",
+  "grammar_sha256_original_crlf": "222628029de145e4789d5161193907695874e01906fa18e654f5411823d18de0",
+  "constructors": ["input", "conv", "pool", "flatten", "dense", "softmax", "sgd", "adam", "rmsprop"],
+  "grammar_ranges": {
+    "filters": [32, 256], "kernel": [2, 5], "stride": [1, 3], "dense_units": [128, 2048],
+    "activations": ["tanh", "relu", "sigmoid"], "padding": ["valid", "same"],
+    "pooling": ["average", "max"], "bias": [false, true],
+    "lr": [0.0001, 0.1], "momentum": [0.68, 0.99], "decay": [0.000001, 0.001],
+    "beta1": [0.5, 1], "beta2": [0.5, 1], "rho": [0.5, 1],
+    "patience": [5, 20], "batch": [50, 500], "epochs": 400,
+    "softmax_units": 10, "softmax_bias": true
+  },
+  "topology_caps_source": "src/dsge_level.py: MAX_LEN_FEATURES=10, MAX_LEN_CLASSIFICATION=2",
+  "primary_goal": "maximize held-out validation accuracy",
+  "aeon_extension": "minimize the exact number of trainable parameters (Pareto objective)",
+  "dataset_source": "scripts/dataloader.py",
+  "datasets": {
+    "mnist": {"channels": 1, "side": 28, "classes": 10, "train": 50000, "valid": 10000},
+    "cifar10": {"channels": 3, "side": 32, "classes": 10, "train": 40000, "valid": 10000}
+  },
+  "differences": [
+    "This is a grammar-based Aeon synthesis benchmark, not a replication of the upstream genetic algorithm or paper results.",
+    "Upstream runtime random initialization overwrites several grammar parameters and inserts optional batch normalization; Aeon follows the grammar, not those overwrites.",
+    "Upstream train.py fixes SGD(lr=0.001,momentum=0.9) and uses one epoch on a training tenth during search; Aeon honors the chosen optimizer and uses all supplied training data.",
+    "Grammar decay maps to PyTorch weight_decay; upstream training does not interpret this grammar field.",
+    "Beta1/beta2/rho exclude the endpoint 1 required for valid PyTorch optimizer coefficients.",
+    "The amsgrad production is unreachable from learning and is deliberately not a building block.",
+    "Same padding has ceiling output dimensions for all grammar strides, including asymmetric even kernels; average pooling includes explicit zero padding in its denominator.",
+    "Early stopping maximizes observed validation accuracy; loss is negative log likelihood of the softmax output rather than cross entropy applied to already normalized probabilities.",
+    "A seed-42 split is used for both datasets; upstream CIFAR-10 split is unseeded.",
+    "Default evaluation is a one-epoch pilot; --epochs 400 enables the grammar epoch cap. The smoke fixture is synthetic, not an MNIST/CIFAR result."
+  ]
+}

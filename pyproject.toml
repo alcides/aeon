@@ -68,6 +68,10 @@ synthesis-ortools = [
 nn = [
     "torch"
 ]
+denser = [
+    "torch",
+    "torchvision",
+]
 # Full local/CI toolchain (core + test + ML/image/LLM extras).
 dev = [
     "pytest==9.1.1",

@@ -1,0 +1,10 @@
+import Denser
+
+def accuracy (candidate:Denser) : Float :=
+    native "__import__('aeon.benchmarks.denser', fromlist=['accuracy']).accuracy(candidate)";
+def parameters (candidate:Denser) : Int :=
+    native "__import__('aeon.benchmarks.denser', fromlist=['parameter_count']).parameter_count(candidate)";
+
+@maximize_float(accuracy experiment)
+@minimize_int(parameters experiment)
+def experiment : {n:Denser | Denser.phase n = 3 && Denser.dataset n = 1} := ?architecture;
