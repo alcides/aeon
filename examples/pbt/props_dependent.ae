@@ -14,7 +14,8 @@ def prop_below (n : Int) (i : {v : Int | v < n}) : Bool := i < n;
 # draw (its type is specialised to the earlier choices), so a smaller sample
 # count keeps this snappy.
 @property(25)
-def prop_between (lo : Int) (hi : {v : Int | v > lo}) (x : {v : Int | v > lo && v < hi}) : Bool :=
+# Leave at least one integer strictly between the endpoints.
+def prop_between (lo : Int) (hi : {v : Int | v > lo + 1}) (x : {v : Int | v > lo && v < hi}) : Bool :=
     x > lo && x < hi;
 
 # @property(N) sets the number of random samples for this property.

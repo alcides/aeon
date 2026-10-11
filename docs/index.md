@@ -773,8 +773,9 @@ aeon --doc  examples/pbt/examples_decorator.ae   # render them into HTML
 ```
 
 Property-based tests use the related `@property` decorator: it marks a
-`Bool`-returning function whose arguments are universally quantified and checked
-on random inputs generated from their (refinement-constrained) types. It serves
+`Bool`-returning function expressing a universally quantified law, checked on
+a finite sample of inputs generated from its (refinement-constrained) types.
+Passing samples are not a proof of the law. It serves
 both testing and synthesis:
 
 - **Test** — `--test` generates the requested number of inputs, reports the first
@@ -790,6 +791,10 @@ as a per-function objective while the other holes remain open. Relational
 properties over a `mutual` group continue to be checked jointly by the `contata`
 co-synthesis acceptance oracle. Symbolic whole-program optimizers such as
 `cpsat` likewise do not translate sampled runtime properties.
+
+For standard-library examples using shared synthesis grammar walks, SMT string
+completion, dependent bounds, ADTs and linear resources, see
+[Synthesis-backed standard-library properties](stdlib-properties.md).
 
 ### Unit testing (`Testing` library)
 

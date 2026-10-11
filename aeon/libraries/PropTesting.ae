@@ -1,3 +1,6 @@
+# Legacy random-wrapper helpers. For synthesis-backed inputs, dependent
+# refinements, failure reports and shrinking, prefer @property with --test.
+# See examples/testing/*_properties.ae and docs/stdlib-properties.md.
 open Array
 
 type Random

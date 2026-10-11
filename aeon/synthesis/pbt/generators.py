@@ -91,6 +91,7 @@ class TypeSampler:
         prefer_closed: bool | None = None,
     ):
         self.rng = random.Random(seed)
+        self.type = ty
         self.initial = initial_partial(ctx, ty)
         self.skip = make_skip(fun_name, metadata)
         self.max_depth = max_depth
@@ -111,6 +112,14 @@ class TypeSampler:
                     prefer_closed=prefer_closed,
                 )
                 if term is not None:
+                    # Grammar literals are proposals, not proofs: if SMT
+                    # completion fails (including an empty input domain), the
+                    # fallback must not silently return an out-of-domain value.
+                    if isinstance(self.type, RefinedType) and is_base_type(self.type):
+                        from aeon.synthesis.modules.tdsyn.smt_solve import literal_satisfies
+
+                        if not literal_satisfies(term, self.type):
+                            continue
                     return term
         raise RuntimeError(f"PBT TypeSampler failed to produce a term within {_SAMPLE_ATTEMPTS} attempts")
 
