@@ -1,0 +1,2 @@
+open PlaidFile
+def main (u:Int) : Int := read_file (create 42);

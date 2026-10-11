@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 
-from z3 import Or, Solver, sat
+from z3 import Length, Not, Or, Solver, StrToCode, SubString, sat, unsat
+from z3.z3types import Z3Exception
 from z3.z3 import ModelRef
 
 from aeon.core.liquid import LiquidLiteralBool, LiquidVar
-from aeon.core.substitutions import substitution_in_liquid
+from aeon.core.substitutions import liquefy, substitution_in_liquid
 from aeon.core.terms import Literal, Term
 from aeon.core.types import (
     RefinedType,
@@ -13,6 +14,7 @@ from aeon.core.types import (
     t_bool,
     t_float,
     t_int,
+    t_string,
 )
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole
@@ -24,12 +26,34 @@ from aeon.verification.smt import base_functions, make_variable, translate_liq
 _loc = SynthesizedLocation("tdsyn")
 
 
+def literal_satisfies(term: Term, ty: RefinedType) -> bool:
+    """Validate a generated literal with the same SMT translation as completion.
+
+    Minimal generation contexts have no executable operators or helpers. Check
+    the closed, substituted predicate instead of assuming a grammar terminal is
+    a proof. Unknown/unsupported refinements fail closed.
+    """
+    if not isinstance(term, Literal) or term.type != ty.type:
+        return False
+    value = liquefy(term)
+    if value is None:
+        return False
+    predicate = substitution_in_liquid(ty.refinement, value, ty.name)
+    try:
+        solver = Solver()
+        solver.set(timeout=500)
+        solver.add(Not(translate_liq(predicate, base_functions)))
+        return solver.check() == unsat
+    except (AssertionError, KeyError, TypeError, ValueError, Z3Exception):
+        return False
+
+
 def _is_leaf_hole(hole: TypedHole) -> bool:
-    """Check if a hole expects a base type (Int, Bool, Float) — i.e., can be filled with a literal."""
+    """Check whether a hole can be completed by an SMT-backed base literal."""
     base = base_type_of(hole.expected_type)
     if base is None:
         return False
-    return base.name.name in ("Int", "Bool", "Float")
+    return base.name.name in ("Int", "Bool", "Float", "String")
 
 
 def all_leaf_holes(holes: list[TypedHole]) -> bool:
@@ -46,7 +70,7 @@ def _collect_context_constraints(
     for entry in ctx.entries:
         match entry:
             case VariableBinder(name, RefinedType(binder, base, refinement)):
-                if isinstance(base, TypeConstructor) and base.name.name in ("Int", "Bool", "Float"):
+                if isinstance(base, TypeConstructor) and base.name.name in ("Int", "Bool", "Float", "String"):
                     if refinement != LiquidLiteralBool(True):
                         # Substitute binder with variable name
                         ref = substitution_in_liquid(refinement, LiquidVar(name), binder)
@@ -177,6 +201,8 @@ def _extract_solution(
                     solution[hole.name] = Literal(True, t_bool, _loc)
                 case "Float":
                     solution[hole.name] = Literal(0.0, t_float, _loc)
+                case "String":
+                    solution[hole.name] = Literal("", t_string, _loc)
                 case _:
                     return None
         else:
@@ -193,6 +219,15 @@ def _extract_solution(
                     case "Float":
                         float_val = float(val.as_decimal(10).rstrip("?"))
                         solution[hole.name] = Literal(float_val, t_float, _loc)
+                    case "String":
+                        # as_string() renders non-ASCII codepoints as textual
+                        # \\u{...} escapes, changing their Python length. Decode
+                        # model characters, not Z3's display representation.
+                        length = model.eval(Length(val)).as_long()
+                        value = "".join(
+                            chr(model.eval(StrToCode(SubString(val, i, 1))).as_long()) for i in range(length)
+                        )
+                        solution[hole.name] = Literal(value, t_string, _loc)
                     case _:
                         return None
             except Exception:

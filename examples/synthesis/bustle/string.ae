@@ -1,0 +1,11 @@
+# BUSTLE: compose a string DSL using intermediate values and learned guidance.
+# The grammar has no single primitive that both trims and uppercases.
+# python -m aeon --no-main --budget 10 -s bustle examples/synthesis/bustle/string.ae
+
+def trim (text: String) : String := native "text.strip()"
+def upper (text: String) : String := native "text.upper()"
+
+@example(clean "  alice " = "ALICE")
+@example(clean " bob  " = "BOB")
+@example(clean "Carol" = "CAROL")
+def clean (text: String) : String := ?clean;

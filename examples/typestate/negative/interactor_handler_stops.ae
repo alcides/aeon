@@ -1,0 +1,2 @@
+open PlaidInteractor
+def handler (i:{x:PlaidInteractor | phase x = 1}) : {x:PlaidInteractor | phase x = 1} := stop i;

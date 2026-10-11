@@ -1,0 +1,2 @@
+open PluralQueue
+def main (u:Int) : Int := count (enqueue (enqueue_final (create unit)));

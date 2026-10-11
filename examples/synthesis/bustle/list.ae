@@ -1,0 +1,8 @@
+# Synthesize a constructor application from complete ADT-valued examples.
+inductive Chain
+| nil : Chain
+| cons (head:Int) (tail:Chain) : Chain
+
+@example(prepend 4 Chain.nil = Chain.cons 4 Chain.nil)
+@example(prepend 7 (Chain.cons 2 Chain.nil) = Chain.cons 7 (Chain.cons 2 Chain.nil))
+def prepend (x:Int) (xs:Chain) : Chain := ?prepend;

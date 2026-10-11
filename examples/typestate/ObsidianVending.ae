@@ -1,0 +1,17 @@
+# Obsidian, Figure 1: Empty/Full machine and payment balance model.
+# Asset ownership is tested separately in OwnedAssets.ae.
+inductive ObsidianVending
+| mk (p:{v:Int | v = 0 || v = 1}) (coins:{v:Int | v >= 0}) :
+    {m:ObsidianVending | phase m = p && balance m = coins}
++ phase (m:ObsidianVending) : Int
++ balance (m:ObsidianVending) : Int
+
+def create (u:Unit) : {m:ObsidianVending | phase m = 0 && balance m = 0} := ObsidianVending.mk 0 0;
+def restock (m:{x:ObsidianVending | phase x = 0}) :
+    {x:ObsidianVending | phase x = 1 && balance x = balance m} :=
+    match m with | mk p coins => ObsidianVending.mk 1 coins;
+def buy (m:{x:ObsidianVending | phase x = 1}) :
+    {x:ObsidianVending | phase x = 0 && balance x = balance m + 1} :=
+    match m with | mk p coins => ObsidianVending.mk 0 (coins + 1);
+def coins (m:ObsidianVending) : {n:Int | n = balance m && n >= 0} :=
+    match m with | mk p n => n;

@@ -1,0 +1,11 @@
+import Denser
+
+# MNIST: same conv(32,3,relu), valid max pool(2,2), flatten, dense(128,relu), softmax(10), SGD.
+def experiment : {n:Denser | Denser.phase n = 3 && Denser.dataset n = 0} :=
+    Denser.sgd
+        (Denser.softmax (Denser.dense
+            (Denser.flatten (Denser.pool
+                (Denser.conv (Denser.input 0) 32 3 1 1 1 true 28)
+                1 2 2 0 14))
+            128 1 true))
+        0.01 0.9 0.0001 false 5 50;

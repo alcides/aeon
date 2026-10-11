@@ -1,0 +1,2 @@
+open ObsidianVending
+def main (u:Int) : Int := coins (buy (create unit));

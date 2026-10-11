@@ -1,0 +1,6 @@
+open PlaidFile
+def client (f:{x:PlaidFile | phase x = 0}) : {x:PlaidFile | phase x = 0} :=
+    let opened := open_file f in
+    let value := read_file opened in
+    close_file opened;
+def main (u:Int) : Int := closed_value (client (create 42));

@@ -1,0 +1,18 @@
+import Math
+
+# Synthesis solves the preconditions: no division-by-zero discards or huge factorials.
+@property(30)
+def prop_floor_division_reconstructs
+    (a:{v:Int | (0 - 100) <= v && v <= 100}) (b:{v:Int | 1 <= v && v <= 12}) : Bool :=
+    q := Math.floor_division a b;
+    r := a - q * b;
+    a = q * b + r && 0 <= r && r < b;
+
+@property(30)
+def prop_gcd_lcm_product (a:{v:Int | 1 <= v && v <= 30}) (b:{v:Int | 1 <= v && v <= 30}) : Bool :=
+    Math.gcd a b * Math.lcm a b = a * b;
+
+# k depends on n; the generator specializes its refinement after choosing n.
+@property(30)
+def prop_binomial_symmetry (n:{v:Int | 0 <= v && v <= 12}) (k:{v:Int | 0 <= v && v <= n}) : Bool :=
+    Math.comb n k = Math.comb n (n - k);

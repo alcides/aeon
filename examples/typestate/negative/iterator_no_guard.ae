@@ -1,0 +1,2 @@
+open PlaidIterator
+def take (it:PlaidIterator) : PlaidIterator := next it;

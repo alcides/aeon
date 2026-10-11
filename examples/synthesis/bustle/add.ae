@@ -1,0 +1,6 @@
+# BUSTLE: synthesize a function of two inputs from examples.
+# python -m aeon --no-main --budget 10 -s bustle examples/synthesis/bustle/add.ae
+@example(add 2 5 = 7)
+@example(add 7 1 = 8)
+@example(add 3 9 = 12)
+def add (x: Int) (y: Int) : Int := ?sum;

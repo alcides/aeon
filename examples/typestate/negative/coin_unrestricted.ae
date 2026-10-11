@@ -1,0 +1,2 @@
+open OwnedAssets
+def broken_deposit (coin:Coin) : Coin := transfer_coin coin;

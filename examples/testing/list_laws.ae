@@ -1,0 +1,21 @@
+import List
+
+# Synthesis constructs polymorphic cons/nil trees; no native generators.
+@property(25)
+def prop_reverse_append (xs:(List Int)) (ys:(List Int)) : Bool :=
+    List.reversed (List.append xs ys) = List.append (List.reversed ys) (List.reversed xs);
+
+@property(25)
+def prop_reverse_involution (xs:(List Int)) : Bool := List.reversed (List.reversed xs) = xs;
+
+def increment (x:Int) : Int := x + 1;
+def twice (x:Int) : Int := x * 2;
+def increment_twice (x:Int) : Int := twice (increment x);
+
+@property(25)
+def prop_map_composition (xs:(List Int)) : Bool :=
+    List.map twice (List.map increment xs) = List.map increment_twice xs;
+
+@property(25)
+def prop_map_distributes_over_append (xs:(List Int)) (ys:(List Int)) : Bool :=
+    List.map increment (List.append xs ys) = List.append (List.map increment xs) (List.map increment ys);

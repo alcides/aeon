@@ -3,6 +3,9 @@
 For contributor checks, compiler-session ownership, and generated semantic
 tests, see [Project quality](project-quality.md).
 
+For refined CNN architecture search with measured numerical objectives, see
+[DENSER synthesis](denser.md).
+
 **Aeon** is a statically-typed functional language built around two ideas that usually live in separate research papers:
 
 1. **Liquid (refinement) types** — types that carry a logical predicate, so the compiler can rule out whole classes of bugs (negative balances, off-by-one errors, division by zero, ...) before the program ever runs. The proof obligations are discharged by an SMT solver (z3).
@@ -98,6 +101,9 @@ evaluate such predicates and therefore does not turn them into executable
 runtime checks.
 
 ## The Aeon interpreter
+
+See also the [Aldrich typestate case studies](aldrich-typestate.md) for statically
+rejected protocol and ownership bugs with corrected Aeon counterparts.
 
 See the [LiquidHaskell compatibility suite](liquidhaskell-compatibility.md)
 for attributed Aeon ports, acceptance/rejection tests, and stability classifications.
@@ -773,8 +779,9 @@ aeon --doc  examples/pbt/examples_decorator.ae   # render them into HTML
 ```
 
 Property-based tests use the related `@property` decorator: it marks a
-`Bool`-returning function whose arguments are universally quantified and checked
-on random inputs generated from their (refinement-constrained) types. It serves
+`Bool`-returning function expressing a universally quantified law, checked on
+a finite sample of inputs generated from its (refinement-constrained) types.
+Passing samples are not a proof of the law. It serves
 both testing and synthesis:
 
 - **Test** — `--test` generates the requested number of inputs, reports the first
@@ -790,6 +797,10 @@ as a per-function objective while the other holes remain open. Relational
 properties over a `mutual` group continue to be checked jointly by the `contata`
 co-synthesis acceptance oracle. Symbolic whole-program optimizers such as
 `cpsat` likewise do not translate sampled runtime properties.
+
+For standard-library examples using shared synthesis grammar walks, SMT string
+completion, dependent bounds, ADTs and linear resources, see
+[Synthesis-backed standard-library properties](stdlib-properties.md).
 
 ### Unit testing (`Testing` library)
 

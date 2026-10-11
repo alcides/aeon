@@ -24,6 +24,7 @@ from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.modules.afta import AFTASynthesizer
 from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
+from aeon.synthesis.modules.bustle import BustleSynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -74,6 +75,8 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tactics": "Tactic search (random)",
     "decision_tree": "Decision tree regression (from examples)",
     "contata": "Version-space synthesis (from I/O examples)",
+    "bustle": "BUSTLE learning-guided bottom-up search",
+    "bustle_baseline": "BUSTLE bottom-up search (unguided)",
     "smt": "SMT model finding (Z3)",
     "sygus": "SyGuS translation (CVC5)",
     "ortools": "CP-SAT optimisation (OR-Tools)",
@@ -116,6 +119,8 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     # Example-driven — learn from @example / @csv_data I/O.
     "decision_tree": SynthesizerFamily.EXAMPLE_DRIVEN,
     "contata": SynthesizerFamily.EXAMPLE_DRIVEN,
+    "bustle": SynthesizerFamily.EXAMPLE_DRIVEN,
+    "bustle_baseline": SynthesizerFamily.EXAMPLE_DRIVEN,
     # Constraint solving — SMT / CP-SAT exact solvers.
     "smt": SynthesizerFamily.CONSTRAINT_SOLVING,
     "sygus": SynthesizerFamily.CONSTRAINT_SOLVING,
@@ -176,6 +181,8 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "afta",
         "cata",
         "contata",
+        "bustle",
+        "bustle_baseline",
     }
 )
 
@@ -284,6 +291,10 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return AFTASynthesizer()
         case "cata":
             return CATASynthesizer()
+        case "bustle":
+            return BustleSynthesizer()
+        case "bustle_baseline":
+            return BustleSynthesizer(guided=False)
         case "contata":
             return ContataSynthesizer()
         case _:

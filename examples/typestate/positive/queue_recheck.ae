@@ -1,0 +1,6 @@
+open PluralQueue
+def consume (q:PluralQueue) (other_thread_closes:Bool) : Int :=
+    let current := may_close q other_thread_closes in
+    if is_closed current then 0
+    else if count current > 0 then count (dequeue current) else 0;
+def main (u:Int) : Int := consume (enqueue (create unit)) true;

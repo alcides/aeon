@@ -1,0 +1,11 @@
+# Onward 2009, Listings 4-5: Avail/End represented by remaining count.
+inductive PlaidIterator
+| mk (n:{v:Int | v >= 0}) : {it:PlaidIterator | remaining it = n}
++ remaining (it:PlaidIterator) : Int
+
+def create (n:{v:Int | v >= 0}) : {it:PlaidIterator | remaining it = n} := PlaidIterator.mk n;
+def count (it:PlaidIterator) : {n:Int | n = remaining it && n >= 0} :=
+    match it with | mk n => n;
+def next (it:{i:PlaidIterator | remaining i > 0}) :
+    {i:PlaidIterator | remaining i = remaining it - 1} :=
+    match it with | mk n => PlaidIterator.mk (n - 1);

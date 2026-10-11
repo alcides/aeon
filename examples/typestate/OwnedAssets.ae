@@ -1,0 +1,6 @@
+# Ownership-only interfaces: no factories or assumed transition bodies.
+linear type Coin
+linear type FileCapability
+
+def transfer_coin (1 coin:Coin) : Coin := coin;
+def store_file (1 file:FileCapability) : FileCapability := file;

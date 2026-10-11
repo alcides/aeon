@@ -73,6 +73,10 @@ synthesis-rl = [
 nn = [
     "torch"
 ]
+denser = [
+    "torch",
+    "torchvision",
+]
 # Full local/CI toolchain (core + test + ML/image/LLM extras).
 dev = [
     "pytest==9.1.1",
@@ -114,7 +118,7 @@ include = ["aeon*"]
 [tool.setuptools.package-data]
 # Include grammar files and the bundled standard-library .ae modules
 # (aeon/libraries/*.ae) so imports resolve from an installed wheel/egg.
-aeon = ["**/*.lark", "**/*.ae"]
+aeon = ["**/*.lark", "**/*.ae", "synthesis/modules/bustle/model.json"]
 
 [tool.docformatter]
 syntax = 'google'
