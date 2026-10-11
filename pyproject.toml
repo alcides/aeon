@@ -65,6 +65,9 @@ llm = [
 synthesis-ortools = [
     "ortools"
 ]
+synthesis-rl = [
+    "xgboost>=2,<4"
+]
 nn = [
     "torch"
 ]

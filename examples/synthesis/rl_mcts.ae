@@ -1,0 +1,7 @@
+# Run: python -m aeon -s rl_mcts --budget 10 examples/synthesis/rl_mcts.ae
+# Refinements are the correctness oracle; the learned policy only orders search.
+def bounded (u:Unit) : {v:Int | 3 <= v && v <= 5} := ?bounded;
+
+def identity (x:Int) : {v:Int | v = x} := ?identity;
+
+def main (args:Int) : Int := identity (bounded unit);

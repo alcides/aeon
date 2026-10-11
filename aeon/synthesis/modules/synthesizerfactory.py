@@ -5,6 +5,7 @@ import os
 from aeon.synthesis.api import ProgramSynthesizer, Synthesizer, UnknownSynthesizerError
 from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
 from aeon.synthesis.modules.random_search import RandomSearchSynthesizer
+from aeon.synthesis.modules.rl_mcts import RLMCTSSynthesizer
 from aeon.synthesis.modules.genetic_programming import GeneticProgrammingSynthesizer
 from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
@@ -86,6 +87,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "xfta": "Metric-guided composition (diversity)",
     "enumerative": "Native grammar enumeration (BFS)",
     "random_search": "Native grammar random search",
+    "rl_mcts": "RL-guided Monte-Carlo grammar tree search",
     "gp": "Native genetic programming (linear genome)",
     **{sid: llm_synthesizer_label(sid) for sid in LLM_OLLAMA_MODELS},
     LLM_OPENAI_SYNTHESIZER_ID: llm_synthesizer_label(LLM_OPENAI_SYNTHESIZER_ID),
@@ -130,6 +132,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     # Grammar search — sample or enumerate syntax trees from a grammar.
     "enumerative": SynthesizerFamily.GRAMMAR_SEARCH,
     "random_search": SynthesizerFamily.GRAMMAR_SEARCH,
+    "rl_mcts": SynthesizerFamily.GRAMMAR_SEARCH,
     # Metaheuristic — improve candidates with a fitness landscape.
     "gp": SynthesizerFamily.METAHEURISTIC,
     # LLM-assisted — generate candidates from natural language.
@@ -140,6 +143,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
 _BUILTIN_SYNTHESIZER_IDS = frozenset(
     {
         "random_search",
+        "rl_mcts",
         "enumerative",
         "gp",
         "ortools",
@@ -222,6 +226,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
     match module:
         case "random_search":
             return RandomSearchSynthesizer(seed=seed)
+        case "rl_mcts":
+            return RLMCTSSynthesizer(seed=seed)
         case "enumerative":
             return EnumerativeSynthesizer(seed=seed)
         case "gp":
