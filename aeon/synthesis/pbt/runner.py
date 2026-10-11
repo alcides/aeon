@@ -324,7 +324,10 @@ def _check_property(
             call = Application(call, term)
         return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
 
-    cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+    try:
+        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+    except RuntimeError as generation_error:
+        return PropertyResult(spec.name, passed=False, trials=0, error=f"input generation failed: {generation_error}")
     for trial, (terms, arg_tys) in enumerate(cases):
         value, _ = evaluate(terms)
         if value is not True:

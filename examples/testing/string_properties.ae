@@ -1,0 +1,25 @@
+import String
+
+# A real string is synthesized by Z3, not selected from a hand-written set.
+# Then start/stop are synthesized in the domain of that particular string.
+@property(30)
+def prop_slice_composition
+    (s:{v:String | 4 <= String.len v && String.len v <= 12})
+    (start:{v:Int | 0 <= v && v < String.len s})
+    (stop:{v:Int | start <= v && v <= String.len s})
+    (cut:{v:Int | start <= v && v <= stop && v < String.len s}) : Bool :=
+    String.concat (String.slice s start cut) (String.slice s cut stop) = String.slice s start stop;
+
+@property(30)
+def prop_slice_length
+    (s:{v:String | 4 <= String.len v && String.len v <= 12})
+    (start:{v:Int | 0 <= v && v < String.len s})
+    (stop:{v:Int | start <= v && v <= String.len s}) : Bool :=
+    String.len (String.slice s start stop) = stop - start;
+
+@property(30)
+def prop_trim_idempotent (s:String) : Bool := String.trim (String.trim s) = String.trim s;
+
+@property(30)
+def prop_repeat_length (s:String) (n:{v:Int | 0 <= v && v <= 8}) : Bool :=
+    String.len (String.repeat s n) = String.len s * n;

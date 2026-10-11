@@ -1,0 +1,15 @@
+import Set
+
+# Generate elements, not opaque native Set handles; build states with the real API.
+@property(30)
+def prop_remove_preserves_other_element (x:Int) (y:{v:Int | v != x}) : Bool :=
+    original := Set.add (Set.add Set.new x) y;
+    changed := Set.remove original x;
+    !Set.has changed x && Set.has changed y && Set.has original x && Set.has original y;
+
+@property(30)
+def prop_union_intersection_membership (x:Int) (y:Int) (probe:Int) : Bool :=
+    a := Set.add Set.new x;
+    b := Set.add Set.new y;
+    Set.has (Set.union a b) probe = (Set.has a probe || Set.has b probe) &&
+        Set.has (Set.intersection a b) probe = (Set.has a probe && Set.has b probe);

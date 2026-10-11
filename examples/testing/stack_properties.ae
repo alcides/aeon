@@ -1,0 +1,20 @@
+import Stack
+
+# Generate ordinary elements and build the linear handle through the real API.
+# Checking size recovers the same handle; pop twice and discard the empty stack.
+@property(30)
+def prop_stack_lifo (x:Int) (y:Int) : Bool :=
+    let 1 empty := Stack.new_stack{Int} unit in
+    let 1 one := Stack.push x empty in
+    let 1 two := Stack.push y one in
+    measured := Stack.len_of two;
+    count := Stack.len_value measured;
+    let 1 two_again := Stack.len_stack measured in
+    first := Stack.pop two_again;
+    top := Stack.pop_value first;
+    let 1 remaining := Stack.pop_stack first in
+    second := Stack.pop remaining;
+    bottom := Stack.pop_value second;
+    let 1 final := Stack.pop_stack second in
+    done := Stack.discard final;
+    count = 2 && top = y && bottom = x;
