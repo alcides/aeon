@@ -286,6 +286,14 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 
 ## Benchmarks
 
+The [Hakank common CP starter suite](../examples/synthesis/hakank/README.md)
+contains 25 standalone, finite constraint and optimization models drawn from
+the archived catalogue. Run these with `-s ortools`; decisions remain numeric
+holes, with constraints expressed through comparisons, Boolean combinations,
+and numeric conditionals. The suite includes pinned provenance, explicit
+instance sizes, objective targets, regeneration tooling, and independent
+checks of synthesized assignments.
+
 For the catalogue of synthesis and verification benchmarks bundled with Aeon —
 where they live, how many there are, and how to run them — see
 [benchmarks.md](benchmarks.md).

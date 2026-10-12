@@ -696,7 +696,8 @@ def _rename_constraint_node(
         case Conjunction(c1, c2):
             return Conjunction(visit(c1), visit(c2), loc=c.loc)
         case Implication(name, base, pred, seq):
-            if name == new_name:
+            if name == old_name or name == new_name:
+                # This binder shadows the variable being renamed.
                 return c
             else:
                 npred = substitution_in_liquid(pred, LiquidVar(new_name), old_name)
@@ -714,10 +715,35 @@ def _rename_constraint_node(
             assert False, f"Unexpected case {c} ({type(c)})"
 
 
-def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicConstraint]:
+def _trivial_constraint(c: Constraint, memo: dict[int, tuple[Constraint, bool]]) -> bool:
+    cached = memo.get(id(c))
+    if cached is not None:
+        return cached[1]
+    match c:
+        case LiquidConstraint(LiquidLiteralBool(True)):
+            result = True
+        case Conjunction(left, right):
+            result = _trivial_constraint(left, memo) and _trivial_constraint(right, memo)
+        case Implication(seq=seq) | UninterpretedFunctionDeclaration(seq=seq) | ReflectedFunctionDeclaration(seq=seq):
+            result = _trivial_constraint(seq, memo)
+        case _:
+            result = False
+    memo[id(c)] = (c, result)
+    return result
+
+
+def flatten(
+    c: Constraint,
+    ctx: SMTContext | None = None,
+    _trivial_memo: dict[int, tuple[Constraint, bool]] | None = None,
+) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
         ctx = SMTContext(["Top"], {}, {}, [], {})
+    if _trivial_memo is None:
+        _trivial_memo = {}
+    if _trivial_constraint(c, _trivial_memo):
+        return
     match c:
         case LiquidConstraint(expr):
             specializations: dict[tuple[str, tuple[str, ...]], str] = {}
@@ -736,8 +762,8 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
             yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
         case Conjunction(c1, c2):
-            yield from flatten(c1, ctx)
-            yield from flatten(c2, ctx)
+            yield from flatten(c1, ctx, _trivial_memo)
+            yield from flatten(c2, ctx, _trivial_memo)
         case Implication(oname, base, pred, seq):
             # Bound core names already carry unique IDs. Alpha-rename only
             # when this scope would actually shadow an existing SMT symbol;
@@ -757,18 +783,18 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
                     pass
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
-            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred))
+            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred), _trivial_memo)
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
-            yield from flatten(seq, nctx.with_function(name, ty))
+            yield from flatten(seq, nctx.with_function(name, ty), _trivial_memo)
         case ReflectedFunctionDeclaration(name, ty, params, body, seq):
             nctx = (
                 _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
             )
             app = LiquidApp(name, [LiquidVar(p) for p in params])
             eq = LiquidApp(Name("==", 0), [app, body])
-            yield from flatten(seq, nctx.with_premise(eq))
+            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo)
         case _:
             assert False, f"Cannot flatten {c}."
 

@@ -1,0 +1,28 @@
+# Balanced collections let a benchmark keep many refined holes in one value.
+# Each branch records how many leaves belong to its left subtree.
+inductive DecisionTree a
+| leaf (value:a) : (DecisionTree a)
+| branch (leftSize:Int) (left:(DecisionTree a)) (right:(DecisionTree a)) : (DecisionTree a)
+
+# Accessors require an index within the collection; generated indices satisfy
+# this by construction. They are monomorphic so their results enter refinements.
+def intAt (index:Int) (tree:(DecisionTree Int)) : Int :=
+    match tree with
+    | .leaf value => value
+    | .branch leftSize left right =>
+        if index < leftSize then intAt index left
+        else intAt (index - leftSize) right;
+
+def boolAt (index:Int) (tree:(DecisionTree Bool)) : Bool :=
+    match tree with
+    | .leaf value => value
+    | .branch leftSize left right =>
+        if index < leftSize then boolAt index left
+        else boolAt (index - leftSize) right;
+
+def floatAt (index:Int) (tree:(DecisionTree Float)) : Float :=
+    match tree with
+    | .leaf value => value
+    | .branch leftSize left right =>
+        if index < leftSize then floatAt index left
+        else floatAt (index - leftSize) right;

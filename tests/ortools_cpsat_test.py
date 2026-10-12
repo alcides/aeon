@@ -35,16 +35,17 @@ def _parse(src: str) -> AeonDriver:
 
 def _solve(driver: AeonDriver, budget: float = 8.0) -> dict:
     targets = incomplete_functions_and_holes(driver.typing_ctx, driver.core)
-    return synthesize_holes(
-        driver.typing_ctx,
-        driver.evaluation_ctx,
-        driver.core,
-        targets,
-        driver.metadata,
-        CPSatHoleSynthesizer(bound=50),
-        budget,
-        SilentSynthesisUI(),
-    )
+    with driver.session.activate():
+        return synthesize_holes(
+            driver.typing_ctx,
+            driver.evaluation_ctx,
+            driver.core,
+            targets,
+            driver.metadata,
+            CPSatHoleSynthesizer(bound=50),
+            budget,
+            SilentSynthesisUI(),
+        )
 
 
 def _values(mapping: dict) -> dict:
@@ -105,6 +106,59 @@ def test_int_booth_exact_optimum():
     def booth : Int := (((x + (2 * y)) - 7) * ((x + (2 * y)) - 7)) + ((((2 * x) + y) - 5) * (((2 * x) + y) - 5));
     """
     assert _values(_solve(_parse(src))) == {"hx": 1, "hy": 3}
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        ("x < 2 && x > 0", 1),
+        ("x <= 2 && x >= 2", 2),
+        ("x = 2", 2),
+        ("(x = 1 || x = 3) && x != 1", 3),
+    ],
+)
+def test_reified_comparisons_and_boolean_guards(condition, expected):
+    source = f"""
+        def x : {{v:Int | 0 <= v && v <= 4}} := ?hx;
+        @minimize_int(if {condition} then 0 else 100)
+        def cost : Int := if {condition} then 0 else 100;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": expected}
+
+
+@pytest.mark.parametrize("condition", ["true", "false"])
+def test_constant_condition_keeps_the_selected_numeric_branch(condition):
+    source = f"""
+        def x : {{v:Int | 0 <= v && v <= 4}} := ?hx;
+        @minimize_int(if {condition} then x else (4 - x))
+        def cost : Int := if {condition} then x else (4 - x);
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 0 if condition == "true" else 4}
+
+
+@pytest.mark.parametrize(
+    "condition,otherwise,expected",
+    [
+        ("x = 0 || x = 4", "x", 1),
+        ("x >= 1 && x <= 2", "(x - 2) * (x - 2)", 3),
+    ],
+)
+def test_false_branch_requires_the_guard_to_actually_be_false(condition, otherwise, expected):
+    source = f"""
+        def x : {{v:Int | 0 <= v && v <= 4}} := ?hx;
+        @minimize_int(if {condition} then 100 else ({otherwise}))
+        def cost : Int := if {condition} then 100 else ({otherwise});
+    """
+    assert _values(_solve(_parse(source))) == {"hx": expected}
+
+
+def test_conditional_aligns_fixed_point_branch_scales():
+    source = """
+        def x : {v:Float | 0.0 <= v && v <= 1.0} := ?hx;
+        @minimize_float(if x <= 0.5 then ((x - 0.25) * (x - 0.25)) else 1.0)
+        def cost : Float := if x <= 0.5 then ((x - 0.25) * (x - 0.25)) else 1.0;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 0.25}
 
 
 def test_refinement_constrains_optimum():
@@ -238,15 +292,83 @@ def test_missing_objective_rejected():
 
 
 def test_non_numeric_hole_rejected():
-    # Bool holes are outside the numeric fragment CP-SAT can model.
+    # Opaque/string holes are outside the CP-SAT scalar fragment.
     src = """
-    def b : Bool := ?hb;
+    def b : String := ?hb;
     def x : {v:Int | v >= 0 && v <= 5} := ?hx;
     @minimize_int( x * x )
     def f : Int := x * x;
     """
     with pytest.raises(SynthesisError, match="cannot handle hole"):
         _solve(_parse(src))
+
+
+def test_hard_constraint_cannot_be_traded_for_a_better_objective():
+    source = """
+        def x : {v:Int | 0 <= v && v <= 5} := ?hx;
+        @require(x >= 3)
+        @minimize_int(1000000 * x)
+        def score : Int := 1000000 * x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 3}
+
+
+def test_inconsistent_hard_constraint_has_no_solution():
+    source = """
+        def x : {v:Int | 0 <= v && v <= 1} := ?hx;
+        @require(x > 2)
+        def score : Int := 0;
+    """
+    assert all(value is None for value in _solve(_parse(source)).values())
+
+
+def test_native_boolean_hole_and_refinement():
+    source = """
+        def flag : {v:Bool | v} := ?flag;
+        @require(flag)
+        def score : Int := 0;
+    """
+    assert _values(_solve(_parse(source))) == {"flag": True}
+
+
+def test_boolean_negation_in_hard_constraints():
+    source = """
+        def flag : Bool := ?flag;
+        @require(!flag)
+        def score : Int := 0;
+    """
+    assert _values(_solve(_parse(source))) == {"flag": False}
+
+
+def test_explicit_bounds_are_not_clipped_to_default_search_bound():
+    source = """
+        def x : {v:Int | 10000 <= v && v <= 20000} := ?hx;
+        @minimize_int(x)
+        def score : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 10000}
+
+
+def test_variable_dependent_refinement_is_not_mistaken_for_a_constant_bound():
+    source = """
+        def x : {v:Int | v >= 2 * v - 1} := ?hx;
+        @minimize_int(x)
+        def score : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": -50}
+
+
+def test_pure_recursive_adt_constraint_helpers_keep_holes_symbolic():
+    source = """
+        import Vec;
+        def x : {v:Int | 0 <= v && v <= 4} := ?hx;
+        def y : {v:Int | 0 <= v && v <= 4} := ?hy;
+        def xs : (Vec Int) := Vec.cons x (Vec.cons y Vec.nil);
+        @require(Vec.allDifferent xs && Vec.sum xs = 3)
+        @minimize_int(x)
+        def score : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 0, "hy": 3}
 
 
 def test_unsupported_objective_rejected():
@@ -259,3 +381,41 @@ def test_unsupported_objective_rejected():
     """
     with pytest.raises(SynthesisError, match="objective"):
         _solve(_parse(src))
+
+
+def test_fractional_coefficients_are_not_rounded_to_hole_grid():
+    mapping = _solve(
+        _parse("""
+        def x : {v:Float | 0.0 <= v && v <= 0.002} := ?hx;
+        @require(x * 0.0005 = 0.000001)
+        @minimize_float(x)
+        def benchmark : Float := x;
+    """)
+    )
+    assert _values(mapping) == {"hx": 0.002}
+
+
+def test_fractional_bounds_are_rounded_inward():
+    mapping = _solve(
+        _parse("""
+        def x : {v:Float | 0.0001 <= v && v <= 0.0019} := ?hx;
+        @minimize_float(x)
+        def benchmark : Float := x;
+    """)
+    )
+    assert _values(mapping) == {"hx": 0.001}
+
+
+def test_balanced_adt_contains_individually_refined_holes():
+    mapping = _solve(
+        _parse("""
+        import DecisionTree;
+        def choices : (DecisionTree Int) := DecisionTree.branch 1
+            (DecisionTree.leaf (?hx : {v:Int | 10000 <= v && v <= 10001}))
+            (DecisionTree.leaf (?hy : {v:Int | 2 <= v && v <= 3}));
+        @require((DecisionTree.intAt 0 choices) + (DecisionTree.intAt 1 choices) = 10003)
+        @minimize_int(DecisionTree.intAt 0 choices)
+        def benchmark : Int := DecisionTree.intAt 0 choices;
+    """)
+    )
+    assert _values(mapping) == {"hx": 10000, "hy": 3}

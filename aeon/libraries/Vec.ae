@@ -1,0 +1,90 @@
+# Pure constraint operations over an inductive sequence of integers.
+# Concrete sequence spines may contain symbolic numeric holes: -s ortools
+# unfolds pattern matching and structural recursion while preserving the holes.
+inductive Vec a
+| nil : (Vec a)
+| cons (head:a) (tail:(Vec a)) : (Vec a)
+
+def length (xs:(Vec a)) : Int :=
+    match xs with | .nil => 0 | .cons h t => 1 + (length t);
+
+def sum (xs:(Vec Int)) : Int :=
+    match xs with | .nil => 0 | .cons h t => h + (sum t);
+
+def absolute (x:Int) : Int := if x >= 0 then x else 0 - x;
+
+def contains (value:Int) (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => false | .cons h t => value = h || (contains value t);
+
+def differentFrom (value:Int) (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => value != h && (differentFrom value t);
+
+def allDifferent (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => (differentFrom h t) && (allDifferent t);
+
+def differentExceptZero (value:Int) (xs:(Vec Int)) : Bool :=
+    match xs with
+    | .nil => true
+    | .cons h t => (value = 0 || h = 0 || value != h) && (differentExceptZero value t);
+
+def allDifferentExceptZero (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => (differentExceptZero h t) && (allDifferentExceptZero t);
+
+def equalTo (value:Int) (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => value = h && (equalTo value t);
+
+def allEqual (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => equalTo h t;
+
+def count (value:Int) (xs:(Vec Int)) : Int :=
+    match xs with | .nil => 0 | .cons h t => (if value = h then 1 else 0) + (count value t);
+
+def amongCount (allowed:(Vec Int)) (xs:(Vec Int)) : Int :=
+    match xs with | .nil => 0 | .cons h t => (if contains h allowed then 1 else 0) + (amongCount allowed t);
+
+def dot (coefficients:(Vec Int)) (xs:(Vec Int)) : Int :=
+    match coefficients with
+    | .nil => 0
+    | .cons coefficient tail =>
+        (match xs with | .nil => 0 | .cons h t => coefficient * h + (dot tail t));
+
+# element uses zero-based indexing. Its caller should require 0 <= index and
+# index < length xs. Out-of-range access has the explicit default value zero.
+def element (index:Int) (xs:(Vec Int)) : Int :=
+    match xs with | .nil => 0 | .cons h t => if index = 0 then h else element (index - 1) t;
+
+def increasingFrom (previous:Int) (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => previous <= h && (increasingFrom h t);
+
+def increasing (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => increasingFrom h t;
+
+def strictlyIncreasingFrom (previous:Int) (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => previous < h && (strictlyIncreasingFrom h t);
+
+def strictlyIncreasing (xs:(Vec Int)) : Bool :=
+    match xs with | .nil => true | .cons h t => strictlyIncreasingFrom h t;
+
+# Scalar conversion is the only numeric FFI primitive in this module.
+def toFloat (value:Int) : Float := native "float(value)";
+
+def sumFloat (xs:(Vec Float)) : Float :=
+    match xs with | .nil => 0.0 | .cons h t => h + (sumFloat t);
+
+def allTrue (xs:(Vec Bool)) : Bool :=
+    match xs with | .nil => true | .cons h t => h && (allTrue t);
+
+def anyTrue (xs:(Vec Bool)) : Bool :=
+    match xs with | .nil => false | .cons h t => h || (anyTrue t);
+
+# Lexicographic order of the sorted elements of finite sets. The vectors
+# are membership masks over the same increasing universe.
+def setLexLe (left:(Vec Bool)) (right:(Vec Bool)) : Bool :=
+    match left with
+    | .nil => true
+    | .cons a xs => match right with
+      | .nil => (anyTrue left) = false
+      | .cons b ys =>
+          if a = b then setLexLe xs ys
+          else if a then anyTrue ys
+          else (anyTrue xs) = false;

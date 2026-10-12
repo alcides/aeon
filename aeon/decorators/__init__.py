@@ -37,6 +37,7 @@ from aeon.synthesis.decorators import (
     multi_minimize_int,
     prompt,
     property_test,
+    require,
 )
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -60,6 +61,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "minimize_cputime": minimize_cputime,
     "minimize_energy": minimize_energy,
     "cluster": cluster,
+    "require": require,
 }
 
 # Backwards-compatible name (sugar-phase registry only).

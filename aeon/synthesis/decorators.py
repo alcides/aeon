@@ -141,6 +141,23 @@ def minimize_int(
     return make_optimizer(decorator.macro_args, fun, metadata, st_int, minimize=True)
 
 
+def require(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """A hard Boolean synthesis constraint, currently supported by CP-SAT.
+
+    Keep the helper numeric so existing goal metadata, display, and evaluator
+    protocols remain valid. A supporting backend requires its value to be zero,
+    independently of the optimization objective. Unsupported backends reject
+    this goal explicitly rather than treating it as a weighted penalty.
+    """
+    assert len(decorator.macro_args) == 1, "require expects one Boolean expression"
+    violation = SIf(decorator.macro_args[0], SLiteral(0, st_int), SLiteral(1, st_int))
+    return make_optimizer([violation], fun, metadata, st_int, minimize=True, kind="constraint")
+
+
 def maximize_int(
     decorator: Decorator,
     fun: Definition,
