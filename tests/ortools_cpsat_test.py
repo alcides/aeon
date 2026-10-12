@@ -35,16 +35,17 @@ def _parse(src: str) -> AeonDriver:
 
 def _solve(driver: AeonDriver, budget: float = 8.0) -> dict:
     targets = incomplete_functions_and_holes(driver.typing_ctx, driver.core)
-    return synthesize_holes(
-        driver.typing_ctx,
-        driver.evaluation_ctx,
-        driver.core,
-        targets,
-        driver.metadata,
-        CPSatHoleSynthesizer(bound=50),
-        budget,
-        SilentSynthesisUI(),
-    )
+    with driver.session.activate():
+        return synthesize_holes(
+            driver.typing_ctx,
+            driver.evaluation_ctx,
+            driver.core,
+            targets,
+            driver.metadata,
+            CPSatHoleSynthesizer(bound=50),
+            budget,
+            SilentSynthesisUI(),
+        )
 
 
 def _values(mapping: dict) -> dict:
@@ -291,15 +292,83 @@ def test_missing_objective_rejected():
 
 
 def test_non_numeric_hole_rejected():
-    # Bool holes are outside the numeric fragment CP-SAT can model.
+    # Opaque/string holes are outside the CP-SAT scalar fragment.
     src = """
-    def b : Bool := ?hb;
+    def b : String := ?hb;
     def x : {v:Int | v >= 0 && v <= 5} := ?hx;
     @minimize_int( x * x )
     def f : Int := x * x;
     """
     with pytest.raises(SynthesisError, match="cannot handle hole"):
         _solve(_parse(src))
+
+
+def test_hard_constraint_cannot_be_traded_for_a_better_objective():
+    source = """
+        def x : {v:Int | 0 <= v && v <= 5} := ?hx;
+        @require(x >= 3)
+        @minimize_int(1000000 * x)
+        def score : Int := 1000000 * x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 3}
+
+
+def test_inconsistent_hard_constraint_has_no_solution():
+    source = """
+        def x : {v:Int | 0 <= v && v <= 1} := ?hx;
+        @require(x > 2)
+        def score : Int := 0;
+    """
+    assert all(value is None for value in _solve(_parse(source)).values())
+
+
+def test_native_boolean_hole_and_refinement():
+    source = """
+        def flag : {v:Bool | v} := ?flag;
+        @require(flag)
+        def score : Int := 0;
+    """
+    assert _values(_solve(_parse(source))) == {"flag": True}
+
+
+def test_boolean_negation_in_hard_constraints():
+    source = """
+        def flag : Bool := ?flag;
+        @require(!flag)
+        def score : Int := 0;
+    """
+    assert _values(_solve(_parse(source))) == {"flag": False}
+
+
+def test_explicit_bounds_are_not_clipped_to_default_search_bound():
+    source = """
+        def x : {v:Int | 10000 <= v && v <= 20000} := ?hx;
+        @minimize_int(x)
+        def score : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 10000}
+
+
+def test_variable_dependent_refinement_is_not_mistaken_for_a_constant_bound():
+    source = """
+        def x : {v:Int | v >= 2 * v - 1} := ?hx;
+        @minimize_int(x)
+        def score : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": -50}
+
+
+def test_pure_recursive_adt_constraint_helpers_keep_holes_symbolic():
+    source = """
+        import Vec;
+        def x : {v:Int | 0 <= v && v <= 4} := ?hx;
+        def y : {v:Int | 0 <= v && v <= 4} := ?hy;
+        def xs : (Vec Int) := Vec.cons x (Vec.cons y Vec.nil);
+        @require(Vec.allDifferent xs && Vec.sum xs = 3)
+        @minimize_int(x)
+        def score : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 0, "hy": 3}
 
 
 def test_unsupported_objective_rejected():
@@ -312,3 +381,26 @@ def test_unsupported_objective_rejected():
     """
     with pytest.raises(SynthesisError, match="objective"):
         _solve(_parse(src))
+
+
+def test_fractional_coefficients_are_not_rounded_to_hole_grid():
+    mapping = _solve(
+        _parse("""
+        def x : {v:Float | 0.0 <= v && v <= 0.002} := ?hx;
+        @require(x * 0.0005 = 0.000001)
+        @minimize_float(x)
+        def benchmark : Float := x;
+    """)
+    )
+    assert _values(mapping) == {"hx": 0.002}
+
+
+def test_fractional_bounds_are_rounded_inward():
+    mapping = _solve(
+        _parse("""
+        def x : {v:Float | 0.0001 <= v && v <= 0.0019} := ?hx;
+        @minimize_float(x)
+        def benchmark : Float := x;
+    """)
+    )
+    assert _values(mapping) == {"hx": 0.001}

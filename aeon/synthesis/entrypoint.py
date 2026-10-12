@@ -38,6 +38,7 @@ from aeon.synthesis.api import (
     ErrorInSynthesis,
     InvalidIndividualException,
     ProgramSynthesizer,
+    SynthesisError,
     Synthesizer,
     TimeoutInEvaluationException,
 )
@@ -502,6 +503,10 @@ def synthesize_holes(
     relational recursive synthesis), so a candidate for one member may call its
     siblings. ``constructor_names`` (data-constructor names) is forwarded to
     the ``@property`` runner used as a relational/k-safety acceptance oracle."""
+
+    hard_constraints = any(goal.kind == "constraint" for entry in metadata.values() for goal in entry.get("goals", []))
+    if hard_constraints and not getattr(synthesizer, "supports_hard_constraints", False):
+        raise SynthesisError("@require needs a synthesizer supporting hard constraints (currently -s ortools)")
 
     # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
     # hole at once rather than one function at a time.

@@ -130,7 +130,7 @@ jobs:
       - if: matrix.backend == 'ortools'
         run: |
           uv pip install -e ".[synthesis-ortools]"
-          uv run pytest tests/ortools_cpsat_test.py tests/hakank_cp_examples_test.py -q --junitxml=optional-results.xml
+          uv run pytest tests/ortools_cpsat_test.py tests/hakank_cp_examples_test.py tests/hakank_flatzinc_test.py tests/hakank_domains_test.py tests/hakank_algorithmic_test.py -q --junitxml=optional-results.xml
       - if: matrix.backend == 'torch'
         run: |
           uv pip install torch --index-url https://download.pytorch.org/whl/cpu

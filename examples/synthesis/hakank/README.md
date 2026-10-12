@@ -1,11 +1,19 @@
 # Hakank common CP models in Aeon
 
-This starter suite implements **25 representative models**, not all 1,124
-entries in the [requested archived catalogue](https://web.archive.org/web/20251201043639/https://www.hakank.org/common_cp_models/).
-It covers finite puzzles, global constraints, assignment, packing, scheduling,
-and optimization. The catalogue and model formulations are by Hakan
-Kjellerstrand. These are new Aeon formulations; no upstream solver runs at
-runtime and no solution assignments are embedded in the examples.
+The requested [archived catalogue](https://web.archive.org/web/20251201043639/https://www.hakank.org/common_cp_models/)
+contains 1,124 entries. [catalogue.json](catalogue.json) tracks every entry by
+its archive anchor, including pinned sources and current porting status.
+There are 25 independently validated examples and 838 additional generated
+translations in [catalogue/](catalogue/). **The full port is still in progress:**
+generated translations have not all been compiled or independently validated,
+and 261 entries remain pending. Pending records are inventory, not implementations.
+
+The models use refined scalar holes, Boolean decisions, pure recursive `Vec`
+functions, named predicates, and hard `@require` constraints. Aeon searches
+all decisions jointly. The authoring importer translates equations; generated
+programs do not invoke MiniZinc, FlatZinc, or upstream solvers at runtime.
+The catalogue and original formulations are by Hakan Kjellerstrand; the
+[upstream MIT license](UPSTREAM_LICENSE) is preserved here.
 
 ## Run
 
@@ -17,28 +25,25 @@ python -m aeon --budget 10 -s ortools examples/synthesis/hakank/assignment.ae
 python -m aeon --budget 10 -s ortools examples/synthesis/hakank/schedule1.ae
 ```
 
-Each file is standalone. Every decision is an integer hole with an explicit
-finite domain. `valid` contains the complete constraints, `objective` states
-the feasible score, and `score` returns the objective for valid assignments or
-1,000,000 otherwise. `@minimize_int(score)` makes Aeon search all decisions
-jointly. A satisfaction problem succeeds at score 0; optimization problems
-use the target in the table below. Knapsack maximization is expressed as
-`455 - benefit`, so all objectives are minimized consistently.
+Each file imports Aeon's `Vec` library. Integer and Float decisions have
+explicit refined domains; Boolean decisions have type `Bool`. `valid` contains
+the constraints, while `objective` and `score` state the optimization goal.
+`@require(valid)` makes feasibility mandatory, independently of the objective.
+Satisfaction problems minimize the constant zero. Knapsack maximization uses
+`455 - benefit`. `main` prints the score and decisions.
 
-All feasible objective values are nonnegative and strictly below the invalid
-penalty. Thus a proven optimum is feasible when a feasible assignment exists.
-This is an exact bounded penalty formulation, not a claim that a feasible
-solution exists for arbitrary changed instances. A timeout or score 1,000,000
-is not a solved benchmark. The backend may return a feasible incumbent before
-proving optimality if the budget expires. The tests require the documented
-optimal scores, not merely that synthesis returned an expression.
+CP-SAT searches Float holes on its configured fixed-point grid (default 0.001).
+Decimal constants retain their precision; the search grid still limits which
+real-valued assignments can be represented. An infeasible grid instance does
+not establish infeasibility over continuous reals. A timeout may return a
+feasible incumbent without proving optimality. These limitations are particularly
+relevant to unverified generated translations.
 
-`main` prints the score and every decision. The synthesis output also exposes
-the completed definitions. The files include no `native`, FFI, external data,
-or reference solutions. Constructor/value grammar search is not required:
-CP-SAT translates the arithmetic, comparisons, Boolean combinations, and
-numeric conditionals in these models. The added Boolean translation concerns
-intermediate expressions; Boolean-valued holes remain unsupported.
+`@require` currently needs the OR-Tools backend. Other backends explicitly
+reject it rather than silently replacing hard constraints with a penalty.
+Finite set variables are represented by Boolean membership holes, with a
+source-element map in the catalogue. Recursive `Vec` operations execute as
+Aeon functions and are unfolded structurally during symbolic translation.
 
 ## Instances and goals
 
@@ -115,3 +120,26 @@ by exhaustive enumeration over independent representations. Scheduling attains
 the resource-area lower bound, establishing optimality independently. A generation test
 checks that committed examples match the generator and manifest. The optional
 OR-Tools CI job runs this suite; core-only installations skip solver tests.
+
+## Reproduce catalogue translations
+
+The authoring pipeline requires a checkout of the pinned upstream commit and
+MiniZinc 2.9.4. All chosen parameters and data files are explicit in
+[prepared_instances.json](prepared_instances.json). The compilation step uses
+an empty solver library to decompose globals into primitive constraints and
+never runs a solver:
+
+```bash
+python -m scripts.prepare_hakank_models --upstream /path/to/hakank \
+  --minizinc /path/to/minizinc --cache /tmp/hakank-prepared
+python -m scripts.import_hakank_flatzinc --cache /tmp/hakank-prepared \
+  --results /tmp/hakank-prepared/results.json \
+  --catalogue examples/synthesis/hakank/catalogue.json \
+  --destination examples/synthesis/hakank/catalogue
+```
+
+Unsupported operations and missing domains remain explicit errors in the
+catalogue. Models compiled to constant computations need algorithmic Aeon
+ports; they are not represented as fake decision problems. The importer tests
+check signed division, reification, indexing, finite sets, and fractional
+constants by synthesizing witnesses and checking their meaning.
