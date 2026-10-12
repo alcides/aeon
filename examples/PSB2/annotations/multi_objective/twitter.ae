@@ -1,4 +1,5 @@
-import PSB2 (extract_train_data, load_dataset)
+import Array
+import PSB2 (extract_train_data, load_dataset , objective_errors)
 
 def String_len : (i:String) -> Int := fun i => native "len(i)"
 def String_intToString : (i:Int) -> String := fun i => native "str(i)"
@@ -14,8 +15,8 @@ def const4 : String := " characters"
 def train: TrainData := extract_train_data (load_dataset "twitter" 200 200)
 
 
-def calculate_twitter_errors : (train : TrainData) -> (f:(a: String) -> String)  -> List  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
+def calculate_twitter_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
 
-@multi_minimize_float(calculate_twitter_errors train synth, 1)
+@multi_minimize_float(objective_errors (calculate_twitter_errors train synth) 200, 200)
 def synth (tweet: String) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_twitter_errors := unit in let train := unit in ?hole)

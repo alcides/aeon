@@ -1,4 +1,4 @@
-import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_bowling_synth_values, unpack_train_data, calculate_bowling_errors, load_dataset)
+import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_bowling_synth_values, unpack_train_data, calculate_bowling_errors, load_dataset , objective_errors)
 
 
 import Array
@@ -26,5 +26,5 @@ def const2 : String := "/"
 def train: TrainData := extract_train_data (load_dataset "bowling" 200 200)
 
 
-@multi_minimize_float(calculate_bowling_errors train synth, 1)
+@multi_minimize_float(objective_errors (calculate_bowling_errors train synth) 200, 200)
 def synth (scores: String) : Int := (let extract_train_data := unit in let unpack_train_data := unit in let load_dataset := unit in let train := unit in let calculate_bowling_errors := unit in ?hole)

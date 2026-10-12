@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from contextlib import contextmanager, ExitStack
 from typing import Generator
 
 from aeon.core.liquid import LiquidApp
@@ -106,6 +107,23 @@ def _alpha_bind(
     return f"{name.name}#{canonical_id}", new_env
 
 
+@contextmanager
+def _alpha_scope(name: Name, env: dict[tuple[str, int], int], counter: list[int]):
+    """Temporarily extend a scope without copying the full enclosing map."""
+    key = (name.name, name.id)
+    previous = env.get(key)
+    canonical_id = counter[0]
+    counter[0] += 1
+    env[key] = canonical_id
+    try:
+        yield f"{name.name}#{canonical_id}"
+    finally:
+        if previous is None:
+            del env[key]
+        else:
+            env[key] = previous
+
+
 def _alpha_liquid(t: LiquidTerm, env: dict[tuple[str, int], int], counter: list[int]) -> str:
     """Alpha-normalize a LiquidTerm to a canonical string."""
     if isinstance(t, LiquidLiteralBool):
@@ -134,15 +152,15 @@ def _alpha_liquid(t: LiquidTerm, env: dict[tuple[str, int], int], counter: list[
 def _alpha_type(ty: Type, env: dict[tuple[str, int], int], counter: list[int]) -> str:
     """Alpha-normalize a Type to a canonical string."""
     if isinstance(ty, AbstractionType):
-        var_s, new_env = _alpha_bind(ty.var_name, env, counter)
-        vt_s = _alpha_type(ty.var_type, new_env, counter)
-        body_s = _alpha_type(ty.type, new_env, counter)
-        return f"({var_s}:{vt_s}) -> {body_s}"
+        with _alpha_scope(ty.var_name, env, counter) as var_s:
+            vt_s = _alpha_type(ty.var_type, env, counter)
+            body_s = _alpha_type(ty.type, env, counter)
+            return f"({var_s}:{vt_s}) -> {body_s}"
     elif isinstance(ty, RefinedType):
-        var_s, new_env = _alpha_bind(ty.name, env, counter)
-        base_s = _alpha_type(ty.type, new_env, counter)
-        ref_s = _alpha_liquid(ty.refinement, new_env, counter)
-        return f"{{{var_s}:{base_s} | {ref_s}}}"
+        with _alpha_scope(ty.name, env, counter) as var_s:
+            base_s = _alpha_type(ty.type, env, counter)
+            ref_s = _alpha_liquid(ty.refinement, env, counter)
+            return f"{{{var_s}:{base_s} | {ref_s}}}"
     elif isinstance(ty, TypeConstructor):
         if ty.args:
             args_s = " ".join(_alpha_type(a, env, counter) for a in ty.args)
@@ -153,14 +171,14 @@ def _alpha_type(ty: Type, env: dict[tuple[str, int], int], counter: list[int]) -
     elif isinstance(ty, Top):
         return "⊤"
     elif isinstance(ty, TypePolymorphism):
-        var_s, new_env = _alpha_bind(ty.name, env, counter)
-        body_s = _alpha_type(ty.body, new_env, counter)
-        return f"forall {var_s}:{ty.kind}, {body_s}"
+        with _alpha_scope(ty.name, env, counter) as var_s:
+            body_s = _alpha_type(ty.body, env, counter)
+            return f"forall {var_s}:{ty.kind}, {body_s}"
     elif isinstance(ty, RefinementPolymorphism):
-        var_s, new_env = _alpha_bind(ty.name, env, counter)
-        sort_s = _alpha_type(ty.sort, new_env, counter)
-        body_s = _alpha_type(ty.body, new_env, counter)
-        return f"forall <{var_s}:{sort_s} -> Bool>, {body_s}"
+        with _alpha_scope(ty.name, env, counter) as var_s:
+            sort_s = _alpha_type(ty.sort, env, counter)
+            body_s = _alpha_type(ty.body, env, counter)
+            return f"forall <{var_s}:{sort_s} -> Bool>, {body_s}"
     else:
         return repr(ty)
 
@@ -178,40 +196,47 @@ def alpha_key(c: Constraint) -> str:
 
 
 def _alpha_constraint(c: Constraint, env: dict[tuple[str, int], int], counter: list[int]) -> str:
+    return "".join(_alpha_constraint_parts(c, env, counter))
+
+
+def _alpha_constraint_parts(
+    c: Constraint, env: dict[tuple[str, int], int], counter: list[int]
+) -> Generator[str, None, None]:
+    """Stream the canonical form without copying every growing spine suffix."""
     if isinstance(c, LiquidConstraint):
-        return _alpha_liquid(c.expr, env, counter)
+        yield _alpha_liquid(c.expr, env, counter)
     elif isinstance(c, Conjunction):
-        left = _alpha_constraint(c.c1, env, counter)
-        right = _alpha_constraint(c.c2, env, counter)
-        return f"({left}) ∧ ({right})"
+        yield "("
+        yield from _alpha_constraint_parts(c.c1, env, counter)
+        yield ") ∧ ("
+        yield from _alpha_constraint_parts(c.c2, env, counter)
+        yield ")"
     elif isinstance(c, Implication):
-        var_s, new_env = _alpha_bind(c.name, env, counter)
-        base_s = _alpha_type(c.base, new_env, counter)
-        pred_s = _alpha_liquid(c.pred, new_env, counter)
-        seq_s = _alpha_constraint(c.seq, new_env, counter)
-        return f"∀{var_s}:{base_s}, ({pred_s}) => {seq_s}"
+        with _alpha_scope(c.name, env, counter) as var_s:
+            base_s = _alpha_type(c.base, env, counter)
+            pred_s = _alpha_liquid(c.pred, env, counter)
+            yield f"∀{var_s}:{base_s}, ({pred_s}) => "
+            yield from _alpha_constraint_parts(c.seq, env, counter)
     elif isinstance(c, UninterpretedFunctionDeclaration):
-        var_s, new_env = _alpha_bind(c.name, env, counter)
-        type_s = _alpha_type(c.type, new_env, counter)
-        seq_s = _alpha_constraint(c.seq, new_env, counter)
-        return f"fun {var_s}:{type_s} => {seq_s}"
+        with _alpha_scope(c.name, env, counter) as var_s:
+            type_s = _alpha_type(c.type, env, counter)
+            yield f"fun {var_s}:{type_s} => "
+            yield from _alpha_constraint_parts(c.seq, env, counter)
     elif isinstance(c, ReflectedFunctionDeclaration):
-        var_s, new_env = _alpha_bind(c.name, env, counter)
-        params_strs = []
-        for p in c.params:
-            p_s, new_env = _alpha_bind(p, new_env, counter)
-            params_strs.append(p_s)
-        type_s = _alpha_type(c.type, new_env, counter)
-        body_s = _alpha_liquid(c.body, new_env, counter)
-        seq_s = _alpha_constraint(c.seq, new_env, counter)
-        params_joined = ", ".join(params_strs)
-        return f"reflected {var_s}({params_joined}):{type_s} = {body_s} => {seq_s}"
+        with ExitStack() as stack:
+            var_s = stack.enter_context(_alpha_scope(c.name, env, counter))
+            params_strs = [stack.enter_context(_alpha_scope(p, env, counter)) for p in c.params]
+            type_s = _alpha_type(c.type, env, counter)
+            body_s = _alpha_liquid(c.body, env, counter)
+            params_joined = ", ".join(params_strs)
+            yield f"reflected {var_s}({params_joined}):{type_s} = {body_s} => "
+            yield from _alpha_constraint_parts(c.seq, env, counter)
     elif isinstance(c, TypeVarDeclaration):
-        var_s, new_env = _alpha_bind(c.name, env, counter)
-        seq_s = _alpha_constraint(c.seq, new_env, counter)
-        return f"type {var_s}, {seq_s}"
+        with _alpha_scope(c.name, env, counter) as var_s:
+            yield f"type {var_s}, "
+            yield from _alpha_constraint_parts(c.seq, env, counter)
     else:
-        return repr(c)
+        yield repr(c)
 
 
 def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:

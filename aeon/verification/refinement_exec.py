@@ -16,6 +16,8 @@ Example::
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from aeon.backend.evaluator import EvaluationContext, HoleEvaluationError, eval
 from aeon.compilation.link import link_rec_spines
 from aeon.compilation.unit import CompiledUnit
@@ -48,6 +50,21 @@ from aeon.sugar.stypes import (
     STypePolymorphism,
 )
 from aeon.utils.name import Name
+
+
+# Prepared evaluation spines are immutable and shared only within one execution
+# pass. No cross-file/session state or mutable runtime environments are cached.
+_prepared_spines: ContextVar[dict[int, tuple[STerm, tuple[Rec, ...]]] | None] = ContextVar(
+    "refinement_prepared_spines", default=None
+)
+_available_names: ContextVar[frozenset[Name] | None] = ContextVar("refinement_available_names", default=None)
+_erased_types: ContextVar[dict[int, tuple[SType, SType]] | None] = ContextVar("refinement_erased_types", default=None)
+_erased_terms: ContextVar[dict[int, tuple[STerm, STerm]] | None] = ContextVar("refinement_erased_terms", default=None)
+
+
+def _resolvable(term: STerm) -> bool:
+    available = _available_names.get()
+    return available is None or sterm_free_vars(term) <= available
 
 
 def _refinement_eval_context() -> EvaluationContext:
@@ -126,6 +143,16 @@ def _mentions_binder(ref: STerm, binder: Name) -> bool:
 
 
 def _erase_refinements_in_stype(ty: SType) -> SType:
+    memo = _erased_types.get()
+    if memo is None:
+        return _erase_refinements_in_stype_node(ty)
+    key = id(ty)
+    if key not in memo:
+        memo[key] = (ty, _erase_refinements_in_stype_node(ty))
+    return memo[key][1]
+
+
+def _erase_refinements_in_stype_node(ty: SType) -> SType:
     """Drop refinements from a type, keeping only its computational shape.
 
     Terms lowered *for evaluation only* must not carry refinements: arbitrary
@@ -161,6 +188,16 @@ def _erase_refinements_in_stype(ty: SType) -> SType:
 
 
 def _erase_refinements_in_sterm(term: STerm) -> STerm:
+    memo = _erased_terms.get()
+    if memo is None:
+        return _erase_refinements_in_sterm_node(term)
+    key = id(term)
+    if key not in memo:
+        memo[key] = (term, _erase_refinements_in_sterm_node(term))
+    return memo[key][1]
+
+
+def _erase_refinements_in_sterm_node(term: STerm) -> STerm:
     """Erase refinements from every type annotation inside a term (see
     ``_erase_refinements_in_stype``)."""
     match term:
@@ -237,11 +274,15 @@ def _try_execute_subexpr(
     program_sterm: STerm,
     dependency_units: list[CompiledUnit],
 ) -> STerm | None:
-    if _mentions_binder(term, binder):
+    if _mentions_binder(term, binder) or not _resolvable(term):
         return None
     try:
         ref_core = lower_to_core(_erase_refinements_in_sterm(term))
-        linked = _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
+        linked = (
+            _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
+            if sterm_free_vars(term)
+            else ref_core
+        )
         result = eval(linked, _refinement_eval_context())
     except HoleEvaluationError:
         return None
@@ -344,9 +385,32 @@ def _eval_context_for_refinement(
         # evaluator can resolve the definitions the refinement references, and
         # not-yet-executed refinements in it (including the one being executed)
         # may have no liquid representation.
-        erased = _erase_refinements_in_sterm(program_sterm)
-        assert isinstance(erased, SRec)
-        return _lower_spine_with_body(erased, ref_core)
+        cache = _prepared_spines.get()
+        cached = cache.get(id(program_sterm)) if cache is not None else None
+        if cached is None:
+            erased = _erase_refinements_in_sterm(program_sterm)
+            assert isinstance(erased, SRec)
+            core = _lower_spine_with_body(erased, ref_core)
+            bindings: list[Rec] = []
+            while isinstance(core, Rec):
+                bindings.append(core)
+                core = core.body
+            cached = (program_sterm, tuple(bindings))
+            if cache is not None:
+                cache[id(program_sterm)] = cached
+        body = ref_core
+        for binding in reversed(cached[1]):
+            body = Rec(
+                binding.var_name,
+                binding.var_type,
+                binding.var_value,
+                body,
+                decreasing_by=binding.decreasing_by,
+                loc=binding.loc,
+                multiplicity=binding.multiplicity,
+                mutual_group_id=binding.mutual_group_id,
+            )
+        return body
     if dependency_units:
         return link_rec_spines(dependency_units, ref_core)
     return ref_core
@@ -359,11 +423,15 @@ def try_execute_refinement(
     dependency_units: list[CompiledUnit],
 ) -> STerm | None:
     """Evaluate a closed refinement predicate; ``None`` if not executable."""
-    if _mentions_binder(ref, binder):
+    if _mentions_binder(ref, binder) or not _resolvable(ref):
         return None
     try:
         ref_core = lower_to_core(_erase_refinements_in_sterm(ref))
-        linked = _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
+        linked = (
+            _eval_context_for_refinement(ref_core, program_sterm, dependency_units)
+            if sterm_free_vars(ref)
+            else ref_core
+        )
         result = eval(linked, _refinement_eval_context())
     except HoleEvaluationError:
         return None
@@ -424,7 +492,27 @@ def execute_refinements_in_sterm(
 ) -> STerm:
     if sterm_has_user_hole(term):
         raise HoleEvaluationError("compile-time refinement execution cannot run on programs with open synthesis holes")
-    return _execute_refinements_in_sterm(term, term, dependency_units)
+    token = _prepared_spines.set({})
+    types_token = _erased_types.set({})
+    terms_token = _erased_terms.set({})
+    names = set(evaluation_vars)
+    spine: STerm | Term = term
+    while isinstance(spine, SRec):
+        names.add(spine.var_name)
+        spine = spine.body
+    for unit in dependency_units:
+        spine = unit.core_spine
+        while isinstance(spine, Rec):
+            names.add(spine.var_name)
+            spine = spine.body
+    names_token = _available_names.set(frozenset(names))
+    try:
+        return _execute_refinements_in_sterm(term, term, dependency_units)
+    finally:
+        _erased_terms.reset(terms_token)
+        _erased_types.reset(types_token)
+        _available_names.reset(names_token)
+        _prepared_spines.reset(token)
 
 
 def _execute_refinements_in_sterm(

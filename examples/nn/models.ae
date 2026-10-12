@@ -13,6 +13,7 @@
 # concrete instance heads over opaque imported types.
 
 open Models
+open LearningTrees
 open List
 
 
@@ -26,7 +27,7 @@ def main (_: Int) : Unit :=
     let tree := decision_tree_classifier ds in
 
     # One feature vector, fed to both through the SAME typeclass method.
-    let x := from_list (cons 5.1 (cons 3.5 (cons 1.4 (cons 0.2 nil)))) in
+    let x := from_list (List.cons 5.1 (List.cons 3.5 (List.cons 1.4 (List.cons 0.2 List.nil)))) in
     let nn_scores  := classify net x in     # Classifier Network
     let tree_scores := classify tree x in   # Classifier SklearnClassifier
 

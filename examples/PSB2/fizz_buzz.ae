@@ -1,3 +1,4 @@
+import Array
 # Given an integer n, return "Fizz" if n is divisible by 3,
 # "Buzz" if n is divisible by 5, "FizzBuzz" if n is
 # divisible by 3 and 5, and a string version of n if none of
@@ -28,13 +29,13 @@ def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String :=
 def synth_fizz ( n :Int ) : String := ?hole
 
 def train: TrainData := extract_train_data (load_dataset "fizz-buzz" 200 200)
-def input_list : List := get_input_list (unpack_train_data train)
-def expected_values : List := get_output_list (unpack_train_data train)
+def input_list (_:Unit) : (Array Int) := get_input_list (unpack_train_data train)
+def expected_values (_:Unit) : (Array Int) := get_output_list (unpack_train_data train)
 
 
 def fitness : Float :=
-    actual_values : List := get_fb_synth_values input_list synth_fizz;
-    expected_values_str := join_string_list expected_values;
+    let 1 actual_values : (Array Int) := get_fb_synth_values (input_list unit) synth_fizz;
+    expected_values_str := join_string_list (expected_values unit);
     actual_values_str := join_string_list actual_values;
     str_distance := String_distance expected_values_str actual_values_str;
     str_distance;

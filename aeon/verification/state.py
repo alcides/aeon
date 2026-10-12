@@ -27,6 +27,9 @@ class VerificationState:
     sorts: dict[str, SortRef] = field(default_factory=dict)
     variables: dict[int, tuple[dict[str, TypeConstructor], dict[str, Any]]] = field(default_factory=dict)
     functions: dict[int, tuple[dict[str, AbstractionType], dict[str, Any]]] = field(default_factory=dict)
+    function_symbols: dict[tuple[str, int, int], tuple[AbstractionType, dict[str, SortRef], Any]] = field(
+        default_factory=dict
+    )
     sort_sets: dict[tuple[str, ...], dict[str, SortRef]] = field(default_factory=dict)
 
     def get_solver(self) -> Solver:

@@ -277,19 +277,36 @@ def get_possible_args(
     arity: int,
     extra_atoms: list[LiquidTerm] | None = None,
 ):
-    extra = extra_atoms or []
-    if arity == 0:
-        yield []
-    else:
-        for base in get_possible_args(vars, arity - 1, extra):
-            for i, (_, _) in enumerate(vars):
-                yield [LiquidVar(mk_arg(i))] + base
-                yield [LiquidLiteralBool(True)] + base
-                yield [LiquidLiteralBool(False)] + base
-                yield [LiquidLiteralInt(0)] + base
-                yield [LiquidLiteralInt(1)] + base
-            for atom in extra:
-                yield [atom] + base
+    # Constants used to be re-added once per variable at every argument slot.
+    # Their Cartesian product duplicated each literal qualifier O(n**arity)
+    # times, making rich ADT examples spend minutes on identical predicates.
+    pool: list[LiquidTerm] = []
+    seen: set[LiquidTerm] = set()
+    for i, _ in enumerate(vars):
+        for atom in (
+            LiquidVar(mk_arg(i)),
+            LiquidLiteralBool(True),
+            LiquidLiteralBool(False),
+            LiquidLiteralInt(0),
+            LiquidLiteralInt(1),
+        ):
+            if atom not in seen:
+                seen.add(atom)
+                pool.append(atom)
+    for extra_atom in extra_atoms or []:
+        if extra_atom not in seen:
+            seen.add(extra_atom)
+            pool.append(extra_atom)
+
+    def combinations(depth: int):
+        if depth == 0:
+            yield []
+        else:
+            for base in combinations(depth - 1):
+                for atom in pool:
+                    yield [atom] + base
+
+    yield from combinations(arity)
 
 
 def context_measures(typing_ctx: TypingContext | None) -> dict[Name, list[TypeConstructor | TypeVar]]:

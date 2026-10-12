@@ -166,9 +166,13 @@ jobs:
           name: distributions
           path: dist/*
 
-  examples:
+  example-shards:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -178,7 +182,24 @@ jobs:
           cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[dev]"
-      - run: bash run_examples.sh
+      - run: bash run_examples.sh --shard ${{ matrix.shard }} --shards 8 --jobs 2 --timeout 120
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: example-results-${{ matrix.shard }}
+          path: example-results/
+
+  # Retain the original required check name for branch protection/release gates.
+  examples:
+    needs: example-shards
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every example shard to pass
+        env:
+          SHARDS_RESULT: ${{ needs.example-shards.result }}
+        run: test "$SHARDS_RESULT" = success
 
   research:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

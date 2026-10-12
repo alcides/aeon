@@ -3,8 +3,8 @@
 import Array;
 
 @minimize_int(
-  (((Array.get v 0) - 3) * ((Array.get v 0) - 3))
-  + (((Array.get v 1) + 7) * ((Array.get v 1) + 7))
-  + (((Array.get v 2) - 10) * ((Array.get v 2) - 10))
+  (((Array.get (v unit) 0) - 3) * ((Array.get (v unit) 0) - 3))
+  + (((Array.get (v unit) 1) + 7) * ((Array.get (v unit) 1) + 7))
+  + (((Array.get (v unit) 2) - 10) * ((Array.get (v unit) 2) - 10))
 )
 def v (_: Unit) : {a:(Array Int) | Array.size a = 3} := ?h;

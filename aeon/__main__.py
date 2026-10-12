@@ -107,6 +107,11 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
 
     parser.add_argument("-n", "--no-main", action="store_true", help="Disables introducing hole in main")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Typecheck only, allowing holes; do not synthesize, evaluate, or compile LLVM.",
+    )
 
     parser.add_argument(
         "--strict-decidable",
@@ -363,6 +368,9 @@ def main() -> None:
         logger.add(sys.stderr, level="TIME")
 
     run_tests = getattr(args, "test", False)
+    if args.check and run_tests:
+        print("--check and --test are mutually exclusive.", file=sys.stderr)
+        sys.exit(ExitCode.OTHER_ERROR)
     if run_tests and args.no_main:
         print("warning: --no-main is ignored under --test (a main slot is needed to evaluate properties).")
     cfg = AeonConfig(
@@ -377,10 +385,11 @@ def main() -> None:
         synthesis_format=SynthesisFormat.from_string(args.synthesis_format),
         strict_decidable=getattr(args, "strict_decidable", False),
         contracts=getattr(args, "runtime_verification", False),
+        check_only=args.check,
     )
     driver = AeonDriver(cfg)
 
-    if synthesis_requested():
+    if synthesis_requested() and not args.check:
         validate_synthesizer_or_exit(args.synthesizer)
 
     if hasattr(args, "language_server_mode"):
@@ -427,6 +436,8 @@ def main() -> None:
     print_decidability_warnings(driver)
 
     match errors:
+        case [] if args.check:
+            sys.exit(ExitCode.SUCCESS)
         case [] if getattr(args, "trust_report", False) or getattr(args, "trust_for", None):
             print(driver.trust_report(filename=args.filename, for_func=args.trust_for))
         case [] if args.export:

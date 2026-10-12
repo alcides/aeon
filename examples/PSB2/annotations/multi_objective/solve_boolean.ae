@@ -1,4 +1,4 @@
-import PSB2 (extract_train_data, load_dataset)
+import PSB2 (extract_train_data, load_dataset , objective_errors)
 import Array
 def String_split : (s:String) -> (sep:String) -> (Array Int) := fun s => fun sep => native "s.split(sep, 1)"
 def String_concat : (i:String) -> (j:String) -> String := fun i => fun j => native "i + j"
@@ -19,5 +19,5 @@ def train: TrainData := extract_train_data (load_dataset "solve-boolean" 200 200
 
 def calculate_solve_boolean_errors : (train : TrainData) -> (f:(a: String) -> Bool)  -> (Array Int)  :=  fun data => fun func => native "[0 if func(x[0]) == y[0] else 1 for x ,y  in data]";
 
-@multi_minimize_float(calculate_solve_boolean_errors train synth, 1)
+@multi_minimize_float(objective_errors (calculate_solve_boolean_errors train synth) 200, 200)
 def synth ( s : String ) : Bool := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_solve_boolean_errors := unit in ?hole)
