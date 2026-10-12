@@ -5,141 +5,12 @@
 # @require is a hard constraint, independent of the objective.
 
 import Vec;
+import DecisionTree;
 
-def decision0 : {v:Int | 1 <= v && v <= 5} := ?h_decision0;
-def decision1 : {v:Int | 1 <= v && v <= 5} := ?h_decision1;
-def decision2 : {v:Int | 3 <= v && v <= 5} := ?h_decision2;
-def decision3 : {v:Int | 1 <= v && v <= 5} := ?h_decision3;
-def decision4 : {v:Int | 1 <= v && v <= 5} := ?h_decision4;
-def decision5 : {v:Int | 1 <= v && v <= 2} := ?h_decision5;
-def decision6 : {v:Int | 1 <= v && v <= 5} := ?h_decision6;
-def decision7 : {v:Int | 1 <= v && v <= 5} := ?h_decision7;
-def decision8 : {v:Int | 1 <= v && v <= 5} := ?h_decision8;
-def decision9 : {v:Int | 1 <= v && v <= 5} := ?h_decision9;
-def decision10 : {v:Int | 1 <= v && v <= 5} := ?h_decision10;
-def decision11 : {v:Int | 1 <= v && v <= 5} := ?h_decision11;
-def decision12 : {v:Int | 1 <= v && v <= 5} := ?h_decision12;
-def decision13 : {v:Int | 1 <= v && v <= 5} := ?h_decision13;
-def decision14 : {v:Int | 1 <= v && v <= 5} := ?h_decision14;
-def decision15 : {v:Int | 1 <= v && v <= 5} := ?h_decision15;
-def decision16 : {v:Int | 1 <= v && v <= 5} := ?h_decision16;
-def decision17 : {v:Int | 1 <= v && v <= 5} := ?h_decision17;
-def decision18 : {v:Int | 1 <= v && v <= 5} := ?h_decision18;
-def decision19 : {v:Int | 1 <= v && v <= 5} := ?h_decision19;
-def decision20 : {v:Int | 1 <= v && v <= 5} := ?h_decision20;
-def decision21 : {v:Int | 1 <= v && v <= 5} := ?h_decision21;
-def decision22 : {v:Int | 1 <= v && v <= 5} := ?h_decision22;
+def decisionsInt : (DecisionTree Int) := (DecisionTree.branch 11 (DecisionTree.branch 5 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision0 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision1 : {v:Int | 1 <= v && v <= 5}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision2 : {v:Int | 3 <= v && v <= 5})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision3 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision4 : {v:Int | 1 <= v && v <= 5}))))) (DecisionTree.branch 3 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision5 : {v:Int | 1 <= v && v <= 2})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision6 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision7 : {v:Int | 1 <= v && v <= 5})))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision8 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision9 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision10 : {v:Int | 1 <= v && v <= 5})))))) (DecisionTree.branch 6 (DecisionTree.branch 3 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision11 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision12 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision13 : {v:Int | 1 <= v && v <= 5})))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision14 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision15 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision16 : {v:Int | 1 <= v && v <= 5}))))) (DecisionTree.branch 3 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision17 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision18 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision19 : {v:Int | 1 <= v && v <= 5})))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision20 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision21 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision22 : {v:Int | 1 <= v && v <= 5})))))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
-def constraint0 : Bool := ((1 * decision0) + ((0 - 1) * decision1)) != 0;
-def constraint1 : Bool := (1 * decision0) != 3;
-def constraint2 : Bool := (1 * decision0) != 2;
-def constraint3 : Bool := ((1 * decision0) + ((0 - 1) * decision2)) != 0;
-def constraint4 : Bool := (1 * decision1) != 3;
-def constraint5 : Bool := (1 * decision1) != 2;
-def constraint6 : Bool := ((1 * decision1) + ((0 - 1) * decision2)) != 0;
-def constraint7 : Bool := ((0 - 1) * decision2) != (0 - 3);
-def constraint8 : Bool := ((0 - 1) * decision2) != (0 - 2);
-def constraint9 : Bool := ((1 * decision3) + ((0 - 1) * decision4)) != 0;
-def constraint10 : Bool := ((1 * decision3) + ((0 - 1) * decision5)) != 0;
-def constraint11 : Bool := ((1 * decision3) + ((0 - 1) * decision6)) != 0;
-def constraint12 : Bool := ((1 * decision3) + ((0 - 1) * decision7)) != 0;
-def constraint13 : Bool := ((1 * decision4) + ((0 - 1) * decision5)) != 0;
-def constraint14 : Bool := ((1 * decision4) + ((0 - 1) * decision6)) != 0;
-def constraint15 : Bool := ((1 * decision4) + ((0 - 1) * decision7)) != 0;
-def constraint16 : Bool := ((1 * decision5) + ((0 - 1) * decision6)) != 0;
-def constraint17 : Bool := ((1 * decision5) + ((0 - 1) * decision7)) != 0;
-def constraint18 : Bool := ((1 * decision6) + ((0 - 1) * decision7)) != 0;
-def constraint19 : Bool := ((1 * decision8) + ((0 - 1) * decision9)) != 0;
-def constraint20 : Bool := ((1 * decision8) + ((0 - 1) * decision10)) != 0;
-def constraint21 : Bool := ((1 * decision8) + ((0 - 1) * decision11)) != 0;
-def constraint22 : Bool := ((1 * decision8) + ((0 - 1) * decision12)) != 0;
-def constraint23 : Bool := ((1 * decision9) + ((0 - 1) * decision10)) != 0;
-def constraint24 : Bool := ((1 * decision9) + ((0 - 1) * decision11)) != 0;
-def constraint25 : Bool := ((1 * decision9) + ((0 - 1) * decision12)) != 0;
-def constraint26 : Bool := ((1 * decision10) + ((0 - 1) * decision11)) != 0;
-def constraint27 : Bool := ((1 * decision10) + ((0 - 1) * decision12)) != 0;
-def constraint28 : Bool := ((1 * decision11) + ((0 - 1) * decision12)) != 0;
-def constraint29 : Bool := ((1 * decision13) + ((0 - 1) * decision14)) != 0;
-def constraint30 : Bool := ((1 * decision13) + ((0 - 1) * decision15)) != 0;
-def constraint31 : Bool := ((1 * decision13) + ((0 - 1) * decision16)) != 0;
-def constraint32 : Bool := ((1 * decision13) + ((0 - 1) * decision17)) != 0;
-def constraint33 : Bool := ((1 * decision14) + ((0 - 1) * decision15)) != 0;
-def constraint34 : Bool := ((1 * decision14) + ((0 - 1) * decision16)) != 0;
-def constraint35 : Bool := ((1 * decision14) + ((0 - 1) * decision17)) != 0;
-def constraint36 : Bool := ((1 * decision15) + ((0 - 1) * decision16)) != 0;
-def constraint37 : Bool := ((1 * decision15) + ((0 - 1) * decision17)) != 0;
-def constraint38 : Bool := ((1 * decision16) + ((0 - 1) * decision17)) != 0;
-def constraint39 : Bool := ((1 * decision18) + ((0 - 1) * decision19)) != 0;
-def constraint40 : Bool := ((1 * decision18) + ((0 - 1) * decision20)) != 0;
-def constraint41 : Bool := ((1 * decision18) + ((0 - 1) * decision21)) != 0;
-def constraint42 : Bool := ((1 * decision18) + ((0 - 1) * decision22)) != 0;
-def constraint43 : Bool := ((1 * decision19) + ((0 - 1) * decision20)) != 0;
-def constraint44 : Bool := ((1 * decision19) + ((0 - 1) * decision21)) != 0;
-def constraint45 : Bool := ((1 * decision19) + ((0 - 1) * decision22)) != 0;
-def constraint46 : Bool := ((1 * decision20) + ((0 - 1) * decision21)) != 0;
-def constraint47 : Bool := ((1 * decision20) + ((0 - 1) * decision22)) != 0;
-def constraint48 : Bool := ((1 * decision21) + ((0 - 1) * decision22)) != 0;
-def constraint49 : Bool := ((1 * decision0) + ((0 - 1) * decision3)) != 0;
-def constraint50 : Bool := ((1 * decision0) + ((0 - 1) * decision8)) != 0;
-def constraint51 : Bool := ((1 * decision0) + ((0 - 1) * decision13)) != 0;
-def constraint52 : Bool := ((1 * decision0) + ((0 - 1) * decision18)) != 0;
-def constraint53 : Bool := ((1 * decision3) + ((0 - 1) * decision8)) != 0;
-def constraint54 : Bool := ((1 * decision3) + ((0 - 1) * decision13)) != 0;
-def constraint55 : Bool := ((1 * decision3) + ((0 - 1) * decision18)) != 0;
-def constraint56 : Bool := ((1 * decision8) + ((0 - 1) * decision13)) != 0;
-def constraint57 : Bool := ((1 * decision8) + ((0 - 1) * decision18)) != 0;
-def constraint58 : Bool := ((1 * decision13) + ((0 - 1) * decision18)) != 0;
-def constraint59 : Bool := ((1 * decision1) + ((0 - 1) * decision4)) != 0;
-def constraint60 : Bool := ((1 * decision1) + ((0 - 1) * decision9)) != 0;
-def constraint61 : Bool := ((1 * decision1) + ((0 - 1) * decision14)) != 0;
-def constraint62 : Bool := ((1 * decision1) + ((0 - 1) * decision19)) != 0;
-def constraint63 : Bool := ((1 * decision4) + ((0 - 1) * decision9)) != 0;
-def constraint64 : Bool := ((1 * decision4) + ((0 - 1) * decision14)) != 0;
-def constraint65 : Bool := ((1 * decision4) + ((0 - 1) * decision19)) != 0;
-def constraint66 : Bool := ((1 * decision9) + ((0 - 1) * decision14)) != 0;
-def constraint67 : Bool := ((1 * decision9) + ((0 - 1) * decision19)) != 0;
-def constraint68 : Bool := ((1 * decision14) + ((0 - 1) * decision19)) != 0;
-def constraint69 : Bool := ((0 - 1) * decision5) != (0 - 3);
-def constraint70 : Bool := ((0 - 1) * decision10) != (0 - 3);
-def constraint71 : Bool := ((0 - 1) * decision15) != (0 - 3);
-def constraint72 : Bool := ((0 - 1) * decision20) != (0 - 3);
-def constraint73 : Bool := ((1 * decision5) + ((0 - 1) * decision10)) != 0;
-def constraint74 : Bool := ((1 * decision5) + ((0 - 1) * decision15)) != 0;
-def constraint75 : Bool := ((1 * decision5) + ((0 - 1) * decision20)) != 0;
-def constraint76 : Bool := ((1 * decision10) + ((0 - 1) * decision15)) != 0;
-def constraint77 : Bool := ((1 * decision10) + ((0 - 1) * decision20)) != 0;
-def constraint78 : Bool := ((1 * decision15) + ((0 - 1) * decision20)) != 0;
-def constraint79 : Bool := ((0 - 1) * decision6) != (0 - 2);
-def constraint80 : Bool := ((0 - 1) * decision11) != (0 - 2);
-def constraint81 : Bool := ((0 - 1) * decision16) != (0 - 2);
-def constraint82 : Bool := ((0 - 1) * decision21) != (0 - 2);
-def constraint83 : Bool := ((1 * decision6) + ((0 - 1) * decision11)) != 0;
-def constraint84 : Bool := ((1 * decision6) + ((0 - 1) * decision16)) != 0;
-def constraint85 : Bool := ((1 * decision6) + ((0 - 1) * decision21)) != 0;
-def constraint86 : Bool := ((1 * decision11) + ((0 - 1) * decision16)) != 0;
-def constraint87 : Bool := ((1 * decision11) + ((0 - 1) * decision21)) != 0;
-def constraint88 : Bool := ((1 * decision16) + ((0 - 1) * decision21)) != 0;
-def constraint89 : Bool := ((1 * decision2) + ((0 - 1) * decision7)) != 0;
-def constraint90 : Bool := ((1 * decision2) + ((0 - 1) * decision12)) != 0;
-def constraint91 : Bool := ((1 * decision2) + ((0 - 1) * decision17)) != 0;
-def constraint92 : Bool := ((1 * decision2) + ((0 - 1) * decision22)) != 0;
-def constraint93 : Bool := ((1 * decision7) + ((0 - 1) * decision12)) != 0;
-def constraint94 : Bool := ((1 * decision7) + ((0 - 1) * decision17)) != 0;
-def constraint95 : Bool := ((1 * decision7) + ((0 - 1) * decision22)) != 0;
-def constraint96 : Bool := ((1 * decision12) + ((0 - 1) * decision17)) != 0;
-def constraint97 : Bool := ((1 * decision12) + ((0 - 1) * decision22)) != 0;
-def constraint98 : Bool := ((1 * decision17) + ((0 - 1) * decision22)) != 0;
-def constraint99 : Bool := ((1 * decision1) + ((0 - 1) * decision0)) <= (0 - 1);
-def constraint100 : Bool := ((1 * decision10) + ((0 - 1) * decision5)) <= (0 - 1);
-def constraint101 : Bool := ((1 * decision11) + ((0 - 1) * decision6)) <= (0 - 1);
-def constraint102 : Bool := ((1 * decision7) + ((0 - 1) * decision12)) <= (0 - 1);
-def constraint103 : Bool := ((1 * decision9) + ((0 - 1) * decision14)) <= (0 - 1);
-def constraint104 : Bool := ((1 * decision16) + ((0 - 1) * decision15)) <= (0 - 1);
-def constraint105 : Bool := ((1 * decision19) + ((0 - 1) * decision18)) <= (0 - 1);
-def constraint106 : Bool := ((1 * decision21) + ((0 - 1) * decision20)) <= (0 - 1);
-def constraint107 : Bool := ((1 * decision22) + ((0 - 1) * decision17)) <= (0 - 1);
-def valid : Bool := (((((((constraint0) && ((constraint1) && (constraint2))) && ((constraint3) && ((constraint4) && (constraint5)))) && (((constraint6) && ((constraint7) && (constraint8))) && (((constraint9) && (constraint10)) && ((constraint11) && (constraint12))))) && ((((constraint13) && ((constraint14) && (constraint15))) && (((constraint16) && (constraint17)) && ((constraint18) && (constraint19)))) && (((constraint20) && ((constraint21) && (constraint22))) && (((constraint23) && (constraint24)) && ((constraint25) && (constraint26)))))) && (((((constraint27) && ((constraint28) && (constraint29))) && ((constraint30) && ((constraint31) && (constraint32)))) && (((constraint33) && ((constraint34) && (constraint35))) && (((constraint36) && (constraint37)) && ((constraint38) && (constraint39))))) && ((((constraint40) && ((constraint41) && (constraint42))) && (((constraint43) && (constraint44)) && ((constraint45) && (constraint46)))) && (((constraint47) && ((constraint48) && (constraint49))) && (((constraint50) && (constraint51)) && ((constraint52) && (constraint53))))))) && ((((((constraint54) && ((constraint55) && (constraint56))) && ((constraint57) && ((constraint58) && (constraint59)))) && (((constraint60) && ((constraint61) && (constraint62))) && (((constraint63) && (constraint64)) && ((constraint65) && (constraint66))))) && ((((constraint67) && ((constraint68) && (constraint69))) && (((constraint70) && (constraint71)) && ((constraint72) && (constraint73)))) && (((constraint74) && ((constraint75) && (constraint76))) && (((constraint77) && (constraint78)) && ((constraint79) && (constraint80)))))) && (((((constraint81) && ((constraint82) && (constraint83))) && ((constraint84) && ((constraint85) && (constraint86)))) && (((constraint87) && ((constraint88) && (constraint89))) && (((constraint90) && (constraint91)) && ((constraint92) && (constraint93))))) && ((((constraint94) && ((constraint95) && (constraint96))) && (((constraint97) && (constraint98)) && ((constraint99) && (constraint100)))) && (((constraint101) && ((constraint102) && (constraint103))) && (((constraint104) && (constraint105)) && ((constraint106) && (constraint107))))))));
+def valid : Bool := (((((((((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 1 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 0 decisionsInt)) != 3) && ((1 * (DecisionTree.intAt 0 decisionsInt)) != 2))) && ((((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 2 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 1 decisionsInt)) != 3) && ((1 * (DecisionTree.intAt 1 decisionsInt)) != 2)))) && (((((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 2 decisionsInt))) != 0) && ((((0 - 1) * (DecisionTree.intAt 2 decisionsInt)) != (0 - 3)) && (((0 - 1) * (DecisionTree.intAt 2 decisionsInt)) != (0 - 2)))) && (((((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 4 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 5 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 6 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 7 decisionsInt))) != 0))))) && ((((((1 * (DecisionTree.intAt 4 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 5 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 4 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 6 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 4 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 7 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 5 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 6 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 5 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 7 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 6 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 7 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 8 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 9 decisionsInt))) != 0)))) && (((((1 * (DecisionTree.intAt 8 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 10 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 8 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 11 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 8 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 9 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 10 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 9 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 11 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 9 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 10 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 11 decisionsInt))) != 0)))))) && (((((((1 * (DecisionTree.intAt 10 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 11 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 13 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 14 decisionsInt))) != 0))) && ((((1 * (DecisionTree.intAt 13 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 15 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 13 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 16 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 13 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) != 0)))) && (((((1 * (DecisionTree.intAt 14 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 15 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 14 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 16 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 14 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 15 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 16 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 15 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 16 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 18 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 19 decisionsInt))) != 0))))) && ((((((1 * (DecisionTree.intAt 18 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 20 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 18 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 21 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 18 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 19 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 20 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 19 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 21 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 19 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 20 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 21 decisionsInt))) != 0)))) && (((((1 * (DecisionTree.intAt 20 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 21 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 3 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 8 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 13 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 18 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 8 decisionsInt))) != 0))))))) && ((((((((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 13 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 18 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 8 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 13 decisionsInt))) != 0))) && ((((1 * (DecisionTree.intAt 8 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 18 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 13 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 18 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 4 decisionsInt))) != 0)))) && (((((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 9 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 14 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 19 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 4 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 9 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 4 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 14 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 4 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 19 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 9 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 14 decisionsInt))) != 0))))) && ((((((1 * (DecisionTree.intAt 9 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 19 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 14 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 19 decisionsInt))) != 0) && (((0 - 1) * (DecisionTree.intAt 5 decisionsInt)) != (0 - 3)))) && (((((0 - 1) * (DecisionTree.intAt 10 decisionsInt)) != (0 - 3)) && (((0 - 1) * (DecisionTree.intAt 15 decisionsInt)) != (0 - 3))) && ((((0 - 1) * (DecisionTree.intAt 20 decisionsInt)) != (0 - 3)) && (((1 * (DecisionTree.intAt 5 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 10 decisionsInt))) != 0)))) && (((((1 * (DecisionTree.intAt 5 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 15 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 5 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 20 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 10 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 15 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 10 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 20 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 15 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 20 decisionsInt))) != 0)) && ((((0 - 1) * (DecisionTree.intAt 6 decisionsInt)) != (0 - 2)) && (((0 - 1) * (DecisionTree.intAt 11 decisionsInt)) != (0 - 2))))))) && (((((((0 - 1) * (DecisionTree.intAt 16 decisionsInt)) != (0 - 2)) && ((((0 - 1) * (DecisionTree.intAt 21 decisionsInt)) != (0 - 2)) && (((1 * (DecisionTree.intAt 6 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 11 decisionsInt))) != 0))) && ((((1 * (DecisionTree.intAt 6 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 16 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 6 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 21 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 11 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 16 decisionsInt))) != 0)))) && (((((1 * (DecisionTree.intAt 11 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 21 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 16 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 21 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 2 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 7 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 2 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 2 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 2 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 7 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt))) != 0))))) && ((((((1 * (DecisionTree.intAt 7 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) != 0) && ((((1 * (DecisionTree.intAt 7 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 12 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) != 0))) && (((((1 * (DecisionTree.intAt 12 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0) && (((1 * (DecisionTree.intAt 17 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 22 decisionsInt))) != 0)) && ((((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 0 decisionsInt))) <= (0 - 1)) && (((1 * (DecisionTree.intAt 10 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 5 decisionsInt))) <= (0 - 1))))) && (((((1 * (DecisionTree.intAt 11 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 6 decisionsInt))) <= (0 - 1)) && ((((1 * (DecisionTree.intAt 7 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt))) <= (0 - 1)) && (((1 * (DecisionTree.intAt 9 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 14 decisionsInt))) <= (0 - 1)))) && (((((1 * (DecisionTree.intAt 16 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 15 decisionsInt))) <= (0 - 1)) && (((1 * (DecisionTree.intAt 19 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 18 decisionsInt))) <= (0 - 1))) && ((((1 * (DecisionTree.intAt 21 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 20 decisionsInt))) <= (0 - 1)) && (((1 * (DecisionTree.intAt 22 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 17 decisionsInt))) <= (0 - 1)))))))));
 
 def objective : Int := 0;
 def score : Int := objective;
@@ -150,27 +21,5 @@ def benchmark : Int := score;
 
 def main (_:Int) : Unit :=
     let report := print score in
-    let report0 := print decision0 in
-    let report1 := print decision1 in
-    let report2 := print decision2 in
-    let report3 := print decision3 in
-    let report4 := print decision4 in
-    let report5 := print decision5 in
-    let report6 := print decision6 in
-    let report7 := print decision7 in
-    let report8 := print decision8 in
-    let report9 := print decision9 in
-    let report10 := print decision10 in
-    let report11 := print decision11 in
-    let report12 := print decision12 in
-    let report13 := print decision13 in
-    let report14 := print decision14 in
-    let report15 := print decision15 in
-    let report16 := print decision16 in
-    let report17 := print decision17 in
-    let report18 := print decision18 in
-    let report19 := print decision19 in
-    let report20 := print decision20 in
-    let report21 := print decision21 in
-    let report22 := print decision22 in
+    let report0 := print decisionsInt in
     unit;

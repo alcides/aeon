@@ -14,14 +14,7 @@ def m : {v:Int | 1 <= v && v <= 9} := ?h_m;
 def o : {v:Int | 0 <= v && v <= 9} := ?h_o;
 def r : {v:Int | 0 <= v && v <= 9} := ?h_r;
 def y : {v:Int | 0 <= v && v <= 9} := ?h_y;
-def sequence0_tail7 : (Vec Int) := Vec.cons (y) (Vec.nil);
-def sequence0_tail6 : (Vec Int) := Vec.cons (r) (sequence0_tail7);
-def sequence0_tail5 : (Vec Int) := Vec.cons (o) (sequence0_tail6);
-def sequence0_tail4 : (Vec Int) := Vec.cons (m) (sequence0_tail5);
-def sequence0_tail3 : (Vec Int) := Vec.cons (d) (sequence0_tail4);
-def sequence0_tail2 : (Vec Int) := Vec.cons (n) (sequence0_tail3);
-def sequence0_tail1 : (Vec Int) := Vec.cons (e) (sequence0_tail2);
-def sequence0_tail0 : (Vec Int) := Vec.cons (s) (sequence0_tail1);
+def sequence0_tail0 : (Vec Int) := Vec.cons (s) (Vec.cons (e) (Vec.cons (n) (Vec.cons (d) (Vec.cons (m) (Vec.cons (o) (Vec.cons (r) (Vec.cons (y) (Vec.nil))))))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
 def constraint0 : Bool := Vec.allDifferent (sequence0_tail0);

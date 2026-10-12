@@ -56,16 +56,8 @@ def decision46 : Bool := ?h_decision46;
 def decision47 : Bool := ?h_decision47;
 def decision48 : Bool := ?h_decision48;
 def decision49 : {v:Int | 0 <= v && v <= 1} := ?h_decision49;
-def sequence0_tail4 : (Vec Int) := Vec.cons (1) (Vec.nil);
-def sequence0_tail3 : (Vec Int) := Vec.cons (1) (sequence0_tail4);
-def sequence0_tail2 : (Vec Int) := Vec.cons (1) (sequence0_tail3);
-def sequence0_tail1 : (Vec Int) := Vec.cons (1) (sequence0_tail2);
-def sequence0_tail0 : (Vec Int) := Vec.cons (1) (sequence0_tail1);
-def sequence1_tail4 : (Vec Int) := Vec.cons (decision49) (Vec.nil);
-def sequence1_tail3 : (Vec Int) := Vec.cons (decision45) (sequence1_tail4);
-def sequence1_tail2 : (Vec Int) := Vec.cons (decision41) (sequence1_tail3);
-def sequence1_tail1 : (Vec Int) := Vec.cons (decision37) (sequence1_tail2);
-def sequence1_tail0 : (Vec Int) := Vec.cons (decision33) (sequence1_tail1);
+def sequence0_tail0 : (Vec Int) := Vec.cons (1) (Vec.cons (1) (Vec.cons (1) (Vec.cons (1) (Vec.cons (1) (Vec.nil)))));
+def sequence1_tail0 : (Vec Int) := Vec.cons (decision33) (Vec.cons (decision37) (Vec.cons (decision41) (Vec.cons (decision45) (Vec.cons (decision49) (Vec.nil)))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
 def constraint0 : Bool := (((decision7) || (decision8)) || ((decision9) || ((decision10) || (decision11))));

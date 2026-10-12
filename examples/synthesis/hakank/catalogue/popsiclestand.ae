@@ -5,241 +5,34 @@
 # @require is a hard constraint, independent of the objective.
 
 import Vec;
+import DecisionTree;
 
-def decision0 : {v:Int | 0 <= v && v <= 120} := ?h_decision0;
-def decision1 : {v:Int | 0 <= v && v <= 120} := ?h_decision1;
-def decision2 : {v:Int | 0 <= v && v <= 120} := ?h_decision2;
-def decision3 : {v:Int | 0 <= v && v <= 120} := ?h_decision3;
-def decision4 : {v:Int | 0 <= v && v <= 120} := ?h_decision4;
-def decision5 : {v:Int | 0 <= v && v <= 120} := ?h_decision5;
-def decision6 : {v:Int | 0 <= v && v <= 120} := ?h_decision6;
-def decision7 : {v:Int | 0 <= v && v <= 120} := ?h_decision7;
-def decision8 : {v:Int | 0 <= v && v <= 120} := ?h_decision8;
-def decision9 : {v:Int | 0 <= v && v <= 120} := ?h_decision9;
-def decision10 : {v:Int | 0 <= v && v <= 120} := ?h_decision10;
-def decision11 : {v:Int | 0 <= v && v <= 120} := ?h_decision11;
-def decision12 : {v:Int | 0 <= v && v <= 120} := ?h_decision12;
-def decision13 : {v:Int | 0 <= v && v <= 120} := ?h_decision13;
-def decision14 : {v:Int | 0 <= v && v <= 30} := ?h_decision14;
-def decision15 : {v:Int | 0 <= v && v <= 30} := ?h_decision15;
-def decision16 : {v:Int | 0 <= v && v <= 30} := ?h_decision16;
-def decision17 : {v:Int | 0 <= v && v <= 30} := ?h_decision17;
-def decision18 : {v:Int | 0 <= v && v <= 30} := ?h_decision18;
-def decision19 : {v:Int | 0 <= v && v <= 30} := ?h_decision19;
-def decision20 : {v:Int | 0 <= v && v <= 30} := ?h_decision20;
-def decision21 : {v:Int | 0 <= v && v <= 30} := ?h_decision21;
-def decision22 : {v:Int | 0 <= v && v <= 30} := ?h_decision22;
-def decision23 : {v:Int | 0 <= v && v <= 30} := ?h_decision23;
-def decision24 : {v:Int | 0 <= v && v <= 30} := ?h_decision24;
-def decision25 : {v:Int | 0 <= v && v <= 30} := ?h_decision25;
-def decision26 : {v:Int | 0 <= v && v <= 30} := ?h_decision26;
-def decision27 : {v:Int | 0 <= v && v <= 30} := ?h_decision27;
-def decision28 : {v:Int | 5 <= v && v <= 130} := ?h_decision28;
-def decision29 : {v:Int | 7 <= v && v <= 130} := ?h_decision29;
-def decision30 : {v:Int | 7 <= v && v <= 130} := ?h_decision30;
-def decision31 : {v:Int | 10 <= v && v <= 130} := ?h_decision31;
-def decision32 : {v:Int | 16 <= v && v <= 130} := ?h_decision32;
-def decision33 : {v:Int | 18 <= v && v <= 130} := ?h_decision33;
-def decision34 : {v:Int | 12 <= v && v <= 130} := ?h_decision34;
-def decision35 : {v:Int | 0 <= v && v <= 10000} := ?h_decision35;
-def sequence0_tail5 : (Vec Int) := Vec.cons ((0 - 1)) (Vec.nil);
-def sequence0_tail4 : (Vec Int) := Vec.cons ((0 - 1)) (sequence0_tail5);
-def sequence0_tail3 : (Vec Int) := Vec.cons ((0 - 1)) (sequence0_tail4);
-def sequence0_tail2 : (Vec Int) := Vec.cons ((0 - 1)) (sequence0_tail3);
-def sequence0_tail1 : (Vec Int) := Vec.cons ((0 - 1)) (sequence0_tail2);
-def sequence0_tail0 : (Vec Int) := Vec.cons (1) (sequence0_tail1);
-def sequence1_tail5 : (Vec Int) := Vec.cons (decision0) (Vec.nil);
-def sequence1_tail4 : (Vec Int) := Vec.cons (decision6) (sequence1_tail5);
-def sequence1_tail3 : (Vec Int) := Vec.cons (decision5) (sequence1_tail4);
-def sequence1_tail2 : (Vec Int) := Vec.cons (decision4) (sequence1_tail3);
-def sequence1_tail1 : (Vec Int) := Vec.cons (decision3) (sequence1_tail2);
-def sequence1_tail0 : (Vec Int) := Vec.cons (decision14) (sequence1_tail1);
-def sequence2_tail7 : (Vec Int) := Vec.cons ((0 - 1)) (Vec.nil);
-def sequence2_tail6 : (Vec Int) := Vec.cons ((0 - 1)) (sequence2_tail7);
-def sequence2_tail5 : (Vec Int) := Vec.cons ((0 - 1)) (sequence2_tail6);
-def sequence2_tail4 : (Vec Int) := Vec.cons ((0 - 1)) (sequence2_tail5);
-def sequence2_tail3 : (Vec Int) := Vec.cons ((0 - 1)) (sequence2_tail4);
-def sequence2_tail2 : (Vec Int) := Vec.cons ((0 - 1)) (sequence2_tail3);
-def sequence2_tail1 : (Vec Int) := Vec.cons ((0 - 1)) (sequence2_tail2);
-def sequence2_tail0 : (Vec Int) := Vec.cons (1) (sequence2_tail1);
-def sequence3_tail7 : (Vec Int) := Vec.cons (decision7) (Vec.nil);
-def sequence3_tail6 : (Vec Int) := Vec.cons (decision13) (sequence3_tail7);
-def sequence3_tail5 : (Vec Int) := Vec.cons (decision0) (sequence3_tail6);
-def sequence3_tail4 : (Vec Int) := Vec.cons (decision6) (sequence3_tail5);
-def sequence3_tail3 : (Vec Int) := Vec.cons (decision5) (sequence3_tail4);
-def sequence3_tail2 : (Vec Int) := Vec.cons (decision4) (sequence3_tail3);
-def sequence3_tail1 : (Vec Int) := Vec.cons (decision3) (sequence3_tail2);
-def sequence3_tail0 : (Vec Int) := Vec.cons (decision28) (sequence3_tail1);
-def sequence4_tail5 : (Vec Int) := Vec.cons (decision1) (Vec.nil);
-def sequence4_tail4 : (Vec Int) := Vec.cons (decision0) (sequence4_tail5);
-def sequence4_tail3 : (Vec Int) := Vec.cons (decision6) (sequence4_tail4);
-def sequence4_tail2 : (Vec Int) := Vec.cons (decision5) (sequence4_tail3);
-def sequence4_tail1 : (Vec Int) := Vec.cons (decision4) (sequence4_tail2);
-def sequence4_tail0 : (Vec Int) := Vec.cons (decision15) (sequence4_tail1);
-def sequence5_tail7 : (Vec Int) := Vec.cons (decision8) (Vec.nil);
-def sequence5_tail6 : (Vec Int) := Vec.cons (decision7) (sequence5_tail7);
-def sequence5_tail5 : (Vec Int) := Vec.cons (decision1) (sequence5_tail6);
-def sequence5_tail4 : (Vec Int) := Vec.cons (decision0) (sequence5_tail5);
-def sequence5_tail3 : (Vec Int) := Vec.cons (decision6) (sequence5_tail4);
-def sequence5_tail2 : (Vec Int) := Vec.cons (decision5) (sequence5_tail3);
-def sequence5_tail1 : (Vec Int) := Vec.cons (decision4) (sequence5_tail2);
-def sequence5_tail0 : (Vec Int) := Vec.cons (decision29) (sequence5_tail1);
-def sequence6_tail5 : (Vec Int) := Vec.cons (decision2) (Vec.nil);
-def sequence6_tail4 : (Vec Int) := Vec.cons (decision1) (sequence6_tail5);
-def sequence6_tail3 : (Vec Int) := Vec.cons (decision0) (sequence6_tail4);
-def sequence6_tail2 : (Vec Int) := Vec.cons (decision6) (sequence6_tail3);
-def sequence6_tail1 : (Vec Int) := Vec.cons (decision5) (sequence6_tail2);
-def sequence6_tail0 : (Vec Int) := Vec.cons (decision16) (sequence6_tail1);
-def sequence7_tail7 : (Vec Int) := Vec.cons (decision9) (Vec.nil);
-def sequence7_tail6 : (Vec Int) := Vec.cons (decision8) (sequence7_tail7);
-def sequence7_tail5 : (Vec Int) := Vec.cons (decision2) (sequence7_tail6);
-def sequence7_tail4 : (Vec Int) := Vec.cons (decision1) (sequence7_tail5);
-def sequence7_tail3 : (Vec Int) := Vec.cons (decision0) (sequence7_tail4);
-def sequence7_tail2 : (Vec Int) := Vec.cons (decision6) (sequence7_tail3);
-def sequence7_tail1 : (Vec Int) := Vec.cons (decision5) (sequence7_tail2);
-def sequence7_tail0 : (Vec Int) := Vec.cons (decision30) (sequence7_tail1);
-def sequence8_tail5 : (Vec Int) := Vec.cons (decision3) (Vec.nil);
-def sequence8_tail4 : (Vec Int) := Vec.cons (decision2) (sequence8_tail5);
-def sequence8_tail3 : (Vec Int) := Vec.cons (decision1) (sequence8_tail4);
-def sequence8_tail2 : (Vec Int) := Vec.cons (decision0) (sequence8_tail3);
-def sequence8_tail1 : (Vec Int) := Vec.cons (decision6) (sequence8_tail2);
-def sequence8_tail0 : (Vec Int) := Vec.cons (decision17) (sequence8_tail1);
-def sequence9_tail7 : (Vec Int) := Vec.cons (decision10) (Vec.nil);
-def sequence9_tail6 : (Vec Int) := Vec.cons (decision9) (sequence9_tail7);
-def sequence9_tail5 : (Vec Int) := Vec.cons (decision3) (sequence9_tail6);
-def sequence9_tail4 : (Vec Int) := Vec.cons (decision2) (sequence9_tail5);
-def sequence9_tail3 : (Vec Int) := Vec.cons (decision1) (sequence9_tail4);
-def sequence9_tail2 : (Vec Int) := Vec.cons (decision0) (sequence9_tail3);
-def sequence9_tail1 : (Vec Int) := Vec.cons (decision6) (sequence9_tail2);
-def sequence9_tail0 : (Vec Int) := Vec.cons (decision31) (sequence9_tail1);
-def sequence10_tail5 : (Vec Int) := Vec.cons (decision4) (Vec.nil);
-def sequence10_tail4 : (Vec Int) := Vec.cons (decision3) (sequence10_tail5);
-def sequence10_tail3 : (Vec Int) := Vec.cons (decision2) (sequence10_tail4);
-def sequence10_tail2 : (Vec Int) := Vec.cons (decision1) (sequence10_tail3);
-def sequence10_tail1 : (Vec Int) := Vec.cons (decision0) (sequence10_tail2);
-def sequence10_tail0 : (Vec Int) := Vec.cons (decision18) (sequence10_tail1);
-def sequence11_tail7 : (Vec Int) := Vec.cons (decision11) (Vec.nil);
-def sequence11_tail6 : (Vec Int) := Vec.cons (decision10) (sequence11_tail7);
-def sequence11_tail5 : (Vec Int) := Vec.cons (decision4) (sequence11_tail6);
-def sequence11_tail4 : (Vec Int) := Vec.cons (decision3) (sequence11_tail5);
-def sequence11_tail3 : (Vec Int) := Vec.cons (decision2) (sequence11_tail4);
-def sequence11_tail2 : (Vec Int) := Vec.cons (decision1) (sequence11_tail3);
-def sequence11_tail1 : (Vec Int) := Vec.cons (decision0) (sequence11_tail2);
-def sequence11_tail0 : (Vec Int) := Vec.cons (decision32) (sequence11_tail1);
-def sequence12_tail5 : (Vec Int) := Vec.cons (decision5) (Vec.nil);
-def sequence12_tail4 : (Vec Int) := Vec.cons (decision4) (sequence12_tail5);
-def sequence12_tail3 : (Vec Int) := Vec.cons (decision3) (sequence12_tail4);
-def sequence12_tail2 : (Vec Int) := Vec.cons (decision2) (sequence12_tail3);
-def sequence12_tail1 : (Vec Int) := Vec.cons (decision1) (sequence12_tail2);
-def sequence12_tail0 : (Vec Int) := Vec.cons (decision19) (sequence12_tail1);
-def sequence13_tail7 : (Vec Int) := Vec.cons (decision12) (Vec.nil);
-def sequence13_tail6 : (Vec Int) := Vec.cons (decision11) (sequence13_tail7);
-def sequence13_tail5 : (Vec Int) := Vec.cons (decision5) (sequence13_tail6);
-def sequence13_tail4 : (Vec Int) := Vec.cons (decision4) (sequence13_tail5);
-def sequence13_tail3 : (Vec Int) := Vec.cons (decision3) (sequence13_tail4);
-def sequence13_tail2 : (Vec Int) := Vec.cons (decision2) (sequence13_tail3);
-def sequence13_tail1 : (Vec Int) := Vec.cons (decision1) (sequence13_tail2);
-def sequence13_tail0 : (Vec Int) := Vec.cons (decision33) (sequence13_tail1);
-def sequence14_tail5 : (Vec Int) := Vec.cons (decision6) (Vec.nil);
-def sequence14_tail4 : (Vec Int) := Vec.cons (decision5) (sequence14_tail5);
-def sequence14_tail3 : (Vec Int) := Vec.cons (decision4) (sequence14_tail4);
-def sequence14_tail2 : (Vec Int) := Vec.cons (decision3) (sequence14_tail3);
-def sequence14_tail1 : (Vec Int) := Vec.cons (decision2) (sequence14_tail2);
-def sequence14_tail0 : (Vec Int) := Vec.cons (decision20) (sequence14_tail1);
-def sequence15_tail7 : (Vec Int) := Vec.cons (decision13) (Vec.nil);
-def sequence15_tail6 : (Vec Int) := Vec.cons (decision12) (sequence15_tail7);
-def sequence15_tail5 : (Vec Int) := Vec.cons (decision6) (sequence15_tail6);
-def sequence15_tail4 : (Vec Int) := Vec.cons (decision5) (sequence15_tail5);
-def sequence15_tail3 : (Vec Int) := Vec.cons (decision4) (sequence15_tail4);
-def sequence15_tail2 : (Vec Int) := Vec.cons (decision3) (sequence15_tail3);
-def sequence15_tail1 : (Vec Int) := Vec.cons (decision2) (sequence15_tail2);
-def sequence15_tail0 : (Vec Int) := Vec.cons (decision34) (sequence15_tail1);
-def sequence16_tail13 : (Vec Int) := Vec.cons (300) (Vec.nil);
-def sequence16_tail12 : (Vec Int) := Vec.cons (500) (sequence16_tail13);
-def sequence16_tail11 : (Vec Int) := Vec.cons (300) (sequence16_tail12);
-def sequence16_tail10 : (Vec Int) := Vec.cons (500) (sequence16_tail11);
-def sequence16_tail9 : (Vec Int) := Vec.cons (300) (sequence16_tail10);
-def sequence16_tail8 : (Vec Int) := Vec.cons (500) (sequence16_tail9);
-def sequence16_tail7 : (Vec Int) := Vec.cons (300) (sequence16_tail8);
-def sequence16_tail6 : (Vec Int) := Vec.cons (500) (sequence16_tail7);
-def sequence16_tail5 : (Vec Int) := Vec.cons (300) (sequence16_tail6);
-def sequence16_tail4 : (Vec Int) := Vec.cons (500) (sequence16_tail5);
-def sequence16_tail3 : (Vec Int) := Vec.cons (300) (sequence16_tail4);
-def sequence16_tail2 : (Vec Int) := Vec.cons (500) (sequence16_tail3);
-def sequence16_tail1 : (Vec Int) := Vec.cons (300) (sequence16_tail2);
-def sequence16_tail0 : (Vec Int) := Vec.cons (500) (sequence16_tail1);
-def sequence17_tail13 : (Vec Int) := Vec.cons (decision13) (Vec.nil);
-def sequence17_tail12 : (Vec Int) := Vec.cons (decision6) (sequence17_tail13);
-def sequence17_tail11 : (Vec Int) := Vec.cons (decision12) (sequence17_tail12);
-def sequence17_tail10 : (Vec Int) := Vec.cons (decision5) (sequence17_tail11);
-def sequence17_tail9 : (Vec Int) := Vec.cons (decision11) (sequence17_tail10);
-def sequence17_tail8 : (Vec Int) := Vec.cons (decision4) (sequence17_tail9);
-def sequence17_tail7 : (Vec Int) := Vec.cons (decision10) (sequence17_tail8);
-def sequence17_tail6 : (Vec Int) := Vec.cons (decision3) (sequence17_tail7);
-def sequence17_tail5 : (Vec Int) := Vec.cons (decision9) (sequence17_tail6);
-def sequence17_tail4 : (Vec Int) := Vec.cons (decision2) (sequence17_tail5);
-def sequence17_tail3 : (Vec Int) := Vec.cons (decision8) (sequence17_tail4);
-def sequence17_tail2 : (Vec Int) := Vec.cons (decision1) (sequence17_tail3);
-def sequence17_tail1 : (Vec Int) := Vec.cons (decision7) (sequence17_tail2);
-def sequence17_tail0 : (Vec Int) := Vec.cons (decision0) (sequence17_tail1);
-def sequence18_tail14 : (Vec Int) := Vec.cons ((0 - 1)) (Vec.nil);
-def sequence18_tail13 : (Vec Int) := Vec.cons (300) (sequence18_tail14);
-def sequence18_tail12 : (Vec Int) := Vec.cons (500) (sequence18_tail13);
-def sequence18_tail11 : (Vec Int) := Vec.cons (300) (sequence18_tail12);
-def sequence18_tail10 : (Vec Int) := Vec.cons (500) (sequence18_tail11);
-def sequence18_tail9 : (Vec Int) := Vec.cons (300) (sequence18_tail10);
-def sequence18_tail8 : (Vec Int) := Vec.cons (500) (sequence18_tail9);
-def sequence18_tail7 : (Vec Int) := Vec.cons (300) (sequence18_tail8);
-def sequence18_tail6 : (Vec Int) := Vec.cons (500) (sequence18_tail7);
-def sequence18_tail5 : (Vec Int) := Vec.cons (300) (sequence18_tail6);
-def sequence18_tail4 : (Vec Int) := Vec.cons (500) (sequence18_tail5);
-def sequence18_tail3 : (Vec Int) := Vec.cons (300) (sequence18_tail4);
-def sequence18_tail2 : (Vec Int) := Vec.cons (500) (sequence18_tail3);
-def sequence18_tail1 : (Vec Int) := Vec.cons (300) (sequence18_tail2);
-def sequence18_tail0 : (Vec Int) := Vec.cons (500) (sequence18_tail1);
-def sequence19_tail14 : (Vec Int) := Vec.cons (decision35) (Vec.nil);
-def sequence19_tail13 : (Vec Int) := Vec.cons (decision13) (sequence19_tail14);
-def sequence19_tail12 : (Vec Int) := Vec.cons (decision6) (sequence19_tail13);
-def sequence19_tail11 : (Vec Int) := Vec.cons (decision12) (sequence19_tail12);
-def sequence19_tail10 : (Vec Int) := Vec.cons (decision5) (sequence19_tail11);
-def sequence19_tail9 : (Vec Int) := Vec.cons (decision11) (sequence19_tail10);
-def sequence19_tail8 : (Vec Int) := Vec.cons (decision4) (sequence19_tail9);
-def sequence19_tail7 : (Vec Int) := Vec.cons (decision10) (sequence19_tail8);
-def sequence19_tail6 : (Vec Int) := Vec.cons (decision3) (sequence19_tail7);
-def sequence19_tail5 : (Vec Int) := Vec.cons (decision9) (sequence19_tail6);
-def sequence19_tail4 : (Vec Int) := Vec.cons (decision2) (sequence19_tail5);
-def sequence19_tail3 : (Vec Int) := Vec.cons (decision8) (sequence19_tail4);
-def sequence19_tail2 : (Vec Int) := Vec.cons (decision1) (sequence19_tail3);
-def sequence19_tail1 : (Vec Int) := Vec.cons (decision7) (sequence19_tail2);
-def sequence19_tail0 : (Vec Int) := Vec.cons (decision0) (sequence19_tail1);
+def decisionsInt : (DecisionTree Int) := (DecisionTree.branch 18 (DecisionTree.branch 9 (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision0 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.leaf (?h_decision1 : {v:Int | 0 <= v && v <= 120}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision2 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.leaf (?h_decision3 : {v:Int | 0 <= v && v <= 120})))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision4 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.leaf (?h_decision5 : {v:Int | 0 <= v && v <= 120}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision6 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision7 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.leaf (?h_decision8 : {v:Int | 0 <= v && v <= 120})))))) (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision9 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.leaf (?h_decision10 : {v:Int | 0 <= v && v <= 120}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision11 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.leaf (?h_decision12 : {v:Int | 0 <= v && v <= 120})))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision13 : {v:Int | 0 <= v && v <= 120})) (DecisionTree.leaf (?h_decision14 : {v:Int | 0 <= v && v <= 30}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision15 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision16 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.leaf (?h_decision17 : {v:Int | 0 <= v && v <= 30}))))))) (DecisionTree.branch 9 (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision18 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.leaf (?h_decision19 : {v:Int | 0 <= v && v <= 30}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision20 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.leaf (?h_decision21 : {v:Int | 0 <= v && v <= 30})))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision22 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.leaf (?h_decision23 : {v:Int | 0 <= v && v <= 30}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision24 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision25 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.leaf (?h_decision26 : {v:Int | 0 <= v && v <= 30})))))) (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision27 : {v:Int | 0 <= v && v <= 30})) (DecisionTree.leaf (?h_decision28 : {v:Int | 5 <= v && v <= 130}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision29 : {v:Int | 7 <= v && v <= 130})) (DecisionTree.leaf (?h_decision30 : {v:Int | 7 <= v && v <= 130})))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision31 : {v:Int | 10 <= v && v <= 130})) (DecisionTree.leaf (?h_decision32 : {v:Int | 16 <= v && v <= 130}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision33 : {v:Int | 18 <= v && v <= 130})) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision34 : {v:Int | 12 <= v && v <= 130})) (DecisionTree.leaf (?h_decision35 : {v:Int | 0 <= v && v <= 10000}))))))));
+def sequence0_tail0 : (Vec Int) := Vec.cons (1) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.nil))))));
+def sequence1_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 14 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.nil))))));
+def sequence2_tail0 : (Vec Int) := Vec.cons (1) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.cons ((0 - 1)) (Vec.nil))))))));
+def sequence3_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 28 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 13 decisionsInt)) (Vec.cons ((DecisionTree.intAt 7 decisionsInt)) (Vec.nil))))))));
+def sequence4_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 15 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.nil))))));
+def sequence5_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 29 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 7 decisionsInt)) (Vec.cons ((DecisionTree.intAt 8 decisionsInt)) (Vec.nil))))))));
+def sequence6_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 16 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.nil))))));
+def sequence7_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 30 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 8 decisionsInt)) (Vec.cons ((DecisionTree.intAt 9 decisionsInt)) (Vec.nil))))))));
+def sequence8_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 17 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.nil))))));
+def sequence9_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 31 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 9 decisionsInt)) (Vec.cons ((DecisionTree.intAt 10 decisionsInt)) (Vec.nil))))))));
+def sequence10_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 18 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.nil))))));
+def sequence11_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 32 decisionsInt)) (Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 10 decisionsInt)) (Vec.cons ((DecisionTree.intAt 11 decisionsInt)) (Vec.nil))))))));
+def sequence12_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 19 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.nil))))));
+def sequence13_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 33 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 11 decisionsInt)) (Vec.cons ((DecisionTree.intAt 12 decisionsInt)) (Vec.nil))))))));
+def sequence14_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 20 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.nil))))));
+def sequence15_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 34 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 12 decisionsInt)) (Vec.cons ((DecisionTree.intAt 13 decisionsInt)) (Vec.nil))))))));
+def sequence16_tail0 : (Vec Int) := Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.nil))))))))))))));
+def sequence17_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 7 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 8 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 9 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 10 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 11 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 12 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 13 decisionsInt)) (Vec.nil))))))))))))));
+def sequence18_tail0 : (Vec Int) := Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons (500) (Vec.cons (300) (Vec.cons ((0 - 1)) (Vec.nil)))))))))))))));
+def sequence19_tail0 : (Vec Int) := Vec.cons ((DecisionTree.intAt 0 decisionsInt)) (Vec.cons ((DecisionTree.intAt 7 decisionsInt)) (Vec.cons ((DecisionTree.intAt 1 decisionsInt)) (Vec.cons ((DecisionTree.intAt 8 decisionsInt)) (Vec.cons ((DecisionTree.intAt 2 decisionsInt)) (Vec.cons ((DecisionTree.intAt 9 decisionsInt)) (Vec.cons ((DecisionTree.intAt 3 decisionsInt)) (Vec.cons ((DecisionTree.intAt 10 decisionsInt)) (Vec.cons ((DecisionTree.intAt 4 decisionsInt)) (Vec.cons ((DecisionTree.intAt 11 decisionsInt)) (Vec.cons ((DecisionTree.intAt 5 decisionsInt)) (Vec.cons ((DecisionTree.intAt 12 decisionsInt)) (Vec.cons ((DecisionTree.intAt 6 decisionsInt)) (Vec.cons ((DecisionTree.intAt 13 decisionsInt)) (Vec.cons ((DecisionTree.intAt 35 decisionsInt)) (Vec.nil)))))))))))))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
-def constraint0 : Bool := Vec.dot (sequence0_tail0) (sequence1_tail0) = 0;
-def constraint1 : Bool := ((1 * decision21) + (((0 - 1) * decision13) + ((0 - 1) * decision7))) = 0;
-def constraint2 : Bool := Vec.dot (sequence2_tail0) (sequence3_tail0) = 0;
-def constraint3 : Bool := Vec.dot (sequence0_tail0) (sequence4_tail0) = 0;
-def constraint4 : Bool := ((1 * decision22) + (((0 - 1) * decision7) + ((0 - 1) * decision8))) = 0;
-def constraint5 : Bool := Vec.dot (sequence2_tail0) (sequence5_tail0) = 0;
-def constraint6 : Bool := Vec.dot (sequence0_tail0) (sequence6_tail0) = 0;
-def constraint7 : Bool := ((1 * decision23) + (((0 - 1) * decision8) + ((0 - 1) * decision9))) = 0;
-def constraint8 : Bool := Vec.dot (sequence2_tail0) (sequence7_tail0) = 0;
-def constraint9 : Bool := Vec.dot (sequence0_tail0) (sequence8_tail0) = 0;
-def constraint10 : Bool := ((1 * decision24) + (((0 - 1) * decision9) + ((0 - 1) * decision10))) = 0;
-def constraint11 : Bool := Vec.dot (sequence2_tail0) (sequence9_tail0) = 0;
-def constraint12 : Bool := Vec.dot (sequence0_tail0) (sequence10_tail0) = 0;
-def constraint13 : Bool := ((1 * decision25) + (((0 - 1) * decision10) + ((0 - 1) * decision11))) = 0;
-def constraint14 : Bool := Vec.dot (sequence2_tail0) (sequence11_tail0) = 0;
-def constraint15 : Bool := Vec.dot (sequence0_tail0) (sequence12_tail0) = 0;
-def constraint16 : Bool := ((1 * decision26) + (((0 - 1) * decision11) + ((0 - 1) * decision12))) = 0;
-def constraint17 : Bool := Vec.dot (sequence2_tail0) (sequence13_tail0) = 0;
-def constraint18 : Bool := Vec.dot (sequence0_tail0) (sequence14_tail0) = 0;
-def constraint19 : Bool := ((1 * decision27) + (((0 - 1) * decision12) + ((0 - 1) * decision13))) = 0;
-def constraint20 : Bool := Vec.dot (sequence2_tail0) (sequence15_tail0) = 0;
-def constraint21 : Bool := Vec.dot (sequence16_tail0) (sequence17_tail0) <= 8200;
-def constraint22 : Bool := Vec.dot (sequence18_tail0) (sequence19_tail0) = 0;
-def valid : Bool := (((((constraint0) && (constraint1)) && ((constraint2) && ((constraint3) && (constraint4)))) && (((constraint5) && ((constraint6) && (constraint7))) && ((constraint8) && ((constraint9) && (constraint10))))) && ((((constraint11) && ((constraint12) && (constraint13))) && ((constraint14) && ((constraint15) && (constraint16)))) && (((constraint17) && ((constraint18) && (constraint19))) && ((constraint20) && ((constraint21) && (constraint22))))));
+def valid : Bool := (((((Vec.dot (sequence0_tail0) (sequence1_tail0) = 0) && (((1 * (DecisionTree.intAt 21 decisionsInt)) + (((0 - 1) * (DecisionTree.intAt 13 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 7 decisionsInt)))) = 0)) && ((Vec.dot (sequence2_tail0) (sequence3_tail0) = 0) && ((Vec.dot (sequence0_tail0) (sequence4_tail0) = 0) && (((1 * (DecisionTree.intAt 22 decisionsInt)) + (((0 - 1) * (DecisionTree.intAt 7 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 8 decisionsInt)))) = 0)))) && (((Vec.dot (sequence2_tail0) (sequence5_tail0) = 0) && ((Vec.dot (sequence0_tail0) (sequence6_tail0) = 0) && (((1 * (DecisionTree.intAt 23 decisionsInt)) + (((0 - 1) * (DecisionTree.intAt 8 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 9 decisionsInt)))) = 0))) && ((Vec.dot (sequence2_tail0) (sequence7_tail0) = 0) && ((Vec.dot (sequence0_tail0) (sequence8_tail0) = 0) && (((1 * (DecisionTree.intAt 24 decisionsInt)) + (((0 - 1) * (DecisionTree.intAt 9 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 10 decisionsInt)))) = 0))))) && ((((Vec.dot (sequence2_tail0) (sequence9_tail0) = 0) && ((Vec.dot (sequence0_tail0) (sequence10_tail0) = 0) && (((1 * (DecisionTree.intAt 25 decisionsInt)) + (((0 - 1) * (DecisionTree.intAt 10 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 11 decisionsInt)))) = 0))) && ((Vec.dot (sequence2_tail0) (sequence11_tail0) = 0) && ((Vec.dot (sequence0_tail0) (sequence12_tail0) = 0) && (((1 * (DecisionTree.intAt 26 decisionsInt)) + (((0 - 1) * (DecisionTree.intAt 11 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 12 decisionsInt)))) = 0)))) && (((Vec.dot (sequence2_tail0) (sequence13_tail0) = 0) && ((Vec.dot (sequence0_tail0) (sequence14_tail0) = 0) && (((1 * (DecisionTree.intAt 27 decisionsInt)) + (((0 - 1) * (DecisionTree.intAt 12 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 13 decisionsInt)))) = 0))) && ((Vec.dot (sequence2_tail0) (sequence15_tail0) = 0) && ((Vec.dot (sequence16_tail0) (sequence17_tail0) <= 8200) && (Vec.dot (sequence18_tail0) (sequence19_tail0) = 0))))));
 
-def objective : Int := decision35 - 0;
+def objective : Int := (DecisionTree.intAt 35 decisionsInt) - 0;
 def score : Int := objective;
 
 @require(valid)
@@ -248,40 +41,5 @@ def benchmark : Int := score;
 
 def main (_:Int) : Unit :=
     let report := print score in
-    let report0 := print decision0 in
-    let report1 := print decision1 in
-    let report2 := print decision2 in
-    let report3 := print decision3 in
-    let report4 := print decision4 in
-    let report5 := print decision5 in
-    let report6 := print decision6 in
-    let report7 := print decision7 in
-    let report8 := print decision8 in
-    let report9 := print decision9 in
-    let report10 := print decision10 in
-    let report11 := print decision11 in
-    let report12 := print decision12 in
-    let report13 := print decision13 in
-    let report14 := print decision14 in
-    let report15 := print decision15 in
-    let report16 := print decision16 in
-    let report17 := print decision17 in
-    let report18 := print decision18 in
-    let report19 := print decision19 in
-    let report20 := print decision20 in
-    let report21 := print decision21 in
-    let report22 := print decision22 in
-    let report23 := print decision23 in
-    let report24 := print decision24 in
-    let report25 := print decision25 in
-    let report26 := print decision26 in
-    let report27 := print decision27 in
-    let report28 := print decision28 in
-    let report29 := print decision29 in
-    let report30 := print decision30 in
-    let report31 := print decision31 in
-    let report32 := print decision32 in
-    let report33 := print decision33 in
-    let report34 := print decision34 in
-    let report35 := print decision35 in
+    let report0 := print decisionsInt in
     unit;

@@ -358,6 +358,11 @@ class Translator:
         if not self.model.variables:
             raise Unsupported("no decision variables; needs an algorithmic port")
         self.model.constraints = self.constraints or ["true"]
+        self.model.compact = (
+            len(self.model.variables) >= 64
+            or len(self.constraints) >= 64
+            or sum(len(values) for _, values in self.model.sequences) >= 128
+        )
         if self.direction != "satisfy":
             if not isinstance(self.target, Variable) or self.target.boolean:
                 raise Unsupported("non-integer optimization objective")
@@ -425,6 +430,8 @@ def import_models(
             status="translated",
             aeon_file=str(file.relative_to(catalogue.parent)),
             compiler_version="2.9.4",
+            authoring=result.get("authoring", "minizinc"),
+            capture=result.get("capture"),
             parameters=result.get("parameters", {}),
             data_files=result.get("data_files", []),
             flatzinc_sha256=hashlib.sha256(re.sub(r"%[^\n]*", "", text).encode()).hexdigest(),

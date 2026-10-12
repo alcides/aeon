@@ -257,6 +257,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._ectx = ectx
         self._term = term
         self._translation_steps = 0
+        self._definition_cache: dict[Name, _Value] = {}
+        self._application_cache: dict[tuple, tuple[_Closure, _Value, _Value]] = {}
         self._constructor_heads, self._recursor_heads = self._inductive_heads(term)
 
         goals: list[Goal] = [g for d in metadata.values() for g in d.get("goals", [])]
@@ -455,7 +457,10 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 inverse = "!=" if op == "==" else "=="
                 self._model.add(self._compare(op, a_value.expr, b_value.expr)).only_enforce_if(comparison)
                 self._model.add(self._compare(inverse, a_value.expr, b_value.expr)).only_enforce_if(comparison.Not())
-                return _Bool(comparison)
+                known = None
+                if a_value.known is not None and b_value.known is not None:
+                    known = (a_value.known == b_value.known) if op == "==" else (a_value.known != b_value.known)
+                return _Bool(comparison, known)
             ea = self._num(a_value, op)
             eb = self._num(b_value, op)
             if op in ("<", "<=", ">", ">=", "==", "!="):
@@ -487,15 +492,21 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 return self._constructor_heads[t.name]
             if t.name in self._recursor_heads:
                 return _Recursor(self._recursor_heads[t.name])
+            if t.name in self._definition_cache:
+                return self._definition_cache[t.name]
             if t.name in self._def_bodies:
                 body = self._def_bodies[t.name]
                 while isinstance(body, TypeAbstraction):
                     body = body.body
                 if isinstance(body, Abstraction):
-                    return self._translate(body, {}, visited)
+                    value = self._translate(body, {}, visited)
+                    self._definition_cache[t.name] = value
+                    return value
             if t.name in self._def_bodies and t.name not in visited:
                 try:
-                    return self._translate(self._def_bodies[t.name], {}, visited | {t.name})
+                    value = self._translate(self._def_bodies[t.name], {}, visited | {t.name})
+                    self._definition_cache[t.name] = value
+                    return value
                 except _Unsupported:
                     pass
             return self._eval_const(t.name)
@@ -517,7 +528,20 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 # Exact numerical interpretation of the scalar cast. This
                 # recognizes one expression, never evaluates native code.
                 return self._num(argument, "float conversion")
-            return self._translate(function.body, {**function.environment, function.binder: argument}, visited)
+            key = (
+                id(function.body),
+                tuple(
+                    (name.id, name.name, self._value_key(value)) for name, value in sorted(function.environment.items())
+                ),
+                self._value_key(argument),
+            )
+            if key in self._application_cache:
+                return self._application_cache[key][2]
+            result = self._translate(function.body, {**function.environment, function.binder: argument}, visited)
+            # Retain inputs alongside the result: identity keys must never
+            # alias later objects after Python recycles an object identifier.
+            self._application_cache[key] = (function, argument, result)
+            return result
         if isinstance(function, _Constructor):
             arguments = (*function.arguments, argument)
             if len(arguments) == function.arity:
@@ -535,6 +559,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 branch = self._apply(branch, field, visited)
             return branch
         raise _Unsupported("application of a non-function")
+
+    @staticmethod
+    def _value_key(value: _Value) -> tuple:
+        if isinstance(value, _Num):
+            expression = ("constant", value.expr) if isinstance(value.expr, int) else ("symbolic", id(value.expr))
+            return ("number", expression, value.scale)
+        if isinstance(value, _Bool) and value.known is not None:
+            return ("boolean", value.known)
+        return (type(value).__name__, id(value))
 
     @staticmethod
     def _inductive_heads(term: Term) -> tuple[dict[Name, _Value], dict[Name, tuple[str, ...]]]:

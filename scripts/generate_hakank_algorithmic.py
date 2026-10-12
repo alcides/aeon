@@ -39,7 +39,7 @@ def main():
         path = ROOT / "catalogue" / (model.name + ".ae")
         path.write_text(model.render({"source_url": url}))
         entry.update(
-            status="translated",
+            status="implemented",
             porting_method="algorithmic",
             aeon_file=str(path.relative_to(ROOT)),
             variables=model.variables,

@@ -5,132 +5,15 @@
 # @require is a hard constraint, independent of the objective.
 
 import Vec;
+import DecisionTree;
 
-def decision0 : {v:Int | 1 <= v && v <= 5} := ?h_decision0;
-def decision1 : {v:Int | 4 <= v && v <= 5} := ?h_decision1;
-def decision2 : {v:Int | 1 <= v && v <= 6} := ?h_decision2;
-def decision3 : {v:Int | 2 <= v && v <= 6} := ?h_decision3;
-def decision4 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision4;
-def decision5 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision5;
-def decision6 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision6;
-def decision7 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision7;
-def decision8 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision8;
-def decision9 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision9;
-def decision10 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision10;
-def decision11 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision11;
-def decision12 : {v:Int | (0 - 1) <= v && v <= 1} := ?h_decision12;
-def decision13 : {v:Int | 1 <= v && v <= 6} := ?h_decision13;
-def decision14 : {v:Int | 1 <= v && v <= 6} := ?h_decision14;
-def decision15 : {v:Int | 4 <= v && v <= 5} := ?h_decision15;
-def decision16 : Bool := ?h_decision16;
-def decision17 : Bool := ?h_decision17;
-def decision18 : Bool := ?h_decision18;
-def decision19 : Bool := ?h_decision19;
-def decision20 : Bool := ?h_decision20;
-def decision21 : Bool := ?h_decision21;
-def decision22 : Bool := ?h_decision22;
-def decision23 : Bool := ?h_decision23;
-def decision24 : Bool := ?h_decision24;
-def decision25 : Bool := ?h_decision25;
-def decision26 : Bool := ?h_decision26;
-def decision27 : Bool := ?h_decision27;
-def decision28 : Bool := ?h_decision28;
-def decision29 : Bool := ?h_decision29;
-def decision30 : Bool := ?h_decision30;
-def decision31 : Bool := ?h_decision31;
-def decision32 : Bool := ?h_decision32;
-def decision33 : Bool := ?h_decision33;
-def decision34 : Bool := ?h_decision34;
-def decision35 : Bool := ?h_decision35;
-def decision36 : Bool := ?h_decision36;
-def decision37 : Bool := ?h_decision37;
-def decision38 : Bool := ?h_decision38;
-def decision39 : Bool := ?h_decision39;
-def decision40 : Bool := ?h_decision40;
-def decision41 : Bool := ?h_decision41;
-def decision42 : Bool := ?h_decision42;
-def decision43 : Bool := ?h_decision43;
-def decision44 : Bool := ?h_decision44;
-def decision45 : Bool := ?h_decision45;
-def decision46 : Bool := ?h_decision46;
-def decision47 : Bool := ?h_decision47;
-def decision48 : Bool := ?h_decision48;
-def decision49 : Bool := ?h_decision49;
-def decision50 : Bool := ?h_decision50;
-def decision51 : Bool := ?h_decision51;
+def decisionsInt : (DecisionTree Int) := (DecisionTree.branch 8 (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision0 : {v:Int | 1 <= v && v <= 5})) (DecisionTree.leaf (?h_decision1 : {v:Int | 4 <= v && v <= 5}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision2 : {v:Int | 1 <= v && v <= 6})) (DecisionTree.leaf (?h_decision3 : {v:Int | 2 <= v && v <= 6})))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision4 : {v:Int | (0 - 1) <= v && v <= 1})) (DecisionTree.leaf (?h_decision5 : {v:Int | (0 - 1) <= v && v <= 1}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision6 : {v:Int | (0 - 1) <= v && v <= 1})) (DecisionTree.leaf (?h_decision7 : {v:Int | (0 - 1) <= v && v <= 1}))))) (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision8 : {v:Int | (0 - 1) <= v && v <= 1})) (DecisionTree.leaf (?h_decision9 : {v:Int | (0 - 1) <= v && v <= 1}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision10 : {v:Int | (0 - 1) <= v && v <= 1})) (DecisionTree.leaf (?h_decision11 : {v:Int | (0 - 1) <= v && v <= 1})))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision12 : {v:Int | (0 - 1) <= v && v <= 1})) (DecisionTree.leaf (?h_decision13 : {v:Int | 1 <= v && v <= 6}))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision14 : {v:Int | 1 <= v && v <= 6})) (DecisionTree.leaf (?h_decision15 : {v:Int | 4 <= v && v <= 5}))))));
+def decisionsBool : (DecisionTree Bool) := (DecisionTree.branch 18 (DecisionTree.branch 9 (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision16 : Bool)) (DecisionTree.leaf (?h_decision17 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision18 : Bool)) (DecisionTree.leaf (?h_decision19 : Bool)))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision20 : Bool)) (DecisionTree.leaf (?h_decision21 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision22 : Bool)) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision23 : Bool)) (DecisionTree.leaf (?h_decision24 : Bool)))))) (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision25 : Bool)) (DecisionTree.leaf (?h_decision26 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision27 : Bool)) (DecisionTree.leaf (?h_decision28 : Bool)))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision29 : Bool)) (DecisionTree.leaf (?h_decision30 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision31 : Bool)) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision32 : Bool)) (DecisionTree.leaf (?h_decision33 : Bool))))))) (DecisionTree.branch 9 (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision34 : Bool)) (DecisionTree.leaf (?h_decision35 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision36 : Bool)) (DecisionTree.leaf (?h_decision37 : Bool)))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision38 : Bool)) (DecisionTree.leaf (?h_decision39 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision40 : Bool)) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision41 : Bool)) (DecisionTree.leaf (?h_decision42 : Bool)))))) (DecisionTree.branch 4 (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision43 : Bool)) (DecisionTree.leaf (?h_decision44 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision45 : Bool)) (DecisionTree.leaf (?h_decision46 : Bool)))) (DecisionTree.branch 2 (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision47 : Bool)) (DecisionTree.leaf (?h_decision48 : Bool))) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision49 : Bool)) (DecisionTree.branch 1 (DecisionTree.leaf (?h_decision50 : Bool)) (DecisionTree.leaf (?h_decision51 : Bool))))))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
-def constraint0 : Bool := ((decision0 = 1 && true) || ((decision0 = 4 && true) || (decision0 = 5 && true)));
-def constraint1 : Bool := (((decision2 = 1 && true) || (decision2 = 3 && true)) || ((decision2 = 4 && true) || (decision2 = 6 && true)));
-def constraint2 : Bool := decision13 = (if decision3 >= decision0 then decision3 else decision0);
-def constraint3 : Bool := decision14 = (if decision2 >= decision13 then decision2 else decision13);
-def constraint4 : Bool := ((1 * decision3) + ((0 - 1) * decision1)) = 1;
-def constraint5 : Bool := ((decision16) || (decision17));
-def constraint6 : Bool := ((decision18) || (decision19));
-def constraint7 : Bool := ((decision20) || (decision21));
-def constraint8 : Bool := decision4 != (0 - 1);
-def constraint9 : Bool := ((decision22) || (decision23));
-def constraint10 : Bool := decision5 != (0 - 1);
-def constraint11 : Bool := ((decision24) || (decision25));
-def constraint12 : Bool := decision6 != (0 - 1);
-def constraint13 : Bool := ((decision32) || ((decision33) || (decision34)));
-def constraint14 : Bool := decision7 != (0 - 1);
-def constraint15 : Bool := ((decision35) || ((decision36) || (decision37)));
-def constraint16 : Bool := decision8 != (0 - 1);
-def constraint17 : Bool := ((decision38) || ((decision39) || (decision40)));
-def constraint18 : Bool := decision9 != (0 - 1);
-def constraint19 : Bool := ((decision41) || ((decision42) || (decision43)));
-def constraint20 : Bool := decision10 != (0 - 1);
-def constraint21 : Bool := ((decision44) || (decision45));
-def constraint22 : Bool := decision11 != (0 - 1);
-def constraint23 : Bool := ((decision46) || (decision47));
-def constraint24 : Bool := decision12 != (0 - 1);
-def constraint25 : Bool := ((decision50) || (decision51));
-def constraint26 : Bool := ((decision26) || (decision27));
-def constraint27 : Bool := ((decision28) || (decision29));
-def constraint28 : Bool := ((decision30) || (decision31));
-def constraint29 : Bool := ((decision48) || (decision49));
-def constraint30 : Bool := decision3 <= 5;
-def constraint31 : Bool := ((1 * decision1) + ((0 - 1) * decision15)) = (0 - 1);
-def constraint32 : Bool := (((1 * decision0) + ((0 - 1) * decision1)) <= (0 - 1)) = decision16;
-def constraint33 : Bool := (((1 * decision1) + ((0 - 1) * decision0)) <= (0 - 2)) = decision17;
-def constraint34 : Bool := (((1 * decision0) + ((0 - 1) * decision2)) <= (0 - 1)) = decision18;
-def constraint35 : Bool := (((1 * decision2) + ((0 - 1) * decision0)) <= (0 - 1)) = decision19;
-def constraint36 : Bool := (((1 * decision1) + ((0 - 1) * decision2)) <= (0 - 2)) = decision20;
-def constraint37 : Bool := (((1 * decision2) + ((0 - 1) * decision1)) <= (0 - 1)) = decision21;
-def constraint38 : Bool := (decision4 = 1) = decision22;
-def constraint39 : Bool := (2 <= decision0) = decision23;
-def constraint40 : Bool := (decision5 = 1) = decision24;
-def constraint41 : Bool := (2 <= decision2) = decision25;
-def constraint42 : Bool := (3 <= decision0) = decision26;
-def constraint43 : Bool := (decision0 <= 1) = decision27;
-def constraint44 : Bool := (3 <= decision2) = decision28;
-def constraint45 : Bool := (decision2 <= 1) = decision29;
-def constraint46 : Bool := (4 <= decision0) = decision30;
-def constraint47 : Bool := (decision0 <= 2) = decision31;
-def constraint48 : Bool := (decision6 = 1) = decision32;
-def constraint49 : Bool := (4 <= decision2) = decision33;
-def constraint50 : Bool := (decision2 <= 2) = decision34;
-def constraint51 : Bool := (decision7 = 1) = decision35;
-def constraint52 : Bool := (5 <= decision0) = decision36;
-def constraint53 : Bool := (decision0 <= 3) = decision37;
-def constraint54 : Bool := (decision8 = 1) = decision38;
-def constraint55 : Bool := (5 <= decision1) = decision39;
-def constraint56 : Bool := (decision3 <= 3) = decision40;
-def constraint57 : Bool := (decision9 = 1) = decision41;
-def constraint58 : Bool := (5 <= decision2) = decision42;
-def constraint59 : Bool := (decision2 <= 3) = decision43;
-def constraint60 : Bool := (decision10 = 1) = decision44;
-def constraint61 : Bool := (decision0 <= 4) = decision45;
-def constraint62 : Bool := (decision11 = 1) = decision46;
-def constraint63 : Bool := (decision3 <= 4) = decision47;
-def constraint64 : Bool := (6 <= decision2) = decision48;
-def constraint65 : Bool := (decision2 <= 4) = decision49;
-def constraint66 : Bool := (decision12 = 1) = decision50;
-def constraint67 : Bool := (decision2 <= 5) = decision51;
-def valid : Bool := (((((((constraint0) && (constraint1)) && ((constraint2) && (constraint3))) && (((constraint4) && (constraint5)) && ((constraint6) && (constraint7)))) && ((((constraint8) && (constraint9)) && ((constraint10) && (constraint11))) && (((constraint12) && (constraint13)) && ((constraint14) && ((constraint15) && (constraint16)))))) && (((((constraint17) && (constraint18)) && ((constraint19) && (constraint20))) && (((constraint21) && (constraint22)) && ((constraint23) && (constraint24)))) && ((((constraint25) && (constraint26)) && ((constraint27) && (constraint28))) && (((constraint29) && (constraint30)) && ((constraint31) && ((constraint32) && (constraint33))))))) && ((((((constraint34) && (constraint35)) && ((constraint36) && (constraint37))) && (((constraint38) && (constraint39)) && ((constraint40) && (constraint41)))) && ((((constraint42) && (constraint43)) && ((constraint44) && (constraint45))) && (((constraint46) && (constraint47)) && ((constraint48) && ((constraint49) && (constraint50)))))) && (((((constraint51) && (constraint52)) && ((constraint53) && (constraint54))) && (((constraint55) && (constraint56)) && ((constraint57) && (constraint58)))) && ((((constraint59) && (constraint60)) && ((constraint61) && (constraint62))) && (((constraint63) && (constraint64)) && ((constraint65) && ((constraint66) && (constraint67))))))));
+def valid : Bool := ((((((((((DecisionTree.intAt 0 decisionsInt) = 1 && true) || (((DecisionTree.intAt 0 decisionsInt) = 4 && true) || ((DecisionTree.intAt 0 decisionsInt) = 5 && true)))) && (((((DecisionTree.intAt 2 decisionsInt) = 1 && true) || ((DecisionTree.intAt 2 decisionsInt) = 3 && true)) || (((DecisionTree.intAt 2 decisionsInt) = 4 && true) || ((DecisionTree.intAt 2 decisionsInt) = 6 && true))))) && (((DecisionTree.intAt 13 decisionsInt) = (if (DecisionTree.intAt 3 decisionsInt) >= (DecisionTree.intAt 0 decisionsInt) then (DecisionTree.intAt 3 decisionsInt) else (DecisionTree.intAt 0 decisionsInt))) && ((DecisionTree.intAt 14 decisionsInt) = (if (DecisionTree.intAt 2 decisionsInt) >= (DecisionTree.intAt 13 decisionsInt) then (DecisionTree.intAt 2 decisionsInt) else (DecisionTree.intAt 13 decisionsInt))))) && (((((1 * (DecisionTree.intAt 3 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 1 decisionsInt))) = 1) && ((((DecisionTree.boolAt 0 decisionsBool)) || ((DecisionTree.boolAt 1 decisionsBool))))) && (((((DecisionTree.boolAt 2 decisionsBool)) || ((DecisionTree.boolAt 3 decisionsBool)))) && ((((DecisionTree.boolAt 4 decisionsBool)) || ((DecisionTree.boolAt 5 decisionsBool))))))) && (((((DecisionTree.intAt 4 decisionsInt) != (0 - 1)) && ((((DecisionTree.boolAt 6 decisionsBool)) || ((DecisionTree.boolAt 7 decisionsBool))))) && (((DecisionTree.intAt 5 decisionsInt) != (0 - 1)) && ((((DecisionTree.boolAt 8 decisionsBool)) || ((DecisionTree.boolAt 9 decisionsBool)))))) && ((((DecisionTree.intAt 6 decisionsInt) != (0 - 1)) && ((((DecisionTree.boolAt 16 decisionsBool)) || (((DecisionTree.boolAt 17 decisionsBool)) || ((DecisionTree.boolAt 18 decisionsBool)))))) && (((DecisionTree.intAt 7 decisionsInt) != (0 - 1)) && (((((DecisionTree.boolAt 19 decisionsBool)) || (((DecisionTree.boolAt 20 decisionsBool)) || ((DecisionTree.boolAt 21 decisionsBool))))) && ((DecisionTree.intAt 8 decisionsInt) != (0 - 1))))))) && ((((((((DecisionTree.boolAt 22 decisionsBool)) || (((DecisionTree.boolAt 23 decisionsBool)) || ((DecisionTree.boolAt 24 decisionsBool))))) && ((DecisionTree.intAt 9 decisionsInt) != (0 - 1))) && (((((DecisionTree.boolAt 25 decisionsBool)) || (((DecisionTree.boolAt 26 decisionsBool)) || ((DecisionTree.boolAt 27 decisionsBool))))) && ((DecisionTree.intAt 10 decisionsInt) != (0 - 1)))) && ((((((DecisionTree.boolAt 28 decisionsBool)) || ((DecisionTree.boolAt 29 decisionsBool)))) && ((DecisionTree.intAt 11 decisionsInt) != (0 - 1))) && (((((DecisionTree.boolAt 30 decisionsBool)) || ((DecisionTree.boolAt 31 decisionsBool)))) && ((DecisionTree.intAt 12 decisionsInt) != (0 - 1))))) && (((((((DecisionTree.boolAt 34 decisionsBool)) || ((DecisionTree.boolAt 35 decisionsBool)))) && ((((DecisionTree.boolAt 10 decisionsBool)) || ((DecisionTree.boolAt 11 decisionsBool))))) && (((((DecisionTree.boolAt 12 decisionsBool)) || ((DecisionTree.boolAt 13 decisionsBool)))) && ((((DecisionTree.boolAt 14 decisionsBool)) || ((DecisionTree.boolAt 15 decisionsBool)))))) && ((((((DecisionTree.boolAt 32 decisionsBool)) || ((DecisionTree.boolAt 33 decisionsBool)))) && ((DecisionTree.intAt 3 decisionsInt) <= 5)) && ((((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 15 decisionsInt))) = (0 - 1)) && (((((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 1 decisionsInt))) <= (0 - 1)) = (DecisionTree.boolAt 0 decisionsBool)) && ((((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 0 decisionsInt))) <= (0 - 2)) = (DecisionTree.boolAt 1 decisionsBool)))))))) && (((((((((1 * (DecisionTree.intAt 0 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 2 decisionsInt))) <= (0 - 1)) = (DecisionTree.boolAt 2 decisionsBool)) && ((((1 * (DecisionTree.intAt 2 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 0 decisionsInt))) <= (0 - 1)) = (DecisionTree.boolAt 3 decisionsBool))) && (((((1 * (DecisionTree.intAt 1 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 2 decisionsInt))) <= (0 - 2)) = (DecisionTree.boolAt 4 decisionsBool)) && ((((1 * (DecisionTree.intAt 2 decisionsInt)) + ((0 - 1) * (DecisionTree.intAt 1 decisionsInt))) <= (0 - 1)) = (DecisionTree.boolAt 5 decisionsBool)))) && (((((DecisionTree.intAt 4 decisionsInt) = 1) = (DecisionTree.boolAt 6 decisionsBool)) && ((2 <= (DecisionTree.intAt 0 decisionsInt)) = (DecisionTree.boolAt 7 decisionsBool))) && ((((DecisionTree.intAt 5 decisionsInt) = 1) = (DecisionTree.boolAt 8 decisionsBool)) && ((2 <= (DecisionTree.intAt 2 decisionsInt)) = (DecisionTree.boolAt 9 decisionsBool))))) && (((((3 <= (DecisionTree.intAt 0 decisionsInt)) = (DecisionTree.boolAt 10 decisionsBool)) && (((DecisionTree.intAt 0 decisionsInt) <= 1) = (DecisionTree.boolAt 11 decisionsBool))) && (((3 <= (DecisionTree.intAt 2 decisionsInt)) = (DecisionTree.boolAt 12 decisionsBool)) && (((DecisionTree.intAt 2 decisionsInt) <= 1) = (DecisionTree.boolAt 13 decisionsBool)))) && ((((4 <= (DecisionTree.intAt 0 decisionsInt)) = (DecisionTree.boolAt 14 decisionsBool)) && (((DecisionTree.intAt 0 decisionsInt) <= 2) = (DecisionTree.boolAt 15 decisionsBool))) && ((((DecisionTree.intAt 6 decisionsInt) = 1) = (DecisionTree.boolAt 16 decisionsBool)) && (((4 <= (DecisionTree.intAt 2 decisionsInt)) = (DecisionTree.boolAt 17 decisionsBool)) && (((DecisionTree.intAt 2 decisionsInt) <= 2) = (DecisionTree.boolAt 18 decisionsBool))))))) && (((((((DecisionTree.intAt 7 decisionsInt) = 1) = (DecisionTree.boolAt 19 decisionsBool)) && ((5 <= (DecisionTree.intAt 0 decisionsInt)) = (DecisionTree.boolAt 20 decisionsBool))) && ((((DecisionTree.intAt 0 decisionsInt) <= 3) = (DecisionTree.boolAt 21 decisionsBool)) && (((DecisionTree.intAt 8 decisionsInt) = 1) = (DecisionTree.boolAt 22 decisionsBool)))) && ((((5 <= (DecisionTree.intAt 1 decisionsInt)) = (DecisionTree.boolAt 23 decisionsBool)) && (((DecisionTree.intAt 3 decisionsInt) <= 3) = (DecisionTree.boolAt 24 decisionsBool))) && ((((DecisionTree.intAt 9 decisionsInt) = 1) = (DecisionTree.boolAt 25 decisionsBool)) && ((5 <= (DecisionTree.intAt 2 decisionsInt)) = (DecisionTree.boolAt 26 decisionsBool))))) && ((((((DecisionTree.intAt 2 decisionsInt) <= 3) = (DecisionTree.boolAt 27 decisionsBool)) && (((DecisionTree.intAt 10 decisionsInt) = 1) = (DecisionTree.boolAt 28 decisionsBool))) && ((((DecisionTree.intAt 0 decisionsInt) <= 4) = (DecisionTree.boolAt 29 decisionsBool)) && (((DecisionTree.intAt 11 decisionsInt) = 1) = (DecisionTree.boolAt 30 decisionsBool)))) && (((((DecisionTree.intAt 3 decisionsInt) <= 4) = (DecisionTree.boolAt 31 decisionsBool)) && ((6 <= (DecisionTree.intAt 2 decisionsInt)) = (DecisionTree.boolAt 32 decisionsBool))) && ((((DecisionTree.intAt 2 decisionsInt) <= 4) = (DecisionTree.boolAt 33 decisionsBool)) && ((((DecisionTree.intAt 12 decisionsInt) = 1) = (DecisionTree.boolAt 34 decisionsBool)) && (((DecisionTree.intAt 2 decisionsInt) <= 5) = (DecisionTree.boolAt 35 decisionsBool)))))))));
 
-def objective : Int := decision14 - 1;
+def objective : Int := (DecisionTree.intAt 14 decisionsInt) - 1;
 def score : Int := objective;
 
 @require(valid)
@@ -139,56 +22,6 @@ def benchmark : Int := score;
 
 def main (_:Int) : Unit :=
     let report := print score in
-    let report0 := print decision0 in
-    let report1 := print decision1 in
-    let report2 := print decision2 in
-    let report3 := print decision3 in
-    let report4 := print decision4 in
-    let report5 := print decision5 in
-    let report6 := print decision6 in
-    let report7 := print decision7 in
-    let report8 := print decision8 in
-    let report9 := print decision9 in
-    let report10 := print decision10 in
-    let report11 := print decision11 in
-    let report12 := print decision12 in
-    let report13 := print decision13 in
-    let report14 := print decision14 in
-    let report15 := print decision15 in
-    let report16 := print decision16 in
-    let report17 := print decision17 in
-    let report18 := print decision18 in
-    let report19 := print decision19 in
-    let report20 := print decision20 in
-    let report21 := print decision21 in
-    let report22 := print decision22 in
-    let report23 := print decision23 in
-    let report24 := print decision24 in
-    let report25 := print decision25 in
-    let report26 := print decision26 in
-    let report27 := print decision27 in
-    let report28 := print decision28 in
-    let report29 := print decision29 in
-    let report30 := print decision30 in
-    let report31 := print decision31 in
-    let report32 := print decision32 in
-    let report33 := print decision33 in
-    let report34 := print decision34 in
-    let report35 := print decision35 in
-    let report36 := print decision36 in
-    let report37 := print decision37 in
-    let report38 := print decision38 in
-    let report39 := print decision39 in
-    let report40 := print decision40 in
-    let report41 := print decision41 in
-    let report42 := print decision42 in
-    let report43 := print decision43 in
-    let report44 := print decision44 in
-    let report45 := print decision45 in
-    let report46 := print decision46 in
-    let report47 := print decision47 in
-    let report48 := print decision48 in
-    let report49 := print decision49 in
-    let report50 := print decision50 in
-    let report51 := print decision51 in
+    let report0 := print decisionsInt in
+    let report1 := print decisionsBool in
     unit;

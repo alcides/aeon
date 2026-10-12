@@ -10,12 +10,7 @@ def x0 : {v:Int | 0 <= v && v <= 10} := ?h_x0;
 def x1 : {v:Int | 0 <= v && v <= 10} := ?h_x1;
 def x2 : {v:Int | 0 <= v && v <= 10} := ?h_x2;
 def x3 : {v:Int | 0 <= v && v <= 10} := ?h_x3;
-def sequence0_tail5 : (Vec Int) := Vec.cons ((x3 - x2)) (Vec.nil);
-def sequence0_tail4 : (Vec Int) := Vec.cons ((x3 - x1)) (sequence0_tail5);
-def sequence0_tail3 : (Vec Int) := Vec.cons ((x2 - x1)) (sequence0_tail4);
-def sequence0_tail2 : (Vec Int) := Vec.cons ((x3 - x0)) (sequence0_tail3);
-def sequence0_tail1 : (Vec Int) := Vec.cons ((x2 - x0)) (sequence0_tail2);
-def sequence0_tail0 : (Vec Int) := Vec.cons ((x1 - x0)) (sequence0_tail1);
+def sequence0_tail0 : (Vec Int) := Vec.cons ((x1 - x0)) (Vec.cons ((x2 - x0)) (Vec.cons ((x3 - x0)) (Vec.cons ((x2 - x1)) (Vec.cons ((x3 - x1)) (Vec.cons ((x3 - x2)) (Vec.nil))))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
 def constraint0 : Bool := x0 = 0;

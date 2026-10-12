@@ -3,10 +3,10 @@
 The requested [archived catalogue](https://web.archive.org/web/20251201043639/https://www.hakank.org/common_cp_models/)
 contains 1,124 entries. [catalogue.json](catalogue.json) tracks every entry by
 its archive anchor, including pinned sources and current porting status.
-There are 25 independently validated examples and 838 additional generated
+There are 53 independently validated examples and 892 additional generated
 translations in [catalogue/](catalogue/). **The full port is still in progress:**
 generated translations have not all been compiled or independently validated,
-and 261 entries remain pending. Pending records are inventory, not implementations.
+and 179 entries remain pending. Pending records are inventory, not implementations.
 
 The models use refined scalar holes, Boolean decisions, pure recursive `Vec`
 functions, named predicates, and hard `@require` constraints. Aeon searches
@@ -143,3 +143,29 @@ catalogue. Models compiled to constant computations need algorithmic Aeon
 ports; they are not represented as fake decision problems. The importer tests
 check signed division, reification, indexing, finite sets, and fractional
 constants by synthesizing witnesses and checking their meaning.
+
+The native ports include a fixed [7,13]-pack purchasing instance, a reduced
+4x4 instance of the 17x17 rectangle challenge, the complete DONALD alphametic,
+magic hexagon, and EQ20. `scripts/generate_hakank_manual.py` regenerates these
+from explicit data; `tests/hakank_manual_test.py` independently checks their
+mathematical goals. Euler 1 computes its summation recursively in Aeon and
+synthesizes the resulting answer. Large generated models group their refined
+holes into balanced `DecisionTree` values; each hole retains its own type and
+domain, and constant indices select fields through pure pattern matching.
+
+For Python reference models, the authoring exporter requires CPMpy 1.1.0,
+minizinc-python 0.10.0, and NumPy 2.5.4 in the interpreter passed via
+`--capture-python`. It captures the first default model with seed 0 before
+constructing a solver, exports its constraints, and checks the resulting model
+checksum. These dependencies are absent from Aeon runtime. Native ports also
+cover reified distinctness, the bowls-and-oranges placement problem, and the
+2012 number-theory optimization with exact prime membership.
+
+Alternate encodings reuse shared mathematical specifications where the goals
+are equivalent: pairwise and vector N-Queens, scalar-product alphametics, and
+MIP magic squares. Sudoku variants preserve their actual upstream clues,
+including the 4x4 C# instance and both complete 9x9 datasets. Global examples
+use recursive `Vec` predicates; the bit-pattern example searches 48 typed
+Boolean holes and preserves 16-bit truncation and arithmetic right shifts.
+Fixed global-constraint demonstrations converted to witness searches say so
+explicitly in their instance descriptions.

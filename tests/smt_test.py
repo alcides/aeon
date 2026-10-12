@@ -308,3 +308,32 @@ def test_division_by_nonzero_still_valid() -> None:
     div = LiquidApp(Name("/", 0), [LiquidLiteralInt(6), LiquidLiteralInt(2)])
     claim = LiquidConstraint(LiquidApp(Name("==", 0), [div, LiquidLiteralInt(3)]))
     assert smt_valid(claim) is True
+
+
+def test_flatten_repeated_binders_in_sibling_scopes_stay_distinct():
+    name = Name("repeated", 99100)
+    positive = LiquidApp(Name("==", 0), [LiquidVar(name), LiquidLiteralInt(1)])
+    negative = LiquidApp(Name("==", 0), [LiquidVar(name), LiquidLiteralInt(2)])
+    constraints = Conjunction(
+        Implication(name, t_int, positive, LiquidConstraint(positive)),
+        Implication(name, t_int, negative, LiquidConstraint(negative)),
+    )
+    flattened = list(flatten(constraints))
+    assert len(flattened) == 2
+    assert set(flattened[0].variables).isdisjoint(flattened[1].variables)
+    assert smt_valid(constraints)
+
+
+def test_flatten_respects_shadowing_inside_an_implication():
+    name = Name("shadowed", 99101)
+    outer = LiquidApp(Name("==", 0), [LiquidVar(name), LiquidLiteralInt(1)])
+    inner = LiquidApp(Name("==", 0), [LiquidVar(name), LiquidLiteralInt(2)])
+    constraint = Implication(name, t_int, outer, Implication(name, t_int, inner, LiquidConstraint(outer)))
+    assert not smt_valid(constraint)
+
+
+def test_flatten_skips_tautological_obligations():
+    name = Name("unused", 99102)
+    constraint = Implication(name, t_int, LiquidLiteralBool(True), LiquidConstraint(LiquidLiteralBool(True)))
+    assert list(flatten(constraint)) == []
+    assert smt_valid(constraint)

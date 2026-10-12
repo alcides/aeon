@@ -224,11 +224,23 @@
     }
   },
   "alldifferentonintersection": {
-    "source": "minizinc/alldifferent_on_intersection.mzn",
-    "parameters": {},
+    "source": "cpmpy/all_different_on_intersection.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "15c74930ba959882e468ce493ec96e3eead9d81d1acc6be6210f16fd0d1d8e36",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "00d4cc599d9f5a5f3200b28535832cd0703fc93df830920bfda5a07afff85705",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/alldifferent_on_intersection.mzn": "161dfac4a3959d009e5c0a161c015a2c4ad074e6be10702d89a758e4ae3d1fa5"
+      "cpmpy/all_different_on_intersection.py": "15c74930ba959882e468ce493ec96e3eead9d81d1acc6be6210f16fd0d1d8e36",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "alldifferentpairs": {
@@ -264,11 +276,23 @@
     }
   },
   "alldifferfromatleastkpos": {
-    "source": "minizinc/all_differ_from_at_least_k_pos.mzn",
-    "parameters": {},
+    "source": "cpmpy/all_differ_from_at_least_k_pos.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "e982eeba1baf93473fc3bb6cbce663b7872af8e2bc4042300690d11a4a09703f",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "1ab0e011832aaa46976982bdcf1a1b068a10e95365693dafcf1ff09f79e11362",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/all_differ_from_at_least_k_pos.mzn": "4927bfaa6dc9386de20242119c860ac3275c493196630dd823be0e4c7513c331"
+      "cpmpy/all_differ_from_at_least_k_pos.py": "e982eeba1baf93473fc3bb6cbce663b7872af8e2bc4042300690d11a4a09703f",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "allinterval": {
@@ -1338,13 +1362,23 @@
     }
   },
   "coinsgrid": {
-    "source": "minizinc/coins_grid.mzn",
+    "source": "cpmpy/coins_grid.py",
     "parameters": {
-      "n": "4"
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
     },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8902ae837f70a79e086bb6931559190a031744894c363edcb624df5d258a5e41",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "6fa8b3b88028848aa61b90c66e7e748c2f3ca39b7257df85ffd7688dcac988b1",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/coins_grid.mzn": "ffc59207cd71c306cd9e56a9f96445bf68e9b6ddd11009918335db428a198bc0"
+      "cpmpy/coins_grid.py": "8902ae837f70a79e086bb6931559190a031744894c363edcb624df5d258a5e41",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "coinsproblem": {
@@ -3970,11 +4004,23 @@
     }
   },
   "linearcombinations": {
-    "source": "minizinc/linear_combinations.mzn",
-    "parameters": {},
+    "source": "cpmpy/linear_combinations.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "b79b8d449d2db7f3845a1fadf28d54ed8831b7091694e88a0ac554c7d06f0462",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "508393d9d712e837480bcfe499dcabb94faef58c3704e9c975bb48f652906008",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/linear_combinations.mzn": "19ac255e5b6945491c9e65f15e2c8c280acdf9baab5dcf1fe12eb23f920e36be"
+      "cpmpy/linear_combinations.py": "b79b8d449d2db7f3845a1fadf28d54ed8831b7091694e88a0ac554c7d06f0462",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "loadingpairofdice": {
@@ -4290,11 +4336,23 @@
     }
   },
   "maxflowwinston1": {
-    "source": "minizinc/max_flow_winston1.mzn",
-    "parameters": {},
+    "source": "cpmpy/max_flow_winston1.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "ec5957076f9b4734a5084c9d946e4268c18dc4e0458c83ab67063a53e6e3720d",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "1c4e98950202e6d23aee6b086e740449372e453b7bf221222110d8eb92320221",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/max_flow_winston1.mzn": "e31f632f50115b0dd6f40edb7a781513ad4abc8080abdd7f9db77f7bb3f96d5f"
+      "cpmpy/max_flow_winston1.py": "ec5957076f9b4734a5084c9d946e4268c18dc4e0458c83ab67063a53e6e3720d",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "maximalindependentsets": {
@@ -5493,11 +5551,23 @@
     }
   },
   "pythagoras": {
-    "source": "minizinc/pythagoras.mzn",
-    "parameters": {},
+    "source": "cpmpy/pythagoras.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "9e092fe3d94b0f488a83890f706ec8d7198c9128143613bd3d630a062ecf3802",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "b9efe44396440011a6a26ac2887626fcab1de9b257540eb82d02eb1fe8a22e2d",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/pythagoras.mzn": "e4697f6a922cc554333febe87d275547eddd2b8115c734de30fc60502afc8f37"
+      "cpmpy/pythagoras.py": "9e092fe3d94b0f488a83890f706ec8d7198c9128143613bd3d630a062ecf3802",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "quasigroupcompletion": {
@@ -5525,11 +5595,23 @@
     }
   },
   "queensdiversity": {
-    "source": "minizinc/queens_diversity.mzn",
-    "parameters": {},
+    "source": "cpmpy/queens_diversity.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "962cf9d57d218ef6a17bf00b1c412b11a2440fdd19695dde0e663e1a92d7705d",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "005ae3ad9698e874fa93d5bcab01eccdd4f604f7f4ba0ab43990b3feb8cef72a",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/queens_diversity.mzn": "f7af0b0a985b956360e083e5d7370f5dd46cd390458bd4df29ff83da8901ff63"
+      "cpmpy/queens_diversity.py": "962cf9d57d218ef6a17bf00b1c412b11a2440fdd19695dde0e663e1a92d7705d",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "queensip": {
@@ -5675,11 +5757,23 @@
     }
   },
   "rogo2": {
-    "source": "minizinc/rogo2.mzn",
-    "parameters": {},
+    "source": "cpmpy/rogo2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "156912eeaf3776903fc4734c10b9d9e4e871f796ec753d0d8be7fe8e89b53faa"
+    },
     "input_sha256": {
-      "minizinc/rogo2.mzn": "247c167803db51f68596ffedf08f4372a10150795d210f4439c4a02885296db7"
+      "cpmpy/rogo2.py": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "rookpath": {
@@ -6691,11 +6785,23 @@
     }
   },
   "survopuzzle": {
-    "source": "minizinc/survo_puzzle.mzn",
-    "parameters": {},
+    "source": "cpmpy/survo_puzzle.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
     "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "4547fbdac5639eb6489c77379c67fbd9f30f5aef26dfeddd195b0a5cac885df2",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "cd089b4ee99fc9172c0330260f5eb90ac8d7ea4411d4900e4192b6b12515edb4",
+      "numpy_version": "2.5.4"
+    },
     "input_sha256": {
-      "minizinc/survo_puzzle.mzn": "44c095f90115aaa97b8e3607563fcc753b19779729b926cc44cfc5b2c6099c2e"
+      "cpmpy/survo_puzzle.py": "4547fbdac5639eb6489c77379c67fbd9f30f5aef26dfeddd195b0a5cac885df2",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
     }
   },
   "symmetric": {
@@ -7408,6 +7514,971 @@
     "data_files": [],
     "input_sha256": {
       "minizinc/zoo_buses_and_kids.mzn": "42c5d38555286df458c61fdb50fdd3385ec33a16b5496d3fd14bd35d8a229991"
+    }
+  },
+  "3jugsregular": {
+    "source": "cpmpy/3_jugs_regular.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "4746463b43baefbae41369faf903c16f22c629a878f215b522d748d9e38ee2ef",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "e2d9ceff7c07f1d5b6429f28d2b42d10c741c049abe463f6725675e69c875115",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/3_jugs_regular.py": "4746463b43baefbae41369faf903c16f22c629a878f215b522d748d9e38ee2ef",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "abbotspuzzle": {
+    "source": "cpmpy/abbots_puzzle.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "2ba36f3e5741c7763fd48884a6acdcd2e9c87c98ef12498b1f5158fd5edf2cd4",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "df2498a9f28f77b378b5fa164fd32314d280363deed4cbc4745ca98edc5a36b0",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/abbots_puzzle.py": "2ba36f3e5741c7763fd48884a6acdcd2e9c87c98ef12498b1f5158fd5edf2cd4",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "allpartitions": {
+    "source": "cpmpy/all_partitions.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "833b1bc0d7790d30b593e099e762c36c512cd4dad0a63eb1f17ceed760a98419",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "ff05840ac7f8fe2214db5a151ed556421e98db40cf051d3a8d787229797b9054",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/all_partitions.py": "833b1bc0d7790d30b593e099e762c36c512cd4dad0a63eb1f17ceed760a98419",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "alphametic": {
+    "source": "cpmpy/alphametic.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "74c9fb49d300689076b10014973abcd1d5200000f007a5cb5aba5ce857764721",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "e336ae0e2094461aeb06bbf0d6f3a3dc078e9649cd2ecd6888b4afe9f32872c4",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/alphametic.py": "74c9fb49d300689076b10014973abcd1d5200000f007a5cb5aba5ce857764721",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "atmosttest": {
+    "source": "cpmpy/atmost_test.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "c8bfe78af9461e7664a60773c97aefe7e8aa3a96a60515b64b6d12b416379554",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "2b898c57d454055c02f86054493feaea6ceb82d6463f2d62bc587fc38bc44eb5",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/atmost_test.py": "c8bfe78af9461e7664a60773c97aefe7e8aa3a96a60515b64b6d12b416379554",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "birthdaycoins": {
+    "source": "cpmpy/birthday_coins.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "409f71d1b82b42d7eba635836277e756178a311b8651efd616e422a26cdfeae5",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "8157e56a052e6553389bc2269d724eb834ef587ce4cce4d24bc639c7b09d26aa",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/birthday_coins.py": "409f71d1b82b42d7eba635836277e756178a311b8651efd616e422a26cdfeae5",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "busschedule": {
+    "source": "cpmpy/bus_schedule.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "dd9e0acb060e8ac6e5f06239c19be1c8a0e0bedfade44006d1886d8b2c536c3d",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "5ea555bd18dd8d33f3841e3e61d735f9b42b80447a2ea95bd349ddc3c967d6be",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/bus_schedule.py": "dd9e0acb060e8ac6e5f06239c19be1c8a0e0bedfade44006d1886d8b2c536c3d",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "capitalbudget": {
+    "source": "cpmpy/capital_budget.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "d27d5df122d03b555aa346db22d038b6cbf6b864bbad8ec56a28f6ab2557be2b",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "c6c8a62937e8056fed11f00954811860fffc648cdf7a3ed69291c1672f8a7106",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/capital_budget.py": "d27d5df122d03b555aa346db22d038b6cbf6b864bbad8ec56a28f6ab2557be2b",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "consecutiveintegerpartitionproblem": {
+    "source": "cpmpy/consecutive_integer_partition_problem.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "6590d021eaa85a2ada89a35028cf6b354a53f3661ffa42d9db14640c4bce12cb",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "4582aff7eaf8a648eb23ca542f67f6e5af43714381ddccd7c54c97377f02b4f0",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/consecutive_integer_partition_problem.py": "6590d021eaa85a2ada89a35028cf6b354a53f3661ffa42d9db14640c4bce12cb",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "contractingcosts": {
+    "source": "cpmpy/contracting_costs.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "d91958b1ce2c9cf4f58c0cf1f2f9c97b4d65d54be0085cf510e6dd3da342b72a",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "59bcffc1b3863ce3c7153fc4cd7f0fb9ae29a5854f19d91101438486c5cd433a",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/contracting_costs.py": "d91958b1ce2c9cf4f58c0cf1f2f9c97b4d65d54be0085cf510e6dd3da342b72a",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "coveringopl": {
+    "source": "cpmpy/covering_opl.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "2d5f3f3f3695d67371eaee37a1d523407983309e93d51c63f564df69a3f143ab",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "b060936b84fb70b7a5ba30e4b585d6945021f923757ed873ed566a7b6e4ffafd",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/covering_opl.py": "2d5f3f3f3695d67371eaee37a1d523407983309e93d51c63f564df69a3f143ab",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "cumulativetests": {
+    "source": "cpmpy/cumulative_tests.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "418686c4c4427d86802a003bdbfe540a25e0a5113cce3e4aad624691829443f3",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "5f43cd544b7ad0fe3b199f4e4c471b3d3af7750f633607d4d34e34477963a365",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/cumulative_tests.py": "418686c4c4427d86802a003bdbfe540a25e0a5113cce3e4aad624691829443f3",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "diffntest": {
+    "source": "cpmpy/diffn_test.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "4203c93eed17c169d2e4b4c95a620c929ba1419681352300ce4da48ec3a2bd98",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "3630e277fab9c07f2869b1c12c9469f3db153bfcee6c1da2d55f10b2771f3d0e",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/diffn_test.py": "4203c93eed17c169d2e4b4c95a620c929ba1419681352300ce4da48ec3a2bd98",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "distribute": {
+    "source": "cpmpy/distribute.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "cc3b193ee6d785dba30d414a3a916d4d6b7fae4912f21dc31c013ca828303cb4",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "5eee85223c4827c50b32421c3864ed341cf631ada69674698dea7331ee075e3c",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/distribute.py": "cc3b193ee6d785dba30d414a3a916d4d6b7fae4912f21dc31c013ca828303cb4",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "fivebrigands": {
+    "source": "cpmpy/five_brigands.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "864d334df7a579f4b043aa0f3ee12c517f0c831d3c8f0af86f3e371150875f8d",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "a8f74c3bc339ae9a885d31e14302a899453b6350373afb70644134da1c81ab6e",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/five_brigands.py": "864d334df7a579f4b043aa0f3ee12c517f0c831d3c8f0af86f3e371150875f8d",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "frogcircle": {
+    "source": "cpmpy/frog_circle.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "25cd223257b4a85e78badda64c4fbff9a40f86974340e0991571255a2c836070",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "d4c989409320ec4f24c6191cbb3ac4bf7c3c8fc10e38738d885246d540e584ce",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/frog_circle.py": "25cd223257b4a85e78badda64c4fbff9a40f86974340e0991571255a2c836070",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "generatingnumbers2": {
+    "source": "cpmpy/generating_numbers2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "de790fd581f0126fbdcb4c59701873333786f7acc3f8d1874c7b008f761a95fc",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "144b8c801ead667c1ab1c42eab7b0781a6ad16312ae65503c224b158f2f18984",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/generating_numbers2.py": "de790fd581f0126fbdcb4c59701873333786f7acc3f8d1874c7b008f761a95fc",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "grocery": {
+    "source": "cpmpy/grocery.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "6cec1424153fe46c05ab3c79e44a8ac624db30ee9726e7884f116ec0e53bd4b9",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "70bfb0f4a4d7bf66057db194b819c162a2df83a43f9b7d8e28eb003beed34d9f",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/grocery.py": "6cec1424153fe46c05ab3c79e44a8ac624db30ee9726e7884f116ec0e53bd4b9",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "handshaking": {
+    "source": "cpmpy/handshaking.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "61589ab103dd5f69646dfea7dccf636e380105c9a05fd578f57651b36f3d2bcc",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "008efa33dff4812dcc27b84a35952f39bbc0b0a875742e3e80f0eef15a9af619",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/handshaking.py": "61589ab103dd5f69646dfea7dccf636e380105c9a05fd578f57651b36f3d2bcc",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "initialsqueueproblem": {
+    "source": "cpmpy/initials_queue_problem.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "b448e47f12c07e6c7a76633d32ba5405c1ed97e40f4a4ef85c6ab610e4579f99",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "eddb4a8b19cc8d4c55e56b461a253487f79988dbb0008b209a9c79a8ab64bb5a",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/initials_queue_problem.py": "b448e47f12c07e6c7a76633d32ba5405c1ed97e40f4a4ef85c6ab610e4579f99",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "knightspath": {
+    "source": "cpmpy/knights_path.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "0e481b41bd33da0aa097daf19c7a50af25738197f595f7a64fd42a9bf795eda6",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "f976e64a4734bbafbc70f2f98014fa91c286bc1e1339ba5e2afb319042df7957",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/knights_path.py": "0e481b41bd33da0aa097daf19c7a50af25738197f595f7a64fd42a9bf795eda6",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "notimetotry": {
+    "source": "cpmpy/no_time_to_try.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "5601991fe2a9ab41fb39f5ee784d1ea9c041051ccfa45424a8d159a4dbfd4d83",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "659c8205cc7559591f2b6dee98da38642419d23f089471ed261e5215395c4518",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/no_time_to_try.py": "5601991fe2a9ab41fb39f5ee784d1ea9c041051ccfa45424a8d159a4dbfd4d83",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "nurserostering": {
+    "source": "cpmpy/nurse_rostering.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "f4cee42c555979026a5878f2c41135d6a48b805927117c46c06760d319289c92",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "d72c6e143eccb9a1709d61cb27bd8114e5dd4ecfb38e4822680777a43510356d",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/nurse_rostering.py": "f4cee42c555979026a5878f2c41135d6a48b805927117c46c06760d319289c92",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "partitionintosubsetsofequalvalues": {
+    "source": "cpmpy/partition_into_subsets_of_equal_values.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "ba624cfeedd71ab3dbb2a24fb6bd5287a9a84c8fecd1c4f675f2a67eef5e9f6c",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "1d50fcfc71b693d2f51b4c231dd838ff0676f7265eb6eea7676d88a80d031d7b",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/partition_into_subsets_of_equal_values.py": "ba624cfeedd71ab3dbb2a24fb6bd5287a9a84c8fecd1c4f675f2a67eef5e9f6c",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "pentonomies": {
+    "source": "cpmpy/pentonomies.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "c99a7f0aeac7e81a851e0b21eac9ccc212ea3ce04e639c7b1d61e39b0fd2b77d",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "d0ed33b4d53c21fd6b9b190f4e546b6c10b04d8aaec204f7c15ba9062c5f4687",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/pentonomies.py": "c99a7f0aeac7e81a851e0b21eac9ccc212ea3ce04e639c7b1d61e39b0fd2b77d",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "photoproblem": {
+    "source": "cpmpy/photo_problem.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8d7393d5e1949cfdf90219a89ea88b14a658f02d710471aac44e7441584ad9cb",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "2a9d7e468c8b650804d2d48aaa9d18cfa14c7654eb7c5ee9295b042702787550",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/photo_problem.py": "8d7393d5e1949cfdf90219a89ea88b14a658f02d710471aac44e7441584ad9cb",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "placenumberpuzzle": {
+    "source": "cpmpy/place_number_puzzle.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "84a6c62a729c6f7abb8274062699858d2669d160dd7fdb1be27a8a3a0ba9a29e",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "bffff453882e7dfe34bb8a4d904b5517ff99b0b29e8f866eaa6dffaca7a69993",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/place_number_puzzle.py": "84a6c62a729c6f7abb8274062699858d2669d160dd7fdb1be27a8a3a0ba9a29e",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "regexp": {
+    "source": "cpmpy/regexp.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "96972e41bf3e106af13d8ed0d49e0ba6db53dc3097500ef24e6981a0857f3c3b",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "b58a17b56923e8686a07c2ec7aeea7c91d4b6116167b8621b20e02f84559879a",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/regexp.py": "96972e41bf3e106af13d8ed0d49e0ba6db53dc3097500ef24e6981a0857f3c3b",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "remainders": {
+    "source": "cpmpy/remainders.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8851d1dc5b25e0ba6c553a7b1f0909ac7a1ff7929ed71b7125c1db4c66cee0f9",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "5f3a1c1a9dc701d40228279145669828e8d6ca7bbef36ee05b6a6c61f8c7d281",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/remainders.py": "8851d1dc5b25e0ba6c553a7b1f0909ac7a1ff7929ed71b7125c1db4c66cee0f9",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "sequence": {
+    "source": "cpmpy/sequence.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "ec671ad01d069342704ecd0de62551249a902ae005c72fac0dd8aded46366b76",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "e357bb41e5f627597105ad60c506f8a86830214ab464ccf227fdb192a920ec69",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/sequence.py": "ec671ad01d069342704ecd0de62551249a902ae005c72fac0dd8aded46366b76",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "serialcrack": {
+    "source": "cpmpy/serial_crack.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "7dfe935af40206be45b9fe5057a39d04ae454053a6569e69cf32b58e8404006a",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "45c134cd83f96800b6c5b27192e1c551eabd3427f7e3fcd05973838d011d1b28",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/serial_crack.py": "7dfe935af40206be45b9fe5057a39d04ae454053a6569e69cf32b58e8404006a",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "slidingsum": {
+    "source": "cpmpy/sliding_sum.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "dce81ffffd8dae1c8a338c90813c1fa38c0de7779c6d254a16ad239b6bf720c9",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "532eeb559cd63fc9ff4669cb01112bca815a7592ac867c9a3b02c83c6410976a",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/sliding_sum.py": "dce81ffffd8dae1c8a338c90813c1fa38c0de7779c6d254a16ad239b6bf720c9",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "smugglersknapsack": {
+    "source": "cpmpy/smugglers_knapsack.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "a5a413c6081d7371b580441a0023c2b6b3b2a28f0f7eb030ef201aa9298fba0b",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "335f16365464c8d19cf1707f5801f10d08165a3930172f639a0fd7d235b7c432",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/smugglers_knapsack.py": "a5a413c6081d7371b580441a0023c2b6b3b2a28f0f7eb030ef201aa9298fba0b",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "socialgolfer1": {
+    "source": "cpmpy/social_golfer1.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "1ae6ca2fdde977659247758961dfda0454aa89a332979e01ade998d39c294689",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "8c504930714affe2170e187f2bc1b2bc926bef0ef80438d87dd708cba93aaea6",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/social_golfer1.py": "1ae6ca2fdde977659247758961dfda0454aa89a332979e01ade998d39c294689",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "sudoku17hints": {
+    "source": "cpmpy/sudoku_17_hints.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "c7a7110d19d6687afb3debc4496e9e17a728307cc0ca3f25e94651a380bd2ff4",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "5ea70a8c924656de101d212e3911d859a9b7d406ac0b7f93a76f1f480f98a952",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/sudoku_17_hints.py": "c7a7110d19d6687afb3debc4496e9e17a728307cc0ca3f25e94651a380bd2ff4",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "tornnumbers": {
+    "source": "cpmpy/torn_numbers.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "891a456057ba07437ec1a69ef3e840bf0b1e1575191b9bd326a5ebe55b9887b3",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "c998a33e28bd98add494c3c431fdc30a47caf02c9a7610e94e470bff3dd07937",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/torn_numbers.py": "891a456057ba07437ec1a69ef3e840bf0b1e1575191b9bd326a5ebe55b9887b3",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "warehouselocation": {
+    "source": "cpmpy/warehouse_location.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "942c2be87e13719d2f37377930d7d615bbe7a0c2a4a6488d3d77655336cd1483",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "15f017e18e7850eb6110deb439a5422a157226fa61ec674d1eaf729922cd45fe",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/warehouse_location.py": "942c2be87e13719d2f37377930d7d615bbe7a0c2a4a6488d3d77655336cd1483",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "zebra": {
+    "source": "cpmpy/zebra.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "a8c7e72cc3630b403d9652e6eec3e49830075e3539828bc121f710bfd35f631b",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "captured_sha256": "4cd8776644b2fb031fde15097745cfa3552801447ec7e3d36df9efbce2079b82",
+      "numpy_version": "2.5.4"
+    },
+    "input_sha256": {
+      "cpmpy/zebra.py": "a8c7e72cc3630b403d9652e6eec3e49830075e3539828bc121f710bfd35f631b",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "strimko2002": {
+    "source": "cpmpy/strimko2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/strimko2_002.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "086300cacc7231880a327e48ab2038ee1ab24c916bc7d12a38b6d100cdd42979"
+    },
+    "input_sha256": {
+      "cpmpy/strimko2.py": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy/strimko2_002.py": "8bd6dc75d188545eba021636e53dd02e81d674ae99746d231baa51ddceeb8d89",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "strimko2067": {
+    "source": "cpmpy/strimko2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/strimko2_067.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "e6701801690a2f85510e80b58e9f6bfa6e8ea4d4e739a01f4d64a7ef3919c946"
+    },
+    "input_sha256": {
+      "cpmpy/strimko2.py": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy/strimko2_067.py": "610f8b529091de7eef2cf76d09c5d6d4a30680fe824b55dbc24588e25e068328",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "strimko2068": {
+    "source": "cpmpy/strimko2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/strimko2_068.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "5fb7954b44211fbb3b0a2bfbbb3c6d634f8d0b5edb1aa8f9d3573d1d15bccace"
+    },
+    "input_sha256": {
+      "cpmpy/strimko2.py": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy/strimko2_068.py": "75500736b076a0f48371b4e84ba24f43c1c5953b75b6619c56aed865915ce4e9",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "strimko2069": {
+    "source": "cpmpy/strimko2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/strimko2_069.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "e1b0838b9b3b43f9975a7dd4c337ea24722c616a4923a9b667354c4e8903d288"
+    },
+    "input_sha256": {
+      "cpmpy/strimko2.py": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy/strimko2_069.py": "a5738d465f126d19ae0596e53f3bc8fde420d9465c3b5db7c1061a738f37d6e3",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "strimko2070": {
+    "source": "cpmpy/strimko2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/strimko2_070.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "2675e257db39c1acb2e344f42ea58f6fbf952ca85e3e9f5a89826a2d21b747ad"
+    },
+    "input_sha256": {
+      "cpmpy/strimko2.py": "8135be59404f02efaf4de6d1b6d6a49628d7e6300692ba509aca3aebeca29339",
+      "cpmpy/strimko2_070.py": "d48f1ecd1c5fbee4028c248999845b777fed32a7293fb9328ccde52dc567ed81",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "rogo20110106": {
+    "source": "cpmpy/rogo2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/rogo_20110106.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "3eec5f8b3dc9b586e6c1ba47bbe59266cfa5bfdebae91050e91b11f139080f99"
+    },
+    "input_sha256": {
+      "cpmpy/rogo2.py": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy/rogo_20110106.py": "007467dced762c28630cc96d78e38d67829b2c37fdcf3f546fad65bd4e81a5c1",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "rogo20110107": {
+    "source": "cpmpy/rogo2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/rogo_20110107.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "4fa2e8daa60d4ca9c5a0c1954086c2caaa24331697abbf04a5408642225e765c"
+    },
+    "input_sha256": {
+      "cpmpy/rogo2.py": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy/rogo_20110107.py": "827f9d28b3a13af4c3d0dc0864946b604298c5dfd22ae4c0e0dbca2f6f3ffaa2",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "rogomiketrick": {
+    "source": "cpmpy/rogo2.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [
+      "cpmpy/rogo_mike_trick.py"
+    ],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "156912eeaf3776903fc4734c10b9d9e4e871f796ec753d0d8be7fe8e89b53faa"
+    },
+    "input_sha256": {
+      "cpmpy/rogo2.py": "02a4a8e0ce3fa6a4d1b19d6e25df136aea56edbfe3cde9addcdf93c805a9bc97",
+      "cpmpy/rogo_mike_trick.py": "0ab21968d59bad798ebea5e2fd41ff0d4aecc8987f6fe53eb63290622c06a945",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5"
+    }
+  },
+  "sudokuproblems": {
+    "source": "cpmpy/sudoku.py",
+    "parameters": {
+      "reference_seed": "0",
+      "reference_invocation": "first_default"
+    },
+    "data_files": [],
+    "authoring": "cpmpy",
+    "capture": {
+      "source_sha256": "36739481b49e294ad249a27995d7367c6017de2523053b29743b58cff6a8bbed",
+      "cpmpy_version": "1.1.0",
+      "minizinc_python_version": "0.10.0",
+      "numpy_version": "2.5.4",
+      "captured_sha256": "f5a8f609321f874332ae8cf4bfaabdfb72f0712ad796f37a17e38f5bef8714f9"
+    },
+    "input_sha256": {
+      "cpmpy/sudoku.py": "36739481b49e294ad249a27995d7367c6017de2523053b29743b58cff6a8bbed",
+      "cpmpy/cpmpy_hakank.py": "17ba0910e58e387de458a746a3992116b9752c2e9bc5fe57971f3c3c187b92f5",
+      "cpmpy/sudoku_problems.py": "a05be08d5bab08a81fdc12319a4704244dac6ecaa7228115ed1de643ccb510ff"
     }
   }
 }

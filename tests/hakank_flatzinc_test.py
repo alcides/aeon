@@ -118,3 +118,21 @@ def test_vector_linear_expression_preserves_coefficients():
     """)
     assert "Vec.dot" in model.render({"source_url": "https://example.org/linear"})
     assert values["h_decision0"] == 6
+
+
+def test_compact_render_keeps_holes_and_bool_decisions():
+    model = Translator(
+        "packing",
+        """
+        var 0..3: x;
+        var bool: chosen;
+        constraint bool_eq(chosen,true);
+        constraint int_eq(x,3);
+        solve satisfy;
+    """,
+    ).translate()
+    model.compact = True
+    source = model.render({"source_url": "https://example.org/packing"})
+    assert "DecisionTree.leaf (?h_decision0" in source
+    assert "def decision0" not in source
+    assert _values(_solve(_parse(source))) == {"h_decision0": 3, "h_decision1": True}

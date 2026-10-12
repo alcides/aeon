@@ -12,12 +12,7 @@ def p2 : {v:Int | 0 <= v && v <= 5} := ?h_p2;
 def p3 : {v:Int | 0 <= v && v <= 5} := ?h_p3;
 def p4 : {v:Int | 0 <= v && v <= 5} := ?h_p4;
 def p5 : {v:Int | 0 <= v && v <= 5} := ?h_p5;
-def sequence0_tail5 : (Vec Int) := Vec.cons (p5) (Vec.nil);
-def sequence0_tail4 : (Vec Int) := Vec.cons (p4) (sequence0_tail5);
-def sequence0_tail3 : (Vec Int) := Vec.cons (p3) (sequence0_tail4);
-def sequence0_tail2 : (Vec Int) := Vec.cons (p2) (sequence0_tail3);
-def sequence0_tail1 : (Vec Int) := Vec.cons (p1) (sequence0_tail2);
-def sequence0_tail0 : (Vec Int) := Vec.cons (p0) (sequence0_tail1);
+def sequence0_tail0 : (Vec Int) := Vec.cons (p0) (Vec.cons (p1) (Vec.cons (p2) (Vec.cons (p3) (Vec.cons (p4) (Vec.cons (p5) (Vec.nil))))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
 def constraint0 : Bool := Vec.allDifferent (sequence0_tail0);

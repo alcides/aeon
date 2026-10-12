@@ -26,31 +26,11 @@ def division_aux16 : {v:Int | (0 - 9999) <= v && v <= 9999} := ?h_division_aux16
 def division_aux17 : {v:Int | (0 - 9999) <= v && v <= 9999} := ?h_division_aux17;
 def division_aux18 : {v:Int | (0 - 9999) <= v && v <= 9999} := ?h_division_aux18;
 def division_aux19 : {v:Int | (0 - 9999) <= v && v <= 9999} := ?h_division_aux19;
-def sequence0_tail4 : (Vec Int) := Vec.cons ((0 - 1)) (Vec.nil);
-def sequence0_tail3 : (Vec Int) := Vec.cons ((0 - 10)) (sequence0_tail4);
-def sequence0_tail2 : (Vec Int) := Vec.cons ((0 - 100)) (sequence0_tail3);
-def sequence0_tail1 : (Vec Int) := Vec.cons ((0 - 1000)) (sequence0_tail2);
-def sequence0_tail0 : (Vec Int) := Vec.cons (1) (sequence0_tail1);
-def sequence1_tail4 : (Vec Int) := Vec.cons (decision6) (Vec.nil);
-def sequence1_tail3 : (Vec Int) := Vec.cons (decision5) (sequence1_tail4);
-def sequence1_tail2 : (Vec Int) := Vec.cons (decision4) (sequence1_tail3);
-def sequence1_tail1 : (Vec Int) := Vec.cons (decision3) (sequence1_tail2);
-def sequence1_tail0 : (Vec Int) := Vec.cons (decision0) (sequence1_tail1);
-def sequence2_tail4 : (Vec Int) := Vec.cons (decision3) (Vec.nil);
-def sequence2_tail3 : (Vec Int) := Vec.cons (decision4) (sequence2_tail4);
-def sequence2_tail2 : (Vec Int) := Vec.cons (decision5) (sequence2_tail3);
-def sequence2_tail1 : (Vec Int) := Vec.cons (decision6) (sequence2_tail2);
-def sequence2_tail0 : (Vec Int) := Vec.cons (decision2) (sequence2_tail1);
-def sequence3_tail4 : (Vec Int) := Vec.cons (decision11) (Vec.nil);
-def sequence3_tail3 : (Vec Int) := Vec.cons (decision10) (sequence3_tail4);
-def sequence3_tail2 : (Vec Int) := Vec.cons (decision9) (sequence3_tail3);
-def sequence3_tail1 : (Vec Int) := Vec.cons (decision8) (sequence3_tail2);
-def sequence3_tail0 : (Vec Int) := Vec.cons (decision1) (sequence3_tail1);
-def sequence4_tail4 : (Vec Int) := Vec.cons (decision8) (Vec.nil);
-def sequence4_tail3 : (Vec Int) := Vec.cons (decision9) (sequence4_tail4);
-def sequence4_tail2 : (Vec Int) := Vec.cons (decision10) (sequence4_tail3);
-def sequence4_tail1 : (Vec Int) := Vec.cons (decision11) (sequence4_tail2);
-def sequence4_tail0 : (Vec Int) := Vec.cons (decision7) (sequence4_tail1);
+def sequence0_tail0 : (Vec Int) := Vec.cons (1) (Vec.cons ((0 - 1000)) (Vec.cons ((0 - 100)) (Vec.cons ((0 - 10)) (Vec.cons ((0 - 1)) (Vec.nil)))));
+def sequence1_tail0 : (Vec Int) := Vec.cons (decision0) (Vec.cons (decision3) (Vec.cons (decision4) (Vec.cons (decision5) (Vec.cons (decision6) (Vec.nil)))));
+def sequence2_tail0 : (Vec Int) := Vec.cons (decision2) (Vec.cons (decision6) (Vec.cons (decision5) (Vec.cons (decision4) (Vec.cons (decision3) (Vec.nil)))));
+def sequence3_tail0 : (Vec Int) := Vec.cons (decision1) (Vec.cons (decision8) (Vec.cons (decision9) (Vec.cons (decision10) (Vec.cons (decision11) (Vec.nil)))));
+def sequence4_tail0 : (Vec Int) := Vec.cons (decision7) (Vec.cons (decision11) (Vec.cons (decision10) (Vec.cons (decision9) (Vec.cons (decision8) (Vec.nil)))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
 def constraint0 : Bool := (((11 != 0) && (decision0 = (11 * division_aux12) + 0)) && ((0 < (Vec.absolute (11))) && (((0 - (Vec.absolute (11))) < 0) && ((decision0 >= 0 && 0 >= 0) || (decision0 <= 0 && 0 <= 0)))));

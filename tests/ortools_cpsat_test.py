@@ -404,3 +404,18 @@ def test_fractional_bounds_are_rounded_inward():
     """)
     )
     assert _values(mapping) == {"hx": 0.001}
+
+
+def test_balanced_adt_contains_individually_refined_holes():
+    mapping = _solve(
+        _parse("""
+        import DecisionTree;
+        def choices : (DecisionTree Int) := DecisionTree.branch 1
+            (DecisionTree.leaf (?hx : {v:Int | 10000 <= v && v <= 10001}))
+            (DecisionTree.leaf (?hy : {v:Int | 2 <= v && v <= 3}));
+        @require((DecisionTree.intAt 0 choices) + (DecisionTree.intAt 1 choices) = 10003)
+        @minimize_int(DecisionTree.intAt 0 choices)
+        def benchmark : Int := DecisionTree.intAt 0 choices;
+    """)
+    )
+    assert _values(mapping) == {"hx": 10000, "hy": 3}

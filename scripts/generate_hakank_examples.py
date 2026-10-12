@@ -7,6 +7,7 @@ Run from the repository root; provenance is in the suite's manifest.json.
 from __future__ import annotations
 
 import json
+import re
 from itertools import combinations
 from pathlib import Path
 
@@ -50,6 +51,7 @@ class Model:
         self.value_types = {}
         self.constraints = []
         self.helpers = []
+        self.compact = False
         self.sequences = []
         self.objective = "0"
         self.score_type = "Int"
@@ -91,7 +93,37 @@ class Model:
             "",
         ]
         lines += self.helpers
-        for name, (lo, hi) in self.variables.items():
+        replacements = {}
+        reports = list(self.variables)
+        if self.compact:
+            lines.insert(lines.index("import Vec;") + 1, "import DecisionTree;")
+            groups = {}
+            for name, domain in self.variables.items():
+                groups.setdefault(self.value_types.get(name, "Int"), []).append((name, domain))
+            reports = []
+            for kind, decisions in groups.items():
+                root = f"decisions{kind}"
+                reports.append(root)
+                leaves = []
+                for index, (name, (lo, hi)) in enumerate(decisions):
+                    replacements[name] = f"(DecisionTree.{kind.lower()}At {index} {root})"
+                    if kind == "Bool":
+                        ty = "Bool"
+                    else:
+                        zero = "0.0" if kind == "Float" else "0"
+                        lower = str(lo) if lo >= 0 else f"({zero} - {-lo})"
+                        upper = str(hi) if hi >= 0 else f"({zero} - {-hi})"
+                        ty = f"{{v:{kind} | {lower} <= v && v <= {upper}}}"
+                    leaves.append(f"(DecisionTree.leaf (?h_{name} : {ty}))")
+
+                def pack(values):
+                    if len(values) == 1:
+                        return values[0]
+                    middle = len(values) // 2
+                    return f"(DecisionTree.branch {middle} {pack(values[:middle])} {pack(values[middle:])})"
+
+                lines.append(f"def {root} : (DecisionTree {kind}) := {pack(leaves)};")
+        for name, (lo, hi) in [] if self.compact else self.variables.items():
             if self.value_types.get(name) == "Bool":
                 lines.append(f"def {name} : Bool := ?h_{name};")
                 continue
@@ -101,14 +133,25 @@ class Model:
             upper = str(hi) if hi >= 0 else f"({zero} - {-hi})"
             lines.append(f"def {name} : {{v:{kind} | {lower} <= v && v <= {upper}}} := ?h_{name};")
         for index, (kind, values) in enumerate(self.sequences):
+            if len(values) <= 32:
+                expression = "Vec.nil"
+                for value in reversed(values):
+                    expression = f"Vec.cons ({value}) ({expression})"
+                lines.append(f"def sequence{index}_tail0 : (Vec {kind}) := {expression};")
+                continue
             tail = "Vec.nil"
             for position in reversed(range(len(values))):
                 name = f"sequence{index}_tail{position}"
                 lines.append(f"def {name} : (Vec {kind}) := Vec.cons ({values[position]}) ({tail});")
                 tail = name
         lines += ["", "# Complete finite-instance constraints; Bool annotations keep verification local."]
-        lines += [f"def constraint{i} : Bool := {condition};" for i, condition in enumerate(self.constraints)]
-        lines += ["def valid : Bool := " + conjunction([f"constraint{i}" for i in range(len(self.constraints))]) + ";"]
+        if self.compact:
+            lines += ["def valid : Bool := " + conjunction(self.constraints) + ";"]
+        else:
+            lines += [f"def constraint{i} : Bool := {condition};" for i, condition in enumerate(self.constraints)]
+            lines += [
+                "def valid : Bool := " + conjunction([f"constraint{i}" for i in range(len(self.constraints))]) + ";"
+            ]
         lines += [
             "",
             f"def objective : {self.score_type} := {self.objective};",
@@ -121,9 +164,13 @@ class Model:
             "def main (_:Int) : Unit :=",
             "    let report := print score in",
         ]
-        lines += [f"    let report{i} := print {name} in" for i, name in enumerate(self.variables)]
+        lines += [f"    let report{i} := print {name} in" for i, name in enumerate(reports)]
         lines += ["    unit;", ""]
-        return "\n".join(lines)
+        rendered = "\n".join(lines)
+        if replacements:
+            names = "|".join(map(re.escape, replacements))
+            rendered = re.sub(r"\b(?:" + names + r")\b", lambda match: replacements[match[0]], rendered)
+        return rendered
 
 
 def models():

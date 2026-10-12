@@ -13,16 +13,8 @@ def decision3 : {v:Int | 1 <= v && v <= 9} := ?h_decision3;
 def decision4 : {v:Int | 0 <= v && v <= 9} := ?h_decision4;
 def decision5 : {v:Int | 0 <= v && v <= 9} := ?h_decision5;
 def division_aux6 : {v:Int | (0 - 9) <= v && v <= 9} := ?h_division_aux6;
-def sequence0_tail4 : (Vec Int) := Vec.cons ((0 - 1)) (Vec.nil);
-def sequence0_tail3 : (Vec Int) := Vec.cons ((0 - 1000)) (sequence0_tail4);
-def sequence0_tail2 : (Vec Int) := Vec.cons ((0 - 10)) (sequence0_tail3);
-def sequence0_tail1 : (Vec Int) := Vec.cons ((0 - 98)) (sequence0_tail2);
-def sequence0_tail0 : (Vec Int) := Vec.cons (20) (sequence0_tail1);
-def sequence1_tail4 : (Vec Int) := Vec.cons (decision5) (Vec.nil);
-def sequence1_tail3 : (Vec Int) := Vec.cons (decision3) (sequence1_tail4);
-def sequence1_tail2 : (Vec Int) := Vec.cons (decision4) (sequence1_tail3);
-def sequence1_tail1 : (Vec Int) := Vec.cons (decision2) (sequence1_tail2);
-def sequence1_tail0 : (Vec Int) := Vec.cons (decision1) (sequence1_tail1);
+def sequence0_tail0 : (Vec Int) := Vec.cons (20) (Vec.cons ((0 - 98)) (Vec.cons ((0 - 10)) (Vec.cons ((0 - 1000)) (Vec.cons ((0 - 1)) (Vec.nil)))));
+def sequence1_tail0 : (Vec Int) := Vec.cons (decision1) (Vec.cons (decision2) (Vec.cons (decision4) (Vec.cons (decision3) (Vec.cons (decision5) (Vec.nil)))));
 
 # Complete finite-instance constraints; Bool annotations keep verification local.
 def constraint0 : Bool := ((((decision1 = 0 && true) || (decision1 = 1 && true)) || ((decision1 = 2 && true) || (decision1 = 3 && true))) || (((decision1 = 4 && true) || (decision1 = 5 && true)) || ((decision1 = 6 && true) || ((decision1 = 8 && true) || (decision1 = 9 && true)))));
