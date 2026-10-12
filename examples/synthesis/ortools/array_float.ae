@@ -3,8 +3,8 @@
 import Array;
 
 @minimize_float(
-  (((Array.get v 0) - 1.5) * ((Array.get v 0) - 1.5))
-  + (((Array.get v 1) + 2.25) * ((Array.get v 1) + 2.25))
-  + (((Array.get v 2) - 0.5) * ((Array.get v 2) - 0.5))
+  (((Array.get (v unit) 0) - 1.5) * ((Array.get (v unit) 0) - 1.5))
+  + (((Array.get (v unit) 1) + 2.25) * ((Array.get (v unit) 1) + 2.25))
+  + (((Array.get (v unit) 2) - 0.5) * ((Array.get (v unit) 2) - 0.5))
 )
 def v (_: Unit) : {a:(Array Float) | Array.size a = 3} := ?h;

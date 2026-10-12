@@ -275,7 +275,10 @@ def expand_inductive_decls(p: Program) -> Program:
                             prefixed_cname = Name(f"{name.name}_{cname.name}", cname.id)
                             de = Definition(
                                 prefixed_cname,
-                                cforalls,
+                                # Constructor type applications follow the
+                                # datatype's declared parameter order, not
+                                # hash-set iteration during implicit inference.
+                                [(arg, Kind.BASE) for arg in args if arg not in {n for n, _ in cforalls}] + cforalls,
                                 [
                                     (arg_name, _canonicalize_measure_references(arg_ty, name, measures))
                                     for arg_name, arg_ty in cargs

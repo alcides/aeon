@@ -38,6 +38,23 @@ def test_property_examples_still_execute():
     assert all(example.mode == "test" for path, example in examples.items() if path.startswith("examples/testing/"))
 
 
+@pytest.mark.parametrize("control_code,passed", [(0, True), (1, False), (13, False)])
+def test_open_proof_spec_requires_a_verified_control(monkeypatch, tmp_path, control_code, passed):
+    commands = []
+    codes = iter((13, control_code))
+
+    def run(cmd, **kwargs):
+        commands.append(cmd)
+        return subprocess.CompletedProcess(cmd, next(codes))
+
+    monkeypatch.setattr(subprocess, "run", run)
+    example = Example("examples/synthesis/monotonicity/identity.ae", expected_codes=(13,), reference="x")
+    result = run_one(example, 5, tmp_path)
+    assert result["passed"] is passed
+    assert "--check" in commands[0] and "--candidate" in commands[1]
+    assert "--budget" not in commands[1]
+
+
 def test_negative_examples_reject_only_compiler_diagnostics():
     negatives = [example for example in discover() if example.expected_codes != (0,)]
     assert len(negatives) >= 35

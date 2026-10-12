@@ -37,11 +37,11 @@ def expectMostlyBelow7
          | Array.size ys > 0
            && fracBelow ys 7.0 >= 0.99})
     : Unit
-    := print "ok: list satisfies P(< 7) >= 0.99"
+    := print (Array.length xs)
 
 # ─── Driver: GOOD case  (a=2, b=1  ⇒  threshold=4.33 <= 7) ─────────────
 
 def main (_: Int) : Unit :=
-    let good := normalSample 2.0 1.0 100 in
-    let widened := widenThreshold good 4.33 7.0 in
+    let 1 good := normalSample 2.0 1.0 100 in
+    let 1 widened := widenThreshold good 4.33 7.0 in
     expectMostlyBelow7 widened

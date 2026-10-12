@@ -94,7 +94,9 @@ def test_possible_args():
 def test_possible_args2():
     hpars = [(parse_liquid("x"), t_int), (parse_liquid("y"), t_int)]
     args = list(get_possible_args(hpars, arity=2))
-    assert len(args) == 100
+    # Two variables and four distinct literals; repeated literal copies do
+    # not add qualifiers and should not inflate the Cartesian product.
+    assert len(args) == 36
 
 
 def test_base_assignment_helper():
@@ -115,7 +117,8 @@ def test_base_assignment_helper2():
     )
     k = Name("k")
     assert k in assign
-    assert len(assign[k]) == 120
+    assert len(assign[k]) == 72
+    assert len(set(assign[k])) == len(assign[k])
 
 
 def test_merge_assignments():

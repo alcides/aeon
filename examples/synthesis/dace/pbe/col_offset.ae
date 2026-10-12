@@ -8,7 +8,7 @@
 open Table
 
 def input : Table :=
-    from_rows 2 [[1, 10], [2, 20], [3, 30]];
+    native "[{'first': 1, 'second': 10}, {'first': 2, 'second': 20}, {'first': 3, 'second': 30}]";
 
 # Target: previous row's second column (spatial offset), or 0 on the first row.
 @example(complete 0 = 0)

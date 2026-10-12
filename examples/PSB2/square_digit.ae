@@ -1,3 +1,4 @@
+import Array
 # Given a positive integer, square each digit and
 # concatenate the squares into a returned string.
 # input : integer in [0, 1000000]
@@ -18,24 +19,24 @@ open PSB2
 #        result
 #}
 
-def square_digit_unsafe  ( n : Int) : String :=
-    if n = 0 then
-        ""
+def square_digit_unsafe (n : {v:Int | v >= 0}) : String :=
+    if n < 10 then
+        String.intToString (n * n)
     else
         digit := n % 10;
         square := digit * digit;
-        result := String.concat (square_digit_unsafe(Math.floor_division n 10)) (String.intToString(square));
+        result := String.concat (square_digit_unsafe (n / 10)) (String.intToString square);
         result;
 
 def synth_sd ( n : Int) : String := ?hole
 
 def fitness : Float :=
-    ds := load_dataset "square-digits" 200 200;
+    let 1 ds := load_dataset "square-digits" 200 200;
     train := extract_train_data ds;
     unpacked_data := unpack_train_data train;
-    input_list := get_input_list unpacked_data;
-    expected_values := get_output_list unpacked_data;
-    actual_values : List := native "[synth_sd(x) for x in input_list]";
+    let 1 input_list := get_input_list unpacked_data;
+    let 1 expected_values := get_output_list unpacked_data;
+    let 1 actual_values : (Array Int) := native "[synth_sd(x) for x in input_list]";
     expected_values_str := join_string_list expected_values;
     actual_values_str := join_string_list actual_values;
     str_distance := String_distance expected_values_str actual_values_str;

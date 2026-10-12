@@ -93,16 +93,16 @@ def dbP2 : DB := native "[['a','b'],['a','c']]"
 
 # Expected wheat outputs.
 def expA (_: Unit) : (Array String) := native "['a']"
-def (expA unit)B (_: Unit) : (Array String) := native "['a','b']"
-def (expA unit)bPair (_: Unit) : (Array String) := native "['a|b']"
+def expAB (_: Unit) : (Array String) := native "['a','b']"
+def expAbPair (_: Unit) : (Array String) := native "['a|b']"
 
 # ── Every example passes the wheat ──────────────────────────────────────────
 
 @property(1)
 def test_examples_pass_wheat : Bool :=
     allOf3 (assertTrue (recSame (recommendBooks dbB1) (expA unit)))
-           (assertTrue (recSame (recommendBooks dbB2) (expA unit)B))
-           (assertTrue (recSame (recommendPairs dbP1) (expA unit)bPair));
+           (assertTrue (recSame (recommendBooks dbB2) (expAB unit)))
+           (assertTrue (recSame (recommendPairs dbP1) (expAbPair unit)));
 
 # ── Every chaff is killed by some example ───────────────────────────────────
 

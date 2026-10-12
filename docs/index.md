@@ -713,6 +713,10 @@ proof depends on a missing implementation may still be rejected. Compile-time
 evaluation of closed refinement expressions is unchanged. `--check` and `--test`
 are mutually exclusive.
 
+Unresolved holes also defer missing linear uses, but do not excuse already
+duplicated or erased runtime uses. Completed candidates must pass the exact
+linearity check; `--check` does not establish properties of a missing body.
+
 ## Synthesis
 
 Aeon supports the automatic synthesis of incomplete code. Take the following example:

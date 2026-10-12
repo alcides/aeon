@@ -5,6 +5,16 @@ type TrainData
 type TestData
 type Tuple
 
+# Convert per-case errors to a fixed-width objective vector. The runtime check
+# makes the native length contract explicit instead of assuming dataset size.
+def objective_errors (1 errors:(Array a)) (count:{n:Int | n > 0}) :
+    {r:(Array Float) | Array.size r = count} :=
+    native "[float(e) for e in errors] if len(errors) == count else (_ for _ in ()).throw(ValueError('unexpected PSB2 objective count'))"
+
+def objective_errors_int (1 errors:(Array Int)) (count:{n:Int | n > 0}) :
+    {r:(Array Int) | Array.size r = count} :=
+    native "errors if len(errors) == count else (_ for _ in ()).throw(ValueError('unexpected PSB2 objective count'))"
+
 
 def load_dataset (name:String) (nTrain:Int) (nTest:Int) : Dataset :=
     native "__import__('psb2').fetch_examples('path/to/PSB2/datasets/', name, nTrain, nTest, format='lists')"

@@ -26,6 +26,7 @@ class Example:
     path: str
     mode: str = "check"
     expected_codes: tuple[int, ...] = (0,)
+    reference: str | None = None
 
 
 def discover(root: Path = ROOT) -> list[Example]:
@@ -48,6 +49,18 @@ def discover(root: Path = ROOT) -> list[Example]:
                 expectations[f"examples/{directory}/{case['file']}"] = codes[case["error"]]
     expectations["examples/bugs/error.ae"] = (5,)
     expectations["examples/probabilistic/normal_below_7_bad.ae"] = (13,)
+    # These open proof specifications intentionally cannot verify before the
+    # hole is filled. Check that boundary AND verify a completed control using
+    # the benchmark's existing candidate validator, without synthesis search.
+    references = {
+        "nondecreasing": "0",
+        "strict": "x",
+        "identity": "x",
+        "shift": "x + 1",
+        "relu": "if x <= 0 then 0 else x",
+    }
+    for name in references:
+        expectations[f"examples/synthesis/monotonicity/{name}.ae"] = (13,)
     # Paired ML demonstrations deliberately violate linearity, nominal types,
     # or refinement contracts. Keep the expected category specific to each.
     for path in (root / "examples/machine_learning/restrictions").glob("*_invalid.ae"):
@@ -62,7 +75,8 @@ def discover(root: Path = ROOT) -> list[Example]:
             relative.startswith("examples/pbt/") and path.name.startswith(("props_", "examples_"))
         ):
             mode = "test"
-        examples.append(Example(relative, mode, expectations.get(relative, (0,))))
+        reference = references.get(path.stem) if relative.startswith("examples/synthesis/monotonicity/") else None
+        examples.append(Example(relative, mode, expectations.get(relative, (0,)), reference))
     missing = expectations.keys() - {example.path for example in examples}
     if missing:
         raise ValueError(f"Missing expected-rejection examples: {sorted(missing)}")
@@ -101,16 +115,40 @@ def run_one(example: Example, timeout: float, log_dir: Path) -> dict:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     env = environment_for(example)
     timed_out = False
+    reference_code = None
     with log_path.open("w") as output:
         try:
             result = subprocess.run(
                 command_for(example), cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT, timeout=timeout
             )
             code = result.returncode
+            if code in example.expected_codes and example.reference is not None:
+                remaining = timeout - (time.monotonic() - started)
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command_for(example), timeout)
+                control = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "aeon.benchmarks.monotonicity",
+                        "--task",
+                        Path(example.path).stem,
+                        "--task-dir",
+                        str((ROOT / example.path).parent),
+                        "--candidate",
+                        example.reference,
+                    ],
+                    cwd=ROOT,
+                    env=env,
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    timeout=remaining,
+                )
+                reference_code = control.returncode
         except subprocess.TimeoutExpired:
             code = None
             timed_out = True
-    passed = code in example.expected_codes and not timed_out
+    passed = code in example.expected_codes and not timed_out and (example.reference is None or reference_code == 0)
     status = "PASS" if passed else "FAIL"
     print(f"{status} [{example.mode}] {example.path} (exit={code}, {time.monotonic() - started:.1f}s)", flush=True)
     if not passed:
@@ -121,6 +159,7 @@ def run_one(example: Example, timeout: float, log_dir: Path) -> dict:
         "expected_codes": example.expected_codes,
         "exit_code": code,
         "timeout": timed_out,
+        "reference_exit_code": reference_code,
         "passed": passed,
         "seconds": round(time.monotonic() - started, 3),
     }

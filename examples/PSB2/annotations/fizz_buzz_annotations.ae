@@ -1,3 +1,4 @@
+import Array
 # --not working properly--
 open PSB2
 
@@ -16,9 +17,9 @@ def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String := if div15 n then 
 
 def  train: TrainData :=  extract_train_data ( load_dataset "fizz-buzz" 200 200)
 
-def  input_list : List :=  get_input_list ( unpack_train_data  train)
+def input_list (_:Unit) : (Array Int) :=  get_input_list ( unpack_train_data  train)
 
-def  expected_values : List :=  get_output_list ( unpack_train_data  train)
+def expected_values (_:Unit) : (Array Int) :=  get_output_list ( unpack_train_data  train)
 
-@minimize_float(String_distance ( join_string_list( get_fb_synth_values input_list synth)) ( join_string_list( expected_values)))
+@minimize_float(String_distance ( join_string_list( get_fb_synth_values (input_list unit) synth)) ( join_string_list( (expected_values unit))))
 def synth (n : Int) : String := ?hole

@@ -1,11 +1,15 @@
 open Array
+import ArrayKernels
 
 @gpu(target:="cuda", debug:=true)
-def multiply_by_ten (1 v:(Array Int)) : (Array Int) :=
-    Array.map{Int}{Int} (fun (x : Int) => x * 10) v;
+def mul10 (x:Int) : Int := x * 10;
+
+@gpu(target:="cuda", debug:=true)
+def multiply_by_ten (1 v:(Array Int)) (n:Int) : {r:(Array Int) | Array.size r = n} :=
+    ArrayKernels.map_n_int mul10 v n;
 
 def main (args:Int) : Unit :=
-    let size : Int := 1000000 in
-    let v : (Array Int) := native "[0] * size" in
-    let res : (Array Int) := multiply_by_ten v in
+    let size : {n:Int | n > 1} := 1000000 in
+    let 1 v : {a:(Array Int) | Array.size a = size} := native "[0] * size" in
+    let 1 res : {a:(Array Int) | Array.size a = size} := multiply_by_ten v size in
     print (Array.get{Int} res 1);

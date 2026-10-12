@@ -1088,7 +1088,7 @@ def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]
                     free_tvars.update(get_type_vars(ty))
                 _collect_type_vars_in_sterm(body, free_tvars, bound_tvars)
                 bound_tvar_names = {n.name for n in bound_tvars}
-                for t in free_tvars:
+                for t in sorted(free_tvars, key=lambda ty: (ty.name.name, ty.name.id)):
                     tname = t.name
                     if tname.name not in type_names and tname.name not in bound_tvar_names:
                         entry = (tname, Kind.BASE)

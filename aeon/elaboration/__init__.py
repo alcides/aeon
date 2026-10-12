@@ -894,11 +894,12 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                     return STypeApplication(body, nt, loc=loc)
                 case _:
                     should_be_refined = True
-                    match body:
-                        case SVar(name):
-                            match ctx.type_of(name):
-                                case STypePolymorphism(_, Kind.BASE, _):
-                                    should_be_refined = False
+                    # Later arguments in a curried type-application spine can
+                    # also bind BASE parameters. Looking only at a bare SVar
+                    # introduced spurious Horn predicates for Pair/recursors.
+                    _, body_type = elaborate_synth(ctx, body)
+                    if isinstance(body_type, STypePolymorphism) and body_type.kind is Kind.BASE:
+                        should_be_refined = False
                     match nt:
                         case STypeConstructor(_) | STypeVar(_) | STypeConstructor(_, _):
                             new_type: SType
@@ -916,14 +917,10 @@ def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STe
                             else:
                                 new_type = nt
                             return STypeApplication(body, new_type, loc=loc)
-                        case SRefinedType(name, ity, _ref):
-                            # Replace the existing refinement with a fresh horn
-                            # application ``k(name)`` over the already-bound
-                            # variable, lowered to a ``LiquidHornApplication``.
-                            nh = Name("k", fresh_counter.fresh())
-                            ref = SApplication(SHole(nh), SVar(name), loc=loc)
-                            new_type = SRefinedType(name, ity, ref)
-                            return STypeApplication(body, new_type, loc=loc)
+                        case SRefinedType():
+                            # A supplied refinement is a specification, not a
+                            # request to infer a replacement predicate.
+                            return STypeApplication(body, nt, loc=loc)
                         case SAbstractionType(_, _, _):
                             # AbstractionTypes are not refined
                             return STypeApplication(body, nt, loc=loc)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import reduce
-from typing import Any, TypeVar as TypingTypeVar
+from typing import Any, Callable, TypeVar as TypingTypeVar
 from collections.abc import MutableMapping
 from typing import Generator
 from loguru import logger
@@ -670,26 +670,45 @@ class CanonicConstraint:
 
 def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constraint:
     """Renames a binder within the constraint, to make it is unique."""
+    # Verification conditions are DAGs, not necessarily trees. Rebuilding each
+    # shared branch independently makes long @example suites exponential.
+    memo: dict[int, Constraint] = {}
+
+    def visit(node: Constraint) -> Constraint:
+        key = id(node)
+        if key not in memo:
+            memo[key] = rename_node(node)
+        return memo[key]
+
+    def rename_node(c: Constraint) -> Constraint:
+        return _rename_constraint_node(c, old_name, new_name, visit)
+
+    return visit(c)
+
+
+def _rename_constraint_node(
+    c: Constraint, old_name: Name, new_name: Name, visit: Callable[[Constraint], Constraint]
+) -> Constraint:
     match c:
         case LiquidConstraint(expr):
             nexpr = substitution_in_liquid(expr, LiquidVar(new_name), old_name)
             return LiquidConstraint(expr=nexpr)
         case Conjunction(c1, c2):
-            return Conjunction(rename_constraint(c1, old_name, new_name), rename_constraint(c2, old_name, new_name))
+            return Conjunction(visit(c1), visit(c2), loc=c.loc)
         case Implication(name, base, pred, seq):
             if name == new_name:
                 return c
             else:
                 npred = substitution_in_liquid(pred, LiquidVar(new_name), old_name)
-                nseq = rename_constraint(seq, old_name, new_name)
-                return Implication(name, base, npred, nseq)
+                nseq = visit(seq)
+                return Implication(name, base, npred, nseq, loc=c.loc)
         case UninterpretedFunctionDeclaration(name, absty, seq):
-            nseq = rename_constraint(seq, old_name, new_name)
+            nseq = visit(seq)
             return UninterpretedFunctionDeclaration(name, absty, nseq)
         case ReflectedFunctionDeclaration(name, absty, params, body, seq):
             nbody = substitution_in_liquid(body, LiquidVar(new_name), old_name)
             nparams = tuple(new_name if p == old_name else p for p in params)
-            nseq = rename_constraint(seq, old_name, new_name)
+            nseq = visit(seq)
             return ReflectedFunctionDeclaration(name, absty, nparams, nbody, nseq)
         case _:
             assert False, f"Unexpected case {c} ({type(c)})"
@@ -720,9 +739,14 @@ def flatten(c: Constraint, ctx: SMTContext | None = None) -> Generator[CanonicCo
             yield from flatten(c1, ctx)
             yield from flatten(c2, ctx)
         case Implication(oname, base, pred, seq):
-            name = Name(oname.name, fresh_counter.fresh())
-            pred = substitution_in_liquid(pred, LiquidVar(name), oname)
-            seq = rename_constraint(seq, oname, name)
+            # Bound core names already carry unique IDs. Alpha-rename only
+            # when this scope would actually shadow an existing SMT symbol;
+            # renaming the entire remaining spine at every binder is quadratic.
+            name = oname
+            if str(oname) in ctx.variables or str(oname) in ctx.functions:
+                name = Name(oname.name, fresh_counter.fresh())
+                pred = substitution_in_liquid(pred, LiquidVar(name), oname)
+                seq = rename_constraint(seq, oname, name)
             match base:
                 case TypeVar(iname):
                     base = TypeConstructor(iname)
@@ -936,6 +960,7 @@ sort_cache["Unit"] = _unit_sort_ref
 # the cached dict is held strongly so the id cannot be reused while cached.
 _mk_vars_cache = SessionMapping(lambda: current_session().state(VerificationState).variables)
 _mk_funs_cache = SessionMapping(lambda: current_session().state(VerificationState).functions)
+_function_symbol_cache = SessionMapping(lambda: current_session().state(VerificationState).function_symbols)
 _mk_sorts_cache = SessionMapping(lambda: current_session().state(VerificationState).sort_sets)
 _CacheKey = TypingTypeVar("_CacheKey")
 _CacheValue = TypingTypeVar("_CacheValue")
@@ -1043,6 +1068,7 @@ def clear_smt_caches() -> None:
     sort_cache["Unit"] = keep_unit
     _mk_vars_cache.clear()
     _mk_funs_cache.clear()
+    _function_symbol_cache.clear()
     _mk_sorts_cache.clear()
     _smt_valid_cache.clear()
     _ple_cache.clear()
@@ -1350,6 +1376,11 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
             funs.setdefault(base_name, measure)
             funs.setdefault(logical, measure)
             continue
+        symbol_key = (name, id(ty), id(sorts))
+        symbol = _function_symbol_cache.get(symbol_key)
+        if symbol is not None and symbol[0] is ty and symbol[1] is sorts:
+            funs[name] = symbol[2]
+            continue
         try:
             input_types, output_type = uncurry(ty)
         except UncurryError:
@@ -1377,6 +1408,8 @@ def mk_funs(functions: dict[str, AbstractionType], sorts: dict[str, SortRef]) ->
             sorts.get(str(output_type), get_sort(output_type))
         ]
         funs[name] = Function(name, *args)
+        _function_symbol_cache[symbol_key] = (ty, sorts, funs[name])
+        _bound(_function_symbol_cache)
     _mk_funs_cache[key] = (functions, funs)
     _bound(_mk_funs_cache)
     return funs
@@ -1412,14 +1445,35 @@ def translate(
     c: CanonicConstraint,
     memo: dict[int, tuple[LiquidTerm, Any]] | None = None,
 ) -> BoolRef | bool:
+    # P => true is valid independently of P. Avoid materialising every sort
+    # and function in a large program for these ubiquitous typing tautologies.
+    if isinstance(c.conclusion, LiquidLiteralBool) and c.conclusion.value:
+        return False
     sorts = mk_sorts(c.sorts)
+    # Uninterpreted declarations have no effect until referenced. A weakening
+    # query typically mentions a handful of functions, not every imported
+    # library symbol. Keep all premises, but materialise only their symbols.
+    referenced: set[str] = set()
+    pending = [c.premise, c.conclusion]
+    seen_terms: set[int] = set()
+    while pending:
+        term = pending.pop()
+        if id(term) in seen_terms:
+            continue
+        seen_terms.add(id(term))
+        if isinstance(term, LiquidApp):
+            referenced.add(str(term.fun))
+            pending.extend(term.args)
+        elif isinstance(term, LiquidVar):
+            referenced.add(str(term.name))
+    used_functions = {name: ty for name, ty in c.functions.items() if name in referenced}
     # Materialise inductive Datatypes for types mentioned in the VC so
     # constructors are registered before liquid translation (covers VCs that
     # mention ``List_nil`` without listing it under ``functions``).
     for _name, var_ty in list(c.variables.items()):
         if isinstance(var_ty, TypeConstructor):
             get_sort(var_ty)
-    for _name, fun_ty in list(c.functions.items()):
+    for _name, fun_ty in list(used_functions.items()):
         try:
             ins, out = uncurry(fun_ty)
         except UncurryError:
@@ -1427,7 +1481,7 @@ def translate(
         for t in list(ins) + [out]:
             get_sort(t)
 
-    functions = mk_funs(c.functions, sorts)
+    functions = mk_funs(used_functions, sorts)
     variables = mk_vars(c.variables, sorts)
     # LH exact-data-cons + measures: constructors and RecFunction measures win
     # over uninterpreted Functions of the same name.

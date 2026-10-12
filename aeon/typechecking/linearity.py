@@ -114,10 +114,21 @@ class _Bottom:
 _BOTTOM = _Bottom()
 
 
+@dataclass(frozen=True)
+class _Deferred:
+    """A hole may add uses; known uses remain a lower bound.
+
+    This is conditional checking of an incomplete program, not an FFI escape:
+    filling the hole must still pass the ordinary exact linearity check.
+    """
+
+    minimum: Multiplicity = M0
+
+
 # Per-name usage record. ``count`` is the syntactic occurrence count
 # (used for diagnostics); ``mult`` is the QTT multiplicity that drives
 # the binder check. ``_Mismatch`` and ``_Bottom`` flow in place of either.
-_Usage = Multiplicity | _Mismatch | _Bottom
+_Usage = Multiplicity | _Mismatch | _Bottom | _Deferred
 Tally = dict[Name, _Usage]
 _Counts = dict[Name, int]
 
@@ -140,6 +151,10 @@ def _add_usage(a: _Usage, b: _Usage) -> _Usage:
         return a
     if isinstance(b, _Mismatch):
         return b
+    if isinstance(a, _Deferred) or isinstance(b, _Deferred):
+        left = a.minimum if isinstance(a, _Deferred) else a
+        right = b.minimum if isinstance(b, _Deferred) else b
+        return _Deferred(add(left, right))
     return add(a, b)
 
 
@@ -148,6 +163,8 @@ def _scale_usage(scale: Multiplicity, b: _Usage) -> _Usage:
         return _BOTTOM
     if isinstance(b, _Mismatch):
         return b
+    if isinstance(b, _Deferred):
+        return _Deferred(mul(scale, b.minimum))
     return mul(scale, b)
 
 
@@ -344,7 +361,9 @@ class _Walker:
         match term:
             case Var(n):
                 return ({n: M1}, {n: 1})
-            case Literal() | Hole():
+            case Hole():
+                return ({n: _Deferred() for n in self.in_scope}, {})
+            case Literal():
                 return ({}, {})
             case Annotation(expr, _):
                 return self.tally(expr)
@@ -438,6 +457,19 @@ def _branch_merge(
             out_t[k] = v_then
         elif isinstance(v_else, _Mismatch):
             out_t[k] = v_else
+        elif isinstance(v_then, _Deferred) or isinstance(v_else, _Deferred):
+            left = v_then.minimum if isinstance(v_then, _Deferred) else v_then
+            right = v_else.minimum if isinstance(v_else, _Deferred) else v_else
+            order = {M0: 0, M1: 1, MN: 1, MOmega: 2}
+            if isinstance(v_then, _Deferred) and isinstance(v_else, _Deferred):
+                out_t[k] = _Deferred(left if order[left] >= order[right] else right)
+            else:
+                minimum = left if isinstance(v_then, _Deferred) else right
+                fixed = right if isinstance(v_then, _Deferred) else left
+                if order[minimum] <= order[fixed]:
+                    out_t[k] = fixed
+                else:
+                    out_t[k] = _Mismatch(then_uses=tc.get(k, 0), else_uses=ec.get(k, 0))
         elif v_then == v_else:
             out_t[k] = v_then
         else:
@@ -490,6 +522,12 @@ def _check_binder(
     # discipline.
     if isinstance(use, _Bottom):
         return
+    if isinstance(use, _Deferred):
+        # Missing uses can be supplied by the hole, but existing duplication
+        # or an erased variable's known use cannot be repaired by synthesis.
+        if use.minimum is M0:
+            return
+        use = use.minimum
 
     body = _binder_body(term)
     use_locations = _find_var_uses(body, name) if body is not None else []
@@ -672,8 +710,9 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                     inner_ty = None
                     body_ty = None
                 inner = walker.with_var(name, inner_ty)
-                bt, bc = inner.tally(body)
-                _check_binder(name, param_mult, bt, bc, node, errors)
+                if param_mult is M0 or param_mult is M1:
+                    bt, bc = inner.tally(body)
+                    _check_binder(name, param_mult, bt, bc, node, errors)
                 _check_linear_type_binder(name, inner_ty, param_mult, node, linear_types, errors)
                 visit(body, inner, body_ty)
             case Let(name, val, body, _, mult):
@@ -683,15 +722,17 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 # falling back to ``M1``.
                 val_ty = walker.term_type(val)
                 inner = walker.with_var(name, val_ty)
-                bt, bc = inner.tally(body)
-                _check_binder(name, mult, bt, bc, node, errors)
+                if mult is M0 or mult is M1:
+                    bt, bc = inner.tally(body)
+                    _check_binder(name, mult, bt, bc, node, errors)
                 _check_linear_type_binder(name, val_ty, mult, node, linear_types, errors)
                 visit(val, walker)
                 visit(body, inner)
             case Rec(name, var_type, val, body, _, _, mult):
                 inner = walker.with_var(name, var_type)
-                bt, bc = inner.tally(body)
-                _check_binder(name, mult, bt, bc, node, errors)
+                if mult is M0 or mult is M1:
+                    bt, bc = inner.tally(body)
+                    _check_binder(name, mult, bt, bc, node, errors)
                 _check_linear_type_binder(name, var_type, mult, node, linear_types, errors)
                 # ``var_type`` typed-walks the abstraction body so nested
                 # parameter multiplicities (curried funs / match handlers)

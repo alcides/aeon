@@ -7,7 +7,7 @@ def Pair.snd_logical : (p:Pair) -> Int := uninterpreted
 def Pair.mk (x:Int) (y:{ y:Int | y > x}) : Pair := native "(x,y)"
 
 
-def assert : (b:{b:Bool | b}) -> Unit := native "()"
+def assert (b:{v:Bool | v}) : Unit := native "()"
 
 # def Pair.fst (p:Pair) : Int { native "p[0]" }
 

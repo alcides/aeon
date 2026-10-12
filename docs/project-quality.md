@@ -36,6 +36,9 @@ The Python application workflow is also the reusable release gate:
   LiquidHaskell manifests must produce a refinement/type diagnostic, not a
   syntax error, missing import, crash or synthesis timeout. Shards continue
   independently after failures and retain per-file logs and JSON timing/results.
+  The intentionally unresolved monotonicity proof specifications must reject
+  their missing implementations, then prove completed reference controls through
+  the existing benchmark validator (`--candidate`, never synthesis search).
   An aggregate `examples` check retains the original branch-protection check
   name and succeeds only when every shard succeeds.
 - **Research:** scheduled/manual runs use a larger Hypothesis campaign and
@@ -62,13 +65,19 @@ bash run_examples.sh --jobs 2
 bash run_examples.sh --list
 bash run_examples.sh --shard 0 --shards 8
 bash run_examples.sh --failures-from example-results/results.json
-uv run python -m aeon --check examples/synthesis/monotonicity/nondecreasing.ae
+uv run python -m aeon --check examples/synthesis/dace/pbe/col_offset.ae
 ```
 
 Example checking is not a claim that benchmark holes are solvable, that opaque
 native implementations are correct, or that accelerator/remote services work.
 The compiler's normal compile-time evaluation of closed refinement expressions
 still applies; `--check` suppresses runtime execution, not refinement verification.
+
+PSB2 multi-objective examples use one objective per training case (200, or 50
+for `leaders`), rather than confusing output-vector arity with objective count.
+Their native objective-vector conversion checks the actual length before
+returning its refined array. Single-objective array getters are functions so
+that every invocation produces a fresh linear array.
 
 ## Compilation sessions
 
