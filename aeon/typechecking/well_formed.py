@@ -17,8 +17,12 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
     match t:
         case Top():
             return True  # wf_no_refinement
+        case RefinedType(_, TypeConstructor(), LiquidLiteralBool()):
+            # A literal predicate has Bool sort independently of value scope.
+            # Avoid copying thousands of unrelated bindings to check `true`.
+            return True
         case RefinedType(name, TypeConstructor(_, _) as ty, refinement):
-            inferred_type = typecheck_liquid(ctx.with_var(name, ty), refinement)
+            inferred_type = typecheck_liquid(ctx, refinement, (name, ty))
             return inferred_type == t_bool
         case TypeVar(tvname):
             return tvname in [v[0] for v in ctx.typevars()]
@@ -28,7 +32,7 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
             return (
                 k == Kind.BASE
                 and (tvname, Kind.BASE) in ctx.typevars()
-                and typecheck_liquid(ctx.with_var(name, ty), refinement) == t_bool
+                and typecheck_liquid(ctx, refinement, (name, ty)) == t_bool
             )
         case AbstractionType(aname, atype, rtype):
             return k == Kind.STAR and wellformed(ctx, atype) and wellformed(ctx.with_var(aname, atype), rtype)
@@ -51,7 +55,7 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
                 # in positions like ``List a<p>`` or ``Pair a<p> b<q>``.
                 return all(wellformed(ctx, t) for t in args)
         case RefinedType(name, TypeConstructor(_, args) as ity, refinement):
-            return wf_inner(ctx, ity) and typecheck_liquid(ctx.with_var(name, ity), refinement) == t_bool
+            return wf_inner(ctx, ity) and typecheck_liquid(ctx, refinement, (name, ity)) == t_bool
         case ExistentialType(binders, body):
             ext_ctx = ctx
             for bn, bt in binders:

@@ -25,8 +25,11 @@ The Python application workflow is also the reusable release gate:
   clean environment, then verify packaged grammars, standard-library imports,
   and execution in an isolated process outside the checkout.
 - **Examples:** every `.ae` file under `examples/` is discovered recursively
-  and assigned to exactly one of eight deterministic shards on Python 3.13.
-  Each shard uses two isolated CLI workers, with a 120-second per-file timeout.
+  and assigned to exactly one of sixteen deterministic shards on Python 3.13.
+  Each shard uses two isolated CLI workers. Compilation gets a 120-second base
+  budget plus 120 seconds per source MiB, capped at 600 seconds per file: the
+  published generated catalogue includes multi-megabyte finite models. Every
+  actual deadline is recorded in the results; timeouts still fail the gate.
   `--check --no-main` parses, elaborates and verifies refinements, allowing
   synthesis holes without running synthesis, fitness functions,
   LLVM compilation or program evaluation. This includes nested benchmark
@@ -63,7 +66,7 @@ Run the expanded example gate locally (or inspect its coverage without running):
 ```bash
 bash run_examples.sh --jobs 2
 bash run_examples.sh --list
-bash run_examples.sh --shard 0 --shards 8
+bash run_examples.sh --shard 0 --shards 16 --timeout-per-mib 120 --max-timeout 600
 bash run_examples.sh --failures-from example-results/results.json
 uv run python -m aeon --check examples/synthesis/dace/pbe/col_offset.ae
 ```

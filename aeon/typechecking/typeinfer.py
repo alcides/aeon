@@ -78,7 +78,7 @@ from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
 from aeon.verification.sub import is_first_order_function
 from aeon.verification.sub import sub
-from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
+from aeon.verification.vcs import conjoin, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
 from aeon.verification.horn import solve
@@ -714,7 +714,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                     # Argument-side binders propagate to the caller via the
                     # existential type and get their implication wrap there
                     # (e.g. in Let's opened_binders loop).
-                    c0: Constraint = Conjunction(c, cp)
+                    c0: Constraint = conjoin(c, cp)
                     for bn, bt in reversed(fun_binders):
                         c0 = implication_constraint(bn, bt, c0, t.loc)
                     # Selfify uninformative result types so the value stays
@@ -757,7 +757,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 leaking.append((var_name, t1))
             if leaking:
                 t2 = with_binders(tuple(leaking), t2)
-            r = (Conjunction(c1, inner), t2)
+            r = (conjoin(c1, inner), t2)
             return r
         case Rec(var_name, var_type, var_value, body):
             has_metric = bool(t.decreasing_by)
@@ -830,7 +830,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # binder when the type flows outward.
             if var_name in type_free_term_vars(t2):
                 t2 = with_binders(((var_name, var_type),), t2)
-            return Conjunction(Conjunction(c1, c2), term_c), t2
+            return conjoin(conjoin(c1, c2), term_c), t2
         case Annotation(expr, ty):
             nty = fresh(ctx, ty)
             c = check(ctx, expr, nty)
@@ -876,7 +876,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             pred_type = rp.sort
             c_ref = check(ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
-            return (Conjunction(c, c_ref), nty)
+            return (conjoin(c, c_ref), nty)
 
         case RefinementAbstraction(pname, psort, inner):
             # Synth-mode Λρ: mirror Chk-RAbs (lines 505-512) but without an expected type.
@@ -904,7 +904,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 ex_binders = t_cond.binders
                 t_cond = t_cond.body
             c_sub_cond = sub(ctx, t_cond, t_bool, cond.loc)
-            c_cond = Conjunction(c_synth_cond, c_sub_cond)
+            c_cond = conjoin(c_synth_cond, c_sub_cond)
             branch_ctx = ctx
             for bn, bt in ex_binders:
                 branch_ctx = branch_ctx.with_var(bn, bt)
@@ -935,8 +935,29 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 otherwise.loc,
             )
 
-            t1_r = ensure_refined(t1)
-            t2_r = ensure_refined(t2)
+            branch_binders: list[tuple[Name, Type]] = []
+
+            def open_branch(result: Type, guard: LiquidTerm) -> Type:
+                if not isinstance(result, ExistentialType):
+                    return result
+                for name, binder_type in result.binders:
+                    refined = ensure_refined(binder_type)
+                    if not isinstance(refined, RefinedType):
+                        raise CoreSubtypingError(ctx, t, t1, t2)
+                    # A branch-local witness's facts hold only when that branch
+                    # executes. Carrying unguarded facts from both alternatives
+                    # would let inconsistent branches prove arbitrary results.
+                    guarded = RefinedType(
+                        refined.name,
+                        refined.type,
+                        LiquidApp(Name("-->", 0), [guard, refined.refinement]),
+                        loc=refined.loc,
+                    )
+                    branch_binders.append((name, guarded))
+                return result.body
+
+            t1_r = ensure_refined(open_branch(t1, liq_cond))
+            t2_r = ensure_refined(open_branch(t2, LiquidApp(Name("!", 0), [liq_cond])))
             if isinstance(t1_r, RefinedType) and isinstance(t2_r, RefinedType) and t1_r.type == t2_r.type:
                 v = Name("v_if", fresh_counter.fresh())
                 r1 = substitution_in_liquid(t1_r.refinement, LiquidVar(v), t1_r.name)
@@ -957,10 +978,10 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 joined = t1
             else:
                 raise CoreSubtypingError(ctx, t, t1, t2)
-            if_constraint: Constraint = Conjunction(c_cond, Conjunction(c1, c2))
+            if_constraint: Constraint = conjoin(c_cond, conjoin(c1, c2))
             for bn, bt in reversed(ex_binders):
                 if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
-            return (if_constraint, joined)
+            return (if_constraint, with_binders(ex_binders + tuple(branch_binders), joined))
 
         case Hole(hole_name):
             name_a = Name(hole_name.name, fresh_counter.fresh())
@@ -1063,7 +1084,7 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
         constraints.append(_check_recursor_branch(ctx, h, case_type, tyname, case_name, scrut_inner))
     out: Constraint = constraints[0]
     for c in constraints[1:]:
-        out = Conjunction(out, c)
+        out = conjoin(out, c)
     return out
 
 
@@ -1155,7 +1176,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             inner = implication_constraint(name, t1, c2, body.loc, reflected_impl=reflected_impl)
             for bn, bt in reversed(opened_binders):
                 inner = implication_constraint(bn, bt, inner, body.loc)
-            return Conjunction(c1, inner)
+            return conjoin(c1, inner)
         case Rec(var_name, var_type, var_value, body), _:
             if var_name in ctx.trusted_names:
                 t1 = fresh(ctx, var_type)
@@ -1219,7 +1240,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 c1 = implication_constraint(
                     cname, ctype, c1, var_value.loc, reflected_impl=comp_reflected, keep_refinements=comp_keep
                 )
-            return Conjunction(Conjunction(c1, c2), term_c)
+            return conjoin(conjoin(c1, c2), term_c)
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
             liq_cond = liquefy(cond)
@@ -1235,7 +1256,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 ex_binders = t_cond.binders
                 t_cond = t_cond.body
             c_sub = sub(ctx, t_cond, t_bool, cond.loc)
-            c0 = Conjunction(c_synth, c_sub)
+            c0 = conjoin(c_synth, c_sub)
             branch_ctx = ctx
             for bn, bt in ex_binders:
                 branch_ctx = branch_ctx.with_var(bn, bt)
@@ -1263,7 +1284,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 check(branch_ctx, otherwise, ty),
                 otherwise.loc,
             )
-            if_constraint: Constraint = Conjunction(c0, Conjunction(c1, c2))
+            if_constraint: Constraint = conjoin(c0, conjoin(c1, c2))
             for bn, bt in reversed(ex_binders):
                 if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
             return if_constraint
@@ -1286,7 +1307,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
             inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
             c_body = check(ctx_ext, inner_sub, body_open)
-            return Conjunction(c_sort, UninterpretedFunctionDeclaration(pname, fk_type, c_body))
+            return conjoin(c_sort, UninterpretedFunctionDeclaration(pname, fk_type, c_body))
 
         # per tutorial fig 8.4 Chk-RAbs
         case _, RefinementPolymorphism(name, sort, body):
@@ -1314,7 +1335,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             cp = sub(ctx, s, ty, t.loc)
             if cp == LiquidConstraint(LiquidLiteralBool(False)):
                 raise CoreSubtypingError(ctx, t, s, ty)
-            return Conjunction(c, cp)
+            return conjoin(c, cp)
 
 
 def check_type(ctx: TypingContext, t: Term, ty: Type = top) -> bool:

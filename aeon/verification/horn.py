@@ -142,38 +142,58 @@ def obtain_holes_constraint(c: Constraint) -> list[LiquidHornApplication]:
 
 
 def contains_horn(t: LiquidTerm) -> bool:
-    if (
-        isinstance(t, LiquidLiteralInt)
-        or isinstance(t, LiquidLiteralBool)
-        or isinstance(t, LiquidLiteralString)
-        or isinstance(t, LiquidLiteralFloat)
-        or isinstance(t, LiquidLiteralUnit)
-    ):
-        return False
-    elif isinstance(t, LiquidVar):
-        return False
-    elif isinstance(t, LiquidHornApplication):
-        return True
-    elif isinstance(t, LiquidApp):
-        # ``&&(plain, κ)`` is well-formed Horn; any arg with a horn must count.
-        return any(contains_horn(arg) for arg in t.args)
-    else:
-        assert False
+    pending = [t]
+    seen: set[int] = set()
+    while pending:
+        term = pending.pop()
+        if id(term) in seen:
+            continue
+        seen.add(id(term))
+        if isinstance(term, LiquidHornApplication):
+            return True
+        if isinstance(term, LiquidApp):
+            pending.extend(term.args)
+        else:
+            assert isinstance(
+                term,
+                (
+                    LiquidLiteralInt,
+                    LiquidLiteralBool,
+                    LiquidLiteralString,
+                    LiquidLiteralFloat,
+                    LiquidLiteralUnit,
+                    LiquidVar,
+                ),
+            )
+    return False
 
 
 def contains_horn_constraint(c: Constraint) -> bool:
-    if isinstance(c, LiquidConstraint):
-        return contains_horn(c.expr)
-    elif isinstance(c, Conjunction):
-        return contains_horn_constraint(c.c1) or contains_horn_constraint(c.c2)
-    elif isinstance(c, Implication):
-        return contains_horn(c.pred) or contains_horn_constraint(c.seq)
-    elif isinstance(c, UninterpretedFunctionDeclaration):
-        return contains_horn_constraint(c.seq)
-    elif isinstance(c, ReflectedFunctionDeclaration):
-        return contains_horn(c.body) or contains_horn_constraint(c.seq)
-    else:
-        assert False
+    pending = [c]
+    seen: set[int] = set()
+    while pending:
+        constraint = pending.pop()
+        if id(constraint) in seen:
+            continue
+        seen.add(id(constraint))
+        if isinstance(constraint, LiquidConstraint):
+            if contains_horn(constraint.expr):
+                return True
+        elif isinstance(constraint, Conjunction):
+            pending.extend((constraint.c2, constraint.c1))
+        elif isinstance(constraint, Implication):
+            if contains_horn(constraint.pred):
+                return True
+            pending.append(constraint.seq)
+        elif isinstance(constraint, UninterpretedFunctionDeclaration):
+            pending.append(constraint.seq)
+        elif isinstance(constraint, ReflectedFunctionDeclaration):
+            if contains_horn(constraint.body):
+                return True
+            pending.append(constraint.seq)
+        else:
+            assert False
+    return False
 
 
 def wellformed_horn(predicate: LiquidTerm) -> bool:

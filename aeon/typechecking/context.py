@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import MutableSequence
+from typing import Iterable, MutableSequence, SupportsIndex
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.types import (
@@ -93,6 +93,74 @@ class TypeConstructorBinder(TypingContextEntry):
         return hash(self.name) + hash(tuple(self.args))
 
 
+class _ContextEntries(list[TypingContextEntry]):
+    """Owned derived entries with a mutation-aware constructor-only view.
+
+    Variable/type-variable extensions share the view, not a global cache. Keep
+    actual binder objects so updates to a declaration's name or args stay live.
+    """
+
+    def __init__(self, values: Iterable[TypingContextEntry], constructors: tuple[TypeConstructorBinder, ...] | None):
+        super().__init__(values)
+        self._constructors = constructors
+
+    def constructors(self) -> tuple[TypeConstructorBinder, ...]:
+        if self._constructors is None:
+            self._constructors = tuple(e for e in self if isinstance(e, TypeConstructorBinder))
+        return self._constructors
+
+    def append(self, value):
+        self._constructors = None
+        return super().append(value)
+
+    def extend(self, values):
+        self._constructors = None
+        return super().extend(values)
+
+    def insert(self, index, value):
+        self._constructors = None
+        return super().insert(index, value)
+
+    def __setitem__(self, index, value):
+        self._constructors = None
+        return super().__setitem__(index, value)
+
+    def __delitem__(self, index):
+        self._constructors = None
+        return super().__delitem__(index)
+
+    def clear(self):
+        self._constructors = None
+        return super().clear()
+
+    def pop(self, index=-1):
+        self._constructors = None
+        return super().pop(index)
+
+    def remove(self, value):
+        self._constructors = None
+        return super().remove(value)
+
+    def reverse(self):
+        self._constructors = None
+        return super().reverse()
+
+    def sort(self, *args, **kwargs):
+        self._constructors = None
+        return super().sort(*args, **kwargs)
+
+    # list's + overload widens element types; += preserves the list's type.
+    def __iadd__(self, values: Iterable[TypingContextEntry]) -> _ContextEntries:  # type: ignore[override, misc]
+        self._constructors = None
+        super().__iadd__(values)
+        return self
+
+    def __imul__(self, count: SupportsIndex) -> _ContextEntries:
+        self._constructors = None
+        super().__imul__(count)
+        return self
+
+
 @dataclass
 class TypingContext:
     entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
@@ -116,7 +184,7 @@ class TypingContext:
     def with_var(self, name: Name, type: Type) -> TypingContext:
         """Extend with a variable binder; shares trust set and skips builtin re-scan."""
         return TypingContext(
-            [*self.entries, VariableBinder(name, type)],
+            _ContextEntries([*self.entries, VariableBinder(name, type)], self._constructor_entries()),
             trusted_names=self.trusted_names,
             _ensure_builtins=False,
         )
@@ -124,7 +192,7 @@ class TypingContext:
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
         """Extend with a type variable; shares trust set and skips builtin re-scan."""
         return TypingContext(
-            [*self.entries, TypeBinder(name, kind)],
+            _ContextEntries([*self.entries, TypeBinder(name, kind)], self._constructor_entries()),
             trusted_names=self.trusted_names,
             _ensure_builtins=False,
         )
@@ -195,16 +263,19 @@ class TypingContext:
     def has_uninterpreted_fun(self, name) -> bool:
         return name in [e.name for e in self.entries if isinstance(e, UninterpretedBinder)]
 
+    def _constructor_entries(self) -> tuple[TypeConstructorBinder, ...]:
+        if isinstance(self.entries, _ContextEntries):
+            return self.entries.constructors()
+        return tuple(e for e in self.entries if isinstance(e, TypeConstructorBinder))
+
     def get_type_constructor(self, name: Name) -> list[Name] | None:
         # Built-in type constructors (``Unit``, ``Int``, ``Bool``, ``Float``,
         # ``String``, ``Set``, ...) are entered as ``TypeConstructorBinder``
         # entries in ``__post_init__``, so there is no need for a hardcoded
         # escape hatch here — the context is the single source of truth.
-        for entry in self.entries[::-1]:
-            match entry:
-                case TypeConstructorBinder(ename, eargs):
-                    if ename == name:
-                        return eargs
+        for entry in reversed(self._constructor_entries()):
+            if entry.name == name:
+                return entry.args
         return None
 
     def __hash__(self):

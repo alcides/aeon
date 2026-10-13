@@ -87,6 +87,13 @@ def shard_for(path: str, shards: int) -> int:
     return int.from_bytes(hashlib.sha256(path.encode()).digest()[:8], "big") % shards
 
 
+def compilation_timeout(
+    base: float, source_bytes: int, seconds_per_mib: float = 0, maximum: float | None = None
+) -> float:
+    proposed = base + seconds_per_mib * source_bytes / (1024 * 1024)
+    return min(maximum, proposed) if maximum is not None else proposed
+
+
 def command_for(example: Example) -> list[str]:
     mode = ["--test", "--seed", "0"] if example.mode == "test" else ["--check", "--no-main"]
     return [sys.executable, "-m", "aeon", *mode, example.path]
@@ -159,6 +166,7 @@ def run_one(example: Example, timeout: float, log_dir: Path) -> dict:
         "expected_codes": example.expected_codes,
         "exit_code": code,
         "timeout": timed_out,
+        "timeout_seconds": timeout,
         "reference_exit_code": reference_code,
         "passed": passed,
         "seconds": round(time.monotonic() - started, 3),
@@ -171,6 +179,10 @@ def main() -> int:
     parser.add_argument("--shards", type=int, default=1)
     parser.add_argument("--jobs", type=int, default=2)
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument(
+        "--timeout-per-mib", type=float, default=0, help="Additional compilation seconds per source MiB"
+    )
+    parser.add_argument("--max-timeout", type=float, help="Required finite cap when source-size scaling is enabled")
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--failures-from", type=Path, help="Rerun only failures from an earlier results.json")
     parser.add_argument("--report-dir", type=Path, default=Path("example-results"))
@@ -181,8 +193,12 @@ def main() -> int:
         or args.jobs < 1
         or not math.isfinite(args.timeout)
         or args.timeout <= 0
+        or not math.isfinite(args.timeout_per_mib)
+        or args.timeout_per_mib < 0
+        or (args.timeout_per_mib > 0 and args.max_timeout is None)
+        or (args.max_timeout is not None and (not math.isfinite(args.max_timeout) or args.max_timeout < args.timeout))
     ):
-        parser.error("Require shards/jobs/timeout > 0 and 0 <= shard < shards")
+        parser.error("Require valid shards/jobs and positive finite timeouts; size scaling requires a cap >= timeout")
     examples = discover()
     if args.failures_from:
         failed_paths = {result["path"] for result in json.loads(args.failures_from.read_text()) if not result["passed"]}
@@ -198,7 +214,17 @@ def main() -> int:
     args.report_dir.mkdir(parents=True, exist_ok=True)
     results = []
     with (args.report_dir / "results.jsonl").open("w") as progress, ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        pending = [pool.submit(run_one, example, args.timeout, args.report_dir / "logs") for example in examples]
+        pending = [
+            pool.submit(
+                run_one,
+                example,
+                compilation_timeout(
+                    args.timeout, (ROOT / example.path).stat().st_size, args.timeout_per_mib, args.max_timeout
+                ),
+                args.report_dir / "logs",
+            )
+            for example in examples
+        ]
         for future in as_completed(pending):
             result = future.result()
             results.append(result)

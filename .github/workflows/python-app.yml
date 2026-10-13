@@ -172,7 +172,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -182,7 +182,7 @@ jobs:
           cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[dev]"
-      - run: bash run_examples.sh --shard ${{ matrix.shard }} --shards 8 --jobs 2 --timeout 120
+      - run: bash run_examples.sh --shard ${{ matrix.shard }} --shards 16 --jobs 2 --timeout 120 --timeout-per-mib 120 --max-timeout 600
       - uses: actions/upload-artifact@v4
         if: always()
         with:

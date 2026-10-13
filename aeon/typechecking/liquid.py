@@ -120,7 +120,9 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
                 assert False, f"Unknown type {ty} when lowering to liquid"
 
 
-def lower_context(ctx: TypingContext, needed: set[Name] | None = None) -> LiquidTypeCheckingContext:
+def lower_context(
+    ctx: TypingContext, needed: set[Name] | None = None, bound: tuple[Name, Type] | None = None
+) -> LiquidTypeCheckingContext:
     known_types: list[Name] = list(native_types)
     variables: dict[Name, TypeConstructor | TypeVar] = {}
     functions = {}
@@ -153,7 +155,21 @@ def lower_context(ctx: TypingContext, needed: set[Name] | None = None) -> Liquid
             case _:
                 assert False, f"Unsupported variable binder type {ty} ({type(ty)})"
 
-    for entry in ctx.entries[::-1]:
+    if needed is not None:
+        resolved: dict[Name, Type] = {}
+        for name in needed:
+            ty = bound[1] if bound is not None and name == bound[0] else ctx.type_of(name)
+            if ty is None or isinstance(ty, ExistentialType):
+                # A name may live inside another variable's existential type.
+                # Preserve the full structural expansion for that case.
+                break
+            resolved[name] = ty
+        else:
+            for name, ty in resolved.items():
+                add_variable(name, ty)
+            return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
+
+    for entry in reversed(ctx.entries):
         match entry:
             case VariableBinder(name, ty):
                 if needed is None or name in needed or isinstance(ty, ExistentialType):
@@ -174,6 +190,8 @@ def lower_context(ctx: TypingContext, needed: set[Name] | None = None) -> Liquid
             case _:
                 assert False, f"Unknown context type {entry} ({type(entry)})"
 
+    if bound is not None:
+        add_variable(*bound)
     return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
 
 
@@ -355,6 +373,7 @@ def check_liquid(
 def typecheck_liquid(
     ctx: TypingContext,
     liq: LiquidTerm,
+    bound: tuple[Name, Type] | None = None,
 ) -> Type | None:
     assert isinstance(ctx, TypingContext)
     # Infer only the symbols actually present in this predicate. Lowering every
@@ -368,5 +387,6 @@ def typecheck_liquid(
         elif isinstance(term, LiquidApp):
             needed.add(term.fun)
             pending.extend(term.args)
-    v = type_infer_liquid(lower_context(ctx, needed), liq)
+    liquid_ctx = lower_context(ctx, needed, bound) if needed else LiquidTypeCheckingContext([], {}, {})
+    v = type_infer_liquid(liquid_ctx, liq)
     return v

@@ -40,6 +40,15 @@ class Conjunction(Constraint):
         return f"({self.c1}) ∧ ({self.c2})"
 
 
+def conjoin(c1: Constraint, c2: Constraint) -> Constraint:
+    """Drop literal-true identities as verification conditions are built."""
+    if isinstance(c1, LiquidConstraint) and isinstance(c1.expr, LiquidLiteralBool) and c1.expr.value:
+        return c2
+    if isinstance(c2, LiquidConstraint) and isinstance(c2.expr, LiquidLiteralBool) and c2.expr.value:
+        return c1
+    return Conjunction(c1, c2)
+
+
 @dataclass
 class UninterpretedFunctionDeclaration(Constraint):
     name: Name
@@ -202,41 +211,44 @@ def _alpha_constraint(c: Constraint, env: dict[tuple[str, int], int], counter: l
 def _alpha_constraint_parts(
     c: Constraint, env: dict[tuple[str, int], int], counter: list[int]
 ) -> Generator[str, None, None]:
-    """Stream the canonical form without copying every growing spine suffix."""
-    if isinstance(c, LiquidConstraint):
-        yield _alpha_liquid(c.expr, env, counter)
-    elif isinstance(c, Conjunction):
-        yield "("
-        yield from _alpha_constraint_parts(c.c1, env, counter)
-        yield ") ∧ ("
-        yield from _alpha_constraint_parts(c.c2, env, counter)
-        yield ")"
-    elif isinstance(c, Implication):
-        with _alpha_scope(c.name, env, counter) as var_s:
-            base_s = _alpha_type(c.base, env, counter)
-            pred_s = _alpha_liquid(c.pred, env, counter)
-            yield f"∀{var_s}:{base_s}, ({pred_s}) => "
-            yield from _alpha_constraint_parts(c.seq, env, counter)
-    elif isinstance(c, UninterpretedFunctionDeclaration):
-        with _alpha_scope(c.name, env, counter) as var_s:
-            type_s = _alpha_type(c.type, env, counter)
-            yield f"fun {var_s}:{type_s} => "
-            yield from _alpha_constraint_parts(c.seq, env, counter)
-    elif isinstance(c, ReflectedFunctionDeclaration):
-        with ExitStack() as stack:
-            var_s = stack.enter_context(_alpha_scope(c.name, env, counter))
-            params_strs = [stack.enter_context(_alpha_scope(p, env, counter)) for p in c.params]
-            type_s = _alpha_type(c.type, env, counter)
-            body_s = _alpha_liquid(c.body, env, counter)
-            params_joined = ", ".join(params_strs)
-            yield f"reflected {var_s}({params_joined}):{type_s} = {body_s} => "
-            yield from _alpha_constraint_parts(c.seq, env, counter)
-    elif isinstance(c, TypeVarDeclaration):
-        with _alpha_scope(c.name, env, counter) as var_s:
-            yield f"type {var_s}, "
-            yield from _alpha_constraint_parts(c.seq, env, counter)
-    else:
-        yield repr(c)
+    """Stream canonical constraints with an explicit, scope-preserving stack."""
+    pending: list[Constraint | str | ExitStack] = [c]
+    scopes: list[ExitStack] = []
+    try:
+        while pending:
+            item = pending.pop()
+            if isinstance(item, str):
+                yield item
+            elif isinstance(item, ExitStack):
+                scopes.pop().close()
+            elif isinstance(item, LiquidConstraint):
+                yield _alpha_liquid(item.expr, env, counter)
+            elif isinstance(item, Conjunction):
+                pending.extend((")", item.c2, ") ∧ (", item.c1, "("))
+            elif isinstance(
+                item, (Implication, UninterpretedFunctionDeclaration, ReflectedFunctionDeclaration, TypeVarDeclaration)
+            ):
+                scope = ExitStack()
+                scopes.append(scope)
+                var_s = scope.enter_context(_alpha_scope(item.name, env, counter))
+                if isinstance(item, Implication):
+                    prefix = f"∀{var_s}:{_alpha_type(item.base, env, counter)}, ({_alpha_liquid(item.pred, env, counter)}) => "
+                elif isinstance(item, UninterpretedFunctionDeclaration):
+                    prefix = f"fun {var_s}:{_alpha_type(item.type, env, counter)} => "
+                elif isinstance(item, ReflectedFunctionDeclaration):
+                    params = [scope.enter_context(_alpha_scope(p, env, counter)) for p in item.params]
+                    prefix = (
+                        f"reflected {var_s}({', '.join(params)}):{_alpha_type(item.type, env, counter)}"
+                        f" = {_alpha_liquid(item.body, env, counter)} => "
+                    )
+                else:
+                    prefix = f"type {var_s}, "
+                pending.extend((scope, item.seq, prefix))
+            else:
+                yield repr(item)
+    finally:
+        while scopes:
+            scopes.pop().close()
 
 
 def variables_in_liq(t: LiquidTerm) -> Generator[str, None, None]:
