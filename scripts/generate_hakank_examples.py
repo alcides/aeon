@@ -140,9 +140,12 @@ class Model:
                 lines.append(f"def sequence{index}_tail0 : (Vec {kind}) := {expression};")
                 continue
             tail = "Vec.nil"
-            for position in reversed(range(len(values))):
+            for position in reversed(range(0, len(values), 32)):
+                expression = tail
+                for value in reversed(values[position : position + 32]):
+                    expression = f"Vec.cons ({value}) ({expression})"
                 name = f"sequence{index}_tail{position}"
-                lines.append(f"def {name} : (Vec {kind}) := Vec.cons ({values[position]}) ({tail});")
+                lines.append(f"def {name} : (Vec {kind}) := {expression};")
                 tail = name
         lines += ["", "# Complete finite-instance constraints; Bool annotations keep verification local."]
         if self.compact:

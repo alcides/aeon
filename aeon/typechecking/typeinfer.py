@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import replace
+from contextvars import ContextVar
 from typing import Iterable
 
 from loguru import logger
@@ -578,7 +579,23 @@ def _as_predicate_type(sort: Type) -> AbstractionType:
     return AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
 
 
+_argument_inference: ContextVar[tuple[TypingContext, Term, list[tuple[Constraint, Type]]] | None] = ContextVar(
+    "argument_inference", default=None
+)
+
+
 def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
+    capture = _argument_inference.get()
+    matches = capture is not None and capture[0] is ctx and capture[1] is t
+    if matches and capture is not None and capture[2]:
+        return capture[2][0]
+    result = _synth(ctx, t)
+    if matches and capture is not None:
+        capture[2].append(result)
+    return result
+
+
+def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
         case Literal(_, TypeConstructor(Name("Unit", _))):
             return (ctrue, prim_litunit())
@@ -640,7 +657,18 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             match ty:
                 case AbstractionType(aname, atype, rtype):
                     outer_binders: tuple[tuple[Name, Type], ...] = fun_binders
-                    cp = check(ctx_inner, arg, atype)
+                    # Checking normally infers this argument already. Capture
+                    # that exact inference for existential introduction instead
+                    # of recursively inferring the whole subtree a second time
+                    # (exponential on nested constructor applications). The
+                    # capture is local to this argument and identical context;
+                    # expected-type-directed checks still run unchanged.
+                    inferred: list[tuple[Constraint, Type]] = []
+                    token = _argument_inference.set((ctx_inner, arg, inferred))
+                    try:
+                        cp = check(ctx_inner, arg, atype)
+                    finally:
+                        _argument_inference.reset(token)
                     # Abstractions can't be synthesised on their own (no
                     # annotation), and Var/Literal liquefy directly. In all
                     # three cases the existing direct substitution path is
@@ -665,6 +693,8 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                         # so a hole in argument position needs no annotation.
                         if isinstance(arg, Hole):
                             ty_arg = atype
+                        elif inferred:
+                            _, ty_arg = inferred[0]
                         else:
                             (_, ty_arg) = synth(ctx_inner, arg)
                         if isinstance(ty_arg, ExistentialType):

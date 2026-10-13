@@ -120,7 +120,7 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
                 assert False, f"Unknown type {ty} when lowering to liquid"
 
 
-def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
+def lower_context(ctx: TypingContext, needed: set[Name] | None = None) -> LiquidTypeCheckingContext:
     known_types: list[Name] = list(native_types)
     variables: dict[Name, TypeConstructor | TypeVar] = {}
     functions = {}
@@ -131,6 +131,8 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
         recursively as if it were its own ``VariableBinder``, then the bare
         body is handled. This mirrors what ``wellformed`` does and lets
         refinements over Form B existentials reach the SMT context."""
+        if needed is not None and name not in needed and not isinstance(ty, ExistentialType):
+            return
         match ty:
             case ExistentialType(binders, body):
                 for bn, bt in binders:
@@ -154,7 +156,8 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
     for entry in ctx.entries[::-1]:
         match entry:
             case VariableBinder(name, ty):
-                add_variable(name, ty)
+                if needed is None or name in needed or isinstance(ty, ExistentialType):
+                    add_variable(name, ty)
             case TypeBinder(name, _):
                 known_types.append(name)
             case UninterpretedBinder(
@@ -164,7 +167,8 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 # ``lower_abstraction_type`` already recurses through
                 # ``TypePolymorphism`` / ``RefinementPolymorphism`` to the
                 # underlying ``AbstractionType``.
-                functions[name] = lower_abstraction_type(ty)
+                if needed is None or name in needed:
+                    functions[name] = lower_abstraction_type(ty)
             case TypeConstructorBinder(_, _):
                 pass
             case _:
@@ -353,5 +357,16 @@ def typecheck_liquid(
     liq: LiquidTerm,
 ) -> Type | None:
     assert isinstance(ctx, TypingContext)
-    v = type_infer_liquid(lower_context(ctx), liq)
+    # Infer only the symbols actually present in this predicate. Lowering every
+    # imported helper signature for every annotation dominates large models.
+    needed: set[Name] = set()
+    pending = [liq]
+    while pending:
+        term = pending.pop()
+        if isinstance(term, LiquidVar):
+            needed.add(term.name)
+        elif isinstance(term, LiquidApp):
+            needed.add(term.fun)
+            pending.extend(term.args)
+    v = type_infer_liquid(lower_context(ctx, needed), liq)
     return v

@@ -332,6 +332,17 @@ def test_flatten_respects_shadowing_inside_an_implication():
     assert not smt_valid(constraint)
 
 
+def test_sibling_scopes_with_shared_predicate_do_not_share_translation():
+    name = Name("shared", 99103)
+    one = LiquidApp(Name("==", 0), [LiquidVar(name), LiquidLiteralInt(1)])
+    two = LiquidApp(Name("==", 0), [LiquidVar(name), LiquidLiteralInt(2)])
+    constraint = Conjunction(
+        Implication(name, t_int, one, LiquidConstraint(one)),
+        Implication(name, t_int, two, LiquidConstraint(one)),
+    )
+    assert not smt_valid(constraint)
+
+
 def test_flatten_skips_tautological_obligations():
     name = Name("unused", 99102)
     constraint = Implication(name, t_int, LiquidLiteralBool(True), LiquidConstraint(LiquidLiteralBool(True)))
