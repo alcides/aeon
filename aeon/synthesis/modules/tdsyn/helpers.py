@@ -16,6 +16,7 @@ from aeon.core.terms import (
 )
 from aeon.core.types import (
     AbstractionType,
+    RefinedType,
     RefinementPolymorphism,
     Type,
     TypeConstructor,
@@ -63,10 +64,11 @@ def clear_tdsyn_caches() -> None:
 def is_subtype(ctx: TypingContext, t1: Type, t2: Type) -> bool:
     """Check if t1 is a subtype of t2, with cheap short-circuits and a cache.
 
-    Equal types and mismatched base constructors avoid SMT; all other pairs go
-    through ``sub`` / ``entailment`` once per ``(ctx, t1, t2)`` triple.
+    Equal types, forgetting a refinement, and mismatched base constructors avoid
+    SMT; all other pairs go through ``sub`` / ``entailment`` once per
+    ``(ctx, t1, t2)`` triple.
     """
-    if t1 == t2:
+    if t1 == t2 or (isinstance(t1, RefinedType) and t1.type == t2):
         return True
     b1 = base_type_of(t1)
     b2 = base_type_of(t2)

@@ -696,6 +696,7 @@ The generated [stdlib index](stdlib/) is the authoritative per-symbol catalogue 
 | --trust-for FUN_NAME | Restricts `--trust-report` to assumptions reachable from a function |
 | --test | Runs every `@property` and `@example` as a test and reports pass/fail        |
 | --seed | Random seed for `--test` input generation (reproducible for a fixed seed)    |
+| --input-synthesizer | PBT input backend; repeat to mix backends round-robin (default: `random_search`) |
 | --doc  | Generates HTML documentation from the source file                            |
 | --doc-output | Output path (file or directory) for the generated `--doc` HTML          |
 | -s, --synthesizer | Selects a synthesizer — see [Synthesizers](synthesizers) for a full list and descriptions |

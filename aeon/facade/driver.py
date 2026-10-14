@@ -208,7 +208,7 @@ class AeonDriver:
         )
 
     @_in_driver_session
-    def run_tests(self, seed: int = 0) -> list:
+    def run_tests(self, seed: int = 0, input_synthesizers: tuple[str, ...] = ("random_search",)) -> list:
         """Check every ``@property`` function and ``@example`` assertion, print a
         pytest-style report, and return the list of failing results (empty when
         all pass)."""
@@ -222,6 +222,7 @@ class AeonDriver:
                 self.metadata,
                 seed=seed,
                 constructor_names=self.constructor_names,
+                input_synthesizers=input_synthesizers,
             )
         )
         results += run_examples(self.evaluation_ctx, self.core, self.metadata)

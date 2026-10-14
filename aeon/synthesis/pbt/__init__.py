@@ -1,11 +1,10 @@
 """Property-based testing for Aeon (issue #37).
 
-Random inputs for ``@property`` functions are derived automatically from each
-argument's type by reusing the synthesis grammar machinery — refinement types
-act as preconditions, so generated inputs are valid by construction and no user
-generators are required.
+Inputs for ``@property`` functions are derived automatically from each argument's
+type using selectable synthesis backends. Every proposal is typechecked before
+use, so refinement types act as preconditions without user-written generators.
 
-- :mod:`aeon.synthesis.pbt.generators` — sample a random ``Term`` of a ``Type``.
+- :mod:`aeon.synthesis.pbt.generators` — sample a checked ``Term`` of a ``Type``.
 - :mod:`aeon.synthesis.pbt.runner` — discover, generate, check, and report.
 """
 

@@ -19,8 +19,8 @@ small value. Literals are only shrunk for *unrefined* types: shrinking a value
 constrained by a refinement could leave the argument's valid domain, so those
 are left untouched (their domain is enforced at generation time instead).
 
-Every candidate is re-tested by the caller and kept only if the property still
-fails, so shrinking never invents a spurious counterexample.
+Every candidate is typechecked against its argument type before it is re-tested
+by the caller, and kept only if the property still fails.
 """
 
 from __future__ import annotations
@@ -51,6 +51,8 @@ from aeon.core.types import (
 from aeon.core.substitutions import substitute_vartype
 from aeon.synthesis.grammar.poly import remove_uninterpreted_functions_from_type
 from aeon.utils.name import Name
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import check_type
 
 # Maps a (prefixed) constructor name to its polymorphic core type.
 ConstructorTypes = dict[str, Type]
@@ -113,10 +115,8 @@ def constructor_signature(cons_type: Type, type_args: list[Type]) -> tuple[list[
     return arg_types, ty
 
 
-def _rebuild(cons_name: Name, type_args: list[Type], args: list[Term]) -> Term:
-    head: Term = Var(cons_name)
-    for ta in type_args:
-        head = TypeApplication(head, ta)
+def _rebuild(head: Term, args: list[Term]) -> Term:
+    # Retain both type and refinement applications on the original head.
     for a in args:
         head = Application(head, a)
     return head
@@ -175,6 +175,9 @@ def shrinks(
     arg_types, _ = constructor_signature(cons_type, type_args)
     if len(arg_types) != len(args):
         return
+    head = _peel(term)
+    while isinstance(head, Application):
+        head = _peel(head.fun)
 
     # 1) Replace the whole term with any same-typed recursive child (e.g. a
     #    list's tail) — the structural reduction toward the base constructor.
@@ -185,7 +188,7 @@ def shrinks(
     # 2) Shrink each argument in place and rebuild.
     for i, (arg, at) in enumerate(zip(args, arg_types)):
         for smaller in shrinks(arg, at, constructor_types, constructor_names):
-            yield _rebuild(cons_name, type_args, args[:i] + [smaller] + args[i + 1 :])
+            yield _rebuild(head, args[:i] + [smaller] + args[i + 1 :])
 
 
 def minimize(
@@ -195,13 +198,14 @@ def minimize(
     still_fails,
     constructor_types: ConstructorTypes,
     constructor_names: set[str],
+    typing_ctx: TypingContext,
     max_steps: int = 300,
 ) -> list[Term]:
     """Greedily shrink a failing argument tuple while the property keeps failing.
 
     ``still_fails(candidate_terms) -> bool`` re-runs the property; a candidate is
-    accepted only when it returns ``True``, so soundness never depends on the
-    shrinks themselves being valid. ``shrinkable[i]`` is ``False`` for arguments
+    accepted only when it typechecks and the callback returns ``True``.
+    ``shrinkable[i]`` is ``False`` for arguments
     another argument depends on (shrinking them could break the dependency).
     ``max_steps`` bounds the number of property evaluations."""
     current = list(terms)
@@ -216,6 +220,14 @@ def minimize(
                 steps += 1
                 if steps > max_steps:
                     break
+                try:
+                    valid = check_type(typing_ctx, cand, arg_types[i])
+                except Exception:
+                    # A candidate whose domain cannot be verified is not a
+                    # valid replacement, even if it would fail the property.
+                    continue
+                if not valid:
+                    continue
                 trial = current[:i] + [cand] + current[i + 1 :]
                 if still_fails(trial):
                     current = trial

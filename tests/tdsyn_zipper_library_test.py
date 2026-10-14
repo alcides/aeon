@@ -124,14 +124,28 @@ def test_subtype_cache_evicted_when_context_collected():
 
     ctx = TypingContext().with_var(Name("n", 0), t_int)
     # Populate the cache with a non-trivial pair (equal types and mismatched
-    # bases short-circuit before caching).
+    # bases and forgetting a refinement short-circuit before caching).
     refined_int = RefinedType(Name("v", 0), int_ty, LiquidLiteralBool(True))
-    is_subtype(ctx, refined_int, t_int)
+    is_subtype(ctx, t_int, refined_int)
     key = id(ctx)
     assert key in _subtype_cache
     del ctx
     gc.collect()
     assert key not in _subtype_cache
+
+
+def test_forgetting_dependent_return_refinement_does_not_require_parameter_scope():
+    from aeon.core.liquid import LiquidApp, LiquidVar
+    from aeon.core.types import RefinedType
+    from aeon.synthesis.modules.tdsyn.helpers import is_subtype
+
+    # A function's return contract can mention its formal parameters, which are
+    # not in scope while choosing an application for an unrefined hole. No SMT
+    # translation of that contract is needed to forget the refinement.
+    result = Name("result", 0)
+    parameter = Name("parameter", 1)
+    refined = RefinedType(result, t_int, LiquidApp(Name("==", 0), [LiquidVar(result), LiquidVar(parameter)]))
+    assert is_subtype(TypingContext(), refined, t_int)
 
 
 def test_monomorphize_numeric_ops_skip_adt_types():

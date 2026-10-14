@@ -263,6 +263,7 @@ def _generate_property_cases(
     adt_ctx: TypingContext,
     metadata: Metadata,
     seed: int,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
 ) -> list[tuple[list[Term], list[Type]]]:
     """Generate a property's inputs once, preserving dependent argument types."""
     from aeon.synthesis.pbt.generators import TypeSampler, build_base_context, is_base_type
@@ -279,16 +280,23 @@ def _generate_property_cases(
         sampler = sampler_cache.get(key)
         if sampler is None:
             # Base types use a minimal context (literals + SMT for refinements);
-            # ADTs use the constructor-only context so generation yields pure
-            # constructor trees. Full program contexts are too large: every
-            # Instantiable prelude/library function is monomorphized per step.
+            # ADTs can use all available program functions and values, not
+            # just constructors.
             ctx = base_ctx if is_base_type(ty) else adt_ctx
-            sampler = TypeSampler(ctx, ty, spec.name, metadata, seed=seed + idx * 7919)
+            sampler = TypeSampler(
+                ctx,
+                ty,
+                spec.name,
+                metadata,
+                seed=seed + idx * 7919,
+                validation_ctx=adt_ctx,
+                synthesizers=input_synthesizers,
+            )
             sampler_cache[key] = sampler
         return sampler
 
     cases: list[tuple[list[Term], list[Type]]] = []
-    for _ in range(spec.samples):
+    for trial in range(spec.samples):
         chosen: list[tuple[Name, Term]] = []
         terms: list[Term] = []
         arg_tys: list[Type] = []
@@ -298,7 +306,9 @@ def _generate_property_cases(
             ty = arg_type
             for prev_name, prev_term in chosen:
                 ty = substitution_in_type(ty, prev_term, prev_name)
-            term = sampler_for(ty, idx).sample()
+            # Select by trial, not sampler lifetime: dependent types can create
+            # a fresh sampler each time and must still rotate through backends.
+            term = sampler_for(ty, idx).sample(synthesizer=input_synthesizers[trial % len(input_synthesizers)])
             chosen.append((arg_name, term))
             terms.append(term)
             arg_tys.append(ty)
@@ -317,6 +327,7 @@ def _check_property(
     constructor_names: set[str],
     seed: int,
     timeout: float,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
 ) -> PropertyResult:
     def evaluate(arg_terms: list[Term]) -> tuple[bool | None, str | None]:
         call: Term = Var(spec.name)
@@ -325,7 +336,7 @@ def _check_property(
         return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
 
     try:
-        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers)
     except RuntimeError as generation_error:
         return PropertyResult(spec.name, passed=False, trials=0, error=f"input generation failed: {generation_error}")
     for trial, (terms, arg_tys) in enumerate(cases):
@@ -338,6 +349,7 @@ def _check_property(
                 lambda candidate: evaluate(candidate)[0] is not True,
                 constructor_types,
                 constructor_names,
+                adt_ctx,
             )
             _, error = evaluate(minimized)
             return PropertyResult(
@@ -468,6 +480,7 @@ def property_corpora_for_target(
     open_targets: set[Name],
     constructor_names: set[str] | None = None,
     seed: int = 0,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
 ) -> list[PropertyCorpus]:
     """Build fixed corpora for properties that can guide one ordinary target.
 
@@ -480,9 +493,20 @@ def property_corpora_for_target(
 
     specs, _ = _collect_properties(core, metadata)
     values = _top_level_values(core)
-    names = constructor_names or set()
-    ctor_binders = _collect_constructors(core, names)
-    adt_ctx = build_adt_context(typing_ctx, ctor_binders)
+    # Fixed inputs must not call an unfinished target, even indirectly through
+    # an otherwise ordinary helper or a property used in an if condition.
+    unavailable = set(open_targets)
+    changed = True
+    while changed:
+        added = {name for name, body in values.items() if _term_references(body) & unavailable} - unavailable
+        unavailable.update(added)
+        changed = bool(added)
+    available_ctx = TypingContext(
+        [e for e in typing_ctx.entries if not isinstance(e, VariableBinder) or e.name not in unavailable],
+        trusted_names=typing_ctx.trusted_names,
+    )
+    value_binders = [VariableBinder(name, ty) for name, ty in _iter_top_level(core) if name not in unavailable]
+    adt_ctx = build_adt_context(available_ctx, value_binders)
     other_targets = open_targets - {target}
     corpora: list[PropertyCorpus] = []
     for spec in specs:
@@ -492,7 +516,7 @@ def property_corpora_for_target(
         references = _term_references(body)
         if target not in references or references & other_targets:
             continue
-        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers)
         corpora.append(PropertyCorpus(spec, tuple(tuple(terms) for terms, _ in cases)))
     return corpora
 
@@ -545,6 +569,7 @@ def run_properties(
     seed: int = 0,
     timeout: float = DEFAULT_TIMEOUT,
     constructor_names: set[str] | None = None,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
 ) -> list[PropertyResult]:
     """Check every ``@property`` function and return one result per property."""
     from aeon.synthesis.pbt.generators import build_adt_context
@@ -552,7 +577,8 @@ def run_properties(
     names = constructor_names or set()
     specs, skips = _collect_properties(core, metadata)
     ctor_binders = _collect_constructors(core, names)
-    adt_ctx = build_adt_context(typing_ctx, ctor_binders)
+    value_binders = [VariableBinder(name, ty) for name, ty in _iter_top_level(core)]
+    adt_ctx = build_adt_context(typing_ctx, value_binders)
     constructor_types: ConstructorTypes = {b.name.name: b.type for b in ctor_binders}
     results: list[PropertyResult] = list(skips)
     for spec in specs:
@@ -568,6 +594,7 @@ def run_properties(
                 names,
                 seed=seed,
                 timeout=timeout,
+                input_synthesizers=input_synthesizers,
             )
         )
     return results

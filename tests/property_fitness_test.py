@@ -83,6 +83,31 @@ def test_property_corpus_respects_refined_dependent_arguments():
     assert all(isinstance(n, Literal) and isinstance(i, Literal) and i.value < n.value for n, i in corpora[0].cases)
 
 
+def test_adt_corpus_uses_helpers_but_not_unfinished_targets():
+    from aeon.synthesis.pbt.runner import _term_references
+
+    source = """
+    inductive Box
+    | box (value:Int) : Box
+    def make_box (value:Int) : Box := .box value;
+    def sample_box : Box := make_box 7;
+    def f (b:Box) : Bool := ?hole;
+    def unfinished_box (value:Int) : Box :=
+        if f (.box value) then .box value else .box 0;
+    def indirect_box (value:Int) : Box := unfinished_box value;
+    @property(40)
+    def prop_f (b:Box) : Bool := f b;
+    """
+    core, _, ectx, _, _, hole, corpora = _corpora(source)
+    assert len(corpora) == 1
+    references = {name.name for case in corpora[0].cases for term in case for name in _term_references(term)}
+    assert "make_box" in references
+    assert "sample_box" in references
+    assert not references & {"f", "unfinished_box", "indirect_box", "prop_f"}
+    fitness = make_property_fitness(corpora[0], ectx)
+    assert fitness(make_program(core, hole)(Literal(True, t_bool))) == 0.0
+
+
 def test_only_relevant_single_target_properties_are_selected():
     source = """
     def f (x : Int) : Bool := ?hf;

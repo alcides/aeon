@@ -79,6 +79,8 @@ def test_non_bool_property_is_skipped(results):
 ADT_SOURCE = """
 open List
 
+def shrink_input : (List Int) := .cons 9 (.cons 3 .nil);
+
 @property(40)
 def prop_reverse_preserves_length (l : (List Int)) : Bool :=
     length (reversed l) = length l;
@@ -90,11 +92,17 @@ def prop_always_empty (l : (List Int)) : Bool :=
 
 
 @pytest.fixture(scope="module")
-def adt_results():
+def adt_driver():
     cfg = AeonConfig(synthesizer="enumerative", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
     driver = AeonDriver(cfg)
     errors = driver.parse(aeon_code=ADT_SOURCE)
     assert errors == [], errors
+    return driver
+
+
+@pytest.fixture(scope="module")
+def adt_results(adt_driver):
+    driver = adt_driver
     rs = run_properties(
         driver.typing_ctx,
         driver.evaluation_ctx,
@@ -107,22 +115,120 @@ def adt_results():
 
 
 def test_adt_property_passes(adt_results):
-    # Lists are generated as cons/nil trees; a true list property holds.
+    # Inputs may use constructors or ordinary list functions.
     r = adt_results["prop_reverse_preserves_length"]
     assert r.passed, r.summary()
 
 
 def test_adt_generates_non_empty_values(adt_results):
-    # A property false for any non-empty list must fail with a cons counterexample,
-    # proving the generator produces more than just the empty list.
+    # A property false for any non-empty list must fail without an evaluation
+    # error. The counterexample can now be a function call, not just cons/nil.
     r = adt_results["prop_always_empty"]
     assert not r.passed
     assert r.counterexample is not None
-    assert "cons" in r.counterexample[0].lower()
+    assert r.error is None
 
 
-def test_adt_counterexample_is_shrunk_to_minimum(adt_results):
-    # Constructor-based shrinking reduces any failing list to the minimal one: a
-    # single element (tail shrunk to nil) whose value is shrunk to 0.
-    r = adt_results["prop_always_empty"]
-    assert r.counterexample == ["List_cons 0 List_nil"]
+def test_adt_counterexample_is_shrunk_to_minimum(adt_driver):
+    # Test structural shrinking on a known constructor expression. Unrestricted
+    # generation can instead return a function call, which this shrinker does
+    # not promise to normalize into a constructor tree.
+    from aeon.core.terms import Application, Var
+    from aeon.synthesis.pbt.generators import build_adt_context
+    from aeon.synthesis.pbt.runner import (
+        _collect_constructors,
+        _collect_properties,
+        _eval_bool,
+        _render,
+        _replace_tail,
+        _top_level_values,
+    )
+    from aeon.synthesis.pbt.shrink import minimize
+
+    driver = adt_driver
+    spec = next(s for s in _collect_properties(driver.core, driver.metadata)[0] if s.name.name == "prop_always_empty")
+    term = next(value for name, value in _top_level_values(driver.core).items() if name.name == "shrink_input")
+    constructors = _collect_constructors(driver.core, driver.constructor_names)
+
+    def still_fails(terms):
+        call = Application(Var(spec.name), terms[0])
+        return _eval_bool(_replace_tail(driver.core, call), driver.evaluation_ctx, 5.0)[0] is False
+
+    minimized = minimize(
+        [term],
+        [spec.arg_specs[0][1]],
+        [True],
+        still_fails,
+        {b.name.name: b.type for b in constructors},
+        driver.constructor_names,
+        build_adt_context(driver.typing_ctx, constructors),
+    )
+    assert [_render(term) for term in minimized] == ["List_cons 0 List_nil"]
+
+
+@pytest.fixture(scope="module")
+def unrestricted_adt_driver():
+    driver = AeonDriver(
+        AeonConfig(synthesizer="enumerative", synthesis_ui=SynthesisUI(), synthesis_budget=10, no_main=False)
+    )
+    assert (
+        driver.parse(
+            aeon_code="""
+        inductive Box
+        | box (value:Int) : Box
+
+        def make_box (value:Int) : Box := .box value;
+        def sample_box : Box := make_box 7;
+
+        @property(40)
+        def prop_box (b:Box) : Bool := true;
+        """
+        )
+        == []
+    )
+    return driver
+
+
+def test_adt_generation_retains_full_context(unrestricted_adt_driver):
+    from aeon.synthesis.pbt.generators import build_adt_context
+    from aeon.synthesis.pbt.runner import _iter_top_level
+    from aeon.typechecking.context import VariableBinder
+
+    driver = unrestricted_adt_driver
+    binders = [VariableBinder(name, ty) for name, ty in _iter_top_level(driver.core)]
+    ctx = build_adt_context(driver.typing_ctx, binders)
+    assert all(entry in ctx.entries for entry in driver.typing_ctx.entries)
+    assert all(binder in ctx.entries for binder in binders)
+    assert ctx.trusted_names == driver.typing_ctx.trusted_names
+    assert len(driver.typing_ctx.entries) < len(ctx.entries)
+
+
+def test_adt_generation_uses_ordinary_functions_and_values(unrestricted_adt_driver):
+    from aeon.synthesis.pbt.generators import build_adt_context
+    from aeon.synthesis.pbt.runner import (
+        _collect_properties,
+        _generate_property_cases,
+        _iter_top_level,
+        _term_references,
+    )
+    from aeon.typechecking.context import VariableBinder
+
+    driver = unrestricted_adt_driver
+    binders = [VariableBinder(name, ty) for name, ty in _iter_top_level(driver.core)]
+    ctx = build_adt_context(driver.typing_ctx, binders)
+    spec = _collect_properties(driver.core, driver.metadata)[0][0]
+    cases = _generate_property_cases(spec, driver.typing_ctx, ctx, driver.metadata, seed=0)
+    references = {name.name for terms, _ in cases for term in terms for name in _term_references(term)}
+    assert "make_box" in references
+    assert "sample_box" in references
+    results = run_properties(
+        driver.typing_ctx,
+        driver.evaluation_ctx,
+        driver.core,
+        driver.metadata,
+        seed=0,
+        constructor_names=driver.constructor_names,
+    )
+    assert len(results) == 1
+    assert results[0].passed, results[0].summary()
+    assert results[0].trials == 40
