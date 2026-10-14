@@ -239,7 +239,7 @@ Demonstrative single-step backends: each applies its forward action exactly once
 
 Each returns the first complete candidate that typechecks, or otherwise the first expansion with fresh `?<fun>_goal_<i>` subgoal holes, so steps can be chained. No search is performed — use `tdsyn` for actual synthesis.
 
-When a function has several holes (e.g. the subgoals a previous step inserted), the LSP Synthesize action targets exactly the hole it was invoked on and leaves the siblings open. On the CLI, `random_search` and `gp` fill all program holes jointly; other per-hole backends target the first hole of each function. Fitness evaluation requires a fully filled program.
+When a function has several holes (e.g. the subgoals a previous step inserted), the LSP Synthesize action targets exactly the hole it was invoked on and leaves the siblings open. On the CLI, `random_search`, `gp`, `smt`, and `sygus` fill all program holes jointly; other per-hole backends target the first hole of each function. Fitness evaluation requires a fully filled program.
 
 ---
 
@@ -308,3 +308,33 @@ checks of synthesized assignments.
 For the catalogue of synthesis and verification benchmarks bundled with Aeon —
 where they live, how many there are, and how to run them — see
 [benchmarks.md](benchmarks.md).
+
+
+## Joint SMT and SyGuS synthesis
+
+For programs with multiple holes, `smt` and `sygus` solve all targets together.
+Each hole becomes an unknown function of the primitive values in its lexical
+scope. One query contains every hole contract, surrounding refinement,
+relational `@example`, and translatable `@property`. Properties are universal
+logical constraints in this path, rather than sampled fitness alone. The
+complete assignment must pass Aeon's whole-program validator before any
+fitness expression is executed.
+
+The joint solver subset is `Int`, `Bool`, and `Float` expressions and curried
+functions over those types, with native arithmetic and Boolean operators and
+acyclic pure helper definitions. String/ADT/array holes, opaque native
+properties, and unsupported predicates produce explicit synthesis failures.
+As with Aeon's refinement checker, `Float` is modeled as mathematical Real;
+the complete-program validation remains the acceptance gate.
+
+Joint SMT obtains all implementations from one Z3 model. Joint SyGuS declares
+all synthesis functions in one cvc5 query and retrieves their solutions
+together. SyGuS runs in a separate process with a wall-clock limit, including
+process startup, because native solver calls can exceed their internal limit.
+Unsatisfiable, unknown, timed-out, or untranslatable results never return a
+partial assignment.
+
+This joint path finds a feasible assignment and scores it once. It does not
+optimize arbitrary native fitness functions. Use `gp` or `random_search` for
+fitness-driven optimization. Single-hole SMT and SyGuS retain their existing
+implementations.

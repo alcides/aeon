@@ -522,6 +522,11 @@ def _synthesize_joint(
         for name in names
     )
 
+    from aeon.synthesis.solver_problem import ConstraintSynthesizer, build_solver_problem
+
+    if isinstance(synthesizer, ConstraintSynthesizer):
+        synthesis_metadata[joint_name]["solver_problem"] = build_solver_problem(ctx, prog, holes, metadata)
+
     # Bind only the static prefix before the earliest hole-bearing definition.
     # Unlike per-hole setup this never pre-evaluates another candidate element.
     anchor = targets[0][0]

@@ -21,7 +21,8 @@ from loguru import logger
 from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.solver_problem import ConstraintSynthesizer
 from aeon.synthesis.modules.sygus.solver import CVC5Unavailable, solve_with_cvc5
 from aeon.synthesis.modules.sygus.translation import build_sygus_problem, problem_to_sl
 from aeon.synthesis.uis.api import SynthesisUI
@@ -29,8 +30,20 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 
-class SygusSynthesizer(Synthesizer):
+class SygusSynthesizer(ConstraintSynthesizer):
     """Synthesize base-type holes (Int/Bool/Float) by reduction to SyGuS, solved by cvc5."""
+
+    def synthesize_joint(self, holes, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI()):
+        """Find a feasible assignment in one shared solver query, then score it."""
+        from aeon.synthesis.modules.sygus.solver import solve_joint_cvc5
+
+        started = time.monotonic()
+        candidate = solve_joint_cvc5(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)))
+        if not validate(candidate):
+            raise SynthesisNotSuccessful("Joint CVC5: complete assignment failed validation")
+        scores = evaluate(candidate) if metadata[fun_name].get("goals") else []
+        ui.register(candidate, scores, time.monotonic() - started, True)
+        return candidate
 
     def synthesize(
         self,

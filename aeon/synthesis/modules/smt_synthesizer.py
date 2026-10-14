@@ -46,7 +46,8 @@ from aeon.core.types import (
     t_int,
 )
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.solver_problem import ConstraintSynthesizer
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
@@ -359,7 +360,7 @@ def _try_instantiate_poly(var_ty: TypePolymorphism, target_base: TypeConstructor
 # ---------------------------------------------------------------------------
 
 
-class SMTSynthesizer(Synthesizer):
+class SMTSynthesizer(ConstraintSynthesizer):
     """Synthesizer that uses z3 to find concrete values for SMT-typed holes.
 
     For non-SMT types (e.g. Board, Coordinate), it looks in the typing context
@@ -368,6 +369,18 @@ class SMTSynthesizer(Synthesizer):
 
     def __init__(self, max_depth: int = 5) -> None:
         self.max_depth = max_depth
+
+    def synthesize_joint(self, holes, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI()):
+        """Find a feasible assignment in one shared solver query, then score it."""
+        from aeon.synthesis.solver_z3 import solve_joint_z3
+
+        started = time.monotonic()
+        candidate = solve_joint_z3(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)))
+        if not validate(candidate):
+            raise SynthesisNotSuccessful("Joint Z3: complete assignment failed validation")
+        scores = evaluate(candidate) if metadata[fun_name].get("goals") else []
+        ui.register(candidate, scores, time.monotonic() - started, True)
+        return candidate
 
     def synthesize(
         self,
