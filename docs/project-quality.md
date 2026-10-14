@@ -125,6 +125,16 @@ Liquid substitution also uses a fresh memo per call to retain shared refinement
 subterms. This avoids expanding a small expression DAG into an exponential
 tree, without caching results across replacements or compiler sessions.
 
+Core typing contexts extend lexical scopes using shared, immutable chunks of
+32 entries instead of copying every outer binder on each extension. Their
+mutable-sequence interface materializes a private list on structural mutation,
+so changing a parent or sibling's entries does not alter an existing scope.
+Binder objects themselves remain shared, matching the former shallow-list-copy
+semantics: declaration updates stay visible. Hypothesis tests compare branching
+scope mutations against independent lists; a structural regression checks that
+scope extensions actually reuse complete chunks, without a machine-dependent
+timing assertion.
+
 ## Hypothesis invariants
 
 The generated suite checks beta-substitution/evaluation, free-variable

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
+from itertools import chain
+from operator import index as integer_index
 from typing import Iterable, MutableSequence, SupportsIndex
 
 from aeon.core.liquid import LiquidTerm
@@ -161,6 +163,112 @@ class _ContextEntries(list[TypingContextEntry]):
         return self
 
 
+class _ContextSnapshot(MutableSequence[TypingContextEntry]):
+    """Chunked, copy-on-write entries for cheap lexical scope extension.
+
+    Chunks contain the original binder objects, just as copying a list does.
+    Structural mutations materialize a private list; already derived contexts
+    keep their snapshots. No context or mutable declaration is globally cached.
+    """
+
+    _CHUNK_SIZE = 32
+
+    def __init__(
+        self,
+        blocks: tuple[tuple[TypingContextEntry, ...], ...],
+        tail: tuple[TypingContextEntry, ...],
+        constructors: tuple[TypeConstructorBinder, ...],
+    ) -> None:
+        self._blocks: tuple[tuple[TypingContextEntry, ...], ...] = blocks
+        self._tail: tuple[TypingContextEntry, ...] = tail
+        self._constructors: tuple[TypeConstructorBinder, ...] = constructors
+        self._mutable: _ContextEntries | None = None
+
+    @classmethod
+    def extend_scope(
+        cls,
+        entries: MutableSequence[TypingContextEntry],
+        binder: TypingContextEntry,
+        constructors: tuple[TypeConstructorBinder, ...],
+    ) -> _ContextSnapshot:
+        if isinstance(entries, cls):
+            entries._freeze()
+            blocks, tail = entries._blocks, entries._tail
+        else:
+            values = tuple(entries)
+            boundary = len(values) // cls._CHUNK_SIZE * cls._CHUNK_SIZE
+            blocks = tuple(values[i : i + cls._CHUNK_SIZE] for i in range(0, boundary, cls._CHUNK_SIZE))
+            tail = values[boundary:]
+        tail = (*tail, binder)
+        if len(tail) == cls._CHUNK_SIZE:
+            blocks, tail = (*blocks, tail), ()
+        return cls(blocks, tail, constructors)
+
+    def _freeze(self) -> None:
+        if self._mutable is not None:
+            values = tuple(self._mutable)
+            boundary = len(values) // self._CHUNK_SIZE * self._CHUNK_SIZE
+            self._blocks = tuple(values[i : i + self._CHUNK_SIZE] for i in range(0, boundary, self._CHUNK_SIZE))
+            self._tail = values[boundary:]
+            self._constructors = self._mutable.constructors()
+            self._mutable = None
+
+    def _writable(self) -> _ContextEntries:
+        if self._mutable is None:
+            self._mutable = _ContextEntries(self, self._constructors)
+        return self._mutable
+
+    def constructors(self) -> tuple[TypeConstructorBinder, ...]:
+        return self._mutable.constructors() if self._mutable is not None else self._constructors
+
+    def __len__(self):
+        if self._mutable is not None:
+            return len(self._mutable)
+        return len(self._blocks) * self._CHUNK_SIZE + len(self._tail)
+
+    def __iter__(self):
+        if self._mutable is not None:
+            return iter(self._mutable)
+        return chain(chain.from_iterable(self._blocks), self._tail)
+
+    def __getitem__(self, index):
+        if self._mutable is not None:
+            return self._mutable[index]
+        if isinstance(index, slice):
+            return list(self)[index]
+        index = integer_index(index)
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError("context entry index out of range")
+        block, offset = divmod(index, self._CHUNK_SIZE)
+        return self._tail[offset] if block == len(self._blocks) else self._blocks[block][offset]
+
+    def __setitem__(self, index, value):
+        self._writable()[index] = value
+
+    def __delitem__(self, index):
+        del self._writable()[index]
+
+    def insert(self, index, value):
+        self._writable().insert(index, value)
+
+    def reverse(self):
+        self._writable().reverse()
+
+    def sort(self, *args, **kwargs):
+        self._writable().sort(*args, **kwargs)
+
+    def __imul__(self, count: SupportsIndex):
+        self._writable().__imul__(count)
+        return self
+
+    def __eq__(self, other):
+        if not isinstance(other, (list, _ContextSnapshot)):
+            return NotImplemented
+        return list(self) == list(other)
+
+
 @dataclass
 class TypingContext:
     entries: MutableSequence[TypingContextEntry] = field(default_factory=list)
@@ -184,7 +292,7 @@ class TypingContext:
     def with_var(self, name: Name, type: Type) -> TypingContext:
         """Extend with a variable binder; shares trust set and skips builtin re-scan."""
         return TypingContext(
-            _ContextEntries([*self.entries, VariableBinder(name, type)], self._constructor_entries()),
+            _ContextSnapshot.extend_scope(self.entries, VariableBinder(name, type), self._constructor_entries()),
             trusted_names=self.trusted_names,
             _ensure_builtins=False,
         )
@@ -192,7 +300,7 @@ class TypingContext:
     def with_typevar(self, name: Name, kind: Kind) -> TypingContext:
         """Extend with a type variable; shares trust set and skips builtin re-scan."""
         return TypingContext(
-            _ContextEntries([*self.entries, TypeBinder(name, kind)], self._constructor_entries()),
+            _ContextSnapshot.extend_scope(self.entries, TypeBinder(name, kind), self._constructor_entries()),
             trusted_names=self.trusted_names,
             _ensure_builtins=False,
         )
@@ -264,7 +372,7 @@ class TypingContext:
         return name in [e.name for e in self.entries if isinstance(e, UninterpretedBinder)]
 
     def _constructor_entries(self) -> tuple[TypeConstructorBinder, ...]:
-        if isinstance(self.entries, _ContextEntries):
+        if isinstance(self.entries, (_ContextEntries, _ContextSnapshot)):
             return self.entries.constructors()
         return tuple(e for e in self.entries if isinstance(e, TypeConstructorBinder))
 
