@@ -44,9 +44,10 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
+from aeon.core.substitutions import substitution
 from aeon.core.terms import (
-    Annotation,
     Abstraction,
+    Annotation,
     Application,
     Hole,
     If,
@@ -512,6 +513,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return self._eval_const(t.name)
 
         if isinstance(t, Application):
+            # Inline array thunks without evaluating their unused Unit argument.
+            # Keep the general closure/ADT application path for other calls.
+            function = t.fun
+            seen = visited
+            if isinstance(function, Var) and function.name not in visited:
+                seen = visited | {function.name}
+                function = self._def_bodies.get(function.name, function)
+            if isinstance(function, Abstraction):
+                return self._translate(substitution(function.body, t.arg, function.var_name), env, seen)
             return self._apply(self._translate(t.fun, env, visited), self._translate(t.arg, env, visited), visited)
 
         raise _Unsupported(type(t).__name__)
