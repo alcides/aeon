@@ -1,4 +1,5 @@
-import PSB2 (extract_train_data, load_dataset, calculate_basement_errors , objective_errors)
+import PSB2Fitness (per_example_errors)
+import PSB2 (extract_train_data, load_dataset, calculate_basement_errors)
 
 import Array
 def List_size: (1 l:(Array Int)) -> Int := uninterpreted
@@ -12,5 +13,5 @@ def List_get (1 l:(Array Int)) (i: Int) : Int := native "l[i]"
 def train: TrainData := extract_train_data (load_dataset "basement" 200 200)
 
 @allow_recursion
-@multi_minimize_float(objective_errors (calculate_basement_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_basement_errors train synth), 200)
 def synth (1 nums: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_basement_errors := unit in ?hole)

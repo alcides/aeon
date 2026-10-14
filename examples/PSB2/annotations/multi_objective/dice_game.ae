@@ -1,4 +1,5 @@
-import PSB2 (extract_train_data, load_dataset , objective_errors)
+import PSB2Fitness (per_example_errors)
+import PSB2 (extract_train_data, load_dataset)
 import Array
 def math : Unit := native_import "math"
 def Math_toFloat : (i:Int) -> Float := fun i => native "float(i)"
@@ -11,5 +12,5 @@ def train: TrainData := extract_train_data (load_dataset "dice-game" 200 200)
 
 def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]"
 
-@multi_minimize_float(objective_errors (calculate_dice_game_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_dice_game_errors train synth), 200)
 def synth (n:Int) (m: Int) : Float := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_dice_game_errors := unit in ?hole)

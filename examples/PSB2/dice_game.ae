@@ -17,11 +17,11 @@ def mult (n:Int) (m:Int ) : Int := n * m
 
 def peter_wins: ( n:Int ) -> ( m:Int ) -> Int := fun n => fun m => if m = 0 then 0 else (Math.max 0 (n - m)) + peter_wins n (m - 1);
 
-def dice_game ( n : {x:Int | 1 <= x && x <= 10000}) (m : {y:Int | 1 <= y && y <= 10000}) : Float :=
-    let rolls := Math.toFloat (mult n m) in
-    if rolls > 0.0 then Math.toFloat (peter_wins n m) / rolls else 0.0;
+def dice_game ( n : {x:Int | 1 <= x && x <= 10000}) (m : {y:Int | 1 <= y && y <= 10000}) : Float := let denominator := Math.toFloat (mult n m) in if denominator = 0.0 then 0.0 else Math.toFloat (peter_wins n m) / denominator;
 
 def synth ( n : {a:Int | 1 <= a && a <= 10000}) (m : {b:Int | 1 <= b && b <= 10000}) : Float := ?hole;
+
+def mean_square_error (1 actual: (Array Int)) (1 expected: (Array Int)) : Float := native "float(__import__('numpy').mean((__import__('numpy').array(actual) - __import__('numpy').array(expected)) ** 2))";
 
 def fitness : Float :=
     let 1 ds := load_dataset "dice-game" 200 200;
@@ -30,5 +30,5 @@ def fitness : Float :=
     let 1 input_list := get_input_list unpacked_data;
     let 1 expected_values := get_output_list unpacked_data;
     let 1 actual_values : (Array Int) := native "[synth(x)(y) for x, y in input_list]";
-    mse := native "float(__import__(\'numpy\').mean((__import__(\'numpy\').array(actual_values) - __import__(\'numpy\').array(expected_values)) ** 2))";
+    mse := mean_square_error actual_values expected_values;
     mse;

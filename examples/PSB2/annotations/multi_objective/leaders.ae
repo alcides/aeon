@@ -1,4 +1,5 @@
-import PSB2 (extract_train_data, load_dataset , objective_errors)
+import PSB2Fitness (per_example_errors_50)
+import PSB2 (extract_train_data, load_dataset)
 import Array
 def itertools : Unit := native_import "itertools"
 
@@ -19,5 +20,5 @@ def train: TrainData := extract_train_data (load_dataset "leaders" 50 50)
 def calculate_leaders_errors : (train : TrainData) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]"
 
 
-@multi_minimize_float(objective_errors (calculate_leaders_errors train synth) 50, 50)
+@multi_minimize_float(per_example_errors_50 (calculate_leaders_errors train synth), 50)
 def synth ( 1 vector : (Array Int) ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_leaders_errors := unit in let train := unit in ?hole)

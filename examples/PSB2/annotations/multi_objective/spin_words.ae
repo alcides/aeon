@@ -1,4 +1,5 @@
-import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_str_list_errors, get_sw_synth_values, unpack_train_data, load_dataset , objective_errors)
+import PSB2Fitness (per_example_errors)
+import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_str_list_errors, get_sw_synth_values, unpack_train_data, load_dataset)
 import Array
 def String_len : (i:String) -> Int := fun i => native "len(i)"
 def String_list_to_String : (1 l:(Array Int)) -> String := fun l => native "' '.join(l)"
@@ -10,5 +11,5 @@ def train: TrainData := extract_train_data (load_dataset "spin-words" 200 200)
 
 def calculate_spin_words_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
 
-@multi_minimize_float(objective_errors (calculate_spin_words_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_spin_words_errors train synth), 200)
 def synth (phrase: String) : String := (let extract_train_data := unit in let unpack_train_data := unit in let load_dataset := unit in let calculate_spin_words_errors := unit in let train := unit in ?hole)
