@@ -1,0 +1,10 @@
+# Fitness adapter for PSB2 programs requesting 200 training examples.
+# Keep one objective per example; convert integer/float errors consistently.
+import Array
+
+def per_example_errors (1 values: (Array a)) : {errors: (Array Float) | Array.size errors = 200} :=
+    native "([float(error) for error in values] if len(values) == 200 else (_ for _ in ()).throw(ValueError('PSB2 fitness requires 200 per-example errors')))";
+
+# Leaders requests 50 training examples instead of the suite's usual 200.
+def per_example_errors_50 (1 values: (Array a)) : {errors: (Array Float) | Array.size errors = 50} :=
+    native "([float(error) for error in values] if len(values) == 50 else (_ for _ in ()).throw(ValueError('PSB2 fitness requires 50 per-example errors')))";

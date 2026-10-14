@@ -1,4 +1,5 @@
-import PSB2 (extract_train_data, load_dataset, get_input_list, get_output_list, unpack_train_data , objective_errors)
+import PSB2Fitness (per_example_errors)
+import PSB2 (extract_train_data, load_dataset, get_input_list, get_output_list, unpack_train_data)
 
 import Array
 def itertools : Unit := native_import "itertools"
@@ -26,5 +27,5 @@ def flatten_list : (1 t:(Array Int)) -> (Array Int) := fun l => native "__import
 def calculate_find_pair_errors : (train : TrainData) -> (f:(1 a: (Array Int)) -> (b:Int) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)) )(func(input_value[0])(input_value[1]), correct_output) for input_value, correct_output in data ]"
 
 
-@multi_minimize_float(objective_errors (calculate_find_pair_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_find_pair_errors train synth), 200)
 def synth (1 numbers: (Array Int)) (target: Int) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_find_pair_errors := unit in let train := unit in ?hole)

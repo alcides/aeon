@@ -1,3 +1,4 @@
+import PSB2Fitness (per_example_errors)
 import Array
 open Math
 import PSB2 (extract_train_data, load_dataset , objective_errors)
@@ -8,5 +9,5 @@ def train: TrainData := extract_train_data (load_dataset "snow-day" 200 200)
 def calculate_snow_day_errors : (train : TrainData) -> (f:(a: Int) -> (b: Float) -> (c: Float) -> (d: Float) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0])(x[1])(x[2])(x[3]) - y[0]) for x , y in data]"
 
 
-@multi_minimize_float(objective_errors (calculate_snow_day_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_snow_day_errors train synth), 200)
 def synth ( n :Int) (m :Float) (t :Float) (p :Float) : Float := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_snow_day_errors := unit in ?hole)

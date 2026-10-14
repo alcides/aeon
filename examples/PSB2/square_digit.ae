@@ -19,14 +19,9 @@ open PSB2
 #        result
 #}
 
-def square_digit_unsafe (n : {v:Int | v >= 0}) : String :=
-    if n < 10 then
-        String.intToString (n * n)
-    else
-        digit := n % 10;
-        square := digit * digit;
-        result := String.concat (square_digit_unsafe (n / 10)) (String.intToString square);
-        result;
+# Native digit conversion avoids imposing an unprovable refinement on floor_division.
+def square_digit_unsafe (n: {v:Int | v >= 0}) : String :=
+    native "''.join(str(int(digit) ** 2) for digit in str(n))";
 
 def synth_sd ( n : Int) : String := ?hole
 

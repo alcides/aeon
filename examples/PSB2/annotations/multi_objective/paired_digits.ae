@@ -1,4 +1,5 @@
-import PSB2 (extract_train_data, load_dataset , objective_errors)
+import PSB2Fitness (per_example_errors)
+import PSB2 (extract_train_data, load_dataset)
 import Array
 def get_fst: (l:String) -> String := fun xs => native "xs[0]"
 def get_snd: (l:String) -> String := fun xs => native "xs[1]"
@@ -22,5 +23,5 @@ def train: TrainData := extract_train_data (load_dataset "paired-digits" 200 200
 def calculate_paired_digits_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
-@multi_minimize_float(objective_errors (calculate_paired_digits_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_paired_digits_errors train synth), 200)
 def synth (nums: String) : Int := (let extract_train_data := unit in let load_dataset := unit in let calculate_paired_digits_errors := unit in let train := unit in ?hole)

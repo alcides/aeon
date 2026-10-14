@@ -1,4 +1,4 @@
-import Array
+import PSB2Fitness (per_example_errors)
 # Snow Day (HW): Given an integer number of hours and 3 floats
 # representing the snow currently on the ground, the rate of
 # snowfall, and the proportion of snow melting per hour, return
@@ -10,8 +10,8 @@ import Array
 #          float   in [0.0, 1.0]
 # output : float
 
-import PSB2 (extract_train_data, load_dataset, objective_errors)
-open Array
+import PSB2 (extract_train_data, load_dataset)
+import Array
 
 def train : TrainData := extract_train_data (load_dataset "snow-day" 200 200)
 
@@ -19,10 +19,10 @@ def calculate_snow_day_errors : (train: TrainData) -> (f: (a: {x:Int   |  0   <=
                                                        -> (b: {y:Float |  0.0 <= y && y <= 20.0})
                                                        -> (c: {z:Float |  0.0 <= z && z <= 10.0})
                                                        -> (d: {w:Float |  0.0 <= w && w <= 1.0})
-                                                       -> Float) -> (Array Float) :=
+						       -> Float) -> (Array Float) :=
     fun data => fun func => native "[abs(func(x[0][0])(x[0][1])(x[0][2])(x[0][3]) - x[1][0]) for x in data]"
 
-@multi_minimize_float(objective_errors (calculate_snow_day_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_snow_day_errors train synth), 200)
 def synth (n : {x:Int   |  0   <= x && x <= 20})
           (m : {a:Float |  0.0 <= a && a <= 20.0})
           (t : {b:Float |  0.0 <= b && b <= 10.0})

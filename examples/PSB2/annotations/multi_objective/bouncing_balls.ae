@@ -1,3 +1,4 @@
+import PSB2Fitness (per_example_errors)
 open Math
 
 import PSB2 (extract_train_data, load_dataset , objective_errors)
@@ -9,6 +10,6 @@ def isZero : (n: Int) -> Bool := fun n => n = 0;
 
 def train: TrainData := extract_train_data (load_dataset "bouncing-balls" 200 200)
 
-@multi_minimize_float(objective_errors (calculate_bouncing_balls_errors train synth) 200, 200)
+@multi_minimize_float(per_example_errors (calculate_bouncing_balls_errors train synth), 200)
 def synth (a:Float) (b:Float) (c:Int) : Float
     := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_bouncing_balls_errors := unit in ?hole);
