@@ -338,3 +338,9 @@ This joint path finds a feasible assignment and scores it once. It does not
 optimize arbitrary native fitness functions. Use `gp` or `random_search` for
 fitness-driven optimization. Single-hole SMT and SyGuS retain their existing
 implementations.
+
+The CLI reports synthesis success only when all program holes are filled.
+Budget exhaustion, an empty or partial result, or an escaping synthesis/evaluation
+timeout returns exit code `2` (`SYNTHESIS_NOT_SUCCESSFUL`). Complete results
+still exit successfully even if optimization consumed its entire budget.
+A process killed by an external watchdog remains an external timeout.
