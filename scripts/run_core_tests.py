@@ -7,6 +7,7 @@ import pytest
 CORE_TESTS = [
     "tests/core_properties_test.py",
     "tests/context_snapshot_test.py",
+    "tests/parser_locations_test.py",
     "tests/compilation_session_test.py",
     "tests/compilation_unit_test.py",
     "tests/backend_test.py",

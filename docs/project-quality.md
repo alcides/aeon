@@ -135,6 +135,13 @@ scope mutations against independent lists; a structural regression checks that
 scope extensions actually reuse complete chunks, without a machine-dependent
 timing assertion.
 
+The surface grammar inlines identity precedence rules, avoiding intermediate
+parse-tree nodes that would immediately be discarded. Parenthesized expression
+spans and operator grouping remain covered by the core gate. Enumerative search
+also checks its time budget between partial-tree expansions: waiting for the
+next complete candidate must not leave the candidate consumer unable to stop
+the search. Individual expansion and validation operations remain cooperative.
+
 ## Hypothesis invariants
 
 The generated suite checks beta-substitution/evaluation, free-variable

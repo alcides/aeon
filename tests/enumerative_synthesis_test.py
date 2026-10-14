@@ -1,5 +1,7 @@
 """Semantics specific to grammar-enumerative synthesis."""
 
+import pytest
+
 from aeon.core.terms import Literal
 from aeon.core.types import t_int
 from aeon.synthesis.decorators import Goal
@@ -18,6 +20,29 @@ def _install_candidates(monkeypatch, candidates):
 
 def test_factory_uses_native_enumerator():
     assert isinstance(make_synthesizer("enumerative"), EnumerativeSynthesizer)
+
+
+@pytest.mark.parametrize("has_candidate", [False, True])
+def test_budget_expires_while_expanding_without_new_candidates(monkeypatch, has_candidate):
+    now = 0.0
+    expansions = 0
+    candidate = Literal(0, t_int)
+    monkeypatch.setattr(enumerative, "monotonic", lambda: now)
+    monkeypatch.setattr(
+        enumerative, "literal_completions", lambda _: [candidate] if has_candidate and expansions == 0 else []
+    )
+
+    def expand(partial, *_args):
+        nonlocal now, expansions
+        expansions += 1
+        assert expansions <= 2, "the consumer cannot enforce a budget while next() is still expanding"
+        now += 0.6
+        return [partial]
+
+    monkeypatch.setattr(enumerative, "expansions_for_hole", expand)
+    result = list(enumerative.iter_candidates(TypingContext(), t_int, Name("f"), {}, budget=1))
+    assert result == ([candidate] if has_candidate else [])
+    assert expansions == 2
 
 
 def test_pareto_helpers_respect_mixed_objective_directions():
