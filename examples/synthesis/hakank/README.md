@@ -152,6 +152,15 @@ mathematical goals. Euler 1 computes its summation recursively in Aeon and
 synthesizes the resulting answer. Large generated models group their refined
 holes into balanced `DecisionTree` values; each hole retains its own type and
 domain, and constant indices select fields through pure pattern matching.
+Long `Vec` sequences are emitted in 32-element chunks, retaining their exact
+order while avoiding thousands of top-level tail definitions. The migration
+utility `scripts/compact_hakank_sequences.py` updates older generated spines;
+it does not change decision holes, domains, objectives or hard constraints.
+The generator also shares frequently repeated immutable decision projections
+as scalar Aeon definitions (at most 128 per model). Existing ports can be
+updated with `scripts/compact_hakank_decisions.py`; expansion recovers the same
+constraints and decisions. CI uses bounded source-size-aware compilation
+budgets for these large finite instances, without running synthesis search.
 
 For Python reference models, the authoring exporter requires CPMpy 1.1.0,
 minizinc-python 0.10.0, and NumPy 2.5.4 in the interpreter passed via

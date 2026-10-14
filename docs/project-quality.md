@@ -25,8 +25,11 @@ The Python application workflow is also the reusable release gate:
   clean environment, then verify packaged grammars, standard-library imports,
   and execution in an isolated process outside the checkout.
 - **Examples:** every `.ae` file under `examples/` is discovered recursively
-  and assigned to exactly one of eight deterministic shards on Python 3.13.
-  Each shard uses two isolated CLI workers, with a 120-second per-file timeout.
+  and assigned to exactly one of sixteen deterministic shards on Python 3.13.
+  Each shard uses two isolated CLI workers. Compilation gets a 120-second base
+  budget plus 120 seconds per source MiB, capped at 600 seconds per file: the
+  published generated catalogue includes multi-megabyte finite models. Every
+  actual deadline is recorded in the results; timeouts still fail the gate.
   `--check --no-main` parses, elaborates and verifies refinements, allowing
   synthesis holes without running synthesis, fitness functions,
   LLVM compilation or program evaluation. This includes nested benchmark
@@ -63,7 +66,7 @@ Run the expanded example gate locally (or inspect its coverage without running):
 ```bash
 bash run_examples.sh --jobs 2
 bash run_examples.sh --list
-bash run_examples.sh --shard 0 --shards 8
+bash run_examples.sh --shard 0 --shards 16 --timeout-per-mib 120 --max-timeout 600
 bash run_examples.sh --failures-from example-results/results.json
 uv run python -m aeon --check examples/synthesis/dace/pbe/col_offset.ae
 ```
@@ -121,6 +124,23 @@ creating annotated local helpers repeatedly under runtime instrumentation.
 Liquid substitution also uses a fresh memo per call to retain shared refinement
 subterms. This avoids expanding a small expression DAG into an exponential
 tree, without caching results across replacements or compiler sessions.
+
+Core typing contexts extend lexical scopes using shared, immutable chunks of
+32 entries instead of copying every outer binder on each extension. Their
+mutable-sequence interface materializes a private list on structural mutation,
+so changing a parent or sibling's entries does not alter an existing scope.
+Binder objects themselves remain shared, matching the former shallow-list-copy
+semantics: declaration updates stay visible. Hypothesis tests compare branching
+scope mutations against independent lists; a structural regression checks that
+scope extensions actually reuse complete chunks, without a machine-dependent
+timing assertion.
+
+The surface grammar inlines identity precedence rules, avoiding intermediate
+parse-tree nodes that would immediately be discarded. Parenthesized expression
+spans and operator grouping remain covered by the core gate. Enumerative search
+also checks its time budget between partial-tree expansions: waiting for the
+next complete candidate must not leave the candidate consumer unable to stop
+the search. Individual expansion and validation operations remain cooperative.
 
 ## Hypothesis invariants
 

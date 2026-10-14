@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Callable, Iterator
+from time import monotonic
 
 from aeon.core.terms import Term
 from aeon.core.types import Type
@@ -35,6 +36,8 @@ def iter_candidates(
     fun_name: Name,
     metadata: Metadata,
     max_depth: int = MAX_DEPTH,
+    *,
+    budget: float | None = None,
 ) -> Iterator[Term]:
     """Yield complete core terms breadth-first from Aeon's grammar actions.
 
@@ -45,6 +48,7 @@ def iter_candidates(
     worklist: deque[PartialAST] = deque([initial_partial(ctx, target)])
     skip = make_skip(fun_name, metadata)
     yielded: set[Term] = set()
+    deadline = None if budget is None else monotonic() + max(0.0, budget)
 
     def emit(term: Term) -> Iterator[Term]:
         if term not in yielded:
@@ -52,6 +56,11 @@ def iter_candidates(
             yield term
 
     while worklist:
+        # A long stretch of partial trees may yield no candidate at all. The
+        # consumer cannot enforce its budget until next() returns, so enforce
+        # it here too. Still permit the first candidate for a zero budget.
+        if deadline is not None and (yielded or (budget is not None and budget > 0)) and monotonic() >= deadline:
+            return
         partial = worklist.popleft()
         if partial.is_complete():
             yield from emit(partial.term)
@@ -98,7 +107,7 @@ class EnumerativeSynthesizer(Synthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
         return drive_candidates(
-            iter_candidates(ctx, type, fun_name, metadata),
+            iter_candidates(ctx, type, fun_name, metadata, budget=budget),
             validate,
             evaluate,
             fun_name,

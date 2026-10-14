@@ -120,7 +120,9 @@ def lower_abstraction_type(ty: Type) -> list[TypeConstructor | TypeVar]:
                 assert False, f"Unknown type {ty} when lowering to liquid"
 
 
-def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
+def lower_context(
+    ctx: TypingContext, needed: set[Name] | None = None, bound: tuple[Name, Type] | None = None
+) -> LiquidTypeCheckingContext:
     known_types: list[Name] = list(native_types)
     variables: dict[Name, TypeConstructor | TypeVar] = {}
     functions = {}
@@ -131,6 +133,8 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
         recursively as if it were its own ``VariableBinder``, then the bare
         body is handled. This mirrors what ``wellformed`` does and lets
         refinements over Form B existentials reach the SMT context."""
+        if needed is not None and name not in needed and not isinstance(ty, ExistentialType):
+            return
         match ty:
             case ExistentialType(binders, body):
                 for bn, bt in binders:
@@ -151,10 +155,25 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
             case _:
                 assert False, f"Unsupported variable binder type {ty} ({type(ty)})"
 
-    for entry in ctx.entries[::-1]:
+    if needed is not None:
+        resolved: dict[Name, Type] = {}
+        for name in needed:
+            ty = bound[1] if bound is not None and name == bound[0] else ctx.type_of(name)
+            if ty is None or isinstance(ty, ExistentialType):
+                # A name may live inside another variable's existential type.
+                # Preserve the full structural expansion for that case.
+                break
+            resolved[name] = ty
+        else:
+            for name, ty in resolved.items():
+                add_variable(name, ty)
+            return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
+
+    for entry in reversed(ctx.entries):
         match entry:
             case VariableBinder(name, ty):
-                add_variable(name, ty)
+                if needed is None or name in needed or isinstance(ty, ExistentialType):
+                    add_variable(name, ty)
             case TypeBinder(name, _):
                 known_types.append(name)
             case UninterpretedBinder(
@@ -164,12 +183,15 @@ def lower_context(ctx: TypingContext) -> LiquidTypeCheckingContext:
                 # ``lower_abstraction_type`` already recurses through
                 # ``TypePolymorphism`` / ``RefinementPolymorphism`` to the
                 # underlying ``AbstractionType``.
-                functions[name] = lower_abstraction_type(ty)
+                if needed is None or name in needed:
+                    functions[name] = lower_abstraction_type(ty)
             case TypeConstructorBinder(_, _):
                 pass
             case _:
                 assert False, f"Unknown context type {entry} ({type(entry)})"
 
+    if bound is not None:
+        add_variable(*bound)
     return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
 
 
@@ -351,7 +373,20 @@ def check_liquid(
 def typecheck_liquid(
     ctx: TypingContext,
     liq: LiquidTerm,
+    bound: tuple[Name, Type] | None = None,
 ) -> Type | None:
     assert isinstance(ctx, TypingContext)
-    v = type_infer_liquid(lower_context(ctx), liq)
+    # Infer only the symbols actually present in this predicate. Lowering every
+    # imported helper signature for every annotation dominates large models.
+    needed: set[Name] = set()
+    pending = [liq]
+    while pending:
+        term = pending.pop()
+        if isinstance(term, LiquidVar):
+            needed.add(term.name)
+        elif isinstance(term, LiquidApp):
+            needed.add(term.fun)
+            pending.extend(term.args)
+    liquid_ctx = lower_context(ctx, needed, bound) if needed else LiquidTypeCheckingContext([], {}, {})
+    v = type_infer_liquid(liquid_ctx, liq)
     return v

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 from itertools import combinations
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +41,37 @@ def disjunction(terms):
 
 def indicator(condition):
     return f"(if {condition} then 1 else 0)"
+
+
+def share_decision_accesses(source: str, max_aliases: int = 128, min_uses: int = 8) -> str:
+    """Share highly repeated pure projections without changing any decisions."""
+    marker = "# Shared repeated immutable decision projections."
+    if marker in source:
+        return source
+    access = re.compile(r"\(DecisionTree\.(intAt|boolAt|floatAt) (\d+) decisions(Int|Bool|Float)\)")
+    counts = Counter(match[0] for match in access.finditer(source))
+    selected = sorted(
+        (text for text, count in counts.items() if count >= min_uses), key=lambda text: (-counts[text], text)
+    )[:max_aliases]
+    if not selected:
+        return source
+    aliases = {}
+    definitions = []
+    declared = set(re.findall(r"\bdef\s+([\w.]+)", source))
+    for text in selected:
+        match = access.fullmatch(text)
+        assert match is not None
+        method, index, kind = match.groups()
+        name = f"_shared_decision_{method}_{index}"
+        if name in declared:
+            raise ValueError(f"Decision projection alias already declared: {name}")
+        aliases[text] = name
+        definitions.append(f"def {name} : {kind} := {text};")
+    updated = access.sub(lambda match: aliases.get(match[0], match[0]), source)
+    lines = updated.splitlines()
+    position = max(i for i, line in enumerate(lines) if line.startswith("def decisions")) + 1
+    lines[position:position] = ["", marker, *definitions]
+    return "\n".join(lines) + "\n"
 
 
 class Model:
@@ -140,9 +172,12 @@ class Model:
                 lines.append(f"def sequence{index}_tail0 : (Vec {kind}) := {expression};")
                 continue
             tail = "Vec.nil"
-            for position in reversed(range(len(values))):
+            for position in reversed(range(0, len(values), 32)):
+                expression = tail
+                for value in reversed(values[position : position + 32]):
+                    expression = f"Vec.cons ({value}) ({expression})"
                 name = f"sequence{index}_tail{position}"
-                lines.append(f"def {name} : (Vec {kind}) := Vec.cons ({values[position]}) ({tail});")
+                lines.append(f"def {name} : (Vec {kind}) := {expression};")
                 tail = name
         lines += ["", "# Complete finite-instance constraints; Bool annotations keep verification local."]
         if self.compact:
@@ -170,7 +205,7 @@ class Model:
         if replacements:
             names = "|".join(map(re.escape, replacements))
             rendered = re.sub(r"\b(?:" + names + r")\b", lambda match: replacements[match[0]], rendered)
-        return rendered
+        return share_decision_accesses(rendered)
 
 
 def models():

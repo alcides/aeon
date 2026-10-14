@@ -736,12 +736,15 @@ def flatten(
     c: Constraint,
     ctx: SMTContext | None = None,
     _trivial_memo: dict[int, tuple[Constraint, bool]] | None = None,
+    _bound_names: set[str] | None = None,
 ) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
         ctx = SMTContext(["Top"], {}, {}, [], {})
     if _trivial_memo is None:
         _trivial_memo = {}
+    if _bound_names is None:
+        _bound_names = set(ctx.variables) | set(ctx.functions)
     if _trivial_constraint(c, _trivial_memo):
         return
     match c:
@@ -762,17 +765,21 @@ def flatten(
             out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
             yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
         case Conjunction(c1, c2):
-            yield from flatten(c1, ctx, _trivial_memo)
-            yield from flatten(c2, ctx, _trivial_memo)
+            yield from flatten(c1, ctx, _trivial_memo, _bound_names)
+            yield from flatten(c2, ctx, _trivial_memo, _bound_names)
         case Implication(oname, base, pred, seq):
             # Bound core names already carry unique IDs. Alpha-rename only
-            # when this scope would actually shadow an existing SMT symbol;
+            # when this scope would shadow an existing symbol or reuse a
+            # sibling's binder (translation memos span sibling obligations);
             # renaming the entire remaining spine at every binder is quadratic.
             name = oname
-            if str(oname) in ctx.variables or str(oname) in ctx.functions:
+            if str(oname) in _bound_names or str(oname) in ctx.variables or str(oname) in ctx.functions:
                 name = Name(oname.name, fresh_counter.fresh())
+                while str(name) in _bound_names or str(name) in ctx.variables or str(name) in ctx.functions:
+                    name = Name(oname.name, fresh_counter.fresh())
                 pred = substitution_in_liquid(pred, LiquidVar(name), oname)
                 seq = rename_constraint(seq, oname, name)
+            _bound_names.add(str(name))
             match base:
                 case TypeVar(iname):
                     base = TypeConstructor(iname)
@@ -783,18 +790,18 @@ def flatten(
                     pass
                 case _:
                     assert False, f"{base} ({type(base)}) is not a base type."
-            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred), _trivial_memo)
+            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred), _trivial_memo, _bound_names)
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
-            yield from flatten(seq, nctx.with_function(name, ty), _trivial_memo)
+            yield from flatten(seq, nctx.with_function(name, ty), _trivial_memo, _bound_names)
         case ReflectedFunctionDeclaration(name, ty, params, body, seq):
             nctx = (
                 _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
             )
             app = LiquidApp(name, [LiquidVar(p) for p in params])
             eq = LiquidApp(Name("==", 0), [app, body])
-            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo)
+            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo, _bound_names)
         case _:
             assert False, f"Cannot flatten {c}."
 

@@ -9,14 +9,27 @@ import pytest
 
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
-from scripts.run_examples import Example, ROOT, command_for, discover, environment_for, main, run_one, shard_for
+from scripts.run_examples import (
+    Example,
+    ROOT,
+    command_for,
+    compilation_timeout,
+    discover,
+    environment_for,
+    main,
+    run_one,
+    shard_for,
+)
 
 
-def test_recursive_discovery_and_shards_cover_every_example_once():
+@pytest.mark.parametrize("count", [8, 16])
+def test_recursive_discovery_and_shards_cover_every_example_once(count):
     examples = discover()
     paths = {example.path for example in examples}
     assert paths == {path.relative_to(ROOT).as_posix() for path in (ROOT / "examples").rglob("*.ae")}
-    shards = [{example.path for example in examples if shard_for(example.path, 8) == shard} for shard in range(8)]
+    shards = [
+        {example.path for example in examples if shard_for(example.path, count) == shard} for shard in range(count)
+    ]
     assert set.union(*shards) == paths
     assert sum(map(len, shards)) == len(paths)
     assert all(shards)
@@ -95,6 +108,29 @@ def test_timeout_is_failure_even_for_negative_example(monkeypatch, tmp_path):
 @pytest.mark.parametrize("timeout", ["0", "-1", "nan", "inf"])
 def test_runner_rejects_unbounded_or_invalid_timeout(monkeypatch, timeout):
     monkeypatch.setattr(sys, "argv", ["run_examples.py", "--timeout", timeout, "--list"])
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 2
+
+
+def test_source_size_budget_is_opt_in_and_capped():
+    assert compilation_timeout(120, 14 * 1024 * 1024) == 120
+    assert compilation_timeout(120, 1024 * 1024, 60, 600) == 180
+    assert compilation_timeout(120, 14 * 1024 * 1024, 60, 600) == 600
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ["--timeout-per-mib", "60"],
+        ["--timeout-per-mib", "-1"],
+        ["--timeout-per-mib", "nan"],
+        ["--max-timeout", "inf"],
+        ["--max-timeout", "100"],
+    ],
+)
+def test_size_budget_cannot_disable_timeout_bound(monkeypatch, flags):
+    monkeypatch.setattr(sys, "argv", ["run_examples.py", *flags, "--list"])
     with pytest.raises(SystemExit) as error:
         main()
     assert error.value.code == 2

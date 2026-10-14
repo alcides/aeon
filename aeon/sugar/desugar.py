@@ -6,7 +6,7 @@ from aeon.sugar.name_resolution import (
     resolve_qualified_names_in_definition,
 )
 
-from dataclasses import replace
+from dataclasses import fields, is_dataclass, replace
 from typing import NamedTuple
 
 from aeon.core.multiplicity import MOmega
@@ -1959,12 +1959,31 @@ def replace_concrete_types(
         if key not in canonical:
             canonical[key] = name
 
+    # Most definition/type annotations have already been canonicalized. Do not
+    # rebuild a large program once per imported constructor when that variable
+    # does not occur anywhere in its surface tree.
+    used: set[Name] = set()
+    nested_refinements = False
+    pending: list[object] = [t]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, SRefinedType) and isinstance(node.type, SRefinedType):
+            nested_refinements = True
+        if isinstance(node, STypeVar):
+            used.add(node.name)
+        elif isinstance(node, (STerm, SType, SMatchBranch)) and is_dataclass(node):
+            pending.extend(getattr(node, field.name) for field in fields(node) if field.name != "loc")
+        elif isinstance(node, (tuple, list)):
+            pending.extend(node)
+    used_keys = {_type_name_key(name.name) for name in used}
     for name in types:
         ctor = STypeConstructor(name)
-        t = substitution_svartype_in_sterm(t, ctor, name)
+        if nested_refinements or name in used:
+            t = substitution_svartype_in_sterm(t, ctor, name)
     for name in canonical.values():
         ctor = STypeConstructor(name)
-        t = substitution_svartype_in_sterm_by_name(t, ctor, name.name)
+        if nested_refinements or _type_name_key(name.name) in used_keys:
+            t = substitution_svartype_in_sterm_by_name(t, ctor, name.name)
 
     def fix_vartype(e: ElabTypingContextEntry) -> ElabTypingContextEntry:
         match e:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from contextvars import ContextVar
 from itertools import combinations
 from aeon.core.types import Kind
 from aeon.elaboration.context import ElaborationTypingContext
@@ -187,6 +188,7 @@ class UnificationVar(SType):
     def constrain_upper(self, ty):
         bty = base(ty)
         self.upper.append(bty)
+        _invalidate_direction_memo(self)
 
 
 @dataclass
@@ -197,6 +199,21 @@ class Union(SType):
 @dataclass
 class Intersection(SType):
     intersected: list[SType]
+
+
+_direction_memo: ContextVar[dict[int, tuple[SType, list[SType]]] | None] = ContextVar(
+    "unification_directions", default=None
+)
+_direction_dependencies: ContextVar[set[int] | None] = ContextVar("unification_direction_dependencies", default=None)
+
+
+def _invalidate_direction_memo(node: UnificationVar) -> None:
+    memo = _direction_memo.get()
+    dependencies = _direction_dependencies.get()
+    if memo is not None and (dependencies is None or id(node) in dependencies):
+        memo.clear()
+        if dependencies is not None:
+            dependencies.clear()
 
 
 def elaborate_foralls(e: STerm) -> STerm:
@@ -273,6 +290,7 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             if any(u is sup for u in sub.upper):
                 return []
             sub.upper.append(sup)
+            _invalidate_direction_memo(sub)
             for l in sub.lower:
                 unify(ctx, l, sup)
             return []
@@ -280,6 +298,7 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             if any(s is sub for s in sup.lower):
                 return []
             sup.lower.append(sub)
+            _invalidate_direction_memo(sup)
             for u in sup.upper:
                 unify(ctx, sub, u)
             return []
@@ -457,6 +476,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             u = UnificationVar(ctx.fresh_typevar())
             u.upper.append(ty)
             u.lower.append(ty)
+            _invalidate_direction_memo(u)
 
             nty = type_substitution(innert.body, innert.name, u)
             return (STypeApplication(inner, t.type), nty)
@@ -643,21 +663,30 @@ def extract_direction(ty: SType, _seen: set[int] | None = None) -> list[SType]:
     break cycles like ``A.upper = [B]; B.upper = [A]``.
     """
     assert isinstance(ty, SType)
-    match ty:
-        case UnificationVar(_, lower, upper):
-            if _seen is None:
-                _seen = set()
-            if id(ty) in _seen:
-                return []
-            _seen = _seen | {id(ty)}
-            r: list[SType] = []
-            for t in lower + upper:
-                for sub in extract_direction(t, _seen):
-                    if sub not in r:
-                        r.append(sub)
-            return r
-        case _:
-            return [ty]
+    # This is graph reachability, not a path-dependent query. Visiting the same
+    # unification variable once per path re-expands shared bound graphs
+    # exponentially. Preserve first-occurrence DFS order and structural leaf
+    # deduplication with a single visited set for this query.
+    seen = set() if _seen is None else set(_seen)
+    memo = _direction_memo.get() if _seen is None else None
+    pending = [ty]
+    result: list[SType] = []
+    while pending:
+        node = pending.pop()
+        if isinstance(node, UnificationVar):
+            if id(node) in seen:
+                continue
+            seen.add(id(node))
+            cached = memo.get(id(node)) if memo is not None else None
+            pending.extend(reversed(cached[1] if cached is not None else node.lower + node.upper))
+        elif node not in result:
+            result.append(node)
+    if memo is not None:
+        memo[id(ty)] = (ty, result)
+        dependencies = _direction_dependencies.get()
+        if dependencies is not None:
+            dependencies.update(seen)
+    return result
 
 
 def replace_unification_variables(
@@ -801,6 +830,18 @@ def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> STyp
 
 
 def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:
+    if _direction_memo.get() is not None:
+        return _elaborate_remove_unification(ctx, t)
+    token = _direction_memo.set({})
+    dependency_token = _direction_dependencies.set(set())
+    try:
+        return _elaborate_remove_unification(ctx, t)
+    finally:
+        _direction_dependencies.reset(dependency_token)
+        _direction_memo.reset(token)
+
+
+def _elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:
     match t:
         case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SAnonConstructor():
             return t

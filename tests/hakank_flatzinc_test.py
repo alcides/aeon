@@ -136,3 +136,12 @@ def test_compact_render_keeps_holes_and_bool_decisions():
     assert "DecisionTree.leaf (?h_decision0" in source
     assert "def decision0" not in source
     assert _values(_solve(_parse(source))) == {"h_decision0": 3, "h_decision1": True}
+
+
+def test_shared_projection_aliases_preserve_synthesized_witnesses():
+    source = "var 0..9: x;\n" + "constraint int_eq(x,3);\n" * 12 + "solve satisfy;\n"
+    model = Translator("fixture", source).translate()
+    model.compact = True
+    rendered = model.render({"source_url": "https://example.org/shared-projection"})
+    assert "def _shared_decision_intAt_0" in rendered
+    assert _values(_solve(_parse(rendered))) == {"h_decision0": 3}

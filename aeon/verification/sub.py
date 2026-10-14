@@ -17,7 +17,7 @@ from aeon.core.types import TypePolymorphism
 from aeon.core.types import t_unit
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import Location
-from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
+from aeon.verification.vcs import conjoin, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
@@ -155,6 +155,13 @@ def implication_constraint(
     reflected_impl: tuple[tuple[Name, ...], LiquidTerm] | None = None,
     keep_refinements: bool = False,
 ) -> Constraint:
+    if (
+        isinstance(ty, (Top, TypeVar, TypeConstructor, RefinedType))
+        and isinstance(c, LiquidConstraint)
+        and isinstance(c.expr, LiquidLiteralBool)
+        and c.expr.value
+    ):
+        return c
     # ``keep_refinements`` preserves a function's argument/return refinements in
     # its uninterpreted declaration so its contract can be instantiated per call
     # site at the SMT layer (issue #378). It is set only for *trusted*
@@ -235,7 +242,7 @@ def base_subtype_constraint(
                 return None
             c: Constraint = ctrue
             for a1, a2 in zip(args1, args2):
-                c = Conjunction(c, sub(ctx, a1, a2, loc))
+                c = conjoin(c, sub(ctx, a1, a2, loc))
             return c
         case _:
             return ctrue if ty1 == ty2 else None
@@ -271,6 +278,8 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             args_c = base_subtype_constraint(ctx, ty1, ty2, loc)
             if args_c is None:
                 return cfalse
+            if isinstance(r2, LiquidLiteralBool) and r2.value:
+                return args_c
 
             new_name: Name = Name(n1.name + n2.name, fresh_counter.fresh())
 
@@ -281,7 +290,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             assert isinstance(lowert, TypeConstructor)
             rconstraint = Implication(new_name, lowert, r1_, LiquidConstraint(r2_, loc=loc), loc=loc)
 
-            return Conjunction(args_c, rconstraint) if args_c is not ctrue else rconstraint
+            return conjoin(args_c, rconstraint)
         case TypePolymorphism(_, _, _), _:
             return ctrue
         case RefinementPolymorphism(_, _, _), _:
@@ -293,7 +302,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             rt1_ = substitution_in_type(rt1, Var(new_name_a), a1)
             rt2_ = substitution_in_type(rt2, Var(new_name_a), a2)
             c1 = sub(ctx, rt1_, rt2_, loc)
-            return Conjunction(c0, implication_constraint(new_name_a, t2, c1, loc))
+            return conjoin(c0, implication_constraint(new_name_a, t2, c1, loc))
         case TypeConstructor(_, _) as tc1, TypeConstructor(_, _) as tc2:
             # Defensive: ``ensure_refined`` normally wraps bare type
             # constructors into ``RefinedType`` (handled above), so this arm is
