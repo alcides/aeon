@@ -1,0 +1,18 @@
+open Buffer
+
+# A matrix is a flat mutable Int buffer with rows * cols elements.
+# The caller supplies n <= the allocated element count. The current CUDA
+# entry wrapper runs this loop on one GPU thread and returns the input buffer.
+@gpu
+def zero_matrix (matrix: Buffer) (n: {v:Int | v >= 0}) : Buffer :=
+    if n = 0 then matrix else
+    let updated := buf_set matrix (n - 1) 0 in
+    zero_matrix updated (n - 1);
+
+def main (args: Int) : Int :=
+    let matrix := buf_alloc (2 * 2 * 4) in
+    let filled := buf_set matrix 3 9 in
+    let result := zero_matrix filled (2 * 2) in
+    let value := buf_get result 3 in
+    let _ := buf_free result in
+    value;

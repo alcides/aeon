@@ -534,6 +534,13 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         value, ptr = node.value, node.ptr
         self._is_top_level = False
         v_val = value.accept(self)
+        if isinstance(node.type, LLVMPointerType) and isinstance(ptr, LLVMGetElementPtr):
+            # Array.set returns the buffer, including when writing a nonzero
+            # index. Evaluate the buffer once so nested writes retain effects.
+            base = ptr.ptr.accept(self)
+            p_val = self.builder.gep(base, [idx.accept(self) for idx in ptr.indices])
+            self.builder.store(v_val, p_val)
+            return base
         p_val = ptr.accept(self)
         return p_val if isinstance(v_val.type, ir.VoidType) else self.builder.store(v_val, p_val)
 
