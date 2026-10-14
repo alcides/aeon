@@ -1,0 +1,15 @@
+open Array
+
+# The CUDA entry point returns the array passed in as a parameter.
+# Array.set preserves its buffer pointer under LLVM/CUDA, and the host gets
+# the original array with its updated device contents copied back.
+@gpu
+def zero_first
+    (1 matrix: {a:(Array Int) | size a > 0})
+    : {r:(Array Int) | size r = size matrix} :=
+    set matrix 0 0;
+
+def main (args: Int) : Int :=
+    let 1 matrix := append{Int} (new{Int} unit) 7 in
+    let 1 result := zero_first matrix in
+    sum result;

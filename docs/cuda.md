@@ -84,6 +84,33 @@ Violations are type errors, not runtime surprises.
 Aeon's surface `Float` maps to **CUDA float64** in this module; there is no silent
 float32 narrowing.
 
+### Returning array parameters from `@gpu`
+
+The separate `@gpu` LLVM backend can return a numeric or Boolean array passed
+as a parameter. The kernel returns its buffer pointer; after synchronization,
+the executor copies the contents back and returns the original host array with
+its original length. It can select any parameter with the matching element type.
+
+For example, an indexed update can return its input buffer:
+
+```aeon
+open Array
+
+@gpu
+def zero_first
+    (1 matrix: {a:(Array Int) | size a > 0})
+    : {r:(Array Int) | size r = size matrix} :=
+    set matrix 0 0;
+```
+
+`Array.set` preserves the buffer pointer under LLVM/CUDA, allowing updates to be
+chained. Newly allocated device arrays and interior pointers cannot be returned
+to the host through this API; an array result must identify an entire input
+buffer. Opaque ADT pointer returns remain device-local. See
+[`array_return.ae`](../examples/llvm/gpu/array_return.ae) for a runnable example.
+[`zero_matrix.ae`](../examples/llvm/gpu/zero_matrix.ae) fills and returns a flat
+Int `Buffer` using a single GPU thread; the caller supplies the element count.
+
 ### Parallel APIs (optional)
 
 Read-only view before a kernel (both inputs may be RO):
