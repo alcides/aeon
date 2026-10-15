@@ -236,3 +236,16 @@ def test_shared_inputs_respect_each_property_exclusion(partial_input_program, mo
     second_cases = _generate_property_cases(second, driver.typing_ctx, ctx, driver.metadata, 0, case_cache=cache)
     assert first_cases[0][0] == [calls_second]
     assert second_cases[0][0] == [good]
+
+
+@pytest.mark.parametrize("function", ["even", "odd"])
+def test_input_validation_preserves_mutual_group_environment(function):
+    from aeon.core.terms import Var
+    from aeon.synthesis.pbt.runner import _input_validator
+    from tests.mutual_synthesis_test import _EVEN_ODD
+
+    driver = AeonDriver(AeonConfig("none", SilentSynthesisUI(), 0, no_main=True))
+    assert driver.parse(aeon_code=_EVEN_ODD.format(odd_base="false")) == []
+    names = {name.name: name for name, _ in _iter_top_level(driver.core)}
+    term = Application(Var(names[function]), Literal(4, t_int))
+    assert _input_validator(driver.core, driver.evaluation_ctx, 1)(term)

@@ -13,7 +13,6 @@ from __future__ import annotations
 import signal
 import threading
 from collections.abc import Callable
-from typing import Any
 from dataclasses import dataclass, replace as dc_replace
 
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
@@ -148,8 +147,8 @@ def _render(term: Term) -> str:
         return repr(term)
 
 
-def _eval_value(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[Any, str | None]:
-    """Evaluate ``program`` with a wall-clock guard.
+def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[bool | None, str | None]:
+    """Evaluate ``program`` to a Python ``bool``.
 
     Returns ``(value, None)`` on success, ``(None, message)`` when evaluation
     raised or timed out. A SIGALRM guard bounds runaway evaluation; it is only
@@ -169,19 +168,12 @@ def _eval_value(program: Term, ectx: EvaluationContext, timeout: float) -> tuple
         result = aeon_eval(program, ectx)
     except _Timeout:
         return None, f"timeout after {timeout:g}s"
-    except Exception as e:  # report construction/property errors to the caller
+    except Exception as e:  # a crashing input is itself a useful counterexample
         return None, f"{type(e).__name__}: {e}"
     finally:
         if can_alarm:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, old_handler)
-    return result, None
-
-
-def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[bool | None, str | None]:
-    result, error = _eval_value(program, ectx, timeout)
-    if error is not None:
-        return None, error
     if not isinstance(result, bool):
         return None, f"property did not evaluate to a Bool (got {type(result).__name__})"
     return result, None
@@ -280,35 +272,26 @@ def _input_validator(core: Term, ectx: EvaluationContext, timeout: float) -> Cal
             bindings.append(current)
             current = current.body
     cache: dict[Term, bool] = {}
-    runtime_ctx = ectx
-    bound: set[Name] = set(ectx.variables)
-    failed: set[Name] = set()
+    dependencies = {binding.var_name: _term_references(binding.var_value) for binding in bindings}
 
     def valid(term: Term) -> bool:
-        nonlocal runtime_ctx
         if term in cache:
             return cache[term]
         needed = _term_references(term)
-        selected: list[Let | Rec] = []
+        pending = list(needed)
+        # Mutual functions can refer forward to later siblings. Compute the
+        # entire dependency closure before rebuilding the original Rec chain,
+        # so the interpreter can tie every mutual group's shared environment.
+        while pending:
+            name = pending.pop()
+            added = dependencies.get(name, set()) - needed
+            needed.update(added)
+            pending.extend(added)
+        program: Term = Let(Name("__pbt_input"), term, Literal(True, t_bool))
         for binding in reversed(bindings):
-            if binding.var_name in needed and binding.var_name not in bound:
-                needed.update(_term_references(binding.var_value))
-                selected.append(binding)
-        if needed & failed:
-            cache[term] = False
-            return False
-        # Definitions are immutable during input generation. Bind each needed
-        # definition once, preserving lexical order and recursive closures.
-        for binding in reversed(selected):
-            value, error = _eval_value(dc_replace(binding, body=Var(binding.var_name)), runtime_ctx, timeout)
-            if error is not None:
-                failed.add(binding.var_name)
-                cache[term] = False
-                return False
-            runtime_ctx = runtime_ctx.with_var(binding.var_name, value)
-            bound.add(binding.var_name)
-        _, error = _eval_value(term, runtime_ctx, timeout)
-        ok = error is None
+            if binding.var_name in needed:
+                program = dc_replace(binding, body=program)
+        ok = _eval_bool(program, ectx, timeout)[0] is True
         cache[term] = ok
         return ok
 
@@ -408,28 +391,11 @@ def _check_property(
     runtime_valid: Callable[[Term], bool] | None = None,
     case_cache: _CaseCache | None = None,
 ) -> PropertyResult:
-    # Imported functions and constants precede the property and are identical
-    # for every trial. Bind this prefix once rather than rebuilding hundreds of
-    # runtime closures for each input and shrink attempt.
-    prefix_ctx = evaluation_ctx
-    suffix = core
-    while isinstance(suffix, (Let, Rec, Annotation)):
-        if isinstance(suffix, Annotation):
-            suffix = suffix.expr
-            continue
-        if suffix.var_name == spec.name:
-            break
-        value, error = _eval_value(dc_replace(suffix, body=Var(suffix.var_name)), prefix_ctx, timeout)
-        if error is not None:
-            return PropertyResult(spec.name, passed=False, trials=0, error=error)
-        prefix_ctx = prefix_ctx.with_var(suffix.var_name, value)
-        suffix = suffix.body
-
     def evaluate(arg_terms: list[Term]) -> tuple[bool | None, str | None]:
         call: Term = Var(spec.name)
         for term in arg_terms:
             call = Application(call, term)
-        return _eval_bool(_replace_tail(suffix, call), prefix_ctx, timeout)
+        return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
 
     runtime_valid = runtime_valid or _input_validator(core, evaluation_ctx, timeout)
     try:
