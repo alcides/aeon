@@ -173,6 +173,15 @@ def test_refinement_constrains_optimum():
     assert _values(_solve(_parse(src))) == {"hx": 5, "hy": 5}
 
 
+def test_square_refinement_is_translated_before_the_objective():
+    source = """
+        def x : {v:Int | v >= 0 && v <= 5 && v * v >= 4} := ?hx;
+        @minimize_int(x)
+        def cost : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 2}
+
+
 def test_let_bound_holes_inside_function():
     # Holes are `let`-bound inside `f`, and the objective is `f` itself: the
     # translator must descend the lets and inline `f` to reach both holes.

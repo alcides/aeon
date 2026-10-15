@@ -242,6 +242,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             raise SynthesisError("CPSatHole requires at least one hole.")
 
         self._model = cp_model.CpModel()
+        self._square_hints: set[int] = set()
         self._hole_value: dict[Name, _Value] = {}
         # hole -> (kind, [cp vars]) for decoding the solution.
         self._hole_meta: dict[Name, tuple[str, list[Any]]] = {}
@@ -258,7 +259,6 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._ectx = ectx
         self._term = term
         self._translation_steps = 0
-        self._square_hints: set[int] = set()
         self._definition_cache: dict[Name, _Value] = {}
         self._application_cache: dict[tuple, tuple[_Closure, _Value, _Value]] = {}
         self._constructor_heads, self._recursor_heads = self._inductive_heads(term)
