@@ -138,7 +138,16 @@ def _parse_common_arguments(parser: ArgumentParser):
     parser.add_argument(
         "--test",
         action="store_true",
-        help="Run property-based tests: check every @property function on random inputs",
+        help="Run property-based tests: check every @property function on synthesized inputs",
+    )
+
+    from aeon.synthesis.pbt.backends import INPUT_SYNTHESIZERS
+
+    parser.add_argument(
+        "--input-synthesizer",
+        action="append",
+        choices=INPUT_SYNTHESIZERS,
+        help="PBT input backend (default: random_search); repeat to mix backends round-robin. Independent of -s.",
     )
 
     parser.add_argument(
@@ -456,7 +465,9 @@ def main() -> None:
                 if not driver.has_tests():
                     print("No @property functions found.")
                     sys.exit(0)
-                failures = driver.run_tests(seed=args.seed)
+                failures = driver.run_tests(
+                    seed=args.seed, input_synthesizers=tuple(args.input_synthesizer or ["random_search"])
+                )
                 sys.exit(ExitCode.TESTS_FAILED_OR_CRASH if failures else ExitCode.SUCCESS)
             if synthesis_requested() and not driver.has_synth():
                 print("No holes to synthesize.", file=sys.stderr)

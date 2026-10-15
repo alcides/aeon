@@ -257,15 +257,73 @@ def _shrinkable_flags(arg_specs: tuple[tuple[Name, Type], ...]) -> list[bool]:
     return flags
 
 
+def _input_validator(core: Term, ectx: EvaluationContext, timeout: float) -> Callable[[Term], bool]:
+    """Check input construction separately from the property, with a time limit.
+
+    Include only the input's transitive dependencies so unrelated unfinished
+    synthesis targets are never evaluated while building a fixed corpus.
+    """
+    bindings: list[Let | Rec] = []
+    current = core
+    while isinstance(current, (Let, Rec, Annotation)):
+        if isinstance(current, Annotation):
+            current = current.expr
+        else:
+            bindings.append(current)
+            current = current.body
+    cache: dict[Term, bool] = {}
+    dependencies = {binding.var_name: _term_references(binding.var_value) for binding in bindings}
+
+    def valid(term: Term) -> bool:
+        if term in cache:
+            return cache[term]
+        needed = _term_references(term)
+        pending = list(needed)
+        # Mutual functions can refer forward to later siblings. Compute the
+        # entire dependency closure before rebuilding the original Rec chain,
+        # so the interpreter can tie every mutual group's shared environment.
+        while pending:
+            name = pending.pop()
+            added = dependencies.get(name, set()) - needed
+            needed.update(added)
+            pending.extend(added)
+        program: Term = Let(Name("__pbt_input"), term, Literal(True, t_bool))
+        for binding in reversed(bindings):
+            if binding.var_name in needed:
+                program = dc_replace(binding, body=program)
+        ok = _eval_bool(program, ectx, timeout)[0] is True
+        cache[term] = ok
+        return ok
+
+    return valid
+
+
+_GeneratedCases = list[tuple[list[Term], list[Type]]]
+_CaseCache = dict[tuple[tuple[Type, ...], int, int, tuple[str, ...]], _GeneratedCases]
+
+
 def _generate_property_cases(
     spec: PropertySpec,
     _typing_ctx: TypingContext,
     adt_ctx: TypingContext,
     metadata: Metadata,
     seed: int,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
+    runtime_valid: Callable[[Term], bool] | None = None,
+    case_cache: _CaseCache | None = None,
 ) -> list[tuple[list[Term], list[Type]]]:
     """Generate a property's inputs once, preserving dependent argument types."""
     from aeon.synthesis.pbt.generators import TypeSampler, build_base_context, is_base_type
+    from aeon.synthesis.modules.native_search import make_skip
+
+    # Unrefined independent argument names do not affect the sampled domain.
+    # Refined/dependent types retain their bound IDs in this exact type key.
+    key = (tuple(ty for _, ty in spec.arg_specs), spec.samples, seed, input_synthesizers)
+    if case_cache is not None and key in case_cache:
+        skip = make_skip(spec.name, metadata)
+        cached = case_cache[key]
+        if all(not any(skip(name) for name in _term_references(term)) for terms, _ in cached for term in terms):
+            return cached
 
     # Cache one sampler per distinct argument type. A non-dependent argument has
     # the same type every trial, so its (expensive) grammar is built once and the
@@ -279,16 +337,24 @@ def _generate_property_cases(
         sampler = sampler_cache.get(key)
         if sampler is None:
             # Base types use a minimal context (literals + SMT for refinements);
-            # ADTs use the constructor-only context so generation yields pure
-            # constructor trees. Full program contexts are too large: every
-            # Instantiable prelude/library function is monomorphized per step.
+            # ADTs can use all available program functions and values, not
+            # just constructors.
             ctx = base_ctx if is_base_type(ty) else adt_ctx
-            sampler = TypeSampler(ctx, ty, spec.name, metadata, seed=seed + idx * 7919)
+            sampler = TypeSampler(
+                ctx,
+                ty,
+                spec.name,
+                metadata,
+                seed=seed + idx * 7919,
+                validation_ctx=adt_ctx,
+                synthesizers=input_synthesizers,
+                runtime_valid=runtime_valid,
+            )
             sampler_cache[key] = sampler
         return sampler
 
     cases: list[tuple[list[Term], list[Type]]] = []
-    for _ in range(spec.samples):
+    for trial in range(spec.samples):
         chosen: list[tuple[Name, Term]] = []
         terms: list[Term] = []
         arg_tys: list[Type] = []
@@ -298,11 +364,15 @@ def _generate_property_cases(
             ty = arg_type
             for prev_name, prev_term in chosen:
                 ty = substitution_in_type(ty, prev_term, prev_name)
-            term = sampler_for(ty, idx).sample()
+            # Select by trial, not sampler lifetime: dependent types can create
+            # a fresh sampler each time and must still rotate through backends.
+            term = sampler_for(ty, idx).sample(synthesizer=input_synthesizers[trial % len(input_synthesizers)])
             chosen.append((arg_name, term))
             terms.append(term)
             arg_tys.append(ty)
         cases.append((terms, arg_tys))
+    if case_cache is not None:
+        case_cache[key] = cases
     return cases
 
 
@@ -317,6 +387,9 @@ def _check_property(
     constructor_names: set[str],
     seed: int,
     timeout: float,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
+    runtime_valid: Callable[[Term], bool] | None = None,
+    case_cache: _CaseCache | None = None,
 ) -> PropertyResult:
     def evaluate(arg_terms: list[Term]) -> tuple[bool | None, str | None]:
         call: Term = Var(spec.name)
@@ -324,8 +397,11 @@ def _check_property(
             call = Application(call, term)
         return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
 
+    runtime_valid = runtime_valid or _input_validator(core, evaluation_ctx, timeout)
     try:
-        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+        cases = _generate_property_cases(
+            spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid, case_cache
+        )
     except RuntimeError as generation_error:
         return PropertyResult(spec.name, passed=False, trials=0, error=f"input generation failed: {generation_error}")
     for trial, (terms, arg_tys) in enumerate(cases):
@@ -335,9 +411,10 @@ def _check_property(
                 terms,
                 arg_tys,
                 _shrinkable_flags(spec.arg_specs),
-                lambda candidate: evaluate(candidate)[0] is not True,
+                lambda candidate: all(runtime_valid(term) for term in candidate) and evaluate(candidate)[0] is not True,
                 constructor_types,
                 constructor_names,
+                adt_ctx,
             )
             _, error = evaluate(minimized)
             return PropertyResult(
@@ -468,6 +545,8 @@ def property_corpora_for_target(
     open_targets: set[Name],
     constructor_names: set[str] | None = None,
     seed: int = 0,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
+    evaluation_ctx: EvaluationContext | None = None,
 ) -> list[PropertyCorpus]:
     """Build fixed corpora for properties that can guide one ordinary target.
 
@@ -480,11 +559,23 @@ def property_corpora_for_target(
 
     specs, _ = _collect_properties(core, metadata)
     values = _top_level_values(core)
-    names = constructor_names or set()
-    ctor_binders = _collect_constructors(core, names)
-    adt_ctx = build_adt_context(typing_ctx, ctor_binders)
+    # Fixed inputs must not call an unfinished target, even indirectly through
+    # an otherwise ordinary helper or a property used in an if condition.
+    unavailable = set(open_targets)
+    changed = True
+    while changed:
+        added = {name for name, body in values.items() if _term_references(body) & unavailable} - unavailable
+        unavailable.update(added)
+        changed = bool(added)
+    available_ctx = TypingContext(
+        [e for e in typing_ctx.entries if not isinstance(e, VariableBinder) or e.name not in unavailable],
+        trusted_names=typing_ctx.trusted_names,
+    )
+    value_binders = [VariableBinder(name, ty) for name, ty in _iter_top_level(core) if name not in unavailable]
+    adt_ctx = build_adt_context(available_ctx, value_binders)
     other_targets = open_targets - {target}
     corpora: list[PropertyCorpus] = []
+    runtime_valid = _input_validator(core, evaluation_ctx, DEFAULT_TIMEOUT) if evaluation_ctx is not None else None
     for spec in specs:
         body = values.get(spec.name)
         if body is None:
@@ -492,7 +583,7 @@ def property_corpora_for_target(
         references = _term_references(body)
         if target not in references or references & other_targets:
             continue
-        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
+        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid)
         corpora.append(PropertyCorpus(spec, tuple(tuple(terms) for terms, _ in cases)))
     return corpora
 
@@ -545,6 +636,7 @@ def run_properties(
     seed: int = 0,
     timeout: float = DEFAULT_TIMEOUT,
     constructor_names: set[str] | None = None,
+    input_synthesizers: tuple[str, ...] = ("random_search",),
 ) -> list[PropertyResult]:
     """Check every ``@property`` function and return one result per property."""
     from aeon.synthesis.pbt.generators import build_adt_context
@@ -552,9 +644,12 @@ def run_properties(
     names = constructor_names or set()
     specs, skips = _collect_properties(core, metadata)
     ctor_binders = _collect_constructors(core, names)
-    adt_ctx = build_adt_context(typing_ctx, ctor_binders)
+    value_binders = [VariableBinder(name, ty) for name, ty in _iter_top_level(core)]
+    adt_ctx = build_adt_context(typing_ctx, value_binders)
     constructor_types: ConstructorTypes = {b.name.name: b.type for b in ctor_binders}
     results: list[PropertyResult] = list(skips)
+    case_cache: _CaseCache = {}
+    runtime_valid = _input_validator(core, evaluation_ctx, timeout)
     for spec in specs:
         results.append(
             _check_property(
@@ -568,6 +663,9 @@ def run_properties(
                 names,
                 seed=seed,
                 timeout=timeout,
+                input_synthesizers=input_synthesizers,
+                runtime_valid=runtime_valid,
+                case_cache=case_cache,
             )
         )
     return results

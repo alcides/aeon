@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from collections import deque
+from collections.abc import Iterator
 from time import monotonic_ns
 from typing import Callable
 
@@ -215,6 +216,7 @@ class TDSynSynthesizer(Synthesizer):
         partial: PartialAST,
         hole: TypedHole,
         skip: Callable[[Name], bool],
+        max_depth: int = MAX_DEPTH,
     ) -> list[PartialAST]:
         """Expand a single hole using backward and forward actions."""
         results: list[PartialAST] = []
@@ -228,7 +230,7 @@ class TDSynSynthesizer(Synthesizer):
 
             for replacement, new_holes in candidates:
                 new_depth = partial.depth + (1 if new_holes else 0)
-                if new_depth <= MAX_DEPTH:
+                if new_depth <= max_depth:
                     results.append(expand_at_hole(partial, hole, replacement, new_holes, new_depth))
 
         # Shuffle on non-first iterations to explore different orderings
@@ -236,6 +238,73 @@ class TDSynSynthesizer(Synthesizer):
             self._rng.shuffle(results)
 
         return results
+
+    def iter_input_candidates(
+        self,
+        ctx: TypingContext,
+        target: Type,
+        skip: Callable[[Name], bool],
+        max_depth: int = MAX_DEPTH,
+        max_expansions: int = 4096,
+        max_worklist: int = 4096,
+        initial: PartialAST | None = None,
+    ) -> Iterator[Term | None]:
+        """Bounded, resumable input search using this backend's expansions.
+
+        Unlike ``synthesize``, keep yielding candidates rather than stopping at
+        the first answer. ``None`` denotes a failed random walk. Validation is
+        deliberately left to PBT's common typechecking gate.
+        """
+        if initial is None:
+            term, _, _, holes = _peel_abstractions(target, ctx)
+            initial = PartialAST(term, holes, 0)
+
+        def completions(partial: PartialAST) -> list[Term]:
+            if not partial.holes or not all_leaf_holes(partial.holes):
+                return []
+            return [substitute_holes_map(partial.term, solution) for solution in solve_literals(partial.holes)]
+
+        if self.mode == "random":
+            for _ in range(max_expansions):
+                partial = PartialAST(initial.term, list(initial.holes), 0)
+                for _step in range(max_depth * 2):
+                    if partial.is_complete():
+                        break
+                    solved = completions(partial)
+                    if solved:
+                        partial = PartialAST(self._rng.choice(solved), [], partial.depth)
+                        break
+                    hole = self._rng.choice(partial.holes)
+                    options = self._expand_hole(partial, hole, skip, max_depth)
+                    if not options:
+                        break
+                    partial = self._rng.choice(options)
+                yield partial.term if partial.is_complete() else None
+            return
+
+        worklist = deque([initial])
+        seen: set[Term] = set()
+        for _ in range(max_expansions):
+            if not worklist:
+                return
+            partial = worklist.popleft()
+            candidates = [partial.term] if partial.is_complete() else completions(partial)
+            for candidate in candidates:
+                if candidate not in seen:
+                    seen.add(candidate)
+                    yield candidate
+            if partial.is_complete():
+                continue
+            for expanded in self._expand_hole(partial, partial.holes[0], skip, max_depth):
+                complete = [expanded.term] if expanded.is_complete() else completions(expanded)
+                for candidate in complete:
+                    if candidate not in seen:
+                        seen.add(candidate)
+                        yield candidate
+                if not expanded.is_complete() and not complete:
+                    worklist.append(expanded)
+                    if len(worklist) > max_worklist:
+                        return
 
     def _enumerative_search(
         self,

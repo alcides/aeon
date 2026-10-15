@@ -38,6 +38,9 @@ def iter_candidates(
     max_depth: int = MAX_DEPTH,
     *,
     budget: float | None = None,
+    skip: Callable[[Name], bool] | None = None,
+    max_expansions: int | None = None,
+    max_worklist: int | None = None,
 ) -> Iterator[Term]:
     """Yield complete core terms breadth-first from Aeon's grammar actions.
 
@@ -46,7 +49,7 @@ def iter_candidates(
     variables. Refinement-constrained leaves are also completed from SMT models.
     """
     worklist: deque[PartialAST] = deque([initial_partial(ctx, target)])
-    skip = make_skip(fun_name, metadata)
+    skip = make_skip(fun_name, metadata) if skip is None else skip
     yielded: set[Term] = set()
     deadline = None if budget is None else monotonic() + max(0.0, budget)
 
@@ -55,6 +58,7 @@ def iter_candidates(
             yielded.add(term)
             yield term
 
+    expanded = 0
     while worklist:
         # A long stretch of partial trees may yield no candidate at all. The
         # consumer cannot enforce its budget until next() returns, so enforce
@@ -69,6 +73,10 @@ def iter_candidates(
         for term in literal_completions(partial):
             yield from emit(term)
 
+        if max_expansions is not None and expanded >= max_expansions:
+            return
+        expanded += 1
+
         hole = partial.holes[0]
         complete_next: list[PartialAST] = []
         incomplete_next: list[PartialAST] = []
@@ -80,6 +88,8 @@ def iter_candidates(
         # Prefer terminals (literals / variables) before recursive expansions.
         worklist.extend(complete_next)
         worklist.extend(incomplete_next)
+        if max_worklist is not None and len(worklist) > max_worklist:
+            return
 
 
 # Kept as an alias so existing unit tests can patch the generator by name.
