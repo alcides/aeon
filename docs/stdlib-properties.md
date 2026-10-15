@@ -34,6 +34,9 @@ example, converting infinity to an integer inside a list) are discarded within
 the same bounded search. Exhausting that search reports an input-generation
 failure. Exceptions raised by the property itself still fail the property, and
 shrinking cannot replace a counterexample with an input that fails to construct.
+Properties with identical input domains and sampling settings can share checked
+inputs within one run, provided those inputs respect each property's function
+exclusions.
 
 Directional variants (`tdsyn_backward`, `backward_*`, and `forward_*`) are also
 available: they apply their named initial step and then use TDSyn to finish its

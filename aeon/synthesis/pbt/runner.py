@@ -13,6 +13,7 @@ from __future__ import annotations
 import signal
 import threading
 from collections.abc import Callable
+from typing import Any
 from dataclasses import dataclass, replace as dc_replace
 
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
@@ -147,8 +148,8 @@ def _render(term: Term) -> str:
         return repr(term)
 
 
-def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[bool | None, str | None]:
-    """Evaluate ``program`` to a Python ``bool``.
+def _eval_value(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[Any, str | None]:
+    """Evaluate ``program`` with a wall-clock guard.
 
     Returns ``(value, None)`` on success, ``(None, message)`` when evaluation
     raised or timed out. A SIGALRM guard bounds runaway evaluation; it is only
@@ -168,12 +169,19 @@ def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[
         result = aeon_eval(program, ectx)
     except _Timeout:
         return None, f"timeout after {timeout:g}s"
-    except Exception as e:  # a crashing input is itself a useful counterexample
+    except Exception as e:  # report construction/property errors to the caller
         return None, f"{type(e).__name__}: {e}"
     finally:
         if can_alarm:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, old_handler)
+    return result, None
+
+
+def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[bool | None, str | None]:
+    result, error = _eval_value(program, ectx, timeout)
+    if error is not None:
+        return None, error
     if not isinstance(result, bool):
         return None, f"property did not evaluate to a Bool (got {type(result).__name__})"
     return result, None
@@ -272,21 +280,43 @@ def _input_validator(core: Term, ectx: EvaluationContext, timeout: float) -> Cal
             bindings.append(current)
             current = current.body
     cache: dict[Term, bool] = {}
+    runtime_ctx = ectx
+    bound: set[Name] = set(ectx.variables)
+    failed: set[Name] = set()
 
     def valid(term: Term) -> bool:
+        nonlocal runtime_ctx
         if term in cache:
             return cache[term]
         needed = _term_references(term)
-        program: Term = Let(Name("__pbt_input"), term, Literal(True, t_bool))
+        selected: list[Let | Rec] = []
         for binding in reversed(bindings):
-            if binding.var_name in needed:
+            if binding.var_name in needed and binding.var_name not in bound:
                 needed.update(_term_references(binding.var_value))
-                program = dc_replace(binding, body=program)
-        ok = _eval_bool(program, ectx, timeout)[0] is True
+                selected.append(binding)
+        if needed & failed:
+            cache[term] = False
+            return False
+        # Definitions are immutable during input generation. Bind each needed
+        # definition once, preserving lexical order and recursive closures.
+        for binding in reversed(selected):
+            value, error = _eval_value(dc_replace(binding, body=Var(binding.var_name)), runtime_ctx, timeout)
+            if error is not None:
+                failed.add(binding.var_name)
+                cache[term] = False
+                return False
+            runtime_ctx = runtime_ctx.with_var(binding.var_name, value)
+            bound.add(binding.var_name)
+        _, error = _eval_value(term, runtime_ctx, timeout)
+        ok = error is None
         cache[term] = ok
         return ok
 
     return valid
+
+
+_GeneratedCases = list[tuple[list[Term], list[Type]]]
+_CaseCache = dict[tuple[tuple[Type, ...], int, int, tuple[str, ...]], _GeneratedCases]
 
 
 def _generate_property_cases(
@@ -297,9 +327,20 @@ def _generate_property_cases(
     seed: int,
     input_synthesizers: tuple[str, ...] = ("random_search",),
     runtime_valid: Callable[[Term], bool] | None = None,
+    case_cache: _CaseCache | None = None,
 ) -> list[tuple[list[Term], list[Type]]]:
     """Generate a property's inputs once, preserving dependent argument types."""
     from aeon.synthesis.pbt.generators import TypeSampler, build_base_context, is_base_type
+    from aeon.synthesis.modules.native_search import make_skip
+
+    # Unrefined independent argument names do not affect the sampled domain.
+    # Refined/dependent types retain their bound IDs in this exact type key.
+    key = (tuple(ty for _, ty in spec.arg_specs), spec.samples, seed, input_synthesizers)
+    if case_cache is not None and key in case_cache:
+        skip = make_skip(spec.name, metadata)
+        cached = case_cache[key]
+        if all(not any(skip(name) for name in _term_references(term)) for terms, _ in cached for term in terms):
+            return cached
 
     # Cache one sampler per distinct argument type. A non-dependent argument has
     # the same type every trial, so its (expensive) grammar is built once and the
@@ -347,6 +388,8 @@ def _generate_property_cases(
             terms.append(term)
             arg_tys.append(ty)
         cases.append((terms, arg_tys))
+    if case_cache is not None:
+        case_cache[key] = cases
     return cases
 
 
@@ -362,16 +405,37 @@ def _check_property(
     seed: int,
     timeout: float,
     input_synthesizers: tuple[str, ...] = ("random_search",),
+    runtime_valid: Callable[[Term], bool] | None = None,
+    case_cache: _CaseCache | None = None,
 ) -> PropertyResult:
+    # Imported functions and constants precede the property and are identical
+    # for every trial. Bind this prefix once rather than rebuilding hundreds of
+    # runtime closures for each input and shrink attempt.
+    prefix_ctx = evaluation_ctx
+    suffix = core
+    while isinstance(suffix, (Let, Rec, Annotation)):
+        if isinstance(suffix, Annotation):
+            suffix = suffix.expr
+            continue
+        if suffix.var_name == spec.name:
+            break
+        value, error = _eval_value(dc_replace(suffix, body=Var(suffix.var_name)), prefix_ctx, timeout)
+        if error is not None:
+            return PropertyResult(spec.name, passed=False, trials=0, error=error)
+        prefix_ctx = prefix_ctx.with_var(suffix.var_name, value)
+        suffix = suffix.body
+
     def evaluate(arg_terms: list[Term]) -> tuple[bool | None, str | None]:
         call: Term = Var(spec.name)
         for term in arg_terms:
             call = Application(call, term)
-        return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
+        return _eval_bool(_replace_tail(suffix, call), prefix_ctx, timeout)
 
-    runtime_valid = _input_validator(core, evaluation_ctx, timeout)
+    runtime_valid = runtime_valid or _input_validator(core, evaluation_ctx, timeout)
     try:
-        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid)
+        cases = _generate_property_cases(
+            spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid, case_cache
+        )
     except RuntimeError as generation_error:
         return PropertyResult(spec.name, passed=False, trials=0, error=f"input generation failed: {generation_error}")
     for trial, (terms, arg_tys) in enumerate(cases):
@@ -545,6 +609,7 @@ def property_corpora_for_target(
     adt_ctx = build_adt_context(available_ctx, value_binders)
     other_targets = open_targets - {target}
     corpora: list[PropertyCorpus] = []
+    runtime_valid = _input_validator(core, evaluation_ctx, DEFAULT_TIMEOUT) if evaluation_ctx is not None else None
     for spec in specs:
         body = values.get(spec.name)
         if body is None:
@@ -552,7 +617,6 @@ def property_corpora_for_target(
         references = _term_references(body)
         if target not in references or references & other_targets:
             continue
-        runtime_valid = _input_validator(core, evaluation_ctx, DEFAULT_TIMEOUT) if evaluation_ctx is not None else None
         cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid)
         corpora.append(PropertyCorpus(spec, tuple(tuple(terms) for terms, _ in cases)))
     return corpora
@@ -618,6 +682,8 @@ def run_properties(
     adt_ctx = build_adt_context(typing_ctx, value_binders)
     constructor_types: ConstructorTypes = {b.name.name: b.type for b in ctor_binders}
     results: list[PropertyResult] = list(skips)
+    case_cache: _CaseCache = {}
+    runtime_valid = _input_validator(core, evaluation_ctx, timeout)
     for spec in specs:
         results.append(
             _check_property(
@@ -632,6 +698,8 @@ def run_properties(
                 seed=seed,
                 timeout=timeout,
                 input_synthesizers=input_synthesizers,
+                runtime_valid=runtime_valid,
+                case_cache=case_cache,
             )
         )
     return results

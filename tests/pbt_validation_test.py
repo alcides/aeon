@@ -178,7 +178,7 @@ def partial_input_program():
         def good : (List Int) := .cons 7 .nil;
         @property(2)
         def prop_length (xs:(List Int)) : Bool := length xs >= 0;
-        @property(1)
+        @property(2)
         def prop_crashes (xs:(List Int)) : Bool := Math.floor Math.INF = 0;
     """
         )
@@ -215,3 +215,24 @@ def test_only_partial_inputs_report_generation_failure(partial_input_program, mo
     assert all(not result.passed and result.trials == 0 for result in results)
     assert all("input generation failed" in result.error for result in results)
     assert all(result.counterexample is None for result in results)
+
+
+def test_shared_inputs_respect_each_property_exclusion(partial_input_program, monkeypatch):
+    from dataclasses import replace
+    from aeon.core.terms import If, Var
+    from aeon.synthesis.pbt.runner import _generate_property_cases
+
+    driver, _, good = partial_input_program
+    specs = _collect_properties(driver.core, driver.metadata)[0]
+    first, second = [replace(spec, samples=1) for spec in specs]
+    binders = [VariableBinder(name, ty) for name, ty in _iter_top_level(driver.core)]
+    ctx = build_adt_context(driver.typing_ctx, binders)
+    calls_second = If(Application(Var(second.name), good), good, good)
+    assert check_type(ctx, calls_second, first.arg_specs[0][1])
+    proposals = iter([calls_second, good])
+    monkeypatch.setattr(TypeSampler, "sample", lambda *args, **kwargs: next(proposals))
+    cache = {}
+    first_cases = _generate_property_cases(first, driver.typing_ctx, ctx, driver.metadata, 0, case_cache=cache)
+    second_cases = _generate_property_cases(second, driver.typing_ctx, ctx, driver.metadata, 0, case_cache=cache)
+    assert first_cases[0][0] == [calls_second]
+    assert second_cases[0][0] == [good]
