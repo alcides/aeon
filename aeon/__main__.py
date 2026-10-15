@@ -28,7 +28,7 @@ from aeon.facade.api import (
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.facade.exit_codes import ExitCode, error_exit_code
 from aeon.sugar.lowering import LiquefactionException
-from aeon.synthesis.api import SynthesisNotSuccessful, UnknownSynthesizerError
+from aeon.synthesis.api import SynthesisNotSuccessful, TimeoutInEvaluationException, UnknownSynthesizerError
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
@@ -445,7 +445,7 @@ def main() -> None:
 
             try:
                 print(driver.export(args.export))
-            except SynthesisNotSuccessful:
+            except (SynthesisNotSuccessful, TimeoutInEvaluationException, TimeoutError):
                 print(f"Cannot find a suitable expression within {args.budget} seconds.", file=sys.stderr)
                 sys.exit(2)
             except PythonExportError as e:
@@ -468,7 +468,7 @@ def main() -> None:
                     validate_synthesizer_or_exit(args.synthesizer)
                     try:
                         term = driver.synth()
-                    except SynthesisNotSuccessful as e:
+                    except (SynthesisNotSuccessful, TimeoutInEvaluationException, TimeoutError) as e:
                         message = str(e) or f"Cannot find a suitable expression within {args.budget} seconds."
                         print(message, file=sys.stderr)
                         sys.exit(ExitCode.SYNTHESIS_NOT_SUCCESSFUL)

@@ -476,6 +476,32 @@ def property_corpora_for_target(
     independent one-hole synthesis cannot execute that sibling. Such relational
     properties remain part of Contata's joint acceptance oracle.
     """
+    return property_corpora_for_targets(
+        typing_ctx,
+        core,
+        metadata,
+        {target},
+        open_targets,
+        constructor_names=constructor_names,
+        seed=seed,
+    )
+
+
+def property_corpora_for_targets(
+    typing_ctx: TypingContext,
+    core: Term,
+    metadata: Metadata,
+    targets: set[Name],
+    open_targets: set[Name],
+    constructor_names: set[str] | None = None,
+    seed: int = 0,
+) -> list[PropertyCorpus]:
+    """Select each relevant property once for a jointly synthesized target set.
+
+    Relational properties are eligible when every open target they reference
+    belongs to this candidate product. Ordinary one-target selection retains
+    its restriction on unresolved siblings.
+    """
     from aeon.synthesis.pbt.generators import build_adt_context
 
     specs, _ = _collect_properties(core, metadata)
@@ -483,14 +509,14 @@ def property_corpora_for_target(
     names = constructor_names or set()
     ctor_binders = _collect_constructors(core, names)
     adt_ctx = build_adt_context(typing_ctx, ctor_binders)
-    other_targets = open_targets - {target}
+    other_targets = open_targets - targets
     corpora: list[PropertyCorpus] = []
     for spec in specs:
         body = values.get(spec.name)
         if body is None:
             continue
         references = _term_references(body)
-        if target not in references or references & other_targets:
+        if not references & targets or references & other_targets:
             continue
         cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed)
         corpora.append(PropertyCorpus(spec, tuple(tuple(terms) for terms, _ in cases)))
@@ -507,11 +533,17 @@ def make_property_fitness(
     When ``target`` is the synthesised function, static prefix bindings are
     evaluated once per candidate and pre-built call spines are reused.
     """
-    from aeon.synthesis.fitness_eval import prebind_prefix, prebuild_property_calls, set_program_tail
+    from aeon.synthesis.fitness_eval import (
+        prebind_prefix,
+        prebuild_property_calls,
+        set_program_tail,
+        require_complete_program,
+    )
 
     calls = prebuild_property_calls(corpus.spec.name, corpus.cases)
 
     def fitness(program: Term) -> float:
+        require_complete_program(program)
         failures = 0
         if target is not None:
             prefix_ctx, suffix = prebind_prefix(program, evaluation_ctx, target)

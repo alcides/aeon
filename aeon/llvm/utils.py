@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypeGuard
+
 from aeon.core.types import TypeConstructor, RefinedType, AbstractionType, Type
 from aeon.utils.name import Name
 from aeon.llvm.adt import is_registered_inductive, LLVMADTPtr as _ADT_PTR
@@ -16,6 +18,10 @@ from aeon.llvm.llvm_ast import (
     LLVMFunctionType,
     LLVMVectorInt,
     LLVMPointerType,
+    LLVMIntType,
+    LLVMFloatType,
+    LLVMDoubleType,
+    LLVMBoolType,
 )
 
 SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Array", "Vector", "Buffer", "String"}
@@ -24,6 +30,13 @@ UNARY_OPS = {"!", "-"}
 
 # Opaque heap pointer for registered inductive types (Individual, List, Pair, …).
 LLVMADTPtr = _ADT_PTR
+
+
+def is_array_pointer(ty: LLVMType) -> TypeGuard[LLVMPointerType]:
+    """Recognize scalar array buffers, excluding opaque ADT and string pointers."""
+    return isinstance(ty, LLVMPointerType) and isinstance(
+        ty.element_type, (LLVMIntType, LLVMFloatType, LLVMDoubleType, LLVMBoolType)
+    )
 
 
 def validate_ops(op: str):

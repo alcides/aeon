@@ -6,9 +6,10 @@ import llvmlite.binding as llvm
 import llvmlite.ir as ir
 
 from aeon.llvm.cpu.converter import CPULLVMIRGenerator
-from aeon.llvm.utils import sanitize_name
+from aeon.llvm.utils import is_array_pointer, sanitize_name
 from aeon.llvm.llvm_ast import (
     LLVMFunction,
+    LLVMFunctionType,
     LLVMPointerType,
     LLVMVectorMap,
     LLVMVectorReduce,
@@ -52,10 +53,16 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if not isinstance(node, LLVMFunction) or node.name is None:
                 continue
             func = self.module.globals[sanitize_name(node.name)]
-            # Host launches only scalar/void entry points. ADT pointer returns
-            # stay device-local (nested calls), so skip __kernel wrappers for them.
+            # Array returns identify an input buffer through a device-pointer
+            # result slot. Opaque ADT returns remain device-local.
             if isinstance(func.function_type.return_type, ir.PointerType):
-                continue
+                assert isinstance(node.type, LLVMFunctionType)
+                ret_type = node.type.return_type
+                if not is_array_pointer(ret_type) or not any(
+                    isinstance(arg_type, LLVMPointerType) and arg_type.element_type == ret_type.element_type
+                    for arg_type in node.arg_types
+                ):
+                    continue
             name = func.name + "__kernel"
             if name in self.module.globals:
                 continue

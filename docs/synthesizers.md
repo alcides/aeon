@@ -8,6 +8,15 @@ uv run python -m aeon --budget 30 -s tdsyn_enumerative my_program.ae
 
 The `--budget` flag sets the time limit in seconds (default: 60). The default synthesizer is **`tdsyn_enumerative`** (type-directed BFS); pass `-s gp` (or another id) to override.
 
+For `random_search` and `gp`, programs with multiple holes are searched jointly.
+Each candidate contains one expression per hole, with that hole's expected type
+and lexical scope. All expressions are substituted before the complete program
+is typechecked and its combined fitness vector is evaluated. A candidate with
+an open hole cannot execute fitness. Properties relating several synthesized
+functions guide the joint search too. `--budget` applies once to the joint
+program search, rather than once per hole; single-hole behavior is unchanged.
+
+
 ---
 
 ## Available Synthesizers
@@ -17,6 +26,8 @@ The `--budget` flag sets the time limit in seconds (default: 60). The default sy
 Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
 
 Population size is chosen from a timing probe of the first ten random individuals so that initial evaluation uses at most 10% of the wall-clock budget. Crossover rate and mutation rate are sampled randomly each run; tournament size, novelty rate and related operator knobs are re-sampled every generation. Elitism keeps the best 5% of the population. Fitness comes from the synthesis decorators (`@minimize_*`, `@maximize_*`, `@property`, …). When objectives are present the shared Pareto driver returns a random non-dominated candidate; otherwise the first well-typed term wins. No GeneticEngine dependency.
+
+With multiple holes, interleaved codon streams decode one typed expression per hole. Crossover and mutation evolve the complete product candidate, and selection uses its whole-program fitness.
 
 Best suited for problems with a rich fitness landscape and sufficient budget.
 
@@ -228,7 +239,7 @@ Demonstrative single-step backends: each applies its forward action exactly once
 
 Each returns the first complete candidate that typechecks, or otherwise the first expansion with fresh `?<fun>_goal_<i>` subgoal holes, so steps can be chained. No search is performed — use `tdsyn` for actual synthesis.
 
-When a function has several holes (e.g. the subgoals a previous step inserted), the LSP Synthesize action targets exactly the hole it was invoked on and leaves the siblings open; on the CLI, synthesis fills the first hole of each function.
+When a function has several holes (e.g. the subgoals a previous step inserted), the LSP Synthesize action targets exactly the hole it was invoked on and leaves the siblings open. On the CLI, `random_search`, `gp`, `smt`, and `sygus` fill all program holes jointly; other per-hole backends target the first hole of each function. Fitness evaluation requires a fully filled program.
 
 ---
 
@@ -297,3 +308,39 @@ checks of synthesized assignments.
 For the catalogue of synthesis and verification benchmarks bundled with Aeon —
 where they live, how many there are, and how to run them — see
 [benchmarks.md](benchmarks.md).
+
+
+## Joint SMT and SyGuS synthesis
+
+For programs with multiple holes, `smt` and `sygus` solve all targets together.
+Each hole becomes an unknown function of the primitive values in its lexical
+scope. One query contains every hole contract, surrounding refinement,
+relational `@example`, and translatable `@property`. Properties are universal
+logical constraints in this path, rather than sampled fitness alone. The
+complete assignment must pass Aeon's whole-program validator before any
+fitness expression is executed.
+
+The joint solver subset is `Int`, `Bool`, and `Float` expressions and curried
+functions over those types, with native arithmetic and Boolean operators and
+acyclic pure helper definitions. String/ADT/array holes, opaque native
+properties, and unsupported predicates produce explicit synthesis failures.
+As with Aeon's refinement checker, `Float` is modeled as mathematical Real;
+the complete-program validation remains the acceptance gate.
+
+Joint SMT obtains all implementations from one Z3 model. Joint SyGuS declares
+all synthesis functions in one cvc5 query and retrieves their solutions
+together. SyGuS runs in a separate process with a wall-clock limit, including
+process startup, because native solver calls can exceed their internal limit.
+Unsatisfiable, unknown, timed-out, or untranslatable results never return a
+partial assignment.
+
+This joint path finds a feasible assignment and scores it once. It does not
+optimize arbitrary native fitness functions. Use `gp` or `random_search` for
+fitness-driven optimization. Single-hole SMT and SyGuS retain their existing
+implementations.
+
+The CLI reports synthesis success only when all program holes are filled.
+Budget exhaustion, an empty or partial result, or an escaping synthesis/evaluation
+timeout returns exit code `2` (`SYNTHESIS_NOT_SUCCESSFUL`). Complete results
+still exit successfully even if optimization consumed its entire budget.
+A process killed by an external watchdog remains an external timeout.

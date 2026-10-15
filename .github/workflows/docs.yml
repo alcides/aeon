@@ -14,7 +14,6 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -23,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

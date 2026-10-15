@@ -9,6 +9,7 @@ from loguru import logger
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
 from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType, LLVMVoidType
+from aeon.llvm.utils import is_array_pointer
 
 
 class CUDAExecutionError(LLVMBackendError):
@@ -172,8 +173,16 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         logger.debug(f"Executing kernel {func_name} on GPU.")
         if self.libcuda.cuCtxSetCurrent(self.context) != 0:
             raise CUDAExecutionError("cuCtxSetCurrent failed")
-        if isinstance(ret_type, LLVMPointerType):
-            raise CUDAExecutionError("GPU pointer returns require an explicit output-buffer entry point")
+        returns_array = isinstance(ret_type, LLVMPointerType)
+        array_element_type = ret_type.element_type if isinstance(ret_type, LLVMPointerType) else None
+        if returns_array and (
+            not is_array_pointer(ret_type)
+            or not any(
+                isinstance(ty, LLVMPointerType) and ty.element_type == array_element_type and isinstance(arg, list)
+                for arg, ty in zip(args, arg_types)
+            )
+        ):
+            raise CUDAExecutionError("GPU array returns must refer to an array passed as a parameter")
 
         ir_hash = hash(llvm_ir)
         if ir_hash not in self._module_cache:
@@ -186,6 +195,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         device_ptrs = []
         kernel_params = []
         cleanup_tasks = []
+        array_results = {}
         scalar_args = []
         result_buffer = None
 
@@ -203,13 +213,15 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     device_ptrs.append(d_ptr)
                     kernel_params.append(ctypes.addressof(d_ptr))
                     cleanup_tasks.append((d_ptr, data, size, arg))
+                    if returns_array and ty.element_type == array_element_type and isinstance(arg, list):
+                        array_results[d_ptr.value] = arg
                 else:
                     c_val = self._get_ctypes_type(ty)(arg)
                     scalar_args.append(c_val)  # Keep every parameter alive until launch completes.
                     kernel_params.append(ctypes.addressof(c_val))
 
             if not isinstance(ret_type, LLVMVoidType):
-                result_buffer = self._get_ctypes_type(ret_type)()
+                result_buffer = ctypes.c_uint64() if returns_array else self._get_ctypes_type(ret_type)()
                 result_ptr = ctypes.c_uint64()
                 if self.libcuda.cuMemAlloc_v2(ctypes.byref(result_ptr), ctypes.sizeof(result_buffer)) != 0:
                     raise CUDAExecutionError("cuMemAlloc failed for result")
@@ -242,6 +254,10 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     != 0
                 ):
                     raise CUDAExecutionError("cuMemcpyDtoH failed for result")
+                if returns_array:
+                    if result_buffer.value not in array_results:
+                        raise CUDAExecutionError("GPU array result does not refer to an array passed as a parameter")
+                    return array_results[result_buffer.value]
                 return result_buffer.value
             return None
 
@@ -252,8 +268,18 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
     def _get_ctypes_type(self, ty: LLVMType):
         from aeon.llvm.llvm_ast import LLVMIntType, LLVMFloatType, LLVMDoubleType, LLVMBoolType
 
+        if isinstance(ty, LLVMIntType):
+            integer_types = {
+                1: ctypes.c_bool,
+                8: ctypes.c_int8,
+                16: ctypes.c_int16,
+                32: ctypes.c_int32,
+                64: ctypes.c_int64,
+            }
+            if ty.bits not in integer_types:
+                raise CUDAExecutionError(f"unsupported integer width: {ty.bits} bits")
+            return integer_types[ty.bits]
         mapping = {
-            LLVMIntType: ctypes.c_int32,
             LLVMFloatType: ctypes.c_float,
             LLVMDoubleType: ctypes.c_double,
             LLVMBoolType: ctypes.c_bool,
