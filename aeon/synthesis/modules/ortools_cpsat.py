@@ -514,13 +514,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         if isinstance(t, Application):
             # Inline array thunks without evaluating their unused Unit argument.
-            # Keep the general closure/ADT application path for other calls.
+            # Keep the general closure/ADT path for every other call: substituting
+            # those bodies bypasses native-cast recognition and creates temporary
+            # expressions whose recycled IDs can alias application-cache keys.
             function = t.fun
             seen = visited
             if isinstance(function, Var) and function.name not in visited:
                 seen = visited | {function.name}
                 function = self._def_bodies.get(function.name, function)
-            if isinstance(function, Abstraction):
+            if isinstance(function, Abstraction) and isinstance(t.arg, Var) and t.arg.name.name == "unit":
                 return self._translate(substitution(function.body, t.arg, function.var_name), env, seen)
             return self._apply(self._translate(t.fun, env, visited), self._translate(t.arg, env, visited), visited)
 
