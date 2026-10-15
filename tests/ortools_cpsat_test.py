@@ -222,7 +222,19 @@ def test_array_int_hole():
     assert isinstance(term.value, list) and term.value == [3, -7]
 
 
-def test_array_float_hole():
+@pytest.mark.parametrize("workers", [1, 2])
+def test_array_float_hole(monkeypatch, workers):
+    from ortools.sat.python import cp_model
+
+    solver_type = cp_model.CpSolver
+
+    def limited_solver():
+        solver = solver_type()
+        solver.parameters.num_workers = workers
+        return solver
+
+    # Match small CI runners: many local workers can hide weak square bounds.
+    monkeypatch.setattr(cp_model, "CpSolver", limited_solver)
     src = """
     import Array;
     @minimize_float( (((Array.get (v unit) 0) - 1.5) * ((Array.get (v unit) 0) - 1.5)) + (((Array.get (v unit) 1) + 2.25) * ((Array.get (v unit) 1) + 2.25)) )

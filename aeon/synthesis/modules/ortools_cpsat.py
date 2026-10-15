@@ -258,6 +258,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._ectx = ectx
         self._term = term
         self._translation_steps = 0
+        self._square_hints: set[int] = set()
         self._definition_cache: dict[Name, _Value] = {}
         self._application_cache: dict[tuple, tuple[_Closure, _Value, _Value]] = {}
         self._constructor_heads, self._recursor_heads = self._inductive_heads(term)
@@ -659,12 +660,51 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             s = a.scale + b.scale
             corners = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
             lo, hi = min(corners), max(corners)
+            from ortools.sat.python import cp_model
+
+            def linear_key(expression: Any) -> tuple:
+                if isinstance(expression, int):
+                    return (expression, ())
+                affine = cp_model.FlatIntExpr(expression)
+                return (affine.offset, tuple((v.index, c) for v, c in zip(affine.vars, affine.coeffs)))
+
+            if a.scale == b.scale and linear_key(a.expr) == linear_key(b.expr):
+                # A repeated factor is a square, not two independent values.
+                # Its nonnegative bound lets CP-SAT prove a zero-cost optimum
+                # without searching the full fixed-point array domain.
+                lo = 0 if a.lo <= 0 <= a.hi else min(a.lo * a.lo, a.hi * a.hi)
+                hi = max(a.lo * a.lo, a.hi * a.hi)
+                b = a
+                self._hint_square_zero(a)
             if isinstance(a.expr, int) or isinstance(b.expr, int):
                 return _Num(a.expr * b.expr, s, lo, hi)
             prod = self._model.new_int_var(lo, hi, "prod")
             self._model.add_multiplication_equality(prod, [a.expr, b.expr])
             return _Num(prod, s, lo, hi)
         raise _Unsupported(f"operator '{op}'")
+
+    def _hint_square_zero(self, value: _Num) -> None:
+        """Warm-start one-variable squares at their nearest grid minimum.
+
+        Hints never constrain the model: other objectives and hard constraints
+        can move the result. Avoid a minimum-domain enumeration of wide Float
+        grids on runners with only one solver worker.
+        """
+        if isinstance(value.expr, int):
+            return
+        from ortools.sat.python import cp_model
+
+        affine = cp_model.FlatIntExpr(value.expr)
+        if len(affine.vars) != 1 or not affine.coeffs[0]:
+            return
+        variable = affine.vars[0]
+        if variable.index in self._square_hints:
+            return
+        candidate = round(Fraction(-affine.offset, affine.coeffs[0]))
+        domain = variable.proto.domain
+        candidate = max(domain[0], min(domain[-1], candidate))
+        self._model.add_hint(variable, candidate)
+        self._square_hints.add(variable.index)
 
     def _eval_const(self, name: Name) -> _Num:
         from dataclasses import replace
