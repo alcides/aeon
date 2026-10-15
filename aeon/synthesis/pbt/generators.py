@@ -7,7 +7,7 @@ completed proposal passes Aeon's regular typechecker before it becomes an input.
 from __future__ import annotations
 
 import random
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 
 from aeon.core.terms import Term
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, t_string
@@ -84,7 +84,9 @@ class TypeSampler:
         prefer_closed: bool | None = None,
         validation_ctx: TypingContext | None = None,
         synthesizers: str | Sequence[str] = ("random_search",),
+        runtime_valid: Callable[[Term], bool] | None = None,
     ):
+        self.runtime_valid = runtime_valid
         self.rng = random.Random(seed)
         self.type = ty
         self.synthesizers = (synthesizers,) if isinstance(synthesizers, str) else tuple(synthesizers)
@@ -167,6 +169,8 @@ class TypeSampler:
                         validation_error = error
                         continue
                     if not valid:
+                        continue
+                    if self.runtime_valid is not None and not self.runtime_valid(term):
                         continue
                     self.backend_counts[backend] += 1
                     return term

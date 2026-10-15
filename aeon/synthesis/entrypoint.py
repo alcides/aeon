@@ -338,6 +338,7 @@ def _synthesize_one(
         fun_name,
         open_targets or {fun_name},
         constructor_names=constructor_names,
+        evaluation_ctx=ectx,
     )
     if corpora:
         synthesis_metadata = dict(metadata)

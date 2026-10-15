@@ -257,6 +257,38 @@ def _shrinkable_flags(arg_specs: tuple[tuple[Name, Type], ...]) -> list[bool]:
     return flags
 
 
+def _input_validator(core: Term, ectx: EvaluationContext, timeout: float) -> Callable[[Term], bool]:
+    """Check input construction separately from the property, with a time limit.
+
+    Include only the input's transitive dependencies so unrelated unfinished
+    synthesis targets are never evaluated while building a fixed corpus.
+    """
+    bindings: list[Let | Rec] = []
+    current = core
+    while isinstance(current, (Let, Rec, Annotation)):
+        if isinstance(current, Annotation):
+            current = current.expr
+        else:
+            bindings.append(current)
+            current = current.body
+    cache: dict[Term, bool] = {}
+
+    def valid(term: Term) -> bool:
+        if term in cache:
+            return cache[term]
+        needed = _term_references(term)
+        program: Term = Let(Name("__pbt_input"), term, Literal(True, t_bool))
+        for binding in reversed(bindings):
+            if binding.var_name in needed:
+                needed.update(_term_references(binding.var_value))
+                program = dc_replace(binding, body=program)
+        ok = _eval_bool(program, ectx, timeout)[0] is True
+        cache[term] = ok
+        return ok
+
+    return valid
+
+
 def _generate_property_cases(
     spec: PropertySpec,
     _typing_ctx: TypingContext,
@@ -264,6 +296,7 @@ def _generate_property_cases(
     metadata: Metadata,
     seed: int,
     input_synthesizers: tuple[str, ...] = ("random_search",),
+    runtime_valid: Callable[[Term], bool] | None = None,
 ) -> list[tuple[list[Term], list[Type]]]:
     """Generate a property's inputs once, preserving dependent argument types."""
     from aeon.synthesis.pbt.generators import TypeSampler, build_base_context, is_base_type
@@ -291,6 +324,7 @@ def _generate_property_cases(
                 seed=seed + idx * 7919,
                 validation_ctx=adt_ctx,
                 synthesizers=input_synthesizers,
+                runtime_valid=runtime_valid,
             )
             sampler_cache[key] = sampler
         return sampler
@@ -335,8 +369,9 @@ def _check_property(
             call = Application(call, term)
         return _eval_bool(_replace_tail(core, call), evaluation_ctx, timeout)
 
+    runtime_valid = _input_validator(core, evaluation_ctx, timeout)
     try:
-        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers)
+        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid)
     except RuntimeError as generation_error:
         return PropertyResult(spec.name, passed=False, trials=0, error=f"input generation failed: {generation_error}")
     for trial, (terms, arg_tys) in enumerate(cases):
@@ -346,7 +381,7 @@ def _check_property(
                 terms,
                 arg_tys,
                 _shrinkable_flags(spec.arg_specs),
-                lambda candidate: evaluate(candidate)[0] is not True,
+                lambda candidate: all(runtime_valid(term) for term in candidate) and evaluate(candidate)[0] is not True,
                 constructor_types,
                 constructor_names,
                 adt_ctx,
@@ -481,6 +516,7 @@ def property_corpora_for_target(
     constructor_names: set[str] | None = None,
     seed: int = 0,
     input_synthesizers: tuple[str, ...] = ("random_search",),
+    evaluation_ctx: EvaluationContext | None = None,
 ) -> list[PropertyCorpus]:
     """Build fixed corpora for properties that can guide one ordinary target.
 
@@ -516,7 +552,8 @@ def property_corpora_for_target(
         references = _term_references(body)
         if target not in references or references & other_targets:
             continue
-        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers)
+        runtime_valid = _input_validator(core, evaluation_ctx, DEFAULT_TIMEOUT) if evaluation_ctx is not None else None
+        cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid)
         corpora.append(PropertyCorpus(spec, tuple(tuple(terms) for terms, _ in cases)))
     return corpora
 

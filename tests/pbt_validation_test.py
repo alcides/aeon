@@ -164,3 +164,54 @@ def test_positive_adt_property_does_not_get_out_of_domain_counterexamples(valida
     positive = next(result for result in results if result.name.name == "prop_positive")
     assert positive.passed, positive.summary()
     assert positive.trials == 40
+
+
+@pytest.fixture(scope="module")
+def partial_input_program():
+    driver = AeonDriver(AeonConfig("none", SilentSynthesisUI(), 0, no_main=True))
+    assert (
+        driver.parse(
+            aeon_code="""
+        open List
+        import Math;
+        def bad (_:Unit) : (List Int) := .cons (Math.floor Math.INF) .nil;
+        def good : (List Int) := .cons 7 .nil;
+        @property(2)
+        def prop_length (xs:(List Int)) : Bool := length xs >= 0;
+        @property(1)
+        def prop_crashes (xs:(List Int)) : Bool := Math.floor Math.INF = 0;
+    """
+        )
+        == []
+    )
+    from aeon.core.terms import Var
+
+    bindings = {name.name: name for name, _ in _iter_top_level(driver.core)}
+    bad = Application(Var(bindings["bad"]), Var(Name("unit", 0)))
+    good = Var(bindings["good"])
+    return driver, bad, good
+
+
+def test_partial_input_is_resampled_but_property_exceptions_still_fail(partial_input_program, monkeypatch):
+    from aeon.synthesis.pbt import generators
+
+    driver, bad, good = partial_input_program
+    proposals = iter([bad, good, good, bad, good])
+    monkeypatch.setattr(generators, "sample_one", lambda *args, **kwargs: next(proposals))
+    results = run_properties(driver.typing_ctx, driver.evaluation_ctx, driver.core, driver.metadata)
+    by_name = {result.name.name: result for result in results}
+    assert by_name["prop_length"].passed
+    assert by_name["prop_length"].trials == 2
+    assert not by_name["prop_crashes"].passed
+    assert "OverflowError" in by_name["prop_crashes"].error
+
+
+def test_only_partial_inputs_report_generation_failure(partial_input_program, monkeypatch):
+    from aeon.synthesis.pbt import generators
+
+    driver, bad, _ = partial_input_program
+    monkeypatch.setattr(generators, "sample_one", lambda *args, **kwargs: bad)
+    results = run_properties(driver.typing_ctx, driver.evaluation_ctx, driver.core, driver.metadata)
+    assert all(not result.passed and result.trials == 0 for result in results)
+    assert all("input generation failed" in result.error for result in results)
+    assert all(result.counterexample is None for result in results)

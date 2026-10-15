@@ -28,6 +28,13 @@ same round-robin schedule even when their specialized types change each trial.
 All backends use the same full typechecking gate; mixing them does not guarantee
 a uniform distribution or distinct runtime values.
 
+The property runner also evaluates each candidate input separately before
+accepting it. Expressions that raise or time out during construction (for
+example, converting infinity to an integer inside a list) are discarded within
+the same bounded search. Exhausting that search reports an input-generation
+failure. Exceptions raised by the property itself still fail the property, and
+shrinking cannot replace a counterexample with an input that fails to construct.
+
 Directional variants (`tdsyn_backward`, `backward_*`, and `forward_*`) are also
 available: they apply their named initial step and then use TDSyn to finish its
 subgoals. They never supply partial programs as inputs. Some steps do not apply
