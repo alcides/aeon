@@ -23,7 +23,7 @@ from aeon.core.types import (
     TypeVar,
     refined_to_unrefined_type,
 )
-from aeon.core.types import Type
+from aeon.core.types import Type, t_bool
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
 from aeon.utils.name import Name
@@ -117,7 +117,7 @@ def get_holes_info(
             return hs1 | hs2
         case If(cond=cond, then=then, otherwise=otherwise):
             return (
-                _child_holes(ctx, cond, ty, targets, refined_types)
+                _child_holes(ctx, cond, t_bool, targets, refined_types)
                 | _child_holes(ctx, then, ty, targets, refined_types)
                 | _child_holes(ctx, otherwise, ty, targets, refined_types)
             )

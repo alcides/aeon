@@ -151,3 +151,79 @@ def test_cli_invalid_refinement(tmp_path):
     )
     r = run_aeon(tmp_path, src)
     assert r.returncode == ExitCode.INVALID_REFINEMENT
+
+
+@pytest.mark.parametrize("result", ["none", "partial", "open"])
+def test_cli_unfinished_synthesis_exits_two(tmp_path, monkeypatch, capsys, result):
+    import aeon.__main__ as cli
+    import aeon.facade.driver as driver_module
+    from aeon.core.terms import Hole, Literal
+    from aeon.core.types import t_int
+    from aeon.utils.name import Name
+
+    def unfinished(ctx, ectx, core, targets, *args, **kwargs):
+        names = [hole for _, holes in targets for hole in holes]
+        if result == "none":
+            return {name: None for name in names}
+        if result == "partial":
+            return {names[0]: Literal(0, t_int)}
+        return {name: Hole(Name("still_open", 987)) for name in names}
+
+    path = tmp_path / "incomplete.ae"
+    path.write_text("def x:Int := ?hx; def y:Int := ?hy;")
+    monkeypatch.setattr(driver_module, "synthesize_holes", unfinished)
+    monkeypatch.setattr(sys, "argv", ["aeon", "--no-main", "-s", "random_search", "--budget", "1", str(path)])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == ExitCode.SYNTHESIS_NOT_SUCCESSFUL
+    captured = capsys.readouterr()
+    assert "complete solution" in captured.err
+    assert "Synthesized holes:" not in captured.out
+
+
+@pytest.mark.parametrize("exception", [TimeoutError, "evaluation"])
+def test_cli_escaping_timeout_exits_two(tmp_path, monkeypatch, capsys, exception):
+    import aeon.__main__ as cli
+    import aeon.facade.driver as driver_module
+    from aeon.synthesis.api import TimeoutInEvaluationException
+
+    def timed_out(*args, **kwargs):
+        raise TimeoutInEvaluationException() if exception == "evaluation" else exception()
+
+    path = tmp_path / "timeout.ae"
+    path.write_text("def x:Int := ?hx;")
+    monkeypatch.setattr(driver_module, "synthesize_holes", timed_out)
+    monkeypatch.setattr(sys, "argv", ["aeon", "--no-main", "-s", "random_search", "--budget", "1", str(path)])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == ExitCode.SYNTHESIS_NOT_SUCCESSFUL
+    assert "within 1 seconds" in capsys.readouterr().err
+
+
+def test_complete_synthesis_still_exits_zero(tmp_path):
+    path = tmp_path / "complete.ae"
+    path.write_text("def x:{v:Int | v = 7} := ?hx;")
+    result = subprocess.run(
+        [sys.executable, "-m", "aeon", "--no-main", "-s", "smt", "--budget", "2", str(path)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == ExitCode.SUCCESS, result.stderr
+    assert "Synthesized holes:" in result.stdout
+
+
+def test_cli_backend_without_candidate_exits_two(tmp_path):
+    path = tmp_path / "no_candidate.ae"
+    path.write_text("def f(x:Int):Int := ?hole;")
+    result = subprocess.run(
+        [sys.executable, "-m", "aeon", "--no-main", "-s", "decision_tree", "--budget", "1", str(path)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == ExitCode.SYNTHESIS_NOT_SUCCESSFUL, result.stderr
+    assert "unfilled holes" in result.stderr
+    assert "Synthesized holes:" not in result.stdout

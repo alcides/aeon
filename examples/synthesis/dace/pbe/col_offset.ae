@@ -5,10 +5,10 @@
 #   uv run python -m aeon --no-main -s fta --budget 30 \
 #     examples/synthesis/dace/pbe/col_offset.ae
 
-open Table
+import Dace (Column, col_at)
 
-def input : Table :=
-    native "[{'first': 1, 'second': 10}, {'first': 2, 'second': 20}, {'first': 3, 'second': 30}]";
+# The observed second column; the first column is the row number.
+def col : Column := native "[10, 20, 30]";
 
 # Target: previous row's second column (spatial offset), or 0 on the first row.
 @example(complete 0 = 0)

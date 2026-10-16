@@ -22,7 +22,8 @@ from time import monotonic
 from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
+from aeon.synthesis.api import InvalidIndividualException, TimeoutInEvaluationException
+from aeon.synthesis.joint import HoleSpec, JointCandidate, JointSynthesizer
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.modules.native_search import (
     ParetoEntry,
@@ -212,9 +213,14 @@ def _assess(
     ui: SynthesisUI,
     started: float,
     budget: float,
+    decode: Callable[[Genome, int], Term | None] | None = None,
 ) -> Term | None:
     """Map, validate and evaluate one individual. Return early term if no objectives."""
-    term = map_genome(ind.genome, initial, skip, generation=state.generation)
+    term = (
+        decode(ind.genome, state.generation)
+        if decode is not None
+        else map_genome(ind.genome, initial, skip, generation=state.generation)
+    )
     ind.term = term
     ind.fitness = None
     ind.valid = False
@@ -264,7 +270,7 @@ def _resample_generation_params(state: GPState, pop_size: int) -> None:
     state.novelty_rate = state.rng.random() * 0.2  # up to 20% random immigrants
 
 
-class GeneticProgrammingSynthesizer(Synthesizer):
+class GeneticProgrammingSynthesizer(JointSynthesizer):
     """Linear-genome genetic programming with adaptive population sizing."""
 
     def __init__(self, seed: int = 0):
@@ -285,12 +291,77 @@ class GeneticProgrammingSynthesizer(Synthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
+        return self._search(
+            initial_partial(ctx, type),
+            make_skip(fun_name, metadata),
+            validate,
+            evaluate,
+            fun_name,
+            metadata,
+            budget,
+            ui,
+        )
+
+    def synthesize_joint(
+        self,
+        holes: tuple[HoleSpec, ...],
+        validate: Callable[[Term], bool],
+        evaluate: Callable[[Term], list[float]],
+        fun_name: Name,
+        metadata: Metadata,
+        budget: float = 60,
+        ui: SynthesisUI = SynthesisUI(),
+    ) -> JointCandidate | None:
+        initials = [initial_partial(h.ctx, h.type) for h in holes]
+        skips = [make_skip(h.function, metadata) for h in holes]
+        width = len(holes)
+
+        def decode(genome: Genome, generation: int) -> Term | None:
+            # Interleaved codon streams give each typed element its own genome.
+            # Evolution acts on the complete product; fitness never scores an
+            # isolated element or substitutes placeholder siblings.
+            if len(genome) < width:
+                return None
+            terms = []
+            for i, (initial, skip) in enumerate(zip(initials, skips)):
+                term = map_genome(genome[i::width], initial, skip, generation=generation)
+                if term is None:
+                    return None
+                terms.append(term)
+            return JointCandidate(tuple(terms))
+
+        result = self._search(
+            initials[0],
+            skips[0],
+            validate,
+            evaluate,
+            fun_name,
+            metadata,
+            budget,
+            ui,
+            decode=decode,
+            min_genome_length=width,
+        )
+        assert result is None or isinstance(result, JointCandidate)
+        return result
+
+    def _search(
+        self,
+        initial: PartialAST,
+        skip: Callable[[Name], bool],
+        validate: Callable[[Term], bool],
+        evaluate: Callable[[Term], list[float]],
+        fun_name: Name,
+        metadata: Metadata,
+        budget: float,
+        ui: SynthesisUI,
+        decode: Callable[[Genome, int], Term | None] | None = None,
+        min_genome_length: int = 1,
+    ) -> Term | None:
         clear_tdsyn_caches()
         goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
         minimize = minimize_flags_from_goals(goals)
         rng = random.Random(self.seed)
-        initial = initial_partial(ctx, type)
-        skip = make_skip(fun_name, metadata)
         started = monotonic()
 
         state = GPState(
@@ -302,14 +373,18 @@ class GeneticProgrammingSynthesizer(Synthesizer):
         _resample_generation_params(state, MIN_POPULATION)
 
         def fresh_individual(length: int | None = None) -> Individual:
-            glen = length if length is not None else rng.randint(4, 24 + 4 * state.generation)
+            glen = (
+                length
+                if length is not None
+                else rng.randint(max(4, min_genome_length), max(24 + 4 * state.generation, min_genome_length))
+            )
             return Individual(genome=_random_genome(rng, glen))
 
         # --- Timing probe: first 10 random individuals ---
         probe: list[Individual] = [fresh_individual() for _ in range(PROBE_INDIVIDUALS)]
         probe_started = monotonic()
         for ind in probe:
-            early = _assess(ind, initial, skip, validate, evaluate, state, ui, started, budget)
+            early = _assess(ind, initial, skip, validate, evaluate, state, ui, started, budget, decode)
             if early is not None:
                 return early
             if monotonic() - started >= max(0.0, budget):
@@ -322,7 +397,7 @@ class GeneticProgrammingSynthesizer(Synthesizer):
         # Fill up to pop_size within remaining init allowance / overall budget.
         while len(population) < pop_size and monotonic() - started < max(0.0, budget):
             ind = fresh_individual()
-            early = _assess(ind, initial, skip, validate, evaluate, state, ui, started, budget)
+            early = _assess(ind, initial, skip, validate, evaluate, state, ui, started, budget, decode)
             if early is not None:
                 return early
             population.append(ind)
@@ -361,7 +436,7 @@ class GeneticProgrammingSynthesizer(Synthesizer):
                         if state.rng.random() < state.mutation_rate:
                             g2 = mutate(state.rng, g2, state.mutation_rate, state.mutation_codons)
                         sibling = Individual(genome=g2)
-                        early = _assess(sibling, initial, skip, validate, evaluate, state, ui, started, budget)
+                        early = _assess(sibling, initial, skip, validate, evaluate, state, ui, started, budget, decode)
                         if early is not None:
                             return early
                         next_pop.append(sibling)
@@ -372,7 +447,7 @@ class GeneticProgrammingSynthesizer(Synthesizer):
                     genome = mutate(state.rng, parent.genome, max(state.mutation_rate, 0.05), state.mutation_codons)
                     child = Individual(genome=genome)
 
-                early = _assess(child, initial, skip, validate, evaluate, state, ui, started, budget)
+                early = _assess(child, initial, skip, validate, evaluate, state, ui, started, budget, decode)
                 if early is not None:
                     return early
                 next_pop.append(child)

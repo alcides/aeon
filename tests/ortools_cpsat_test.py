@@ -173,6 +173,15 @@ def test_refinement_constrains_optimum():
     assert _values(_solve(_parse(src))) == {"hx": 5, "hy": 5}
 
 
+def test_square_refinement_is_translated_before_the_objective():
+    source = """
+        def x : {v:Int | v >= 0 && v <= 5 && v * v >= 4} := ?hx;
+        @minimize_int(x)
+        def cost : Int := x;
+    """
+    assert _values(_solve(_parse(source))) == {"hx": 2}
+
+
 def test_let_bound_holes_inside_function():
     # Holes are `let`-bound inside `f`, and the objective is `f` itself: the
     # translator must descend the lets and inline `f` to reach both holes.
@@ -211,33 +220,34 @@ def test_float_holes_fixed_point():
     assert _values(mapping) == {"hx": 2.5, "hy": -1.25}
 
 
-_ARRAY_LINEARITY_XFAIL = pytest.mark.xfail(
-    reason="Array became a `linear type`: an array hole binds at multiplicity ω and the "
-    "fitness expression uses it repeatedly, so the program is rejected by the linearity "
-    "checker (LinearTypeNotBoundLinearlyError) before CP-SAT runs. The translator's array "
-    "support needs rework against the linear Array API.",
-    strict=True,
-)
-
-
-@_ARRAY_LINEARITY_XFAIL
 def test_array_int_hole():
     src = """
     import Array;
-    @minimize_int( (((Array.get v 0) - 3) * ((Array.get v 0) - 3)) + (((Array.get v 1) + 7) * ((Array.get v 1) + 7)) )
-    def v : {a:(Array Int) | Array.size a = 2} := ?h;
+    @minimize_int( (((Array.get (v unit) 0) - 3) * ((Array.get (v unit) 0) - 3)) + (((Array.get (v unit) 1) + 7) * ((Array.get (v unit) 1) + 7)) )
+    def v (_:Unit) : {a:(Array Int) | Array.size a = 2} := ?h;
     """
     mapping = _solve(_parse(src))
     (term,) = mapping.values()
     assert isinstance(term.value, list) and term.value == [3, -7]
 
 
-@_ARRAY_LINEARITY_XFAIL
-def test_array_float_hole():
+@pytest.mark.parametrize("workers", [1, 2])
+def test_array_float_hole(monkeypatch, workers):
+    from ortools.sat.python import cp_model
+
+    solver_type = cp_model.CpSolver
+
+    def limited_solver():
+        solver = solver_type()
+        solver.parameters.num_workers = workers
+        return solver
+
+    # Match small CI runners: many local workers can hide weak square bounds.
+    monkeypatch.setattr(cp_model, "CpSolver", limited_solver)
     src = """
     import Array;
-    @minimize_float( (((Array.get v 0) - 1.5) * ((Array.get v 0) - 1.5)) + (((Array.get v 1) + 2.25) * ((Array.get v 1) + 2.25)) )
-    def v : {a:(Array Float) | Array.size a = 2} := ?h;
+    @minimize_float( (((Array.get (v unit) 0) - 1.5) * ((Array.get (v unit) 0) - 1.5)) + (((Array.get (v unit) 1) + 2.25) * ((Array.get (v unit) 1) + 2.25)) )
+    def v (_:Unit) : {a:(Array Float) | Array.size a = 2} := ?h;
     """
     mapping = _solve(_parse(src))
     (term,) = mapping.values()
@@ -419,3 +429,18 @@ def test_balanced_adt_contains_individually_refined_holes():
     """)
     )
     assert _values(mapping) == {"hx": 10000, "hy": 3}
+
+
+@pytest.mark.parametrize(
+    "filename,expected",
+    [("array_int.ae", [3, -7, 10]), ("array_float.ae", [1.5, -2.25, 0.5])],
+)
+def test_array_benchmark_compiles_and_solves(filename, expected):
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "examples/synthesis/ortools" / filename
+    driver = _parse(path.read_text())
+    mapping = _solve(driver)
+    assert len(mapping) == 1
+    (term,) = mapping.values()
+    assert term.value == expected
