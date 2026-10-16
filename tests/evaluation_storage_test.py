@@ -72,3 +72,15 @@ def test_combined_logs_have_a_total_limit(tmp_path):
     policy = StoragePolicy(min_free_bytes=0, max_file_bytes=10000, max_total_bytes=9000)
     with pytest.raises(StorageLimitError, match="Total trial output"):
         policy.check_outputs([first, second])
+
+
+def test_child_artifact_limit_is_not_misclassified_as_backend_crash(tmp_path):
+    artifact, stderr = tmp_path / "artifact", tmp_path / "stderr"
+    policy = StoragePolicy(min_free_bytes=0, max_file_bytes=4096, max_total_bytes=8192)
+    code = 'import sys; open(sys.argv[1], "wb").write(b"x" * 1000000)'
+    command = bounded_command([sys.executable, "-c", code, str(artifact)], policy)
+    with stderr.open("wb") as stream:
+        process = subprocess.Popen(command, stderr=stream, start_new_session=True)
+        with pytest.raises(StorageLimitError, match="artifact"):
+            wait_with_limits(process, tmp_path, [stderr], 5, policy)
+    assert artifact.stat().st_size <= policy.max_file_bytes

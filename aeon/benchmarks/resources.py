@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+import errno
 from pathlib import Path
 import shutil
 import signal
@@ -78,6 +79,18 @@ def wait_with_limits(
         try:
             policy.check_outputs(paths)
             if process.poll() is not None:
+                # The inherited limit also covers child-created artifacts,
+                # which need not be among the four captured log paths.
+                if process.returncode in (-signal.SIGXFSZ, 128 + signal.SIGXFSZ):
+                    raise StorageLimitError("Child process exceeded its inherited file-size limit")
+                if process.returncode:
+                    for path in paths:
+                        if path.name.endswith("stderr") and path.exists():
+                            with path.open("rb") as stream:
+                                stream.seek(max(0, path.stat().st_size - 4096))
+                                tail = stream.read().decode(errors="replace")
+                            if f"[Errno {errno.EFBIG}]" in tail and "File too large" in tail:
+                                raise StorageLimitError("Child artifact exceeded its inherited file-size limit")
                 return
             if shutil.disk_usage(directory).free < policy.min_free_bytes:
                 raise StorageLimitError("Free disk space dropped below the trial safety floor")
