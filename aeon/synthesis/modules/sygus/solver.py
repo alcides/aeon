@@ -109,7 +109,9 @@ def _liquid_to_cvc5(t: Any, env: dict[Name, Any], slv: Any, kinds: Any, is_real:
         case LiquidLiteralBool(b):
             return slv.mkBoolean(bool(b))
         case LiquidLiteralInt(i):
-            return slv.mkInteger(int(i))
+            # cvc5's Python int overload can narrow to a C machine integer.
+            # The decimal-string overload preserves arbitrary Aeon Int values.
+            return slv.mkInteger(str(i))
         case LiquidLiteralFloat(f):
             return slv.mkReal(str(float(f)))
         case LiquidVar(name):
