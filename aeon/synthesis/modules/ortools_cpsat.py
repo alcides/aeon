@@ -24,7 +24,7 @@ numeric conditionals, ``Array.get`` with a literal index, ``Array.size``, and
 inlined definitions and structurally recursive algebraic data types). Bool holes
 and hard @require predicates are supported.
 Anything outside this
-fragment raises :class:`SynthesisError` pointing at another synthesizer backend.
+fragment raises :class:`UnsupportedSynthesisGoal` pointing at another synthesizer backend.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ from aeon.core.terms import (
 )
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, top
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import ProgramSynthesizer, SynthesisError
+from aeon.synthesis.api import ProgramSynthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.identification import get_holes_info, iterate_top_level, term_has_holes
 from aeon.synthesis.uis.api import SynthesisUI
@@ -238,7 +238,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         all_holes = [h for _, hs in targets for h in hs]
         holes_info = get_holes_info(ctx, term, top, targets, refined_types=True)
         if not all_holes:
-            raise SynthesisError("CPSatHole requires at least one hole.")
+            raise UnsupportedSynthesisGoal("CPSatHole requires at least one hole.")
 
         self._model = cp_model.CpModel()
         self._hole_value: dict[Name, _Value] = {}
@@ -248,7 +248,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             try:
                 self._declare_hole(hole, holes_info[hole][0])
             except _Unsupported as e:
-                raise SynthesisError(
+                raise UnsupportedSynthesisGoal(
                     f"CPSatHole cannot handle hole {hole.pretty()} ({e}). "
                     "Use a grammar-based synthesizer (e.g. -s gp) instead."
                 ) from e
@@ -263,7 +263,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         goals: list[Goal] = [g for d in metadata.values() for g in d.get("goals", [])]
         if not goals:
-            raise SynthesisError("CPSatHole requires at least one @minimize/@maximize objective.")
+            raise UnsupportedSynthesisGoal("CPSatHole requires at least one @minimize/@maximize objective.")
 
         # Scalarise to a single minimisation objective: orient each goal to
         # minimisation (negate maximise) and align scales before summing.
@@ -271,15 +271,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         for goal in goals:
             body = self._def_bodies.get(goal.function)
             if body is None:
-                raise SynthesisError(f"CPSatHole could not find objective function {goal.function.pretty()}.")
+                raise UnsupportedSynthesisGoal(f"CPSatHole could not find objective function {goal.function.pretty()}.")
             try:
                 value = self._translate(body, {}, frozenset())
             except _Unsupported as e:
-                raise SynthesisError(
+                raise UnsupportedSynthesisGoal(
                     f"CPSatHole cannot translate the objective ({e}). Use a grammar-based synthesizer (e.g. -s gp)."
                 ) from e
             if not isinstance(value, _Num):
-                raise SynthesisError("CPSatHole objective must be a number, not an array.")
+                raise UnsupportedSynthesisGoal("CPSatHole objective must be a number, not an array.")
             if goal.kind == "constraint":
                 self._model.add(value.expr == 0)
                 continue
