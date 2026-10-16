@@ -109,7 +109,9 @@ def _liquid_to_cvc5(t: Any, env: dict[Name, Any], slv: Any, kinds: Any, is_real:
         case LiquidLiteralBool(b):
             return slv.mkBoolean(bool(b))
         case LiquidLiteralInt(i):
-            return slv.mkInteger(int(i))
+            # cvc5's Python int overload can narrow to a C machine integer.
+            # The decimal-string overload preserves arbitrary Aeon Int values.
+            return slv.mkInteger(str(i))
         case LiquidLiteralFloat(f):
             return slv.mkReal(str(float(f)))
         case LiquidVar(name):
@@ -119,12 +121,18 @@ def _liquid_to_cvc5(t: Any, env: dict[Name, Any], slv: Any, kinds: Any, is_real:
         case LiquidApp(fun, args):
             cargs = [_liquid_to_cvc5(a, env, slv, kinds, is_real) for a in args]
             op = fun.name
+            if fun in env:
+                return slv.mkTerm(Kind.APPLY_UF, env[fun], *cargs)
+            if op == "ite":
+                return slv.mkTerm(Kind.ITE, *cargs)
             if op == "!":
                 return slv.mkTerm(Kind.NOT, cargs[0])
             if op == "!=":
                 return slv.mkTerm(Kind.DISTINCT, cargs[0], cargs[1])
             if op == "/":
-                return slv.mkTerm(Kind.DIVISION if is_real else Kind.INTS_DIVISION, cargs[0], cargs[1])
+                return slv.mkTerm(
+                    Kind.INTS_DIVISION if cargs[0].getSort().isInteger() else Kind.DIVISION, cargs[0], cargs[1]
+                )
             if op in binary:
                 return slv.mkTerm(binary[op], *cargs)
             raise ValueError(f"unsupported operator {op} in spec")
@@ -223,8 +231,10 @@ def _cvc5_solution_to_term(solution: Any, problem: SygusProblem, Kind: Any) -> T
 
 
 def _cvc5_term_to_core(node: Any, varmap: dict[Any, Name], problem: SygusProblem, Kind: Any) -> Term:
-    base = problem.ret_base
+    base = _base_of_sort(str(node.getSort()))
     kind = node.getKind()
+    if node.getNumChildren() and kind != Kind.ITE:
+        base = _base_of_sort(str(node[0].getSort()))
 
     # Leaves -----------------------------------------------------------------
     if kind == Kind.CONST_INTEGER:
@@ -232,7 +242,10 @@ def _cvc5_term_to_core(node: Any, varmap: dict[Any, Name], problem: SygusProblem
     if kind == Kind.CONST_BOOLEAN:
         return Literal(node.getBooleanValue(), t_bool)
     if kind == Kind.CONST_RATIONAL:
-        return _num_literal(float(node.getRealValue()), t_float)
+        value = node.getRealValue()
+        if value.denominator == 1:
+            return _num_literal(value.numerator, t_float)
+        return _apply_op("/", t_float, _num_literal(value.numerator, t_float), _num_literal(value.denominator, t_float))
     if kind == Kind.VARIABLE:
         if node not in varmap:
             raise ValueError(f"unmapped variable {node}")
@@ -275,3 +288,119 @@ def _cvc5_term_to_core(node: Any, varmap: dict[Any, Name], problem: SygusProblem
     for extra in children[2:]:
         result = _apply_op(op, base, result, extra)
     return result
+
+
+def _solve_joint_cvc5(problem, timeout_ms):
+    """Declare every unknown before adding shared constraints and checking once."""
+    from aeon.core.liquid import LiquidLiteralBool
+    from aeon.core.substitutions import substitution
+    from aeon.synthesis.api import SynthesisNotSuccessful
+    from aeon.synthesis.joint import JointCandidate
+    from aeon.synthesis.modules.sygus.translation import SygusParam, smt_sort_of
+    from aeon.utils.name import fresh_counter
+
+    cvc5 = _import_cvc5()
+    slv = cvc5.Solver()
+    slv.setOption("sygus", "true")
+    slv.setOption("tlimit", str(max(1, timeout_ms)))
+    slv.setLogic("ALL")
+    sorts = {t_int: slv.getIntegerSort(), t_bool: slv.getBooleanSort(), t_float: slv.getRealSort()}
+    functions, descriptions = {}, []
+    for hole in problem.holes:
+        params = hole.params or ((Name("unused", fresh_counter.fresh()), t_int),)
+        formals = [slv.mkVar(sorts[base], str(name)) for name, base in params]
+        functions[hole.symbol] = slv.synthFun(str(hole.symbol), formals, sorts[hole.base])
+        descriptions.append(
+            SygusProblem(
+                str(hole.symbol),
+                [SygusParam(name, base, str(name), smt_sort_of(base)) for name, base in params],
+                smt_sort_of(hole.base),
+                hole.base,
+                hole.symbol,
+                LiquidLiteralBool(True),
+                "ALL",
+            )
+        )
+    for index, clause in enumerate(problem.clauses):
+        env = dict(functions)
+        for name, base in clause.variables:
+            env[name] = slv.declareSygusVar(f"{name}_clause_{index}", sorts[base])
+        premise = _liquid_to_cvc5(clause.premise, env, slv, cvc5.Kind, False)
+        conclusion = _liquid_to_cvc5(clause.conclusion, env, slv, cvc5.Kind, False)
+        slv.addSygusConstraint(slv.mkTerm(cvc5.Kind.IMPLIES, premise, conclusion))
+    result = slv.checkSynth()
+    if not result.hasSolution():
+        raise SynthesisNotSuccessful(f"Joint SyGuS: {result}")
+    solutions = slv.getSynthSolutions(list(functions.values()))
+    terms = []
+    for hole, description, solution in zip(problem.holes, descriptions, solutions):
+        body = _cvc5_solution_to_term(solution, description, cvc5.Kind)
+        if body is None:
+            raise SynthesisNotSuccessful("Joint SyGuS cannot translate every solution")
+        if hole.dummy:
+            body = substitution(body, Literal(0, t_int), description.params[0].aeon_name)
+        terms.append(hole.wrap(body))
+    if len(terms) != len(problem.holes):
+        raise SynthesisNotSuccessful("Joint SyGuS returned an incomplete assignment")
+    return JointCandidate(tuple(terms))
+
+
+def _clear_type_hashes(value):
+    # TypeConstructor caches Python hashes, which differ between spawn workers.
+    # Never retain those process-local caches across the IPC boundary.
+    from dataclasses import fields, is_dataclass
+
+    if isinstance(value, TypeConstructor) and hasattr(value, "_hash"):
+        object.__delattr__(value, "_hash")
+    if is_dataclass(value):
+        for field in fields(value):
+            _clear_type_hashes(getattr(value, field.name))
+    elif isinstance(value, (tuple, list)):
+        for item in value:
+            _clear_type_hashes(item)
+
+
+def _joint_worker(problem, timeout_ms, connection):
+    try:
+        _clear_type_hashes(problem)
+        result = _solve_joint_cvc5(problem, timeout_ms)
+        _clear_type_hashes(result)
+        connection.send((True, result))
+    except Exception as exc:
+        connection.send((False, str(exc)))
+    finally:
+        connection.close()
+
+
+def solve_joint_cvc5(problem, timeout_ms):
+    """Bound native cvc5 execution even when its internal time limit is ignored."""
+    import multiprocessing
+    import time
+    from aeon.synthesis.api import SynthesisNotSuccessful
+
+    started = time.monotonic()
+    context = multiprocessing.get_context("spawn")
+    reader, writer = context.Pipe(duplex=False)
+    process = context.Process(target=_joint_worker, args=(problem, timeout_ms, writer))
+    process.start()
+    writer.close()
+    try:
+        remaining = max(0, timeout_ms / 1000 - (time.monotonic() - started))
+        if not reader.poll(remaining):
+            raise SynthesisNotSuccessful("Joint SyGuS: time budget exhausted")
+        try:
+            success, value = reader.recv()
+        except EOFError as exc:
+            raise SynthesisNotSuccessful("Joint SyGuS: solver process exited without a result") from exc
+        if not success:
+            raise SynthesisNotSuccessful(value)
+        return value
+    finally:
+        reader.close()
+        if process.is_alive():
+            process.terminate()
+        process.join(timeout=1)
+        if process.is_alive():
+            process.kill()
+            process.join()
+        process.close()

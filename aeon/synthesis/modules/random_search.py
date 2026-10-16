@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator
 from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.joint import HoleSpec, JointCandidate, JointSynthesizer
 from aeon.synthesis.modules.native_search import (
     MAX_DEPTH,
     drive_candidates,
@@ -48,7 +48,7 @@ def iter_random_candidates(
             yield sample
 
 
-class RandomSearchSynthesizer(Synthesizer):
+class RandomSearchSynthesizer(JointSynthesizer):
     """Driver over :func:`iter_random_candidates` with a live Pareto archive."""
 
     def __init__(self, seed: int = 0):
@@ -79,3 +79,24 @@ class RandomSearchSynthesizer(Synthesizer):
             ui,
             self.seed,
         )
+
+    def synthesize_joint(
+        self,
+        holes: tuple[HoleSpec, ...],
+        validate: Callable[[Term], bool],
+        evaluate: Callable[[Term], list[float]],
+        fun_name: Name,
+        metadata: Metadata,
+        budget: float = 60,
+        ui: SynthesisUI = SynthesisUI(),
+    ) -> JointCandidate | None:
+        rng = random.Random(self.seed)
+        streams = [iter_random_candidates(h.ctx, h.type, h.function, metadata, rng) for h in holes]
+
+        def candidates() -> Iterator[Term]:
+            for terms in zip(*streams):
+                yield JointCandidate(terms)
+
+        result = drive_candidates(candidates(), validate, evaluate, fun_name, metadata, budget, ui, self.seed)
+        assert result is None or isinstance(result, JointCandidate)
+        return result

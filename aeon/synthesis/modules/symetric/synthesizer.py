@@ -402,17 +402,11 @@ class SymetricSynthesizer(Synthesizer):
             return Literal(rnd.randrange(self.int_lo, self.int_hi), t_int)
         atoms = self._atoms.get(key, [])
         builders = self._builders.get(key, [])
-        # Near the depth limit, prefer atoms and non-recursive builders so that
-        # generation always terminates.
-        nonrec = [c for c in builders if not any(c.is_recursive_in(k) for k in c.arg_keys)]
+        # A depth bound must be strict, including mutually recursive builders
+        # with no productive leaf. Trying another builder at depth zero can
+        # recurse forever through a component cycle.
         if depth <= 0 or not builders:
-            if atoms:
-                return rnd.choice(atoms)
-            if nonrec:
-                return self._apply(rnd.choice(nonrec), depth, rnd)
-            if builders:
-                return self._apply(rnd.choice(builders), depth, rnd)
-            return None
+            return rnd.choice(atoms) if atoms else None
         # Bias toward building structure, occasionally bottoming out at an atom.
         if atoms and rnd.random() >= 0.85:
             return rnd.choice(atoms)

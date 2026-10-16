@@ -24,7 +24,7 @@ numeric conditionals, ``Array.get`` with a literal index, ``Array.size``, and
 inlined definitions and structurally recursive algebraic data types). Bool holes
 and hard @require predicates are supported.
 Anything outside this
-fragment raises :class:`SynthesisError` pointing at another synthesizer backend.
+fragment raises :class:`UnsupportedSynthesisGoal` pointing at another synthesizer backend.
 """
 
 from __future__ import annotations
@@ -44,9 +44,10 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
+from aeon.core.substitutions import substitution
 from aeon.core.terms import (
-    Annotation,
     Abstraction,
+    Annotation,
     Application,
     Hole,
     If,
@@ -61,7 +62,7 @@ from aeon.core.terms import (
 )
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, top
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import ProgramSynthesizer, SynthesisError
+from aeon.synthesis.api import ProgramSynthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.identification import get_holes_info, iterate_top_level, term_has_holes
 from aeon.synthesis.uis.api import SynthesisUI
@@ -238,9 +239,10 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         all_holes = [h for _, hs in targets for h in hs]
         holes_info = get_holes_info(ctx, term, top, targets, refined_types=True)
         if not all_holes:
-            raise SynthesisError("CPSatHole requires at least one hole.")
+            raise UnsupportedSynthesisGoal("CPSatHole requires at least one hole.")
 
         self._model = cp_model.CpModel()
+        self._square_hints: set[int] = set()
         self._hole_value: dict[Name, _Value] = {}
         # hole -> (kind, [cp vars]) for decoding the solution.
         self._hole_meta: dict[Name, tuple[str, list[Any]]] = {}
@@ -248,7 +250,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             try:
                 self._declare_hole(hole, holes_info[hole][0])
             except _Unsupported as e:
-                raise SynthesisError(
+                raise UnsupportedSynthesisGoal(
                     f"CPSatHole cannot handle hole {hole.pretty()} ({e}). "
                     "Use a grammar-based synthesizer (e.g. -s gp) instead."
                 ) from e
@@ -263,7 +265,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         goals: list[Goal] = [g for d in metadata.values() for g in d.get("goals", [])]
         if not goals:
-            raise SynthesisError("CPSatHole requires at least one @minimize/@maximize objective.")
+            raise UnsupportedSynthesisGoal("CPSatHole requires at least one @minimize/@maximize objective.")
 
         # Scalarise to a single minimisation objective: orient each goal to
         # minimisation (negate maximise) and align scales before summing.
@@ -271,15 +273,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         for goal in goals:
             body = self._def_bodies.get(goal.function)
             if body is None:
-                raise SynthesisError(f"CPSatHole could not find objective function {goal.function.pretty()}.")
+                raise UnsupportedSynthesisGoal(f"CPSatHole could not find objective function {goal.function.pretty()}.")
             try:
                 value = self._translate(body, {}, frozenset())
             except _Unsupported as e:
-                raise SynthesisError(
+                raise UnsupportedSynthesisGoal(
                     f"CPSatHole cannot translate the objective ({e}). Use a grammar-based synthesizer (e.g. -s gp)."
                 ) from e
             if not isinstance(value, _Num):
-                raise SynthesisError("CPSatHole objective must be a number, not an array.")
+                raise UnsupportedSynthesisGoal("CPSatHole objective must be a number, not an array.")
             if goal.kind == "constraint":
                 self._model.add(value.expr == 0)
                 continue
@@ -512,6 +514,17 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return self._eval_const(t.name)
 
         if isinstance(t, Application):
+            # Inline array thunks without evaluating their unused Unit argument.
+            # Keep the general closure/ADT path for every other call: substituting
+            # those bodies bypasses native-cast recognition and creates temporary
+            # expressions whose recycled IDs can alias application-cache keys.
+            function = t.fun
+            seen = visited
+            if isinstance(function, Var) and function.name not in visited:
+                seen = visited | {function.name}
+                function = self._def_bodies.get(function.name, function)
+            if isinstance(function, Abstraction) and isinstance(t.arg, Var) and t.arg.name.name == "unit":
+                return self._translate(substitution(function.body, t.arg, function.var_name), env, seen)
             return self._apply(self._translate(t.fun, env, visited), self._translate(t.arg, env, visited), visited)
 
         raise _Unsupported(type(t).__name__)
@@ -647,12 +660,51 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             s = a.scale + b.scale
             corners = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
             lo, hi = min(corners), max(corners)
+            from ortools.sat.python import cp_model
+
+            def linear_key(expression: Any) -> tuple:
+                if isinstance(expression, int):
+                    return (expression, ())
+                affine = cp_model.FlatIntExpr(expression)
+                return (affine.offset, tuple((v.index, c) for v, c in zip(affine.vars, affine.coeffs)))
+
+            if a.scale == b.scale and linear_key(a.expr) == linear_key(b.expr):
+                # A repeated factor is a square, not two independent values.
+                # Its nonnegative bound lets CP-SAT prove a zero-cost optimum
+                # without searching the full fixed-point array domain.
+                lo = 0 if a.lo <= 0 <= a.hi else min(a.lo * a.lo, a.hi * a.hi)
+                hi = max(a.lo * a.lo, a.hi * a.hi)
+                b = a
+                self._hint_square_zero(a)
             if isinstance(a.expr, int) or isinstance(b.expr, int):
                 return _Num(a.expr * b.expr, s, lo, hi)
             prod = self._model.new_int_var(lo, hi, "prod")
             self._model.add_multiplication_equality(prod, [a.expr, b.expr])
             return _Num(prod, s, lo, hi)
         raise _Unsupported(f"operator '{op}'")
+
+    def _hint_square_zero(self, value: _Num) -> None:
+        """Warm-start one-variable squares at their nearest grid minimum.
+
+        Hints never constrain the model: other objectives and hard constraints
+        can move the result. Avoid a minimum-domain enumeration of wide Float
+        grids on runners with only one solver worker.
+        """
+        if isinstance(value.expr, int):
+            return
+        from ortools.sat.python import cp_model
+
+        affine = cp_model.FlatIntExpr(value.expr)
+        if len(affine.vars) != 1 or not affine.coeffs[0]:
+            return
+        variable = affine.vars[0]
+        if variable.index in self._square_hints:
+            return
+        candidate = round(Fraction(-affine.offset, affine.coeffs[0]))
+        domain = variable.proto.domain
+        candidate = max(domain[0], min(domain[-1], candidate))
+        self._model.add_hint(variable, candidate)
+        self._square_hints.add(variable.index)
 
     def _eval_const(self, name: Name) -> _Num:
         from dataclasses import replace

@@ -9,7 +9,12 @@ from typing import Callable
 from aeon.core.terms import Term
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.api import (
+    Synthesizer,
+    SynthesisNotSuccessful,
+    InvalidIndividualException,
+    TimeoutInEvaluationException,
+)
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
@@ -99,7 +104,13 @@ class SynquidSynthesizer(Synthesizer):
                 if not goals:
                     ui.register(result, [], get_elapsed_time(start_time), True)
                     return True
-                score = evaluate(result)
+                try:
+                    score = evaluate(result)
+                except (InvalidIndividualException, TimeoutInEvaluationException):
+                    ui.register(result, "Invalid (evaluation)", get_elapsed_time(start_time), False)
+                    if get_elapsed_time(start_time) > budget:
+                        done = False
+                    return False
                 pareto_front, on_front = update_pareto_front(pareto_front, score, result, minimize)
                 elapsed = get_elapsed_time(start_time)
                 if on_front:
