@@ -418,6 +418,8 @@ class FTASynthesizer(Synthesizer):
         bank_states: dict[str, dict[Any, Term]] = {}  # example mode: state -> rep
 
         def add_bank(key: str, terms: list[Term]) -> None:
+            if best is not None or time.time() >= deadline:
+                return
             b = bank.setdefault(key, [])
             if example_mode:
                 # Observational-equivalence compression at *every* type (the FTA's
@@ -426,7 +428,7 @@ class FTASynthesizer(Synthesizer):
                 # that cannot be evaluated cannot be a state, so are dropped.
                 states = bank_states.setdefault(key, {})
                 for t in terms:
-                    if time.time() >= deadline:
+                    if best is not None or time.time() >= deadline:
                         break
                     st = obs_examples(t)
                     if st[0] != "vec":
@@ -444,6 +446,8 @@ class FTASynthesizer(Synthesizer):
                 return
             s = seen.setdefault(key, set())
             for t in terms:
+                if best is not None or time.time() >= deadline:
+                    break
                 k = str(t)
                 if k in s:
                     continue

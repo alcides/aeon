@@ -44,3 +44,30 @@ def test_unknown_unhashable_values_are_not_merged_by_repr():
     states = [_value_state(Opaque(), term) for term in (first, second)]
     assert states[0] != states[1]
     assert all(isinstance(hash(state), int) for state in states)
+
+
+def test_fta_stops_observing_atoms_after_first_solution():
+    from aeon.core.types import t_int
+    from aeon.synthesis.modules.fta.synthesizer import FTASynthesizer
+    from aeon.synthesis.uis.api import SilentSynthesisUI
+    from aeon.typechecking.context import TypingContext
+
+    first, second = Name("first", 1), Name("second", 2)
+    calls = []
+
+    def output(term):
+        calls.append(term)
+        return 7
+
+    FTASynthesizer().synthesize(
+        TypingContext().with_var(first, t_int).with_var(second, t_int),
+        t_int,
+        lambda term: True,
+        lambda term: [],
+        Name("f", 3),
+        {},
+        budget=1,
+        ui=SilentSynthesisUI(),
+        output_value=output,
+    )
+    assert len(calls) == 1
