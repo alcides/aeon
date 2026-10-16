@@ -415,3 +415,24 @@ When a file does not state a budget:
 
 Other `scripts/bench_*.py` files measure LLVM/array/dataframe/Horn performance
 and do **not** drive open-ended synthesis search.
+
+### Storage limits for external evaluation
+
+`aeon.benchmarks.resources` provides `StoragePolicy`, `bounded_command`, and
+`wait_with_limits` for evaluation wrappers. Check capacity with
+`policy.preflight(run_directory, concurrency=8)` before submission; the check
+includes headroom for every concurrent trial. Launch `bounded_command(command,
+policy)` with `start_new_session=True`, and monitor the process with
+`wait_with_limits` and the paths of its stdout, stderr, event, and resource logs.
+The exec wrapper sets an inherited POSIX file-size limit without using a
+thread-unsafe `preexec_fn`.
+
+Defaults are 16 MiB per output file, 32 MiB total observed output per trial, and
+a 64 MiB free-space safety floor. Configure these for the workload; regular-file
+limits apply to child-created artifacts too. `StorageLimitError` represents an
+`infrastructure_error`, not synthesis no-solution. The monitor stops the process
+group on a storage violation while retaining its logs; the caller must record
+the outcome and can resume missing trials once capacity is restored. An external
+deadline still raises `subprocess.TimeoutExpired` and requires caller cleanup.
+Checks cannot guarantee capacity if unrelated processes exhaust the filesystem;
+write failures must also be surfaced, and existing results must not be deleted.
