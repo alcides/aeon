@@ -25,11 +25,12 @@ from aeon.core.terms import (
 from aeon.core.types import Top
 from aeon.core.types import top, Type, t_float, t_int, t_string
 from aeon.decorators import Metadata
+from aeon.synthesis.joint import HoleSpec, JointCandidate, JointSynthesizer
 from aeon.synthesis.scope import shadow_fitness_helpers, without_excluded_names
 from aeon.backend.evaluator import eval
 from aeon.synthesis.uis.api import SynthesisUI
-from aeon.synthesis.identification import get_holes_info
-from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_target
+from aeon.synthesis.identification import get_holes_info, get_holes, term_has_holes
+from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_target, property_corpora_for_targets
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
@@ -38,14 +39,16 @@ from aeon.synthesis.api import (
     ErrorInSynthesis,
     InvalidIndividualException,
     ProgramSynthesizer,
-    SynthesisError,
     Synthesizer,
+    UnsupportedSynthesisGoal,
     TimeoutInEvaluationException,
 )
 from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool
 from aeon.synthesis.fitness_eval import (
     as_objective_vector,
     candidate_key,
+    require_complete_program,
+    without_main_placeholder,
     make_bundled_fitness_evaluator,
     set_program_tail,
 )
@@ -89,7 +92,7 @@ def _synthesis_dummy_literal(ty: Type) -> Term:
 
 def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Callable[[Term], bool]:
     def validate(candidate: Term) -> bool:
-        prog = replace(candidate)
+        prog = without_main_placeholder(replace(candidate))
         return check_type(ctx, prog, Top())
 
     return validate
@@ -119,6 +122,7 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], list[
     assert goal.kind != "property", "Property goals are backed by fixed-corpus evaluators"
 
     def fitness(v: Term) -> list[float]:
+        require_complete_program(v)
         # Evaluate the goal's objective function (a nullary top-level binding,
         # e.g. ``jaccard shape``) by making it the program's result. Replacing
         # the program tail works whether or not a ``main`` entry point is
@@ -451,6 +455,111 @@ def _synthesize_one(
     return t
 
 
+def _synthesize_joint(
+    ctx: TypingContext,
+    ectx: EvaluationContext,
+    prog: Term,
+    targets: list[tuple[Name, list[Name]]],
+    metadata: Metadata,
+    synthesizer: JointSynthesizer,
+    budget: float,
+    ui: SynthesisUI,
+    budget_eval: float,
+    constructor_names: set[str] | None,
+) -> dict[Name, Optional[Term]]:
+    """Search every typed hole atomically, with one whole-program oracle."""
+    prog = without_main_placeholder(prog)
+    info = get_holes_info(ctx, prog, top, targets, refined_types=True)
+    owners = {hole: function for function, holes in targets for hole in holes}
+    names = tuple(dict.fromkeys(hole for _, holes in targets for hole in holes))
+    if set(names) != set(get_holes(prog)):
+        raise UnsupportedSynthesisGoal("Joint search requires every program hole in the target list")
+
+    def replace(candidate: Term) -> Term:
+        if not isinstance(candidate, JointCandidate) or len(candidate.terms) != len(names):
+            raise InvalidIndividualException()
+        result = prog
+        for name, value in zip(names, candidate.terms):
+            if term_has_holes(value):
+                raise InvalidIndividualException()
+            result = substitution(result, value, name)
+        if term_has_holes(result):
+            raise InvalidIndividualException()
+        return result
+
+    def validate(candidate: Term) -> bool:
+        try:
+            completed = replace(candidate)
+        except InvalidIndividualException:
+            return False
+        return check_type(ctx, completed, top)
+
+    goals: list[Goal] = []
+    for entry in metadata.values():
+        if isinstance(entry, dict):
+            for goal in entry.get("goals", []):
+                if goal not in goals:
+                    goals.append(goal)
+    open_targets = {function for function, _ in targets}
+    corpora = property_corpora_for_targets(
+        ctx,
+        prog,
+        metadata,
+        open_targets,
+        open_targets,
+        constructor_names=constructor_names,
+        evaluation_ctx=ectx,
+    )
+    goals.extend(Goal(True, 1, corpus.spec.name, "property") for corpus in corpora)
+    joint_name = Name("$joint", 0)
+    synthesis_metadata = dict(metadata)
+    synthesis_metadata[joint_name] = {"goals": goals}
+    holes = tuple(
+        HoleSpec(
+            name,
+            owners[name],
+            info[name][0],
+            without_excluded_names(shadow_fitness_helpers(info[name][1], synthesis_metadata)),
+        )
+        for name in names
+    )
+
+    from aeon.synthesis.solver_problem import ConstraintSynthesizer, build_solver_problem
+
+    if isinstance(synthesizer, ConstraintSynthesizer):
+        synthesis_metadata[joint_name]["solver_problem"] = build_solver_problem(ctx, prog, holes, metadata)
+
+    # Bind only the static prefix before the earliest hole-bearing definition.
+    # Unlike per-hole setup this never pre-evaluates another candidate element.
+    anchor = targets[0][0]
+    workers_ctx = _ectx_for_workers(ectx)
+    properties = [make_property_fitness(corpus, workers_ctx, target=anchor) for corpus in corpora]
+    fitness = make_bundled_fitness_evaluator(goals, workers_ctx, anchor, prog, properties)
+    pool = EvaluationPool(replace, {"fitness": fitness}, budget_eval=budget_eval)
+    evaluator, _ = _pool_backed(pool)
+    ui.start(ctx, ectx, "+".join(name.name for name in names), None, budget)
+    result = None
+    try:
+        result = synthesizer.synthesize_joint(
+            holes,
+            validate,
+            evaluator,
+            joint_name,
+            synthesis_metadata,
+            budget,
+            ui,
+        )
+        # Backends cannot bypass joint validity or return only some elements.
+        if result is not None and not validate(result):
+            result = None
+    finally:
+        pool.close()
+        ui.end(result, None)
+    if result is None:
+        return {name: None for name in names}
+    return dict(zip(names, result.terms))
+
+
 def _mutual_group_ids(term: Term) -> dict[Name, Optional[int]]:
     """Map each top-level function name to its ``mutual`` group id (``None`` if
     not part of a mutual block)."""
@@ -494,9 +603,12 @@ def synthesize_holes(
     budget_eval: Optional[float] = None,
     constructor_names: set[str] | None = None,
 ) -> dict[Name, Optional[Term]]:
-    """Synthesizes code for multiple functions, one hole per function.
+    """Synthesize program holes, jointly for product-capable grammar backends.
 
-    When a function has several holes, only its *first* listed hole is
+    Random search and GP fill all holes together with one program budget,
+    whole-program validation and a combined objective vector.
+
+    For other per-hole backends, only a function's *first* listed hole is
     synthesised (the candidate search and validation see the sibling holes
     still open); the others stay untouched and absent from the returned
     mapping. Independent functions are synthesised one at a time. Members of a
@@ -507,7 +619,9 @@ def synthesize_holes(
 
     hard_constraints = any(goal.kind == "constraint" for entry in metadata.values() for goal in entry.get("goals", []))
     if hard_constraints and not getattr(synthesizer, "supports_hard_constraints", False):
-        raise SynthesisError("@require needs a synthesizer supporting hard constraints (currently -s ortools)")
+        raise UnsupportedSynthesisGoal(
+            "@require needs a synthesizer supporting hard constraints (currently -s ortools)"
+        )
 
     # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
     # hole at once rather than one function at a time.
@@ -516,6 +630,33 @@ def synthesize_holes(
 
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)
+
+    if isinstance(synthesizer, JointSynthesizer) and len({h for _, hs in targets for h in hs}) > 1:
+        return _synthesize_joint(
+            ctx,
+            ectx,
+            term,
+            targets,
+            metadata,
+            synthesizer,
+            budget,
+            ui,
+            budget_eval,
+            constructor_names,
+        )
+
+    # Per-hole objective evaluation cannot execute unresolved independent
+    # siblings. Mutual groups keep their existing complete-assignment oracle.
+    singles, _ = _partition_targets(term, targets)
+    if (
+        len({hole for _, holes in targets for hole in holes}) > 1
+        and singles
+        and any(entry.get("goals", []) for entry in metadata.values())
+    ):
+        raise UnsupportedSynthesisGoal(
+            "This backend cannot evaluate objectives over multiple open holes; "
+            "use a joint backend (random_search, gp, smt or sygus)."
+        )
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_types=True)
 
