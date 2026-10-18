@@ -18,7 +18,7 @@ from aeon.compilation.compile import (
 from aeon.compilation.link import collect_constructor_names
 from aeon.compilation.session import CompilationOptions, CompilationSession
 from aeon.core.substitutions import substitution
-from aeon.core.terms import Term
+from aeon.core.terms import Hole, Let, Rec, Term
 from aeon.errors import AeonError, UndecidableRefinementError
 from aeon.prelude.prelude import evaluation_vars
 from aeon.sugar.bind import bind_program
@@ -26,7 +26,8 @@ from aeon.sugar.lifting import lift
 from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
 from aeon.synthesis.entrypoint import synthesize_holes
-from aeon.synthesis.identification import incomplete_functions_and_holes
+from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.identification import get_holes, incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI, SynthesisFormat
 from aeon.typechecking.context import TypingContext
@@ -275,6 +276,19 @@ class AeonDriver:
     def synth(self) -> STerm:
         with RecordTime("Synthesis"):
             sterm_mapping = self._run_synthesis(self.cfg.synthesis_ui)
+            remaining = get_holes(self.core)
+            tail = self.core
+            while isinstance(tail, (Let, Rec)):
+                tail = tail.body
+            # Only the synthetic unused entrypoint is outside synthesis targets.
+            if isinstance(tail, Hole) and tail.name == Name("main", 0):
+                remaining.remove(tail.name)
+            if remaining:
+                names = ", ".join(str(name) for name in remaining)
+                raise SynthesisNotSuccessful(
+                    f"Synthesis did not find a complete solution within {self.cfg.synthesis_budget} seconds; "
+                    f"unfilled holes: {names}"
+                )
             self.cfg.synthesis_ui.display_results(self.core, sterm_mapping, self.cfg.synthesis_format)
             return lift(self.core)
 
