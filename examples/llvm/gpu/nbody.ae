@@ -16,7 +16,7 @@ def Vector_get (xs: (Vector Float)) (i: {v:Int | v >= 0 && v < length xs}) : Flo
 # Transfer the old matrix into a snapshot with no exposed mutation operations.
 def snapshot (1 state: (NDArray Float Rank2)) :
     {r:(Vector Float) | length r = state.elements} :=
-    native "state.to_1d().to_array()"
+    native "state.snapshot()"
 
 # A function boundary converts the libm-style double result back to Float.
 @gpu

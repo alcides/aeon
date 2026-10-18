@@ -4,6 +4,7 @@ import ctypes
 from typing import Any, List, Dict
 
 import llvmlite.binding as llvm
+from aeon.bindings.ndarray import ManagedArray, ReadOnlyBuffer
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
 from aeon.llvm.optimization import optimize_module
@@ -124,7 +125,8 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             self._keep_alive.extend([descriptor, buffer])
             self._ndarray_arguments[address] = (val, descriptor, buffer, ty)
             return ctypes.c_void_p(address)
-        if isinstance(ty, LLVMPointerType) and isinstance(val, list):
+        if isinstance(ty, LLVMPointerType) and isinstance(val, (list, ReadOnlyBuffer)):
+            val = list(val) if isinstance(val, ReadOnlyBuffer) else val
             flat_val = self._flatten_list(val)
             base_ty = ty.element_type
             element_cty = self._get_ctypes_type(base_ty)
@@ -134,6 +136,8 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             array_type = element_cty * len(processed_flat_val)
             c_array = array_type(*processed_flat_val)
             self._keep_alive.append(c_array)
+            if isinstance(val, ManagedArray):
+                self._managed_arguments[ctypes.addressof(c_array)] = (val, c_array, ty)
             return ctypes.cast(c_array, ctypes.c_void_p)
 
         if isinstance(ty, LLVMCharType) and isinstance(val, str):
@@ -171,6 +175,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
     ) -> Any:
         self._keep_alive = []
         self._ndarray_arguments: dict[int, Any] = {}
+        self._managed_arguments: dict[int, Any] = {}
         vector_impls = self._get_vector_impl(arg_types, ret_type)
         llvm.add_symbol(
             "native",
@@ -191,10 +196,12 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         processed_args = [self._convert_to_ctypes(self._coerce_arg(val, ty), ty) for val, ty in zip(args, arg_types)]
         result = cfunc(*processed_args)
 
+        for array, buffer, _ in self._managed_arguments.values():
+            array._storage.write(list(buffer))
         shapes = {}
         for address, (array, descriptor, buffer, ty) in self._ndarray_arguments.items():
             shapes[address] = descriptor_shape(descriptor, array, ctypes.addressof(buffer))
-            array.data[:] = list(buffer)
+            array._write_data(list(buffer))
         if isinstance(ret_type, LLVMNDArrayType):
             if result not in self._ndarray_arguments:
                 raise LLVMExecutionError("NDArray results must refer to an array passed as a parameter")
@@ -202,6 +209,11 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
             if ret_type.element_type != arg_type.element_type:
                 raise LLVMExecutionError("NDArray result element type differs from its input storage")
             return finish_array(array, shapes[result], ret_type)
+
+        if isinstance(ret_type, LLVMPointerType) and result in self._managed_arguments:
+            array, _, ty = self._managed_arguments[result]
+            if ty.element_type == ret_type.element_type:
+                return array
 
         if isinstance(ret_type, LLVMCharType):
             return chr(result)

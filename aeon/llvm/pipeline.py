@@ -3,10 +3,11 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from loguru import logger
+from aeon.bindings.ndarray import ManagedArray
 
 from aeon.core.terms import Term, Let, Rec
 from aeon.llvm.core import LLVMPipeline, Backend, LLVMBackendError
-from aeon.llvm.llvm_ast import LLVMFunction, LLVMTerm
+from aeon.llvm.llvm_ast import LLVMFunction, LLVMTerm, LLVMPointerType
 from aeon.llvm.utils import sanitize_name, to_llvm_type
 from aeon.llvm.cpu.executor import CPULLVMExecutionEngine
 from aeon.llvm.cpu.converter import CPULLVMIRGenerator
@@ -160,6 +161,18 @@ class MultiBackendPipeline(LLVMPipeline):
 
         def invoke_wrapper(accumulated_args: list[Any]):
             if len(accumulated_args) == len(param_types):
+                if target_name == "cuda":
+                    # Aeon's linear Array arguments have one owner at this
+                    # boundary. Wrap legacy list values once; GPU results keep
+                    # the same managed object for all subsequent calls.
+                    accumulated_args = [
+                        ManagedArray(value)
+                        if isinstance(ty, LLVMPointerType)
+                        and isinstance(value, list)
+                        and not isinstance(value, ManagedArray)
+                        else value
+                        for value, ty in zip(accumulated_args, param_types)
+                    ]
                 return self.invoke(function_id, accumulated_args)
             else:
                 return lambda next_arg: invoke_wrapper(accumulated_args + [next_arg])

@@ -2,19 +2,92 @@ from __future__ import annotations
 
 import ctypes
 import os
+import weakref
 from typing import Any, List
 
 import llvmlite.binding as llvm
 from loguru import logger
+from aeon.bindings.ndarray import ArrayStorage, ManagedArray, NDArray, ReadOnlyBuffer
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
 from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType, LLVMVoidType, LLVMNDArrayType
 from aeon.llvm.utils import is_array_pointer
-from aeon.llvm.ndarray import pack_array, descriptor_shape, finish_array
+from aeon.llvm.ndarray import pack_descriptor, descriptor_shape, finish_array
 
 
 class CUDAExecutionError(LLVMBackendError):
     pass
+
+
+class DeviceArray:
+    """A storage-owned allocation whose elements remain on the device between calls."""
+
+    def __init__(self, engine, storage: ArrayStorage, ctype):
+        self.engine = engine
+        self.storage = weakref.ref(storage)
+        self.ctype = ctype
+        self.count = len(storage.host)
+        self.pointer = ctypes.c_uint64()
+        self.version = -1
+        self.host_snapshot: tuple[Any, ...] = ()
+        engine._activate()
+        if engine.libcuda.cuMemAlloc_v2(ctypes.byref(self.pointer), max(4, self.count * ctypes.sizeof(ctype))) != 0:
+            raise CUDAExecutionError("cuMemAlloc failed for array data")
+        try:
+            self.upload(storage)
+        except Exception:
+            self.close()
+            raise
+
+    def upload(self, storage: ArrayStorage) -> None:
+        values = storage.read()
+        if len(values) != self.count:
+            raise ValueError("Array storage changed its element count")
+        data = (self.ctype * self.count)(*values)
+        self.engine._activate()
+        if (
+            self.engine.libcuda.cuMemcpyHtoD_v2(
+                self.pointer.value, ctypes.cast(data, ctypes.c_void_p), ctypes.sizeof(data)
+            )
+            != 0
+        ):
+            raise CUDAExecutionError("cuMemcpyHtoD failed for array data")
+        self.version = storage.version
+        self.host_snapshot = tuple(values) if storage.exposed else ()
+
+    def download(self, values: list[Any]) -> None:
+        self.engine._activate()
+        data = (self.ctype * self.count)()
+        if (
+            self.engine.libcuda.cuMemcpyDtoH_v2(
+                ctypes.cast(data, ctypes.c_void_p), self.pointer.value, ctypes.sizeof(data)
+            )
+            != 0
+        ):
+            raise CUDAExecutionError("cuMemcpyDtoH failed for array data")
+        list.__setitem__(values, slice(None), list(data))
+        storage = self.storage()
+        self.host_snapshot = tuple(values) if storage is not None and storage.exposed else ()
+
+    def close(self) -> None:
+        if self.pointer.value:
+            previous = ctypes.c_void_p()
+            get_current = getattr(self.engine.libcuda, "cuCtxGetCurrent", None)
+            restore = get_current is not None and get_current(ctypes.byref(previous)) == 0
+            self.engine._activate()
+            try:
+                if self.engine.libcuda.cuMemFree_v2(self.pointer.value) != 0:
+                    raise CUDAExecutionError("cuMemFree failed for array data")
+                self.pointer = ctypes.c_uint64()
+            finally:
+                if restore:
+                    self.engine.libcuda.cuCtxSetCurrent(previous)
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            logger.debug("Could not release device array during finalization")
 
 
 class CUDAExecutionEngine(LLVMExecutionEngine):
@@ -29,6 +102,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             # ~8MB and deep recursion needs a larger stack than the CUDA default.
             self._configure_device_limits()
             self._module_cache = {}
+            self._resident_arrays: weakref.WeakSet[DeviceArray] = weakref.WeakSet()
             logger.info("Successfully initialized CUDA backend.")
         except Exception as e:
             raise CUDAExecutionError(f"Failed to initialize CUDA: {e}")
@@ -163,6 +237,47 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             return str(code)
         return ptr.value.decode("utf-8", errors="replace")
 
+    def _activate(self) -> None:
+        if self.libcuda.cuCtxSetCurrent(self.context) != 0:
+            raise CUDAExecutionError("cuCtxSetCurrent failed")
+
+    def _device_array(self, storage: ArrayStorage, ctype) -> DeviceArray:
+        resident = storage.device
+        if resident is not None and (
+            resident.engine is not self or resident.ctype != ctype or resident.count != len(storage.host)
+        ):
+            storage.read()
+            resident.close()
+            storage.device = None
+            resident = None
+        if resident is None:
+            resident = DeviceArray(self, storage, ctype)
+            storage.device = resident
+            if not hasattr(self, "_resident_arrays"):
+                self._resident_arrays = weakref.WeakSet()
+            self._resident_arrays.add(resident)
+        else:
+            if storage.exposed and storage.host_current and tuple(storage.host) != resident.host_snapshot:
+                storage.version += 1
+            if resident.version != storage.version:
+                try:
+                    resident.upload(storage)
+                except Exception:
+                    resident.close()
+                    storage.device = None
+                    raise
+        self._activate()
+        return resident
+
+    def close(self) -> None:
+        """Materialize live arrays before releasing this engine's resident buffers."""
+        for resident in list(getattr(self, "_resident_arrays", ())):
+            storage = resident.storage()
+            if storage is not None and storage.device is resident:
+                storage.read()
+                storage.device = None
+            resident.close()
+
     def execute(
         self,
         llvm_ir: str,
@@ -173,8 +288,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         launch_shape: tuple[int, ...] | None = None,
     ) -> Any:
         logger.debug(f"Executing kernel {func_name} on GPU.")
-        if self.libcuda.cuCtxSetCurrent(self.context) != 0:
-            raise CUDAExecutionError("cuCtxSetCurrent failed")
+        self._activate()
         returns_ndarray = isinstance(ret_type, LLVMNDArrayType)
         returns_array = isinstance(ret_type, (LLVMPointerType, LLVMNDArrayType))
         array_element_type = ret_type.element_type if isinstance(ret_type, (LLVMPointerType, LLVMNDArrayType)) else None
@@ -184,7 +298,11 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 ty.element_type == array_element_type
                 and (
                     (returns_ndarray and isinstance(ty, LLVMNDArrayType))
-                    or (not returns_ndarray and isinstance(ty, LLVMPointerType) and isinstance(arg, list))
+                    or (
+                        not returns_ndarray
+                        and isinstance(ty, LLVMPointerType)
+                        and isinstance(arg, (list, ReadOnlyBuffer))
+                    )
                 )
                 for arg, ty in zip(args, arg_types)
                 if isinstance(ty, (LLVMPointerType, LLVMNDArrayType))
@@ -203,23 +321,26 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         device_ptrs = []
         kernel_params = []
         cleanup_tasks = []
-        array_results = {}
+        array_results: dict[int, Any] = {}
         ndarray_tasks = {}
+        resident_tasks: dict[ArrayStorage, DeviceArray] = {}
         scalar_args = []
         result_buffer = None
+        launched = False
 
         try:
             for arg, ty in zip(args, arg_types):
                 if isinstance(ty, LLVMNDArrayType):
-                    descriptor, data = pack_array(arg, ty, self._get_ctypes_type(ty.element_type))
-                    size = ctypes.sizeof(data)
-                    data_ptr = ctypes.c_uint64()
-                    if self.libcuda.cuMemAlloc_v2(ctypes.byref(data_ptr), max(4, size)) != 0:
-                        raise CUDAExecutionError("cuMemAlloc failed for NDArray data")
-                    device_ptrs.append(data_ptr)
-                    if self.libcuda.cuMemcpyHtoD_v2(data_ptr.value, ctypes.cast(data, ctypes.c_void_p), size) != 0:
-                        raise CUDAExecutionError("cuMemcpyHtoD failed for NDArray data")
-                    descriptor.data = data_ptr.value
+                    if not isinstance(arg, NDArray) or arg.rank != ty.rank:
+                        raise ValueError(f"Expected a rank-{ty.rank} NDArray")
+                    descriptor = pack_descriptor(arg, 0)
+                    storage = arg._storage
+                    ctype = self._get_ctypes_type(ty.element_type)
+                    if storage in resident_tasks and resident_tasks[storage].ctype != ctype:
+                        raise CUDAExecutionError("Aliased array arguments must have the same element type")
+                    resident = self._device_array(storage, ctype)
+                    resident_tasks[storage] = resident
+                    descriptor.data = resident.pointer.value
                     descriptor_ptr = ctypes.c_uint64()
                     if self.libcuda.cuMemAlloc_v2(ctypes.byref(descriptor_ptr), ctypes.sizeof(descriptor)) != 0:
                         raise CUDAExecutionError("cuMemAlloc failed for NDArray descriptor")
@@ -232,9 +353,19 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     ):
                         raise CUDAExecutionError("cuMemcpyHtoD failed for NDArray descriptor")
                     kernel_params.append(ctypes.addressof(descriptor_ptr))
-                    ndarray_tasks[descriptor_ptr.value] = (arg, descriptor, data, data_ptr.value, ty)
+                    ndarray_tasks[descriptor_ptr.value] = (arg, descriptor, resident.pointer.value, ty)
                     if returns_ndarray and ty.element_type == array_element_type:
                         array_results[descriptor_ptr.value] = arg
+                elif isinstance(ty, LLVMPointerType) and isinstance(arg, (ReadOnlyBuffer, ManagedArray)):
+                    storage = arg._storage
+                    ctype = self._get_ctypes_type(ty.element_type)
+                    if storage in resident_tasks and resident_tasks[storage].ctype != ctype:
+                        raise CUDAExecutionError("Aliased array arguments must have the same element type")
+                    resident = self._device_array(storage, ctype)
+                    resident_tasks[storage] = resident
+                    kernel_params.append(ctypes.addressof(resident.pointer))
+                    if isinstance(ret_type, LLVMPointerType) and ty.element_type == array_element_type:
+                        array_results[resident.pointer.value] = arg
                 elif isinstance(ty, LLVMPointerType):
                     cty = self._get_ctypes_type(ty.element_type)
                     data = (cty * len(arg))(*arg)
@@ -242,9 +373,9 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     d_ptr = ctypes.c_uint64()
                     if self.libcuda.cuMemAlloc_v2(ctypes.byref(d_ptr), max(4, size)) != 0:
                         raise CUDAExecutionError("cuMemAlloc failed")
+                    device_ptrs.append(d_ptr)
                     if self.libcuda.cuMemcpyHtoD_v2(d_ptr.value, ctypes.cast(data, ctypes.c_void_p), size) != 0:
                         raise CUDAExecutionError("cuMemcpyHtoD failed")
-                    device_ptrs.append(d_ptr)
                     kernel_params.append(ctypes.addressof(d_ptr))
                     cleanup_tasks.append((d_ptr, data, size, arg))
                     if (
@@ -272,6 +403,10 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             launch_rc = self.libcuda.cuLaunchKernel(function, *grid, *block, 0, None, params_ptr, None)
             if launch_rc != 0:
                 raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}: {self._cuda_error_name(launch_rc)}")
+            launched = True
+
+            for storage in resident_tasks:
+                storage.host_current = False
 
             sync_rc = self.libcuda.cuCtxSynchronize()
             if sync_rc != 0:
@@ -286,16 +421,16 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     original_arg[:] = list(host_data)
 
             shapes = {}
-            for address, (arg, descriptor, data, data_address, ty) in ndarray_tasks.items():
+            for address, (arg, descriptor, data_address, ty) in ndarray_tasks.items():
                 if self.libcuda.cuMemcpyDtoH_v2(ctypes.byref(descriptor), address, ctypes.sizeof(descriptor)) != 0:
                     raise CUDAExecutionError("cuMemcpyDtoH failed for NDArray descriptor")
                 shapes[address] = descriptor_shape(descriptor, arg, data_address)
-                if (
-                    self.libcuda.cuMemcpyDtoH_v2(ctypes.cast(data, ctypes.c_void_p), data_address, ctypes.sizeof(data))
-                    != 0
-                ):
-                    raise CUDAExecutionError("cuMemcpyDtoH failed for NDArray data")
-                arg.data[:] = list(data)
+
+            # Raw host lists can outlive a .data access. Preserve their ordinary
+            # Python alias semantics, while retaining the allocation for reuse.
+            for storage in resident_tasks:
+                if storage.exposed:
+                    storage.read()
 
             if result_buffer is not None:
                 if (
@@ -314,6 +449,21 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 return result_buffer.value
             return None
 
+        except Exception as error:
+            for storage, resident in resident_tasks.items():
+                try:
+                    if launched:
+                        storage.host_current = False
+                    storage.read()
+                except Exception:
+                    storage.failure = error
+                finally:
+                    storage.device = None
+                    try:
+                        resident.close()
+                    except Exception:
+                        logger.debug("Could not release array after CUDA failure")
+            raise
         finally:
             for d_ptr in device_ptrs:
                 self.libcuda.cuMemFree_v2(d_ptr.value if hasattr(d_ptr, "value") else d_ptr)

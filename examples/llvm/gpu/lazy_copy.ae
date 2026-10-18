@@ -1,0 +1,16 @@
+open NDArray
+
+@gpu
+def fill_matrix (1 matrix:(NDArray Int Rank2)) (value:Int) :
+    {r:(NDArray Int Rank2) |
+        r.dimension_size 0 = matrix.dimension_size 0 &&
+        r.dimension_size 1 = matrix.dimension_size 1} :=
+    matrix.fill value;
+
+def main (args:Int) : Unit :=
+    let 1 matrix := full2 17 33 7 in
+    # One upload: the result stays on the device between calls.
+    let 1 first := fill_matrix matrix 0 in
+    let 1 second := fill_matrix first 42 in
+    # The first host element read downloads the latest contents. Prints 42.
+    print (second.get2 16 32);

@@ -87,9 +87,12 @@ float32 narrowing.
 ### Returning array parameters from `@gpu`
 
 The separate `@gpu` LLVM backend can return a numeric or Boolean array passed
-as a parameter. The kernel returns its buffer pointer; after synchronization,
-the executor copies the contents back and returns the original host array with
-its original length. It can select any parameter with the matching element type.
+as a parameter. The kernel returns its buffer pointer and preserves its original
+length. Managed Aeon arrays retain their allocation between GPU calls; host
+reads materialize the contents lazily. Low-level Python calls passing plain
+lists keep eager copying for compatibility. The kernel can select any parameter
+with the matching element type. See [lazy CPU/GPU copies](ndarray.md#lazy-cpugpu-copies)
+for ownership, synchronization, and host-write behavior.
 
 For example, an indexed update can return its input buffer:
 

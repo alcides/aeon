@@ -28,18 +28,26 @@ def pack_array(array: NDArray, ty: LLVMNDArrayType, ctype: Any) -> tuple[NDArray
     if not isinstance(array, NDArray) or array.rank != ty.rank:
         raise ValueError(f"Expected a rank-{ty.rank} NDArray")
     validate_shape(array.shape)
-    if len(array.data) != math.prod(array.shape):
+    values = array._read_data()
+    if len(values) != math.prod(array.shape):
         raise ValueError("NDArray shape must match its element count")
-    buffer = (ctype * array.elements)(*array.data)
+    buffer = (ctype * array.elements)(*values)
+    return pack_descriptor(array, ctypes.addressof(buffer)), buffer
+
+
+def pack_descriptor(array: NDArray, address: int) -> NDArrayDescriptor:
+    validate_shape(array.shape)
+    if len(array._storage.host) != array.elements:
+        raise ValueError("NDArray shape must match its element count")
     descriptor = NDArrayDescriptor(
-        ctypes.addressof(buffer),
+        address,
         0,
         array.rank,
         (ctypes.c_int64 * 3)(*(array.shape + (1,) * (3 - array.rank))),
         (ctypes.c_int64 * 3)(*(array.strides + (1,) * (3 - array.rank))),
         0,
     )
-    return descriptor, buffer
+    return descriptor
 
 
 def descriptor_shape(descriptor: NDArrayDescriptor, array: NDArray, data_address: int) -> tuple[int, ...]:
