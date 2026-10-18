@@ -28,7 +28,10 @@ def quality_data(q):
     return {"components": components, "valid": getattr(q, "valid", None), "raw": str(q)}
 
 
-class LegacyRecordingUI(TerminalUI):
+class RecordingUI(TerminalUI):
+    def __init__(self):
+        self.origin = time.monotonic()
+
     def emit(self, event, **data):
         with open(os.environ["AEON_EVENTS"], "a") as f:
             f.write(
@@ -45,7 +48,6 @@ class LegacyRecordingUI(TerminalUI):
             )
 
     def start(self, typing_ctx, evaluation_ctx, target_name, target_type, budget):
-        self.origin = time.monotonic()
         self.last_best_event = -1.0
         self.last_front_event = -1.0
         self.last_progress_event = -1.0
@@ -105,17 +107,6 @@ class LegacyRecordingUI(TerminalUI):
         super().display_results(program, terms, synthesis_format)
 
 
-recording_ui_type: type[TerminalUI] = LegacyRecordingUI
-
-# Prefer the repository-owned implementation; retain old-snapshot replay.
-try:
-    from aeon.synthesis.uis.recording import RecordingUI as RepositoryRecordingUI
-except ModuleNotFoundError as exc:
-    if exc.name != "aeon.synthesis.uis.recording":
-        raise
-else:
-    recording_ui_type = RepositoryRecordingUI
-
-cli.select_synthesis_ui = lambda verbose=False: recording_ui_type()
+cli.select_synthesis_ui = lambda verbose=False: RecordingUI()
 if __name__ == "__main__":
     cli.main()
