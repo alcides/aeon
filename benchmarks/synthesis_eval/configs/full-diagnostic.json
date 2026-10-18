@@ -1,0 +1,29 @@
+{
+  "name": "full-diagnostic",
+  "budget_s": 5,
+  "grace_s": 10,
+  "seeds": [
+    0
+  ],
+  "algorithms": [
+    "tdsyn_enumerative",
+    "tdsyn_random",
+    "synquid",
+    "tactics",
+    "smt",
+    "sygus",
+    "ortools",
+    "fta",
+    "afta",
+    "cata",
+    "lta",
+    "contata",
+    "symetric",
+    "enumerative",
+    "random_search",
+    "gp",
+    "decision_tree"
+  ],
+  "cases": "all_holes",
+  "compact_telemetry": true
+}
