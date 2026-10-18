@@ -39,8 +39,8 @@ from aeon.synthesis.api import (
     ErrorInSynthesis,
     InvalidIndividualException,
     ProgramSynthesizer,
-    Synthesizer,
     UnsupportedSynthesisGoal,
+    Synthesizer,
     TimeoutInEvaluationException,
 )
 from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool
