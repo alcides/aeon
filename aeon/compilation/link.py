@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from aeon.compilation.unit import CompiledUnit
 from aeon.core.terms import (
@@ -23,11 +23,9 @@ from aeon.core.terms import (
 )
 from aeon.decorators import Metadata
 from aeon.elaboration.context import (
-    ElabTypingContextEntry,
     ElaborationTypingContext,
 )
-from aeon.sugar.stypes import SType
-from aeon.typechecking.context import TypingContext, TypingContextEntry
+from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 
@@ -123,28 +121,23 @@ def link_rec_spines(units_in_order: list[CompiledUnit], local_spine: Term) -> Te
     return result
 
 
-def merge_typing_contexts(contexts: list[TypingContext], trusted: frozenset[Name] | None = None) -> TypingContext:
-    entries: list[TypingContextEntry] = []
-    seen: set[TypingContextEntry] = set()
-    trusted_names: set[Name] = set(trusted or ())
-    for ctx in contexts:
-        trusted_names.update(ctx.trusted_names)
-        for entry in ctx.entries:
-            if entry not in seen:
-                entries.append(entry)
-                seen.add(entry)
-    return TypingContext(entries, trusted_names=frozenset(trusted_names))
+def merge_typing_contexts(contexts: Sequence[TypingContext], trusted: frozenset[Name] | None = None) -> TypingContext:
+    """Keep the first equal binder in input order and union all trust sets.
+
+    The result owns its entries container; binder objects remain shared.
+    """
+    entries = list(dict.fromkeys(entry for ctx in contexts for entry in ctx.entries))
+    trusted_names = (trusted or frozenset()).union(*(ctx.trusted_names for ctx in contexts))
+    return TypingContext(entries, trusted_names=trusted_names)
 
 
 def link_typing_context(
     dependency_units: list[CompiledUnit], local_ctx: TypingContext, trusted: frozenset[Name]
 ) -> TypingContext:
     """Merge dependency contexts with local entries, dropping import duplicates."""
-    dep_names: set[Name] = set()
-    for unit in dependency_units:
-        for export in unit.exports.values():
-            dep_names.add(export.internal_name)
-        dep_names.update(unit.trusted_names)
+    dep_names = {export.internal_name for unit in dependency_units for export in unit.exports.values()} | {
+        name for unit in dependency_units for name in unit.trusted_names
+    }
 
     local_entries = [e for e in local_ctx.entries if not (hasattr(e, "name") and getattr(e, "name") in dep_names)]
     return merge_typing_contexts(
@@ -153,24 +146,22 @@ def link_typing_context(
     )
 
 
-def merge_elab_contexts(contexts: list[ElaborationTypingContext]) -> ElaborationTypingContext:
-    entries: list[ElabTypingContextEntry] = []
-    constructor_to_type: dict[str, Name] = {}
-    constructor_defs: dict[str, Name] = {}
-    instances: list[tuple[Name, SType]] = []
-    for ctx in contexts:
-        entries.extend(ctx.entries)
-        constructor_to_type.update(ctx.constructor_to_type)
-        constructor_defs.update(ctx.constructor_defs)
-        instances.extend(ctx.instances)
-    return ElaborationTypingContext(entries, constructor_to_type, constructor_defs, instances)
+def merge_elab_contexts(contexts: Sequence[ElaborationTypingContext]) -> ElaborationTypingContext:
+    """Concatenate scopes in order; later constructor mappings take precedence.
+
+    All result containers are fresh, while their contents remain shared.
+    """
+    return ElaborationTypingContext(
+        entries=[entry for ctx in contexts for entry in ctx.entries],
+        constructor_to_type={key: value for ctx in contexts for key, value in ctx.constructor_to_type.items()},
+        constructor_defs={key: value for ctx in contexts for key, value in ctx.constructor_defs.items()},
+        instances=[instance for ctx in contexts for instance in ctx.instances],
+    )
 
 
-def merge_metadata(parts: list[Metadata]) -> Metadata:
-    merged: Metadata = {}
-    for part in parts:
-        merged.update(part)
-    return merged
+def merge_metadata(parts: Sequence[Metadata]) -> Metadata:
+    """Return a fresh mapping, with later parts overriding earlier keys."""
+    return {key: value for part in parts for key, value in part.items()}
 
 
 def link_compiled_units(
