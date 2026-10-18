@@ -895,7 +895,6 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # Synth-mode If: mirror check-mode (lines 472-493), but the branches don't
             # share an expected type — synth each under its guard and join refinements.
             liq_cond = liquefy(cond)
-            assert liq_cond is not None, f"Could not liquefy if-condition {cond}"
             # Synth the cond so its return refinement is propagated into
             # the branches' hypotheses (see check-mode for details).
             (c_synth_cond, t_cond) = synth(ctx, cond)
@@ -905,6 +904,13 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 t_cond = t_cond.body
             c_sub_cond = sub(ctx, t_cond, t_bool, cond.loc)
             c_cond = conjoin(c_synth_cond, c_sub_cond)
+            if liq_cond is None:
+                # Higher-order guards need not liquefy. A fresh Boolean witness
+                # retains branch path sensitivity without inventing facts about
+                # the opaque computation, and remains scoped in the result.
+                witness = Name("opaque_cond", fresh_counter.fresh())
+                liq_cond = LiquidVar(witness)
+                ex_binders += ((witness, t_bool),)
             branch_ctx = ctx
             for bn, bt in ex_binders:
                 branch_ctx = branch_ctx.with_var(bn, bt)
@@ -1244,7 +1250,6 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         case If(cond, then, otherwise), _:
             y = Name("_cond", fresh_counter.fresh())
             liq_cond = liquefy(cond)
-            assert liq_cond is not None
             # Synth the condition so its refinement can be carried into
             # the branches: for ``cond : {b: Bool | r(b)}`` we add
             # ``r(liq_cond)`` to both branches' hypotheses, alongside
@@ -1257,6 +1262,13 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 t_cond = t_cond.body
             c_sub = sub(ctx, t_cond, t_bool, cond.loc)
             c0 = conjoin(c_synth, c_sub)
+            if liq_cond is None:
+                # Higher-order guards need not liquefy. A fresh Boolean witness
+                # retains branch path sensitivity without inventing facts about
+                # the opaque computation, and remains scoped in the result.
+                witness = Name("opaque_cond", fresh_counter.fresh())
+                liq_cond = LiquidVar(witness)
+                ex_binders += ((witness, t_bool),)
             branch_ctx = ctx
             for bn, bt in ex_binders:
                 branch_ctx = branch_ctx.with_var(bn, bt)
