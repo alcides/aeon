@@ -658,30 +658,30 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return _Num(a.expr - b.expr, s, a.lo - b.hi, a.hi - b.lo)
         if op == "*":
             s = a.scale + b.scale
-            corners = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
+            corners = self._product_corners(a, b)
             lo, hi = min(corners), max(corners)
-            from ortools.sat.python import cp_model
-
-            def linear_key(expression: Any) -> tuple:
-                if isinstance(expression, int):
-                    return (expression, ())
-                affine = cp_model.FlatIntExpr(expression)
-                return (affine.offset, tuple((v.index, c) for v, c in zip(affine.vars, affine.coeffs)))
-
-            if a.scale == b.scale and linear_key(a.expr) == linear_key(b.expr):
-                # A repeated factor is a square, not two independent values.
-                # Its nonnegative bound lets CP-SAT prove a zero-cost optimum
-                # without searching the full fixed-point array domain.
-                lo = 0 if a.lo <= 0 <= a.hi else min(a.lo * a.lo, a.hi * a.hi)
-                hi = max(a.lo * a.lo, a.hi * a.hi)
-                b = a
-                self._hint_square_zero(a)
             if isinstance(a.expr, int) or isinstance(b.expr, int):
                 return _Num(a.expr * b.expr, s, lo, hi)
             prod = self._model.new_int_var(lo, hi, "prod")
             self._model.add_multiplication_equality(prod, [a.expr, b.expr])
             return _Num(prod, s, lo, hi)
         raise _Unsupported(f"operator '{op}'")
+
+    def _product_corners(self, a: _Num, b: _Num) -> list[int]:
+        """Preserve correlation when both factors denote the same expression."""
+        from ortools.sat.python import cp_model
+
+        def linear_key(expression: Any) -> tuple:
+            if isinstance(expression, int):
+                return (expression, ())
+            affine = cp_model.FlatIntExpr(expression)
+            return (affine.offset, tuple((v.index, c) for v, c in zip(affine.vars, affine.coeffs)))
+
+        if a.scale == b.scale and linear_key(a.expr) == linear_key(b.expr):
+            self._hint_square_zero(a)
+            lo = 0 if a.lo <= 0 <= a.hi else min(a.lo * a.lo, a.hi * a.hi)
+            return [lo, max(a.lo * a.lo, a.hi * a.hi)]
+        return [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
 
     def _hint_square_zero(self, value: _Num) -> None:
         """Warm-start one-variable squares at their nearest grid minimum.
