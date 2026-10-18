@@ -28,7 +28,7 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.sugar.lifting import lift
 from aeon.sugar.parser import parse_expression
 from aeon.sugar.program import SApplication, SIf, SLiteral, STerm, SVar
-from aeon.synthesis.api import SynthesisNotSuccessful, Synthesizer
+from aeon.synthesis.api import SynthesisNotSuccessful, UnsupportedSynthesisGoal, Synthesizer
 from aeon.synthesis.identification import get_holes_info, incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI
@@ -204,7 +204,7 @@ class MonotonicityBenchmark:
             raise ValueError("Budget must be positive and finite")
         synthesizer = make_synthesizer(backend)
         if not isinstance(synthesizer, Synthesizer):
-            raise ValueError("Use a per-hole synthesis backend")
+            raise UnsupportedSynthesisGoal("Monotonicity proof search requires a per-hole synthesis backend")
 
         def validate(term: Term) -> bool:
             candidate = pretty_print_sterm(lift(term), top_level=False)
@@ -243,12 +243,17 @@ def main() -> int:
     for task in args.task or TASKS:
         benchmark = MonotonicityBenchmark(task, args.task_dir)
         start = monotonic()
-        result = (
-            benchmark.verify(args.candidate)
-            if args.candidate is not None
-            else benchmark.synthesize(args.backend, args.budget)
-        )
-        report = dataclasses.asdict(result) if result else {"status": "no_solution"}
+        try:
+            result = (
+                benchmark.verify(args.candidate)
+                if args.candidate is not None
+                else benchmark.synthesize(args.backend, args.budget)
+            )
+        except UnsupportedSynthesisGoal as exc:
+            result = None
+            report = {"status": exc.category, "reason": str(exc)}
+        else:
+            report = dataclasses.asdict(result) if result else {"status": "no_solution"}
         print(json.dumps({"task": task, "elapsed": monotonic() - start, **report}))
         success = success and result is not None and result.accepted
     return 0 if success else 2
