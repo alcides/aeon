@@ -23,6 +23,15 @@ class SynthesisNotSuccessful(SynthesisError):
     pass
 
 
+class UnsupportedSynthesisGoal(SynthesisNotSuccessful):
+    """A controlled backend capability mismatch, not an internal failure."""
+
+    category = "unsupported_goal"
+
+    def __str__(self):
+        return "Unsupported synthesis goal: " + super().__str__()
+
+
 class UnknownSynthesizerError(SynthesisError):
     """Raised when ``-s``/``--synthesizer`` names a backend that does not exist."""
 
