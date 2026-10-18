@@ -1,0 +1,13 @@
+import Array;
+open NDArray
+
+# Each conversion transfers the same storage in row-major order.
+def main (args: Int) : Unit :=
+    let 1 values := #[1, 2, 3, 4, 5, 6] in
+    let 1 vector := from_array values in
+    let 1 matrix := vector.from_1d2 2 3 in
+    let 1 flat := matrix.to_1d in
+    let 1 volume := flat.from_1d3 1 2 3 in
+    let 1 flat_again := volume.to_1d in
+    let 1 matrix_again := flat_again.from_1d2 3 2 in
+    print (matrix_again.get2 2 1);

@@ -15,7 +15,13 @@ from aeon.llvm.llvm_ast import (
     LLVMVectorReduce,
     LLVMVectorZipWith,
     LLVMType,
+    LLVMNDArrayType,
+    LLVMNDArrayOp,
+    LLVMRefinedValue,
+    LLVMVar,
+    LLVMLiteral,
 )
+from aeon.llvm.ndarray import axis_value, element_pointer, emit_row
 
 
 class CUDALLVMIRGenerator(CPULLVMIRGenerator):
@@ -31,12 +37,24 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         target = llvm.Target.from_triple(self.module.triple)
         self.target_data = target.create_target_machine().target_data
         self.kernels: List[ir.Function] = []
+        self.ndarray_launches: dict[str, tuple[int, int]] = {}
+        self.row_launches: dict[str, int] = {}
 
     def _get_type_size(self, ir_type: ir.Type) -> int:
         return ir_type.get_abi_size(self.target_data)
 
     def _get_type_alignment(self, ir_type: ir.Type) -> int:
         return ir_type.get_abi_alignment(self.target_data)
+
+    def visit_var(self, node: LLVMVar) -> ir.Value:
+        name = sanitize_name(node.name)
+        if name not in self.env and name not in self.module.globals:
+            if node.name.name in {"sqrt", "sqrtf", "Math_sqrt", "Math_sqrtf"}:
+                # NVPTX has no host libm. LLVM lowers this intrinsic directly to
+                # a device square root, without requiring a libdevice link.
+                assert isinstance(node.type, LLVMFunctionType)
+                return self.module.declare_intrinsic("llvm.sqrt", [self.to_ir_type(node.type.arg_types[0])])
+        return super().visit_var(node)
 
     def _add_kernel_metadata(self, func: ir.Function) -> None:
         nvvm_annot = self.module.add_named_metadata("nvvm.annotations")
@@ -58,8 +76,8 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if isinstance(func.function_type.return_type, ir.PointerType):
                 assert isinstance(node.type, LLVMFunctionType)
                 ret_type = node.type.return_type
-                if not is_array_pointer(ret_type) or not any(
-                    isinstance(arg_type, LLVMPointerType) and arg_type.element_type == ret_type.element_type
+                if not (is_array_pointer(ret_type) or isinstance(ret_type, LLVMNDArrayType)) or not any(
+                    isinstance(arg_type, type(ret_type)) and arg_type.element_type == ret_type.element_type
                     for arg_type in node.arg_types
                 ):
                     continue
@@ -74,12 +92,83 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             for argument in kernel.args:
                 self._add_parameter_attributes(argument)
             builder = ir.IRBuilder(kernel.append_basic_block("entry"))
-            result = builder.call(func, list(kernel.args[: len(func.args)]))
-            if returns_value:
-                builder.store(result, kernel.args[-1])
-            builder.ret_void()
+            body = node.body
+            while isinstance(body, LLVMRefinedValue):
+                body = body.value
+            if (
+                isinstance(body, LLVMNDArrayOp)
+                and body.op == "map_rows"
+                and isinstance(body.array, LLVMVar)
+                and body.array.name in node.arg_names
+            ):
+                self.row_launches[func.name] = node.arg_names.index(body.array.name)
+                self._parallel_rows_wrapper(node, body, kernel, builder)
+            elif (
+                isinstance(body, LLVMNDArrayOp)
+                and body.op == "fill"
+                and isinstance(body.array, LLVMVar)
+                and body.array.name in node.arg_names
+                and isinstance(body.args[0], (LLVMLiteral, LLVMVar))
+            ):
+                index = node.arg_names.index(body.array.name)
+                assert isinstance(body.array.type, LLVMNDArrayType)
+                rank = body.array.type.rank
+                self.ndarray_launches[func.name] = (index, rank)
+                self._parallel_fill_wrapper(node, body, kernel, builder)
+            else:
+                result = builder.call(func, list(kernel.args[: len(func.args)]))
+                if returns_value:
+                    builder.store(result, kernel.args[-1])
+                builder.ret_void()
             self._add_kernel_metadata(kernel)
         return str(self.module)
+
+    def _parallel_rows_wrapper(self, node, body, kernel, builder):
+        old_builder, old_env = self.builder, self.env
+        old_refinements = self.refinement_env
+        self.builder = builder
+        self.env = {sanitize_name(name): arg for name, arg in zip(node.arg_names, kernel.args)}
+        self.refinement_env = dict(zip(node.arg_names, kernel.args))
+        array = body.array.accept(self)
+        i64 = ir.IntType(64)
+        tid, block, threads = [
+            builder.zext(builder.call(self._get_cuda_intrinsic(reg), []), i64) for reg in ("tid.x", "ctaid.x", "ntid.x")
+        ]
+        index = builder.add(tid, builder.mul(block, threads))
+        row = builder.alloca(array.type.pointee, name="row_descriptor")
+        with builder.if_then(builder.icmp_unsigned("<", index, axis_value(builder, array, 3, 0))):
+            emit_row(self, body, array, index, row)
+        with builder.if_then(builder.icmp_unsigned("==", index, ir.Constant(i64, 0))):
+            builder.store(array, kernel.args[-1])
+        builder.ret_void()
+        self.builder, self.env = old_builder, old_env
+        self.refinement_env = old_refinements
+
+    def _parallel_fill_wrapper(self, node, body, kernel, builder):
+        old_builder, old_env = self.builder, self.env
+        self.builder = builder
+        self.env = {sanitize_name(name): arg for name, arg in zip(node.arg_names, kernel.args)}
+        array = body.array.accept(self)
+        ty = body.array.type
+        value = self._coerce_to_type(body.args[0].accept(self), ty.element_type.to_ir())
+        coordinates = []
+        for axis in reversed("xyz"[: ty.rank]):
+
+            def intrinsic(reg):
+                return builder.zext(builder.call(self._get_cuda_intrinsic(f"{reg}.{axis}"), []), ir.IntType(64))
+
+            coordinates.append(builder.add(intrinsic("tid"), builder.mul(intrinsic("ctaid"), intrinsic("ntid"))))
+        valid = ir.Constant(ir.IntType(1), 1)
+        first = ir.Constant(ir.IntType(1), 1)
+        for axis, coordinate in enumerate(coordinates):
+            valid = builder.and_(valid, builder.icmp_unsigned("<", coordinate, axis_value(builder, array, 3, axis)))
+            first = builder.and_(first, builder.icmp_unsigned("==", coordinate, ir.Constant(ir.IntType(64), 0)))
+        with builder.if_then(valid):
+            builder.store(value, element_pointer(builder, array, coordinates))
+        with builder.if_then(first):
+            builder.store(array, kernel.args[-1])
+        builder.ret_void()
+        self.builder, self.env = old_builder, old_env
 
     def _get_cuda_intrinsic(self, name: str) -> ir.Function:
         intrinsic_map = {
@@ -88,6 +177,9 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             "ctaid.x": "llvm.nvvm.read.ptx.sreg.ctaid.x",
             "nctaid.x": "llvm.nvvm.read.ptx.sreg.nctaid.x",
         }
+        for axis in "yz":
+            for register in ("tid", "ntid", "ctaid", "nctaid"):
+                intrinsic_map[f"{register}.{axis}"] = f"llvm.nvvm.read.ptx.sreg.{register}.{axis}"
         llvm_name = intrinsic_map.get(name)
         if not llvm_name:
             raise ValueError(f"unknown CUDA intrinsic {name}")

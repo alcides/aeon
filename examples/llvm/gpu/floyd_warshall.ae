@@ -1,0 +1,74 @@
+open NDArray
+
+# All-pairs shortest paths on a directed, weighted graph.
+# Positive infinity denotes a missing edge. Float uses LLVM float32.
+# Each pivot launches one GPU thread per row; columns run sequentially.
+# Separate input and output storage preserves the previous pivot's distances.
+type Vector a
+
+def length : (xs: (Vector a)) -> Int := uninterpreted
+def Vector_get (xs: (Vector Float)) (i: {v:Int | v >= 0 && v < length xs}) : Float := native "xs[i]"
+
+# Transfer a matrix to the existing read-only snapshot representation.
+def snapshot (1 matrix: (NDArray Float Rank2)) :
+    {r:(Vector Float) | length r = matrix.elements} := native "matrix.to_1d().to_array()"
+
+@gpu
+def relax_row
+    (xs: (Vector Float)) (n: {v:Int | v >= 0 && v <= 46340 && v * v = length xs})
+    (k: {v:Int | v >= 0 && v < n}) (i: {v:Int | v >= 0 && v < n})
+    (j: {v:Int | v >= 0 && v <= n})
+    (1 row: {r:(NDArray Float Rank1) | r.dimension_size 0 = n}) :
+    {r:(NDArray Float Rank1) | r.dimension_size 0 = n} decreasing_by [n - j] :=
+    if j = n then row else
+    let previous := xs.get (i * n + j) in
+    let via_pivot := xs.get (i * n + k) + xs.get (k * n + j) in
+    let shortest := if via_pivot < previous then via_pivot else previous in
+    let 1 updated := row.set1 j shortest in
+    relax_row xs n k i (j + 1) updated;
+
+@gpu
+def floyd_pass
+    (xs: (Vector Float)) (n: {v:Int | v >= 0 && v <= 46340 && v * v = length xs})
+    (k: {v:Int | v >= 0 && v < n})
+    (1 output: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = n && m.elements = n * n}) :
+    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = n && r.elements = n * n} :=
+    output.map_rows (fun i => fun row => relax_row xs n k i 0 row);
+
+# This host loop is the global barrier between successive pivots.
+def floyd_stages
+    (n: {v:Int | v >= 0 && v <= 46340}) (k: {v:Int | v >= 0 && v <= n})
+    (1 distances: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = n && m.elements = n * n}) :
+    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = n && r.elements = n * n} decreasing_by [n - k] :=
+    if k = n then distances else
+    let xs := snapshot distances in
+    let 1 output := full2 n n 0.0 in
+    let 1 next := floyd_pass xs n k output in
+    floyd_stages n (k + 1) next;
+
+def prepare_graph
+    (n: {v:Int | v >= 0 && v <= 46340})
+    (1 graph: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = n && m.elements = n * n}) :
+    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = n && r.elements = n * n} :=
+    native "__import__('aeon.bindings.floyd_warshall', fromlist=['prepare_graph']).prepare_graph(graph)";
+
+def check_negative_cycles
+    (n: {v:Int | v >= 0 && v <= 46340})
+    (1 distances: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = n && m.elements = n * n}) :
+    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = n && r.elements = n * n} :=
+    native "__import__('aeon.bindings.floyd_warshall', fromlist=['check_negative_cycles']).check_negative_cycles(distances)";
+
+def floyd_warshall
+    (n: {v:Int | v >= 0 && v <= 46340})
+    (1 graph: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = n && m.elements = n * n}) :
+    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = n && r.elements = n * n} :=
+    let 1 initial := prepare_graph n graph in
+    let 1 distances := floyd_stages n 0 initial in
+    check_negative_cycles n distances;
+
+def main (args: Int) : Unit :=
+    # 0 -> 1 -> 2 -> 3 costs 5 + 3 + 1 = 9; the direct 0 -> 3 edge costs 10.
+    let 1 graph : {m:(NDArray Float Rank2) | m.dimension_size 0 = 4 && m.dimension_size 1 = 4 && m.elements = 16} :=
+        native "__import__('aeon.bindings.ndarray', fromlist=['NDArray']).NDArray([0.0, 5.0, float('inf'), 10.0, float('inf'), 0.0, 3.0, float('inf'), float('inf'), float('inf'), 0.0, 1.0, float('inf'), float('inf'), float('inf'), 0.0], (4, 4))" in
+    let 1 distances := floyd_warshall 4 graph in
+    print (distances.get2 0 3);

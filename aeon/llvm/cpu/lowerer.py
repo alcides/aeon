@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from typing import Dict, List
 
 from aeon.core.terms import (
@@ -59,6 +59,8 @@ from aeon.llvm.llvm_ast import (
     LLVMRefinedValue,
     LLVMADTConstruct,
     LLVMADTEliminate,
+    LLVMNDArrayType,
+    LLVMNDArrayOp,
 )
 from aeon.llvm.utils import (
     validate_type,
@@ -705,6 +707,10 @@ class CPULLVMLowerer(LLVMLowerer):
     ) -> LLVMTerm:
         base, args = self._uncurry(t)
 
+        ndarray = self._lower_ndarray_app(base, args, type_env, env, allowed, in_vec)
+        if ndarray is not None:
+            return ndarray
+
         # Inductive constructor / recursor applications (match desugars to Type_rec).
         adt = self._lower_adt_app(base, args, expected, type_env, env, allowed, in_vec)
         if adt is not None:
@@ -723,6 +729,93 @@ class CPULLVMLowerer(LLVMLowerer):
 
         all_args = prev_args + self._lower_args(args, params, len(prev_args), type_env, env, allowed, in_vec)
         return self._create_call_or_partial(target, all_args, params, ret)
+
+    def _lower_ndarray_app(
+        self,
+        base: Term,
+        args: list[Term],
+        type_env: Dict[Name, LLVMType],
+        env: Dict[Name, LLVMTerm],
+        allowed: set[Name],
+        in_vec: bool,
+    ) -> LLVMNDArrayOp | None:
+        head = self._head_var_name(base)
+        if head is None or not head.name.startswith("NDArray_"):
+            return None
+        op = head.name[len("NDArray_") :]
+        if op in {"full1", "full2", "full3", "from_array", "to_array"}:
+            raise LLVMValidationError("Construct NDArray values and convert Array storage on the host")
+        if not args:
+            raise LLVMValidationError("Compiled NDArray operations must be fully applied")
+        array = self._lower_term(args[0], None, type_env, env, allowed, in_vec)
+        if not isinstance(array.type, LLVMNDArrayType):
+            raise LLVMValidationError("NDArray operations require a ranked array descriptor")
+        ty = array.type
+        if op == "map_rows":
+            if ty.rank != 2 or len(args) != 2:
+                raise LLVMValidationError("map_rows requires a matrix and a fully applied callback")
+            row_type = LLVMNDArrayType(ty.element_type, 1)
+            callback = self._lower_as_standalone(
+                args[1], LLVMFunctionType([LLVMInt, row_type], row_type), type_env, env, allowed, True
+            )
+            if not isinstance(callback, LLVMFunction) or len(callback.arg_names) != 2:
+                raise LLVMValidationError("Compiled map_rows requires an inline two-argument lambda")
+            if callback.body.type != row_type:
+                raise LLVMValidationError("map_rows callbacks must return their rank-one row")
+            self._validate_row_captures(callback.body, set(callback.arg_names))
+            return LLVMNDArrayOp(ty, op, array, [callback])
+        arities = {
+            "fill": 2,
+            "to_1d": 1,
+            "from_1d2": 3,
+            "from_1d3": 4,
+            "dimension_size": 2,
+            "dimension": 2,
+            "count": 1,
+            "elements": 1,
+            "ndim": 1,
+            "discard": 1,
+        }
+        arities.update({f"get{rank}": rank + 1 for rank in range(1, 4)})
+        arities.update({f"set{rank}": rank + 2 for rank in range(1, 4)})
+        if op not in arities or len(args) != arities[op]:
+            raise LLVMValidationError(f"Unsupported or partially applied NDArray operation: {op}")
+        if op.startswith(("get", "set")) and int(op[-1]) != ty.rank:
+            raise LLVMValidationError("NDArray index rank does not match its type")
+        if op.startswith("from_1d") and ty.rank != 1:
+            raise LLVMValidationError("NDArray reshape from 1D requires Rank1")
+        values = [self._lower_term(arg, None, type_env, env, allowed, in_vec) for arg in args[1:]]
+        result: LLVMType = ty
+        if op.startswith("get"):
+            result = ty.element_type
+        elif op in {"dimension_size", "dimension", "count", "elements", "ndim"}:
+            result = LLVMInt
+        elif op == "discard":
+            result = LLVMVoid
+        elif op == "to_1d":
+            result = LLVMNDArrayType(ty.element_type, 1)
+        elif op.startswith("from_1d"):
+            result = LLVMNDArrayType(ty.element_type, int(op[-1]))
+        return LLVMNDArrayOp(result, op, array, values)
+
+    def _validate_row_captures(self, term: LLVMTerm, bound: set[Name]) -> None:
+        if isinstance(term, LLVMVar) and isinstance(term.type, LLVMNDArrayType) and term.name not in bound:
+            raise LLVMValidationError("map_rows callbacks cannot capture owned NDArray values; use the supplied row")
+        if isinstance(term, LLVMLet):
+            self._validate_row_captures(term.var_value, bound)
+            self._validate_row_captures(term.body, bound | {term.var_name})
+            return
+        if isinstance(term, LLVMFunction):
+            self._validate_row_captures(term.body, bound | set(term.arg_names))
+            return
+        for member in fields(term):
+            value = getattr(term, member.name)
+            if isinstance(value, LLVMTerm):
+                self._validate_row_captures(value, bound)
+            elif isinstance(value, list):
+                for child in value:
+                    if isinstance(child, LLVMTerm):
+                        self._validate_row_captures(child, bound)
 
     def _head_var_name(self, term: Term) -> Name | None:
         cur: Term = term

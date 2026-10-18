@@ -110,7 +110,13 @@ class LLVMOptimizer(ABC):
 class LLVMExecutionEngine(ABC):
     @abstractmethod
     def execute(
-        self, llvm_ir: str, func_name: str, args: List[Any], arg_types: List[LLVMType], ret_type: LLVMType
+        self,
+        llvm_ir: str,
+        func_name: str,
+        args: List[Any],
+        arg_types: List[LLVMType],
+        ret_type: LLVMType,
+        launch_shape: tuple[int, ...] | None = None,
     ) -> Any:
         pass
 
@@ -137,6 +143,9 @@ class LLVMPipeline(ABC):
 
 
 class LLVMVisitor(ABC):
+    def visit_ndarray(self, node: Any) -> Any:
+        raise LLVMBackendError("This backend does not support NDArray operations")
+
     def visit_refinement(self, node: Any) -> Any:
         return node.value.accept(self)
 

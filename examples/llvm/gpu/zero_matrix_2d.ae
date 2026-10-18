@@ -1,0 +1,14 @@
+open NDArray
+
+# The rank and shape travel with the matrix. CUDA launches a 2D thread grid.
+@gpu
+def zero_matrix (1 matrix: (NDArray Int Rank2)) :
+    {r:(NDArray Int Rank2) |
+        r.dimension_size 0 = matrix.dimension_size 0 &&
+        r.dimension_size 1 = matrix.dimension_size 1} :=
+    matrix.fill 0;
+
+def main (args: Int) : Unit :=
+    let 1 matrix := full2 17 33 7 in
+    let 1 result := zero_matrix matrix in
+    print (result.get2 16 32);
