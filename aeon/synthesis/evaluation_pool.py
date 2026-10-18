@@ -21,6 +21,7 @@ import dataclasses
 from typing import Any, Callable, Optional
 
 import multiprocess as mp
+from multiprocess.reduction import ForkingPickler
 
 from aeon.backend.evaluator import EvaluationContext, eval
 from aeon.core.terms import Term, Var
@@ -112,7 +113,11 @@ def _worker_main(static: tuple, task_q: Any, result_q: Any) -> None:
         out: dict[str, tuple[str, Any]] = {}
         for name, comp in computations.items():
             try:
-                out[name] = (OK, comp(prog))
+                # Queue feeder threads report pickling failures asynchronously,
+                # dropping the reply. Serialize here so each failed computation
+                # has a normal error result and successful siblings survive.
+                value = bytes(ForkingPickler.dumps(comp(prog)))
+                out[name] = (OK, value)
             except InvalidIndividualException:
                 out[name] = (INVALID, None)
             except Exception as e:  # noqa: BLE001 — any failure means "no value here"
@@ -208,7 +213,10 @@ class EvaluationPool:
             for idx, w in dispatched:
                 try:
                     _cid, out = w.result_q.get(timeout=self._budget + 1.0)
-                    results[idx] = out
+                    results[idx] = {
+                        name: (status, ForkingPickler.loads(value) if status == OK else value)
+                        for name, (status, value) in out.items()
+                    }
                 except Exception:
                     self._recycle(w)
                     results[idx] = self._timeout()
