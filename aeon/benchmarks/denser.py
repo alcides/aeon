@@ -368,15 +368,7 @@ class DenserBenchmark:
         return AeonDriver(AeonConfig("none", SilentSynthesisUI(), 0, no_main=True, strict_decidable=True))
 
     def _parse(self, driver, source):
-        previous = os.environ.get("AEONPATH")
-        os.environ["AEONPATH"] = str(TASK_DIR) + (os.pathsep + previous if previous else "")
-        try:
-            return list(driver.parse(filename=str(self.path), aeon_code=source))
-        finally:
-            if previous is None:
-                os.environ.pop("AEONPATH", None)
-            else:
-                os.environ["AEONPATH"] = previous
+        return list(driver.parse(filename=str(self.path), aeon_code=source))
 
     def completed_source(self, candidate: str) -> str:
         # Lifted core terms use canonical internal names; expose the public names.
