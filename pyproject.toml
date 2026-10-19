@@ -29,7 +29,7 @@ dependencies = [
     # NumPy 2.2 has no CPython 3.14 wheels; keep older interpreters unchanged.
     'numpy==2.2.6; python_version < "3.14"',
     'numpy==2.3.4; python_version >= "3.14"',
-    'pydantic==2.14.0',
+    'pydantic==2.14.1',
     'pygls==2.1.1',
     'requests',
     'types-requests',
