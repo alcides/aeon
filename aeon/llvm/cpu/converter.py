@@ -39,6 +39,7 @@ from aeon.llvm.llvm_ast import (
     LLVMRefinedValue,
     LLVMADTConstruct,
     LLVMADTEliminate,
+    LLVMNDArrayType,
 )
 from aeon.llvm.refinements import emit_predicate, integer_range, parameter_ranges
 from aeon.llvm.safety import refinement_arithmetic_is_safe
@@ -597,24 +598,45 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
     def visit_vector_reduce(self, node: LLVMVectorReduce) -> ir.Value:
         ty, f, initial, v, size = node.type, node.f, node.initial, node.v, node.size
         self._is_top_level = False
-        f_val, init_val, v_val, size_val = f.accept(self), initial.accept(self), v.accept(self), size.accept(self)
+        init_val, v_val, size_val = initial.accept(self), v.accept(self), size.accept(self)
+        if isinstance(v.type, LLVMNDArrayType):
+            from aeon.llvm.ndarray import field
+
+            v_val = self.builder.gep(
+                self.builder.load(field(self.builder, v_val, 0)), [self.builder.load(field(self.builder, v_val, 1))]
+            )
         acc_ty = self.to_ir_type(ty)
         if isinstance(acc_ty, ir.VoidType):
             acc_ty = ir.IntType(32)
 
         acc_ptr = self.builder.alloca(acc_ty, name="reduce_acc")
         if init_val and not isinstance(init_val.type, ir.VoidType):
-            self.builder.store(init_val, acc_ptr)
+            self.builder.store(self._coerce_to_type(init_val, acc_ty), acc_ptr)
 
         def body(idx):
-            new_acc = self.builder.call(
-                f_val, [self.builder.load(acc_ptr), self.builder.load(self.builder.gep(v_val, [idx]))]
+            new_acc = self.apply_reducer(
+                f, [self.builder.load(acc_ptr), self.builder.load(self.builder.gep(v_val, [idx]))], acc_ty
             )
             if not isinstance(new_acc.type, ir.VoidType):
                 self.builder.store(new_acc, acc_ptr)
 
         self.to_ir_loop(size_val, "reduce", body)
         return self.builder.load(acc_ptr)
+
+    def apply_reducer(self, callback: LLVMTerm, values: list[ir.Value], result_type: ir.Type) -> ir.Value:
+        """Use the ordinary expression generator, retaining inline lambda captures."""
+        if isinstance(callback, LLVMFunction):
+            old_env, old_refinements = self.env, self.refinement_env
+            bindings = dict(zip(callback.arg_names, values))
+            self.env = old_env | {sanitize_name(name): value for name, value in bindings.items()}
+            self.refinement_env = old_refinements | bindings
+            try:
+                result = callback.body.accept(self)
+            finally:
+                self.env, self.refinement_env = old_env, old_refinements
+        else:
+            result = self.builder.call(callback.accept(self), values)
+        return self._coerce_to_type(result, result_type)
 
     def visit_vector_imap(self, node: LLVMVectorIMap) -> ir.Value:
         res_ty, f, v, size = node.type, node.f, node.v, node.size

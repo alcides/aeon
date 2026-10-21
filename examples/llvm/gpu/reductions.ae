@@ -1,0 +1,31 @@
+open NDArray
+
+# All three functions use the same generic parallel reduction. The lambdas
+# compile through the existing LLVM expression visitor into device code.
+@gpu
+def sum_values (1 values:(NDArray Int Rank1)) : Int :=
+    values.reduce (fun acc => fun x => acc + x) 0;
+
+@gpu
+def min_values (1 values:(NDArray Int Rank1)) : Int :=
+    values.reduce (fun acc => fun x => if acc < x then acc else x) 2147483647;
+
+@gpu
+def max_values (1 values:(NDArray Int Rank1)) : Int :=
+    values.reduce (fun acc => fun x => if acc > x then acc else x) (-2147483647 - 1);
+
+# Independent owners because a terminal reduction consumes its input.
+def samples (n:{v:Int | v >= 0 && v <= 2147483647}) :
+    {r:(NDArray Int Rank1) | r.dimension_size 0 = n} :=
+    native "__import__('aeon.bindings.ndarray', fromlist=['NDArray']).NDArray(list(range(n)), (n,))";
+
+def main (args:Int) : Unit :=
+    let 1 a := samples 1025 in
+    let 1 b := samples 1025 in
+    let 1 c := samples 1025 in
+    let total := sum_values a in
+    let smallest := min_values b in
+    let largest := max_values c in
+    let _ := print total in
+    let _ := print smallest in
+    print largest;

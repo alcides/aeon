@@ -169,8 +169,52 @@ Runnable GPU examples:
 - [`zero_matrix_2d.ae`](../examples/llvm/gpu/zero_matrix_2d.ae)
 - [`zero_volume_3d.ae`](../examples/llvm/gpu/zero_volume_3d.ae)
 - [`lazy_copy.ae`](../examples/llvm/gpu/lazy_copy.ae)
+- [`reductions.ae`](../examples/llvm/gpu/reductions.ae)
 - [`nbody.ae`](../examples/llvm/gpu/nbody.ae)
 - [`floyd_warshall.ae`](../examples/llvm/gpu/floyd_warshall.ae)
+
+### Parallel scalar reductions
+
+`reduce` consumes an NDArray of any rank and combines its row-major elements
+with a lambda. Sum, minimum, and maximum use the same compiler operation:
+
+```aeon
+@gpu
+def sum_values (1 values:(NDArray Int Rank1)) : Int :=
+    values.reduce (fun acc => fun x => acc + x) 0;
+
+@gpu
+def min_values (1 values:(NDArray Int Rank1)) : Int :=
+    values.reduce (fun acc => fun x => if acc < x then acc else x) 2147483647;
+
+@gpu
+def max_values (1 values:(NDArray Int Rank1)) : Int :=
+    values.reduce (fun acc => fun x => if acc > x then acc else x) (-2147483647 - 1);
+```
+
+The lambda goes through normal lowering into `LLVMVectorReduce`; its body uses
+the existing expression generator for both CPU and CUDA. It can capture scalar
+parameters and call compiled helpers. CUDA combines adjacent elements in a
+shared-memory tree with 256 threads per block, then reduces device-resident
+partial results until one value remains. Only the final scalar is downloaded;
+input arrays already on the GPU stay there.
+
+The initial value is applied exactly once, and is returned unchanged for an
+empty array. The combiner must be pure and associative. Element order is
+preserved, but grouping changes, so floating-point sums can differ from the
+sequential interpreter/CPU fold through rounding. This property is the
+caller's contract and is not proved by the typechecker.
+
+Parallel launch selection applies when the GPU entry directly returns a
+homogeneous scalar reduction of an input array. Existing `reduce_n_int` and
+`reduce_n_float` calls with an input parameter and parameter/literal length
+use this same path. Other folds retain their sequential lowering, including
+folds with different accumulator and element types and reductions nested in
+larger device functions. Compiled scalars include `Int`, `Long`, `Float`,
+`Double`, and `Bool`.
+
+Run `python -m aeon examples/llvm/gpu/reductions.ae` to print `524800`, `0`,
+and `1024` from three multi-block reductions.
 
 ## N-body simulation example
 

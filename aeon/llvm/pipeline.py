@@ -207,6 +207,9 @@ class MultiBackendPipeline(LLVMPipeline):
                 raise LLVMBackendError("map_rows requires a matrix")
             launch_shape = (shape[0],)
 
+        reduction = getattr(backend.generator, "reduction_launches", {}).get(sanitize_name(name_id))
+        reduction_count = reduction.count(arguments) if reduction is not None else None
+
         return backend.executor.execute(
             self.llvm_ir_by_backend[target_name],
             sanitize_name(name_id),
@@ -214,4 +217,5 @@ class MultiBackendPipeline(LLVMPipeline):
             param_types,
             return_type,
             launch_shape=launch_shape,
+            reduction_count=reduction_count,
         )

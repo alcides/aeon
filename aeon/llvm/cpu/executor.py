@@ -172,6 +172,7 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         arg_types: List[LLVMType],
         ret_type: LLVMType,
         launch_shape: tuple[int, ...] | None = None,
+        reduction_count: int | None = None,
     ) -> Any:
         self._keep_alive = []
         self._ndarray_arguments: dict[int, Any] = {}

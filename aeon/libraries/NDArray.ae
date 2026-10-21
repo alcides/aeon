@@ -85,3 +85,8 @@ def map_rows (1 arr: (NDArray a Rank2))
     native "arr.map_rows(f)"
 
 def discard (1 arr: (NDArray a rank)) : Unit := native "arr.discard()"
+
+# An associative scalar combiner, compiled through the shared vector reduction.
+# CUDA uses a parallel tree; z is applied once. Empty arrays return z.
+def reduce (1 arr: (NDArray a rank)) (f: (acc:a) -> (x:a) -> a) (z:a) : a :=
+    native "arr.reduce(f, z)"
