@@ -398,10 +398,11 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
         case Intersection(intersected):
             return unify_single(f"the intersection type {ty}", intersected)
         case SAbstractionType(name, vtype, rtype, loc):
+            vtype = remove_unions_and_intersections(ctx, vtype)
             return SAbstractionType(
                 var_name=name,
-                var_type=remove_unions_and_intersections(ctx, vtype),
-                type=remove_unions_and_intersections(ctx, rtype),
+                var_type=vtype,
+                type=remove_unions_and_intersections(ctx.with_var(name, vtype), rtype),
                 loc=loc,
                 multiplicity=ty.multiplicity,
             )
@@ -410,7 +411,7 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
                 name=name,
                 kind=kind,
                 body=remove_unions_and_intersections(
-                    ctx,
+                    ctx.with_typevar(name, kind),
                     body,
                 ),
                 loc=loc,
@@ -426,9 +427,92 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
             return STypeConstructor(name, [remove_unions_and_intersections(ctx, arg) for arg in args], loc=loc)
         case SRefinedType(name, ity, ref, loc):
             innert = remove_unions_and_intersections(ctx, ity)
+            if has_refinement_method(ref):
+                ref = resolve_refinement_methods(ctx.with_var(name, innert), ref)
             return SRefinedType(name=name, type=innert, refinement=ref, loc=loc)
         case _:
             return ty
+
+
+def has_refinement_method(term: STerm) -> bool:
+    match term:
+        case SMethodSelector():
+            return True
+        case SApplication(fun, arg) | SRefinementApplication(fun, arg):
+            return has_refinement_method(fun) or has_refinement_method(arg)
+        case SIf(cond, then, otherwise):
+            return any(has_refinement_method(part) for part in (cond, then, otherwise))
+        case SLet(_, value, body) | SRec(_, _, value, body):
+            return has_refinement_method(value) or has_refinement_method(body)
+        case SAnnotation(expr, _) | STypeApplication(expr, _):
+            return has_refinement_method(expr)
+        case _:
+            return False
+
+
+def resolve_refinement_methods(ctx: ElaborationTypingContext, term: STerm) -> STerm:
+    """Resolve method sugar in logical predicates using the regular method lookup.
+
+    Refinements otherwise pass through elaboration unchanged. Resolve their
+    selectors before liquefaction, retaining the actual scoped function binder
+    and the same receiver placement as an executable method call.
+    """
+    spine = _method_call_spine(term)
+    if spine is not None:
+        method, receiver, args = spine
+        return _build_method_call(
+            ctx,
+            method,
+            resolve_refinement_methods(ctx, receiver),
+            [resolve_refinement_methods(ctx, arg) for arg in args],
+            term.loc,
+        )
+    match term:
+        case SApplication(fun, arg, loc=loc):
+            return SApplication(resolve_refinement_methods(ctx, fun), resolve_refinement_methods(ctx, arg), loc=loc)
+        case SIf(cond, then, otherwise, loc=loc):
+            return SIf(
+                resolve_refinement_methods(ctx, cond),
+                resolve_refinement_methods(ctx, then),
+                resolve_refinement_methods(ctx, otherwise),
+                loc=loc,
+            )
+        case SLet(name, value, body, loc=loc):
+            value = resolve_refinement_methods(ctx, value)
+            _, ty = elaborate_synth(ctx, value)
+            return SLet(
+                name,
+                value,
+                resolve_refinement_methods(ctx.with_var(name, _resolve_uvars(ty)), body),
+                loc=loc,
+                multiplicity=term.multiplicity,
+            )
+        case SRec(name, ty, value, body, decreasing_by, loc=loc):
+            ty = remove_unions_and_intersections(ctx, ty)
+            nctx = ctx.with_var(name, ty)
+            return SRec(
+                name,
+                ty,
+                resolve_refinement_methods(nctx, value),
+                resolve_refinement_methods(nctx, body),
+                decreasing_by=decreasing_by,
+                loc=loc,
+                multiplicity=term.multiplicity,
+                mutual_group_id=term.mutual_group_id,
+                companions=term.companions,
+            )
+        case SAnnotation(expr, ty, loc=loc):
+            return SAnnotation(resolve_refinement_methods(ctx, expr), remove_unions_and_intersections(ctx, ty), loc=loc)
+        case STypeApplication(body, ty, loc=loc):
+            return STypeApplication(resolve_refinement_methods(ctx, body), ty, loc=loc)
+        case SRefinementApplication(body, refinement, loc=loc):
+            return SRefinementApplication(
+                resolve_refinement_methods(ctx, body),
+                resolve_refinement_methods(ctx, refinement),
+                loc=loc,
+            )
+        case _:
+            return term
 
 
 def wrap_unification(ctx: ElaborationTypingContext, t: STerm, us: list[SType]) -> STerm:

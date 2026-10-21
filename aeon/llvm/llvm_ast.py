@@ -102,6 +102,21 @@ class LLVMPointerType(LLVMType):
 
 
 @dataclass(frozen=True)
+class LLVMNDArrayType(LLVMType):
+    element_type: LLVMType
+    rank: int
+
+    def to_ir(self) -> ir.Type:
+        # A fixed descriptor ABI permits ownership-preserving rank changes.
+        i64 = ir.IntType(64)
+        return ir.PointerType(
+            ir.LiteralStructType(
+                [ir.PointerType(self.element_type.to_ir()), i64, i64, ir.ArrayType(i64, 3), ir.ArrayType(i64, 3), i64]
+            )
+        )
+
+
+@dataclass(frozen=True)
 class LLVMArrayType(LLVMType):
     element_type: LLVMType
     size: int | None = None
@@ -267,6 +282,16 @@ class LLVMCall(LLVMTerm):
 
     def accept(self, visitor: LLVMVisitor) -> Any:
         return visitor.visit_call(self)
+
+
+@dataclass
+class LLVMNDArrayOp(LLVMTerm):
+    op: str
+    array: LLVMTerm
+    args: list[LLVMTerm]
+
+    def accept(self, visitor: LLVMVisitor) -> Any:
+        return visitor.visit_ndarray(self)
 
 
 @dataclass

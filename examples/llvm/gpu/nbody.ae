@@ -1,0 +1,96 @@
+open NDArray
+import Math;
+
+# Direct O(N^2) gravity with G = 1 and semi-implicit Euler integration.
+# Each row is [x, y, z, vx, vy, vz, mass]. Float is LLVM float32.
+#
+# map_rows launches one CUDA thread per body, using blocks of 256 threads.
+# The source snapshot is read-only; each thread owns a disjoint destination row.
+# The legacy Vector pointer representation permits repeated snapshot reads;
+# NDArray.get2 currently consumes its owner rather than borrowing it.
+type Vector a
+
+def length : (xs: (Vector a)) -> Int := uninterpreted
+def Vector_get (xs: (Vector Float)) (i: {v:Int | v >= 0 && v < length xs}) : Float := native "xs[i]"
+
+# Transfer the old matrix into a snapshot with no exposed mutation operations.
+def snapshot (1 state: (NDArray Float Rank2)) :
+    {r:(Vector Float) | length r = state.elements} :=
+    native "state.to_1d().to_array()"
+
+# A function boundary converts the libm-style double result back to Float.
+@gpu
+def square_root (x: {v:Float | v >= 0.0}) : {v:Float | v >= 0.0} := Math.sqrtf x;
+
+@gpu
+def acceleration
+    (xs: (Vector Float)) (n: {v:Int | v >= 0 && v * 7 = length xs})
+    (i: {v:Int | v >= 0 && v < n}) (axis: {v:Int | v >= 0 && v < 3})
+    (j: {v:Int | v >= 0 && v <= n}) (softening: {v:Float | v > 0.0}) (acc: Float) : Float decreasing_by [n - j] :=
+    if j = n then acc else
+    if j = i then acceleration xs n i axis (j + 1) softening acc else
+    let dx := xs.get (j * 7) - xs.get (i * 7) in
+    let dy := xs.get (j * 7 + 1) - xs.get (i * 7 + 1) in
+    let dz := xs.get (j * 7 + 2) - xs.get (i * 7 + 2) in
+    let r2 := dx * dx + dy * dy + dz * dz + softening * softening in
+    # The conditional gives the square-root precondition an explicit witness.
+    let distance := square_root (if r2 > 0.0 then r2 else softening * softening) in
+    let denominator := if distance > 0.0 then distance else softening in
+    let inverse_distance := 1.0 / denominator in
+    let delta := xs.get (j * 7 + axis) - xs.get (i * 7 + axis) in
+    let mass := xs.get (j * 7 + 6) in
+    let contribution := mass * delta * inverse_distance * inverse_distance * inverse_distance in
+    acceleration xs n i axis (j + 1) softening (acc + contribution);
+
+@gpu
+def advance_body
+    (xs: (Vector Float)) (n: {v:Int | v >= 0 && v * 7 = length xs})
+    (i: {v:Int | v >= 0 && v < n}) (dt: {v:Float | v > 0.0})
+    (softening: {v:Float | v > 0.0})
+    (1 row: {r:(NDArray Float Rank1) | r.dimension_size 0 = 7}) :
+    {r:(NDArray Float Rank1) | r.dimension_size 0 = 7} :=
+    let ax := acceleration xs n i 0 0 softening 0.0 in
+    let ay := acceleration xs n i 1 0 softening 0.0 in
+    let az := acceleration xs n i 2 0 softening 0.0 in
+    let vx := xs.get (i * 7 + 3) + dt * ax in
+    let vy := xs.get (i * 7 + 4) + dt * ay in
+    let vz := xs.get (i * 7 + 5) + dt * az in
+    let 1 out0 := row.set1 0 (xs.get (i * 7) + dt * vx) in
+    let 1 out1 := out0.set1 1 (xs.get (i * 7 + 1) + dt * vy) in
+    let 1 out2 := out1.set1 2 (xs.get (i * 7 + 2) + dt * vz) in
+    let 1 out3 := out2.set1 3 vx in
+    let 1 out4 := out3.set1 4 vy in
+    let 1 out5 := out4.set1 5 vz in
+    let 1 out6 := out5.set1 6 (xs.get (i * 7 + 6)) in
+    out6;
+
+# One CUDA thread receives one disjoint row of the output matrix.
+@gpu
+def nbody_step
+    (xs: (Vector Float)) (n: {v:Int | v >= 0 && v * 7 = length xs})
+    (dt: {v:Float | v > 0.0}) (softening: {v:Float | v > 0.0})
+    (1 output: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = 7 && m.elements = n * 7}) :
+    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = 7 && r.elements = n * 7} :=
+    output.map_rows (fun i => fun row => advance_body xs n i dt softening row);
+
+def simulate
+    (n: {v:Int | v >= 0 && v * 7 <= 2147483647}) (steps: {v:Int | v >= 0})
+    (dt: {v:Float | v > 0.0}) (softening: {v:Float | v > 0.0})
+    (1 state: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = 7 && m.elements = n * 7}) :
+    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = 7 && r.elements = n * 7} decreasing_by [steps] :=
+    if steps = 0 then state else
+    let xs := snapshot state in
+    let 1 output := full2 n 7 0.0 in
+    let 1 next := nbody_step xs n dt softening output in
+    simulate n (steps - 1) dt softening next;
+
+# A deterministic 3D system. Change n and the step count in main to try others.
+def initial_state (n: {v:Int | v >= 0 && v * 7 <= 2147483647}) :
+    {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = 7 && m.elements = n * 7} :=
+    native "__import__('aeon.bindings.ndarray', fromlist=['NDArray']).NDArray([v for i in range(n) for v in [(i % 17 - 8) * 0.25, (i // 17 - 8) * 0.25, (i % 5) * 0.125, (i % 3 - 1) * 0.03125, (i % 7 - 3) * 0.015625, 0.0625, 0.125 + (i % 3) * 0.0625]], (n, 7))";
+
+def main (args: Int) : Unit :=
+    # 257 bodies use two CUDA blocks, with a partial final block.
+    let 1 state := initial_state 257 in
+    let 1 result := simulate 257 10 0.01 0.05 state in
+    print (result.get2 0 0);

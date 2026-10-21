@@ -52,6 +52,11 @@ class LLVMIRGenerationError(LLVMBackendError):
 
 
 class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
+    def visit_ndarray(self, node):
+        from aeon.llvm.ndarray import emit_operation
+
+        return emit_operation(self, node)
+
     def __init__(self, use_refinements: bool = True):
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
@@ -722,6 +727,10 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
     def _coerce_to_type(self, val: ir.Value, ir_ty: ir.Type) -> ir.Value:
         if isinstance(ir_ty, ir.IntType) and isinstance(val.type, ir.IntType):
             return self._coerce_int(val, ir_ty.width)
+        if isinstance(ir_ty, ir.FloatType) and isinstance(val.type, ir.DoubleType):
+            return self.builder.fptrunc(val, ir_ty)
+        if isinstance(ir_ty, ir.DoubleType) and isinstance(val.type, ir.FloatType):
+            return self.builder.fpext(val, ir_ty)
         return val
 
     def _i8_ptr_type(self) -> ir.PointerType:

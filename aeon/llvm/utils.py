@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TypeGuard
 
-from aeon.core.types import TypeConstructor, RefinedType, AbstractionType, Type
+from aeon.core.types import TypeConstructor, RefinedType, AbstractionType, Type, TypeVar
 from aeon.utils.name import Name
 from aeon.llvm.adt import is_registered_inductive, LLVMADTPtr as _ADT_PTR
 from aeon.llvm.core import LLVMValidationError
@@ -22,9 +22,26 @@ from aeon.llvm.llvm_ast import (
     LLVMFloatType,
     LLVMDoubleType,
     LLVMBoolType,
+    LLVMNDArrayType,
 )
 
-SUPPORTED_TYPES = {"Int", "Float", "Bool", "Char", "Double", "Long", "Unit", "Array", "Vector", "Buffer", "String"}
+SUPPORTED_TYPES = {
+    "Int",
+    "Float",
+    "Bool",
+    "Char",
+    "Double",
+    "Long",
+    "Unit",
+    "Array",
+    "Vector",
+    "Buffer",
+    "String",
+    "NDArray",
+    "Rank1",
+    "Rank2",
+    "Rank3",
+}
 BINARY_OPS = {"+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||"}
 UNARY_OPS = {"!", "-"}
 
@@ -107,6 +124,29 @@ def to_llvm_type(ty: Type) -> LLVMType:
                     # ``Array`` is the stdlib host buffer; ``Vector`` remains as a
                     # temporary alias for older LLVM tests / local quicksort buffers.
                     return LLVMPointerType(to_llvm_type(args[0])) if args else LLVMVectorInt
+                case "NDArray":
+                    array_args: list[Type] = ty.args
+                    if len(array_args) != 2 or not isinstance(array_args[1], (TypeConstructor, TypeVar)):
+                        raise LLVMValidationError("Compiled NDArray values require a concrete rank marker")
+                    ranks = {"Rank1": 1, "Rank2": 2, "Rank3": 3}
+                    rank = ranks.get(array_args[1].name.name)
+                    element_arg = array_args[0]
+                    while isinstance(element_arg, RefinedType):
+                        element_arg = element_arg.type
+                    if not isinstance(element_arg, TypeConstructor) or element_arg.name.name not in {
+                        "Int",
+                        "Float",
+                        "Bool",
+                        "Long",
+                        "Double",
+                    }:
+                        raise LLVMValidationError("Compiled NDArray values require a concrete scalar element type")
+                    element = to_llvm_type(element_arg)
+                    if rank is None or not isinstance(
+                        element, (LLVMIntType, LLVMFloatType, LLVMDoubleType, LLVMBoolType)
+                    ):
+                        raise LLVMValidationError("Compiled NDArray values require rank 1, 2, or 3 and scalar elements")
+                    return LLVMNDArrayType(element, rank)
                 case "Buffer":
                     # Untyped Int buffer pointer used by LLVM kernels (see Buffer.ae).
                     return LLVMVectorInt

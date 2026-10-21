@@ -1,0 +1,87 @@
+# Owned, contiguous arrays with a static rank and runtime shape.
+# Rank markers are erased; every rank uses the same data/shape/stride descriptor.
+import Array;
+
+type Rank1
+type Rank2
+type Rank3
+linear type NDArray a rank
+
+def ndim : (arr: (NDArray a rank)) -> Int := uninterpreted
+def elements : (arr: (NDArray a rank)) -> Int := uninterpreted
+def dimension_size : (arr: (NDArray a rank)) -> (axis: Int) -> Int := uninterpreted
+
+def full1 (n: {v:Int | v >= 0 && v <= 2147483647}) (value: a) :
+    {r:(NDArray a Rank1) | r.ndim = 1 && r.elements = n && r.dimension_size 0 = n} :=
+    native "__import__('aeon.bindings.ndarray', fromlist=['full']).full((n,), value)"
+
+def full2 (rows: {v:Int | v >= 0 && v <= 2147483647})
+    (cols: {v:Int | v >= 0 && v <= 2147483647 && rows * v <= 2147483647}) (value: a) :
+    {r:(NDArray a Rank2) | r.ndim = 2 && r.elements = rows * cols && r.dimension_size 0 = rows && r.dimension_size 1 = cols} :=
+    native "__import__('aeon.bindings.ndarray', fromlist=['full']).full((rows, cols), value)"
+
+def full3 (depth: {v:Int | v >= 0 && v <= 2147483647}) (rows: {v:Int | v >= 0 && v <= 2147483647})
+    (cols: {v:Int | v >= 0 && v <= 2147483647 && depth * rows * v <= 2147483647}) (value: a) :
+    {r:(NDArray a Rank3) | r.ndim = 3 && r.elements = depth * rows * cols && r.dimension_size 0 = depth && r.dimension_size 1 = rows && r.dimension_size 2 = cols} :=
+    native "__import__('aeon.bindings.ndarray', fromlist=['full']).full((depth, rows, cols), value)"
+
+# Bridge to the existing linear Array library without copying element storage.
+def from_array (1 arr: (Array a)) :
+    {r:(NDArray a Rank1) | r.ndim = 1 && r.elements = arr.size && r.dimension_size 0 = arr.size} :=
+    native "__import__('aeon.bindings.ndarray', fromlist=['from_array']).from_array(arr)"
+
+def to_array (1 arr: (NDArray a Rank1)) : {r:(Array a) | r.size = arr.elements} :=
+    native "arr.to_array()"
+
+# Reshape transfers ownership. The element order and count are preserved.
+def to_1d (1 arr: (NDArray a rank)) :
+    {r:(NDArray a Rank1) | r.ndim = 1 && r.elements = arr.elements && r.dimension_size 0 = arr.elements} :=
+    native "arr.to_1d()"
+
+def from_1d2 (1 arr: (NDArray a Rank1)) (rows: {v:Int | v >= 0 && v <= 2147483647})
+    (cols: {v:Int | v >= 0 && v <= 2147483647 && rows * v = arr.elements}) :
+    {r:(NDArray a Rank2) | r.ndim = 2 && r.elements = arr.elements && r.dimension_size 0 = rows && r.dimension_size 1 = cols} :=
+    native "arr.from_1d2(rows, cols)"
+
+def from_1d3 (1 arr: (NDArray a Rank1)) (depth: {v:Int | v >= 0 && v <= 2147483647}) (rows: {v:Int | v >= 0 && v <= 2147483647})
+    (cols: {v:Int | v >= 0 && v <= 2147483647 && depth * rows * v = arr.elements}) :
+    {r:(NDArray a Rank3) | r.ndim = 3 && r.elements = arr.elements && r.dimension_size 0 = depth && r.dimension_size 1 = rows && r.dimension_size 2 = cols} :=
+    native "arr.from_1d3(depth, rows, cols)"
+
+def dimension (1 arr: (NDArray a rank)) (axis: {v:Int | v >= 0 && v < arr.ndim}) :
+    {n:Int | n = arr.dimension_size axis && n >= 0} := native "arr.dimension(axis)"
+
+def count (1 arr: (NDArray a rank)) : {n:Int | n = arr.elements && n >= 0} := native "arr.elements"
+
+def get1 (1 arr: (NDArray a Rank1)) (i: {v:Int | v >= 0 && v < arr.dimension_size 0}) : a := native "arr.get(i)"
+def get2 (1 arr: (NDArray a Rank2)) (row: {v:Int | v >= 0 && v < arr.dimension_size 0})
+    (col: {v:Int | v >= 0 && v < arr.dimension_size 1}) : a := native "arr.get(row, col)"
+def get3 (1 arr: (NDArray a Rank3)) (depth: {v:Int | v >= 0 && v < arr.dimension_size 0})
+    (row: {v:Int | v >= 0 && v < arr.dimension_size 1}) (col: {v:Int | v >= 0 && v < arr.dimension_size 2}) : a :=
+    native "arr.get(depth, row, col)"
+
+def set1 (1 arr: (NDArray a Rank1)) (i: {v:Int | v >= 0 && v < arr.dimension_size 0}) (value: a) :
+    {r:(NDArray a Rank1) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0} :=
+    native "arr.set(i, value)"
+def set2 (1 arr: (NDArray a Rank2)) (row: {v:Int | v >= 0 && v < arr.dimension_size 0})
+    (col: {v:Int | v >= 0 && v < arr.dimension_size 1}) (value: a) :
+    {r:(NDArray a Rank2) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1} :=
+    native "arr.set(row, col, value)"
+def set3 (1 arr: (NDArray a Rank3)) (depth: {v:Int | v >= 0 && v < arr.dimension_size 0})
+    (row: {v:Int | v >= 0 && v < arr.dimension_size 1}) (col: {v:Int | v >= 0 && v < arr.dimension_size 2}) (value: a) :
+    {r:(NDArray a Rank3) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    native "arr.set(depth, row, col, value)"
+
+def fill (1 arr: (NDArray a rank)) (value: a) :
+    {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    native "arr.fill(value)"
+
+# Each callback owns one disjoint row. A direct @gpu entry launches one thread per row.
+def map_rows (1 arr: (NDArray a Rank2))
+    (f: (i:{v:Int | v >= 0 && v < arr.dimension_size 0}) ->
+        (1 row:{r:(NDArray a Rank1) | r.ndim = 1 && r.elements = arr.dimension_size 1 && r.dimension_size 0 = arr.dimension_size 1}) ->
+        {r:(NDArray a Rank1) | r.dimension_size 0 = arr.dimension_size 1}) :
+    {r:(NDArray a Rank2) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1} :=
+    native "arr.map_rows(f)"
+
+def discard (1 arr: (NDArray a rank)) : Unit := native "arr.discard()"

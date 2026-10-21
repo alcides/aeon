@@ -8,8 +8,9 @@ import llvmlite.binding as llvm
 from loguru import logger
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
-from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType, LLVMVoidType
+from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType, LLVMVoidType, LLVMNDArrayType
 from aeon.llvm.utils import is_array_pointer
+from aeon.llvm.ndarray import pack_array, descriptor_shape, finish_array
 
 
 class CUDAExecutionError(LLVMBackendError):
@@ -169,17 +170,24 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         args: List[Any],
         arg_types: List[LLVMType],
         ret_type: LLVMType,
+        launch_shape: tuple[int, ...] | None = None,
     ) -> Any:
         logger.debug(f"Executing kernel {func_name} on GPU.")
         if self.libcuda.cuCtxSetCurrent(self.context) != 0:
             raise CUDAExecutionError("cuCtxSetCurrent failed")
-        returns_array = isinstance(ret_type, LLVMPointerType)
-        array_element_type = ret_type.element_type if isinstance(ret_type, LLVMPointerType) else None
+        returns_ndarray = isinstance(ret_type, LLVMNDArrayType)
+        returns_array = isinstance(ret_type, (LLVMPointerType, LLVMNDArrayType))
+        array_element_type = ret_type.element_type if isinstance(ret_type, (LLVMPointerType, LLVMNDArrayType)) else None
         if returns_array and (
-            not is_array_pointer(ret_type)
+            not (is_array_pointer(ret_type) or returns_ndarray)
             or not any(
-                isinstance(ty, LLVMPointerType) and ty.element_type == array_element_type and isinstance(arg, list)
+                ty.element_type == array_element_type
+                and (
+                    (returns_ndarray and isinstance(ty, LLVMNDArrayType))
+                    or (not returns_ndarray and isinstance(ty, LLVMPointerType) and isinstance(arg, list))
+                )
                 for arg, ty in zip(args, arg_types)
+                if isinstance(ty, (LLVMPointerType, LLVMNDArrayType))
             )
         ):
             raise CUDAExecutionError("GPU array returns must refer to an array passed as a parameter")
@@ -196,12 +204,38 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         kernel_params = []
         cleanup_tasks = []
         array_results = {}
+        ndarray_tasks = {}
         scalar_args = []
         result_buffer = None
 
         try:
             for arg, ty in zip(args, arg_types):
-                if isinstance(ty, LLVMPointerType):
+                if isinstance(ty, LLVMNDArrayType):
+                    descriptor, data = pack_array(arg, ty, self._get_ctypes_type(ty.element_type))
+                    size = ctypes.sizeof(data)
+                    data_ptr = ctypes.c_uint64()
+                    if self.libcuda.cuMemAlloc_v2(ctypes.byref(data_ptr), max(4, size)) != 0:
+                        raise CUDAExecutionError("cuMemAlloc failed for NDArray data")
+                    device_ptrs.append(data_ptr)
+                    if self.libcuda.cuMemcpyHtoD_v2(data_ptr.value, ctypes.cast(data, ctypes.c_void_p), size) != 0:
+                        raise CUDAExecutionError("cuMemcpyHtoD failed for NDArray data")
+                    descriptor.data = data_ptr.value
+                    descriptor_ptr = ctypes.c_uint64()
+                    if self.libcuda.cuMemAlloc_v2(ctypes.byref(descriptor_ptr), ctypes.sizeof(descriptor)) != 0:
+                        raise CUDAExecutionError("cuMemAlloc failed for NDArray descriptor")
+                    device_ptrs.append(descriptor_ptr)
+                    if (
+                        self.libcuda.cuMemcpyHtoD_v2(
+                            descriptor_ptr.value, ctypes.byref(descriptor), ctypes.sizeof(descriptor)
+                        )
+                        != 0
+                    ):
+                        raise CUDAExecutionError("cuMemcpyHtoD failed for NDArray descriptor")
+                    kernel_params.append(ctypes.addressof(descriptor_ptr))
+                    ndarray_tasks[descriptor_ptr.value] = (arg, descriptor, data, data_ptr.value, ty)
+                    if returns_ndarray and ty.element_type == array_element_type:
+                        array_results[descriptor_ptr.value] = arg
+                elif isinstance(ty, LLVMPointerType):
                     cty = self._get_ctypes_type(ty.element_type)
                     data = (cty * len(arg))(*arg)
                     size = ctypes.sizeof(data)
@@ -213,7 +247,11 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     device_ptrs.append(d_ptr)
                     kernel_params.append(ctypes.addressof(d_ptr))
                     cleanup_tasks.append((d_ptr, data, size, arg))
-                    if returns_array and ty.element_type == array_element_type and isinstance(arg, list):
+                    if (
+                        isinstance(ret_type, LLVMPointerType)
+                        and ty.element_type == array_element_type
+                        and isinstance(arg, list)
+                    ):
                         array_results[d_ptr.value] = arg
                 else:
                     c_val = self._get_ctypes_type(ty)(arg)
@@ -230,7 +268,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
 
             params_ptr = (ctypes.c_void_p * len(kernel_params))(*[ctypes.c_void_p(p) for p in kernel_params])
 
-            launch_rc = self.libcuda.cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0, None, params_ptr, None)
+            grid, block = self._launch_dimensions(launch_shape)
+            launch_rc = self.libcuda.cuLaunchKernel(function, *grid, *block, 0, None, params_ptr, None)
             if launch_rc != 0:
                 raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}: {self._cuda_error_name(launch_rc)}")
 
@@ -246,6 +285,18 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 if isinstance(original_arg, list):
                     original_arg[:] = list(host_data)
 
+            shapes = {}
+            for address, (arg, descriptor, data, data_address, ty) in ndarray_tasks.items():
+                if self.libcuda.cuMemcpyDtoH_v2(ctypes.byref(descriptor), address, ctypes.sizeof(descriptor)) != 0:
+                    raise CUDAExecutionError("cuMemcpyDtoH failed for NDArray descriptor")
+                shapes[address] = descriptor_shape(descriptor, arg, data_address)
+                if (
+                    self.libcuda.cuMemcpyDtoH_v2(ctypes.cast(data, ctypes.c_void_p), data_address, ctypes.sizeof(data))
+                    != 0
+                ):
+                    raise CUDAExecutionError("cuMemcpyDtoH failed for NDArray data")
+                arg.data[:] = list(data)
+
             if result_buffer is not None:
                 if (
                     self.libcuda.cuMemcpyDtoH_v2(
@@ -257,6 +308,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 if returns_array:
                     if result_buffer.value not in array_results:
                         raise CUDAExecutionError("GPU array result does not refer to an array passed as a parameter")
+                    if isinstance(ret_type, LLVMNDArrayType):
+                        return finish_array(array_results[result_buffer.value], shapes[result_buffer.value], ret_type)
                     return array_results[result_buffer.value]
                 return result_buffer.value
             return None
@@ -264,6 +317,21 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         finally:
             for d_ptr in device_ptrs:
                 self.libcuda.cuMemFree_v2(d_ptr.value if hasattr(d_ptr, "value") else d_ptr)
+
+    @staticmethod
+    def _launch_dimensions(shape):
+        if shape is None:
+            return (1, 1, 1), (1, 1, 1)
+        # Empty arrays still launch one block to return their descriptor.
+        block = {1: (256, 1, 1), 2: (16, 16, 1), 3: (8, 8, 4)}[len(shape)]
+        if any(n == 0 for n in shape):
+            return (1, 1, 1), block
+        extents = tuple(reversed(shape)) + (1,) * (3 - len(shape))
+        grid = tuple(max(1, (n + threads - 1) // threads) for n, threads in zip(extents, block))
+        # CUDA's y/z grid bounds are 65535; x also accommodates Int extents.
+        if grid[1] > 65535 or grid[2] > 65535:
+            raise CUDAExecutionError("NDArray shape exceeds the CUDA y/z grid limits")
+        return grid, block
 
     def _get_ctypes_type(self, ty: LLVMType):
         from aeon.llvm.llvm_ast import LLVMIntType, LLVMFloatType, LLVMDoubleType, LLVMBoolType

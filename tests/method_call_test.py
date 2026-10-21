@@ -200,3 +200,37 @@ def test_unknown_method_raises():
     desugared = desugar(prog)
     with pytest.raises(MethodResolutionError):
         elaborate(desugared.elabcontext, desugared.program, st_top)
+
+
+@pytest.mark.parametrize(
+    "predicate",
+    [
+        "r.size = box.size",
+        "r.at 0 = box.at 0",
+        "r.shifted 1 = box.shifted 1",
+        "let n := box.size in r.size = n",
+        "let n : Int := box.size in r.size = n",
+        "if flag then r.size = box.size else r.at 0 = box.at 0",
+    ],
+)
+def test_methods_in_refinements_resolve_typed_binders(predicate):
+    source = f"""
+type Box
+def Box.size (box:Box) : Int := uninterpreted;
+def Box.at (box:Box) (index:Int) : Int := uninterpreted;
+def Box.shifted (offset:Int) (box:Box) : Int := uninterpreted;
+def keep (box:Box) (flag:Bool) : {{r:Box | {predicate}}} := box;
+def main (args:Int) : Int := 0;
+"""
+    assert check_compile(source, st_top, 0)
+
+
+def test_unknown_method_in_refinement_reports_resolution_error():
+    program = parse_program("""
+type Box
+def keep (box:Box) : {r:Box | r.missing = box.missing} := box;
+def main (args:Int) : Int := 0;
+""")
+    desugared = desugar(program)
+    with pytest.raises(MethodResolutionError):
+        elaborate(desugared.elabcontext, desugared.program, st_top)

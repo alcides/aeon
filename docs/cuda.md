@@ -110,6 +110,9 @@ buffer. Opaque ADT pointer returns remain device-local. See
 [`array_return.ae`](../examples/llvm/gpu/array_return.ae) for a runnable example.
 [`zero_matrix.ae`](../examples/llvm/gpu/zero_matrix.ae) fills and returns a flat
 Int `Buffer` using a single GPU thread; the caller supplies the element count.
+For shape-aware matrices and volumes with parallel fill kernels, use
+[`NDArray`](ndarray.md) and the
+[`2D zero-matrix example`](../examples/llvm/gpu/zero_matrix_2d.ae).
 
 ### Parallel APIs (optional)
 

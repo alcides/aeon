@@ -1,0 +1,14 @@
+open NDArray
+
+@gpu
+def zero_volume (1 volume: (NDArray Float Rank3)) :
+    {r:(NDArray Float Rank3) |
+        r.dimension_size 0 = volume.dimension_size 0 &&
+        r.dimension_size 1 = volume.dimension_size 1 &&
+        r.dimension_size 2 = volume.dimension_size 2} :=
+    volume.fill 0.0;
+
+def main (args: Int) : Unit :=
+    let 1 volume := full3 5 9 17 7.5 in
+    let 1 result := zero_volume volume in
+    print (result.get3 4 8 16);

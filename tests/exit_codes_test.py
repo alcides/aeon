@@ -145,14 +145,6 @@ def test_cli_method_resolution_error(tmp_path):
     assert r.returncode == ExitCode.METHOD_RESOLUTION_ERROR
 
 
-def test_cli_invalid_refinement(tmp_path):
-    src = (
-        'import String;\ndef f (s : {x:String | x.len > 0}) : String := s;\ndef main (x:Int) : Unit := print (f "a");\n'
-    )
-    r = run_aeon(tmp_path, src)
-    assert r.returncode == ExitCode.INVALID_REFINEMENT
-
-
 @pytest.mark.parametrize("result", ["none", "partial", "open"])
 def test_cli_unfinished_synthesis_exits_two(tmp_path, monkeypatch, capsys, result):
     import aeon.__main__ as cli

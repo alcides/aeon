@@ -180,10 +180,25 @@ class MultiBackendPipeline(LLVMPipeline):
         target_llvm_type = to_llvm_type(target_type)
         param_types, return_type = backend.lowerer.get_signature(target_llvm_type)
 
+        launch_shape = None
+        launch = getattr(backend.generator, "ndarray_launches", {}).get(sanitize_name(name_id))
+        if launch is not None:
+            array_index, rank = launch
+            launch_shape = arguments[array_index].shape
+            if len(launch_shape) != rank:
+                raise LLVMBackendError("NDArray launch rank does not match the kernel")
+        row_index = getattr(backend.generator, "row_launches", {}).get(sanitize_name(name_id))
+        if row_index is not None:
+            shape = arguments[row_index].shape
+            if len(shape) != 2:
+                raise LLVMBackendError("map_rows requires a matrix")
+            launch_shape = (shape[0],)
+
         return backend.executor.execute(
             self.llvm_ir_by_backend[target_name],
             sanitize_name(name_id),
             arguments,
             param_types,
             return_type,
+            launch_shape=launch_shape,
         )
