@@ -738,7 +738,7 @@ class CPULLVMLowerer(LLVMLowerer):
         env: Dict[Name, LLVMTerm],
         allowed: set[Name],
         in_vec: bool,
-    ) -> LLVMNDArrayOp | None:
+    ) -> LLVMTerm | None:
         head = self._head_var_name(base)
         if head is None or not head.name.startswith("NDArray_"):
             return None
@@ -751,6 +751,21 @@ class CPULLVMLowerer(LLVMLowerer):
         if not isinstance(array.type, LLVMNDArrayType):
             raise LLVMValidationError("NDArray operations require a ranked array descriptor")
         ty = array.type
+        if op == "reduce":
+            if len(args) != 3:
+                raise LLVMValidationError("reduce requires an array, a combiner, and an initial value")
+            callback = self._lower_as_standalone(
+                args[1],
+                LLVMFunctionType([ty.element_type, ty.element_type], ty.element_type),
+                type_env,
+                env,
+                allowed,
+                True,
+            )
+            initial = self._lower_term(args[2], ty.element_type, type_env, env, allowed, in_vec)
+            return LLVMVectorReduce(
+                ty.element_type, callback, initial, array, LLVMNDArrayOp(LLVMInt, "elements", array, [])
+            )
         if op == "map_rows":
             if ty.rank != 2 or len(args) != 2:
                 raise LLVMValidationError("map_rows requires a matrix and a fully applied callback")

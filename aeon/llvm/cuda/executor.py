@@ -13,6 +13,7 @@ from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
 from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType, LLVMVoidType, LLVMNDArrayType
 from aeon.llvm.utils import is_array_pointer
 from aeon.llvm.ndarray import pack_descriptor, descriptor_shape, finish_array
+from aeon.llvm.cuda.reduction import REDUCTION_THREADS
 
 
 class CUDAExecutionError(LLVMBackendError):
@@ -286,11 +287,16 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         arg_types: List[LLVMType],
         ret_type: LLVMType,
         launch_shape: tuple[int, ...] | None = None,
+        reduction_count: int | None = None,
     ) -> Any:
         logger.debug(f"Executing kernel {func_name} on GPU.")
         self._activate()
         returns_ndarray = isinstance(ret_type, LLVMNDArrayType)
         returns_array = isinstance(ret_type, (LLVMPointerType, LLVMNDArrayType))
+        if reduction_count is not None:
+            if not 0 <= reduction_count <= 2**31 - 1 or returns_array or isinstance(ret_type, LLVMVoidType):
+                raise ValueError("Parallel reduction requires a valid length and scalar result")
+            launch_shape = (reduction_count,)
         array_element_type = ret_type.element_type if isinstance(ret_type, (LLVMPointerType, LLVMNDArrayType)) else None
         if returns_array and (
             not (is_array_pointer(ret_type) or returns_ndarray)
@@ -392,10 +398,26 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             if not isinstance(ret_type, LLVMVoidType):
                 result_buffer = ctypes.c_uint64() if returns_array else self._get_ctypes_type(ret_type)()
                 result_ptr = ctypes.c_uint64()
-                if self.libcuda.cuMemAlloc_v2(ctypes.byref(result_ptr), ctypes.sizeof(result_buffer)) != 0:
+                result_count = (
+                    max(1, (reduction_count + REDUCTION_THREADS - 1) // REDUCTION_THREADS)
+                    if reduction_count is not None
+                    else 1
+                )
+                if (
+                    self.libcuda.cuMemAlloc_v2(ctypes.byref(result_ptr), result_count * ctypes.sizeof(result_buffer))
+                    != 0
+                ):
                     raise CUDAExecutionError("cuMemAlloc failed for result")
                 device_ptrs.append(result_ptr)
                 kernel_params.append(ctypes.addressof(result_ptr))
+                if reduction_count is not None and result_count > 1:
+                    other = ctypes.c_uint64()
+                    if (
+                        self.libcuda.cuMemAlloc_v2(ctypes.byref(other), result_count * ctypes.sizeof(result_buffer))
+                        != 0
+                    ):
+                        raise CUDAExecutionError("cuMemAlloc failed for reduction scratch")
+                    device_ptrs.append(other)
 
             params_ptr = (ctypes.c_void_p * len(kernel_params))(*[ctypes.c_void_p(p) for p in kernel_params])
 
@@ -405,8 +427,32 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}: {self._cuda_error_name(launch_rc)}")
             launched = True
 
-            for storage in resident_tasks:
-                storage.host_current = False
+            if reduction_count is not None and result_count > 1:
+                # Default-stream ordering supplies the barrier between passes.
+                # Partial arrays never cross the PCIe boundary.
+                continuation = self._get_function(module, func_name + "__reduce")
+                remaining = result_count
+                while remaining > 1:
+                    pass_count = ctypes.c_int32(remaining)
+                    scalar_args.append(pass_count)
+                    pass_params = kernel_params[:-1] + [
+                        ctypes.addressof(result_ptr),
+                        ctypes.addressof(pass_count),
+                        ctypes.addressof(other),
+                    ]
+                    pass_ptr = (ctypes.c_void_p * len(pass_params))(*pass_params)
+                    grid, block = self._launch_dimensions((remaining,))
+                    rc = self.libcuda.cuLaunchKernel(continuation, *grid, *block, 0, None, pass_ptr, None)
+                    if rc != 0:
+                        raise CUDAExecutionError(
+                            f"cuLaunchKernel failed for reduction pass: {self._cuda_error_name(rc)}"
+                        )
+                    remaining = (remaining + REDUCTION_THREADS - 1) // REDUCTION_THREADS
+                    result_ptr, other = other, result_ptr
+
+            if reduction_count is None:
+                for storage in resident_tasks:
+                    storage.host_current = False
 
             sync_rc = self.libcuda.cuCtxSynchronize()
             if sync_rc != 0:

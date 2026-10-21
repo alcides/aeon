@@ -117,6 +117,7 @@ class LLVMExecutionEngine(ABC):
         arg_types: List[LLVMType],
         ret_type: LLVMType,
         launch_shape: tuple[int, ...] | None = None,
+        reduction_count: int | None = None,
     ) -> Any:
         pass
 

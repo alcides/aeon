@@ -25,6 +25,8 @@ def map_n_float (f: (x: Float) -> Float) (1 arr: (Array Float)) (n: Int) :
     {r: (Array Float) | size r = n} :=
     native "list(map(f, arr))"
 
+# Direct @gpu reductions use a parallel tree. f must be pure and associative;
+# z is applied once, and an empty input returns z.
 def reduce_n_int (f: (acc: Int) -> (x: Int) -> Int) (z: Int) (1 arr: (Array Int)) (n: Int) : Int :=
     native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
 

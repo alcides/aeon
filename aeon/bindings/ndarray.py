@@ -285,6 +285,12 @@ class NDArray:
         self._write_data([value] * self.elements)
         return self
 
+    def reduce(self, callback: Any, initial: Any) -> Any:
+        result = initial
+        for value in self._read_data():
+            result = callback(result)(value)
+        return result
+
     def map_rows(self, callback: Any) -> NDArray:
         if self.rank != 2:
             raise ValueError("map_rows requires a rank-two NDArray")

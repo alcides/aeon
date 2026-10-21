@@ -22,6 +22,7 @@ from aeon.llvm.llvm_ast import (
     LLVMLiteral,
 )
 from aeon.llvm.ndarray import axis_value, element_pointer, emit_row
+from aeon.llvm.cuda.reduction import reduction_launch, emit_reduction_wrappers, ReductionLaunch
 
 
 class CUDALLVMIRGenerator(CPULLVMIRGenerator):
@@ -39,6 +40,7 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
         self.kernels: List[ir.Function] = []
         self.ndarray_launches: dict[str, tuple[int, int]] = {}
         self.row_launches: dict[str, int] = {}
+        self.reduction_launches: dict[str, ReductionLaunch] = {}
 
     def _get_type_size(self, ir_type: ir.Type) -> int:
         return ir_type.get_abi_size(self.target_data)
@@ -95,7 +97,11 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             body = node.body
             while isinstance(body, LLVMRefinedValue):
                 body = body.value
-            if (
+            reduction = reduction_launch(node, body)
+            if reduction is not None:
+                self.reduction_launches[func.name] = reduction
+                emit_reduction_wrappers(self, node, body, kernel, builder)
+            elif (
                 isinstance(body, LLVMNDArrayOp)
                 and body.op == "map_rows"
                 and isinstance(body.array, LLVMVar)
