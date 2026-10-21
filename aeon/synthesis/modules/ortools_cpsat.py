@@ -44,9 +44,10 @@ from aeon.core.liquid import (
     LiquidTerm,
     LiquidVar,
 )
+from aeon.core.substitutions import substitution
 from aeon.core.terms import (
-    Annotation,
     Abstraction,
+    Annotation,
     Application,
     Hole,
     If,
@@ -258,6 +259,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             raise UnsupportedSynthesisGoal("CPSatHole requires at least one hole.")
 
         self._model = cp_model.CpModel()
+        self._square_hints: set[int] = set()
         self._hole_value: dict[Name, _Value] = {}
         # hole -> (kind, [cp vars]) for decoding the solution.
         self._hole_meta: dict[Name, tuple[str, list[Any]]] = {}
@@ -540,6 +542,17 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return self._eval_const(t.name)
 
         if isinstance(t, Application):
+            # Inline array thunks without evaluating their unused Unit argument.
+            # Keep the general closure/ADT path for every other call: substituting
+            # those bodies bypasses native-cast recognition and creates temporary
+            # expressions whose recycled IDs can alias application-cache keys.
+            function = t.fun
+            seen = visited
+            if isinstance(function, Var) and function.name not in visited:
+                seen = visited | {function.name}
+                function = self._def_bodies.get(function.name, function)
+            if isinstance(function, Abstraction) and isinstance(t.arg, Var) and t.arg.name.name == "unit":
+                return self._translate(substitution(function.body, t.arg, function.var_name), env, seen)
             return self._apply(self._translate(t.fun, env, visited), self._translate(t.arg, env, visited), visited)
 
         raise _Unsupported(type(t).__name__)
@@ -675,7 +688,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return _Num(a.expr - b.expr, s, a.lo - b.hi, a.hi - b.lo)
         if op == "*":
             s = a.scale + b.scale
-            corners = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
+            corners = self._product_corners(a, b)
             lo, hi = min(corners), max(corners)
             _check_numeric_range(lo, hi)
             if isinstance(a.expr, int) or isinstance(b.expr, int):
@@ -684,6 +697,45 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             self._model.add_multiplication_equality(prod, [a.expr, b.expr])
             return _Num(prod, s, lo, hi)
         raise _Unsupported(f"operator '{op}'")
+
+    def _product_corners(self, a: _Num, b: _Num) -> list[int]:
+        """Preserve correlation when both factors denote the same expression."""
+        from ortools.sat.python import cp_model
+
+        def linear_key(expression: Any) -> tuple:
+            if isinstance(expression, int):
+                return (expression, ())
+            affine = cp_model.FlatIntExpr(expression)
+            return (affine.offset, tuple((v.index, c) for v, c in zip(affine.vars, affine.coeffs)))
+
+        if a.scale == b.scale and linear_key(a.expr) == linear_key(b.expr):
+            self._hint_square_zero(a)
+            lo = 0 if a.lo <= 0 <= a.hi else min(a.lo * a.lo, a.hi * a.hi)
+            return [lo, max(a.lo * a.lo, a.hi * a.hi)]
+        return [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
+
+    def _hint_square_zero(self, value: _Num) -> None:
+        """Warm-start one-variable squares at their nearest grid minimum.
+
+        Hints never constrain the model: other objectives and hard constraints
+        can move the result. Avoid a minimum-domain enumeration of wide Float
+        grids on runners with only one solver worker.
+        """
+        if isinstance(value.expr, int):
+            return
+        from ortools.sat.python import cp_model
+
+        affine = cp_model.FlatIntExpr(value.expr)
+        if len(affine.vars) != 1 or not affine.coeffs[0]:
+            return
+        variable = affine.vars[0]
+        if variable.index in self._square_hints:
+            return
+        candidate = round(Fraction(-affine.offset, affine.coeffs[0]))
+        domain = variable.proto.domain
+        candidate = max(domain[0], min(domain[-1], candidate))
+        self._model.add_hint(variable, candidate)
+        self._square_hints.add(variable.index)
 
     def _eval_const(self, name: Name) -> _Num:
         from dataclasses import replace
