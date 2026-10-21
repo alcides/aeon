@@ -38,7 +38,7 @@ from aeon.synthesis.api import (
     ErrorInSynthesis,
     InvalidIndividualException,
     ProgramSynthesizer,
-    SynthesisError,
+    UnsupportedSynthesisGoal,
     Synthesizer,
     TimeoutInEvaluationException,
 )
@@ -507,7 +507,9 @@ def synthesize_holes(
 
     hard_constraints = any(goal.kind == "constraint" for entry in metadata.values() for goal in entry.get("goals", []))
     if hard_constraints and not getattr(synthesizer, "supports_hard_constraints", False):
-        raise SynthesisError("@require needs a synthesizer supporting hard constraints (currently -s ortools)")
+        raise UnsupportedSynthesisGoal(
+            "@require needs a synthesizer supporting hard constraints (currently -s ortools)"
+        )
 
     # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
     # hole at once rather than one function at a time.
