@@ -23,6 +23,8 @@ from aeon.llvm.llvm_ast import (
 )
 from aeon.llvm.ndarray import axis_value, element_pointer, emit_row
 from aeon.llvm.cuda.reduction import reduction_launch, emit_reduction_wrappers, ReductionLaunch
+from aeon.llvm.filter import filter_launch
+from aeon.llvm.cuda.filter import emit_filter_wrappers
 
 
 class CUDALLVMIRGenerator(CPULLVMIRGenerator):
@@ -73,6 +75,23 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             if not isinstance(node, LLVMFunction) or node.name is None:
                 continue
             func = self.module.globals[sanitize_name(node.name)]
+            body = node.body
+            while isinstance(body, LLVMRefinedValue):
+                body = body.value
+            selection = filter_launch(node, body)
+            if selection is not None:
+                self.filter_launches[func.name] = selection
+                kernel = ir.Function(
+                    self.module,
+                    ir.FunctionType(
+                        ir.VoidType(),
+                        [*func.function_type.args, ir.IntType(32).as_pointer(), ir.IntType(32).as_pointer()],
+                    ),
+                    name=func.name + "__kernel",
+                )
+                emit_filter_wrappers(self, node, body, kernel)
+                self._add_kernel_metadata(kernel)
+                continue
             # Array returns identify an input buffer through a device-pointer
             # result slot. Opaque ADT returns remain device-local.
             if isinstance(func.function_type.return_type, ir.PointerType):

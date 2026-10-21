@@ -4,7 +4,7 @@ import ctypes
 from typing import Any, List, Dict
 
 import llvmlite.binding as llvm
-from aeon.bindings.ndarray import ManagedArray, ReadOnlyBuffer
+from aeon.bindings.ndarray import ManagedArray, ReadOnlyBuffer, NDArray, finish_filter
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
 from aeon.llvm.optimization import optimize_module
@@ -173,10 +173,17 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         ret_type: LLVMType,
         launch_shape: tuple[int, ...] | None = None,
         reduction_count: int | None = None,
+        filter_input: tuple[int, int] | None = None,
     ) -> Any:
         self._keep_alive = []
         self._ndarray_arguments: dict[int, Any] = {}
         self._managed_arguments: dict[int, Any] = {}
+        if filter_input is not None:
+            source_index, source_count = filter_input
+            source = args[source_index]
+            available = source.elements if isinstance(source, NDArray) else len(source)
+            if not isinstance(source, (NDArray, list)) or not 0 <= source_count <= available:
+                raise LLVMExecutionError("Filter requires an owned array and a valid input length")
         vector_impls = self._get_vector_impl(arg_types, ret_type)
         llvm.add_symbol(
             "native",
@@ -186,16 +193,23 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         )
 
         engine = self._ensure_engine(llvm_ir)
-        func_ptr = engine.get_function_address(func_name)
+        func_ptr = engine.get_function_address(func_name + "__filter" if filter_input is not None else func_name)
         if not func_ptr:
             raise LLVMExecutionError(f"failed to find function address for {func_name}")
 
         ctypes_args = [self._get_ctypes_type(t) for t in arg_types]
+        filtered_count = ctypes.c_int32()
+        if filter_input is not None:
+            ctypes_args.append(ctypes.POINTER(ctypes.c_int32))
         ctypes_ret = self._get_ctypes_type(ret_type) if not isinstance(ret_type, LLVMVoidType) else None
 
         cfunc = ctypes.CFUNCTYPE(ctypes_ret, *ctypes_args)(func_ptr)
         processed_args = [self._convert_to_ctypes(self._coerce_arg(val, ty), ty) for val, ty in zip(args, arg_types)]
+        if filter_input is not None:
+            processed_args.append(ctypes.byref(filtered_count))
         result = cfunc(*processed_args)
+        if filter_input is not None and result != ctypes.cast(processed_args[filter_input[0]], ctypes.c_void_p).value:
+            raise LLVMExecutionError("Filter result must refer to its input array")
 
         for array, buffer, _ in self._managed_arguments.values():
             array._storage.write(list(buffer))
@@ -203,6 +217,18 @@ class CPULLVMExecutionEngine(LLVMExecutionEngine):
         for address, (array, descriptor, buffer, ty) in self._ndarray_arguments.items():
             shapes[address] = descriptor_shape(descriptor, array, ctypes.addressof(buffer))
             array._write_data(list(buffer))
+        if filter_input is not None:
+            source = args[filter_input[0]]
+            count = filtered_count.value
+            if not 0 <= count <= filter_input[1]:
+                raise LLVMExecutionError("Filter returned an invalid element count")
+            if not isinstance(source, (NDArray, ManagedArray)):
+                source_type = arg_types[filter_input[0]]
+                assert isinstance(source_type, (LLVMPointerType, LLVMNDArrayType))
+                element = self._get_ctypes_type(source_type.element_type)
+                pointer = ctypes.cast(result, ctypes.POINTER(element))
+                source[:] = [pointer[index] for index in range(count)]
+            return finish_filter(source, count)
         if isinstance(ret_type, LLVMNDArrayType):
             if result not in self._ndarray_arguments:
                 raise LLVMExecutionError("NDArray results must refer to an array passed as a parameter")

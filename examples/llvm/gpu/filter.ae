@@ -1,0 +1,21 @@
+open NDArray
+
+# The predicate is compiled by the normal LLVM expression visitor.
+# Selection is stable, with parallel scans and scattering on the GPU.
+@gpu
+def select_even (1 values:(NDArray Int Rank1)) : (NDArray Int Rank1) :=
+    values.filter (fun x => x % 2 = 0);
+
+@gpu
+def sum_values (1 values:(NDArray Int Rank1)) : Int :=
+    values.reduce (fun acc => fun x => acc + x) 0;
+
+def samples (n:{v:Int | v >= 0 && v <= 2147483647}) :
+    {r:(NDArray Int Rank1) | r.dimension_size 0 = n} :=
+    native "__import__('aeon.bindings.ndarray', fromlist=['NDArray']).NDArray(list(range(n)), (n,))";
+
+def main (args:Int) : Unit :=
+    let 1 values := samples 1025 in
+    let 1 selected := select_even values in
+    # The selected elements stay on the GPU for this second call.
+    print (sum_values selected);

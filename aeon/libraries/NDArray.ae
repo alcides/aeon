@@ -90,3 +90,8 @@ def discard (1 arr: (NDArray a rank)) : Unit := native "arr.discard()"
 # CUDA uses a parallel tree; z is applied once. Empty arrays return z.
 def reduce (1 arr: (NDArray a rank)) (f: (acc:a) -> (x:a) -> a) (z:a) : a :=
     native "arr.reduce(f, z)"
+
+# Stable row-major selection; the result is a packed one-dimensional array.
+def filter (1 arr: (NDArray a rank)) (f: (x:a) -> Bool) :
+    {r:(NDArray a Rank1) | r.elements <= arr.elements && r.dimension_size 0 = r.elements} :=
+    native "arr.filter(f)"

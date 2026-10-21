@@ -148,7 +148,7 @@ def _emit_tree(generator, callback, source, count, initial, destination, scalar)
         active = builder.and_(active, builder.icmp_unsigned("<", builder.add(start, neighbor), count))
         with builder.if_then(active):
             right = builder.load(builder.gep(shared, [zero, neighbor]))
-            builder.store(generator.apply_reducer(callback, [builder.load(slot), right], scalar), slot)
+            builder.store(generator.apply_callback(callback, [builder.load(slot), right], scalar), slot)
         builder.call(barrier, [])
         stride *= 2
     with builder.if_then(builder.icmp_unsigned("==", lane, zero)):
@@ -163,7 +163,7 @@ def _emit_tree(generator, callback, source, count, initial, destination, scalar)
                     partial,
                 ):
                     with last:
-                        value = generator.apply_reducer(callback, [initial, total], scalar)
+                        value = generator.apply_callback(callback, [initial, total], scalar)
                         builder.store(value, builder.gep(destination, [block]))
                     with partial:
                         builder.store(total, builder.gep(destination, [block]))

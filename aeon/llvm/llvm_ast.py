@@ -178,6 +178,7 @@ VECTOR_OP_ALIASES: dict[str, str] = {
     "reduce_n_int": "reduce",
     "reduce_n_float": "reduce",
     "filter_n_int": "filter",
+    "filter_n_float": "filter",
     "count_n_int": "count",
     "zipWith_n_int": "zipWith",
     "fold_n_int": "fold_n",
