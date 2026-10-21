@@ -28,6 +28,7 @@ from aeon.llvm.llvm_ast import (
     LLVMTerm,
     LLVMLiteral,
     LLVMInt,
+    LLVMIntType,
     LLVMLong,
     LLVMDouble,
     LLVMFloatType,
@@ -708,7 +709,7 @@ class CPULLVMLowerer(LLVMLowerer):
     ) -> LLVMTerm:
         base, args = self._uncurry(t)
 
-        ndarray = self._lower_ndarray_app(base, args, type_env, env, allowed, in_vec)
+        ndarray = self._lower_ndarray_app(base, args, type_env, env, allowed, in_vec, expected)
         if ndarray is not None:
             return ndarray
 
@@ -729,6 +730,14 @@ class CPULLVMLowerer(LLVMLowerer):
             return self._lower_builtin_call(lookup, target, prev_args, args, expected, type_env, env, allowed, in_vec)
 
         all_args = prev_args + self._lower_args(args, params, len(prev_args), type_env, env, allowed, in_vec)
+        if (
+            lookup in {"+", "-", "*", "/", "%"}
+            and len(all_args) >= len(params)
+            and isinstance(all_args[0].type, (LLVMIntType, LLVMFloatType, LLVMDoubleType))
+        ):
+            # Operators are initially polymorphic. Preserve their resolved
+            # scalar type when a map infers the type of its destination.
+            ret = all_args[0].type
         return self._create_call_or_partial(target, all_args, params, ret)
 
     def _lower_ndarray_app(
@@ -739,8 +748,13 @@ class CPULLVMLowerer(LLVMLowerer):
         env: Dict[Name, LLVMTerm],
         allowed: set[Name],
         in_vec: bool,
+        expected: LLVMType | None = None,
     ) -> LLVMTerm | None:
         head = self._head_var_name(base)
+        if head is not None and head.name == "ReadOnly_read" and len(args) == 2:
+            array = self._lower_term(args[0], None, type_env, env, allowed, in_vec)
+            index = self._lower_term(args[1], LLVMInt, type_env, env, allowed, in_vec)
+            return self._lower_vector_get(array, index)
         if head is None or not head.name.startswith("NDArray_"):
             return None
         op = head.name[len("NDArray_") :]
@@ -752,6 +766,37 @@ class CPULLVMLowerer(LLVMLowerer):
         if not isinstance(array.type, LLVMNDArrayType):
             raise LLVMValidationError("NDArray operations require a ranked array descriptor")
         ty = array.type
+        if op in {"map", "zipWith", "scan", "scan_exclusive", "reduce_axis"}:
+            arity = {"map": 2, "zipWith": 3, "scan": 3, "scan_exclusive": 3, "reduce_axis": 4}[op]
+            if len(args) != arity:
+                raise LLVMValidationError(f"{op} must be fully applied")
+            values = []
+            parameters = [ty.element_type]
+            result_element = expected.element_type if isinstance(expected, LLVMNDArrayType) else ty.element_type
+            if op == "zipWith":
+                other = self._lower_term(args[1], None, type_env, env, allowed, in_vec)
+                if not isinstance(other.type, LLVMNDArrayType) or other.type.rank != ty.rank:
+                    raise LLVMValidationError("zipWith requires arrays of the same rank")
+                parameters.append(other.type.element_type)
+                values.append(other)
+            if op in {"scan", "scan_exclusive", "reduce_axis"}:
+                parameters = [ty.element_type, ty.element_type]
+                result_element = ty.element_type
+                if op == "reduce_axis":
+                    values.append(self._lower_term(args[1], LLVMInt, type_env, env, allowed, in_vec))
+            callback_index = 2 if op in {"zipWith", "reduce_axis"} else 1
+            callback = self._lower_as_standalone(
+                args[callback_index], LLVMFunctionType(parameters, result_element), type_env, env, allowed, True
+            )
+            if isinstance(callback, LLVMFunction):
+                self._validate_row_captures(callback.body, set(callback.arg_names))
+                if expected is None and op in {"map", "zipWith"}:
+                    callback.type = LLVMFunctionType(callback.arg_types, callback.body.type)
+            values.append(callback)
+            if op in {"scan", "scan_exclusive", "reduce_axis"}:
+                values.append(self._lower_term(args[-1], ty.element_type, type_env, env, allowed, in_vec))
+            assert isinstance(callback.type, LLVMFunctionType)
+            return LLVMNDArrayOp(LLVMNDArrayType(callback.type.return_type, ty.rank), op, array, values)
         if op == "filter":
             if len(args) != 2:
                 raise LLVMValidationError("filter requires an array and a predicate")

@@ -36,6 +36,7 @@ class ArrayStorage:
         self.version = 0
         self.exposed = False
         self.failure: Exception | None = None
+        self.zero_version = -1
 
     def read(self) -> list[Any]:
         if self.failure is not None:
@@ -43,6 +44,7 @@ class ArrayStorage:
         if not self.host_current:
             self.device.download(self.host)
             self.host_current = True
+            self.zero_version = -1
         return self.host
 
     def write(self, values: list[Any]) -> None:
@@ -209,6 +211,22 @@ class ReadOnlyBuffer(Sequence[Any]):
         return NotImplemented
 
 
+class BorrowedBuffer(ReadOnlyBuffer):
+    """A callback-scoped read view; retained views expire before storage is reused."""
+
+    def __init__(self, storage: ArrayStorage):
+        self._borrowed_storage = storage
+
+    @property
+    def _storage(self):
+        if self._borrowed_storage is None:
+            raise ValueError("Read-only array borrow has expired")
+        return self._borrowed_storage
+
+    def expire(self):
+        self._borrowed_storage = None
+
+
 class NDArray:
     """An owned row-major buffer; reshape transfers ownership without copying."""
 
@@ -283,13 +301,83 @@ class NDArray:
 
     def fill(self, value: Any) -> NDArray:
         self._write_data([value] * self.elements)
+        if value == 0 and math.copysign(1, value) > 0:
+            self._storage.zero_version = self._storage.version
         return self
+
+    def iterate(self, steps: int, initial: Any, callback: Any) -> NDArray:
+        """Alternate two owned buffers; each callback sees an expiring source view."""
+        if isinstance(steps, bool) or not isinstance(steps, int) or not 0 <= steps <= 2**31 - 1:
+            raise ValueError("Iteration count must be a non-negative Int")
+        shape = self.shape
+        if steps == 0:
+            return self
+        source, destination = self.reshape(shape), full(shape, initial)
+        try:
+            for step in range(steps):
+                if step:
+                    destination.fill(initial)
+                view = BorrowedBuffer(source._storage)
+                destination_storage = destination._storage
+                try:
+                    result = callback(step)(view)(destination)
+                    if (
+                        not isinstance(result, NDArray)
+                        or result.shape != shape
+                        or result._storage is not destination_storage
+                    ):
+                        raise ValueError("Array iteration must return its destination with the original shape")
+                finally:
+                    view.expire()
+                source, destination = result, source
+            destination.discard()
+            return source
+        except Exception:
+            for array in (source, destination):
+                if array._owned:
+                    array.discard()
+            raise
 
     def reduce(self, callback: Any, initial: Any) -> Any:
         result = initial
         for value in self._read_data():
             result = callback(result)(value)
         return result
+
+    def map(self, callback: Any) -> NDArray:
+        self._write_data([callback(value) for value in self._read_data()])
+        return self
+
+    def zipWith(self, other: NDArray, callback: Any) -> NDArray:
+        if self.shape != other.shape:
+            raise ValueError("zipWith requires identical shapes")
+        self._write_data([callback(x)(y) for x, y in zip(self._read_data(), other._read_data())])
+        return self
+
+    def scan(self, callback: Any, initial: Any, exclusive: bool = False) -> NDArray:
+        result, acc = [], initial
+        for value in self._read_data():
+            if exclusive:
+                result.append(acc)
+            acc = callback(acc)(value)
+            if not exclusive:
+                result.append(acc)
+        self._write_data(result)
+        return self
+
+    def reduce_axis(self, axis: int, callback: Any, initial: Any) -> NDArray:
+        length = self.dimension(axis)
+        shape = self.shape[:axis] + (1,) + self.shape[axis + 1 :]
+        stride = self.strides[axis]
+        data = self._read_data()
+        values = []
+        for i in range(math.prod(shape)):
+            start = (i // stride) * length * stride + i % stride
+            acc = initial
+            for j in range(length):
+                acc = callback(acc)(data[start + j * stride])
+            values.append(acc)
+        return NDArray(ManagedArray(values), shape)
 
     def filter(self, callback: Any) -> NDArray:
         values = [value for value in self._read_data() if callback(value)]
@@ -383,4 +471,7 @@ def finish_filter(array: NDArray | list[Any], count: int, device_current: bool =
 
 def full(shape: tuple[int, ...], value: Any) -> NDArray:
     shape = validate_shape(shape)
-    return NDArray([value] * math.prod(shape), shape)
+    result = NDArray([value] * math.prod(shape), shape)
+    if value == 0 and math.copysign(1, value) > 0:
+        result._storage.zero_version = result._storage.version
+    return result

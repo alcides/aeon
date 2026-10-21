@@ -35,6 +35,7 @@ SUPPORTED_TYPES = {
     "Unit",
     "Array",
     "Vector",
+    "ReadOnly",
     "Buffer",
     "String",
     "NDArray",
@@ -120,7 +121,7 @@ def to_llvm_type(ty: Type) -> LLVMType:
                     return LLVMChar
                 case "Unit":
                     return LLVMVoid
-                case "Array" | "Vector":
+                case "Array" | "Vector" | "ReadOnly":
                     # ``Array`` is the stdlib host buffer; ``Vector`` remains as a
                     # temporary alias for older LLVM tests / local quicksort buffers.
                     return LLVMPointerType(to_llvm_type(args[0])) if args else LLVMVectorInt

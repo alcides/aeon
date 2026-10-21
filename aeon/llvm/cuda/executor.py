@@ -59,6 +59,8 @@ class DeviceArray:
 
     def download(self, values: list[Any]) -> None:
         self.engine._activate()
+        if hasattr(self.engine, "_array_runtime"):
+            self.engine._array_runtime.synchronize()
         data = (self.ctype * self.count)()
         if (
             self.engine.libcuda.cuMemcpyDtoH_v2(
@@ -73,6 +75,14 @@ class DeviceArray:
 
     def close(self) -> None:
         if self.pointer.value:
+            if hasattr(self, "pool_size"):
+                self.engine._array_runtime.release((self.pointer, self.pool_size))
+                self.pointer = ctypes.c_uint64()
+                return
+            if hasattr(self.engine, "_array_runtime") and self.engine._array_runtime.pending:
+                self.engine._array_runtime.release((self.pointer, max(4, self.count * ctypes.sizeof(self.ctype))))
+                self.pointer = ctypes.c_uint64()
+                return
             previous = ctypes.c_void_p()
             get_current = getattr(self.engine.libcuda, "cuCtxGetCurrent", None)
             restore = get_current is not None and get_current(ctypes.byref(previous)) == 0
@@ -244,6 +254,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             raise CUDAExecutionError("cuCtxSetCurrent failed")
 
     def _device_array(self, storage: ArrayStorage, ctype) -> DeviceArray:
+        if storage.failure is not None:
+            storage.read()
         resident = storage.device
         if resident is not None and (
             resident.engine is not self or resident.ctype != ctype or resident.count != len(storage.host)
@@ -273,12 +285,16 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
 
     def close(self) -> None:
         """Materialize live arrays before releasing this engine's resident buffers."""
+        if hasattr(self, "_array_runtime"):
+            self._array_runtime.synchronize()
         for resident in list(getattr(self, "_resident_arrays", ())):
             storage = resident.storage()
             if storage is not None and storage.device is resident:
                 storage.read()
                 storage.device = None
             resident.close()
+        if hasattr(self, "_array_runtime"):
+            self._array_runtime.trim(0)
 
     def execute(
         self,
@@ -481,6 +497,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 raise CUDAExecutionError(
                     f"cuCtxSynchronize failed during {func_name} execution: {self._cuda_error_name(sync_rc)}"
                 )
+            if hasattr(self, "_array_runtime"):
+                self._array_runtime.synchronize(completed=True)
 
             filtered_count = ctypes.c_int32()
             if filter_buffers is not None:
@@ -513,6 +531,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     # Transfer the staging allocation to the existing linear owner.
                     # No copy of the selected elements is necessary.
                     resident.close()
+                    if hasattr(resident, "pool_size"):
+                        del resident.pool_size
                     resident.pointer = filter_buffers.output
                     resident.count = filtered_count.value
                     resident.host_snapshot = ()

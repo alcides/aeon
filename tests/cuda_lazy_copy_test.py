@@ -464,7 +464,7 @@ def main (args:Int) : Unit :=
 
 @pytest.mark.parametrize(
     "filename,payload_bytes,upload_count",
-    [("nbody.ae", 257 * 7 * 4, 11), ("floyd_warshall.ae", 4 * 4 * 4, 5), ("lazy_copy.ae", 17 * 33 * 4, 1)],
+    [("nbody.ae", 257 * 7 * 4, 1), ("floyd_warshall.ae", 4 * 4 * 4, 1), ("lazy_copy.ae", 17 * 33 * 4, 1)],
 )
 def test_parallel_examples_download_only_the_final_state(
     real_cuda, monkeypatch, capsys, filename, payload_bytes, upload_count

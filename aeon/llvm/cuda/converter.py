@@ -78,6 +78,11 @@ class CUDALLVMIRGenerator(CPULLVMIRGenerator):
             body = node.body
             while isinstance(body, LLVMRefinedValue):
                 body = body.value
+            if isinstance(body, LLVMNDArrayOp) and body.op.endswith("_into"):
+                from aeon.llvm.cuda.array_kernels import emit_array_wrappers
+
+                emit_array_wrappers(self, node)
+                continue
             selection = filter_launch(node, body)
             if selection is not None:
                 self.filter_launches[func.name] = selection

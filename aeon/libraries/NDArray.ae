@@ -1,6 +1,7 @@
 # Owned, contiguous arrays with a static rank and runtime shape.
 # Rank markers are erased; every rank uses the same data/shape/stride descriptor.
 import Array;
+import ReadOnly;
 
 type Rank1
 type Rank2
@@ -95,3 +96,41 @@ def reduce (1 arr: (NDArray a rank)) (f: (acc:a) -> (x:a) -> a) (z:a) : a :=
 def filter (1 arr: (NDArray a rank)) (f: (x:a) -> Bool) :
     {r:(NDArray a Rank1) | r.elements <= arr.elements && r.dimension_size 0 = r.elements} :=
     native "arr.filter(f)"
+
+# Elementwise operations consume their inputs and preserve their shape.
+# Equal element types allow the runtime to reuse the first input's allocation.
+def map (1 arr: (NDArray a rank)) (f: (x:a) -> b) :
+    {r:(NDArray b rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    native "arr.map(f)"
+
+def zipWith (1 arr: (NDArray a rank))
+    (1 other: {r:(NDArray b rank) | r.dimension_size 0 = arr.dimension_size 0 && (arr.ndim < 2 || r.dimension_size 1 = arr.dimension_size 1) && (arr.ndim < 3 || r.dimension_size 2 = arr.dimension_size 2)})
+    (f: (x:a) -> (y:b) -> c) :
+    {r:(NDArray c rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    native "arr.zipWith(other, f)"
+
+# Keep the reduced dimension with size one, so the static rank is preserved.
+def reduce_axis (1 arr: (NDArray a rank)) (axis: {v:Int | v >= 0 && v < arr.ndim})
+    (f: (acc:a) -> (x:a) -> a) (z:a) :
+    {r:(NDArray a rank) | r.ndim = arr.ndim && r.dimension_size axis = 1} :=
+    native "arr.reduce_axis(axis, f, z)"
+
+# Row-major prefix folds. The combiner must be pure and associative, as for reduce.
+# z is applied exactly once per prefix; it need not be an identity.
+def scan (1 arr: (NDArray a rank)) (f: (acc:a) -> (x:a) -> a) (z:a) :
+    {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    native "arr.scan(f, z)"
+
+def scan_exclusive (1 arr: (NDArray a rank)) (f: (acc:a) -> (x:a) -> a) (z:a) :
+    {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    native "arr.scan(f, z, exclusive=True)"
+
+# Host scheduling over two reusable buffers. Each destination starts filled with
+# value. The callback must return that destination and preserve its shape.
+def iterate (1 arr: (NDArray a rank)) (steps: {v:Int | v >= 0 && v <= 2147483647}) (value:a)
+    (f: (step:{v:Int | v >= 0 && v < steps}) ->
+        (xs:{v:(ReadOnly a) | ReadOnly.size v = arr.elements}) ->
+        (1 output:{r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2}) ->
+        (NDArray a rank)) :
+    {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    native "arr.iterate(steps, value, f)"
