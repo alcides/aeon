@@ -26,7 +26,12 @@ from multiprocess.reduction import ForkingPickler
 from aeon.backend.evaluator import EvaluationContext, eval
 from aeon.core.terms import Term, Var
 from aeon.synthesis.api import InvalidIndividualException
-from aeon.synthesis.fitness_eval import memoize_fitness, set_program_tail
+from aeon.synthesis.fitness_eval import (
+    memoize_fitness,
+    set_program_tail,
+    require_complete_program,
+    without_main_placeholder,
+)
 from aeon.utils.name import Name
 
 # A computation maps a (candidate-substituted) program to a value. It may raise
@@ -109,7 +114,15 @@ def _worker_main(static: tuple, task_q: Any, result_q: Any) -> None:
         if msg is None:  # shutdown
             return
         cid, candidate = msg
-        prog = replace(candidate)
+        try:
+            prog = without_main_placeholder(replace(candidate))
+            require_complete_program(prog)
+        except InvalidIndividualException:
+            result_q.put((cid, {name: (INVALID, None) for name in computations}))
+            continue
+        except Exception as exc:
+            result_q.put((cid, {name: (ERROR, f"{type(exc).__name__}: {exc}") for name in computations}))
+            continue
         out: dict[str, tuple[str, Any]] = {}
         for name, comp in computations.items():
             try:

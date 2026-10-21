@@ -8,9 +8,11 @@ from collections.abc import Callable
 from typing import Any
 
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
-from aeon.core.terms import Application, Let, Rec, Term, Var
+from aeon.core.terms import Application, Hole, Let, Literal, Rec, Term, Var
+from aeon.core.types import t_int
 from aeon.synthesis.api import InvalidIndividualException
 from aeon.synthesis.decorators import Goal
+from aeon.synthesis.identification import term_has_holes
 from aeon.synthesis.resource_meters import measure_cputime, measure_energy
 from aeon.utils.name import Name
 
@@ -18,6 +20,26 @@ Computation = Callable[[Term], Any]
 
 # Bound duplicate-phenotype memoization during a synthesis run.
 _FITNESS_MEMO_MAX = 4096
+
+
+def require_complete_program(prog: Term) -> None:
+    """Fitness must never execute an unresolved candidate or placeholder bundle."""
+    if term_has_holes(without_main_placeholder(prog)):
+        raise InvalidIndividualException()
+
+
+def without_main_placeholder(prog: Term) -> Term:
+    """Remove only the compiler's synthetic, unused entrypoint placeholder.
+
+    It is not a synthesis target and fitness replaces the program tail with
+    an objective. Named user holes (including a bound ?main) still count.
+    """
+    tail = prog
+    while isinstance(tail, (Let, Rec)):
+        tail = tail.body
+    if isinstance(tail, Hole) and tail.name == Name("main", 0):
+        return set_program_tail(prog, Literal(1, t_int))
+    return prog
 
 
 def set_program_tail(term: Term, new_tail: Term) -> Term:
@@ -151,13 +173,26 @@ def make_bundled_fitness_evaluator(
     ``prefix_prog``; each candidate only extracts its suffix (no re-eval of
     library bindings).
     """
-    prefix_ctx, _ = prebind_prefix(prefix_prog, ectx, fun_name)
+    # A legacy per-hole caller may still have open siblings in its prefix.
+    # Defer that prefix rather than evaluating holes during fitness setup.
+    current = prefix_prog
+    dynamic_prefix = False
+    while isinstance(current, (Let, Rec)) and current.var_name != fun_name:
+        if term_has_holes(current.var_value):
+            dynamic_prefix = True
+            break
+        current = current.body
+    prefix_ctx = None if dynamic_prefix else prebind_prefix(prefix_prog, ectx, fun_name)[0]
     expr_functions = {g.function for g in goals if g.kind == "expression"}
 
     def fitness(prog: Term) -> list[float]:
+        require_complete_program(prog)
         properties = iter(property_evaluators or [])
-        suffix = extract_suffix(prog, fun_name)
-        expr_values = _collect_expression_goals(suffix, prefix_ctx, expr_functions) if expr_functions else {}
+        if prefix_ctx is None:
+            candidate_ctx, suffix = prebind_prefix(prog, ectx, fun_name)
+        else:
+            candidate_ctx, suffix = prefix_ctx, extract_suffix(prog, fun_name)
+        expr_values = _collect_expression_goals(suffix, candidate_ctx, expr_functions) if expr_functions else {}
         scores: list[float] = []
         for goal in goals:
             if goal.kind == "property":
@@ -167,10 +202,10 @@ def make_bundled_fitness_evaluator(
                 if goal.function in expr_values:
                     raw = expr_values[goal.function]
                 else:
-                    raw = _eval_goal(suffix, prefix_ctx, goal)
+                    raw = _eval_goal(suffix, candidate_ctx, goal)
                 scores.extend(as_objective_vector(raw, goal.length))
             else:
-                scores.extend(as_objective_vector(_eval_goal(suffix, prefix_ctx, goal), goal.length))
+                scores.extend(as_objective_vector(_eval_goal(suffix, candidate_ctx, goal), goal.length))
         return scores
 
     return fitness
