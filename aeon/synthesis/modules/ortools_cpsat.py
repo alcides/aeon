@@ -78,6 +78,20 @@ class _Unsupported(Exception):
     """A term/refinement construct outside the CP-SAT-translatable fragment."""
 
 
+class _NumericRangeUnsupported(_Unsupported):
+    """Exact symbolic arithmetic cannot be represented by CP-SAT."""
+
+
+# CP-SAT stores domains, coefficients and offsets in signed 64-bit integers.
+# Keep symmetric limits so objective orientation can safely negate a value.
+_CP_INTEGER_MAX = (1 << 63) - 1
+
+
+def _check_numeric_range(lo: int, hi: int) -> None:
+    if lo < -_CP_INTEGER_MAX or hi > _CP_INTEGER_MAX:
+        raise _NumericRangeUnsupported("numeric range exceeds CP-SAT signed 64-bit integer limits")
+
+
 @dataclass
 class _Num:
     """A scalar value: real value ``= expr / SCALE**scale`` (expr is an int or a
@@ -87,6 +101,9 @@ class _Num:
     scale: int
     lo: int
     hi: int
+
+    def __post_init__(self):
+        _check_numeric_range(self.lo, self.hi)
 
 
 @dataclass
@@ -285,9 +302,14 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 continue
             oriented.append(value if goal.minimize else _Num(-value.expr, value.scale, -value.hi, -value.lo))
 
-        target_scale = max((n.scale for n in oriented), default=0)
         model = self._model
-        model.minimize(sum(self._lift(n, target_scale).expr for n in oriented))
+        try:
+            target_scale = max((n.scale for n in oriented), default=0)
+            aligned = [self._lift(n, target_scale) for n in oriented]
+            _check_numeric_range(sum(n.lo for n in aligned), sum(n.hi for n in aligned))
+            model.minimize(sum(n.expr for n in aligned))
+        except _Unsupported as exc:
+            raise UnsupportedSynthesisGoal(f"CPSatHole cannot scalarize objectives ({exc}).") from exc
 
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = float(budget)
@@ -333,6 +355,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 raise _Unsupported("Array hole without a fixed 'size a == k' refinement")
             scale = 0 if elem == "int" else 1
             b = self.bound if elem == "int" else self.bound * self.scale
+            _check_numeric_range(-b, b)
             items = []
             vars_ = []
             for i in range(k):
@@ -363,6 +386,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if n.scale == target:
             return n
         f = self.scale ** (target - n.scale)
+        _check_numeric_range(f, f)
+        _check_numeric_range(n.lo * f, n.hi * f)
         return _Num(n.expr * f, target, n.lo * f, n.hi * f)
 
     # -- objective translation -------------------------------------------
@@ -409,6 +434,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             scale = max(yes.scale, no.scale)
             yes, no = self._lift(yes, scale), self._lift(no, scale)
             lo, hi = min(yes.lo, no.lo), max(yes.hi, no.hi)
+            _check_numeric_range(lo, hi)
             result = self._model.new_int_var(lo, hi, "if_result")
             self._model.add(result == yes.expr).only_enforce_if(condition.expr)
             self._model.add(result == no.expr).only_enforce_if(condition.expr.Not())
@@ -507,6 +533,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                     value = self._translate(self._def_bodies[t.name], {}, visited | {t.name})
                     self._definition_cache[t.name] = value
                     return value
+                except _NumericRangeUnsupported:
+                    raise
                 except _Unsupported:
                     pass
             return self._eval_const(t.name)
@@ -641,12 +669,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             s = max(a.scale, b.scale)
             a, b = self._lift(a, s), self._lift(b, s)
             if op == "+":
+                _check_numeric_range(a.lo + b.lo, a.hi + b.hi)
                 return _Num(a.expr + b.expr, s, a.lo + b.lo, a.hi + b.hi)
+            _check_numeric_range(a.lo - b.hi, a.hi - b.lo)
             return _Num(a.expr - b.expr, s, a.lo - b.hi, a.hi - b.lo)
         if op == "*":
             s = a.scale + b.scale
             corners = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
             lo, hi = min(corners), max(corners)
+            _check_numeric_range(lo, hi)
             if isinstance(a.expr, int) or isinstance(b.expr, int):
                 return _Num(a.expr * b.expr, s, lo, hi)
             prod = self._model.new_int_var(lo, hi, "prod")
@@ -746,6 +777,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 return
             try:
                 constant = self._liquid(ty.name, _Num(0, scale, 0, 0), right)
+            except _NumericRangeUnsupported:
+                raise
             except _Unsupported:
                 return
             if not isinstance(constant.expr, int):
@@ -763,6 +796,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if lo > hi:
             self._model.add_bool_or([])
             return 0, 0
+        _check_numeric_range(lo, hi)
         return lo, hi
 
     def _apply_scalar_refinement(self, ty: Type, hole: _Num) -> None:
@@ -795,14 +829,21 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
     @staticmethod
     def _compare(op: str, left: Any, right: Any) -> Any:
-        return {
-            "<": left < right,
-            "<=": left <= right,
-            ">": left > right,
-            ">=": left >= right,
-            "==": left == right,
-            "!=": left != right,
+        import operator
+
+        if isinstance(left, int):
+            _check_numeric_range(left, left)
+        if isinstance(right, int):
+            _check_numeric_range(right, right)
+        comparison = {
+            "<": operator.lt,
+            "<=": operator.le,
+            ">": operator.gt,
+            ">=": operator.ge,
+            "==": operator.eq,
+            "!=": operator.ne,
         }[op]
+        return comparison(left, right)
 
     def _literal_number(self, value: float) -> _Num:
         """Preserve decimal constants exactly; only holes use the search grid."""
