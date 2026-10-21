@@ -7,13 +7,14 @@ from typing import Any, List
 
 import llvmlite.binding as llvm
 from loguru import logger
-from aeon.bindings.ndarray import ArrayStorage, ManagedArray, NDArray, ReadOnlyBuffer
+from aeon.bindings.ndarray import ArrayStorage, ManagedArray, NDArray, ReadOnlyBuffer, finish_filter
 
 from aeon.llvm.core import LLVMExecutionEngine, LLVMBackendError
 from aeon.llvm.llvm_ast import LLVMType, LLVMPointerType, LLVMVoidType, LLVMNDArrayType
 from aeon.llvm.utils import is_array_pointer
 from aeon.llvm.ndarray import pack_descriptor, descriptor_shape, finish_array
 from aeon.llvm.cuda.reduction import REDUCTION_THREADS
+from aeon.llvm.cuda.filter import FilterBuffers
 
 
 class CUDAExecutionError(LLVMBackendError):
@@ -288,11 +289,21 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         ret_type: LLVMType,
         launch_shape: tuple[int, ...] | None = None,
         reduction_count: int | None = None,
+        filter_input: tuple[int, int] | None = None,
     ) -> Any:
         logger.debug(f"Executing kernel {func_name} on GPU.")
         self._activate()
         returns_ndarray = isinstance(ret_type, LLVMNDArrayType)
         returns_array = isinstance(ret_type, (LLVMPointerType, LLVMNDArrayType))
+        if filter_input is not None:
+            source_index, source_count = filter_input
+            source = args[source_index]
+            available = source.elements if isinstance(source, NDArray) else len(source)
+            if not isinstance(source, (NDArray, list)) or not 0 <= source_count <= available or not returns_array:
+                raise ValueError("Filter requires an owned array and a valid input length")
+            if isinstance(ret_type, LLVMNDArrayType) and ret_type.rank != 1:
+                raise ValueError("Filtered NDArrays must have rank one")
+            launch_shape = (source_count,)
         if reduction_count is not None:
             if not 0 <= reduction_count <= 2**31 - 1 or returns_array or isinstance(ret_type, LLVMVoidType):
                 raise ValueError("Parallel reduction requires a valid length and scalar result")
@@ -333,6 +344,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
         scalar_args = []
         result_buffer = None
         launched = False
+        filter_buffers = None
 
         try:
             for arg, ty in zip(args, arg_types):
@@ -395,7 +407,15 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     scalar_args.append(c_val)  # Keep every parameter alive until launch completes.
                     kernel_params.append(ctypes.addressof(c_val))
 
-            if not isinstance(ret_type, LLVMVoidType):
+            if filter_input is not None:
+                source_type = arg_types[source_index]
+                assert isinstance(source_type, (LLVMPointerType, LLVMNDArrayType))
+                element = self._get_ctypes_type(source_type.element_type)
+                filter_buffers = FilterBuffers(self, module, func_name, source_count, element, device_ptrs)
+                kernel_params.extend(
+                    [ctypes.addressof(filter_buffers.positions), ctypes.addressof(filter_buffers.totals)]
+                )
+            elif not isinstance(ret_type, LLVMVoidType):
                 result_buffer = ctypes.c_uint64() if returns_array else self._get_ctypes_type(ret_type)()
                 result_ptr = ctypes.c_uint64()
                 result_count = (
@@ -426,6 +446,8 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
             if launch_rc != 0:
                 raise CUDAExecutionError(f"cuLaunchKernel failed for {func_name}: {self._cuda_error_name(launch_rc)}")
             launched = True
+            if filter_buffers is not None:
+                filter_buffers.remaining_passes(kernel_params[:-2])
 
             if reduction_count is not None and result_count > 1:
                 # Default-stream ordering supplies the barrier between passes.
@@ -450,7 +472,7 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     remaining = (remaining + REDUCTION_THREADS - 1) // REDUCTION_THREADS
                     result_ptr, other = other, result_ptr
 
-            if reduction_count is None:
+            if reduction_count is None and filter_input is None:
                 for storage in resident_tasks:
                     storage.host_current = False
 
@@ -460,7 +482,18 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                     f"cuCtxSynchronize failed during {func_name} execution: {self._cuda_error_name(sync_rc)}"
                 )
 
+            filtered_count = ctypes.c_int32()
+            if filter_buffers is not None:
+                if self.libcuda.cuMemcpyDtoH_v2(ctypes.byref(filtered_count), filter_buffers.final_total.value, 4) != 0:
+                    raise CUDAExecutionError("cuMemcpyDtoH failed for filter length")
+                if not 0 <= filtered_count.value <= source_count:
+                    raise CUDAExecutionError("Filter returned an invalid element count")
+
             for d_ptr, host_data, size, original_arg in cleanup_tasks:
+                if filter_buffers is not None and original_arg is args[source_index]:
+                    host_data = (element * filtered_count.value)()
+                    size = ctypes.sizeof(host_data)
+                    d_ptr = filter_buffers.output
                 if self.libcuda.cuMemcpyDtoH_v2(ctypes.cast(host_data, ctypes.c_void_p), d_ptr.value, size) != 0:
                     raise CUDAExecutionError("cuMemcpyDtoH failed")
                 if isinstance(original_arg, list):
@@ -471,6 +504,26 @@ class CUDAExecutionEngine(LLVMExecutionEngine):
                 if self.libcuda.cuMemcpyDtoH_v2(ctypes.byref(descriptor), address, ctypes.sizeof(descriptor)) != 0:
                     raise CUDAExecutionError("cuMemcpyDtoH failed for NDArray descriptor")
                 shapes[address] = descriptor_shape(descriptor, arg, data_address)
+
+            if filter_buffers is not None:
+                source = args[source_index]
+                if isinstance(source, (NDArray, ManagedArray)):
+                    storage = source._storage
+                    resident = storage.device
+                    # Transfer the staging allocation to the existing linear owner.
+                    # No copy of the selected elements is necessary.
+                    resident.close()
+                    resident.pointer = filter_buffers.output
+                    resident.count = filtered_count.value
+                    resident.host_snapshot = ()
+                    storage.host_current = False
+                    device_ptrs.remove(filter_buffers.output)
+                    finish_filter(source, filtered_count.value, device_current=True)
+                    if storage.exposed:
+                        storage.read()
+                else:
+                    finish_filter(source, filtered_count.value)
+                return source
 
             # Raw host lists can outlive a .data access. Preserve their ordinary
             # Python alias semantics, while retaining the allocation for reuse.

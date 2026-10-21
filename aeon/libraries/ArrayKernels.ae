@@ -34,7 +34,10 @@ def reduce_n_float (f: (acc: Float) -> (x: Float) -> Float) (z: Float) (1 arr: (
     native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
 
 def filter_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : (Array Int) :=
-    native "list(filter(f, arr))"
+    native "list(filter(f, arr[:n]))"
+
+def filter_n_float (f: (x: Float) -> Bool) (1 arr: (Array Float)) (n: Int) : (Array Float) :=
+    native "list(filter(f, arr[:n]))"
 
 def count_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : Int :=
     native "sum(1 for x in arr if f(x))"

@@ -124,6 +124,7 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "reduce_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
     "reduce_n_float": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, _generic_ptr, LLVMInt], LLVMInt),
     "filter_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
+    "filter_n_float": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], _generic_ptr),
     "count_n_int": LLVMFunctionType([LLVMPointerType(_func_i_b), _generic_ptr, LLVMInt], LLVMInt),
     "zipWith_n_int": LLVMFunctionType([LLVMPointerType(_func_ii_i), _generic_ptr, _generic_ptr, LLVMInt], _generic_ptr),
     "fold_n": LLVMFunctionType([LLVMPointerType(_func_ii_i), LLVMInt, LLVMInt], LLVMInt),
@@ -751,6 +752,15 @@ class CPULLVMLowerer(LLVMLowerer):
         if not isinstance(array.type, LLVMNDArrayType):
             raise LLVMValidationError("NDArray operations require a ranked array descriptor")
         ty = array.type
+        if op == "filter":
+            if len(args) != 2:
+                raise LLVMValidationError("filter requires an array and a predicate")
+            callback = self._lower_as_standalone(
+                args[1], LLVMFunctionType([ty.element_type], LLVMBool), type_env, env, allowed, True
+            )
+            return LLVMVectorFilter(
+                LLVMNDArrayType(ty.element_type, 1), callback, array, LLVMNDArrayOp(LLVMInt, "elements", array, [])
+            )
         if op == "reduce":
             if len(args) != 3:
                 raise LLVMValidationError("reduce requires an array, a combiner, and an initial value")

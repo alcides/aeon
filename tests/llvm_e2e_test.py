@@ -1,6 +1,5 @@
 import sys
 
-import pytest
 from loguru import logger
 from aeon.facade.driver import AeonDriver, AeonConfig
 from aeon.logger.logger import setup_logger
@@ -137,9 +136,6 @@ def test_e2e_llvm_array_count():
     assert res == 2
 
 
-@pytest.mark.skip(
-    reason="filter_n_int return length is data-dependent; size refinements not yet tracked for LLVM filter."
-)
 def test_e2e_llvm_array_filter():
     source = r"""
     open Array
@@ -159,10 +155,10 @@ def test_e2e_llvm_array_filter():
         let 1 a3 := append{Int} a2 3 in
         let 1 a4 := append{Int} a3 4 in
         let 1 filtered := filter_even a4 4 in
-        get{Int} filtered 0;
+        sum filtered;
     """
     res = compile_and_run(source)
-    assert res == 2
+    assert res == 6
 
 
 def test_e2e_llvm_array_zip_with():

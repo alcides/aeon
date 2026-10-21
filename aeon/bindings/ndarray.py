@@ -291,6 +291,12 @@ class NDArray:
             result = callback(result)(value)
         return result
 
+    def filter(self, callback: Any) -> NDArray:
+        values = [value for value in self._read_data() if callback(value)]
+        self._write_data(values)
+        self._shape, self._strides = (len(values),), (1,)
+        return self
+
     def map_rows(self, callback: Any) -> NDArray:
         if self.rank != 2:
             raise ValueError("map_rows requires a rank-two NDArray")
@@ -359,6 +365,20 @@ class NDArray:
 
 def from_array(data: list[Any]) -> NDArray:
     return NDArray(data, (len(data),))
+
+
+def finish_filter(array: NDArray | list[Any], count: int, device_current: bool = False):
+    """Publish the logical length without materializing a device-current prefix."""
+    storage = array._storage if isinstance(array, (NDArray, ManagedArray)) else None
+    values = array._storage.host if isinstance(array, NDArray) else array
+    if not 0 <= count <= len(values):
+        raise ValueError("Filter returned an invalid element count")
+    list.__delitem__(values, slice(count, None))
+    if storage is not None and not device_current:
+        storage.version += 1
+    if isinstance(array, NDArray):
+        array._shape, array._strides = (count,), (1,)
+    return array
 
 
 def full(shape: tuple[int, ...], value: Any) -> NDArray:

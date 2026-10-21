@@ -209,6 +209,8 @@ class MultiBackendPipeline(LLVMPipeline):
 
         reduction = getattr(backend.generator, "reduction_launches", {}).get(sanitize_name(name_id))
         reduction_count = reduction.count(arguments) if reduction is not None else None
+        selection = getattr(backend.generator, "filter_launches", {}).get(sanitize_name(name_id))
+        filter_input = (selection.array_index, selection.count(arguments)) if selection is not None else None
 
         return backend.executor.execute(
             self.llvm_ir_by_backend[target_name],
@@ -218,4 +220,5 @@ class MultiBackendPipeline(LLVMPipeline):
             return_type,
             launch_shape=launch_shape,
             reduction_count=reduction_count,
+            filter_input=filter_input,
         )

@@ -170,6 +170,7 @@ Runnable GPU examples:
 - [`zero_volume_3d.ae`](../examples/llvm/gpu/zero_volume_3d.ae)
 - [`lazy_copy.ae`](../examples/llvm/gpu/lazy_copy.ae)
 - [`reductions.ae`](../examples/llvm/gpu/reductions.ae)
+- [`filter.ae`](../examples/llvm/gpu/filter.ae)
 - [`nbody.ae`](../examples/llvm/gpu/nbody.ae)
 - [`floyd_warshall.ae`](../examples/llvm/gpu/floyd_warshall.ae)
 
@@ -215,6 +216,43 @@ larger device functions. Compiled scalars include `Int`, `Long`, `Float`,
 
 Run `python -m aeon examples/llvm/gpu/reductions.ae` to print `524800`, `0`,
 and `1024` from three multi-block reductions.
+
+### Parallel stable filtering
+
+`filter` consumes an NDArray and returns its selected elements as a packed
+rank-one array, preserving their row-major order:
+
+```aeon
+@gpu
+def select_even (1 values:(NDArray Int Rank1)) : (NDArray Int Rank1) :=
+    values.filter (fun x => x % 2 = 0);
+```
+
+The predicate is a normal compiled lambda and can capture scalar parameters
+and call compiled helpers. The compiler lowers it to `LLVMVectorFilter`,
+using the same expression visitor as reductions. Predicates must be pure.
+
+CUDA evaluates the predicate once per element, scans flags within blocks of
+256 threads, scans block totals hierarchically, and scatters survivors to
+distinct output positions. This preserves order across blocks without an
+atomic append counter. The output allocation transfers to the existing linear
+owner; selected elements are not copied back into the old allocation.
+
+The host receives the selected count, alongside descriptor checks. Element
+contents remain on the GPU for subsequent filters, reductions, or other GPU
+calls. Empty inputs and predicates selecting nothing produce an empty array.
+Host reads and CPU kernels materialize the packed prefix through the same lazy
+storage path. Low-level plain Python lists retain eager compatibility.
+
+`filter_n_int` and `filter_n_float` in `ArrayKernels` use the same GPU path,
+selecting from the first `n` elements and returning an array with its actual
+runtime length. Both CPU and GPU launch paths validate `n` against the input
+length. Parallel filtering applies to direct GPU entries filtering an input
+parameter, as with the parallel reduction entry path.
+
+Run `python -m aeon examples/llvm/gpu/filter.ae` to filter 1,025 integers and
+sum the even survivors in a second GPU call. It prints `262656` without an
+intermediate download of the selected elements.
 
 ## N-body simulation example
 

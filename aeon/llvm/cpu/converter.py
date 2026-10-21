@@ -77,6 +77,8 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self.refinements_enabled = use_refinements
         self.refinement_env: dict[Name, ir.Value] = {}
         self.parameter_ranges: dict[str, list[tuple[int, int] | None]] = {}
+        self.filter_launches: dict[str, Any] = {}
+        self._filter_length_out: ir.Value | None = None
 
     @staticmethod
     def _add_parameter_attributes(argument: ir.Argument) -> None:
@@ -148,6 +150,19 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         for kernel_ast in definitions:
             self._is_top_level = True
             kernel_ast.accept(self)
+        # CPU fallback carries dynamic filter lengths through a small entry ABI.
+        if self.module.triple != "nvptx64-nvidia-cuda":
+            from aeon.llvm.filter import filter_launch, emit_cpu_filter_wrapper
+
+            for node in definitions:
+                if isinstance(node, LLVMFunction) and node.name is not None:
+                    body = node.body
+                    while isinstance(body, LLVMRefinedValue):
+                        body = body.value
+                    launch = filter_launch(node, body)
+                    if launch is not None:
+                        self.filter_launches[sanitize_name(node.name)] = launch
+                        emit_cpu_filter_wrapper(self, node, body)
         return self._attach_parameter_ranges(str(self.module))
 
     def _attach_parameter_ranges(self, code: str) -> str:
@@ -614,7 +629,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             self.builder.store(self._coerce_to_type(init_val, acc_ty), acc_ptr)
 
         def body(idx):
-            new_acc = self.apply_reducer(
+            new_acc = self.apply_callback(
                 f, [self.builder.load(acc_ptr), self.builder.load(self.builder.gep(v_val, [idx]))], acc_ty
             )
             if not isinstance(new_acc.type, ir.VoidType):
@@ -623,7 +638,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
         self.to_ir_loop(size_val, "reduce", body)
         return self.builder.load(acc_ptr)
 
-    def apply_reducer(self, callback: LLVMTerm, values: list[ir.Value], result_type: ir.Type) -> ir.Value:
+    def apply_callback(self, callback: LLVMTerm, values: list[ir.Value], result_type: ir.Type) -> ir.Value:
         """Use the ordinary expression generator, retaining inline lambda captures."""
         if isinstance(callback, LLVMFunction):
             old_env, old_refinements = self.env, self.refinement_env
@@ -659,25 +674,54 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
     def visit_vector_filter(self, node: LLVMVectorFilter) -> ir.Value:
         res_ty, f, v, size = node.type, node.f, node.v, node.size
         self._is_top_level = False
-        f_val, v_val, size_val = f.accept(self), v.accept(self), size.accept(self)
-        res_base_ty = self.to_ir_type(res_ty.element_type if isinstance(res_ty, LLVMPointerType) else res_ty)
+        v_val, size_val = v.accept(self), size.accept(self)
+        descriptor = None
+        if isinstance(v.type, LLVMNDArrayType):
+            from aeon.llvm.ndarray import field
+
+            descriptor = v_val
+            v_val = self.builder.gep(
+                self.builder.load(field(self.builder, descriptor, 0)),
+                [self.builder.load(field(self.builder, descriptor, 1))],
+            )
+        assert isinstance(res_ty, (LLVMPointerType, LLVMNDArrayType))
+        res_base_ty = self.to_ir_type(res_ty.element_type)
         if isinstance(res_base_ty, ir.VoidType):
             res_base_ty = ir.IntType(32)
 
-        new_v = self._heap_alloc(res_base_ty, size_val)
+        new_v = (
+            v_val
+            if self._filter_length_out is not None or descriptor is not None
+            else self._heap_alloc(res_base_ty, size_val)
+        )
         new_idx_ptr = self.builder.alloca(ir.IntType(32), name="filter_new_idx")
         self.builder.store(ir.Constant(ir.IntType(32), 0), new_idx_ptr)
 
         def body(idx):
             val = self.builder.load(self.builder.gep(v_val, [idx]))
-            keep = self.builder.call(f_val, [val])
+            keep = self.apply_callback(f, [val], ir.IntType(1))
             with self.builder.if_then(keep):
                 new_idx = self.builder.load(new_idx_ptr)
                 self.builder.store(val, self.builder.gep(new_v, [new_idx]))
                 self.builder.store(self.builder.add(new_idx, ir.Constant(ir.IntType(32), 1)), new_idx_ptr)
 
         self.to_ir_loop(size_val, "filter", body)
-        return new_v
+        count = self.builder.load(new_idx_ptr)
+        if self._filter_length_out is not None:
+            self.builder.store(count, self._filter_length_out)
+        elif descriptor is not None:
+            from aeon.llvm.ndarray import field
+
+            i64 = ir.IntType(64)
+            self.builder.store(ir.Constant(i64, 1), field(self.builder, descriptor, 2))
+            for axis in range(3):
+                index = ir.Constant(ir.IntType(32), axis)
+                self.builder.store(
+                    self.builder.zext(count, i64) if axis == 0 else ir.Constant(i64, 1),
+                    field(self.builder, descriptor, 3, index),
+                )
+                self.builder.store(ir.Constant(i64, 1), field(self.builder, descriptor, 4, index))
+        return descriptor if descriptor is not None else new_v
 
     def visit_vector_zipwith(self, node: LLVMVectorZipWith) -> ir.Value:
         res_ty, f, v1, v2, size = node.type, node.f, node.v1, node.v2, node.size
