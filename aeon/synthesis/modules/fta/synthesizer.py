@@ -95,6 +95,36 @@ from aeon.utils.name import Name
 StateKey = tuple[str, Any]
 
 
+def _value_state(value: Any, term: Term) -> StateKey:
+    """Freeze supported observations; never merge opaque values by repr alone."""
+    try:
+        frozen = _freeze(value)
+        try:
+            hash(frozen)
+        except TypeError:
+            # Images are mutable and deliberately unhashable. Snapshot content
+            # and interpretation metadata instead of retaining the live object.
+            try:
+                from PIL.Image import Image
+            except ImportError:
+                return ("opaque", id(term))
+            if not isinstance(value, Image):
+                return ("opaque", id(term))
+            frozen = (
+                "PIL.Image",
+                value.mode,
+                value.size,
+                value.tobytes(),
+                _freeze(value.getpalette()),
+                _freeze(value.info),
+                value.getexif().tobytes(),
+            )
+            hash(frozen)
+        return ("val", frozen)
+    except (TypeError, ValueError):
+        return ("opaque", id(term))
+
+
 @dataclass(frozen=True)
 class _MonoComponent:
     """A builder for candidate terms: a function/constructor, plus the concrete
@@ -328,12 +358,9 @@ class FTASynthesizer(Synthesizer):
                 except Exception:
                     v = None
                 if v is not None:
-                    try:
-                        return ("val", _freeze(v))
-                    except TypeError:
-                        return ("val", repr(v))
+                    return _value_state(v, term)
             if isinstance(term, Literal):
-                return ("val", term.value)
+                return _value_state(term.value, term)
             return ("term", str(term))
 
         def obs_examples(term: Term) -> StateKey:
@@ -391,6 +418,8 @@ class FTASynthesizer(Synthesizer):
         bank_states: dict[str, dict[Any, Term]] = {}  # example mode: state -> rep
 
         def add_bank(key: str, terms: list[Term]) -> None:
+            if best is not None or time.time() >= deadline:
+                return
             b = bank.setdefault(key, [])
             if example_mode:
                 # Observational-equivalence compression at *every* type (the FTA's
@@ -399,7 +428,7 @@ class FTASynthesizer(Synthesizer):
                 # that cannot be evaluated cannot be a state, so are dropped.
                 states = bank_states.setdefault(key, {})
                 for t in terms:
-                    if time.time() >= deadline:
+                    if best is not None or time.time() >= deadline:
                         break
                     st = obs_examples(t)
                     if st[0] != "vec":
@@ -417,6 +446,8 @@ class FTASynthesizer(Synthesizer):
                 return
             s = seen.setdefault(key, set())
             for t in terms:
+                if best is not None or time.time() >= deadline:
+                    break
                 k = str(t)
                 if k in s:
                     continue
