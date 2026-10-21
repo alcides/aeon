@@ -6,6 +6,8 @@ from hypothesis import given, strategies as st
 import numpy as np
 import pytest
 
+from aeon.compilation.resolve import get_package_libraries_dir
+
 from aeon.benchmarks.denser import (
     CONSTRUCTORS,
     DenserBenchmark,
@@ -66,7 +68,9 @@ def test_provenance_and_grammar_coverage():
     manifest = json.loads((TASK_DIR / "provenance.json").read_text())
     assert manifest["commit"] == SOURCE_COMMIT
     assert set(manifest["constructors"]) == CONSTRUCTORS
-    source = (TASK_DIR / "Denser.ae").read_text()
+    library = get_package_libraries_dir()
+    assert library is not None
+    source = (library / "Denser.ae").read_text()
     assert "native" not in source and "axiom" not in source and "?" not in source
     for constructor in CONSTRUCTORS:
         assert f"| {constructor} " in source

@@ -3,7 +3,7 @@
 The search produces an **Aeon expression**, not a Python genome. `mnist.ae`
 and `cifar10.ae` each have a single `?architecture` hole whose result must be
 a complete, correctly ordered network and learning configuration. The pure
-`Denser.ae` ADT provides the grammar and checked constructor refinements.
+`aeon/libraries/Denser.ae` ADT provides the grammar and checked constructor refinements.
 Python only orchestrates Aeon's existing search/compiler and executes tensor
 training. There are no axioms about accuracy, shape, or optimizer quality.
 
