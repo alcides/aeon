@@ -165,3 +165,35 @@ database. The default local profile is unchanged. See the
 [Hypothesis settings reference](https://hypothesis.readthedocs.io/en/latest/reference/api.html#settings)
 for reproduction and configuration. Coverage is reported without an arbitrary
 percentage gate; changes should add tests for the affected verification paths.
+
+## Readability review and functional composition
+
+A source review against master `3bfc0041` found useful existing boundaries:
+compiler phases have separate modules, compilation state has an explicit session
+owner, and generated tests exercise semantic invariants. The following are
+maintainability observations, not a full correctness or performance audit.
+
+| Area | Observation | Next step |
+| --- | --- | --- |
+| `compilation/link.py` | Context merges maintained several accumulators even though each output is a direct transformation of the inputs. Precedence rules were implicit in loop order. | Express merges as comprehensions and ordered deduplication, with explicit contracts and property tests. |
+| `compilation/compile.py::compile_program` | A 221-line function combines cache lookup, dependency loading, compiler phases, and artifact construction. | Extract cache validation and artifact construction as pure helpers before changing orchestration. Preserve error ordering and cached/uncached equivalence. |
+| `typechecking/typeinfer.py::_synth` | A 403-line AST dispatch function includes substantial logic within individual cases. | Extract complex cases along typing-rule boundaries, preserving constraint and binder ordering. Keep the dispatch visible. |
+| `typechecking/context.py` | Scope containers isolate structural mutations, but binder objects remain mutable and shared; tests explicitly depend on that behavior. | State ownership contracts at boundaries. Freezing binders would require a separate migration, not a mechanical refactor. |
+
+Line counts include comments and blank lines and are only navigation aids, not
+quality scores. Prefer named, typed transformations with visible inputs and
+outputs. Local mutation remains appropriate for graph traversal, memoization,
+and solver/session state where it avoids repeated copying or preserves sharing.
+
+The linker merge helpers now accept read-only `Sequence` inputs and construct
+fresh result containers. Typing-context merging keeps the first *equal entry*,
+not merely the first name, and unions every trust set. Elaboration entries and
+instances retain input order; constructor maps and metadata use the last value
+for a repeated key. The result still shares binders and metadata values with its
+inputs; this is shallow composition, not deep immutability. Hashability remains
+a requirement for typing entries, as it was with the previous `seen` set.
+
+`tests/link_contexts_test.py` checks duplicate precedence, trust union, lexical
+shadowing, empty inputs, and isolation of result-container mutations. Hypothesis
+varies duplicate distributions and metadata conflicts. Compilation integration
+and core property tests cover the surrounding compiler behavior.

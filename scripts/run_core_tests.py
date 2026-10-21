@@ -10,6 +10,7 @@ CORE_TESTS = [
     "tests/parser_locations_test.py",
     "tests/compilation_session_test.py",
     "tests/compilation_unit_test.py",
+    "tests/link_contexts_test.py",
     "tests/backend_test.py",
     "tests/substitutions_test.py",
     "tests/type_substitution_capture_test.py",
