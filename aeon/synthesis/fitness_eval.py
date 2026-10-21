@@ -84,13 +84,13 @@ def as_objective_vector(value: Any, length: int) -> list[float]:
             value = value[0]
         try:
             return [float(value)]
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             raise InvalidIndividualException()
     if not isinstance(value, (list, tuple)) or len(value) != length:
         raise InvalidIndividualException()
     try:
         return [float(x) for x in value]
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise InvalidIndividualException()
 
 
