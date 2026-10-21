@@ -36,7 +36,7 @@ dependencies = [
     'sympy',
     'textdistance',
     'cvc5 >= 1.1',
-    'z3-solver==5.1.0.0',
+    'z3-solver==5.3.1.0',
     'zss',
     "llvmlite",
 ]
