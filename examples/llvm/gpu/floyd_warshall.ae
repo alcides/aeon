@@ -11,7 +11,7 @@ def Vector_get (xs: (Vector Float)) (i: {v:Int | v >= 0 && v < length xs}) : Flo
 
 # Transfer a matrix to the existing read-only snapshot representation.
 def snapshot (1 matrix: (NDArray Float Rank2)) :
-    {r:(Vector Float) | length r = matrix.elements} := native "matrix.to_1d().to_array()"
+    {r:(Vector Float) | length r = matrix.elements} := native "matrix.snapshot()"
 
 @gpu
 def relax_row
