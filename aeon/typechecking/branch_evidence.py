@@ -69,10 +69,7 @@ def match_branch_evidence(
     fact = substitution_in_liquid(result.refinement, LiquidVar(scrut.name), result.name)
     for constructor_name, field_term in mapping.items():
         fact = substitution_in_liquid(fact, field_term, constructor_name)
-    # Exact constructor equations currently need a monomorphic SMT sort.
-    # Polymorphic eliminators retain their existing constructor refinements;
-    # injecting an unspecialized constructor would mix distinct Z3 sorts.
-    if not isinstance(ctor_type, (TypePolymorphism, RefinementPolymorphism)):
-        constructor = LiquidApp(ctor_name, [LiquidVar(n) for n, _ in fields]) if fields else LiquidVar(ctor_name)
-        fact = LiquidApp(Name("&&", 0), [fact, LiquidApp(Name("==", 0), [LiquidVar(scrut.name), constructor])])
+    # Preserve the exact constructor at the scrutinee's instantiated sort.
+    constructor = LiquidApp(ctor_name, [LiquidVar(n) for n, _ in fields]) if fields else LiquidVar(ctor_name)
+    fact = LiquidApp(Name("&&", 0), [fact, LiquidApp(Name("==", 0), [LiquidVar(scrut.name), constructor])])
     return MatchBranchEvidence(body, expected, tuple(fields), fact)

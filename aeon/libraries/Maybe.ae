@@ -5,8 +5,10 @@
 # type so the same library serves ``Maybe Int``, ``Maybe String``, etc.
 
 inductive Maybe a
-| none : (Maybe a)
-| just (v:a) : (Maybe a)
+| none : {m:(Maybe a) | !present m}
+| just (v:a) : {m:(Maybe a) | present m && value m = v}
++ present (m:(Maybe a)) : Bool
++ value (m:(Maybe a)) : a
 
 # Returns ``true`` when the value is absent.
 def isNone (m:(Maybe a)) : Bool := m.rec true (fun v => false)

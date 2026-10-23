@@ -204,7 +204,9 @@ def implication_constraint(
             # ``_specialize_liquid_term`` monomorphises per call. Skip functions
             # whose result is a bare type variable (native/uninterpreted
             # builtins) — they have no SMT sort.
-            if is_first_order_function(lowered) and _has_concrete_base_result(ty):
+            from aeon.verification.constructor_registry import is_registered_measure
+
+            if is_first_order_function(lowered) and (_has_concrete_base_result(ty) or is_registered_measure(name.name)):
                 return UninterpretedFunctionDeclaration(name, lowered, c)
             return c
         case _:

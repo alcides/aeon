@@ -385,6 +385,8 @@ def _collect_specialisation(expected: Type, actual: Type, subst: dict[str, TypeC
         f"_collect_specialisation: actual must be a TypeConstructor (got {actual!r}); "
         f"_term_base_type is the documented source and only returns TypeConstructor"
     )
+    while isinstance(expected, RefinedType):
+        expected = expected.type
     if not isinstance(expected, TypeConstructor):
         return
     if not expected.args:
@@ -470,11 +472,8 @@ def _specialize_liquid_term(
         nargs.append(sa)
 
     fname = str(t.fun)
-    # Exact datatype constructors are already monomorphic in Z3 (``List_Int.cons``);
-    # do not emit ``__spec__`` twins over opaque ``List_a`` sorts — those fight the
-    # reflected ADT (LH exact-data-cons).
-    if is_datatype_constructor_name(fname):
-        return (t if not args_changed else LiquidApp(t.fun, nargs, loc=t.loc)), nfuncs, nref
+    # Specialize constructor signatures too, so enclosing applications can
+    # infer concrete type arguments from their results.
     if fname not in nfuncs:
         return (t if not args_changed else LiquidApp(t.fun, nargs, loc=t.loc)), nfuncs, nref
 
@@ -609,7 +608,9 @@ def _contract_well_scoped(t: LiquidTerm, ctx: SMTContext) -> bool:
     a built-in), and every free variable must be a bound scalar.
     """
     if isinstance(t, LiquidVar):
-        return str(t.name) in ctx.variables
+        from aeon.verification.constructor_registry import get_constructor_groups
+
+        return str(t.name) in ctx.variables or any(t.name.name in group for group in get_constructor_groups().values())
     if isinstance(t, LiquidApp):
         is_operator = all(not c.isalnum() and c != "_" for c in t.fun.name)
         if not (is_operator or str(t.fun) in ctx.functions or t.fun.name in base_functions):
@@ -1273,6 +1274,26 @@ def translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tupl
     return result
 
 
+def _translate_at_sort(t: LiquidTerm, expected: SortRef, variables: dict[str, Any], memo):
+    """Instantiate constructor occurrences at the consuming expression's sort.
+
+    In particular, one polymorphic nil symbol can occur at List Int and List
+    Bool in the same VC. Never cache this context-dependent translation by
+    term identity alone.
+    """
+    from z3 import is_func_decl
+
+    name = t.name if isinstance(t, LiquidVar) else t.fun if isinstance(t, LiquidApp) else None
+    if name is not None:
+        ctor = lookup_constructor(str(name), str(expected))
+        if ctor is not None:
+            if is_func_decl(ctor) and isinstance(t, LiquidApp) and ctor.range() == expected:
+                return ctor(*[_translate_at_sort(arg, ctor.domain(i), variables, memo) for i, arg in enumerate(t.args)])
+            if not is_func_decl(ctor) and isinstance(t, LiquidVar) and ctor.sort() == expected:
+                return ctor
+    return translate_liq(t, variables, memo)
+
+
 def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None):
     match t:
         case LiquidLiteralBool(b):
@@ -1309,6 +1330,31 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
         case LiquidApp(fun_name, args):
+            if fun_name.name in {"==", "!="} and len(args) == 2:
+                # Prefer the non-constructor side as the source of a concrete
+                # sort; the other side may be a polymorphic nullary constructor.
+                lhs, rhs = args
+                lname = lhs.name if isinstance(lhs, LiquidVar) else lhs.fun if isinstance(lhs, LiquidApp) else None
+                rname = rhs.name if isinstance(rhs, LiquidVar) else rhs.fun if isinstance(rhs, LiquidApp) else None
+                if (
+                    lname is not None
+                    and lookup_constructor(str(lname)) is not None
+                    and not (rname is not None and lookup_constructor(str(rname)) is not None)
+                ):
+                    right = translate_liq(rhs, variables, memo)
+                    left = (
+                        _translate_at_sort(lhs, right.sort(), variables, memo)
+                        if hasattr(right, "sort")
+                        else translate_liq(lhs, variables, memo)
+                    )
+                else:
+                    left = translate_liq(lhs, variables, memo)
+                    right = (
+                        _translate_at_sort(rhs, left.sort(), variables, memo)
+                        if hasattr(left, "sort")
+                        else translate_liq(rhs, variables, memo)
+                    )
+                return left == right if fun_name.name == "==" else left != right
             # Prefer reflected datatype constructors / LH measures over
             # specialised uninterpreted twins when the symbol is exact.
             # ``__spec__`` twins are monomorphisations over *opaque* sorts
@@ -1335,7 +1381,14 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                 if fun is None:
                     fun = variables.get(constructor_logical_name(str(fun_name)))
             assert fun is not None, f"Function {fun_name} not found." + str(variables)
-            args = [translate_liq(a, variables, memo) for a in args]
+            from z3 import is_func_decl
+
+            args = [
+                _translate_at_sort(a, fun.domain(i), variables, memo)
+                if is_func_decl(fun) and i < fun.arity()
+                else translate_liq(a, variables, memo)
+                for i, a in enumerate(args)
+            ]
             if fun_name.name in ("/", "%"):
                 # Evaluate division and modulo with Z3 numeric semantics, not
                 # Python's. On two Python int literals, Python's ``/`` is *float*

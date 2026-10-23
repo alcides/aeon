@@ -115,7 +115,7 @@
         "appRightIdP",
         "appAssocP"
       ],
-      "adaptation": "Code fuses List Op into constructors; Result represents Maybe Stack; bind specialized to exec continuation."
+      "adaptation": "Code fuses List Op into constructors; Results use standard Maybe (List Int); bind specialized to exec continuation."
     },
     {
       "section": "5",

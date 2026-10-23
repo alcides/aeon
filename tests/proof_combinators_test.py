@@ -48,15 +48,15 @@ def test_incomplete_pattern_is_not_a_completed_proof(tmp_path):
 
 def test_invalid_machine_implementation_is_rejected(tmp_path):
     source = (ROOT / "Paper.ae").read_text().split("# First-order specialization")[0]
-    assert "exec t (List.cons (n + m) ss)" in source
-    source = source.replace("exec t (List.cons (n + m) ss)", "exec t (List.cons (n - m) ss)")
+    assert "(n + m) ss" in source
+    source = source.replace("(n + m) ss", "(n - m) ss")
     _, errors = compile_source(tmp_path, source)
     assert any(isinstance(e, LiquidTypeCheckingFailedRelation) for e in errors), errors
 
 
 def test_induction_hypothesis_is_required(tmp_path):
     source = (ROOT / "Paper.ae").read_text().split("def rightIdP")[0]
-    source += "def unsupported (xs:List) : {p:Unit | append xs List.nil = xs} := unit;"
+    source += "def unsupported (xs:(List Int)) : {p:Unit | append xs emptyList = xs} := unit;"
     _, errors = compile_source(tmp_path, source)
     assert any(isinstance(e, LiquidTypeCheckingFailedRelation) for e in errors), errors
 
@@ -87,3 +87,40 @@ def test_manifest_covers_every_port_and_negative_fixture():
         for symbol in item["aeon"]:
             assert f"def {symbol} " in source or f"def {symbol} :" in source
     assert {item["section"] for item in manifest["examples"]} >= {"2", "3", "4", "5", "6"}
+
+
+def test_examples_use_standard_containers():
+    source = (ROOT / "Paper.ae").read_text()
+    assert "import List;" in source and "import Maybe;" in source
+    assert "inductive List" not in source and "inductive Result" not in source
+
+
+def test_standard_lists_at_two_element_types(tmp_path):
+    source = """import List;
+    import Maybe;
+    import ProofCombinators;
+    def integers (xs:(List Int)) : {p:Unit | xs = xs} :=
+      match xs with | nil => xs ==. List.nil{Int} *** QED | cons h t => xs ==. List.cons h t *** QED;
+    def booleans (xs:(List Bool)) : {p:Unit | xs = xs} :=
+      match xs with | nil => List.nil{Bool} ==. xs *** QED | cons h t => List.cons h t ==. xs *** QED;
+    def nested (xs:(List Bool)) : Unit :=
+      Maybe.just xs ==. Maybe.just xs *** QED;
+    def main (_:Int) : Int :=
+      let i := integers [1, 2] in let b := booleans [true, false] in
+      let n := nested [true] in List.length [1, 2, 3];
+    """
+    driver, errors = compile_source(tmp_path, source, no_main=False)
+    assert not errors, errors
+    assert not driver.has_synth()
+    assert driver.run() == 3
+
+
+def test_standard_list_constructor_cannot_prove_wrong_element(tmp_path):
+    source = """import List;
+    import ProofCombinators;
+    def falseHead (xs:(List Bool)) : Unit :=
+      match xs with | nil => unit | cons h t => List.cons true t ==. List.cons false t *** QED;
+
+    """
+    _, errors = compile_source(tmp_path, source)
+    assert any(isinstance(e, LiquidTypeCheckingFailedRelation) for e in errors), errors

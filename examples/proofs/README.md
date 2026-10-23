@@ -61,12 +61,16 @@ hypothesis. Runtime examples complement the universal refinement proofs.
 
 ## Adaptations and boundaries
 
-- The paper's list theorems are specialized to integer lists; the combinator
+- The paper's list theorems use the standard `List Int` datatype; the combinator
   library itself remains polymorphic. The tree and compiler already use integers.
 - `Code` fuses `[Op]` into `done`, `PUSH n rest`, and `ADD rest`. `app` is its
-  concatenation. `Result` is `Maybe Stack`, preserving failure on underflow.
+  concatenation. Results use standard `Maybe (List Int)`, preserving failure on underflow.
   `bindExec` specializes monadic bind to the continuation `exec d`; it does not
   claim a general higher-order reflection facility.
+- The reference `append`, `reverse`, and `length` definitions retain the paper's
+  algorithms and checked equations, operating on standard library lists.
+  Constructor calls explicitly select the unrestricted element predicate
+  (`{|fun value => true|}`), avoiding repeated abstract-refinement inference.
 - Aeon does not yet reflect arbitrary pattern matches automatically. Function
   signatures give guarded defining equations, and the checker verifies those
   equations against every implementation branch. There are no trusted proof

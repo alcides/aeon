@@ -7,9 +7,12 @@
 #    that every element of the list satisfies. The refinement flows through
 #    every constructor: a value can only enter the list if it satisfies ``p``.
 inductive List a forall <p : a -> Bool>
-| nil : {l: (List a) | size l = 0}
-| cons (hd: {v:a | p v}) (tl: (List a)) : {l: (List a) | size l = size tl + 1}
+| nil : {l: (List a) | size l = 0 && rank l = 0}
+| cons (hd: {v:a | p v}) (tl: (List a)) : {l: (List a) | size l = size tl + 1 && rank l = rank tl + 1 && rank tl >= 0 && first l = hd && rest l = tl}
 + size (l: (List a)) : Int
++ rank (l: (List a)) : Int
++ first (l: (List a)) : a
++ rest (l: (List a)) : (List a)
 
 
 # Length of the list (counted by recursion).

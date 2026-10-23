@@ -211,6 +211,8 @@ def type_infer_liquid(
         case LiquidLiteralUnit():
             return t_unit
         case LiquidVar(name):
+            if name not in ctx.variables and name in ctx.functions and len(ctx.functions[name]) == 1:
+                return ctx.functions[name][0]
             if name not in ctx.variables:
                 raise LiquidTypeCheckException(f"Variable {name} not in context in {ctx}.")
 
@@ -240,8 +242,8 @@ def type_infer_liquid(
 
             def resolve_type(ty: Type) -> TypeConstructor | TypeVar:
                 match ty:
-                    case TypeConstructor(_, _):
-                        return ty
+                    case TypeConstructor(name, args):
+                        return TypeConstructor(name, [resolve_type(arg) for arg in args], loc=ty.loc)
                     case TypeVar(tv):
                         if tv in equalities:
                             return resolve_type(equalities[tv])
@@ -322,8 +324,40 @@ def type_infer_liquid(
                             f"Could not unify {actual} ({type(actual)}) and {expected} ({type(expected)}) in {liq}."
                         )
 
-            for arg, exp_t in zip(args, ftype):
+            def nullary_schema(arg: LiquidTerm) -> bool:
+                return (
+                    isinstance(arg, LiquidVar)
+                    and arg.name not in ctx.variables
+                    and len(ctx.functions.get(arg.name, [])) == 1
+                )
+
+            pairs = list(zip(args, ftype))
+            if fun.name in {"==", "!="} and nullary_schema(args[0]) and not nullary_schema(args[1]):
+                pairs.reverse()
+            for arg, exp_t in pairs:
                 k = type_infer_liquid(ctx, arg)
+                if nullary_schema(arg):
+                    # A polymorphic nullary constructor (nil/None) gets its
+                    # type arguments from this occurrence's expected type.
+                    def instantiate(schema: Type, expected: Type) -> Type:
+                        if isinstance(schema, TypeVar):
+                            return expected
+                        if (
+                            isinstance(schema, TypeConstructor)
+                            and isinstance(expected, TypeConstructor)
+                            and schema.name == expected.name
+                            and len(schema.args) == len(expected.args)
+                        ):
+                            return TypeConstructor(
+                                schema.name,
+                                [instantiate(a, b) for a, b in zip(schema.args, expected.args)],
+                                loc=schema.loc,
+                            )
+                        return schema
+
+                    instantiated = instantiate(k, resolve_type(exp_t))
+                    assert isinstance(instantiated, (TypeConstructor, TypeVar))
+                    k = instantiated
                 type_of_args.append(k)
                 _unify(k, exp_t)
 
