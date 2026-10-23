@@ -280,7 +280,7 @@ def _reflected_impl_for(
     return (tuple(ty_params), liq)
 
 
-def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
+def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool = False) -> LiquidTerm | None:
     """Liquid encoding of an application term for selfification (issue #378).
 
     Returns the ``LiquidTerm`` for ``t`` when the whole term is expressible in
@@ -295,13 +295,13 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
     liquid fragment already makes everywhere applications appear in
     refinements and termination metrics; selfification adds no new trust.
     """
-    # Primitive contracts already characterize their results. Reject them
-    # before traversing the arguments: generated Boolean formulas can contain
-    # millions of nodes, and visiting every subtree here is quadratic.
+    # A primitive with a refined result already has an exact contract. Skip
+    # identity construction before visiting its arguments: generated Boolean
+    # formulas can contain millions of nodes, making repeated traversal quadratic.
     head = t
     while isinstance(head, (Application, TypeApplication, RefinementApplication)):
         head = head.fun if isinstance(head, Application) else head.body
-    if isinstance(head, Var) and head.name.name in {op.name for op in ops}:
+    if skip_primitives and isinstance(head, Var) and head.name.name in {op.name for op in ops}:
         return None
 
     # Identity is optional evidence. Bound its size before liquefaction so a
@@ -392,7 +392,7 @@ def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
             v = Name("_self", fresh_counter.fresh())
             return RefinedType(v, ty, LiquidApp(Name("==", 0), [LiquidVar(v), liq]))
         case RefinedType(name, base, refinement) if selfifiable_base(base):
-            liq = _selfification_liquid(ctx, t)
+            liq = _selfification_liquid(ctx, t, skip_primitives=True)
             if liq is None or (isinstance(liq, LiquidApp) and liq.fun.name in {op.name for op in ops}):
                 return ty
             return RefinedType(name, base, _and(refinement, LiquidApp(Name("==", 0), [LiquidVar(name), liq])))
