@@ -1,0 +1,4 @@
+import ProofCombinators;
+inductive Flag | On : Flag | Off : Flag
+# Section 3: the omitted case must not count as a completed proof.
+def partial (f:Flag) : Unit := match f with | On => 1 ==. 1 *** QED;

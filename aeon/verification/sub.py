@@ -164,10 +164,10 @@ def implication_constraint(
         return c
     # ``keep_refinements`` preserves a function's argument/return refinements in
     # its uninterpreted declaration so its contract can be instantiated per call
-    # site at the SMT layer (issue #378). It is set only for *trusted*
-    # native/uninterpreted bindings, whose contract is an axiom; a regular
-    # function's body is verified separately, so assuming its own postcondition
-    # while checking (or synthesising) that body would be circular.
+    # site at the SMT layer (issue #378). Trusted natives use it as an axiom;
+    # checked functions expose it to their continuation only. Assuming a
+    # regular function's own postcondition while checking that function would
+    # be circular, so its body obligations must still erase the contract.
     lower = lower_constraint_type_keep_refinements if keep_refinements else lower_constraint_type
     match ty:
         case Top() | TypeVar(_) | TypeConstructor(_, _):

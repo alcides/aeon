@@ -1,0 +1,4 @@
+import ProofCombinators;
+# A caller may use an established contract; its own implementation may not.
+def wrong (x:Int) : {y:Int | y = x + 1} := x;
+def circular (x:Int) : {p:Unit | wrong x = x + 1} := wrong x ==. x + 1 *** QED;

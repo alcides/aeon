@@ -188,8 +188,16 @@ pred_sort : type (_ARROW type)+                              -> pred_sort
           | "match" expression "with" match_branches              -> match_e
           | expression_dollar
 
-?expression_dollar : expression_un
-                  | expression_un "$" expression_i                  -> binop_dollar
+?expression_dollar : expression_proof
+                  | expression_proof "$" expression_i                  -> binop_dollar
+
+// Proof notation expands to ordinary checked library calls (import required).
+?expression_proof : expression_chain
+                  | expression_chain "***" "QED" -> proof_qed
+?expression_chain : expression_reason
+                  | expression_chain "==." expression_reason -> proof_eq
+?expression_reason : expression_un
+                   | expression_reason "?" expression_un -> proof_because
 
 match_branches : match_branch+                                 -> list
 match_branch : _PIPE ID pat_binders _FATARROW expression            -> match_branch
@@ -302,7 +310,7 @@ non_dot_simple : "(" expression ")"                          -> same
         // or ``(+)``. Lexed as one token (no inner spaces) so it never
         // conflicts with a parenthesised expression.
         | OPSECTION                                          -> var_op
-        | "?" ID                                             -> hole
+        | HOLE                                               -> hole
         // Lean-style collection literals. ``[1, 2, 3]`` desugars to
         // ``List.cons``/``List.nil`` and ``#[1, 2, 3]`` to ``Array.new``/
         // ``Array.append`` (element types are inferred). ``[`` is unambiguously a
@@ -384,3 +392,5 @@ COMMENT: /\s*#(?!\[)[^\n]*/
 
 %ignore WS
 %ignore COMMENT
+
+HOLE : /\?[a-zA-Z_][a-zA-Z0-9_]*/

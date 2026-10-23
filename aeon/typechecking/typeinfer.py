@@ -341,12 +341,11 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
 def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
     """Strengthen an application's synthesised type with ``v == ⟦t⟧``.
 
-    Only fires when the result type carries no information of its own — a bare
-    base type or a trivially-refined one. Refined codomains (primitive
-    operators, refined natives) already state their contract; adding the
-    equality there would only grow VCs. This is what lets facts proved about
-    the *application term* (e.g. an instantiated axiom about ``fdiv n 10``)
-    reach obligations phrased about its *result* (issue #378).
+    Preserve existing refinements as well as the application's identity: a
+    return contract need not uniquely characterize its result. This connects
+    equational proof steps about a call to facts about its returned value.
+    Primitive operators already specify their exact result and need no extra
+    equality.
     """
 
     def selfifiable_base(base: Type) -> bool:
@@ -363,11 +362,11 @@ def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
                 return ty
             v = Name("_self", fresh_counter.fresh())
             return RefinedType(v, ty, LiquidApp(Name("==", 0), [LiquidVar(v), liq]))
-        case RefinedType(name, base, LiquidLiteralBool(True)) if selfifiable_base(base):
+        case RefinedType(name, base, refinement) if selfifiable_base(base):
             liq = _selfification_liquid(ctx, t)
-            if liq is None:
+            if liq is None or (isinstance(liq, LiquidApp) and liq.fun.name in {op.name for op in ops}):
                 return ty
-            return RefinedType(name, base, LiquidApp(Name("==", 0), [LiquidVar(name), liq]))
+            return RefinedType(name, base, _and(refinement, LiquidApp(Name("==", 0), [LiquidVar(name), liq])))
         case _:
             return ty
 
@@ -801,7 +800,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
             )
             c2 = implication_constraint(
-                var_name, var_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+                var_name, var_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=True
             )
             term_c = termination_metric_constraints(t, term_ctx)
             # Do not assume this definition while proving its termination:
@@ -1108,10 +1107,10 @@ def _check_recursor_branch(
     ``(f₁) → … → (f_k) → motive`` (already carrying the expected motive); on top
     of the usual field hypotheses we add the constructor's *result* refinement,
     specialised to the scrutinee (``size this = size tl + 1`` becomes
-    ``size scrut = size <field-for-tl> + 1``). That fact -- a pure measure
-    statement, which is all aeon's SMT logic models about a datatype -- is what
-    a non-dependent ``ret`` motive drops, and is exactly the match-branch
-    hypothesis. Falls back to a plain check (motive only, no constructor fact)
+    ``size scrut = size <field-for-tl> + 1``). For monomorphic constructors,
+    also retain ``scrut = Constructor fields`` so equational proofs can use
+    the exact datatype representation. These are the match-branch facts that
+    a non-dependent ``ret`` motive drops. Falls back to a plain check (motive only, no constructor fact)
     if the constructor's shape cannot be recovered."""
     plain = lambda: check(ctx, handler, case_type)  # noqa: E731
     evidence = match_branch_evidence(ctx, handler, case_type, tyname, case_name, scrut)
@@ -1225,7 +1224,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
             )
             c2 = implication_constraint(
-                var_name, t1, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+                var_name, t1, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=True
             )
             term_c = termination_metric_constraints(t, term_ctx)
             # Termination must be proved without assuming self-reflection;

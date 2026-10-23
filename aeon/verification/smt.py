@@ -45,7 +45,8 @@ from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
-from aeon.core.substitutions import substitution_in_liquid
+from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
+from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Top, TypePolymorphism
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
@@ -705,12 +706,16 @@ def _rename_constraint_node(
                 return Implication(name, base, npred, nseq, loc=c.loc)
         case UninterpretedFunctionDeclaration(name, absty, seq):
             nseq = visit(seq)
-            return UninterpretedFunctionDeclaration(name, absty, nseq)
+            renamed_type = substitution_in_type(absty, Var(new_name), old_name)
+            assert isinstance(renamed_type, AbstractionType)
+            return UninterpretedFunctionDeclaration(name, renamed_type, nseq)
         case ReflectedFunctionDeclaration(name, absty, params, body, seq):
             nbody = substitution_in_liquid(body, LiquidVar(new_name), old_name)
             nparams = tuple(new_name if p == old_name else p for p in params)
             nseq = visit(seq)
-            return ReflectedFunctionDeclaration(name, absty, nparams, nbody, nseq)
+            renamed_type = substitution_in_type(absty, Var(new_name), old_name)
+            assert isinstance(renamed_type, AbstractionType)
+            return ReflectedFunctionDeclaration(name, renamed_type, nparams, nbody, nseq)
         case _:
             assert False, f"Unexpected case {c} ({type(c)})"
 

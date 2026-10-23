@@ -1,0 +1,305 @@
+# Adapted from Lists.hs in EquationalReasoningInLiquidHaskell (MIT).
+# Explicit defining equations replace Liquid Haskell's `reflect` annotation.
+import ProofCombinators;
+inductive List
+| nil : {xs:List | List.rank xs = 0}
+| cons (hd:Int) (tl:{xs:List | List.rank xs >= 0}) : {xs:List | List.rank xs = List.rank tl + 1 && List.head xs = hd && List.tail xs = tl}
++ rank (xs:List) : Int
++ head (xs:List) : Int
++ tail (xs:List) : List
+
+def length (xs:List) : {n:Int | n = List.rank xs && n >= 0} decreasing_by [List.rank xs] :=
+ match xs with | nil => 0 | cons h t => 1 + length t;
+
+def append (xs:List) (ys:{v:List | List.rank v >= 0}) : {r:List |
+ (List.rank xs = 0 --> r = ys) &&
+ (List.rank xs > 0 --> r = List.cons (List.head xs) (append (List.tail xs) ys)) &&
+ List.rank r = List.rank xs + List.rank ys && List.rank r >= 0}
+ decreasing_by [List.rank xs] :=
+ match xs with | nil => ys | cons h t => List.cons h (append t ys);
+
+def reverse (xs:List) : {r:List |
+ (List.rank xs = 0 --> r = List.nil) &&
+ (List.rank xs > 0 --> r = append (reverse (List.tail xs)) (List.cons (List.head xs) List.nil)) &&
+ List.rank r = List.rank xs && List.rank r >= 0}
+ decreasing_by [List.rank xs] :=
+ match xs with | nil => List.nil | cons h t => append (reverse t) (List.cons h List.nil);
+
+def rightIdP (xs:List) : {p:Unit | append xs List.nil = xs} decreasing_by [List.rank xs] :=
+ match xs with
+ | nil => unit
+ | cons h t => append xs List.nil ==. xs ? rightIdP t *** QED;
+
+# The companion calls its automated right-identity variant leftIdP.
+def leftIdP (xs:List) : {p:Unit | append xs List.nil = xs} decreasing_by [List.rank xs] :=
+ match xs with | nil => unit | cons h t => let ih := leftIdP t in unit;
+
+def assocP (xs:List) (ys:{v:List | List.rank v >= 0}) (zs:{v:List | List.rank v >= 0})
+ : {p:Unit | append xs (append ys zs) = append (append xs ys) zs}
+ decreasing_by [List.rank xs] :=
+ match xs with | nil => unit | cons h t => let ih := assocP t ys zs in
+   let step := append (List.cons h (append t ys)) zs in unit;
+
+def singletonP (x:Int) : {p:Unit | reverse (List.cons x List.nil) = List.cons x List.nil} :=
+ ProofCombinators.qed (ProofCombinators.eq (reverse (List.cons x List.nil)) (List.cons x List.nil));
+def singleton1P : {p:Unit | reverse (List.cons 1 List.nil) = List.cons 1 List.nil} := singletonP 1;
+
+def distributivityP (xs:List) (ys:{v:List | List.rank v >= 0})
+ : {p:Unit | reverse (append xs ys) = append (reverse ys) (reverse xs)}
+ decreasing_by [List.rank xs] :=
+ match xs with
+ | nil => let identity := rightIdP (reverse ys) in unit
+ | cons h t =>
+   let ih := distributivityP t ys in
+   let association := assocP (reverse ys) (reverse t) (List.cons h List.nil) in
+   let step := reverse (List.cons h (append t ys)) in
+   reverse (append xs ys) ==. append (reverse ys) (reverse xs) *** QED;
+
+def involutionP (xs:List) : {p:Unit | reverse (reverse xs) = xs}
+ decreasing_by [List.rank xs] :=
+ match xs with
+ | nil => unit
+ | cons h t =>
+   let distribution := distributivityP (reverse t) (List.cons h List.nil) in
+   let ih := involutionP t in
+   let singleton := singletonP h in
+   let step := append (List.cons h List.nil) t in
+   reverse (reverse xs) ==. xs *** QED;
+
+# Paper section 4; explicit equations are checked, not assumed.
+
+
+def reverseApp0 (xs:List) (ys:{v:List | List.rank v >= 0})
+ : {r:List | r = append (reverse xs) ys} := append (reverse xs) ys;
+def reverseApp1 (xs:List) (ys:{v:List | List.rank v >= 0})
+ : {r:List | r = append (reverse xs) ys} :=
+ match xs with | nil => append (reverse xs) ys | cons h t => append (reverse xs) ys;
+def reverseApp (xs:List) (ys:{v:List | List.rank v >= 0})
+ : {r:List | r = append (reverse xs) ys && List.rank r >= 0}
+ decreasing_by [List.rank xs] :=
+ match xs with
+ | nil => ys
+ | cons h t =>
+   let association := assocP (reverse t) (List.cons h List.nil) ys in
+   let step := append (List.cons h List.nil) ys in
+   reverseApp t (List.cons h ys);
+def reverseFast (xs:List) : {r:List | r = reverse xs} :=
+ let identity := rightIdP (reverse xs) in reverseApp xs List.nil;
+
+inductive Tree
+| Leaf (n:Int) : {t:Tree | Tree.rank t = 1 && Tree.value t = n}
+| Node (l:{t:Tree | Tree.rank t >= 1}) (r:{t:Tree | Tree.rank t >= 1})
+ : {t:Tree | Tree.rank t = 1 + Tree.rank l + Tree.rank r && Tree.left t = l && Tree.right t = r}
++ rank (t:Tree) : Int
++ value (t:Tree) : Int
++ left (t:Tree) : Tree
++ right (t:Tree) : Tree
+
+def flatten (t:Tree) : {xs:List |
+ (Tree.rank t = 1 --> xs = List.cons (Tree.value t) List.nil) &&
+ (Tree.rank t > 1 --> xs = append (flatten (Tree.left t)) (flatten (Tree.right t))) &&
+ List.rank xs >= 0}
+ decreasing_by [Tree.rank t] :=
+ match t with | Leaf n => List.cons n List.nil | Node l r => append (flatten l) (flatten r);
+def flattenApp0 (t:Tree) (ns:{v:List | List.rank v >= 0})
+ : {v:List | v = append (flatten t) ns} := append (flatten t) ns;
+def flattenApp (t:Tree) (ns:{v:List | List.rank v >= 0})
+ : {v:List | v = append (flatten t) ns && List.rank v >= 0}
+ decreasing_by [Tree.rank t] :=
+ match t with
+ | Leaf n =>
+   let step := append (List.cons n List.nil) ns in List.cons n ns
+ | Node l r =>
+   let association := assocP (flatten l) (flatten r) ns in flattenApp l (flattenApp r ns);
+def flattenFast (t:Tree) : {v:List | v = flatten t} :=
+ let identity := rightIdP (flatten t) in flattenApp t List.nil;
+
+# Section 5: a total stack machine. Code fuses [Op] into nil/PUSH/ADD.
+inductive Expr
+| Val (n:Int) : {e:Expr | Expr.rank e = 1 && Expr.value e = n && Expr.adds e = 0}
+| Add (x:{e:Expr | Expr.rank e >= 1}) (y:{e:Expr | Expr.rank e >= 1})
+ : {e:Expr | Expr.rank e = 1 + Expr.rank x + Expr.rank y && Expr.left e = x && Expr.right e = y && Expr.adds e = 1 + Expr.adds x + Expr.adds y}
++ rank (e:Expr) : Int
++ value (e:Expr) : Int
++ left (e:Expr) : Expr
++ right (e:Expr) : Expr
++ adds (e:Expr) : Int
+
+def eval (e:Expr) : {n:Int |
+ (Expr.rank e = 1 --> n = Expr.value e) &&
+ (Expr.rank e > 1 --> n = eval (Expr.left e) + eval (Expr.right e))}
+ decreasing_by [Expr.rank e] :=
+ match e with | Val n => n | Add x y => eval x + eval y;
+
+inductive Code
+| done : {c:Code | Code.rank c = 0 && Code.tag c = 0 && Code.adds c = 0}
+| PUSH (n:Int) (c:{c:Code | Code.rank c >= 0})
+ : {d:Code | Code.rank d = Code.rank c + 1 && Code.tag d = 1 && Code.value d = n && Code.tail d = c && Code.adds d = Code.adds c}
+| ADD (c:{c:Code | Code.rank c >= 0})
+ : {d:Code | Code.rank d = Code.rank c + 1 && Code.tag d = 2 && Code.tail d = c && Code.adds d = Code.adds c + 1}
++ rank (c:Code) : Int
++ tag (c:Code) : Int
++ value (c:Code) : Int
++ tail (c:Code) : Code
++ adds (c:Code) : Int
+
+def app (c:Code) (d:{c:Code | Code.rank c >= 0}) : {r:Code |
+ (Code.tag c = 0 --> r = d) &&
+ (Code.tag c = 1 --> r = Code.PUSH (Code.value c) (app (Code.tail c) d)) &&
+ (Code.tag c = 2 --> r = Code.ADD (app (Code.tail c) d)) &&
+ Code.rank r = Code.rank c + Code.rank d && Code.rank r >= 0 && Code.adds r = Code.adds c + Code.adds d}
+ decreasing_by [Code.rank c] :=
+ match c with | done => d | PUSH n t => Code.PUSH n (app t d) | ADD t => Code.ADD (app t d);
+
+def appRightIdP (c:Code) : {p:Unit | app c Code.done = c} decreasing_by [Code.rank c] :=
+ match c with | done => unit | PUSH n t => let ih := appRightIdP t in unit | ADD t => let ih := appRightIdP t in unit;
+def appAssocP (c:Code) (d:{c:Code | Code.rank c >= 0}) (e:{c:Code | Code.rank c >= 0})
+ : {p:Unit | app (app c d) e = app c (app d e)} decreasing_by [Code.rank c] :=
+ match c with
+ | done => unit
+ | PUSH n t => let ih := appAssocP t d e in let step := app (Code.PUSH n (app t d)) e in unit
+ | ADD t => let ih := appAssocP t d e in let step := app (Code.ADD (app t d)) e in unit;
+
+inductive Result
+| Nothing : {r:Result | Result.ok r = false}
+| Just (s:{s:List | List.rank s >= 0}) : {r:Result | Result.ok r = true && Result.stack r = s}
++ ok (r:Result) : Bool
++ stack (r:Result) : List
+
+def exec (c:Code) (s:{s:List | List.rank s >= 0}) : {r:Result |
+ (Code.tag c = 0 --> r = Result.Just s) &&
+ (Code.tag c = 1 --> r = exec (Code.tail c) (List.cons (Code.value c) s)) &&
+ (Code.tag c = 2 && List.rank s < 2 --> r = Result.Nothing) &&
+ (Code.tag c = 2 && List.rank s >= 2 -->
+   r = exec (Code.tail c) (List.cons (List.head (List.tail s) + List.head s) (List.tail (List.tail s))))}
+ decreasing_by [Code.rank c] :=
+ match c with
+ | done => Result.Just s
+ | PUSH n t => exec t (List.cons n s)
+ | ADD t => match s with
+   | nil => Result.Nothing
+   | cons m rest => match rest with
+     | nil => Result.Nothing
+     | cons n ss => exec t (List.cons (n + m) ss);
+
+# First-order specialization of (>>=) to the continuation `exec d`.
+def bindExec (r:Result) (d:Code) : {v:Result |
+ (Result.ok r --> v = exec d (Result.stack r)) && (!Result.ok r --> v = Result.Nothing)} :=
+ match r with | Nothing => Result.Nothing | Just s => exec d s;
+
+def sequenceP (c:Code) (d:{c:Code | Code.rank c >= 0}) (s:{s:List | List.rank s >= 0})
+ : {p:Unit | exec (app c d) s = bindExec (exec c s) d}
+ decreasing_by [Code.rank c] :=
+ match c with
+ | done => let step := bindExec (Result.Just s) d in unit
+ | PUSH n t =>
+   let ih := sequenceP t d (List.cons n s) in
+   let step := exec (Code.PUSH n (app t d)) s in unit
+ | ADD t => match s with
+   | nil =>
+     let step := exec (Code.ADD (app t d)) s in
+     let failure := bindExec Result.Nothing d in unit
+   | cons m rest => match rest with
+     | nil =>
+       let step := exec (Code.ADD (app t d)) s in
+       let failure := bindExec Result.Nothing d in unit
+     | cons n ss =>
+       let ih := sequenceP t d (List.cons (n + m) ss) in
+       let step := exec (Code.ADD (app t d)) s in
+       let unfold := exec c s in unit;
+
+def comp (e:Expr) : {c:Code |
+ (Expr.rank e = 1 --> c = Code.PUSH (Expr.value e) Code.done) &&
+ (Expr.rank e > 1 --> c = app (comp (Expr.left e)) (app (comp (Expr.right e)) (Code.ADD Code.done))) &&
+ Code.rank c >= 0 && Code.adds c = Expr.adds e}
+ decreasing_by [Expr.rank e] :=
+ match e with | Val n => Code.PUSH n Code.done | Add x y => app (comp x) (app (comp y) (Code.ADD Code.done));
+
+def generalizedCorrectnessP (e:Expr) (s:{s:List | List.rank s >= 0})
+ : {p:Unit | exec (comp e) s = Result.Just (List.cons (eval e) s)} decreasing_by [Expr.rank e] :=
+ match e with
+ | Val n =>
+   let push := exec (Code.PUSH n Code.done) s in
+   let finish := exec Code.done (List.cons n s) in unit
+ | Add x y =>
+   let seqX := sequenceP (comp x) (app (comp y) (Code.ADD Code.done)) s in
+   let ihX := generalizedCorrectnessP x s in
+   let bindX := bindExec (Result.Just (List.cons (eval x) s)) (app (comp y) (Code.ADD Code.done)) in
+   let seqY := sequenceP (comp y) (Code.ADD Code.done) (List.cons (eval x) s) in
+   let ihY := generalizedCorrectnessP y (List.cons (eval x) s) in
+   let bindY := bindExec (Result.Just (List.cons (eval y) (List.cons (eval x) s))) (Code.ADD Code.done) in
+   let add := exec (Code.ADD Code.done) (List.cons (eval y) (List.cons (eval x) s)) in
+   let finish := exec Code.done (List.cons (eval x + eval y) s) in
+   let compiled := comp e in let value := eval e in
+   exec (comp e) s
+   ==. exec (app (comp x) (app (comp y) (Code.ADD Code.done))) s
+   ==. bindExec (exec (comp x) s) (app (comp y) (Code.ADD Code.done))
+   ==. bindExec (Result.Just (List.cons (eval x) s)) (app (comp y) (Code.ADD Code.done))
+   ==. exec (app (comp y) (Code.ADD Code.done)) (List.cons (eval x) s)
+   ==. bindExec (exec (comp y) (List.cons (eval x) s)) (Code.ADD Code.done)
+   ==. bindExec (Result.Just (List.cons (eval y) (List.cons (eval x) s))) (Code.ADD Code.done)
+   ==. exec (Code.ADD Code.done) (List.cons (eval y) (List.cons (eval x) s))
+   ==. exec Code.done (List.cons (eval x + eval y) s)
+   ==. Result.Just (List.cons (eval e) s) *** QED;
+def correctnessP (e:Expr) : {p:Unit | exec (comp e) List.nil = Result.Just (List.cons (eval e) List.nil)} :=
+ generalizedCorrectnessP e List.nil;
+
+def compApp (e:Expr) (c:{c:Code | Code.rank c >= 0}) : {d:Code |
+ d = app (comp e) c && Code.rank d >= 0 && Code.adds d = Expr.adds e + Code.adds c &&
+ (Expr.rank e = 1 --> d = Code.PUSH (Expr.value e) c) &&
+ (Expr.rank e > 1 --> d = compApp (Expr.left e) (compApp (Expr.right e) (Code.ADD c)))}
+ decreasing_by [Expr.rank e] :=
+ match e with
+ | Val n => let step := app (Code.PUSH n Code.done) c in Code.PUSH n c
+ | Add x y =>
+   let assocX := appAssocP (comp x) (app (comp y) (Code.ADD Code.done)) c in
+   let assocY := appAssocP (comp y) (Code.ADD Code.done) c in
+   let step := app (Code.ADD Code.done) c in compApp x (compApp y (Code.ADD c));
+def compFast (e:Expr) : {c:Code | c = compApp e Code.done && Code.rank c >= 0} := compApp e Code.done;
+def equivP (e:Expr) : {p:Unit | compFast e = comp e} :=
+ let identity := appRightIdP (comp e) in
+ compFast e ==. compApp e Code.done ==. app (comp e) Code.done ==. comp e *** QED;
+def equivCorrectnessP (e:Expr)
+ : {p:Unit | exec (compFast e) List.nil = Result.Just (List.cons (eval e) List.nil)} :=
+ let equivalence := equivP e in let correctness := correctnessP e in unit;
+
+def generalizedCorrectnessFastP (e:Expr) (s:{s:List | List.rank s >= 0}) (c:{c:Code | Code.rank c >= 0})
+ : {p:Unit | exec (compApp e c) s = exec c (List.cons (eval e) s)} decreasing_by [Expr.rank e] :=
+ match e with
+ | Val n => let step := exec (Code.PUSH n c) s in unit
+ | Add x y =>
+   let ihX := generalizedCorrectnessFastP x s (compApp y (Code.ADD c)) in
+   let ihY := generalizedCorrectnessFastP y (List.cons (eval x) s) (Code.ADD c) in
+   let step := exec (Code.ADD c) (List.cons (eval y) (List.cons (eval x) s)) in
+   let compiled := compApp e c in let value := eval e in unit;
+def correctnessFastP (e:Expr)
+ : {p:Unit | exec (compFast e) List.nil = Result.Just (List.cons (eval e) List.nil)} :=
+ let correctness := generalizedCorrectnessFastP e List.nil Code.done in
+ let finish := exec Code.done (List.cons (eval e) List.nil) in unit;
+
+# Historical companion measures, retained as executable checked functions.
+def exprAdds (e:Expr) : {n:Int | n = Expr.adds e && n >= 0} decreasing_by [Expr.rank e] :=
+ match e with | Val n => 0 | Add x y => 1 + exprAdds x + exprAdds y;
+def addCount (c:Code) : {n:Int | n = Code.adds c && n >= 0} decreasing_by [Code.rank c] :=
+ match c with | done => 0 | PUSH n t => addCount t | ADD t => 1 + addCount t;
+
+# Runtime smoke test complements (and does not replace) the quantified proofs.
+def encode (xs:List) : Int := match xs with | nil => 0 | cons h t => h + 10 * encode t;
+def answer (r:Result) : Int :=
+ match r with | Nothing => 0 | Just xs => match xs with | nil => 0 | cons h t => h;
+def main (_:Int) : Int :=
+ let xs := List.cons 1 (List.cons 2 (List.cons 3 List.nil)) in
+ let tree := Tree.Node (Tree.Leaf 1) (Tree.Node (Tree.Leaf 2) (Tree.Leaf 3)) in
+ let e := Expr.Add (Expr.Val 20) (Expr.Val 22) in
+ let lists := involutionP xs in
+ let naive := correctnessP e in
+ let equivalence := equivCorrectnessP e in
+ let optimized := correctnessFastP e in
+ if encode (reverseApp0 xs List.nil) = 123 && encode (reverseApp1 xs List.nil) = 123 &&
+    encode (reverseFast xs) = 123 && encode (flattenApp0 tree List.nil) = 321 &&
+    encode (flattenFast tree) = 321 &&
+    exec (Code.ADD Code.done) List.nil = Result.Nothing &&
+    exec (Code.ADD Code.done) (List.cons 1 List.nil) = Result.Nothing &&
+    answer (exec (comp e) List.nil) = 42 && answer (exec (compFast e) List.nil) = 42 &&
+    addCount (compApp e (Code.ADD Code.done)) = exprAdds e + 1
+ then 42 else 0;

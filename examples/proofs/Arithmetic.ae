@@ -1,0 +1,7 @@
+import ProofCombinators;
+def add_commutative (a:Int) (b:Int) : {p:Unit | a + b = b + a} :=
+ a + b ==. b + a *** QED;
+def explain (a:Int) (b:Int) : {p:Unit | a + b = b + a} :=
+ a + b ==. b + a ? add_commutative a b *** QED;
+def chain (x:Int) : {p:Unit | x + 0 = x} :=
+ x + 0 ==. 0 + x ==. x *** QED;
