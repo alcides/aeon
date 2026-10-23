@@ -5,37 +5,37 @@ import List;
 import Maybe;
 def noResult : {r:(Maybe (List Int)) | r = Maybe.none && !Maybe.present r} := Maybe.none;
 # A concrete standard-list value retains the nullary constructor's refinement.
-def emptyList : {xs:(List Int) | xs = List.nil && List.rank xs = 0} := List.nil{Int}{|fun value => true|};
+def emptyList : {xs:(List Int) | xs = List.nil && List.structuralRank xs = 0} := List.nil{Int}{|fun value => true|};
 
-def length (xs:(List Int)) : {n:Int | n = List.rank xs && n >= 0} decreasing_by [List.rank xs] :=
+def length (xs:(List Int)) : {n:Int | n = List.structuralRank xs && n >= 0} decreasing_by [List.structuralRank xs] :=
  match xs with | nil => 0 | cons h t => 1 + length t;
 
-def append (xs:(List Int)) (ys:{v:(List Int) | List.rank v >= 0}) : {r:(List Int) |
- (List.rank xs = 0 --> r = ys) &&
- (List.rank xs > 0 --> r = List.cons (List.first xs) (append (List.rest xs) ys)) &&
- List.rank r = List.rank xs + List.rank ys && List.rank r >= 0}
- decreasing_by [List.rank xs] :=
+def append (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0}) : {r:(List Int) |
+ (List.structuralRank xs = 0 --> r = ys) &&
+ (List.structuralRank xs > 0 --> r = List.cons (List.first xs) (append (List.rest xs) ys)) &&
+ List.structuralRank r = List.structuralRank xs + List.structuralRank ys && List.structuralRank r >= 0}
+ decreasing_by [List.structuralRank xs] :=
  match xs with | nil => ys | cons h t => List.cons{Int}{|fun value => true|} h (append t ys);
 
 def reverse (xs:(List Int)) : {r:(List Int) |
- (List.rank xs = 0 --> r = emptyList) &&
- (List.rank xs > 0 --> r = append (reverse (List.rest xs)) (List.cons (List.first xs) emptyList)) &&
- List.rank r = List.rank xs && List.rank r >= 0}
- decreasing_by [List.rank xs] :=
+ (List.structuralRank xs = 0 --> r = emptyList) &&
+ (List.structuralRank xs > 0 --> r = append (reverse (List.rest xs)) (List.cons (List.first xs) emptyList)) &&
+ List.structuralRank r = List.structuralRank xs && List.structuralRank r >= 0}
+ decreasing_by [List.structuralRank xs] :=
  match xs with | nil => emptyList | cons h t => append (reverse t) (List.cons{Int}{|fun value => true|} h emptyList);
 
-def rightIdP (xs:(List Int)) : {p:Unit | append xs emptyList = xs} decreasing_by [List.rank xs] :=
+def rightIdP (xs:(List Int)) : {p:Unit | append xs emptyList = xs} decreasing_by [List.structuralRank xs] :=
  match xs with
  | nil => unit
  | cons h t => append xs emptyList ==. xs ? rightIdP t *** QED;
 
 # The companion calls its automated right-identity variant leftIdP.
-def leftIdP (xs:(List Int)) : {p:Unit | append xs emptyList = xs} decreasing_by [List.rank xs] :=
+def leftIdP (xs:(List Int)) : {p:Unit | append xs emptyList = xs} decreasing_by [List.structuralRank xs] :=
  match xs with | nil => unit | cons h t => let ih := leftIdP t in unit;
 
-def assocP (xs:(List Int)) (ys:{v:(List Int) | List.rank v >= 0}) (zs:{v:(List Int) | List.rank v >= 0})
+def assocP (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0}) (zs:{v:(List Int) | List.structuralRank v >= 0})
  : {p:Unit | append xs (append ys zs) = append (append xs ys) zs}
- decreasing_by [List.rank xs] :=
+ decreasing_by [List.structuralRank xs] :=
  match xs with | nil => unit | cons h t => let ih := assocP t ys zs in
    let step := append (List.cons{Int}{|fun value => true|} h (append t ys)) zs in unit;
 
@@ -43,9 +43,9 @@ def singletonP (x:Int) : {p:Unit | reverse (List.cons x emptyList) = List.cons x
  ProofCombinators.qed (ProofCombinators.eq (reverse (List.cons{Int}{|fun value => true|} x emptyList)) (List.cons{Int}{|fun value => true|} x emptyList));
 def singleton1P : {p:Unit | reverse (List.cons 1 emptyList) = List.cons 1 emptyList} := singletonP 1;
 
-def distributivityP (xs:(List Int)) (ys:{v:(List Int) | List.rank v >= 0})
+def distributivityP (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0})
  : {p:Unit | reverse (append xs ys) = append (reverse ys) (reverse xs)}
- decreasing_by [List.rank xs] :=
+ decreasing_by [List.structuralRank xs] :=
  match xs with
  | nil => let identity := rightIdP (reverse ys) in unit
  | cons h t =>
@@ -55,7 +55,7 @@ def distributivityP (xs:(List Int)) (ys:{v:(List Int) | List.rank v >= 0})
    reverse (append xs ys) ==. append (reverse ys) (reverse xs) *** QED;
 
 def involutionP (xs:(List Int)) : {p:Unit | reverse (reverse xs) = xs}
- decreasing_by [List.rank xs] :=
+ decreasing_by [List.structuralRank xs] :=
  match xs with
  | nil => unit
  | cons h t =>
@@ -68,14 +68,14 @@ def involutionP (xs:(List Int)) : {p:Unit | reverse (reverse xs) = xs}
 # Paper section 4; explicit equations are checked, not assumed.
 
 
-def reverseApp0 (xs:(List Int)) (ys:{v:(List Int) | List.rank v >= 0})
+def reverseApp0 (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0})
  : {r:(List Int) | r = append (reverse xs) ys} := append (reverse xs) ys;
-def reverseApp1 (xs:(List Int)) (ys:{v:(List Int) | List.rank v >= 0})
+def reverseApp1 (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0})
  : {r:(List Int) | r = append (reverse xs) ys} :=
  match xs with | nil => append (reverse xs) ys | cons h t => append (reverse xs) ys;
-def reverseApp (xs:(List Int)) (ys:{v:(List Int) | List.rank v >= 0})
- : {r:(List Int) | r = append (reverse xs) ys && List.rank r >= 0}
- decreasing_by [List.rank xs] :=
+def reverseApp (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0})
+ : {r:(List Int) | r = append (reverse xs) ys && List.structuralRank r >= 0}
+ decreasing_by [List.structuralRank xs] :=
  match xs with
  | nil => ys
  | cons h t =>
@@ -97,13 +97,13 @@ inductive Tree
 def flatten (t:Tree) : {xs:(List Int) |
  (Tree.rank t = 1 --> xs = List.cons (Tree.value t) emptyList) &&
  (Tree.rank t > 1 --> xs = append (flatten (Tree.left t)) (flatten (Tree.right t))) &&
- List.rank xs >= 0}
+ List.structuralRank xs >= 0}
  decreasing_by [Tree.rank t] :=
  match t with | Leaf n => List.cons{Int}{|fun value => true|} n emptyList | Node l r => append (flatten l) (flatten r);
-def flattenApp0 (t:Tree) (ns:{v:(List Int) | List.rank v >= 0})
+def flattenApp0 (t:Tree) (ns:{v:(List Int) | List.structuralRank v >= 0})
  : {v:(List Int) | v = append (flatten t) ns} := append (flatten t) ns;
-def flattenApp (t:Tree) (ns:{v:(List Int) | List.rank v >= 0})
- : {v:(List Int) | v = append (flatten t) ns && List.rank v >= 0}
+def flattenApp (t:Tree) (ns:{v:(List Int) | List.structuralRank v >= 0})
+ : {v:(List Int) | v = append (flatten t) ns && List.structuralRank v >= 0}
  decreasing_by [Tree.rank t] :=
  match t with
  | Leaf n =>
@@ -159,11 +159,11 @@ def appAssocP (c:Code) (d:{c:Code | Code.rank c >= 0}) (e:{c:Code | Code.rank c 
  | PUSH n t => let ih := appAssocP t d e in let step := app (Code.PUSH n (app t d)) e in unit
  | ADD t => let ih := appAssocP t d e in let step := app (Code.ADD (app t d)) e in unit;
 
-def exec (c:Code) (s:{s:(List Int) | List.rank s >= 0}) : {r:(Maybe (List Int)) |
+def exec (c:Code) (s:{s:(List Int) | List.structuralRank s >= 0}) : {r:(Maybe (List Int)) |
  (Code.tag c = 0 --> r = Maybe.just s) &&
  (Code.tag c = 1 --> r = exec (Code.tail c) (List.cons (Code.value c) s)) &&
- (Code.tag c = 2 && List.rank s < 2 --> r = noResult) &&
- (Code.tag c = 2 && List.rank s >= 2 -->
+ (Code.tag c = 2 && List.structuralRank s < 2 --> r = noResult) &&
+ (Code.tag c = 2 && List.structuralRank s >= 2 -->
    r = exec (Code.tail c) (List.cons (List.first (List.rest s) + List.first s) (List.rest (List.rest s))))}
  decreasing_by [Code.rank c] :=
  match c with
@@ -180,7 +180,7 @@ def bindExec (r:(Maybe (List Int))) (d:Code) : {v:(Maybe (List Int)) |
  (Maybe.present r --> v = exec d (Maybe.value r)) && (!Maybe.present r --> v = noResult)} :=
  match r with | none => noResult | just s => let valid := length s in exec d s;
 
-def sequenceP (c:Code) (d:{c:Code | Code.rank c >= 0}) (s:{s:(List Int) | List.rank s >= 0})
+def sequenceP (c:Code) (d:{c:Code | Code.rank c >= 0}) (s:{s:(List Int) | List.structuralRank s >= 0})
  : {p:Unit | exec (app c d) s = bindExec (exec c s) d}
  decreasing_by [Code.rank c] :=
  match c with
@@ -208,7 +208,7 @@ def comp (e:Expr) : {c:Code |
  decreasing_by [Expr.rank e] :=
  match e with | Val n => Code.PUSH n Code.done | Add x y => app (comp x) (app (comp y) (Code.ADD Code.done));
 
-def generalizedCorrectnessP (e:Expr) (s:{s:(List Int) | List.rank s >= 0})
+def generalizedCorrectnessP (e:Expr) (s:{s:(List Int) | List.structuralRank s >= 0})
  : {p:Unit | exec (comp e) s = Maybe.just (List.cons (eval e) s)} decreasing_by [Expr.rank e] :=
  match e with
  | Val n =>
@@ -256,7 +256,7 @@ def equivCorrectnessP (e:Expr)
  : {p:Unit | exec (compFast e) emptyList = Maybe.just (List.cons (eval e) emptyList)} :=
  let equivalence := equivP e in let correctness := correctnessP e in unit;
 
-def generalizedCorrectnessFastP (e:Expr) (s:{s:(List Int) | List.rank s >= 0}) (c:{c:Code | Code.rank c >= 0})
+def generalizedCorrectnessFastP (e:Expr) (s:{s:(List Int) | List.structuralRank s >= 0}) (c:{c:Code | Code.rank c >= 0})
  : {p:Unit | exec (compApp e c) s = exec c (List.cons (eval e) s)} decreasing_by [Expr.rank e] :=
  match e with
  | Val n => let step := exec (Code.PUSH n c) s in unit

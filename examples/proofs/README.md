@@ -75,7 +75,7 @@ hypothesis. Runtime examples complement the universal refinement proofs.
   signatures give guarded defining equations, and the checker verifies those
   equations against every implementation branch. There are no trusted proof
   axioms, native proof helpers, or assumed theorem bodies in these examples.
-- Recursion uses explicit `decreasing_by` metrics. The examples call their structural measure `rank`,
+- Recursion uses explicit `decreasing_by` metrics. The examples use `List.structuralRank` for lists and `rank` for domain datatypes,
   leaving it as a constructor-constrained logical measure rather than eagerly
   expanding a recursive SMT size function. Constructor equalities and
   refinements provide induction cases; calls on smaller arguments supply the

@@ -295,6 +295,30 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
     liquid fragment already makes everywhere applications appear in
     refinements and termination metrics; selfification adds no new trust.
     """
+    # Primitive contracts already characterize their results. Reject them
+    # before traversing the arguments: generated Boolean formulas can contain
+    # millions of nodes, and visiting every subtree here is quadratic.
+    head = t
+    while isinstance(head, (Application, TypeApplication, RefinementApplication)):
+        head = head.fun if isinstance(head, Application) else head.body
+    if isinstance(head, Var) and head.name.name in {op.name for op in ops}:
+        return None
+
+    # Identity is optional evidence. Bound its size before liquefaction so a
+    # large constructor tree does not get copied into every ancestor's type.
+    pending = [t]
+    visited = 0
+    while pending:
+        node = pending.pop()
+        visited += 1
+        if visited > 64:
+            return None
+        if isinstance(node, Application):
+            pending.extend((node.fun, node.arg))
+        elif isinstance(node, (TypeApplication, RefinementApplication)):
+            pending.append(node.body)
+        elif isinstance(node, Annotation):
+            pending.append(node.expr)
     liq = liquefy(t)
     if liq is None:
         return None

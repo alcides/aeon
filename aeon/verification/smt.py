@@ -1288,7 +1288,11 @@ def _translate_at_sort(t: LiquidTerm, expected: SortRef, variables: dict[str, An
         ctor = lookup_constructor(str(name), str(expected))
         if ctor is not None:
             if is_func_decl(ctor) and isinstance(t, LiquidApp) and ctor.range() == expected:
-                return ctor(*[_translate_at_sort(arg, ctor.domain(i), variables, memo) for i, arg in enumerate(t.args)])
+                args = [_translate_at_sort(arg, ctor.domain(i), variables, memo) for i, arg in enumerate(t.args)]
+                # Mutually recursive sorts may still use opaque forward fields.
+                # Let the ordinary application path handle that representation.
+                if all(not hasattr(arg, "sort") or arg.sort() == ctor.domain(i) for i, arg in enumerate(args)):
+                    return ctor(*args)
             if not is_func_decl(ctor) and isinstance(t, LiquidVar) and ctor.sort() == expected:
                 return ctor
     return translate_liq(t, variables, memo)
