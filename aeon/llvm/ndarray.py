@@ -141,6 +141,10 @@ def emit_row(generator: Any, node: LLVMNDArrayOp, array: ir.Value, index: ir.Val
 
 def emit_operation(generator: Any, node: LLVMNDArrayOp) -> ir.Value | None:
     generator._is_top_level = False
+    if node.op.endswith("_into"):
+        from aeon.llvm.array_kernels import emit_sequential
+
+        return emit_sequential(generator, node)
     array = node.array.accept(generator)
     if node.op == "map_rows":
         row = generator.builder.alloca(array.type.pointee, name="row_descriptor")

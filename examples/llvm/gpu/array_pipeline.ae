@@ -1,0 +1,34 @@
+open NDArray
+
+# Elementwise maps fuse into one parallel launch. The filter and reduction
+# remain separate parallel stages within this same GPU entry.
+@gpu
+def sum_selected (1 values: (NDArray Int Rank2)) : Int :=
+    let 1 shifted := values.map (fun x => x + 1) in
+    let 1 doubled := shifted.map (fun x => x * 2) in
+    let 1 selected := doubled.filter (fun x => x > 5) in
+    selected.reduce (fun acc => fun x => acc + x) 0;
+
+@gpu
+def row_totals (1 matrix: {m:(NDArray Int Rank2) | m.ndim = 2}) : (NDArray Int Rank2) :=
+    matrix.reduce_axis 1 (fun acc => fun x => acc + x) 0;
+
+@gpu
+def prefixes (1 values: (NDArray Int Rank2)) : (NDArray Int Rank2) :=
+    values.scan (fun acc => fun x => acc + x) 0;
+
+@gpu
+def add (1 left: {m:(NDArray Int Rank2) | m.ndim = 2})
+    (1 right: {r:(NDArray Int Rank2) | r.dimension_size 0 = left.dimension_size 0 && r.dimension_size 1 = left.dimension_size 1}) :
+    {r:(NDArray Int Rank2) | r.ndim = 2} :=
+    left.zipWith right (fun x => fun y => x + y);
+
+def main (args:Int) : Unit :=
+    let 1 left := full2 3 257 2 in
+    let 1 right := full2 3 257 3 in
+    # These calls retain their arrays on the device. The scalar reduction
+    # below is the point at which the host needs to wait for the GPU.
+    let 1 added := add left right in
+    let 1 totals := row_totals added in
+    let 1 running := prefixes totals in
+    print (sum_selected running);

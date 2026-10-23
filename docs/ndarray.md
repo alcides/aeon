@@ -87,8 +87,8 @@ def zero_matrix (1 matrix: (NDArray Int Rank2)) :
 A direct `fill` entry point uses a parallel launch: a 1D, 2D, or 3D thread
 grid according to the array's rank. Each thread writes one element, and bounds
 checks cover partial blocks. Empty arrays still return their descriptor.
-`fill` inside a larger compiled function uses a sequential loop; arbitrary
-functions are not automatically parallelized. Launch dimensions are separate
+The array planner also schedules composed fills in parallel; arbitrary scalar
+functions retain their normal execution. Launch dimensions are separate
 from the rank representation. CUDA fills currently use blocks of 256, 16×16,
 or 8×8×4 threads, with CUDA's 65535-block limit on the y/z grid axes.
 
@@ -109,14 +109,13 @@ so row mapping copies no device element storage. Partial blocks are guarded,
 and empty matrices still return their descriptor. Row bounds and reshape errors
 propagate atomically into the parent descriptor. On the CPU, rows are processed
 in a loop; the interpreted implementation passes independent row copies to the
-callback and writes their results back. `map_rows` nested inside a larger GPU
-function also uses a sequential loop; parallel dispatch applies to the direct
-entry point above.
+callback and writes their results back. Array operations composed in a GPU entry
+are scheduled as parallel stages by the array plan described below.
 
 Both CPU and CUDA kernels return an input-owned descriptor. Shapes and strides
 are marshaled alongside the data. A rank-changing result transfers the same
-storage into its new descriptor. Kernels cannot return newly allocated arrays
-through this interface.
+storage into its new descriptor. For operations that change element type or output size, the array planner supplies
+a managed destination parameter. Its allocation can stay on the device.
 
 ### Lazy CPU/GPU copies
 
@@ -136,11 +135,12 @@ and one download, and prints `42`:
 python -m aeon examples/llvm/gpu/lazy_copy.ae
 ```
 
-Reshapes change only metadata and preserve the allocation. The examples'
-`snapshot` helpers now transfer ownership into read-only handles that retain
-the device storage, so their next GPU call can read it without a download.
-Shape, bounds-error, and scalar-result checks still synchronize each kernel;
-lazy copying concerns element storage rather than asynchronous execution.
+Reshapes change only metadata and preserve the allocation. Array-valued map,
+zip, scan, axis reduction, fill, and row-map entries enqueue work on the default
+CUDA stream. Their next GPU call can use the result without waiting on the host.
+A host element read, CPU use, scalar result, or dynamic filter length synchronizes
+when that value is needed. Deferred bounds and driver errors are reported at that
+boundary; failed outputs cannot be read as stale host values.
 
 Ordinary Aeon `Array` values are automatically managed at the first GPU call
 and remain list-compatible for host indexing, iteration, and mutation.
@@ -150,7 +150,7 @@ for compatibility. Exporting an NDArray's raw plain-list `.data` also enables
 conservative synchronization so retained Python aliases observe GPU changes.
 Use `get` for terminal host reads when a raw list reference is unnecessary.
 
-Device buffers are released when storage is discarded or collected. Calling
+Reusable allocations return to a pool when storage is discarded or collected. Calling
 the CUDA executor's `close()` materializes live arrays and releases their
 cached allocations. Moving an array to another CUDA context or element format
 also materializes it before creating the new allocation. Failed calls release
@@ -171,6 +171,7 @@ Runnable GPU examples:
 - [`lazy_copy.ae`](../examples/llvm/gpu/lazy_copy.ae)
 - [`reductions.ae`](../examples/llvm/gpu/reductions.ae)
 - [`filter.ae`](../examples/llvm/gpu/filter.ae)
+- [`array_pipeline.ae`](../examples/llvm/gpu/array_pipeline.ae)
 - [`nbody.ae`](../examples/llvm/gpu/nbody.ae)
 - [`floyd_warshall.ae`](../examples/llvm/gpu/floyd_warshall.ae)
 
@@ -206,13 +207,11 @@ preserved, but grouping changes, so floating-point sums can differ from the
 sequential interpreter/CPU fold through rounding. This property is the
 caller's contract and is not proved by the typechecker.
 
-Parallel launch selection applies when the GPU entry directly returns a
-homogeneous scalar reduction of an input array. Existing `reduce_n_int` and
-`reduce_n_float` calls with an input parameter and parameter/literal length
-use this same path. Other folds retain their sequential lowering, including
-folds with different accumulator and element types and reductions nested in
-larger device functions. Compiled scalars include `Int`, `Long`, `Float`,
-`Double`, and `Bool`.
+Homogeneous scalar reductions use parallel stages, both as direct entries and
+in composed array plans. Existing `reduce_n_int` and `reduce_n_float` calls with
+an input parameter and parameter/literal length use this same path. General
+folds with different accumulator and element types retain sequential lowering.
+Compiled scalars include `Int`, `Long`, `Float`, `Double`, and `Bool`.
 
 Run `python -m aeon examples/llvm/gpu/reductions.ae` to print `524800`, `0`,
 and `1024` from three multi-block reductions.
@@ -247,8 +246,7 @@ storage path. Low-level plain Python lists retain eager compatibility.
 `filter_n_int` and `filter_n_float` in `ArrayKernels` use the same GPU path,
 selecting from the first `n` elements and returning an array with its actual
 runtime length. Both CPU and GPU launch paths validate `n` against the input
-length. Parallel filtering applies to direct GPU entries filtering an input
-parameter, as with the parallel reduction entry path.
+length. Direct entries and filters inside an array plan use the parallel path.
 
 Run `python -m aeon examples/llvm/gpu/filter.ae` to filter 1,025 integers and
 sum the even survivors in a second GPU call. It prints `262656` without an
@@ -278,17 +276,16 @@ allocated 2D destination is passed to `nbody_step`. Its `output.map_rows`
 callback gives each thread its own row, updated through method calls such as
 `row.set1 0 x`, and the entire matrix is returned with its original shape. Shape and
 snapshot-length refinements check index bounds and the seven-column layout.
-Termination metrics justify the force loop and simulation loop.
+Termination metrics justify the force loop; `iterate` bounds the simulation loop.
 
 The force calculation is direct all-pairs gravity, requiring O(N²) work.
 Bodies run in parallel on CUDA: the default uses two blocks, with a partial
 final block. Each body sums interactions with all other bodies and writes one
-output row. A kernel synchronization completes every step before its output
-becomes the next snapshot. CPU fallback processes the same rows sequentially.
-Intermediate states stay on the GPU through the read-only snapshot handles.
-Only the final host read downloads a state. Each freshly constructed output
-matrix is still uploaded once; reusing output buffers and shared-memory tiling
-could improve performance further.
+output row. Default-stream ordering completes each step before the next kernel
+reads it. Two element buffers alternate through `iterate`, and zero initialization
+runs on the device. CPU fallback processes the same rows sequentially. Only the
+final host read downloads a state. Shared-memory tiling remains a possible
+performance improvement.
 The LLVM CUDA path uses a device square-root intrinsic; state and integration
 arithmetic use float32. Tests compare the GPU results with a double-precision
 CPU reference and verify the actual CUDA launch dimensions and element-copy
@@ -316,9 +313,9 @@ next[i, j] = min(previous[i, j], previous[i, k] + previous[k, j])
 It uses `output.map_rows` to launch one CUDA thread per row, in blocks of 256.
 Each thread processes its columns sequentially. The previous matrix is a
 read-only snapshot, and threads write disjoint rows of a separate destination.
-The host loop synchronizes each pass before advancing to the next pivot;
-putting the entire pivot loop inside independent GPU threads would omit this
-global barrier. Both arrays remain contiguous, and each GPU pass returns its
+Default-stream ordering supplies the global barrier between pivot launches.
+The host can enqueue successive passes without synchronizing each one.
+Both arrays remain contiguous, and each GPU pass returns its
 supplied output matrix. CPU fallback uses the same recurrence sequentially.
 
 The default four-vertex graph prints `9.0`, the cost of the path `0 → 1 → 2 → 3`.
@@ -326,11 +323,85 @@ Tests compare complete distance matrices against repeated Bellman–Ford, check
 unreachable vertices and negative cycles, and exercise 257 rows across two
 CUDA blocks. Computation is O(N³), with one GPU launch per pivot. Intermediate
 matrices remain in device storage, and the final negative-cycle check
-materializes the result once. Each fresh host-created destination is still
-uploaded once. Buffer lifetime follows live array and snapshot handles; the
-host loop can retain prior snapshots until its recursive calls return.
+materializes the result once. `iterate` reuses two device buffers and supplies
+scoped read-only source views; the destination is zeroed on the GPU between uses.
 Distance arithmetic uses float32.
 The square matrix must fit the NDArray element limit (`0 <= N <= 46340`).
 Its `N * N` shape refinements currently trigger nonlinear-arithmetic warnings
 from the compiler's decidability scan; the example's type and bounds checks
 pass.
+
+### Composing array operations
+
+A GPU entry may contain nested array expressions, `let` bindings, calls to
+nonrecursive array helpers, and conditionals. The compiler builds a plan after
+ordinary LLVM lowering. Each collective becomes a compiled stage, so a
+`map → filter → reduce` expression uses parallel CUDA operations throughout.
+Scalar helpers and lambdas continue through the shared expression generator.
+A branch condition that depends on a GPU scalar waits for that scalar. Recursive
+array pipelines should use a host loop or `iterate`; recursion within ordinary
+scalar device helpers remains supported.
+
+```aeon
+@gpu
+def selected_sum (1 xs:(NDArray Int Rank2)) : Int :=
+    let 1 shifted := xs.map (fun x => x + 1) in
+    let 1 scaled := shifted.map (fun x => x * 2) in
+    let 1 selected := scaled.filter (fun x => x > 10) in
+    selected.reduce (fun acc => fun x => acc + x) 0;
+```
+
+Consecutive maps, and a map following `zipWith`, fuse into one elementwise
+kernel. Intermediate scalar conversions are retained. Fusion currently applies
+within an entry, not across separate function invocations; reductions, scans,
+and filters remain distinct stages. The CPU backend executes the same plan
+with sequential compiled loops, and the interpreter provides matching methods.
+
+| Method | Result |
+| --- | --- |
+| `xs.map f` | Apply `f` to every element, preserving shape; element type may change. |
+| `xs.zipWith ys f` | Combine matching elements of identically shaped arrays. |
+| `xs.reduce_axis axis f z` | Reduce one axis, keeping that dimension with size one. |
+| `xs.scan f z` | Inclusive row-major prefix folds, preserving shape. |
+| `xs.scan_exclusive f z` | Prefix folds excluding the current element; the first result is `z`. |
+| `xs.iterate steps value f` | Run a callback over two alternating buffers of the original shape. |
+
+`map` and `zipWith` consume their owned inputs. When shape and element type
+permit, the result reuses the first input's allocation. A type change or axis
+reduction uses a managed destination allocated without uploading initial elements.
+`zipWith` validates full shapes before launching, including zero-sized dimensions.
+
+Axis reductions launch one block per output position, with lanes combining
+contiguous chunks of the chosen axis and then reducing in shared memory. Scans
+use a hierarchy of block scans and prefix propagation; all passes remain on the
+GPU. Both accept the same pure, associative scalar combiners as `reduce`.
+Their seed is applied once to each result, and need not be an identity. Empty
+axis slices return the seed; a scan of an empty array stays empty. Operand order
+is preserved, while parallel grouping can change floating-point rounding.
+
+### Reusing buffers across iterations
+
+`iterate` is a host scheduler for GPU callbacks. It passes the iteration index,
+a scoped `ReadOnly` source view, and an owned destination filled with `value`.
+The callback must return that destination with the original shape. Two element
+allocations alternate across iterations; zero fills are issued on the device.
+The examples [N-body](../examples/llvm/gpu/nbody.ae) and
+[Floyd–Warshall](../examples/llvm/gpu/floyd_warshall.ae) use this method:
+
+```aeon
+state.iterate steps 0.0
+    (fun step => fun source => fun output => nbody_step source n dt softening output)
+```
+
+Import `ReadOnly` to use `source.read index` in callbacks and `ReadOnly.size source`
+in refinements. A borrowed view expires as its callback returns. Keeping a view
+in a closure does not keep the borrow valid: a later host access or GPU invocation
+through that view raises an error. This allows the next iteration to reuse its
+storage without changing any still-valid immutable snapshot.
+
+The runtime keeps up to 64 MiB of reusable device allocations and bounds queued
+staging resources by completing batches after 256 submissions/launches. Resource
+pressure can therefore introduce a wait before a host read. Descriptor uploads
+use pinned staging memory retained until completion. Raw Python list aliases
+remain eager for compatibility. `CUDAExecutionEngine.close()` waits, materializes
+live results, and frees the pool. Pool ownership is per CUDA context.

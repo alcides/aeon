@@ -13,7 +13,7 @@ from aeon.sugar.substitutions import normalize
 from aeon.utils.name import Name, fresh_counter
 
 
-def free_type_var_names(ty: SType, *, include_bound: bool = False) -> set[Name]:
+def free_type_var_names(ty: SType, *, include_bound: bool = False, _path: frozenset[int] = frozenset()) -> set[Name]:
     """Best-effort set of free type-variable names of ``ty``.
 
     Unlike ``aeon.sugar.stypes.get_type_vars`` this never raises on
@@ -26,8 +26,14 @@ def free_type_var_names(ty: SType, *, include_bound: bool = False) -> set[Name]:
     binder that cannot collide with names supplied through low-level APIs.
     """
 
+    # Unification bounds form a graph: polymorphic array callbacks can link a
+    # variable back to itself through another bound. Visit each path once.
+    if id(ty) in _path:
+        return set()
+    path = _path | {id(ty)}
+
     def rec(child: SType) -> set[Name]:
-        return free_type_var_names(child, include_bound=include_bound)
+        return free_type_var_names(child, include_bound=include_bound, _path=path)
 
     match ty:
         case STypeVar(name):

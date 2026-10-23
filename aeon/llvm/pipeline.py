@@ -24,6 +24,7 @@ class MultiBackendPipeline(LLVMPipeline):
         self.llvm_ir_by_backend: Dict[str, str] = {}
         self.type_environment: Dict[Name, Any] = {}
         self.name_to_id_cache: Dict[str, Name] = {}
+        self.array_plans: dict[str, dict] = {}
 
         self.register_backend("cpu", Backend(CPULLVMExecutionEngine(), CPULLVMIRGenerator(), CPULLVMLowerer()))
         self.cuda_initialized = False
@@ -116,6 +117,9 @@ class MultiBackendPipeline(LLVMPipeline):
         for backend_name, backend in self.backends.items():  # generate ir
             funcs = list(self.compiled_functions_by_backend[backend_name].values())
             if funcs:
+                from aeon.llvm.array_plan import build_plans
+
+                funcs, self.array_plans[backend_name] = build_plans(funcs)
                 self.llvm_ir_by_backend[backend_name] = backend.generator.generate_ir(funcs)
                 logger.debug(f"Backend {backend_name} IR:\n{self.llvm_ir_by_backend[backend_name]}")
 
@@ -193,6 +197,26 @@ class MultiBackendPipeline(LLVMPipeline):
         target_llvm_type = to_llvm_type(target_type)
         param_types, return_type = backend.lowerer.get_signature(target_llvm_type)
 
+        plan = self.array_plans.get(target_name, {}).get(name_id)
+        if plan is not None:
+
+            def invoke_stage(function, values, operation, destination):
+                if operation is not None and target_name == "cuda":
+                    from aeon.llvm.cuda.array_runtime import execute_array
+
+                    return execute_array(
+                        backend.executor, self.llvm_ir_by_backend[target_name], function, values, operation
+                    )
+                return self._invoke_compiled(
+                    target_name, function.name, values, function.arg_types, function.type.return_type
+                )
+
+            return plan.run(arguments, invoke_stage)
+        return self._invoke_compiled(target_name, name_id, arguments, param_types, return_type)
+
+    def _invoke_compiled(self, target_name, name_id, arguments, param_types, return_type):
+        backend = self.backends[target_name]
+
         launch_shape = None
         launch = getattr(backend.generator, "ndarray_launches", {}).get(sanitize_name(name_id))
         if launch is not None:
@@ -206,6 +230,26 @@ class MultiBackendPipeline(LLVMPipeline):
             if len(shape) != 2:
                 raise LLVMBackendError("map_rows requires a matrix")
             launch_shape = (shape[0],)
+
+        if (
+            target_name == "cuda"
+            and (row_index is not None or launch is not None)
+            and not any(
+                isinstance(ty, LLVMPointerType) and isinstance(value, list) and not isinstance(value, ManagedArray)
+                for value, ty in zip(arguments, param_types)
+            )
+        ):
+            from aeon.llvm.cuda.array_runtime import execute_resident
+
+            return execute_resident(
+                backend.executor,
+                self.llvm_ir_by_backend[target_name],
+                sanitize_name(name_id),
+                arguments,
+                param_types,
+                row_index if row_index is not None else launch[0],
+                launch_shape,
+            )
 
         reduction = getattr(backend.generator, "reduction_launches", {}).get(sanitize_name(name_id))
         reduction_count = reduction.count(arguments) if reduction is not None else None
