@@ -270,6 +270,7 @@ def _bind_definition(
         arg_multiplicities=df.arg_multiplicities,
         instance_flags=df.instance_flags,
         is_private=df.is_private,
+        is_theorem=df.is_theorem,
     ), nsubs
 
 

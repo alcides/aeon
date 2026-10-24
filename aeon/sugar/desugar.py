@@ -300,7 +300,7 @@ def lower_by_blocks_in_sterm(t: STerm) -> tuple[STerm, dict[Name, tuple[str, ...
 
     match t:
         case SBy(steps, loc=loc):
-            h = Name("_by", fresh_counter.fresh())
+            h = Name(f"_by_{fresh_counter.fresh()}", fresh_counter.fresh())
             return SHole(h, loc=loc), {h: tuple(steps)}
         case (
             SLiteral()
@@ -779,7 +779,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                 # Fall back: find the first inductive that contains all branch constructors.
                 if chosen is None:
                     for iname, cmap in inductive_info.items():
-                        if all(cn in cmap for cn in cons_names):
+                        if all(any(cn.name == known.name for known in cmap) for cn in cons_names):
                             chosen = iname
                             chosen_cons_map = cmap
                             break
@@ -803,7 +803,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                                 # Find the matching branch, if missing use a hole-like undefined.
                                 branch_expr = None
                                 for b in branches:
-                                    if b.constructor == cname:
+                                    if b.constructor.name == cname.name:
                                         branch_expr = b.body
                                         branch_binders = b.binders
                                         break

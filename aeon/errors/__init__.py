@@ -45,6 +45,18 @@ class TypeClassError(AeonError):
 
 
 @dataclass
+class ProofElaborationError(AeonError):
+    message: str
+    loc: Location
+
+    def __str__(self) -> str:
+        return self.message
+
+    def position(self) -> Location:
+        return self.loc
+
+
+@dataclass
 class ModuleNotFoundAeonError(AeonError):
     importel: ImportAe
     possible_containers: Iterable[Path]

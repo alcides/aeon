@@ -204,8 +204,11 @@ def _build_measure_recfunction(
     measure_name: str,
 ) -> Any:
     """LH-style structural size measure: nullary → 0, else 1 + Σ measure(recursive fields)."""
-    # Include ``_measure_rec_fresh`` so a cache clear + rebuild does not collide
-    # with a RecFunction still resident in the process-wide Z3 context.
+    # A new compilation session has empty caches even without an explicit
+    # clear. Every declaration needs a process-unique name because Z3 retains
+    # recursive definitions in its global context across compilation sessions.
+    global _measure_rec_fresh
+    _measure_rec_fresh += 1
     rec = RecFunction(f"{sort_name}__{measure_name}__{_measure_rec_fresh}", info_sort, IntSort())
     x = Const(f"{sort_name}_{measure_name}_{_measure_rec_fresh}_x", info_sort)
     cases: list[tuple[Any, Any]] = []

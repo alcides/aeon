@@ -63,6 +63,7 @@ measure_rule : "+" ID args ":" type                        -> def_ind_cons
 def : visibility soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
     | visibility soft_constraint "def" def_name  args ":" type decreasing_by_opt ":=" expression ";"?     -> def_fun_eq
     | visibility "axiom" def_name ":" type ";"?                                         -> axiom_decl
+    | visibility "theorem" def_name args ":" expression decreasing_by_opt ":=" expression ";"? -> theorem_decl
     | instance_decl                                                          -> same
     | mutual_block                                                           -> same
 
@@ -168,7 +169,15 @@ pred_sort : type (_ARROW type)+                              -> pred_sort
 
 // `let` may carry an optional QTT multiplicity prefix:
 //   let 1 f := open path in close f
-?expression_i : "by" by_body                                  -> by_e
+?expression_i : "by" "induction" ID "with" proof_branches -> proof_induction
+          | "by" "cases" expression "with" proof_branches -> proof_cases
+          | "by" "simp" proof_facts -> proof_simp
+          | "by" "rw" proof_facts -> proof_simp
+          | "by" "smt" -> proof_smt
+          | "by" "exact" expression -> proof_exact
+          | "by" "(" proof_sequence ")" -> proof_block
+          | "calc" "(" calc_steps ")" -> proof_calc
+          | "by" by_body                                  -> by_e
           | "let" ID ":=" expression  ("in"|";") expression           -> let_e
           | "let" MULT ID ":=" expression  ("in"|";") expression           -> mult_let_e
           | ID ":=" expression  ("in"|";") expression           -> let_e
@@ -205,8 +214,26 @@ match_branch : _PIPE ID pat_binders _FATARROW expression            -> match_bra
              | _PIPE DOT_ID pat_binders _FATARROW expression         -> match_branch_anon
 pat_binders : (ID)*                                           -> list
 
+proof_branches : proof_branch+ -> list
+proof_branch : _PIPE ID pat_binders _FATARROW proof_sequence -> match_branch
+proof_facts : "[" [expression ("," expression)*] "]" -> list
+            | -> empty_list
+proof_sequence : tactic_steps -> proof_legacy
+               | "(" proof_sequence ")" -> proof_block
+               | "rw" proof_facts ";" proof_sequence -> proof_rewrite
+               | "simp" proof_facts -> proof_simp
+               | "rw" proof_facts -> proof_simp
+               | "induction" ID "with" proof_branches -> proof_induction
+               | "cases" expression "with" proof_branches -> proof_cases
+               | "have" ID ":" expression ":=" expression ";" proof_sequence -> proof_have
+               | "smt" -> proof_smt
+               | "exact" expression -> proof_exact
+               | "calc" "(" calc_steps ")" -> proof_calc
+calc_steps : calc_step (";" calc_step)* -> list
+calc_step : expression_plus "=" expression_plus ":=" expression -> calc_step
+          | "_" "=" expression_plus ":=" expression -> calc_next
+
 by_body : TACTIC_CMD                                         -> by_body_atomic
-        | "(" tactic_steps ")"                              -> by_body_paren
 
 tactic_steps : TACTIC_CMD (";" TACTIC_CMD)*                -> tactic_steps
 TACTIC_CMD : "apply?" | "assumption" | "constructor" | "choose_literal" | "by_cases" | "split" | "inst"

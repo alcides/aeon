@@ -1,6 +1,5 @@
 # Adapted from Lists.hs in EquationalReasoningInLiquidHaskell (MIT).
 # Explicit defining equations replace Liquid Haskell's `reflect` annotation.
-import ProofCombinators;
 import List;
 import Maybe;
 def noResult : {r:(Maybe (List Int)) | r = Maybe.none && !Maybe.present r} := Maybe.none;
@@ -24,27 +23,29 @@ def reverse (xs:(List Int)) : {r:(List Int) |
  decreasing_by [List.structuralRank xs] :=
  match xs with | nil => emptyList | cons h t => append (reverse t) (List.cons{Int}{|fun value => true|} h emptyList);
 
-def rightIdP (xs:(List Int)) : {p:Unit | append xs emptyList = xs} decreasing_by [List.structuralRank xs] :=
- match xs with
- | nil => unit
- | cons h t => append xs emptyList ==. xs ? rightIdP t *** QED;
+theorem rightIdP (xs:(List Int)) : append xs emptyList = xs decreasing_by [List.structuralRank xs] :=
+ by induction xs with
+ | nil => smt
+ | cons h t ih => simp [ih];
 
 # The companion calls its automated right-identity variant leftIdP.
-def leftIdP (xs:(List Int)) : {p:Unit | append xs emptyList = xs} decreasing_by [List.structuralRank xs] :=
- match xs with | nil => unit | cons h t => let ih := leftIdP t in unit;
+theorem leftIdP (xs:(List Int)) : append xs emptyList = xs decreasing_by [List.structuralRank xs] :=
+ by induction xs with
+ | nil => smt
+ | cons h t ih => simp [ih];
 
-def assocP (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0}) (zs:{v:(List Int) | List.structuralRank v >= 0})
- : {p:Unit | append xs (append ys zs) = append (append xs ys) zs}
+theorem assocP (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0}) (zs:{v:(List Int) | List.structuralRank v >= 0})
+ : append xs (append ys zs) = append (append xs ys) zs
  decreasing_by [List.structuralRank xs] :=
  match xs with | nil => unit | cons h t => let ih := assocP t ys zs in
    let step := append (List.cons{Int}{|fun value => true|} h (append t ys)) zs in unit;
 
-def singletonP (x:Int) : {p:Unit | reverse (List.cons x emptyList) = List.cons x emptyList} :=
- ProofCombinators.qed (ProofCombinators.eq (reverse (List.cons{Int}{|fun value => true|} x emptyList)) (List.cons{Int}{|fun value => true|} x emptyList));
-def singleton1P : {p:Unit | reverse (List.cons 1 emptyList) = List.cons 1 emptyList} := singletonP 1;
+theorem singletonP (x:Int) : reverse (List.cons x emptyList) = List.cons x emptyList :=
+ calc (reverse (List.cons{Int}{|fun value => true|} x emptyList) = List.cons{Int}{|fun value => true|} x emptyList := by smt);
+theorem singleton1P : reverse (List.cons 1 emptyList) = List.cons 1 emptyList := singletonP 1;
 
-def distributivityP (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0})
- : {p:Unit | reverse (append xs ys) = append (reverse ys) (reverse xs)}
+theorem distributivityP (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >= 0})
+ : reverse (append xs ys) = append (reverse ys) (reverse xs)
  decreasing_by [List.structuralRank xs] :=
  match xs with
  | nil => let identity := rightIdP (reverse ys) in unit
@@ -52,9 +53,9 @@ def distributivityP (xs:(List Int)) (ys:{v:(List Int) | List.structuralRank v >=
    let ih := distributivityP t ys in
    let association := assocP (reverse ys) (reverse t) (List.cons{Int}{|fun value => true|} h emptyList) in
    let step := reverse (List.cons{Int}{|fun value => true|} h (append t ys)) in
-   reverse (append xs ys) ==. append (reverse ys) (reverse xs) *** QED;
+   calc (reverse (append xs ys) = append (reverse ys) (reverse xs) := by smt);
 
-def involutionP (xs:(List Int)) : {p:Unit | reverse (reverse xs) = xs}
+theorem involutionP (xs:(List Int)) : reverse (reverse xs) = xs
  decreasing_by [List.structuralRank xs] :=
  match xs with
  | nil => unit
@@ -63,7 +64,7 @@ def involutionP (xs:(List Int)) : {p:Unit | reverse (reverse xs) = xs}
    let ih := involutionP t in
    let singleton := singletonP h in
    let step := append (List.cons{Int}{|fun value => true|} h emptyList) t in
-   reverse (reverse xs) ==. xs *** QED;
+   calc (reverse (reverse xs) = xs := by smt);
 
 # Paper section 4; explicit equations are checked, not assumed.
 
@@ -150,10 +151,10 @@ def app (c:Code) (d:{c:Code | Code.rank c >= 0}) : {r:Code |
  decreasing_by [Code.rank c] :=
  match c with | done => d | PUSH n t => Code.PUSH n (app t d) | ADD t => Code.ADD (app t d);
 
-def appRightIdP (c:Code) : {p:Unit | app c Code.done = c} decreasing_by [Code.rank c] :=
+theorem appRightIdP (c:Code) : app c Code.done = c decreasing_by [Code.rank c] :=
  match c with | done => unit | PUSH n t => let ih := appRightIdP t in unit | ADD t => let ih := appRightIdP t in unit;
-def appAssocP (c:Code) (d:{c:Code | Code.rank c >= 0}) (e:{c:Code | Code.rank c >= 0})
- : {p:Unit | app (app c d) e = app c (app d e)} decreasing_by [Code.rank c] :=
+theorem appAssocP (c:Code) (d:{c:Code | Code.rank c >= 0}) (e:{c:Code | Code.rank c >= 0})
+ : app (app c d) e = app c (app d e) decreasing_by [Code.rank c] :=
  match c with
  | done => unit
  | PUSH n t => let ih := appAssocP t d e in let step := app (Code.PUSH n (app t d)) e in unit
@@ -164,7 +165,8 @@ def exec (c:Code) (s:{s:(List Int) | List.structuralRank s >= 0}) : {r:(Maybe (L
  (Code.tag c = 1 --> r = exec (Code.tail c) (List.cons (Code.value c) s)) &&
  (Code.tag c = 2 && List.structuralRank s < 2 --> r = noResult) &&
  (Code.tag c = 2 && List.structuralRank s >= 2 -->
-   r = exec (Code.tail c) (List.cons (List.first (List.rest s) + List.first s) (List.rest (List.rest s))))}
+   r = exec (Code.tail c) (List.cons (List.first (List.rest s) + List.first s) (List.rest (List.rest s)))) &&
+ (Maybe.present r --> List.structuralRank (Maybe.value r) >= 0)}
  decreasing_by [Code.rank c] :=
  match c with
  | done => Maybe.just s
@@ -176,12 +178,12 @@ def exec (c:Code) (s:{s:(List Int) | List.structuralRank s >= 0}) : {r:(Maybe (L
      | cons n ss => exec t (List.cons{Int}{|fun value => true|} (n + m) ss);
 
 # First-order specialization of (>>=) to the continuation `exec d`.
-def bindExec (r:(Maybe (List Int))) (d:Code) : {v:(Maybe (List Int)) |
+def bindExec (r:{v:(Maybe (List Int)) | Maybe.present v --> List.structuralRank (Maybe.value v) >= 0}) (d:Code) : {v:(Maybe (List Int)) |
  (Maybe.present r --> v = exec d (Maybe.value r)) && (!Maybe.present r --> v = noResult)} :=
  match r with | none => noResult | just s => let valid := length s in exec d s;
 
-def sequenceP (c:Code) (d:{c:Code | Code.rank c >= 0}) (s:{s:(List Int) | List.structuralRank s >= 0})
- : {p:Unit | exec (app c d) s = bindExec (exec c s) d}
+theorem sequenceP (c:Code) (d:{c:Code | Code.rank c >= 0}) (s:{s:(List Int) | List.structuralRank s >= 0})
+ : exec (app c d) s = bindExec (exec c s) d
  decreasing_by [Code.rank c] :=
  match c with
  | done => let step := bindExec (Maybe.just s) d in unit
@@ -208,8 +210,8 @@ def comp (e:Expr) : {c:Code |
  decreasing_by [Expr.rank e] :=
  match e with | Val n => Code.PUSH n Code.done | Add x y => app (comp x) (app (comp y) (Code.ADD Code.done));
 
-def generalizedCorrectnessP (e:Expr) (s:{s:(List Int) | List.structuralRank s >= 0})
- : {p:Unit | exec (comp e) s = Maybe.just (List.cons (eval e) s)} decreasing_by [Expr.rank e] :=
+theorem generalizedCorrectnessP (e:Expr) (s:{s:(List Int) | List.structuralRank s >= 0})
+ : exec (comp e) s = Maybe.just (List.cons (eval e) s) decreasing_by [Expr.rank e] :=
  match e with
  | Val n =>
    let push := exec (Code.PUSH n Code.done) s in
@@ -224,17 +226,17 @@ def generalizedCorrectnessP (e:Expr) (s:{s:(List Int) | List.structuralRank s >=
    let add := exec (Code.ADD Code.done) (List.cons{Int}{|fun value => true|} (eval y) (List.cons{Int}{|fun value => true|} (eval x) s)) in
    let finish := exec Code.done (List.cons{Int}{|fun value => true|} (eval x + eval y) s) in
    let compiled := comp e in let value := eval e in
-   exec (comp e) s
-   ==. exec (app (comp x) (app (comp y) (Code.ADD Code.done))) s
-   ==. bindExec (exec (comp x) s) (app (comp y) (Code.ADD Code.done))
-   ==. bindExec (Maybe.just (List.cons{Int}{|fun value => true|} (eval x) s)) (app (comp y) (Code.ADD Code.done))
-   ==. exec (app (comp y) (Code.ADD Code.done)) (List.cons{Int}{|fun value => true|} (eval x) s)
-   ==. bindExec (exec (comp y) (List.cons{Int}{|fun value => true|} (eval x) s)) (Code.ADD Code.done)
-   ==. bindExec (Maybe.just (List.cons{Int}{|fun value => true|} (eval y) (List.cons{Int}{|fun value => true|} (eval x) s))) (Code.ADD Code.done)
-   ==. exec (Code.ADD Code.done) (List.cons{Int}{|fun value => true|} (eval y) (List.cons{Int}{|fun value => true|} (eval x) s))
-   ==. exec Code.done (List.cons{Int}{|fun value => true|} (eval x + eval y) s)
-   ==. Maybe.just (List.cons{Int}{|fun value => true|} (eval e) s) *** QED;
-def correctnessP (e:Expr) : {p:Unit | exec (comp e) emptyList = Maybe.just (List.cons (eval e) emptyList)} :=
+   calc (
+     exec (comp e) s = exec (app (comp x) (app (comp y) (Code.ADD Code.done))) s := by smt;
+     _ = bindExec (exec (comp x) s) (app (comp y) (Code.ADD Code.done)) := by smt;
+     _ = bindExec (Maybe.just (List.cons{Int}{|fun value => true|} (eval x) s)) (app (comp y) (Code.ADD Code.done)) := by smt;
+     _ = exec (app (comp y) (Code.ADD Code.done)) (List.cons{Int}{|fun value => true|} (eval x) s) := by smt;
+     _ = bindExec (exec (comp y) (List.cons{Int}{|fun value => true|} (eval x) s)) (Code.ADD Code.done) := by smt;
+     _ = bindExec (Maybe.just (List.cons{Int}{|fun value => true|} (eval y) (List.cons{Int}{|fun value => true|} (eval x) s))) (Code.ADD Code.done) := by smt;
+     _ = exec (Code.ADD Code.done) (List.cons{Int}{|fun value => true|} (eval y) (List.cons{Int}{|fun value => true|} (eval x) s)) := by smt;
+     _ = exec Code.done (List.cons{Int}{|fun value => true|} (eval x + eval y) s) := by smt;
+     _ = Maybe.just (List.cons{Int}{|fun value => true|} (eval e) s) := by smt);
+theorem correctnessP (e:Expr) : exec (comp e) emptyList = Maybe.just (List.cons (eval e) emptyList) :=
  generalizedCorrectnessP e emptyList;
 
 def compApp (e:Expr) (c:{c:Code | Code.rank c >= 0}) : {d:Code |
@@ -249,15 +251,18 @@ def compApp (e:Expr) (c:{c:Code | Code.rank c >= 0}) : {d:Code |
    let assocY := appAssocP (comp y) (Code.ADD Code.done) c in
    let step := app (Code.ADD Code.done) c in compApp x (compApp y (Code.ADD c));
 def compFast (e:Expr) : {c:Code | c = compApp e Code.done && Code.rank c >= 0} := compApp e Code.done;
-def equivP (e:Expr) : {p:Unit | compFast e = comp e} :=
+theorem equivP (e:Expr) : compFast e = comp e :=
  let identity := appRightIdP (comp e) in
- compFast e ==. compApp e Code.done ==. app (comp e) Code.done ==. comp e *** QED;
-def equivCorrectnessP (e:Expr)
- : {p:Unit | exec (compFast e) emptyList = Maybe.just (List.cons (eval e) emptyList)} :=
+ calc (
+   compFast e = compApp e Code.done := by smt;
+   _ = app (comp e) Code.done := by smt;
+   _ = comp e := by smt);
+theorem equivCorrectnessP (e:Expr)
+ : exec (compFast e) emptyList = Maybe.just (List.cons (eval e) emptyList) :=
  let equivalence := equivP e in let correctness := correctnessP e in unit;
 
-def generalizedCorrectnessFastP (e:Expr) (s:{s:(List Int) | List.structuralRank s >= 0}) (c:{c:Code | Code.rank c >= 0})
- : {p:Unit | exec (compApp e c) s = exec c (List.cons (eval e) s)} decreasing_by [Expr.rank e] :=
+theorem generalizedCorrectnessFastP (e:Expr) (s:{s:(List Int) | List.structuralRank s >= 0}) (c:{c:Code | Code.rank c >= 0})
+ : exec (compApp e c) s = exec c (List.cons (eval e) s) decreasing_by [Expr.rank e] :=
  match e with
  | Val n => let step := exec (Code.PUSH n c) s in unit
  | Add x y =>
@@ -265,8 +270,8 @@ def generalizedCorrectnessFastP (e:Expr) (s:{s:(List Int) | List.structuralRank 
    let ihY := generalizedCorrectnessFastP y (List.cons{Int}{|fun value => true|} (eval x) s) (Code.ADD c) in
    let step := exec (Code.ADD c) (List.cons{Int}{|fun value => true|} (eval y) (List.cons{Int}{|fun value => true|} (eval x) s)) in
    let compiled := compApp e c in let value := eval e in unit;
-def correctnessFastP (e:Expr)
- : {p:Unit | exec (compFast e) emptyList = Maybe.just (List.cons (eval e) emptyList)} :=
+theorem correctnessFastP (e:Expr)
+ : exec (compFast e) emptyList = Maybe.just (List.cons (eval e) emptyList) :=
  let correctness := generalizedCorrectnessFastP e emptyList Code.done in
  let finish := exec Code.done (List.cons{Int}{|fun value => true|} (eval e) emptyList) in unit;
 

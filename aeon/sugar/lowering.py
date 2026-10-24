@@ -101,7 +101,7 @@ def liquefy_app(
 ) -> LiquidApp | LiquidHornApplication | None:
     arg = liquefy(app.arg, available_vars)
     fun = app.fun
-    while isinstance(fun, STypeApplication):
+    while isinstance(fun, (STypeApplication, SRefinementApplication)):
         fun = fun.body
     if not arg:
         return None

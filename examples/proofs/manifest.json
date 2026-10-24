@@ -4,6 +4,7 @@
   "revision": "e79da2ef5f258048dd581376d559c2d92fe44273",
   "files": [
     "Arithmetic.ae",
+    "Induction.ae",
     "Paper.ae",
     "negative/circular_contract.ae",
     "negative/false_goal.ae",

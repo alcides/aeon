@@ -340,6 +340,10 @@ def print_decidability_warnings(driver: AeonDriver) -> None:
     empty."""
     from aeon.verification.decidability import format_location
 
+    for w in driver.false_parameter_warnings:
+        print(f">>> Warning ({w.construct}) at {format_location(w.location)}:", file=sys.stderr)
+        print(f"    {w.message}", file=sys.stderr)
+
     if driver.cfg.strict_decidable:
         # Under strict mode these are reported as errors instead, so printing
         # them here as warnings too would just duplicate the diagnostic.
