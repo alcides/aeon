@@ -1,0 +1,3 @@
+import ProofCombinators;
+# Section 3: a recursive proof is not an induction if its argument never shrinks.
+def circular (n:Int) : {p:Unit | false} decreasing_by [n] := circular n;

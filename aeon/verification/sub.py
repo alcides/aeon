@@ -164,10 +164,10 @@ def implication_constraint(
         return c
     # ``keep_refinements`` preserves a function's argument/return refinements in
     # its uninterpreted declaration so its contract can be instantiated per call
-    # site at the SMT layer (issue #378). It is set only for *trusted*
-    # native/uninterpreted bindings, whose contract is an axiom; a regular
-    # function's body is verified separately, so assuming its own postcondition
-    # while checking (or synthesising) that body would be circular.
+    # site at the SMT layer (issue #378). Trusted natives use it as an axiom;
+    # checked functions expose it to their continuation only. Assuming a
+    # regular function's own postcondition while checking that function would
+    # be circular, so its body obligations must still erase the contract.
     lower = lower_constraint_type_keep_refinements if keep_refinements else lower_constraint_type
     match ty:
         case Top() | TypeVar(_) | TypeConstructor(_, _):
@@ -204,7 +204,9 @@ def implication_constraint(
             # ``_specialize_liquid_term`` monomorphises per call. Skip functions
             # whose result is a bare type variable (native/uninterpreted
             # builtins) — they have no SMT sort.
-            if is_first_order_function(lowered) and _has_concrete_base_result(ty):
+            from aeon.verification.constructor_registry import is_registered_measure
+
+            if is_first_order_function(lowered) and (_has_concrete_base_result(ty) or is_registered_measure(name.name)):
                 return UninterpretedFunctionDeclaration(name, lowered, c)
             return c
         case _:

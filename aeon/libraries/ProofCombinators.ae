@@ -1,0 +1,10 @@
+# Checked equational reasoning, following Theorem Proving for All (2018).
+# Proofs are Unit values; the theorem is expressed by their refinement.
+def eq (x:a) (y:{v:a | v = x}) : {v:a | v = x && v = y} := y;
+def because (x:a) (reason:Unit) : {v:a | v = x} := x;
+def qed (x:a) : Unit := unit;
+def trivial : Unit := unit;
+def le (x:Int) (y:{v:Int | x <= v}) : {v:Int | v = y && x <= v} := y;
+def lt (x:Int) (y:{v:Int | x < v}) : {v:Int | v = y && x < v} := y;
+def ge (x:Int) (y:{v:Int | x >= v}) : {v:Int | v = y && x >= v} := y;
+def gt (x:Int) (y:{v:Int | x > v}) : {v:Int | v = y && x > v} := y;

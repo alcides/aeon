@@ -1,0 +1,2 @@
+import ProofCombinators;
+def falseStep : Unit := 1 ==. 2 *** QED;

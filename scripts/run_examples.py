@@ -27,6 +27,7 @@ class Example:
     mode: str = "check"
     expected_codes: tuple[int, ...] = (0,)
     reference: str | None = None
+    minimum_timeout: float = 0
 
 
 def discover(root: Path = ROOT) -> list[Example]:
@@ -47,6 +48,8 @@ def discover(root: Path = ROOT) -> list[Example]:
                     "unrestricted": (12,),
                 }
                 expectations[f"examples/{directory}/{case['file']}"] = codes[case["error"]]
+    for name in ("false_step", "false_goal", "circular_contract", "nonterminating"):
+        expectations[f"examples/proofs/negative/{name}.ae"] = (13,)
     expectations["examples/bugs/error.ae"] = (5,)
     expectations["examples/probabilistic/normal_below_7_bad.ae"] = (13,)
     # These open proof specifications intentionally cannot verify before the
@@ -76,7 +79,10 @@ def discover(root: Path = ROOT) -> list[Example]:
         ):
             mode = "test"
         reference = references.get(path.stem) if relative.startswith("examples/synthesis/monotonicity/") else None
-        examples.append(Example(relative, mode, expectations.get(relative, (0,)), reference))
+        # The complete paper develops several mutually dependent proofs;
+        # retain the same finite ten-minute ceiling used for large examples.
+        minimum_timeout = 600 if relative == "examples/proofs/Paper.ae" else 0
+        examples.append(Example(relative, mode, expectations.get(relative, (0,)), reference, minimum_timeout))
     missing = expectations.keys() - {example.path for example in examples}
     if missing:
         raise ValueError(f"Missing expected-rejection examples: {sorted(missing)}")
@@ -117,6 +123,7 @@ def environment_for(example: Example) -> dict[str, str]:
 
 
 def run_one(example: Example, timeout: float, log_dir: Path) -> dict:
+    timeout = max(timeout, example.minimum_timeout)
     started = time.monotonic()
     log_path = log_dir / f"{example.path}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,293 @@
+{
+  "paper": "https://goto.ucsd.edu/~nvazou/theorem-proving-for-all/main.pdf",
+  "repository": "https://github.com/nikivazou/EquationalReasoningInLiquidHaskell",
+  "revision": "e79da2ef5f258048dd581376d559c2d92fe44273",
+  "files": [
+    "Arithmetic.ae",
+    "Paper.ae",
+    "negative/circular_contract.ae",
+    "negative/false_goal.ae",
+    "negative/false_step.ae",
+    "negative/incomplete.ae",
+    "negative/nonterminating.ae"
+  ],
+  "examples": [
+    {
+      "section": "2",
+      "source": "src/Lists.hs; src/02-Reasoning-About-Programs.lhs",
+      "symbols": [
+        "length",
+        "++",
+        "reverse"
+      ],
+      "aeon": [
+        "length",
+        "append",
+        "reverse"
+      ],
+      "adaptation": "Integer-list specialization; checked defining equations and length contracts."
+    },
+    {
+      "section": "2",
+      "source": "src/Lists.hs; src/02-Reasoning-About-Programs.lhs",
+      "symbols": [
+        "singletonP",
+        "singleton1P",
+        "rightIdP",
+        "leftIdP",
+        "assocP",
+        "distributivityP",
+        "involutionP"
+      ],
+      "aeon": [
+        "singletonP",
+        "singleton1P",
+        "rightIdP",
+        "leftIdP",
+        "assocP",
+        "distributivityP",
+        "involutionP"
+      ],
+      "adaptation": "Explicit decreasing metrics; lets and equational steps expose definitions. Companion leftIdP is the automated right-identity variant."
+    },
+    {
+      "section": "3",
+      "source": "src/03-Totality.lhs",
+      "symbols": [
+        "involutionP-partial",
+        "involutionP-nonterminating"
+      ],
+      "aeon": [],
+      "adaptation": "negative/incomplete.ae leaves an unsolved branch; negative/nonterminating.ae rejects a nondecreasing recursive proof. Positive involutionP uses a size metric."
+    },
+    {
+      "section": "4",
+      "source": "src/Derivations.hs; src/04-Function-Optimization.lhs",
+      "symbols": [
+        "reverseApp0",
+        "reverseApp1",
+        "reverseApp",
+        "reverse'"
+      ],
+      "aeon": [
+        "reverseApp0",
+        "reverseApp1",
+        "reverseApp",
+        "reverseFast"
+      ],
+      "adaptation": "Retain initial specification, case split, and accumulator derivation; Fast replaces apostrophe."
+    },
+    {
+      "section": "4",
+      "source": "src/Derivations.hs; src/04-Function-Optimization.lhs",
+      "symbols": [
+        "flatten",
+        "flattenApp0",
+        "flattenApp",
+        "flatten'"
+      ],
+      "aeon": [
+        "flatten",
+        "flattenApp0",
+        "flattenApp",
+        "flattenFast"
+      ],
+      "adaptation": "Explicit Tree size and defining equations; accumulator correctness remains exact list equality."
+    },
+    {
+      "section": "5",
+      "source": "src/CorrectCompilers.hs; src/05-Correct-Compilers.lhs",
+      "symbols": [
+        "eval",
+        "exec",
+        ">>=",
+        "comp",
+        "++",
+        "appRightIdP",
+        "appAssocP"
+      ],
+      "aeon": [
+        "eval",
+        "exec",
+        "bindExec",
+        "comp",
+        "app",
+        "appRightIdP",
+        "appAssocP"
+      ],
+      "adaptation": "Code fuses List Op into constructors; Results use standard Maybe (List Int); bind specialized to exec continuation."
+    },
+    {
+      "section": "5",
+      "source": "src/CorrectCompilers.hs; src/05-Correct-Compilers.lhs",
+      "symbols": [
+        "sequenceP",
+        "generalizedCorrectnessP",
+        "correctnessP"
+      ],
+      "aeon": [
+        "sequenceP",
+        "generalizedCorrectnessP",
+        "correctnessP"
+      ],
+      "adaptation": "All stacks, including underflow; induction on code and expression, respectively."
+    },
+    {
+      "section": "5",
+      "source": "src/CorrectCompilers.hs; src/05-Correct-Compilers.lhs",
+      "symbols": [
+        "compApp",
+        "comp'",
+        "equivP",
+        "equivCorrectnessP",
+        "generalizedCorrectnessP'",
+        "correctnessP'"
+      ],
+      "aeon": [
+        "compApp",
+        "compFast",
+        "equivP",
+        "equivCorrectnessP",
+        "generalizedCorrectnessFastP",
+        "correctnessFastP"
+      ],
+      "adaptation": "Both equivalence-based correctness and independent direct proof; explicit defining equations for optimized compiler."
+    },
+    {
+      "section": "6",
+      "source": "src/06-Related-Work.lhs",
+      "symbols": [
+        "Coq-app_assoc",
+        "Isabelle-app_assoc"
+      ],
+      "aeon": [
+        "assocP"
+      ],
+      "adaptation": "Alternative proof-language presentations of the same append associativity theorem share the Aeon induction proof."
+    },
+    {
+      "section": "historical",
+      "source": "src/old/Reverse.hs; src/old/Data/List.hs",
+      "symbols": [
+        "reverse1'",
+        "reverse2'",
+        "reverse3'",
+        "reverse4'",
+        "reverse5'",
+        "reverse'",
+        "reverseOpt",
+        "involutionP",
+        "distributivityP",
+        "rightIdP",
+        "assocP"
+      ],
+      "aeon": [
+        "reverseApp0",
+        "reverseApp1",
+        "reverseApp",
+        "reverseFast",
+        "involutionP",
+        "distributivityP",
+        "rightIdP",
+        "assocP"
+      ],
+      "adaptation": "Historical intermediate derivations share the specification/case-split/accumulator ports; no duplicate theorem bodies."
+    },
+    {
+      "section": "historical",
+      "source": "src/old/Trees.hs",
+      "symbols": [
+        "flatten",
+        "flatten'",
+        "flattenOpt",
+        "size"
+      ],
+      "aeon": [
+        "flatten",
+        "flattenApp",
+        "flattenFast"
+      ],
+      "adaptation": "Same tree derivation; Tree.rank supplies the termination metric."
+    },
+    {
+      "section": "historical",
+      "source": "src/old/CompilerCorrectnessMaybe.hs",
+      "symbols": [
+        "eval",
+        "exec",
+        "comp",
+        "correctnessP",
+        "generalizedCorrectnessP",
+        "sequenceP",
+        "comp'",
+        "generalizedCorrectnessP'",
+        "correctnessP'"
+      ],
+      "aeon": [
+        "eval",
+        "exec",
+        "comp",
+        "correctnessP",
+        "generalizedCorrectnessP",
+        "sequenceP",
+        "compFast",
+        "generalizedCorrectnessFastP",
+        "correctnessFastP"
+      ],
+      "adaptation": "Historical Maybe implementation shares the final companion proof ports."
+    },
+    {
+      "section": "historical",
+      "source": "src/old/CompilerCorectness.hs",
+      "symbols": [
+        "exprAdds",
+        "addCount",
+        "comp'",
+        "correctness'",
+        "correctness",
+        "distributivity",
+        "assoc"
+      ],
+      "aeon": [
+        "exprAdds",
+        "addCount",
+        "compApp",
+        "generalizedCorrectnessFastP",
+        "generalizedCorrectnessP",
+        "sequenceP",
+        "appAssocP"
+      ],
+      "adaptation": "Addition-count invariant retained in comp/app/compApp contracts. Older stack-precondition presentation maps to the total Maybe machine and its more general sequencing/correctness equations."
+    },
+    {
+      "section": "historical",
+      "source": "src/old/Lib/Derivations.hs",
+      "symbols": [
+        "Proof",
+        "QED",
+        "***",
+        "==.",
+        "eq",
+        "?",
+        "withTheorem",
+        "^^^",
+        "Defined"
+      ],
+      "aeon": [],
+      "adaptation": "Library Unit/eq/because/qed and syntax replace proof combinators; obsolete Defined identity marker is omitted, with expressions returned directly."
+    },
+    {
+      "section": "historical",
+      "source": "src/old/InspectionTests.hs",
+      "symbols": [
+        "reverse'",
+        "reverse2"
+      ],
+      "aeon": [
+        "reverseApp",
+        "reverseFast"
+      ],
+      "adaptation": "Runtime equivalence checks retained in main; Haskell-specific identical-Core/proof-erasure assertion is not claimed for eager Aeon."
+    }
+  ]
+}

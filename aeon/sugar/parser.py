@@ -106,7 +106,8 @@ _RECEIVER_END_TOKENS = frozenset(
         "FLOATLIT",  # 1.5.m
         "BOOLLIT",
         "ESCAPED_STRING",
-        "ID",  # ?x.m (hole) and any bare ident not fused into QUALIFIED_ID
+        "ID",  # Any bare ident not fused into QUALIFIED_ID
+        "HOLE",  # ?x.m
         "QUALIFIED_ID",  # x.a.m  -> (x.a).m
         "METHOD_DOT",  # 1.a.b chains
     }
@@ -433,6 +434,24 @@ class TreeToSugar(Transformer):
         # `$` is syntactic sugar for function application (right-associative by grammar).
         return SApplication(args[0], args[1], loc=self._loc(meta))
 
+    def _proof_call(self, meta, name, args):
+        result = SQualifiedVar("ProofCombinators", Name(name), loc=self._loc(meta))
+        for arg in args:
+            result = SApplication(result, arg, loc=self._loc(meta))
+        return result
+
+    @v_args(meta=True)
+    def proof_eq(self, meta, args):
+        return self._proof_call(meta, "eq", args)
+
+    @v_args(meta=True)
+    def proof_because(self, meta, args):
+        return self._proof_call(meta, "because", args)
+
+    @v_args(meta=True)
+    def proof_qed(self, meta, args):
+        return self._proof_call(meta, "qed", args)
+
     def binop(self, args, op: str, meta):
         return SApplication(
             SApplication(SVar(Name(op, 0), loc=self._loc(meta)), args[0], loc=self._loc(meta)),
@@ -525,7 +544,7 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def hole(self, meta, args):
-        return SHole(Name(args[0]), loc=self._loc(meta))
+        return SHole(Name(str(args[0])[1:]), loc=self._loc(meta))
 
     @v_args(meta=True)
     def int_lit(self, meta, args):

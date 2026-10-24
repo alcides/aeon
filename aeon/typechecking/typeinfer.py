@@ -280,7 +280,7 @@ def _reflected_impl_for(
     return (tuple(ty_params), liq)
 
 
-def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
+def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool = False) -> LiquidTerm | None:
     """Liquid encoding of an application term for selfification (issue #378).
 
     Returns the ``LiquidTerm`` for ``t`` when the whole term is expressible in
@@ -295,6 +295,30 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
     liquid fragment already makes everywhere applications appear in
     refinements and termination metrics; selfification adds no new trust.
     """
+    # A primitive with a refined result already has an exact contract. Skip
+    # identity construction before visiting its arguments: generated Boolean
+    # formulas can contain millions of nodes, making repeated traversal quadratic.
+    head = t
+    while isinstance(head, (Application, TypeApplication, RefinementApplication)):
+        head = head.fun if isinstance(head, Application) else head.body
+    if skip_primitives and isinstance(head, Var) and head.name.name in {op.name for op in ops}:
+        return None
+
+    # Identity is optional evidence. Bound its size before liquefaction so a
+    # large constructor tree does not get copied into every ancestor's type.
+    pending = [t]
+    visited = 0
+    while pending:
+        node = pending.pop()
+        visited += 1
+        if visited > 64:
+            return None
+        if isinstance(node, Application):
+            pending.extend((node.fun, node.arg))
+        elif isinstance(node, (TypeApplication, RefinementApplication)):
+            pending.append(node.body)
+        elif isinstance(node, Annotation):
+            pending.append(node.expr)
     liq = liquefy(t)
     if liq is None:
         return None
@@ -309,11 +333,18 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
                 return False
             case LiquidApp(fun, args):
                 if fun.name not in op_names:
-                    # Only monomorphic first-order functions are reliably
-                    # declared on the SMT side (``implication_constraint`` for
-                    # let-chain binders, ``entailment_context`` for prelude
-                    # entries — the latter skips polymorphic binders entirely).
+                    # First-order monomorphic functions and registered datatype
+                    # constructors have SMT declarations. Other polymorphic
+                    # functions can have bare type-variable results and are
+                    # not guaranteed to be declared.
                     fun_ty = ctx.type_of(fun)
+                    if isinstance(fun_ty, (TypePolymorphism, RefinementPolymorphism)):
+                        from aeon.verification.constructor_registry import get_constructor_groups
+
+                        if not any(fun.name in group for group in get_constructor_groups().values()):
+                            return False
+                    while isinstance(fun_ty, (TypePolymorphism, RefinementPolymorphism)):
+                        fun_ty = fun_ty.body
                     if not (isinstance(fun_ty, AbstractionType) and is_first_order_function(fun_ty)):
                         return False
                 return all(heads_declarable(a) for a in args)
@@ -321,14 +352,14 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
                 # A leaf variable is only safe to embed if it will be declared
                 # on the SMT side. Both ``implication_constraint`` (let-chain
                 # binders) and ``entailment_context`` (context binders) declare
-                # value binders of base/refined type but *skip polymorphic
-                # binders* — notably nullary inductive constructor constants such
-                # as ``List_nil : forall a. {l: List a | len l = 0}``. Embedding
-                # one would leave it undeclared in Z3 (a ``KeyError`` at
-                # translation time), so bail out of this optional selfification.
+                # value binders of base/refined type. Registered nullary
+                # constructors are also safe: translation instantiates them at
+                # the expected datatype sort.
                 var_ty = ctx.type_of(name)
                 if isinstance(var_ty, (TypePolymorphism, RefinementPolymorphism)):
-                    return False
+                    from aeon.verification.constructor_registry import get_constructor_groups
+
+                    return any(name.name in group for group in get_constructor_groups().values())
                 return True
             case _:
                 return True
@@ -341,20 +372,17 @@ def _selfification_liquid(ctx: TypingContext, t: Term) -> LiquidTerm | None:
 def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
     """Strengthen an application's synthesised type with ``v == ⟦t⟧``.
 
-    Only fires when the result type carries no information of its own — a bare
-    base type or a trivially-refined one. Refined codomains (primitive
-    operators, refined natives) already state their contract; adding the
-    equality there would only grow VCs. This is what lets facts proved about
-    the *application term* (e.g. an instantiated axiom about ``fdiv n 10``)
-    reach obligations phrased about its *result* (issue #378).
+    Preserve existing refinements as well as the application's identity: a
+    return contract need not uniquely characterize its result. This connects
+    equational proof steps about a call to facts about its returned value.
+    Primitive operators already specify their exact result and need no extra
+    equality.
     """
 
     def selfifiable_base(base: Type) -> bool:
-        # Non-parametric constructors only: scalars (Int, Float, Bool, String)
-        # and opaque user types map to one SMT sort each. Unit carries no
-        # information, and parametric constructors go through per-instantiation
-        # sort mangling that selfification should not interfere with.
-        return isinstance(base, TypeConstructor) and not base.args and base.name.name != "Unit"
+        # Parametric datatypes retain their concrete arguments in SMT sorts.
+        # Unit carries no useful equality information.
+        return isinstance(base, TypeConstructor) and base.name.name != "Unit"
 
     match ty:
         case TypeConstructor(_, _) if selfifiable_base(ty):
@@ -363,11 +391,11 @@ def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
                 return ty
             v = Name("_self", fresh_counter.fresh())
             return RefinedType(v, ty, LiquidApp(Name("==", 0), [LiquidVar(v), liq]))
-        case RefinedType(name, base, LiquidLiteralBool(True)) if selfifiable_base(base):
-            liq = _selfification_liquid(ctx, t)
-            if liq is None:
+        case RefinedType(name, base, refinement) if selfifiable_base(base):
+            liq = _selfification_liquid(ctx, t, skip_primitives=True)
+            if liq is None or (isinstance(liq, LiquidApp) and liq.fun.name in {op.name for op in ops}):
                 return ty
-            return RefinedType(name, base, LiquidApp(Name("==", 0), [LiquidVar(name), liq]))
+            return RefinedType(name, base, _and(refinement, LiquidApp(Name("==", 0), [LiquidVar(name), liq])))
         case _:
             return ty
 
@@ -801,7 +829,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 var_name, var_type, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
             )
             c2 = implication_constraint(
-                var_name, var_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+                var_name, var_type, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=True
             )
             term_c = termination_metric_constraints(t, term_ctx)
             # Do not assume this definition while proving its termination:
@@ -849,7 +877,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 s = type_substitution(tabs.body, tabs.name, nty)
                 if k is None or not is_compatible(k, tabs.kind):
                     raise CoreWrongKindInTypeApplicationError(term=t, type=nty, expected_kind=tabs.kind, actual_kind=k)
-                return (c, s)
+                return (c, _selfify_application_type(ctx, t, s))
             else:
                 if not isinstance(tabs, AbstractionType):
                     raise CoreInvalidApplicationError(t, tabs)
@@ -864,19 +892,19 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # no-op.  Explicit applications must continue to fail here so a
             # refinement cannot be silently dropped.
             if isinstance(refinement, ImplicitRefinementHole) and not isinstance(rp, RefinementPolymorphism):
-                return (c, rp)
+                return (c, _selfify_application_type(ctx, t, rp))
             if not isinstance(rp, RefinementPolymorphism):
                 raise CoreInvalidApplicationError(t, rp)
             if isinstance(refinement, ImplicitRefinementHole):
                 horn_name = Name("kappa", fresh_counter.fresh())
                 nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
-                return (c, nty)
+                return (c, _selfify_application_type(ctx, t, nty))
             assert isinstance(refinement, Abstraction)
             # ``rp.sort`` is the full (possibly n-ary) predicate type.
             pred_type = rp.sort
             c_ref = check(ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
-            return (conjoin(c, c_ref), nty)
+            return (conjoin(c, c_ref), _selfify_application_type(ctx, t, nty))
 
         case RefinementAbstraction(pname, psort, inner):
             # Synth-mode Λρ: mirror Chk-RAbs (lines 505-512) but without an expected type.
@@ -1067,9 +1095,19 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
             inst = type_substitution(inst.body, inst.name, repl)
         elif isinstance(inst, RefinementPolymorphism) and kind == "R":
             if isinstance(val, ImplicitRefinementHole):
-                inst = instantiate_refinement_with_horn_in_type(
-                    inst.body, inst.name, inst.sort, Name("kappa", fresh_counter.fresh())
-                )
+                # An erased scrutinee supplies no element-predicate evidence.
+                # A fresh Horn predicate could become false and make branches
+                # vacuous, so omitted predicates must accept every element.
+                predicate: Term = Literal(True, t_bool)
+                sort = inst.sort
+                parameters: list[Name] = []
+                while isinstance(sort, AbstractionType):
+                    parameters.append(sort.var_name)
+                    sort = sort.type
+                for parameter in reversed(parameters):
+                    predicate = Abstraction(parameter, predicate)
+                assert isinstance(predicate, Abstraction)
+                inst = instantiate_refinement_in_type(inst.body, inst.name, predicate)
             elif isinstance(val, Abstraction):
                 inst = instantiate_refinement_in_type(inst.body, inst.name, val)
             else:
@@ -1108,10 +1146,10 @@ def _check_recursor_branch(
     ``(f₁) → … → (f_k) → motive`` (already carrying the expected motive); on top
     of the usual field hypotheses we add the constructor's *result* refinement,
     specialised to the scrutinee (``size this = size tl + 1`` becomes
-    ``size scrut = size <field-for-tl> + 1``). That fact -- a pure measure
-    statement, which is all aeon's SMT logic models about a datatype -- is what
-    a non-dependent ``ret`` motive drops, and is exactly the match-branch
-    hypothesis. Falls back to a plain check (motive only, no constructor fact)
+    ``size scrut = size <field-for-tl> + 1``). For datatype constructors,
+    also retain ``scrut = Constructor fields`` so equational proofs can use
+    the exact datatype representation. These are the match-branch facts that
+    a non-dependent ``ret`` motive drops. Falls back to a plain check (motive only, no constructor fact)
     if the constructor's shape cannot be recovered."""
     plain = lambda: check(ctx, handler, case_type)  # noqa: E731
     evidence = match_branch_evidence(ctx, handler, case_type, tyname, case_name, scrut)
@@ -1225,7 +1263,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 var_name, t1, c1, var_value.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
             )
             c2 = implication_constraint(
-                var_name, t1, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=keep_refs
+                var_name, t1, c2, body.loc, reflected_impl=reflected_impl, keep_refinements=True
             )
             term_c = termination_metric_constraints(t, term_ctx)
             # Termination must be proved without assuming self-reflection;

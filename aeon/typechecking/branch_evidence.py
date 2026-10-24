@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from aeon.core.liquid import LiquidTerm, LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidTerm, LiquidVar
 from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Abstraction, Term, Var
 from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Type, TypePolymorphism
@@ -37,9 +37,10 @@ def match_branch_evidence(
     the constructor result binder with the matched value.
     """
     suffix = case_name.name[len("case_") :] if case_name.name.startswith("case_") else None
-    ctor_type = next((ty for n, ty in ctx.vars() if suffix is not None and n.name == f"{tyname}_{suffix}"), None)
-    if ctor_type is None:
+    ctor_entry = next(((n, ty) for n, ty in ctx.vars() if suffix is not None and n.name == f"{tyname}_{suffix}"), None)
+    if ctor_entry is None:
         return None
+    ctor_name, ctor_type = ctor_entry
     cur: Type = ctor_type
     while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
         cur = cur.body
@@ -68,4 +69,7 @@ def match_branch_evidence(
     fact = substitution_in_liquid(result.refinement, LiquidVar(scrut.name), result.name)
     for constructor_name, field_term in mapping.items():
         fact = substitution_in_liquid(fact, field_term, constructor_name)
+    # Preserve the exact constructor at the scrutinee's instantiated sort.
+    constructor = LiquidApp(ctor_name, [LiquidVar(n) for n, _ in fields]) if fields else LiquidVar(ctor_name)
+    fact = LiquidApp(Name("&&", 0), [fact, LiquidApp(Name("==", 0), [LiquidVar(scrut.name), constructor])])
     return MatchBranchEvidence(body, expected, tuple(fields), fact)

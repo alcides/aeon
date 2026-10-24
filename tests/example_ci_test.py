@@ -168,3 +168,11 @@ def test_check_cli_does_not_synthesize_or_evaluate(tmp_path: Path, source, expec
         timeout=60,
     )
     assert result.returncode == expected, result.stdout + result.stderr
+
+
+def test_proof_suite_expectations():
+    examples = {example.path: example for example in discover()}
+    for name in ("false_step", "false_goal", "circular_contract", "nonterminating"):
+        assert examples[f"examples/proofs/negative/{name}.ae"].expected_codes == (13,)
+    assert examples["examples/proofs/Paper.ae"].expected_codes == (0,)
+    assert examples["examples/proofs/Paper.ae"].minimum_timeout == 600

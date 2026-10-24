@@ -1,0 +1,2 @@
+import ProofCombinators;
+def falseGoal (x:Int) : {p:Unit | x = x + 1} := x ==. x *** QED;
