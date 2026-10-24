@@ -55,7 +55,7 @@ def test_invalid_machine_implementation_is_rejected(tmp_path):
 
 
 def test_induction_hypothesis_is_required(tmp_path):
-    source = (ROOT / "Paper.ae").read_text().split("def rightIdP")[0]
+    source = (ROOT / "Paper.ae").read_text().split("theorem rightIdP")[0]
     source += "def unsupported (xs:(List Int)) : {p:Unit | append xs emptyList = xs} := unit;"
     _, errors = compile_source(tmp_path, source)
     assert any(isinstance(e, LiquidTypeCheckingFailedRelation) for e in errors), errors
@@ -85,7 +85,7 @@ def test_manifest_covers_every_port_and_negative_fixture():
     for item in manifest["examples"]:
         assert item["source"] and item["symbols"] and item["adaptation"]
         for symbol in item["aeon"]:
-            assert f"def {symbol} " in source or f"def {symbol} :" in source
+            assert any(f"{keyword} {symbol} " in source for keyword in ("def", "theorem"))
     assert {item["section"] for item in manifest["examples"]} >= {"2", "3", "4", "5", "6"}
 
 

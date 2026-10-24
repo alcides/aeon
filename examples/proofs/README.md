@@ -10,29 +10,56 @@ Adapted source is covered by the upstream MIT license in `UPSTREAM-LICENSE`.
 and historical variants. Repeated presentations of the same theorem share a port.
 
 ```aeon
-import ProofCombinators;
-def add_commutative (a:Int) (b:Int) : {p:Unit | a + b = b + a} :=
-  a + b ==. b + a *** QED;
+theorem add_commutative (a:Int) (b:Int) : a + b = b + a := by
+  smt
+
+theorem add_zero (x:Int) : x + 0 = x := by
+  calc
+    x + 0 = 0 + x := by exact add_commutative x 0
+    _ = x := by smt
 ```
 
-`ProofCombinators.eq` (`==.`) checks that its arguments are equal and returns
-its **right** argument, as in the paper. `because` (`?`) accepts a Unit proof
-and returns its left argument. `qed` (`*** QED`) discards the value and returns
-Unit; the enclosing refined result type states the theorem. It does not assert
-an unchecked proposition. `trivial` is Unit. Named `le`, `lt`, `ge`, and `gt`
-combinators check integer inequalities and return their right argument.
-The equality and explanation combinators are polymorphic.
+`theorem name ... : P := proof` elaborates to a checked Unit-valued definition
+with refinement `P`. No proof-combinator import is required. Every theorem must
+be complete during compilation, including `--check`: explicit holes, omitted
+match branches, and tactic scripts that leave goals are compilation errors.
+Ordinary definitions retain their existing synthesis-hole behavior.
 
-Import `ProofCombinators` before using the notation. Arithmetic and Boolean
-operators bind more tightly than proof operators. Explanation `?` binds more
-tightly than left-associative `==.`; `*** QED` closes the chain. Parenthesize a
-whole chain to attach a reason to it. A synthesis hole is written `?name`, with
-no space; an explanation is written `value ? reason`. Use named functions when
-passing combinators as values. `QED` is syntax here, rather than a runtime token.
+Proof blocks support indentation or explicit parentheses and semicolons:
+
+- `smt` asks the refinement checker to discharge the current proposition.
+- `exact term` checks the supplied proof against the current proposition.
+- `have h : P := by ...` checks an intermediate proposition and makes its proof
+  available to subsequent steps.
+- `calc` checks each equality and the connection between adjacent steps. `_`
+  means the previous right-hand side.
+- `cases x with | constructor fields => ...` checks constructor branches.
+- `induction xs with | nil => smt | cons x tail ih => simp [ih]` introduces
+  checked recursive proofs on constructor fields. Induction hypotheses follow
+  the constructor's fields in declaration order. Standard `List` induction uses
+  `List.structuralRank`; other datatypes require `decreasing_by [...]`.
+- `simp [facts]` and `rw [facts]` make checked lemma applications available to
+  the SMT checker, which uses equality congruence and existing function
+  equations. `rw [facts]; ...` retains the facts for subsequent steps. These
+  tactics use Aeon's existing reflection/contracts; they do not implement
+  Lean's simplifier attributes, rewrite orientation, or arbitrary match unfolding.
+- Existing synthesis tactics such as `assumption` and `apply?` can appear in a
+  theorem's `by` block. They run during compilation and their output is checked.
+  Whether synthesis is used depends on the tactic, not on `theorem` itself.
+
+Calls inside refinement predicates must satisfy their preconditions before
+compile-time evaluation. A parameter refinement that is `false` (including a
+closed predicate that evaluates to `false`) produces a warning, not an error.
+A Boolean parameter constrained to equal the Boolean value `false` is inhabited
+and does not trigger that warning.
+
+The previous `ProofCombinators` library and its operators remain available for
+compatibility. The positive paper examples use theorem declarations and `calc`.
 
 ## Examples
 
 `Arithmetic.ae` contains integer commutativity and chained/explained equalities.
+`Induction.ae` is a standalone append-right-identity proof over standard `List`.
 `Paper.ae` covers all substantive proof examples from sections 2–5: list lengths,
 singleton reversal, identity, associativity, reversal distributivity and
 involution, accumulator reverse, tree flattening, code sequencing, naive compiler
@@ -61,10 +88,13 @@ hypothesis. Runtime examples complement the universal refinement proofs.
 
 ## Adaptations and boundaries
 
-- The paper's list theorems use the standard `List Int` datatype; the combinator
-  library itself remains polymorphic. The tree and compiler already use integers.
+- The paper's list theorems use the standard `List Int` datatype; the compatibility
+  combinator library itself remains polymorphic. The tree and compiler already use integers.
 - `Code` fuses `[Op]` into `done`, `PUSH n rest`, and `ADD rest`. `app` is its
   concatenation. Results use standard `Maybe (List Int)`, preserving failure on underflow.
+  `bindExec` requires successful results to carry a list of nonnegative structural
+  rank; `exec` guarantees this invariant. This makes its calls satisfy their
+  preconditions in both executable code and refinement specifications.
   `bindExec` specializes monadic bind to the continuation `exec d`; it does not
   claim a general higher-order reflection facility.
 - The reference `append`, `reverse`, and `length` definitions retain the paper's
@@ -85,10 +115,11 @@ hypothesis. Runtime examples complement the universal refinement proofs.
   the paper's Haskell-specific proof-erasure/identical-Core inspection result is
   **not** claimed. `Fast` describes the accumulator algorithm, not a benchmark
   or a guarantee that proof work has been erased.
-- Aeon treats omitted match branches as synthesis holes. `negative/incomplete.ae`
-  reproduces the totality example: it must not count as a completed proof.
+- Ordinary `def` declarations treat omitted match branches as synthesis holes.
+  `negative/incomplete.ae` preserves this compatibility example. The same missing
+  branch in a `theorem` is a compilation error.
   The tests require successful checking **and no remaining holes** for every
   positive port. Merely parsing a file or using `qed` does not certify totality.
-- Native functions, user-declared axioms, and synthesis are existing Aeon trust
-  boundaries. This library is ordinary checked Aeon code, not a new standalone
-  proof kernel.
+- Native functions and user-declared axioms retain their existing trust
+  semantics. Tactic-generated proof terms are rechecked. Theorem syntax uses
+  Aeon's refinement checker; it does not add a standalone proof kernel.

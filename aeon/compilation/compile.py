@@ -148,10 +148,12 @@ def compile_program(
             return cached, []
 
     clear_instance_registry()
-    prog = parse_main_program(aeon_code, filename=filename if filename != "<stdin>" else None)
+    try:
+        prog = parse_main_program(aeon_code, filename=filename if filename != "<stdin>" else None)
+    except AeonError as e:
+        return _placeholder_unit(path, digest, []), [e]
     class_decls_snapshot = list(prog.class_decls)
     instance_decls_snapshot = list(prog.instance_decls)
-    prog = bind_program(prog, [])
 
     file_imports = _file_imports(prog)
     dep_errors: list[AeonError] = []
@@ -180,6 +182,17 @@ def compile_program(
 
     if dep_errors:
         return _placeholder_unit(path, digest, dep_module_paths), dep_errors
+
+    from aeon.sugar.induction import expand_induction
+    from aeon.compilation.proofs import check_theorem_statements
+
+    try:
+        check_theorem_statements(prog)
+        prog = expand_induction(prog, [d for unit in dep_units.values() for d in unit.inductive_decls])
+        prog = bind_program(prog, [])
+    except AeonError as e:
+        return _placeholder_unit(path, digest, dep_module_paths), [e]
+    theorem_names = {d.name.name for d in prog.definitions if d.is_theorem}
 
     module_path = module_path or (Path(path).stem if path != "<stdin>" else "Main")
     export_prefix = None if is_main else _module_export_name(module_path)
@@ -210,9 +223,16 @@ def compile_program(
     from aeon.utils.location import FileLocation
     from aeon.verification.refinement_exec import execute_refinements_in_sterm, sterm_has_user_hole
 
+    from aeon.verification.preconditions import check_refinement_calls
+
+    try:
+        check_refinement_calls(sterm, lower_to_core_context(desugared.elabcontext), source_path=path)
+    except AeonError as e:
+        return _placeholder_unit(path, digest, dep_module_paths), [e]
+
     _loc = FileLocation(path, (0, 0), (0, 0))
     if sterm_has_user_hole(sterm):
-        if not is_main:
+        if not is_main and not theorem_names:
             return _placeholder_unit(path, digest, dep_module_paths), [
                 RefinementExecutionHoleError(
                     "synthesis hole",
@@ -229,6 +249,21 @@ def compile_program(
     core_ast = lower_to_core(sterm)
     typing_ctx, core_ast = bind_ids(typing_ctx, core_ast)
     core_ast = populate_mutual_companions(core_ast)
+    if theorem_names:
+        from aeon.compilation.proofs import complete_theorems
+
+        try:
+            core_ast = complete_theorems(core_ast, typing_ctx, theorem_names, desugared.metadata, export_prefix)
+        except AeonError as e:
+            return _placeholder_unit(path, digest, dep_module_paths), [e]
+
+    if not is_main:
+        from aeon.synthesis.identification import get_holes
+
+        if get_holes(core_ast):
+            return _placeholder_unit(path, digest, dep_module_paths), [
+                RefinementExecutionHoleError("synthesis hole", loc=_loc)
+            ]
 
     # Main programs splice imported definitions during desugar; linking dependency
     # spines on top would duplicate binders and break name identity.
@@ -244,7 +279,7 @@ def compile_program(
     # the grafted spine here rejects valid units whose internal names are
     # module-prefixed (e.g. ``Num_Ord_mk`` vs ``Ord_mk`` in instance dictionaries).
     type_errors: list[AeonError] = []
-    if export_prefix is None:
+    if export_prefix is None or theorem_names:
         type_errors = list(check_type_errors(linked_ctx, linked_core, top))
     source_metadata: Metadata = dict(desugared.metadata)
     if type_errors and not is_main:

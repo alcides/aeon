@@ -145,6 +145,13 @@ class SBy(STerm):
 
 
 @dataclass(frozen=True)
+class SInduction(STerm):
+    scrutinee: Name
+    branches: list[SMatchBranch]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("default"), compare=False)
+
+
+@dataclass(frozen=True)
 class SApplication(STerm):
     fun: STerm
     arg: STerm
@@ -470,6 +477,7 @@ class Definition(Node):
     # Lean-compatible visibility: private names remain available while their
     # module is compiled but are omitted from its public interface.
     is_private: bool = False
+    is_theorem: bool = False
 
     def multiplicity_of(self, i: int) -> Multiplicity:
         if i < len(self.arg_multiplicities):

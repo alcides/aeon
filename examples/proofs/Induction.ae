@@ -1,0 +1,13 @@
+# Induction over Aeon's standard List, with a checked append specification.
+import List;
+def empty : {v:(List Int) | v = List.nil && List.structuralRank v = 0} := List.nil;
+def append (xs:(List Int)) (ys:(List Int)) : {r:(List Int) |
+ (List.structuralRank xs = 0 --> r = ys) &&
+ (List.structuralRank xs > 0 --> r = List.cons (List.first xs) (append (List.rest xs) ys))}
+ decreasing_by [List.structuralRank xs] :=
+ match xs with | nil => ys | cons h t => List.cons h (append t ys);
+
+theorem append_nil (xs:(List Int)) : append xs empty = xs := by
+  induction xs with
+  | nil => smt
+  | cons x tail ih => simp [ih]

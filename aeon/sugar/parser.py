@@ -840,6 +840,86 @@ class TreeToSugar(Transformer):
         definition.is_private = is_private
         return definition
 
+    @v_args(meta=True)
+    def theorem_decl(self, meta, args):
+        from aeon.sugar.proofs import proposition
+
+        private, name, fn_args, goal, decreasing, body = args
+        plain_args, mults, flags = _split_arg_multiplicities(fn_args)
+        return Definition(
+            Name(name),
+            [],
+            plain_args,
+            proposition(goal, self._loc(meta)),
+            body,
+            decreasing_by=decreasing,
+            loc=self._loc(meta),
+            arg_multiplicities=mults,
+            instance_flags=flags,
+            is_private=private,
+            is_theorem=True,
+        )
+
+    @v_args(meta=True)
+    def proof_smt(self, meta, args):
+        from aeon.sugar.proofs import unit
+
+        return unit(self._loc(meta))
+
+    def proof_exact(self, args):
+        return args[0]
+
+    @v_args(meta=True)
+    def proof_legacy(self, meta, args):
+        return SBy(args[0], loc=self._loc(meta))
+
+    def proof_block(self, args):
+        return args[0]
+
+    @v_args(meta=True)
+    def proof_have(self, meta, args):
+        from aeon.sugar.proofs import proposition
+
+        name, goal, proof, rest = args
+        loc = self._loc(meta)
+        return SLet(Name(name), SAnnotation(proof, proposition(goal, loc), loc=loc), rest, loc=loc)
+
+    @v_args(meta=True)
+    def proof_simp(self, meta, args):
+        from aeon.sugar.proofs import sequence, unit
+
+        loc = self._loc(meta)
+        return sequence([(Name("_fact", fresh_counter.fresh()), fact) for fact in args[0]], unit(loc), loc)
+
+    @v_args(meta=True)
+    def proof_rewrite(self, meta, args):
+        from aeon.sugar.proofs import sequence
+
+        loc = self._loc(meta)
+        return sequence([(Name("_rewrite", fresh_counter.fresh()), fact) for fact in args[0]], args[1], loc)
+
+    @v_args(meta=True)
+    def proof_cases(self, meta, args):
+        return SMatch(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def proof_induction(self, meta, args):
+        from aeon.sugar.program import SInduction
+
+        return SInduction(Name(args[0]), args[1], loc=self._loc(meta))
+
+    def calc_step(self, args):
+        return tuple(args)
+
+    def calc_next(self, args):
+        return (None, *args)
+
+    @v_args(meta=True)
+    def proof_calc(self, meta, args):
+        from aeon.sugar.proofs import calc
+
+        return calc(args[0], self._loc(meta))
+
     def private_visibility(self, args):
         return True
 
@@ -981,8 +1061,18 @@ def mk_parser(rule="start", start_counter: int = 0, filename: str = ""):
     transf = TreeToSugar(filename, start_counter)
 
     def parse(s: str):
-        tree = parser.parse(s)
-        return transf.transform(tree)
+        from aeon.sugar.proof_layout import proof_layout
+
+        tree = parser.parse(proof_layout(s))
+        from lark.exceptions import VisitError
+        from aeon.errors import AeonError
+
+        try:
+            return transf.transform(tree)
+        except VisitError as error:
+            if isinstance(error.orig_exc, AeonError):
+                raise error.orig_exc from error
+            raise
 
     return parse
 

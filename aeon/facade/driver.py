@@ -79,6 +79,7 @@ class AeonDriver:
     def __init__(self, cfg: AeonConfig):
         self.cfg = cfg
         self.decidability_warnings: list = []
+        self.false_parameter_warnings: list = []
         self.session = self._new_session()
 
     def _new_session(self) -> CompilationSession:
@@ -95,6 +96,7 @@ class AeonDriver:
         self.core = None
         self.typing_ctx = None
         self.decidability_warnings = []
+        self.false_parameter_warnings = []
 
         with RecordTime("Compile"):
             if aeon_code is not None:
@@ -124,6 +126,10 @@ class AeonDriver:
         if errors:
             return errors
         assert core is not None and typing_ctx is not None and metadata is not None
+
+        from aeon.verification.false_parameters import collect_false_parameter_warnings
+
+        self.false_parameter_warnings = collect_false_parameter_warnings(core, source_path=unit.source_path)
 
         with RecordTime("DecidabilityScan"):
             from aeon.verification.decidability import collect_decidability_warnings
