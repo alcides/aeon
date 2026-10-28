@@ -1,0 +1,54 @@
+# NAND-only one-bit full-adder synthesis.
+# Source: https://btmc.substack.com/p/the-awesome-power-of-constraint-solvers
+#
+# Inputs: a, b, carry_in. Outputs: sum, carry_out.
+# Specification: 2 * carry_out + sum = a + b + carry_in, for all eight inputs.
+# The article's reference circuit uses nine NAND gates with depth six.
+# This file leaves the implementation open for existing synthesizers; it does
+# not supply a circuit or claim a gate-count/depth optimum.
+#
+# Try, for example:
+#   python -m aeon --no-main --budget 60 -s synquid examples/synthesis/nand_full_adder.ae
+#
+# A distinct Bit type keeps Bool's built-in ! and && from implementing gates.
+# The Bit operations logical_not and logical_and are shadowed at the hole.
+
+inductive Bit
+| low : {b:Bit | value b = 0}
+| high : {b:Bit | value b = 1}
++ value (b:Bit) : {v:Int | 0 <= v && v <= 1}
+
+def logical_not (x:Bit) : {r:Bit | Bit.value r = 1 - Bit.value x} :=
+    match x with
+    | .low => Bit.high
+    | .high => Bit.low;
+
+def logical_and (x:Bit) (y:Bit) :
+    {r:Bit | (Bit.value r = 1) = (Bit.value x = 1 && Bit.value y = 1)} :=
+    match x with
+    | .low => Bit.low
+    | .high => y;
+
+# The only callable Bit gate offered at the synthesis hole.
+def nand (x:Bit) (y:Bit) :
+    {r:Bit | (Bit.value r = 0) = (Bit.value x = 1 && Bit.value y = 1)} :=
+    logical_not (logical_and x y);
+
+inductive AdderOutput
+| mk (sum:Bit) (carry_out:Bit) :
+    {r:AdderOutput | sum_value r = Bit.value sum && carry_value r = Bit.value carry_out}
++ sum_value (r:AdderOutput) : {v:Int | 0 <= v && v <= 1}
++ carry_value (r:AdderOutput) : {v:Int | 0 <= v && v <= 1}
+
+def full_adder (a:Bit) (b:Bit) (carry_in:Bit) :
+    {r:AdderOutput |
+        2 * AdderOutput.carry_value r + AdderOutput.sum_value r =
+            Bit.value a + Bit.value b + Bit.value carry_in
+    } :=
+    let logical_not : Unit := unit in
+    let logical_and : Unit := unit in
+    # Keep direct Bit elimination and constant constructors out of the grammar.
+    let Bit_rec : Unit := unit in
+    let Bit_low : Unit := unit in
+    let Bit_high : Unit := unit in
+    ?circuit;
