@@ -59,6 +59,10 @@ class InvalidIndividualException(SynthesisError):
 
 
 class Synthesizer(ABC):
+    # The entrypoint derives checked samples from refinements when this backend
+    # needs examples and the user has supplied no explicit training corpus.
+    requires_examples: bool = False
+
     def computations(self, primitives: "EvalPrimitives") -> dict[str, "Computation"]:
         """Declare the per-candidate computations this backend wants the shared
         evaluation pool to run. The default is just the objective ``fitness``

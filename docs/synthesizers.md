@@ -151,9 +151,17 @@ Supports one to three scalar or registered ADT inputs, scalar or ADT results, fi
 
 ### `decision_tree` — Decision Tree Regressor
 
-Fits a scikit-learn `DecisionTreeRegressor` to training data provided via the `@csv_data` or `@csv_file` decorators, then converts the resulting tree into a nested `if-then-else` Aeon term. This synthesizer is **data-driven**: it learns a piecewise-constant function from examples rather than searching a grammar.
+Fits a scikit-learn `DecisionTreeRegressor` to training data provided via `@example`, `@csv_data`, or `@csv_file`, then converts the resulting tree into a nested `if-then-else` Aeon term. Without explicit data, the shared synthesis entrypoint derives examples from the function's input and output refinements. Inputs and outputs must be numeric, and the output must be uniquely determined for each sampled input. Integer splits use an equivalent integer threshold so refinement checking retains the branch condition.
 
 Useful for regression problems where input–output pairs are available and a readable, interpretable result is desired.
+
+### Examples derived from refinements
+
+When `decision_tree`, `contata`, or `bustle` needs examples and no explicit corpus is present, the entrypoint samples the function's refinement with SMT. It preserves dependent input preconditions, decodes scalar and registered inductive values, and typechecks each concrete input/output pair. Explicit examples and source metadata are preserved. Candidate acceptance still requires the full refinement; a sampled corpus is not a proof of correctness.
+
+Generation is bounded to 32 distinct inputs and four constructor levels, with a two-second generation budget (or one fifth of the synthesis budget, whichever is smaller). Its elapsed time is deducted from the search budget. It applies to a hole in the function's result position, including one wrapped in local bindings. Finite domains can be exhausted, including all eight zero-depth input combinations in `nand_full_adder.ae`; infinite domains yield a bounded corpus.
+
+Exact labels are emitted only when SMT proves the output unique for each sampled input. Otherwise observations retain the original relation: for example, the adder refinement fixes the sum and carry bits while leaving circuit depth free for optimization. BUSTLE can use relational observations for guidance and checks outputs against the refinement. Decision trees and Contata require exact labels and report unsupported non-unique outputs. Their existing datatype, arity, and optimization limitations still apply; generating examples does not add circuit optimization support to a numeric decision tree or to BUSTLE.
 
 ---
 

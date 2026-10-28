@@ -1,5 +1,6 @@
 from typing import Callable
 from time import monotonic_ns
+from math import floor
 
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
@@ -7,7 +8,7 @@ from sklearn.tree import DecisionTreeRegressor
 from aeon.core.terms import Application, If, Literal, Term, TypeApplication, Var
 from aeon.core.types import Type, t_float, t_int
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer
+from aeon.synthesis.api import Synthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
@@ -44,19 +45,18 @@ def _numeric_literal(value: float, ty: Type) -> Term:
     return Literal(float(value), t_float)
 
 
-def _comparison_operand(arg_name: Name, arg_ty: Type) -> Term:
-    """Build the left-hand side of a tree split comparison."""
-    if base_type_of(arg_ty) == t_int:
-        return Application(Var(Name("toFloat", 0)), Var(arg_name))
-    return Var(arg_name)
-
-
 def _split_condition(arg_name: Name, arg_ty: Type, threshold: float) -> Term:
-    """``<=`` comparison preserving sklearn's floating-point split threshold."""
-    le_typed = TypeApplication(Var(Name("<=", 0)), t_float)
+    """For integers, x <= threshold is exactly x <= floor(threshold).
+
+    Keeping integer arithmetic lets the refinement checker prove the branch
+    condition; toFloat's unconstrained return contract loses that relation.
+    """
+    integer = base_type_of(arg_ty) == t_int
+    comparison_type = t_int if integer else t_float
+    le_typed = TypeApplication(Var(Name("<=", 0)), comparison_type)
     return Application(
-        Application(le_typed, _comparison_operand(arg_name, arg_ty)),
-        Literal(threshold, t_float),
+        Application(le_typed, Var(arg_name)),
+        Literal(floor(threshold) if integer else threshold, comparison_type),
     )
 
 
@@ -89,6 +89,8 @@ def _tree_to_term(
 
 
 class DecisionTreeSynthesizer(Synthesizer):
+    requires_examples = True
+
     def __init__(self, max_depth: int | None = None):
         self.max_depth = max_depth
 
@@ -118,6 +120,11 @@ class DecisionTreeSynthesizer(Synthesizer):
                 break
         training_data: list[list[float]] = current_metadata.get("training_data", [])
         if not training_data:
+            if current_metadata.get("refinement_examples"):
+                raise UnsupportedSynthesisGoal(
+                    "decision_tree needs numeric inputs and a uniquely determined numeric output; "
+                    "the refinement-derived observations cannot be used as exact training labels"
+                )
             return None
 
         data = np.array(training_data)
@@ -126,12 +133,16 @@ class DecisionTreeSynthesizer(Synthesizer):
 
         # Extract argument names/types from the typing context (the hole type
         # is the return type only, not the full function type).
-        fun_args = _get_function_args(ctx, fun_name)
+        params = current_metadata.get("io_params")
+        fun_args = [(name, ctx.type_of(name)) for name in params] if params else _get_function_args(ctx, fun_name)
         arg_names = [name for name, _ in fun_args]
         if len(arg_names) != X.shape[1]:
             return None
         arg_types = [aty for _, aty in fun_args]
         return_type = type
+        if not arg_names:
+            candidate = _numeric_literal(float(y[0]), return_type)
+            return candidate if validate(candidate) else None
 
         # Try increasing depths until budget runs out or validation passes
         goals = current_metadata.get("goals", [])

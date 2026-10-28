@@ -59,6 +59,8 @@ def extract_constants(columns: Sequence[Sequence[Scalar]], outputs: Sequence[Sca
 
 
 class BustleSynthesizer(Synthesizer):
+    requires_examples = True
+
     def __init__(
         self,
         model_path: str | Path | None = None,
@@ -149,7 +151,8 @@ class BustleSynthesizer(Synthesizer):
             return valid_value(value, key, schemas)
 
         entry = metadata.get(fun_name, {})
-        rows = entry.get("constructor_io_examples") or entry.get("io_examples", [])
+        rows = entry.get("constructor_io_examples") or entry.get("io_examples") or entry.get("refinement_examples", [])
+        derived = bool(entry.get("refinement_examples"))
         params = entry.get("io_params", [])
         probe = entry.get("pbe_probe")
         if not rows or not callable(probe):
@@ -158,7 +161,7 @@ class BustleSynthesizer(Synthesizer):
             raise SynthesisNotSuccessful(f"bustle: supports 1–{MAX_INPUTS} scalar/ADT value parameters")
         if (
             len(entry.get("goals", [])) > len(entry.get("examples", []))
-            or len(rows) != len(entry.get("examples", []))
+            or (not derived and len(rows) != len(entry.get("examples", [])))
             or entry.get("property")
         ):
             raise SynthesisNotSuccessful(
@@ -246,7 +249,10 @@ class BustleSynthesizer(Synthesizer):
             )
 
         def accept(value: Value) -> bool:
-            if value.key != goal or value.outputs != expected:
+            if value.key != goal:
+                return False
+            matches = entry.get("refinement_example_matches")
+            if not (matches(value.outputs) if callable(matches) else value.outputs == expected):
                 return False
             try:
                 return validate(value.term)
