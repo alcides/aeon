@@ -1,0 +1,15 @@
+import ControlTrace;
+
+# Status: 0 running/finished, 1 invalid, 2 breakpoint, 3 instruction exhaustion.
+# One action budget and one instruction budget are shared across all loops.
+inductive ControlRun a
+| result (state:a) (remaining:Int) (instructions:Int) (total:Float)
+         (status:Int) (blocked:Int) (trace:ControlTrace) : (ControlRun a)
+
+def state (r:(ControlRun a)):a := match r with | ControlRun.result s n fuel loss status pc trace => s;
+def remaining (r:(ControlRun a)):Int := match r with | ControlRun.result s n fuel loss status pc trace => n;
+def instructions (r:(ControlRun a)):Int := match r with | ControlRun.result s n fuel loss status pc trace => fuel;
+def total (r:(ControlRun a)):Float := match r with | ControlRun.result s n fuel loss status pc trace => loss;
+def status (r:(ControlRun a)):Int := match r with | ControlRun.result s n fuel loss status pc trace => status;
+def blocked (r:(ControlRun a)):Int := match r with | ControlRun.result s n fuel loss status pc trace => pc;
+def trace (r:(ControlRun a)):ControlTrace := match r with | ControlRun.result s n fuel loss status pc trace => trace;

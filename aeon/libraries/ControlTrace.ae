@@ -1,0 +1,11 @@
+# Reverse chronological abstract execution trace; pc is a binary AST path.
+inductive ControlTrace
+| empty : ControlTrace
+| event (pc:Int) (action:Int) (before:Int) (after:Int) (rest:ControlTrace) : ControlTrace
+
+def is_empty(trace:ControlTrace):Bool := match trace with
+| ControlTrace.empty => true
+| ControlTrace.event pc action before after rest => false;
+def latest(trace:ControlTrace):Int := match trace with
+| ControlTrace.empty => 0
+| ControlTrace.event pc action before after rest => after;

@@ -59,6 +59,10 @@ class InvalidIndividualException(SynthesisError):
 
 
 class Synthesizer(ABC):
+    def evaluation_timeout(self, default: float) -> float:
+        """Per-candidate worker allowance, including all requested observations."""
+        return default
+
     def computations(self, primitives: "EvalPrimitives") -> dict[str, "Computation"]:
         """Declare the per-candidate computations this backend wants the shared
         evaluation pool to run. The default is just the objective ``fitness``

@@ -56,6 +56,120 @@ had held-out losses about `87.185`, `231.779`, `1.141`, and `236.306`, respectiv
 Search progress depends on the budget and machine; these are observations,
 not acceptance thresholds or promised solutions.
 
+## Discovering controller structure with ReGuS
+
+`thermostat_structure.ae` and `pendulum_structure.ae` search for controller
+programs containing actions, sequences, loops, and branches. Their holes have
+the ordinary inductive type `ControlProgram`. The interpreter keeps the
+program's position while executing its actions, so a two-phase program can
+complete one phase and continue with another.
+
+```bash
+python -m aeon -s regus --budget 60 examples/synthesis/control/thermostat_structure.ae
+python -m aeon -s regus --budget 120 examples/synthesis/control/pendulum_structure.ae
+
+# Identical problem and objective, with another backend:
+python -m aeon -s gp --budget 60 examples/synthesis/control/thermostat_structure.ae
+python -m aeon -s random_search --budget 30 examples/synthesis/control/pendulum_structure.ae
+```
+
+Each problem file defines its actions, sensor predicates, abstract-state
+encoding, training and unseen initial states, horizons, per-step cost, terminal
+penalties, complexity penalty, and objective decorators. ReGuS has no knowledge
+of pendulums, thermostats, these initial states, or their target values.
+Switching `-s` preserves all these definitions. Backends need to support the
+task's ADT and objective; a backend with no ADT/optimization support may reject
+it. A short search can return an early-stopping controller with a poor score.
+
+The standard objective is `@minimize_float(objective controller)`. The optional
+`@cluster(feature controller)` supplies ReGuS's abstract execution observations.
+`feature` returns a deferred `(ignored:Int) -> ControlObservation` function so
+ordinary fitness-only backends do not collect traces. ReGuS invokes this
+function inside its timed evaluation worker. No special reward decorator or
+Python environment registration is needed.
+
+Thermostat actions are one minute of heating off/on. Pendulum actions are
+single steps of energy pumping or PD balance with a finite gain palette, all
+defined in the problem file. The search chooses both these numerical variants
+and their control-flow composition. A manually written pendulum program that
+uses the same vocabulary is:
+
+```aeon
+ControlProgram.loop 0
+    (ControlProgram.branch 1 (ControlProgram.action 3) (ControlProgram.action 0))
+```
+
+For this particular problem, sensor 0 is always true, sensor 1 means catchable
+near upright, action 3 balances with gains 8/2, and action 0 pumps energy. The
+backend reads only the vocabulary sizes and abstract traces; these meanings
+are in the `.ae` file. The tests check that this program has the original
+reference controller's training loss. It is an illustration, not a claimed
+output of every search run.
+
+### Shared execution interface
+
+`ControlTask.run actions predicates horizon advance cost invalid sense abstract
+initial program` executes a program without collecting a trace. `record` takes
+the same arguments and collects one abstract pre/post-state event per action.
+`ControlTask.score finish result` adds the problem's terminal loss; `report`
+packages a recorded execution for `ControlObservation.snapshot`.
+
+`abstract` encodes the Boolean sensors as a bitmask, with sensor zero in the
+highest bit. It must agree with `sense`. This avoids reevaluating every sensor
+for every event; the interpreter reuses the previous action's post-state mask.
+Vocabulary bounds are 32 actions, 16 sensors, and 32 training starts; horizons
+are 1–500 actions. Training observations and fitness use the same starts.
+Held-out evaluation is defined separately in each problem file.
+
+One action budget and one instruction budget are shared by the entire program,
+including nested loops and procedures. Invalid actions/guards fail, invalid
+states are checked after each action including the last, and a loop body that
+makes no action progress fails immediately. `halt` returns early. The supplied
+goals penalize unspent action budget, so halting cannot earn a zero-cost success.
+The internal `gap` constructor suspends a partial program at a binary AST path;
+its observed prefix cost guides search. It is hidden at the synthesis hole,
+and ReGuS checks both syntax and the observation's closedness flag before
+accepting a finished controller, including controllers using supplied skills.
+
+### Algorithm and scope
+
+The new backend implements a bounded adaptation of
+[ReGuS, Cui et al., PLDI 2024](https://herowanzhu.github.io/PLDI_2024.pdf):
+
+- High-level UCT search chooses loop/sequence skeletons. Completed skeletons
+  each retain their own priority queue when revisited; their best completed
+  program scores feed back into the high-level tree.
+- Low-level search executes prefixes and expands the first reached gap.
+  Abstract pre-state disagreements at an action site trigger conditional
+  proposals. The known action stays on its original branch while the new
+  branch is completed; matching observed post-states prioritize rejoining.
+  Repair and ordinary completion queues receive alternating turns to prevent
+  cheap incomplete prefixes from starving conditional repair.
+- Earlier `ControlProgram` bindings are available as reusable procedures.
+  Users can retain a program synthesized on an easier task as an ordinary Aeon
+  definition for the next task. Task ordering and curriculum construction are
+  explicit in the source.
+
+Every completed candidate passes the shared type/refinement validator and is
+ranked by the problem's declared objectives. A monotone score transform and
+structural search cost affect scheduling; final selection uses the unchanged
+objective vector and the shared Pareto archive.
+
+This implementation evaluates all supplied training starts together and returns
+the best accepted candidate within the budget. The paper's progressive
+seed/threshold protocol, automatic cross-task curriculum scheduling, and full
+abstract-contract branch-merging machinery are not reproduced. Conditional
+repair uses empirical pre-state disagreements and post-state agreement, not
+proved Hoare contracts. Numerical search is over the problem's finite action
+palette. No published ReGuS performance or generalization result is claimed.
+
+Default search bounds are 23 program nodes, 3 loops, 9 sketch nodes, and 10,000
+states. `AEON_SEED` controls stochastic choices. The Python `Config` API exposes
+these limits and the worker allowance: ReGuS requests at least five seconds
+per candidate because fitness and trace collection share a worker. Other
+backends retain their existing allowance. An in-flight evaluation or compiler
+check can finish after the outer search budget expires.
+
 ## Models and objectives
 
 **Thermostat** (`ControlThermostat`): a toy room model, one minute per step,
