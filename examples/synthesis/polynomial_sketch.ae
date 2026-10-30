@@ -1,0 +1,9 @@
+# Run: python -m aeon -s polynomial --budget 10 examples/synthesis/polynomial_sketch.ae
+# Supply a program skeleton; infer its coefficients using a universal property.
+def a:Int := ?a;
+def b:Int := ?b;
+
+@property(4)
+def correct(x:Int):Bool := a*x*x + b = 3*x*x + 7;
+
+def main(args:Int):Int := a*100 + b;

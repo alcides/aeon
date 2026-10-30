@@ -1,0 +1,8 @@
+# Run: python -m aeon -s polynomial --budget 10 examples/synthesis/polynomial.ae
+# A degree-two template is solved against a universal refinement contract.
+def quadratic(x:Int):{v:Int | v = x*x + 3*x + 7} := ?quadratic;
+
+# Independent holes are solved together, retaining their shared contracts.
+def shifted(x:Int):{v:Int | v = quadratic x + x} := ?shifted;
+
+def main(args:Int):Int := shifted 10;
