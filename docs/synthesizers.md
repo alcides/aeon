@@ -110,6 +110,37 @@ no pretrained model or published 1901-task dataset is bundled.
 
 ---
 
+### `regus` — Reward-Guided Controller Structure Synthesis
+
+Bounded ReGuS adaptation with high-level loop-sketch UCT, persistent low-level
+completion queues, execution-guided gap expansion, and conditional repair
+triggered by abstract-state disagreements. Existing `ControlProgram` bindings
+can be reused as procedures in an explicit curriculum. The controller
+interpreter and environment callbacks are ordinary Aeon.
+
+```bash
+python -m aeon -s regus --budget 60 examples/synthesis/control/thermostat_structure.ae
+python -m aeon -s gp --budget 60 examples/synthesis/control/thermostat_structure.ae
+```
+
+Targets `ControlProgram` holes with standard numerical objective decorators and
+an `@cluster` feature returning `ControlObservation` (or a deferred function
+returning one). Goals, action/sensor vocabularies, initial states, and penalties
+remain in the problem file and can be used by other ADT-capable fitness
+backends. The current backend handles one program hole at a time. Scalar gain
+holes should use the existing numerical backends; the structure examples
+search finite numeric action palettes.
+
+Uses the shared validation, worker containment, and Pareto selection paths.
+Partial controllers guide search but cannot be returned. The implementation
+uses all training starts together and budgeted optimization; it does not
+implement the paper's progressive seed/threshold protocol, automatic task
+ordering, or full abstract-contract merging. See the
+[control examples and protocol](../examples/synthesis/control/README.md#discovering-controller-structure-with-regus)
+for supported semantics, bounds, and differences from the paper.
+
+---
+
 ### `synquid` — Type-Directed Synthesis
 
 This backend implements a **Synquid-style** enumerator: type-directed decomposition, **Q**-aware conditional guards (same finite qualifier set as Horn predicate abstraction), and search ordering heuristics.

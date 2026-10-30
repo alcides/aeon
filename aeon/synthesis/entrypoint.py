@@ -392,7 +392,9 @@ def _synthesize_one(
         replace,
         bundled_fitness=bundled_fitness,
     )
-    pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
+    pool = EvaluationPool(
+        replace, syn_impl.computations(primitives), budget_eval=syn_impl.evaluation_timeout(budget_eval)
+    )
     evaluator, output_evaluator = _pool_backed(pool)
 
     # Example-driven (PBE) probe: evaluate a candidate body on a concrete

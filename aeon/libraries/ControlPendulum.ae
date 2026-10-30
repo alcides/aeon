@@ -1,0 +1,43 @@
+# Pendulum equations/constants: Farama Gymnasium classic_control/pendulum.py.
+# theta=0 is upright, g=10, m=l=1, dt=0.05, torque in [-2,2], speed in [-8,8].
+# Semi-implicit Euler and the standard positive angle/rate/torque cost.
+import Control;
+open Control;
+import Math;
+
+inductive ControlPendulum
+| mk (angle:Float) (velocity:Float) : ControlPendulum
+
+def angle (s:ControlPendulum):Float := match s with | ControlPendulum.mk theta rate => theta;
+def velocity (s:ControlPendulum):Float := match s with | ControlPendulum.mk theta rate => rate;
+def step (s:ControlPendulum) (command:Float):ControlPendulum :=
+    match s with | ControlPendulum.mk theta rate =>
+        let torque := Control.clip command (0.0 - 2.0) 2.0 in
+        let next_rate := Control.clip (rate + 0.05 * (15.0 * Math.sin theta + 3.0 * torque)) (0.0 - 8.0) 8.0 in
+        ControlPendulum.mk (Control.angle (theta + 0.05 * next_rate)) next_rate;
+def invalid (s:ControlPendulum):Bool :=
+    match s with | ControlPendulum.mk theta rate => !(Math.isfinite theta) || !(Math.isfinite rate);
+
+# Energy pumping far from upright, PD stabilization near upright. The energy
+# convention is E=rate^2/6 + 5*cos(theta), desired energy=5.
+def energy_policy (kp:Float) (kd:Float) (ke:Float) (theta:Float) (rate:Float):Float :=
+    let error := Control.angle theta in
+    let energy := rate * rate / 6.0 + 5.0 * Math.cos error in
+    let direction := if rate >= 0.0 then 1.0 else (0.0 - 1.0) in
+    let command := if error > (0.0 - 0.5) && error < 0.5 && rate > (0.0 - 4.0) && rate < 4.0
+                   then (0.0 - kp * error - kd * rate) else ke * (5.0 - energy) * direction in
+    Control.clip command (0.0 - 2.0) 2.0;
+def reference (theta:Float) (rate:Float):Float := energy_policy 8.0 2.0 1.0 theta rate;
+def idle (theta:Float) (rate:Float):Float := 0.0;
+def advance (policy:(theta:Float)->(rate:Float)->Float) (s:ControlPendulum):ControlPendulum :=
+    match s with | ControlPendulum.mk theta rate => step s (policy (Control.angle theta) rate);
+def cost (policy:(theta:Float)->(rate:Float)->Float) (s:ControlPendulum):Float :=
+    match s with | ControlPendulum.mk theta rate =>
+        let torque := Control.clip (policy (Control.angle theta) rate) (0.0 - 2.0) 2.0 in
+        Control.square (Control.angle theta) + 0.1 * rate * rate + 0.001 * torque * torque;
+def episode (horizon:{n:Int | n >= 0 && n <= 500}) (policy:(theta:Float)->(rate:Float)->Float) (initial:ControlPendulum):Control :=
+    Control.rollout horizon (advance policy) (cost policy) invalid initial;
+def training (policy:(theta:Float)->(rate:Float)->Float):Float :=
+    (Control.loss (episode 80 policy (ControlPendulum.mk 0.2 0.0)) + Control.loss (episode 80 policy (ControlPendulum.mk 3.141592653589793 0.0))) / 2.0;
+def held_out (policy:(theta:Float)->(rate:Float)->Float):Float :=
+    (Control.loss (episode 160 policy (ControlPendulum.mk 2.4 0.3)) + Control.loss (episode 160 policy (ControlPendulum.mk (0.0 - 2.7) (0.0 - 0.2)))) / 2.0;

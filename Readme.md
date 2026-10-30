@@ -49,6 +49,10 @@ Run with `uv run python -m aeon --budget 10 -s gp file.ae` to synthesize the min
 
 More examples — including image processing, machine learning, and probabilistic programming — live in the [`examples/`](examples/) directory.
 
+[Control-policy examples](examples/synthesis/control/README.md) include CartPole,
+pendulum swing-up, thermostat, and cruise control, with simulations and fitness
+written in Aeon.
+
 ## Authors
 
 Aeon has been developed at [LASIGE](https://www.lasige.pt), [University of Lisbon](https://ciencias.ulisboa.pt) by:

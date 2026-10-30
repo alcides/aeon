@@ -1,0 +1,15 @@
+# Synthesize two hysteresis thresholds jointly. Domains ensure low < high.
+# python -m aeon -s gp --budget 30 examples/synthesis/control/thermostat.ae
+import ControlThermostat;
+import Math;
+
+def low:{v:Int | v >= 18 && v <= 21} := ?low;
+def high:{v:Int | v >= 22 && v <= 25} := ?high;
+def policy(t:Float)(was_on:Bool):Bool := ControlThermostat.hysteresis (Math.toFloat low) (Math.toFloat high) t was_on;
+
+@minimize_float(ControlThermostat.training policy)
+def training_loss:Float := ControlThermostat.training policy;
+
+def held_out_loss(args:Int):Float := ControlThermostat.held_out policy;
+
+def main(args:Int):Unit := print (held_out_loss args);

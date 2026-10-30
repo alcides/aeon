@@ -1,0 +1,68 @@
+# Discover swing-up/balance control flow; numeric gains are a finite palette.
+# No switching policy, training states, or reward is built into the backend.
+import ControlProgram;
+import ControlTask;
+import ControlRun;
+import ControlReport;
+import ControlObservation;
+import ControlPendulum;
+import Control;
+import Math;
+
+# Actions 0/1: energy pumping at gains 1/2. Actions 2..5: PD balance
+# with (kp,kd)=(6,1),(8,2),(10,2),(8,3). Saturation is in the plant.
+def command(choice:Int)(theta:Float)(rate:Float):Float :=
+    if choice <= 1 then
+        let energy := rate * rate / 6.0 + 5.0 * Math.cos theta in
+        let direction := if rate >= 0.0 then 1.0 else (0.0 - 1.0) in
+        (if choice = 0 then 1.0 else 2.0) * (5.0 - energy) * direction
+    else let kp := if choice = 2 then 6.0 else if choice = 4 then 10.0 else 8.0 in
+         let kd := if choice = 2 then 1.0 else if choice = 5 then 3.0 else 2.0 in
+         0.0 - kp * theta - kd * rate;
+def advance(choice:Int)(s:ControlPendulum):ControlPendulum :=
+    ControlPendulum.advance (command choice) s;
+def cost(choice:Int)(s:ControlPendulum):Float := ControlPendulum.cost (command choice) s;
+# Sensors: always, catchable near upright, not catchable, positive angle,
+# positive angular velocity. Catchability uses both position and speed.
+def catchable(s:ControlPendulum):Bool :=
+    let angle := Control.angle (ControlPendulum.angle s) in
+    let rate := ControlPendulum.velocity s in
+    angle > (0.0 - 0.5) && angle < 0.5 && rate > (0.0 - 4.0) && rate < 4.0;
+def sense(test:Int)(s:ControlPendulum):Bool :=
+    if test = 0 then true else if test = 1 then catchable s else if test = 2 then !(catchable s)
+    else if test = 3 then Control.angle (ControlPendulum.angle s) >= 0.0 else ControlPendulum.velocity s >= 0.0;
+def abstract(s:ControlPendulum):Int :=
+    let angle := Control.angle (ControlPendulum.angle s) in
+    let rate := ControlPendulum.velocity s in
+    let near := angle > (0.0 - 0.5) && angle < 0.5 && rate > (0.0 - 4.0) && rate < 4.0 in
+    16 + (if near then 8 else 4) + (if angle >= 0.0 then 2 else 0) + (if rate >= 0.0 then 1 else 0);
+def initial(seed:Int):ControlPendulum :=
+    if seed = 0 then ControlPendulum.mk 0.2 0.0 else ControlPendulum.mk 3.141592653589793 0.0;
+def unseen(seed:Int):ControlPendulum :=
+    if seed = 0 then ControlPendulum.mk 2.4 0.3 else ControlPendulum.mk (0.0 - 2.7) (0.0 - 0.2);
+def finish(remaining:Int)(status:Int)(s:ControlPendulum):Float :=
+    if status = 1 || status = 3 then 1000000.0
+    else if status = 2 then 0.0 else 20.0 * Math.toFloat remaining;
+def episode(horizon:{n:Int | n > 0 && n <= 500})(start:ControlPendulum)(p:ControlProgram):(ControlRun ControlPendulum) :=
+    ControlTask.run 6 5 horizon advance cost ControlPendulum.invalid sense abstract start p;
+def recorded(start:ControlPendulum)(p:ControlProgram):(ControlRun ControlPendulum) :=
+    ControlTask.record 6 5 80 advance cost ControlPendulum.invalid sense abstract start p;
+def training(p:ControlProgram):Float :=
+    (ControlTask.score finish (episode 80 (initial 0) p) + ControlTask.score finish (episode 80 (initial 1) p)) / 2.0;
+def objective(p:ControlProgram):Float := training p + 0.05 * Math.toFloat (ControlProgram.size p);
+def observations(p:ControlProgram):ControlObservation :=
+    let first := recorded (initial 0) p in
+    let second := recorded (initial 1) p in
+    ControlObservation.snapshot 6 5 2 (ControlProgram.closed p)
+        (ControlTask.report 80 (ControlTask.score finish first) first
+            (ControlTask.report 80 (ControlTask.score finish second) second ControlReport.empty));
+
+def feature(p:ControlProgram)(ignored:Int):ControlObservation := observations p;
+
+@cluster(feature controller)
+@minimize_float(objective controller)
+def controller:ControlProgram := let ControlProgram_gap := unit in ?controller;
+
+def held_out_loss(args:Int):Float :=
+    (ControlTask.score finish (episode 160 (unseen 0) controller) + ControlTask.score finish (episode 160 (unseen 1) controller)) / 2.0;
+def main(args:Int):Unit := print (held_out_loss args);

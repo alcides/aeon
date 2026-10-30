@@ -1,0 +1,52 @@
+# The entire goal and action/sensor vocabulary are local to this problem.
+# Works with -s regus, -s gp, or -s random_search.
+import ControlProgram;
+import ControlTask;
+import ControlRun;
+import ControlReport;
+import ControlObservation;
+import ControlThermostat;
+import Math;
+
+# Action 0: heat off; action 1: heat on. One action advances one minute.
+def advance(choice:Int)(s:ControlThermostat):ControlThermostat := ControlThermostat.step s (choice = 1);
+def cost(choice:Int)(s:ControlThermostat):Float :=
+    ControlThermostat.cost (fun t => fun on => choice = 1) s;
+# Sensor 0: always; 1: cold; 2: hot; 3: heater was on.
+def sense(test:Int)(s:ControlThermostat):Bool :=
+    if test = 0 then true else if test = 1 then ControlThermostat.temperature s < 21.5
+    else if test = 2 then ControlThermostat.temperature s > 22.5 else ControlThermostat.heater s;
+def abstract(s:ControlThermostat):Int :=
+    let temperature := ControlThermostat.temperature s in
+    8 + (if temperature < 21.5 then 4 else 0) + (if temperature > 22.5 then 2 else 0)
+      + (if ControlThermostat.heater s then 1 else 0);
+def initial(seed:Int):ControlThermostat :=
+    if seed = 0 then ControlThermostat.mk 15.0 false 10.0 else ControlThermostat.mk 28.0 true 10.0;
+def unseen(seed:Int):ControlThermostat :=
+    if seed = 0 then ControlThermostat.mk 18.0 false 8.0 else ControlThermostat.mk 26.0 true 14.0;
+def finish(remaining:Int)(status:Int)(s:ControlThermostat):Float :=
+    if status = 1 || status = 3 then 1000000.0
+    else if status = 2 then 0.0 else 150.0 * Math.toFloat remaining;
+def episode(horizon:{n:Int | n > 0 && n <= 500})(start:ControlThermostat)(p:ControlProgram):(ControlRun ControlThermostat) :=
+    ControlTask.run 2 4 horizon advance cost ControlThermostat.invalid sense abstract start p;
+def recorded(start:ControlThermostat)(p:ControlProgram):(ControlRun ControlThermostat) :=
+    ControlTask.record 2 4 40 advance cost ControlThermostat.invalid sense abstract start p;
+def training(p:ControlProgram):Float :=
+    (ControlTask.score finish (episode 40 (initial 0) p) + ControlTask.score finish (episode 40 (initial 1) p)) / 2.0;
+def objective(p:ControlProgram):Float := training p + 0.05 * Math.toFloat (ControlProgram.size p);
+def observations(p:ControlProgram):ControlObservation :=
+    let first := recorded (initial 0) p in
+    let second := recorded (initial 1) p in
+    ControlObservation.snapshot 2 4 2 (ControlProgram.closed p)
+        (ControlTask.report 40 (ControlTask.score finish first) first
+            (ControlTask.report 40 (ControlTask.score finish second) second ControlReport.empty));
+
+def feature(p:ControlProgram)(ignored:Int):ControlObservation := observations p;
+
+@cluster(feature controller)
+@minimize_float(objective controller)
+def controller:ControlProgram := let ControlProgram_gap := unit in ?controller;
+
+def held_out_loss(args:Int):Float :=
+    (ControlTask.score finish (episode 80 (unseen 0) controller) + ControlTask.score finish (episode 80 (unseen 1) controller)) / 2.0;
+def main(args:Int):Unit := print (held_out_loss args);

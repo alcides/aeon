@@ -1,0 +1,84 @@
+# Generic interpreter only: the problem supplies all dynamics and goals.
+import ControlProgram;
+import ControlTrace;
+import ControlRun;
+import ControlReport;
+import ControlObservation;
+import Math;
+
+def mask_from (count:Int) (sense:(test:Int)->(s:a)->Bool) (s:a):Int :=
+    if count <= 0 then 0 else (if sense (count - 1) s then 1 else 0) + 2 * mask_from (count - 1) sense s;
+
+def mark (status:Int) (pc:Int) (r:(ControlRun a)):(ControlRun a) := match r with
+| ControlRun.result s n fuel total old blocked trace => ControlRun.result s n fuel total status pc trace;
+
+def execute (record:Bool) (actions:Int) (predicates:Int)
+    (advance:(choice:Int)->(s:a)->a) (cost:(choice:Int)->(s:a)->Float)
+    (invalid:(s:a)->Bool) (sense:(test:Int)->(s:a)->Bool) (abstract:(s:a)->Int)
+    (program:ControlProgram) (pc:Int) (run:(ControlRun a)):(ControlRun a) :=
+    match run with | ControlRun.result s n fuel total status blocked trace =>
+    if status != 0 || n <= 0 then run
+    else if fuel <= 0 then mark 3 pc run
+    else let tick := ControlRun.result s n (fuel - 1) total status blocked trace in
+        match program with
+        | ControlProgram.halt => tick
+        | ControlProgram.gap => mark 2 pc tick
+        | ControlProgram.action choice =>
+            if choice < 0 || choice >= actions then mark 1 pc tick
+            else let increment := cost choice s in
+                 if !(Math.isfinite increment) then mark 1 pc tick
+                 else let next := advance choice s in
+                      let sum := total + increment in
+                      let next_status := if invalid next || !(Math.isfinite sum) then 1 else 0 in
+                      let events := if record then
+                          let before := if ControlTrace.is_empty trace then abstract s else ControlTrace.latest trace in
+                          ControlTrace.event pc choice before (if next_status = 0 then abstract next else before) trace
+                          else trace in
+                      ControlRun.result next (n - 1) (fuel - 1) sum next_status 0 events
+        | ControlProgram.sequence first second =>
+            execute record actions predicates advance cost invalid sense abstract second (2 * pc + 1) (execute record actions predicates advance cost invalid sense abstract first (2 * pc) tick)
+        | ControlProgram.loop predicate body =>
+            if predicate < 0 || predicate >= predicates then mark 1 pc tick
+            else if sense predicate s then
+                let next := execute record actions predicates advance cost invalid sense abstract body (2 * pc) tick in
+                if ControlRun.status next = 0 && ControlRun.remaining next = n then mark 3 pc next
+                else execute record actions predicates advance cost invalid sense abstract program pc next
+            else tick
+        | ControlProgram.branch predicate yes no =>
+            if predicate < 0 || predicate >= predicates then mark 1 pc tick
+            else if sense predicate s then execute record actions predicates advance cost invalid sense abstract yes (2 * pc) tick else execute record actions predicates advance cost invalid sense abstract no (2 * pc + 1) tick;
+
+def evaluate (record:Bool) (actions:{n:Int | n > 0 && n <= 32}) (predicates:{n:Int | n > 0 && n <= 16})
+    (horizon:{n:Int | n > 0 && n <= 500})
+    (advance:(choice:Int)->(s:a)->a) (cost:(choice:Int)->(s:a)->Float)
+    (invalid:(s:a)->Bool) (sense:(test:Int)->(s:a)->Bool) (abstract:(s:a)->Int)
+    (initial:a) (program:ControlProgram):(ControlRun a) :=
+    let start := ControlRun.result initial horizon (20 * horizon + 100) 0.0
+        (if invalid initial then 1 else 0) 0 ControlTrace.empty in
+    execute record actions predicates advance cost invalid sense abstract program 1 start;
+
+# Scoring does not collect observations; trace collection is opt-in.
+def run (actions:{n:Int | n > 0 && n <= 32}) (predicates:{n:Int | n > 0 && n <= 16})
+    (horizon:{n:Int | n > 0 && n <= 500})
+    (advance:(choice:Int)->(s:a)->a) (cost:(choice:Int)->(s:a)->Float)
+    (invalid:(s:a)->Bool) (sense:(test:Int)->(s:a)->Bool) (abstract:(s:a)->Int)
+    (initial:a) (program:ControlProgram):(ControlRun a) :=
+    evaluate false actions predicates horizon advance cost invalid sense abstract initial program;
+
+def record (actions:{n:Int | n > 0 && n <= 32}) (predicates:{n:Int | n > 0 && n <= 16})
+    (horizon:{n:Int | n > 0 && n <= 500})
+    (advance:(choice:Int)->(s:a)->a) (cost:(choice:Int)->(s:a)->Float)
+    (invalid:(s:a)->Bool) (sense:(test:Int)->(s:a)->Bool) (abstract:(s:a)->Int)
+    (initial:a) (program:ControlProgram):(ControlRun a) :=
+    evaluate true actions predicates horizon advance cost invalid sense abstract initial program;
+
+# The terminal loss is supplied by the problem, including any penalty for an
+# unfinished horizon. A partial prefix is observable but never a final solution.
+def score (finish:(remaining:Int)->(status:Int)->(s:a)->Float) (run:(ControlRun a)):Float :=
+    match run with | ControlRun.result state remaining fuel total status blocked trace =>
+        let terminal := finish remaining status state in
+        if !(Math.isfinite total) || !(Math.isfinite terminal) then 1000000000.0 else total + terminal;
+
+def report (horizon:Int) (loss:Float) (run:(ControlRun a)) (rest:ControlReport):ControlReport :=
+    ControlReport.episode (ControlRun.blocked run) (horizon - ControlRun.remaining run)
+        (ControlRun.status run = 1 || ControlRun.status run = 3) loss (ControlRun.trace run) rest;

@@ -1,0 +1,46 @@
+# CartPole equations/constants: Farama Gymnasium classic_control/cartpole.py.
+# Explicit Euler, dt=0.02, Boolean action=false/true gives -10/+10 N.
+# Deterministic initial states and a shaped LOSS are used here (not Gym reward).
+import Control;
+open Control;
+import Math;
+
+inductive ControlCartPole
+| mk (position:Float) (velocity:Float) (angle:Float) (angular_velocity:Float) : ControlCartPole
+
+def position (s:ControlCartPole):Float := match s with | ControlCartPole.mk x v theta rate => x;
+def velocity (s:ControlCartPole):Float := match s with | ControlCartPole.mk x v theta rate => v;
+def angle (s:ControlCartPole):Float := match s with | ControlCartPole.mk x v theta rate => theta;
+def angular_velocity (s:ControlCartPole):Float := match s with | ControlCartPole.mk x v theta rate => rate;
+
+def step (s:ControlCartPole) (right:Bool):ControlCartPole :=
+    match s with | ControlCartPole.mk x v theta rate =>
+        let force := if right then 10.0 else (0.0 - 10.0) in
+        let cosine := Math.cos theta in
+        let sine := Math.sin theta in
+        let temp := (force + 0.05 * rate * rate * sine) / 1.1 in
+        let denominator := 0.5 * (1.3333333333333333 - 0.1 * cosine * cosine / 1.1) in
+        # Positive for every real cosine; the guard also proves safe division.
+        let angular_acceleration := if denominator > 0.0 then (9.8 * sine - cosine * temp) / denominator else 0.0 in
+        let acceleration := temp - 0.05 * angular_acceleration * cosine / 1.1 in
+        ControlCartPole.mk (x + 0.02 * v) (v + 0.02 * acceleration) (theta + 0.02 * rate) (rate + 0.02 * angular_acceleration);
+
+def invalid (s:ControlCartPole):Bool :=
+    match s with | ControlCartPole.mk x v theta rate =>
+        !(Math.isfinite x) || !(Math.isfinite v) || !(Math.isfinite theta) || !(Math.isfinite rate)
+        || x < (0.0 - 2.4) || x > 2.4 || theta < (0.0 - 0.20943951023931953) || theta > 0.20943951023931953;
+def linear (angle_gain:Float) (rate_gain:Float) (x:Float) (v:Float) (theta:Float) (rate:Float):Bool :=
+    x + v + angle_gain * theta + rate_gain * rate >= 0.0;
+def reference (x:Float) (v:Float) (theta:Float) (rate:Float):Bool := linear 10.0 2.0 x v theta rate;
+def left (x:Float) (v:Float) (theta:Float) (rate:Float):Bool := false;
+def advance (policy:(x:Float)->(v:Float)->(theta:Float)->(rate:Float)->Bool) (s:ControlCartPole):ControlCartPole :=
+    match s with | ControlCartPole.mk x v theta rate => step s (policy x v theta rate);
+def cost (s:ControlCartPole):Float :=
+    match s with | ControlCartPole.mk x v theta rate =>
+        Control.square x + 0.01 * Control.square v + 10.0 * Control.square theta + 0.01 * Control.square rate;
+def episode (horizon:{n:Int | n >= 0 && n <= 500}) (policy:(x:Float)->(v:Float)->(theta:Float)->(rate:Float)->Bool) (initial:ControlCartPole):Control :=
+    Control.rollout horizon (advance policy) cost invalid initial;
+def training (policy:(x:Float)->(v:Float)->(theta:Float)->(rate:Float)->Bool):Float :=
+    (Control.loss (episode 60 policy (ControlCartPole.mk 0.0 0.0 0.03 0.0)) + Control.loss (episode 60 policy (ControlCartPole.mk 0.0 0.0 (0.0 - 0.04) 0.02))) / 2.0;
+def held_out (policy:(x:Float)->(v:Float)->(theta:Float)->(rate:Float)->Bool):Float :=
+    (Control.loss (episode 150 policy (ControlCartPole.mk 0.1 0.05 0.02 (0.0 - 0.03))) + Control.loss (episode 150 policy (ControlCartPole.mk (0.0 - 0.1) (0.0 - 0.04) (0.0 - 0.03) 0.02))) / 2.0;

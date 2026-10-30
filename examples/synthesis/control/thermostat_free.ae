@@ -1,0 +1,24 @@
+# Free-form policy synthesis: the policy body is the hole, not controller gains.
+# python -m aeon -s gp --budget 30 examples/synthesis/control/thermostat_free.ae
+import ControlThermostat;
+
+# Local sensor predicates. Hide reference solutions and rollout helpers at the
+# hole so they remain evaluable by fitness without becoming policy components.
+def cold(t:Float):Bool := t < 21.5;
+def hot(t:Float):Bool := t > 22.5;
+
+@minimize_float(ControlThermostat.training policy)
+def policy(t:Float)(was_on:Bool):Bool :=
+    let ControlThermostat_reference := unit in
+    let ControlThermostat_hysteresis := unit in
+    let ControlThermostat_training := unit in
+    let ControlThermostat_held_out := unit in
+    let ControlThermostat_episode := unit in
+    let ControlThermostat_advance := unit in
+    let ControlThermostat_cost := unit in
+    let Control_simulate := unit in
+    let Control_rollout := unit in ?policy;
+
+def held_out_loss(args:Int):Float := ControlThermostat.held_out policy;
+
+def main(args:Int):Unit := print (held_out_loss args);

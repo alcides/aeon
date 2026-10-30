@@ -1,0 +1,32 @@
+# Finite-horizon control experiments. All simulation logic is ordinary Aeon;
+# Math supplies only the existing scalar numeric primitives.
+import Math;
+
+inductive Control
+| result (loss:Float) (steps:Int) (failed:Bool) : Control
+
+def loss (episode:Control):Float := match episode with | Control.result value steps failed => value;
+def steps (episode:Control):Int := match episode with | Control.result loss count failed => count;
+def failed (episode:Control):Bool := match episode with | Control.result loss steps value => value;
+
+def square (x:Float):Float := x * x;
+def clip (x:Float) (lo:Float) (hi:{v:Float | v >= lo}):{v:Float | lo <= v && v <= hi} :=
+    if x < lo then lo else if x > hi then hi else x;
+
+# [-pi, pi); flooring handles negative angles and multiple revolutions.
+def angle (theta:Float):Float :=
+    theta - 6.283185307179586 * Math.toFloat (Math.floor ((theta + 3.141592653589793) / 6.283185307179586));
+
+# Check failure before the fuel test, including the state reached by the last
+# permitted transition. Failures incur a large loss, never a cheap short run.
+def simulate (fuel:Int) (elapsed:Int) (total:Float)
+    (advance:(s:a)->a) (cost:(s:a)->Float) (invalid:(s:a)->Bool) (state:a):Control :=
+    if invalid state || !(Math.isfinite total) then Control.result (1000000.0 + Math.toFloat fuel) elapsed true
+    else if fuel <= 0 then Control.result total elapsed false
+    else let increment := cost state in
+         if !(Math.isfinite increment) then Control.result 1000000.0 elapsed true
+         else simulate (fuel - 1) (elapsed + 1) (total + increment) advance cost invalid (advance state);
+
+def rollout (horizon:{n:Int | n >= 0 && n <= 500})
+    (advance:(s:a)->a) (cost:(s:a)->Float) (invalid:(s:a)->Bool) (initial:a):Control :=
+    simulate horizon 0 0.0 advance cost invalid initial;
