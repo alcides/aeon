@@ -1,9 +1,9 @@
-"""Liquid-abduction style guard synthesis: map qualifier atoms to core terms."""
+"""Qualifier vocabulary and Boolean realizations for abduction and fallback search."""
 
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidTerm, LiquidVar
-from aeon.core.terms import Annotation, Application, Literal, Var
+from aeon.core.terms import Annotation, Application, Literal, TypeApplication, Var
 from aeon.core.terms import Term
 from aeon.core.types import TypeConstructor, Type, refined_to_unrefined_type, t_bool
 from aeon.typechecking.context import TypingContext
@@ -56,7 +56,7 @@ def bool_terms_from_qualifier_atoms(
 ) -> list[Term]:
     """Bool-typed core guards drawn from the qualifier set Q.
 
-    Two sources, both Synquid liquid abduction (PLDI'16 §2):
+    Two sources for the finite qualifier vocabulary (PLDI'16 §2):
     (a) relational atoms already present in Q whose operands are in scope; and
     (b) *template instantiation* -- each relational operator appearing in Q is a
     ``⋆ op ⋆`` qualifier template, re-instantiated with the program variables in
@@ -75,10 +75,10 @@ def bool_terms_from_qualifier_atoms(
         if key in seen:
             return
         seen.add(key)
-        out.append(Annotation(Application(Application(Var(op), lhs), rhs), t_bool))
+        out.append(Annotation(Application(Application(TypeApplication(Var(op), _INT), lhs), rhs), t_bool))
 
     # (a) harvested atoms with in-scope operands
-    for atom in atoms:
+    for atom in sorted(atoms, key=repr):
         if len(out) >= max_terms:
             return out
         if not isinstance(atom, LiquidApp) or atom.fun not in _REL or len(atom.args) != 2:
@@ -127,7 +127,7 @@ def bool_pairwise_conjunctions(
     max_singles: int = 12,
     max_pairs: int = 24,
 ) -> list[Term]:
-    """Binary ``&&`` of two relational guards from ``atoms`` (bounded abduction step)."""
+    """Binary ``&&`` of two relational guards from ``atoms`` (bounded enumeration fallback)."""
     singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
     if len(singles) < 2:
         return []
@@ -152,7 +152,7 @@ def bool_triple_conjunctions(
     max_singles: int = 12,
     max_triples: int = 16,
 ) -> list[Term]:
-    """Ternary ``a && b && c`` over relational singles from ``atoms`` (bounded abduction)."""
+    """Ternary ``a && b && c`` over relational singles from ``atoms`` (bounded enumeration fallback)."""
     singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
     if len(singles) < 3:
         return []
@@ -180,7 +180,7 @@ def bool_quad_conjunctions(
     max_singles: int = 12,
     max_quads: int = 12,
 ) -> list[Term]:
-    """Quaternary ``a && b && c && d`` over relational singles (bounded abduction)."""
+    """Quaternary ``a && b && c && d`` over relational singles (bounded enumeration fallback)."""
     singles = bool_terms_from_qualifier_atoms(ctx, atoms, max_terms=max_singles)
     if len(singles) < 4:
         return []

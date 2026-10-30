@@ -1,19 +1,40 @@
-"""Synquid-style type-directed synthesis: goal decomposition + Q-driven guards."""
+"""Round-trip application search and branch-first liquid condition abduction."""
 
 from __future__ import annotations
 
-from itertools import chain, count, takewhile
-import itertools
+from itertools import chain, count, takewhile, islice
+from time import monotonic
 from typing import Callable
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.liquid import LiquidVar, liquid_free_vars
-from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
-from aeon.core.terms import Abstraction, Annotation, Application, If, Literal, Term, TypeApplication, Var
-from aeon.core.types import AbstractionType, RefinedType, Type, TypeConstructor, TypePolymorphism, TypeVar
-from aeon.core.types import refined_to_unrefined_type, type_free_term_vars
-from aeon.synthesis.modules.symetric.synthesizer import _match_type
-from aeon.synthesis.modules.synquid.decompose import synquid_application_arg_types, uncurry
+from aeon.core.liquid import LiquidLiteralBool, liquid_free_vars
+from aeon.core.substitutions import substitution, substitution_in_type, instantiate_refinement_with_horn_in_type
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    If,
+    Literal,
+    Term,
+    TypeApplication,
+    Var,
+    RefinementApplication,
+    ImplicitRefinementHole,
+)
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    Type,
+    TypeConstructor,
+    TypePolymorphism,
+    TypeVar,
+    RefinementPolymorphism,
+)
+from aeon.synthesis.modules.synquid.decompose import uncurry as uncurry
+from aeon.synthesis.modules.synquid.constraints import ConstraintState, negate, fresh_name
+from aeon.synthesis.modules.synquid.round_trip import ApplicationState, erase, match_result
+from aeon.synthesis.modules.synquid.solver import SearchStats, Status
+from aeon.synthesis.modules.synquid.abduction import abduce, branch_environment
 from aeon.synthesis.modules.synquid.guards import (
     bool_pairwise_conjunctions,
     bool_quad_conjunctions,
@@ -21,7 +42,6 @@ from aeon.synthesis.modules.synquid.guards import (
     bool_triple_conjunctions,
 )
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type, synth
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.name import Name
 
@@ -52,15 +72,14 @@ def frange(start, stop, step):
 
 
 def _solve_literal(ret_t: Type, base_t: TypeConstructor):
-    """Synquid-faithful literal synthesis. Rather than enumerating a fixed range
-    of constants, emit a *symbolic* literal (``?intLit`` / ``?floatLit``) and let
-    z3 pick a value satisfying the verification condition present at this
-    position -- the refinement of the goal type, propagated here by round-trip
-    type checking. Yields the single solved literal, or nothing if the
-    refinement is unsatisfiable (no constant inhabits the goal type)."""
+    """Propose one SMT model literal; final checking still proves the goal.
+
+    Free context variables are existential in this proposal query. A chosen
+    literal is not thereby proved valid for every value of those variables.
+    """
     from z3 import Solver, sat
 
-    from aeon.core.liquid import LiquidLiteralBool, liquid_free_vars
+    from aeon.core.liquid import LiquidLiteralBool
     from aeon.verification.smt import make_variable, translate_liq
 
     if isinstance(ret_t, RefinedType):
@@ -77,6 +96,7 @@ def _solve_literal(ret_t: Type, base_t: TypeConstructor):
 
     try:
         s = Solver()
+        s.set(timeout=100)
         s.add(translate_liq(refinement, variables))
         if s.check() != sat:
             return
@@ -90,173 +110,131 @@ def _solve_literal(ret_t: Type, base_t: TypeConstructor):
         yield Literal(0.0 if model_val is None else float(model_val.as_fraction()), base_t)
 
 
-def _head_result_constructor(t: Type) -> TypeConstructor | None:
-    """Head datatype for ``closing`` when the spine ends in ``TypeConstructor`` or ``RefinedType`` over one."""
-    match t:
-        case TypeConstructor():
-            return t
-        case RefinedType(_, inner, _) if isinstance(inner, TypeConstructor):
-            return inner
-        case _:
-            return None
+def _local_check(ctx: TypingContext, term: Term, goal: Type, state: ConstraintState | None = None) -> bool:
+    """Prune a known invalid obligation, retaining unknown/unsupported results."""
+    from aeon.typechecking.typeinfer import check
 
-
-_PRIMITIVE_BASES = {"Int", "Bool", "Float", "String", "Unit"}
-# Goals at which a "returns-anything" operator (``∀a. … -> a``: ``+``, ``-``,
-# ``*``, ``Array_get``, ...) is meaningful: the Num/Ord arithmetic ops. Building
-# them at *non-numeric* primitives produces ill-typed junk -- in particular
-# ``True + False`` as a Bool guard, which makes the z3 backend raise an
-# int-where-bool sort error and so escapes the local refinement check below.
-_NUMERIC_BASES = {"Int", "Float"}
-
-
-def _refined_adt_param(i: Type) -> bool:
-    """True for a refined argument whose base is a user datatype/container (e.g.
-    ``{cs: List Chunk | len cs >= 1}``). Such a parameter must be built by
-    *application* one level deeper, not as a level-0 leaf -- only primitive
-    refined params (refined Int/Bool/...) are satisfiable by literals at level 0."""
-    if not isinstance(i, RefinedType):
-        return False
-    base = refined_to_unrefined_type(i)
-    return isinstance(base, TypeConstructor) and base.name.name not in _PRIMITIVE_BASES
-
-
-def _refinements_consistent(actual: Type, goal: Type) -> bool:
-    """Synquid type-consistency ``∧:`` (PLDI'16, Fig 5): are the refinements of
-    ``actual`` and ``goal`` *jointly satisfiable*?
-
-    Consistency is the existential (``∃`` a valuation of the binder) counterpart
-    of subtyping (``∀``): it rejects only candidates whose type *contradicts* the
-    goal -- ``{v | v > 0}`` against ``{v | v < 0}`` -- while keeping any candidate
-    that could still be made to fit. It is therefore the right check when full
-    subtyping cannot be decided (a leftover predicate unknown). Only primitive
-    bases are SAT-checked (they map to a z3 sort); any doubt yields ``True``
-    (keep), so consistency never drops a valid term."""
-    ab = refined_to_unrefined_type(actual)
-    gb = refined_to_unrefined_type(goal)
-    if not (isinstance(ab, TypeConstructor) and isinstance(gb, TypeConstructor)):
-        return True
-    if ab.name.name != gb.name.name:
-        # Different base heads: aeon permits numeric coercions (Int/Float), so a
-        # name mismatch is not a definite contradiction -- keep, and let global
-        # validation decide. Consistency only ever prunes a same-base, jointly
-        # unsatisfiable refinement pair below.
-        return True
-    if ab.name.name not in _PRIMITIVE_BASES:
-        return True
-    binder = Name("_consist", 0)
-    refs = [
-        substitution_in_liquid(ty.refinement, LiquidVar(binder), ty.name)
-        for ty in (actual, goal)
-        if isinstance(ty, RefinedType)
-    ]
-    if not refs:
-        return True
+    trial = state.fork() if state is not None else ConstraintState(ctx)
     try:
-        from z3 import Solver, sat
-
-        from aeon.verification.smt import make_variable, translate_liq
-
-        variables: dict[str, object] = {str(binder): make_variable(str(binder), ab)}
-        for r in refs:
-            for fv in liquid_free_vars(r):
-                # Free vars other than the binder are unconstrained context
-                # values; sorts are unknown here, so give them the base sort and
-                # let a sort clash raise -> caught -> keep (never a false prune).
-                variables.setdefault(str(fv), make_variable(str(fv), ab))
-        s = Solver()
-        for r in refs:
-            s.add(translate_liq(r, variables))
-        return s.check() == sat
+        trial.add(check(trial.context, term, goal))
+        return trial.solve() not in (Status.INVALID, Status.EXHAUSTED)
     except Exception:
         return True
 
 
-def _local_check(ctx: TypingContext, term: Term, goal: Type) -> bool:
-    """Round-trip local refinement check (Synquid APPFO, PLDI'16 §3.2) plus the
-    type-consistency fallback (∧:, Fig 5).
-
-    Keep an argument candidate unless it is *definitely* incompatible with the
-    parameter type ``goal``. ``check_type`` (subtyping, the ``∀`` check) returns
-    ``False`` only on a genuine contradiction -- e.g. ``nil : {List a | len >=
-    1}`` -- so those are pruned at the application site instead of after a full,
-    failing program-level validation. When ``check_type`` cannot decide (a
-    raise: an ill-sorted intermediate or a predicate unknown that only resolves
-    globally), fall back to the weaker *consistency* check: keep only if the
-    candidate's inferred type is not outright contradictory with the goal. Both
-    tiers only ever prune definite failures, so a valid term is never dropped."""
-    try:
-        return bool(check_type(ctx, term, goal))
-    except Exception:
-        try:
-            _, actual = synth(ctx, term)
-        except Exception:
-            return True
-        return _refinements_consistent(actual, goal)
-
-
-def _pruned(gen, ctx: TypingContext, goal: Type):
-    for t in gen:
-        if _local_check(ctx, t, goal):
-            yield t
-
-
-def _arg_gen(ctx: TypingContext, level: int, i: Type, skip: Callable[[Name], bool], mem: dict):
-    """Candidate generator for one application argument of type ``i``.
-
-    Datatype / refined-container args are built one level deeper; primitive args
-    are level-0 leaves. A *refined* container arg additionally goes through the
-    round-trip local check, so e.g. an empty list is pruned against a
-    ``len >= 1`` parameter before the enclosing application is ever assembled."""
-    if isinstance(i, TypeConstructor) or _refined_adt_param(i):
-        g = synthes_memory(ctx, level - 1, i, skip, mem)
-        return _pruned(g, ctx, i) if _refined_adt_param(i) else g
-    return synthes_memory(ctx, 0, i, skip, mem)
-
-
-def _app_combos(
-    ctx: TypingContext,
-    level: int,
-    params: list[tuple[Name, Type]],
-    skip: Callable[[Name], bool],
-    mem: dict,
-):
-    """Incremental-unification argument synthesis (Synquid, PLDI'16 §3.6).
-
-    Rather than taking the independent cross-product of all argument candidate
-    sets, synthesize arguments left to right and *substitute each chosen
-    argument into the dependent parameter types that follow it*. A later
-    argument is therefore synthesized against an already-narrowed goal: for
-    ``f (x: Int) (y: {v: Int | v > x})`` the choice ``x := 3`` propagates so
-    ``y`` is synthesized against ``{v | v > 3}`` directly. For non-dependent
-    parameters the substitution is a no-op and this reduces to the plain
-    product, so it never enlarges the search space."""
-    if not params:
-        yield ()
+def _arg_gen(ctx, level, goal, skip, mem, state):
+    unknowns = state.unresolved(goal)
+    if unknowns:
+        # Shape discovery for type variables not anchored by the result. Each
+        # candidate supplies its actual shape; refinements are inferred jointly
+        # only after selection. Deeper candidates use the same finite shapes.
+        shapes = [
+            erase(t)
+            for n, t in ctx.concrete_vars()
+            if not skip(n) and isinstance(t, (TypeConstructor, RefinedType, TypeVar))
+        ]
+        shapes += [TypeConstructor(Name(n, 0)) for n in ("Int", "Bool", "String")]
+        seen = set()
+        for shape in shapes:
+            if shape in seen or match_result(goal, shape, unknowns) is None:
+                continue
+            seen.add(shape)
+            yield from synthes_memory(ctx, max(0, level - 1), shape, skip, mem, state)
         return
-    # Fast path: when no parameter binder occurs free in a *later* parameter
-    # type, there is nothing to narrow, so incremental synthesis coincides with
-    # the plain cross-product -- take it directly and skip the per-argument
-    # substitution work. (Genuine dependencies, the case the incremental rule
-    # exists for, fall through to the recursive narrowing below.)
-    binders = {bn for bn, _ in params}
-    if not any(binders & set(type_free_term_vars(pt)) for _, pt in params):
-        gens = [_arg_gen(ctx, level, pt, skip, mem) for _, pt in params]
-        yield from itertools.product(*gens)
+    depth = level - 1 if isinstance(erase(goal), (TypeConstructor, AbstractionType)) else 0
+    yield from synthes_memory(ctx, max(0, depth), goal, skip, mem, state)
+
+
+def _application_terms(ctx, level, head, application, skip, mem, filling=False):
+    if monotonic() >= mem.get("synquid_deadline", float("inf")):
         return
-    (binder, ptype), rest = params[0], params[1:]
-    for a in _arg_gen(ctx, level, ptype, skip, mem):
-        rest_narrowed = [(n, substitution_in_type(t, a, binder)) for (n, t) in rest]
-        for tail in _app_combos(ctx, level, rest_narrowed, skip, mem):
-            yield (a, *tail)
+    status = application.check()
+    if status in (Status.INVALID, Status.EXHAUSTED):
+        if application.params:
+            application.state.stats.partial_rejections += 1
+        else:
+            application.state.stats.complete_rejections += 1
+        return
+    if not application.params:
+        if application.deferred:
+            deferred = ApplicationState(
+                application.state.fork(), application.deferred, application.result, application.goal
+            )
+            yield from _application_terms(ctx, level, head, deferred, skip, mem, filling=True)
+        else:
+            for assignment in application.state.assignments:
+                yield _materialize_term(head, assignment, application.state)
+        return
+    binder, expected = application.params[0]
+    if isinstance(expected, AbstractionType) and len(application.params) > 1 and not filling:
+        # APPHO: infer first-order facts before constructing the anonymous
+        # function. Its value is not a scalar and cannot occur in the result.
+        deferred = ApplicationState(
+            application.state.fork(),
+            application.params[1:],
+            application.result,
+            application.goal,
+            application.deferred + [(binder, expected)],
+        )
+        yield from _application_terms(ctx, level, Application(head, Var(binder)), deferred, skip, mem)
+        return
+    _, expected = application.params[0]
+    seen = set()
+    for assignment in application.state.assignments:
+        goal = application.state.materialize(expected, assignment)
+        for argument in _arg_gen(ctx, level, goal, skip, mem, application.state):
+            key = repr(argument)
+            if key in seen:
+                continue
+            seen.add(key)
+            application.state.stats.argument_candidates += 1
+            try:
+                child = application.choose(argument)
+            except ValueError:
+                application.state.stats.partial_rejections += 1
+                continue
+            except Exception:
+                application.state.stats.record(Status.UNSUPPORTED)
+                # Retain unsupported fragments for whole-program checking.
+                # Do not invent facts from an argument whose inference failed.
+                child = ApplicationState(
+                    application.state.fork(),
+                    application.params[1:],
+                    application.result,
+                    application.goal,
+                    application.deferred,
+                )
+                binder, _ = application.params[0]
+                child.params = [(n, substitution_in_type(t, argument, binder)) for n, t in child.params]
+                child.result = substitution_in_type(child.result, argument, binder)
+                child.deferred = [(n, substitution_in_type(t, argument, binder)) for n, t in child.deferred]
+            new_head = substitution(head, argument, binder) if filling else Application(head, argument)
+            yield from _application_terms(ctx, level, new_head, child, skip, mem, filling)
+
+
+def _materialize_term(term, assignment, state):
+    if isinstance(term, TypeApplication):
+        return TypeApplication(
+            _materialize_term(term.body, assignment, state), state.materialize(term.type, assignment)
+        )
+    if isinstance(term, RefinementApplication):
+        return RefinementApplication(_materialize_term(term.body, assignment, state), term.refinement)
+    if isinstance(term, Application):
+        return Application(
+            _materialize_term(term.fun, assignment, state), _materialize_term(term.arg, assignment, state)
+        )
+    if isinstance(term, Annotation):
+        return Annotation(_materialize_term(term.expr, assignment, state), state.materialize(term.type, assignment))
+    return term
 
 
 def _peel_polymorphism(ty: Type) -> tuple[list[Name], Type]:
     """Strip the ``forall`` prefix, returning the bound type variables and body."""
     tyvars: list[Name] = []
     cur = ty
-    while isinstance(cur, TypePolymorphism):
-        tyvars.append(cur.name)
+    while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
+        if isinstance(cur, TypePolymorphism):
+            tyvars.append(cur.name)
         cur = cur.body
     return tyvars, cur
 
@@ -283,17 +261,34 @@ def closing(elems: tuple, typ: TypeConstructor):
         return Application(closing(elems[:-1], typ), elems[-1])
 
 
-def synthes_memory(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], bool], mem: dict):
-    if (ctx, level, ret_t) in mem:
-        yield from mem[(ctx, level, ret_t)]
-    else:
-        mem[(ctx, level, ret_t)] = []
-        try:
-            for item in synthes(ctx, level, ret_t, skip, mem):
-                mem[(ctx, level, ret_t)].append(item)
-                yield item
-        except NotImplementedError:
-            yield from []
+def synthes_memory(
+    ctx: TypingContext,
+    level: int,
+    ret_t: Type,
+    skip: Callable[[Name], bool],
+    mem: dict,
+    state: ConstraintState | None = None,
+    *,
+    conditionals: bool = True,
+):
+    # A context/level/type key cannot distinguish liquid assignments or pending
+    # result obligations. Disable term memoization until state equivalence is
+    # established; mem carries per-search instrumentation and the deadline only.
+    if state is None:
+        state = ConstraintState(
+            ctx,
+            stats=mem.setdefault("synquid_stats", SearchStats()),
+            deadline=mem.get("synquid_deadline", float("inf")),
+        )
+    if monotonic() >= mem.get("synquid_deadline", float("inf")):
+        return
+    try:
+        for item in synthes(ctx, level, ret_t, skip, mem, state, conditionals=conditionals):
+            if monotonic() >= mem.get("synquid_deadline", float("inf")):
+                return
+            yield item
+    except NotImplementedError:
+        return
 
 
 def match_type(t1: Type, t2: Type):
@@ -307,15 +302,32 @@ def match_type(t1: Type, t2: Type):
         return False
 
 
-def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], bool], mem: dict):
-    base_t = refined_to_unrefined_type(ret_t)
+def synthes(
+    ctx: TypingContext,
+    level: int,
+    ret_t: Type,
+    skip: Callable[[Name], bool],
+    mem: dict,
+    state: ConstraintState | None = None,
+    *,
+    conditionals: bool = True,
+):
+    if state is None:
+        state = ConstraintState(
+            ctx,
+            stats=mem.setdefault("synquid_stats", SearchStats()),
+            deadline=mem.get("synquid_deadline", float("inf")),
+        )
+    base_t = erase(ret_t)
     if level == 0:
         arrow_goal: AbstractionType | None = ret_t if isinstance(ret_t, AbstractionType) else None
         if arrow_goal is None and isinstance(ret_t, RefinedType) and isinstance(ret_t.type, AbstractionType):
             arrow_goal = ret_t.type
         if arrow_goal is not None:
             for name, _ in [
-                (n, t) for n, t in ctx.concrete_vars() if isinstance(t, AbstractionType) and match_type(t, arrow_goal)
+                (n, t)
+                for n, t in ctx.concrete_vars()
+                if isinstance(t, AbstractionType) and match_result(t, arrow_goal, set()) is not None and not skip(n)
             ]:
                 yield Var(name)
             return
@@ -326,9 +338,12 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             return
         assert isinstance(base_t, TypeConstructor)
         for name, _ in [
-            (n, t) for n, t in ctx.concrete_vars() if isinstance(t, TypeConstructor) and match_type(t, base_t)
+            (n, t)
+            for n, t in ctx.concrete_vars()
+            if isinstance(t, (TypeConstructor, RefinedType)) and erase(t) == base_t and not skip(n)
         ]:
-            yield Var(name)
+            if _local_check(ctx, Var(name), ret_t, state):
+                yield Var(name)
         match base_t:
             case TypeConstructor(Name("Bool", 0)):
                 yield from [Literal(True, base_t), Literal(False, base_t)]
@@ -353,89 +368,98 @@ def synthes(ctx: TypingContext, level: int, ret_t: Type, skip: Callable[[Name], 
             arrow_syn = ret_t.type
         if arrow_syn is not None:
             ctx_l = ctx.with_var(arrow_syn.var_name, arrow_syn.var_type)
-            for bod in synthes_memory(ctx_l, level - 1, arrow_syn.type, skip, mem):
+            for bod in synthes_memory(
+                ctx_l,
+                level - 1,
+                arrow_syn.type,
+                skip,
+                mem,
+                state.fork(state.context.with_var(arrow_syn.var_name, arrow_syn.var_type)),
+            ):
                 lam = Abstraction(arrow_syn.var_name, bod)
                 if isinstance(ret_t, RefinedType):
                     yield Annotation(lam, ret_t)
                 else:
                     yield lam
         for name, typ in [
-            (n, ty) for n, ty in ctx.concrete_vars() if not isinstance(ty, TypeConstructor) and not skip(n)
+            (n, ty)
+            for n, ty in ctx.concrete_vars()
+            if not isinstance(ty, (TypeConstructor, RefinedType)) and not skip(n)
         ]:
-            if isinstance(typ, TypePolymorphism):
-                # Synquid APP rule with polymorphic instantiation: instantiate the
-                # bound type variables by *unifying the function's return type with
-                # the goal* (Polikarpova et al., PLDI'16). Unifying ``List a`` with
-                # the goal ``List Enemy`` yields ``a := Enemy``, so the user's own
-                # containers get built -- and only the one relevant instantiation
-                # is tried (no universe enumeration, no combinatorial blow-up).
-                tyvars, inner = _peel_polymorphism(typ)
-                param_bind, ret_template = _uncurry_arrow_b(inner)
-                # A binding whose return type is a *bare* bound type variable
-                # (e.g. ``+`` / ``Array_get`` : ``∀a. … -> a``) unifies with any
-                # goal, so it would be instantiated at every user datatype --
-                # ``chunk + chunk``, ``level + level`` -- and these nonsensical
-                # builders blow up the search combinatorially. Only build such
-                # "returns-anything" functions at primitive goals (where they are
-                # the actual arithmetic/relational ops); data constructors, whose
-                # return head is a concrete type constructor, are unaffected.
-                ret_unref = refined_to_unrefined_type(ret_template)
-                if isinstance(ret_unref, TypeVar) and ret_unref.name in set(tyvars):
-                    goal_base = refined_to_unrefined_type(ret_t)
-                    if not (isinstance(goal_base, TypeConstructor) and goal_base.name.name in _NUMERIC_BASES):
-                        continue
-                sub = _match_type(ret_template, ret_t, set(tyvars))
-                if sub is None or any(tv not in sub for tv in tyvars):
-                    continue
-                head: Term = Var(name)
-                for tv in tyvars:
-                    head = TypeApplication(head, sub[tv])
-                inst_params: list[tuple[Name, Type]] = []
-                for binder, p in param_bind:
-                    for tv in tyvars:
-                        p = type_substitution(p, tv, sub[tv])
-                    inst_params.append((binder, p))
-                for combo in _app_combos(ctx, level, inst_params, skip, mem):
-                    term: Term = head
-                    for a in combo:
-                        term = Application(term, a)
-                    yield term
-            else:
-                if synquid_application_arg_types(typ, ret_t) is None:
-                    continue
-                _, t = uncurry(typ)
-                if refined_to_unrefined_type(t) != base_t:
-                    continue
-                head_tc = _head_result_constructor(t)
-                if head_tc is None:
-                    continue
-                param_bind, _ = _uncurry_arrow_b(typ)
-                for combo in _app_combos(ctx, level, param_bind, skip, mem):
-                    yield closing((Var(name), *combo), head_tc)
-        # Liquid abduction (Synquid IfAb, PLDI'16 §3.3): a branch guard is
-        # *abduced* from the qualifier-atom set ``atoms_q`` -- the abducibles Q
-        # derived from the goal and context -- and its boolean combinations,
-        # rather than enumerated as an arbitrary boolean term. Restricting the
-        # guard domain to Q is what Synquid does and is what makes conditional
-        # synthesis tractable: free-form boolean enumeration both diverges from
-        # the paper and, empirically, regresses the suite (the large boolean tail
-        # clogs the queue and pushes structural solutions past the budget). The
-        # IfAb premise -- each branch must satisfy the goal under the (negated)
-        # guard -- is discharged by the round-trip check on the assembled term.
-        atoms_q = extract_qualifier_atoms(ctx, goal_type=ret_t)
-        guard_quads = bool_quad_conjunctions(ctx, atoms_q)
-        guard_triples = bool_triple_conjunctions(ctx, atoms_q)
-        guard_pairs = bool_pairwise_conjunctions(ctx, atoms_q)
-        guard_terms = bool_terms_from_qualifier_atoms(ctx, atoms_q)
-        cond = chain(
-            iter(guard_quads),
-            iter(guard_triples),
-            iter(guard_pairs),
-            iter(guard_terms),
+            if monotonic() >= mem.get("synquid_deadline", float("inf")):
+                return
+            branch_state = state.fork()
+            tyvars, inner = _peel_polymorphism(typ)
+            _, result = _uncurry_arrow_b(inner)
+            shape = match_result(result, ret_t, set(tyvars))
+            if shape is None:
+                continue
+            head: Term = Var(name)
+            atoms = extract_qualifier_atoms(ctx, goal_type=ret_t)
+            inner = typ
+            while isinstance(inner, (TypePolymorphism, RefinementPolymorphism)):
+                if isinstance(inner, TypePolymorphism):
+                    tv = inner.name
+                    if tv in shape:
+                        instance = branch_state.fresh_type(shape[tv], atoms)
+                    else:
+                        instance = TypeVar(fresh_name("type"))
+                        branch_state.type_unknowns |= {instance.name}
+                    inner = type_substitution(inner.body, tv, instance)
+                    head = TypeApplication(head, instance)
+                else:
+                    predicate = branch_state.refinement_parameter(inner.sort)
+                    inner = instantiate_refinement_with_horn_in_type(inner.body, inner.name, inner.sort, predicate.name)
+                    head = RefinementApplication(head, ImplicitRefinementHole(fresh_name("implicit")))
+            application = ApplicationState.start(branch_state, inner, ret_t)
+            yield from _application_terms(ctx, level, head, application, skip, mem)
+        if not conditionals:
+            return
+        # IFAB proposes an E-term, solves for κ, realizes its Boolean expression,
+        # and recursively constructs the else branch with ¬κ in the environment.
+        fallback = False
+        proposals = synthes_memory(
+            ctx, level - 1, ret_t, skip, mem, branch_environment(state, ret_t), conditionals=False
         )
-        then = synthes_memory(ctx, level - 1, ret_t, skip, mem)
-        otherwise = synthes_memory(ctx, level - 1, ret_t, skip, mem)
-        for cand in itertools.product(cond, then, otherwise):
-            if isinstance(cand[0], If):
-                break
-            yield Annotation(If(cand[0], cand[1], cand[2]), ret_t)
+        for then in islice(proposals, 64):
+            if monotonic() >= mem.get("synquid_deadline", float("inf")):
+                return
+            abduction = abduce(state, then, ret_t)
+            fallback |= abduction.status in (Status.UNKNOWN, Status.UNSUPPORTED, Status.EXHAUSTED)
+            for condition, guard in abduction.guards:
+                if condition == LiquidLiteralBool(True):
+                    if _local_check(ctx, then, ret_t, state):
+                        yield then
+                    continue
+                state.stats.abduced_guards += 1
+                otherwise_state = state.assume(negate(condition))
+                for otherwise in synthes_memory(ctx, level - 1, ret_t, skip, mem, otherwise_state):
+                    if _local_check(ctx, otherwise, ret_t, otherwise_state):
+                        yield Annotation(If(guard, then, otherwise), ret_t)
+        # Bounded qualifier enumeration remains a fallback outside IFAB's
+        # supported/available vocabulary. Both branches still see their path.
+        if fallback:
+            atoms = extract_qualifier_atoms(ctx, goal_type=ret_t)
+            guards = chain(
+                bool_terms_from_qualifier_atoms(ctx, atoms),
+                bool_pairwise_conjunctions(ctx, atoms),
+                bool_triple_conjunctions(ctx, atoms),
+                bool_quad_conjunctions(ctx, atoms),
+            )
+            from aeon.core.substitutions import liquefy
+
+            for guard in guards:
+                guard = guard.expr if isinstance(guard, Annotation) else guard
+                condition = liquefy(guard)
+                if condition is None:
+                    continue
+                state.stats.fallback_guards += 1
+                then_state, else_state = state.assume(condition), state.assume(negate(condition))
+                if then_state.inhabited() == Status.VALID or else_state.inhabited() == Status.VALID:
+                    continue
+                for then in synthes_memory(ctx, level - 1, ret_t, skip, mem, then_state):
+                    if not _local_check(ctx, then, ret_t, then_state):
+                        continue
+                    for otherwise in synthes_memory(ctx, level - 1, ret_t, skip, mem, else_state):
+                        if _local_check(ctx, otherwise, ret_t, else_state):
+                            yield Annotation(If(guard, then, otherwise), ret_t)

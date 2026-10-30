@@ -1,9 +1,9 @@
-"""Synquid-style synthesizer: search over ``engine`` (Q-aware guards, spine prune).
+"""Synquid-style synthesizer: round-trip constraints and branch-first abduction.
 
 Default order is ``size_merge`` (heap by AST size, then level); optional ``iterative_deepening``.
 """
 
-from time import monotonic_ns
+from time import monotonic_ns, monotonic
 from typing import Callable
 
 from aeon.core.terms import Term
@@ -16,6 +16,7 @@ from aeon.synthesis.api import (
     TimeoutInEvaluationException,
 )
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
+from aeon.synthesis.modules.synquid.solver import SearchStats
 from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_level, sorted_level_candidates
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
@@ -32,6 +33,7 @@ def get_elapsed_time(start_time) -> float:
 class SynquidSynthesizer(Synthesizer):
     def __init__(self, seed: int = 0):
         self.seed = seed
+        self.stats = SearchStats()
 
     def synthesize(
         self,
@@ -63,7 +65,8 @@ class SynquidSynthesizer(Synthesizer):
         done = True
         level = 0
         pareto_front: list[ParetoEntry] = []
-        mem: dict = {}
+        self.stats = SearchStats()
+        mem: dict = {"synquid_stats": self.stats, "synquid_deadline": monotonic() + budget}
         ui.register(None, None, 0, True)
         goals = current_metadata.get("goals", [])
         minimize = minimize_flags_from_goals(goals)
@@ -100,6 +103,7 @@ class SynquidSynthesizer(Synthesizer):
                 if get_elapsed_time(start_time) > budget:
                     done = False
                 return False
+            self.stats.full_validations += 1
             if _safe_check(validate, result):
                 if not goals:
                     ui.register(result, [], get_elapsed_time(start_time), True)

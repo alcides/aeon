@@ -55,8 +55,9 @@ def test_sorted_level_candidates_orders_by_term_size():
     )
     small = Literal(0, _INT)
     assert term_size(large) > term_size(small)
-    mem: dict = {(ctx, 0, _INT): [large, small]}
-    ordered = list(sorted_level_candidates(ctx, 0, _INT, skip, mem))
+    mem: dict = {}
+    with patch("aeon.synthesis.modules.synquid.search.synthes_memory", return_value=iter([large, small])):
+        ordered = list(sorted_level_candidates(ctx, 0, _INT, skip, mem))
     assert ordered == [small, large]
 
 

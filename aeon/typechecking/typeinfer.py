@@ -864,8 +864,10 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             c = check(ctx, expr, nty)
             return c, nty
         case TypeApplication(body, ty):
-            if not is_bare(ty):
-                # Type Application only works on bare types.
+            if not is_bare(ty) and not wellformed(ctx, ty):
+                # Synthesis may provide a solved liquid instantiation. Concrete
+                # refinements are sound type arguments when well scoped and
+                # well sorted; retain the kind check below as for bare types.
                 raise CoreTypeApplicationRequiresBareTypesError(t, ty)
             (c, tabs) = synth(ctx, body)
             nty = fresh(ctx, ty)
