@@ -1,0 +1,16 @@
+# Jointly tune an interpretable bang-bang state-feedback controller.
+# python -m aeon -s gp --budget 30 examples/synthesis/control/cartpole.ae
+import ControlCartPole;
+import Math;
+
+def angle_gain:{v:Int | v >= 1 && v <= 20} := ?angle_gain;
+def rate_gain:{v:Int | v >= 0 && v <= 10} := ?rate_gain;
+def policy(x:Float)(v:Float)(theta:Float)(rate:Float):Bool :=
+    ControlCartPole.linear (Math.toFloat angle_gain) (Math.toFloat rate_gain) x v theta rate;
+
+@minimize_float(ControlCartPole.training policy)
+def training_loss:Float := ControlCartPole.training policy;
+
+def held_out_loss(args:Int):Float := ControlCartPole.held_out policy;
+
+def main(args:Int):Unit := print (held_out_loss args);

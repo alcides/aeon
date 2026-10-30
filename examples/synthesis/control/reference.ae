@@ -1,0 +1,17 @@
+# Reference controllers and deterministic held-out evaluation. No synthesis holes.
+# python -m aeon examples/synthesis/control/reference.ae
+import ControlThermostat;
+import ControlCruise;
+import ControlCartPole;
+import ControlPendulum;
+
+def thermostat_loss:Float := ControlThermostat.held_out ControlThermostat.reference;
+def cruise_loss:Float := ControlCruise.held_out ControlCruise.reference;
+def cartpole_loss:Float := ControlCartPole.held_out ControlCartPole.reference;
+def pendulum_loss:Float := ControlPendulum.held_out ControlPendulum.reference;
+
+def main(args:Int):Unit :=
+    let a := print thermostat_loss in
+    let b := print cruise_loss in
+    let c := print cartpole_loss in
+    print pendulum_loss;

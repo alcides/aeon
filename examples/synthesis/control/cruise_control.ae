@@ -1,0 +1,16 @@
+# Jointly tune a PI controller; environment saturates throttle/brake and integral.
+# python -m aeon -s gp --budget 30 examples/synthesis/control/cruise_control.ae
+import ControlCruise;
+import Math;
+
+def proportional:{v:Int | v >= 0 && v <= 8} := ?kp;
+def integral:{v:Int | v >= 0 && v <= 4} := ?ki;
+def policy(error:Float)(accumulated:Float):Float :=
+    ControlCruise.pi (0.1 * Math.toFloat proportional) (0.05 * Math.toFloat integral) error accumulated;
+
+@minimize_float(ControlCruise.training policy)
+def training_loss:Float := ControlCruise.training policy;
+
+def held_out_loss(args:Int):Float := ControlCruise.held_out policy;
+
+def main(args:Int):Unit := print (held_out_loss args);

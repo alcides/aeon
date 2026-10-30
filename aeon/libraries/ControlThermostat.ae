@@ -1,0 +1,36 @@
+# Toy discrete-time thermal plant, one minute per step.
+# T' = T + 0.05*(outside-T) + 1.2*heater. Target: 22 Celsius.
+import Control;
+open Control;
+import Math;
+
+inductive ControlThermostat
+| mk (temperature:Float) (heater:Bool) (outside:Float) : ControlThermostat
+
+def temperature (s:ControlThermostat):Float := match s with | ControlThermostat.mk t on outside => t;
+def heater (s:ControlThermostat):Bool := match s with | ControlThermostat.mk t on outside => on;
+def step (s:ControlThermostat) (action:Bool):ControlThermostat :=
+    match s with | ControlThermostat.mk t on outside =>
+        ControlThermostat.mk (t + 0.05 * (outside - t) + (if action then 1.2 else 0.0)) action outside;
+def invalid (s:ControlThermostat):Bool :=
+    match s with | ControlThermostat.mk t on outside => !(Math.isfinite t) || t < (0.0 - 50.0) || t > 80.0;
+
+# A policy observes temperature and the previous heater setting, allowing
+# hysteresis rather than forced on/off chattering at one threshold.
+def hysteresis (low:Float) (high:Float) (t:Float) (was_on:Bool):Bool :=
+    if t < low then true else if t > high then false else was_on;
+def reference (t:Float) (was_on:Bool):Bool := hysteresis 21.5 22.5 t was_on;
+def off (t:Float) (was_on:Bool):Bool := false;
+
+def advance (policy:(t:Float)->(on:Bool)->Bool) (s:ControlThermostat):ControlThermostat :=
+    match s with | ControlThermostat.mk t on outside => step s (policy t on);
+def cost (policy:(t:Float)->(on:Bool)->Bool) (s:ControlThermostat):Float :=
+    match s with | ControlThermostat.mk t on outside =>
+        let action := policy t on in
+        Control.square (t - 22.0) + (if action then 0.05 else 0.0) + (if action = on then 0.0 else 0.25);
+def episode (horizon:{n:Int | n >= 0 && n <= 500}) (policy:(t:Float)->(on:Bool)->Bool) (initial:ControlThermostat):Control :=
+    Control.rollout horizon (advance policy) (cost policy) invalid initial;
+def training (policy:(t:Float)->(on:Bool)->Bool):Float :=
+    (Control.loss (episode 40 policy (ControlThermostat.mk 15.0 false 10.0)) + Control.loss (episode 40 policy (ControlThermostat.mk 28.0 true 10.0))) / 2.0;
+def held_out (policy:(t:Float)->(on:Bool)->Bool):Float :=
+    (Control.loss (episode 80 policy (ControlThermostat.mk 18.0 false 8.0)) + Control.loss (episode 80 policy (ControlThermostat.mk 26.0 true 14.0))) / 2.0;

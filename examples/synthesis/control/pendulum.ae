@@ -1,0 +1,17 @@
+# Energy-based swing-up followed by PD stabilization: tune three gains jointly.
+# python -m aeon -s gp --budget 30 examples/synthesis/control/pendulum.ae
+import ControlPendulum;
+import Math;
+
+def proportional:{v:Int | v >= 5 && v <= 12} := ?kp;
+def damping:{v:Int | v >= 1 && v <= 5} := ?kd;
+def energy:{v:Int | v >= 1 && v <= 3} := ?ke;
+def policy(theta:Float)(rate:Float):Float :=
+    ControlPendulum.energy_policy (Math.toFloat proportional) (Math.toFloat damping) (Math.toFloat energy) theta rate;
+
+@minimize_float(ControlPendulum.training policy)
+def training_loss:Float := ControlPendulum.training policy;
+
+def held_out_loss(args:Int):Float := ControlPendulum.held_out policy;
+
+def main(args:Int):Unit := print (held_out_loss args);
