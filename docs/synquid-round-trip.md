@@ -1,111 +1,125 @@
-# Synquid round-trip checking and liquid abduction
+# Synquid round-trip checking and synthesis
 
-The `synquid` backend follows the checking/strengthening distinction in
-[Polikarpova, Kuraj and Solar-Lezama, PLDI 2016, §§3.2–3.6](https://cseweb.ucsd.edu/~npolikarpova/publications/pldi16.pdf).
-The implementation keeps Aeon's existing whole-program refinement and
-termination verifier as the final acceptance gate.
+The `synquid` backend implements the search rules in
+[Polikarpova, Kuraj and Solar-Lezama, PLDI 2016, §§3.2–3.7](https://cseweb.ucsd.edu/~npolikarpova/publications/pldi16.pdf),
+adapted to Aeon's core terms and verifier. Whole-program refinement and
+termination checking remains the final acceptance gate.
 
-## Constraint lifecycle
+## Search rules
 
-`ConstraintState` owns a branch's typing context, precise contextual witnesses,
-subtyping VCs, pending result obligations, type assignments, predicate
-vocabularies, and alternative liquid assignments. `fork()` copies mutable
-assignments; immutable obligation tuples are shared. Sibling alternatives and
-opposite branch paths cannot inherit each other's mutations. Search deliberately
-disables the former `(context, level, goal)` term cache.
+The default `synquid_search: "paper"` streams candidates at increasing
+application-depth bounds. At function goals it introduces a decreasing recursive
+hypothesis (FIX), type abstractions (TABS), and value abstractions (ABS).
+Termination weakening uses a lexicographic tuple of the eligible arguments:
+nonnegative integers and declared integer datatype measures. Structural-rank
+measures take priority over size and other measures. Recursive arguments must
+prove nonnegativity and strict lexicographic decrease; measures are never assumed
+positive without a proof. Generated fixpoints carry explicit `decreasing_by`
+metrics and pass the ordinary termination verifier.
 
-`ApplicationState` implements the application spine rules. It propagates
-result-shape information into polymorphic types, with fresh refinement
-unknowns. Constraints on datatype element types are available immediately.
-Result obligations mentioning an unchosen formal are retained until that
-argument exists. A chosen first-order argument contributes its inference VC
-and precise type; existential binders are opened into the branch context.
-Literal/variable substitution continues to narrow later dependent parameters.
-Other expressions use a fresh contextual witness. Higher-order arguments are
-checked without treating functions as scalar SMT values, and can be delayed
-until the first-order arguments determine their requirements.
+For a hole occupying a surface function's body, the backend recovers the enclosing
+schema, synthesizes a local function, and applies it to the existing parameters.
+This allows FIX and TABS without rewriting the outer declaration. Holes already
+inside `@allow_recursion` definitions retain access to that definition and its
+existing termination checks.
 
-Type variables absent from the result acquire shapes from argument candidates.
-Their candidate shapes come from in-scope scalar values plus primitive literal
-shapes, within the existing depth bound; this is not unrestricted higher-kinded
-unification. A repeated result type variable collects qualifiers from all its
-occurrences. Abstract-refinement parameters use their declared argument sorts
-and the existing finite qualifier generator. Explicit solved liquid type
-arguments remain in emitted core terms. Implicit abstract-refinement applications
-are checked again by the final verifier using its existing inference.
+At scalar goals the engine enumerates elimination terms (variables, literals,
+and applications), checking partial applications as it constructs them. It tries
+unconditional solutions first, then IFAB: propose a branch under an unknown path
+predicate, solve for that predicate, construct an executable Boolean guard, and
+synthesize the remaining branch under its negation. Executable atoms are realized
+directly, as in the original Synquid implementation; other guards are synthesis
+subgoals of type `{b:Bool | b = condition}`. Nested conditionals retain the
+application-depth bound. Both path regions must be proved nonempty before
+recursive expansion, so each conditional removes a nonempty qualifier region.
+There is no independent conditional-depth bound.
 
-Consistency uses the existing VC lifting and SMT translation, including declared
-measure contracts, datatype encodings and path assumptions. For example, an
-append result of length five is inconsistent with a prefix of length six and
-any suffix with nonnegative length. The suffix generator is never opened.
-Consistency is existential and only necessary: satisfying it does not establish
-subtyping or approve a completed program.
+Match abduction first tries scalar-constructor facts for in-scope datatype
+variables. General MATCH remains the fallback, including datatypes without
+scalar constructors and scrutinees computed by applications. Matches lower to
+Aeon's existing datatype eliminators. Each handler receives the constructor's
+field types, result refinements, and exact constructor equation. Computed
+scrutinees are let-bound so checking and termination analysis share the same
+witness. `synquid_match_depth` bounds match nesting independently (default: 2).
 
-## Weakest-condition solving
+## Incremental constraints
 
-`solver.py` is a synthesis-specific greatest-fixpoint solver. It starts fresh
-predicates at `true`, then strengthens negative occurrences to discharge new
-Horn clauses. The verification solver in `verification/horn.py` is unchanged.
+`ConstraintState` owns the typing/path context, precise contextual witnesses,
+subtype obligations, type assignments, predicate vocabularies, and alternative
+liquid assignments. `fork()` copies mutable assignments. Sibling alternatives and
+opposite paths cannot inherit each other's mutations. Term memoization remains
+disabled because `(context, level, goal)` does not identify pending constraints.
 
-Strengthening enumerates minimal unsatisfiable subsets relative to the fixed
-negated conclusion. It uses MARCO's Boolean subset map: shrink a successful seed
-to a minimal subset and block its supersets; grow a failing seed to a maximal
-satisfiable subset and block its subsets. Minimization uses validity queries
-rather than a solver-specific unsat-core API. This is an oracle implementation
-of MUSFIX's finite-subset search, not enumeration of guard/branch products.
-Conjunctions have no fixed width limit. Alternative minimal strengthenings are
-retained when later obligations require backtracking. Guard solutions are also
-compared semantically: equivalent guards collapse and strictly stronger guards
-are discarded; incomparable weakest guards remain separate.
+`ApplicationState` implements APPFO/APPHO. Required result shapes constrain
+polymorphic instantiations while fresh predicates retain their refinements.
+Result obligations mentioning an unchosen formal remain pending. An argument
+contributes its inference VC and precise type; existential binders are opened
+into the branch context. Variables and literals substitute into dependent
+parameters, while compound expressions use contextual witnesses. Higher-order
+arguments can be delayed until first-order arguments determine their requirements.
 
-IFAB introduces the unknown path predicate before constructing the proposed
-branch. Thus a callee precondition inside that branch can itself constrain the
-path. After solving the complete branch VC, search constructs the Boolean guard
-and synthesizes the other branch under its negation. Predicate valuations must
-have an inhabitant in their creation scope; contradictory guards and
-inconsistent starting contexts cannot manufacture successful abductions.
+Incremental unification follows Fig. 6. Free/free subtype pairs remain related
+without identifying their refinements. Unifying a free variable with a structured
+type creates fresh nested variables and predicates. Outer refinement constraints
+can be solved while element shapes remain unknown. Later arguments resolve those
+shapes; an occurs check rejects infinite types. Unanchored shapes come from
+component signatures and nested argument applications. Residual unconstrained
+variables are closed at complete elimination terms, and their pending constraints
+are checked before emission.
 
-## Supported fragments and bounds
+Type consistency uses the same VC lifting and SMT translation as verification,
+including datatype measures and path assumptions. A prefix of length six cannot
+produce an append result of length five with a nonnegative suffix: search rejects
+that partial application before opening the suffix generator. Consistency is
+existential and necessary; it does not approve a completed program.
 
-- Application queries reuse Aeon's first-order refinement language, scalar and
-  datatype sorts, measures, existing existential representation, and function
-  subtyping. Unsupported or undecidable obligations remain for final checking.
-- Guard realization currently uses the existing in-scope integer relational
-  vocabulary, including constants and templates harvested from specifications.
-  It instantiates polymorphic relational operators explicitly. More complex
-  Boolean programs and arbitrary function inverses are not inferred.
-- Guard vocabulary is capped at 48 atoms; each conditional proposes at most 64
-  branches per level. MUS enumeration has a default 256-query bound per
-  strengthening and 256 explored valuations per solve. Individual SMT queries
-  have a 100 ms timeout. The overall synthesis deadline is checked during
-  construction and solving.
-- `valid`, `invalid`, `unknown`, `unsupported`, `qualifiers exhausted`, and
-  `inconsistent context` are distinct outcomes. Unknown/timeouts and unsupported
-  sorts do not justify logical pruning. Exhaustion means failure within the
-  finite vocabulary, not a proof that no program exists.
-- Outside successful abduction, search retains bounded one- through four-atom
-  qualifier-conjunction enumeration. Both branches still receive their path
-  assumptions. Core `match`/`fix` synthesis, arbitrary recursive invariants,
-  unbounded shape discovery, and full PLDI benchmark coverage are not claimed.
+## MUSFIX and qualifiers
+
+The synthesis-specific Horn solver starts predicates at `true` and strengthens
+negative occurrences. `verification/horn.py` retains its verification-oriented
+algorithm. Strengthening uses an incremental SMT solver with tracked qualifier
+assumptions and a fixed negated Horn head. Unsat cores seed MUS minimization;
+a MARCO Boolean map blocks supersets of MUSes and subsets of maximal satisfiable
+sets. Predicate-tagged selectors preserve alternative partitions of a MUS among
+unknowns. Implication checks remove semantically stronger valuations, including
+implications between whole conjunctions, while retaining incomparable alternatives.
+
+Qualifiers are sorted templates harvested from the specification and component
+types, instantiated over visible variables. They include Boolean predicates and
+datatype measures as well as integer relations. Neither qualifier count nor
+conjunction width has a synthesis-specific cap. The solver has no default
+256-query/valuation limit; SMT queries use the remaining synthesis deadline.
+Unknown or unsupported results do not justify logical rejection. Qualifier
+exhaustion is distinguished from a proof that no program exists.
+
+## Bounds and compatibility
+
+The existing 4,000-candidate cap per application level and 64 proposed branches
+per abduction search remain unchanged. `synquid_max_level`,
+`synquid_max_candidates`, and the overall time budget can further bound a run.
+The older `size_merge` and `iterative_deepening` ordering modes remain available.
+
+This is an implementation of the paper's rules in Aeon, not a bit-for-bit port
+of the original tool. The component library, qualifier language, datatype
+lowering, SMT theories, and final verifier are Aeon's. The paper's formal
+completeness theorem is not a guarantee for a capped or timed run, or for
+obligations outside Aeon's supported logic. Full original benchmark coverage
+and performance parity are not claimed.
 
 ## Reproducible validation
 
-From an environment with Aeon's development dependencies:
-
 ```bash
-python -m pytest tests/synquid*test.py tests/partial_vc_test.py
+python -m pytest tests/synquid*test.py tests/smt*test.py tests/termination*test.py
 python scripts/bench_synquid_round_trip.py
+python scripts/run_core_tests.py
 pre-commit run --all-files
-python -m aeon --budget 3 -s synquid --no-main examples/synthesis/synquid/List-Append.ae
-python -m aeon --budget 3 -s synquid --no-main examples/synthesis/synquid/List-Null.ae
-python -m aeon --budget 3 -s synquid --no-main examples/synthesis/synquid/StrictIncList-Insert.ae
+python -m aeon --budget 15 -s synquid --no-main examples/synthesis/synquid/List-Null.ae
+python -m aeon --budget 25 -s synquid --no-main examples/synthesis/synquid/List-Append.ae
 ```
 
-The counter script fixes a finite grammar: one prefix and eight nonnegative
-suffix lengths, with desired result length five. It instruments the argument
-generator and final-verifier calls independently of the backend's own counters.
-Run the same script against baseline commit `5a0821b9` by setting `PYTHONPATH` to
-a checkout of that commit.
+The counter script fixes a finite grammar with one prefix and eight nonnegative
+suffix lengths. Run the same script against baseline `5a0821b9` by setting
+`PYTHONPATH` to a checkout of that commit.
 
 | Fixture / revision | Argument candidates | Suffix generators | Partial rejections | Complete local rejections | Full validations | Verified solutions |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -114,18 +128,15 @@ a checkout of that commit.
 | Prefix length 3 / baseline | 9 | 1 | 0 | 0 | 8 | 1 |
 | Prefix length 3 / round-trip | 9 | 1 | 0 | 7 | 1 | 1 |
 
-These counts measure early pruning, not wall-clock speed. Tests also compare
-all verified solutions in a small exhaustive grammar, check dependent
-arguments and fork isolation, and verify weakest `max(x,y)` guards against a
-finite qualifier vocabulary.
+These counts measure early pruning, not wall-clock speed. Tests cover exhaustive
+finite-grammar solution preservation, branch isolation, weakest guards,
+SMT unknowns, incremental shape/refinement discovery, polymorphic identity,
+conditional nesting, synthesized predicate wrappers, matches on applications,
+and generated measured recursion. Accepted fixtures pass the final verifier;
+non-decreasing monomorphic and explicitly type-applied polymorphic calls fail it.
+The SMT regressions also check that polymorphic datatype measure specializations
+use their actual carrier sort and reject an incorrect result.
 
-The end-to-end recursive fixture builds a measured `Nat` value of the requested
-size. It synthesizes the decreasing recursive call and verifies the substituted
-whole program. Adding an unused non-decreasing call preserves the result's
-refinement but fails the existing termination check.
-
-In the three-second benchmark sample, `StrictIncList-Insert` succeeds with the
-unchanged specification; its existing length requirement admits returning the
-input. `List-Append` and `List-Null` exhaust that budget. These are bounded-search
-results, not evidence of a complete implementation of the original benchmark
-suite. No benchmark specification is weakened for these measurements.
+The unchanged `List-Null` and `List-Append` benchmark specifications were also
+run. Their bounded outcomes are reported in the PR; these measurements do not
+replace the focused rule tests or establish original-suite coverage.

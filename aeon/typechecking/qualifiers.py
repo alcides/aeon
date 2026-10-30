@@ -114,7 +114,7 @@ def extract_qualifier_atoms(
     goal_type: Type | None = None,
     term: Term | None = None,
     *,
-    max_atoms: int = 512,
+    max_atoms: int | None = 512,
 ) -> frozenset[LiquidTerm]:
     """Finite set Q of boolean liquid atoms from refinements in scope.
 
@@ -135,7 +135,7 @@ def extract_qualifier_atoms(
         _collect_from_type(goal_type, sink)
     if term is not None:
         _collect_from_term(term, sink)
-    if len(sink) <= max_atoms:
+    if max_atoms is None or len(sink) <= max_atoms:
         return frozenset(sink)
     ordered = sorted(sink, key=repr)
     return frozenset(ordered[:max_atoms])

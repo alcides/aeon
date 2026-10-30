@@ -105,6 +105,15 @@ class ApplicationState:
         future = {str(n) for n, _ in self.params}
         trial = self.state.fork()
         pending = []
+        try:
+            trial.unify_shapes(self.result, self.goal)
+        except ValueError:
+            return Status.INVALID
+        self.result, self.goal = trial.resolve(self.result), trial.resolve(self.goal)
+        if trial.unresolved(self.result) or trial.unresolved(self.goal):
+            trial.subtype(self.result, self.goal)
+            self.state = trial
+            return trial.solve()
         for clause in split(sub(trial.context, self.result, self.goal)):
             if future.intersection(variables_free_in(clause)):
                 pending.append(clause)
@@ -155,28 +164,29 @@ class ApplicationState:
     def choose(self, argument: Term) -> ApplicationState:
         """Strengthen with the argument's VC and precise contextual type."""
         (binder, expected), rest = self.params[0], self.params[1:]
-        child = self.state.fork()
-        unresolved = child.unresolved(expected)
-        if unresolved:
-            from aeon.typechecking.qualifiers import extract_qualifier_atoms
+        from aeon.synthesis.modules.synquid.inference import InferredArgument
 
-            _, actual = synth(child.context, argument)
-            bindings = match_result(child.resolve(expected), actual, unresolved)
-            if bindings is None:
-                raise ValueError("Incompatible argument shape")
-            for unknown, shape in bindings.items():
-                child.type_assignments[unknown] = child.fresh_type(
-                    shape, extract_qualifier_atoms(child.context, self.goal)
-                )
-            expected = child.resolve(expected)
-        child.add(check(child.context, argument, expected))
+        inferred = argument if isinstance(argument, InferredArgument) else None
+        child = inferred.state.fork() if inferred is not None else self.state.fork()
+        argument = inferred.term if inferred is not None else argument
+        expected = child.resolve(expected)
         if isinstance(expected, AbstractionType) or isinstance(argument, Abstraction):
             # APPHO checks the supplied function, without inventing a scalar
             # value for it or leaking its body binders into the result.
             replacement = argument
+            if inferred is not None:
+                child.subtype(inferred.type, expected)
+                child.unify_shapes(inferred.type, expected)
+            else:
+                child.add(check(child.context, argument, expected))
         else:
-            vc, actual = synth(child.context, argument)
-            child.add(vc)
+            if inferred is None:
+                vc, actual = synth(child.resolve_context(child.context), argument)
+                child.add(vc)
+            else:
+                actual = inferred.type
+            child.subtype(actual, expected)
+            child.unify_shapes(actual, expected)
             child.bind(binder, actual)
             # Literal/variable substitution preserves the existing dependent
             # argument goal. Other E-terms use the precise contextual witness.

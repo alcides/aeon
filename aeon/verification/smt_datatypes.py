@@ -103,7 +103,7 @@ def constructor_logical_name(name: str) -> str:
     base = strip_binder_id(name)
     if "__spec__" in base:
         base = base.split("__spec__", 1)[0]
-    return base
+    return strip_binder_id(base)
 
 
 def is_registered_inductive(type_name: str) -> bool:

@@ -19,7 +19,14 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.core.types import AbstractionType, ExistentialType, RefinedType, Type
+from aeon.core.types import (
+    AbstractionType,
+    ExistentialType,
+    RefinedType,
+    Type,
+    TypePolymorphism,
+    RefinementPolymorphism,
+)
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.branch_evidence import match_branch_evidence
 from aeon.utils.location import Location
@@ -33,6 +40,8 @@ ctrue = LiquidConstraint(LiquidLiteralBool(True))
 def peel_abstractions(t: Term) -> tuple[list[Name], Term]:
     names: list[Name] = []
     cur = t
+    while isinstance(cur, (TypeAbstraction, RefinementAbstraction)):
+        cur = cur.body
     while isinstance(cur, Abstraction):
         names.append(cur.var_name)
         cur = cur.body
@@ -42,6 +51,8 @@ def peel_abstractions(t: Term) -> tuple[list[Name], Term]:
 def peel_type_formal_names(ty: Type) -> list[Name]:
     names: list[Name] = []
     cur: Type = ty
+    while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
+        cur = cur.body
     while isinstance(cur, AbstractionType):
         names.append(cur.var_name)
         cur = cur.type
@@ -65,6 +76,8 @@ def entry_refinement_liquids(
     """Opened refinement predicates for each curried ``RefinedType`` parameter (entry guards)."""
     out: list[LiquidTerm] = []
     cur: Type = fn_arrow_type
+    while isinstance(cur, (TypePolymorphism, RefinementPolymorphism)):
+        cur = cur.body
     while isinstance(cur, AbstractionType):
         liq = _opened_refinement_liquid(cur.var_type, cur.var_name, term_formals, type_formals)
         if liq is not None:
@@ -171,6 +184,8 @@ def collect_recursive_calls_with_paths(
         match tt:
             case Application(_, _, _):
                 head, args = peel_application_chain(tt)
+                while isinstance(head, (TypeApplication, RefinementApplication)):
+                    head = head.body
                 if isinstance(head, Var) and head.name == fn and len(args) == arity:
                     found.append(([apply_env(a, env) for a in args], tt.loc, path, nested_refs, scope))
             case _:
@@ -279,13 +294,38 @@ def collect_recursive_calls_with_paths(
 
 
 def _inner_ctx_and_expect_ty(nrctx: TypingContext, var_type: Type, formals: list[Name]) -> tuple[TypingContext, Type]:
+    from aeon.core.substitutions import substitution_in_type
+
     ctx = nrctx
     cur_ty = var_type
+    while isinstance(cur_ty, (TypePolymorphism, RefinementPolymorphism)):
+        if isinstance(cur_ty, TypePolymorphism):
+            ctx = ctx.with_typevar(cur_ty.name, cur_ty.kind)
+        else:
+            ctx = ctx.with_var(cur_ty.name, cur_ty.sort)
+        cur_ty = cur_ty.body
     for nm in formals:
         assert isinstance(cur_ty, AbstractionType)
         ctx = ctx.with_var(nm, cur_ty.var_type)
-        cur_ty = cur_ty.type
+        cur_ty = substitution_in_type(cur_ty.type, Var(nm), cur_ty.var_name)
     return ctx, cur_ty
+
+
+def _align_polymorphic_schema(schema: Type, value: Term) -> Type:
+    """The body may alpha-rename the schema's type/refinement binders."""
+    from aeon.core.instantiation import type_substitution
+    from aeon.core.substitutions import substitution_liquid_in_type
+    from aeon.core.types import TypeVar
+
+    if isinstance(value, Annotation):
+        return _align_polymorphic_schema(schema, value.expr)
+    if isinstance(schema, TypePolymorphism) and isinstance(value, TypeAbstraction):
+        body = type_substitution(schema.body, schema.name, TypeVar(value.name))
+        return TypePolymorphism(value.name, value.kind, _align_polymorphic_schema(body, value.body))
+    if isinstance(schema, RefinementPolymorphism) and isinstance(value, RefinementAbstraction):
+        body = substitution_liquid_in_type(schema.body, LiquidVar(value.name), schema.name)
+        return RefinementPolymorphism(value.name, value.sort, _align_polymorphic_schema(body, value.body))
+    return schema
 
 
 def _full_path_guard_liquid(
@@ -448,17 +488,18 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
         return ctrue
     caller_metrics = list(rec.decreasing_by)
     formals, inner = peel_abstractions(rec.var_value)
-    type_formals = peel_type_formal_names(rec.var_type)
+    schema = _align_polymorphic_schema(rec.var_type, rec.var_value)
+    type_formals = peel_type_formal_names(schema)
     if len(type_formals) != len(formals):
         return LiquidConstraint(LiquidLiteralBool(False))
-    entry_refs = entry_refinement_liquids(rec.var_type, formals, type_formals)
+    entry_refs = entry_refinement_liquids(schema, formals, type_formals)
     # Let-bindings are NOT inlined away here: the walk substitutes them into
     # recorded call arguments and path guards itself, and additionally turns
     # each binder's refinement into a path-scoped hypothesis (issue #378).
     inner_ctx: TypingContext | None = None
     inner_expect: Type | None = None
     if typing_ctx is not None:
-        inner_ctx, inner_expect = _inner_ctx_and_expect_ty(typing_ctx, rec.var_type, formals)
+        inner_ctx, inner_expect = _inner_ctx_and_expect_ty(typing_ctx, schema, formals)
 
     # Caller's entry measure (evaluated at its own parameters).
     caller_entry_ms: list[LiquidTerm] = []
@@ -518,4 +559,15 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
     acc: Constraint = parts[0]
     for p in parts[1:]:
         acc = Conjunction(acc, p)
+    # Bind entry arguments explicitly. In particular, a polymorphic function
+    # returning a type variable has no first-order SMT declaration from which
+    # the translator could otherwise recover these formals.
+    parameters = []
+    while isinstance(schema, (TypePolymorphism, RefinementPolymorphism)):
+        schema = schema.body
+    while isinstance(schema, AbstractionType):
+        parameters.append((schema.var_name, schema.var_type))
+        schema = schema.type
+    for name, ty in reversed(parameters):
+        acc = implication_constraint(name, ty, acc)
     return acc

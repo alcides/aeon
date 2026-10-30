@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm
 from aeon.core.substitutions import liquefy
@@ -18,20 +18,20 @@ from aeon.typechecking.typeinfer import check
 from aeon.utils.name import Name
 from aeon.verification.horn import apply_liquid
 from aeon.verification.vcs import LiquidConstraint
+from aeon.synthesis.modules.synquid.qualifiers import vocabulary, realize
 
 
 @dataclass
 class AbductionResult:
     guards: list[tuple[LiquidTerm, Term]]
     status: Status
+    conditions: list[LiquidTerm] = field(default_factory=list)
 
 
 def branch_environment(state: ConstraintState, goal: Type) -> ConstraintState:
     """Permit branch-local preconditions to constrain κ during construction."""
     child = state.fork()
-    atoms = extract_qualifier_atoms(child.context, goal_type=goal)
-    terms = bool_terms_from_qualifier_atoms(child.context, atoms)
-    qualifiers = frozenset(liquid for term in terms if (liquid := liquefy(term)) is not None)
+    qualifiers = vocabulary(child.context, goal)
     predicate = child.fresh_predicate(child.context, qualifiers)
     return child.assume(predicate)
 
@@ -47,11 +47,11 @@ def abduce(
     ctx = state.context
     if state.inhabited() == Status.VALID:
         return AbductionResult([], Status.INCONSISTENT)
-    atoms = extract_qualifier_atoms(ctx, goal_type=goal)
-    terms = bool_terms_from_qualifier_atoms(ctx, atoms | (qualifiers or frozenset()))
+    atoms = extract_qualifier_atoms(ctx, goal_type=goal, max_atoms=None)
+    terms = bool_terms_from_qualifier_atoms(ctx, atoms | (qualifiers or frozenset()), max_terms=None)
     realizations = {liquid: term for term in terms if (liquid := liquefy(term)) is not None}
     if qualifiers is None:
-        qualifiers = frozenset(realizations)
+        qualifiers = vocabulary(ctx, goal)
     branch_state = state.fork()
     try:
         predicate = branch_state.fresh_predicate(ctx, qualifiers)
@@ -87,21 +87,24 @@ def abduce(
         ]
         guards.append(guard)
 
-    def realize(guard: LiquidTerm) -> Term | None:
+    def direct(guard: LiquidTerm) -> Term | None:
+        executable = realize(ctx, guard)
+        if executable is not None:
+            return executable
         if isinstance(guard, LiquidLiteralBool):
             return Literal(guard.value, t_bool)
         if guard in realizations:
             term = realizations[guard]
             return term.expr if isinstance(term, Annotation) else term
         if isinstance(guard, LiquidApp) and guard.fun == Name("&&", 0):
-            left, right = (realize(g) for g in guard.args)
+            left, right = (direct(g) for g in guard.args)
             if left is not None and right is not None:
                 return Application(Application(Var(guard.fun), left), right)
         return None
 
-    realized = [(g, t) for g in guards if (t := realize(g)) is not None]
+    realized = [(g, t) for g in guards if (t := direct(g)) is not None]
     if len(realized) != len(guards):
         # A logical solution without a Boolean program is not a completed
         # abduction. Keep successful realizations and enable the fallback.
         status = Status.UNSUPPORTED
-    return AbductionResult(realized, status)
+    return AbductionResult(realized, status, guards)

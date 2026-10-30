@@ -35,6 +35,7 @@ def test_maximum_abduces_weakest_guard_and_verifies_complete_conditional():
     assert check_type(ctx, Annotation(If(term, Var(name("x")), Var(name("y"))), goal), goal)
     assert state.stats.abduction_branches == 1
     assert state.stats.fallback_guards == 0
+    assert state.stats.unsat_cores > 0
 
 
 def test_branch_first_engine_builds_max_and_else_under_negation():
@@ -77,12 +78,27 @@ def test_unsupported_sort_is_explicit():
     assert SMTQuery().valid(bad) == Status.UNSUPPORTED
 
 
-def test_unrealizable_qualifier_requests_fallback():
+def test_boolean_variables_are_executable_guards():
+    from aeon.core.types import RefinedType
+
     ctx = built_std_context().with_var(name("flag"), t_bool)
-    goal = parse_type("{v:Int | flag}")
+    goal = RefinedType(name("v"), t_int, LiquidVar(name("flag")))
     result = abduce(ConstraintState(ctx), Literal(0, t_int), goal, qualifiers=frozenset({LiquidVar(name("flag"))}))
-    assert result.status == Status.UNSUPPORTED
-    assert not result.guards
+    assert result.status == Status.VALID
+    assert result.guards == [(LiquidVar(name("flag")), Var(name("flag")))]
+
+
+def test_semantic_minimization_compares_whole_conjunctions():
+    x, y = LiquidVar(name("x")), LiquidVar(name("y"))
+    zero = LiquidLiteralInt(0)
+    weak = liq(">=", liq("+", x, y), zero)
+    ctx = built_std_context().with_var(name("x"), t_int).with_var(name("y"), t_int)
+    state = ConstraintState(ctx)
+    predicate = state.fresh_predicate(ctx, frozenset({liq(">=", x, zero), liq(">=", y, zero), weak}))
+    state.add(state.assume(predicate).lift(LiquidConstraint(weak)), lifted=True)
+    assert state.solve() == Status.VALID
+    # {x >= 0, y >= 0} is syntactically minimal but semantically stronger.
+    assert len(state.assignments) == 1
 
 
 def test_branch_construction_abduces_argument_preconditions():
@@ -153,3 +169,15 @@ def test_mus_budget_exhaustion_is_unknown_and_preserves_state():
     assert result.status == Status.UNKNOWN
     assert result.guards == []
     assert not state.constraints and state.assignments == [{}]
+
+
+def test_mus_requires_the_negated_head_not_just_inconsistent_predicates():
+    x = LiquidVar(name("x"))
+    ctx = built_std_context().with_var(name("x"), t_int)
+    state = ConstraintState(ctx)
+    positive = state.fresh_predicate(ctx, frozenset({liq(">", x, LiquidLiteralInt(0))}))
+    negative = state.fresh_predicate(ctx, frozenset({liq("<", x, LiquidLiteralInt(0))}))
+    state.add(state.assume(positive).assume(negative).lift(LiquidConstraint(LiquidLiteralBool(False))), lifted=True)
+    # Both valuations can be individually nonempty, yet their conjunction
+    # cannot be used to prove an arbitrary Horn head by contradiction.
+    assert state.solve() == Status.EXHAUSTED

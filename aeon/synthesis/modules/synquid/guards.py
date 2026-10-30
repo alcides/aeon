@@ -52,7 +52,7 @@ def bool_terms_from_qualifier_atoms(
     ctx: TypingContext,
     atoms: frozenset[LiquidTerm],
     *,
-    max_terms: int = 48,
+    max_terms: int | None = 48,
 ) -> list[Term]:
     """Bool-typed core guards drawn from the qualifier set Q.
 
@@ -79,7 +79,7 @@ def bool_terms_from_qualifier_atoms(
 
     # (a) harvested atoms with in-scope operands
     for atom in sorted(atoms, key=repr):
-        if len(out) >= max_terms:
+        if max_terms is not None and len(out) >= max_terms:
             return out
         if not isinstance(atom, LiquidApp) or atom.fun not in _REL or len(atom.args) != 2:
             continue
@@ -102,7 +102,7 @@ def bool_terms_from_qualifier_atoms(
         for op in ops:
             for lhs in operands:
                 for rhs in operands:
-                    if len(out) >= max_terms:
+                    if max_terms is not None and len(out) >= max_terms:
                         return out
                     if lhs == rhs:
                         continue

@@ -1,13 +1,13 @@
 """Synquid-style synthesizer: round-trip constraints and branch-first abduction.
 
-Default order is ``size_merge`` (heap by AST size, then level); optional ``iterative_deepening``.
+Default order follows §3.7 at increasing application depth; legacy size ordering is optional.
 """
 
 from time import monotonic_ns, monotonic
 from typing import Callable
 
 from aeon.core.terms import Term
-from aeon.core.types import Type
+from aeon.core.types import Type, TypePolymorphism, AbstractionType
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import (
     Synthesizer,
@@ -66,11 +66,15 @@ class SynquidSynthesizer(Synthesizer):
         level = 0
         pareto_front: list[ParetoEntry] = []
         self.stats = SearchStats()
-        mem: dict = {"synquid_stats": self.stats, "synquid_deadline": monotonic() + budget}
+        mem: dict = {
+            "synquid_stats": self.stats,
+            "synquid_deadline": monotonic() + budget,
+            "synquid_match_depth": current_metadata.get("synquid_match_depth", 2),
+        }
         ui.register(None, None, 0, True)
         goals = current_metadata.get("goals", [])
         minimize = minimize_flags_from_goals(goals)
-        search_mode = current_metadata.get("synquid_search", "size_merge")
+        search_mode = current_metadata.get("synquid_search", "paper")
         typecheck_candidate_first = bool(current_metadata.get("synquid_typecheck_candidate_first", False))
         # Depth is unbounded by default: the search runs until the time budget
         # (the budget check in `consider`) or the candidate space is exhausted.
@@ -81,6 +85,20 @@ class SynquidSynthesizer(Synthesizer):
         max_candidates_raw = current_metadata.get("synquid_max_candidates")
         max_candidates = None if max_candidates_raw is None else max(0, int(max_candidates_raw))
         n_candidates = 0
+        search_type = type
+
+        def close_candidate(term):
+            return term
+
+        # Surface declarations already contain TABS/ABS around a scalar hole.
+        # Reconstruct the complete schema for FIX, then apply the verified local
+        # function to those existing parameters. The outer program is untouched.
+        if not is_recursion_allowed and not isinstance(type, (TypePolymorphism, AbstractionType)):
+            from aeon.synthesis.modules.synquid.functions import enclosing_function
+
+            prepared = enclosing_function(ctx, fun_name, type)
+            if prepared is not None:
+                search_type, close_candidate = prepared
 
         def _safe_check(fn, *args) -> bool:
             # A candidate that makes the typechecker/SMT raise (e.g. an
@@ -98,6 +116,7 @@ class SynquidSynthesizer(Synthesizer):
 
         def consider(result: Term) -> bool:
             nonlocal pareto_front, done
+            result = close_candidate(result)
             if typecheck_candidate_first and not _safe_check(check_type, ctx, result, type):
                 ui.register(result, "Invalid (hole-local)", get_elapsed_time(start_time), False)
                 if get_elapsed_time(start_time) > budget:
@@ -128,17 +147,32 @@ class SynquidSynthesizer(Synthesizer):
                 done = False
             return False
 
+        if search_mode == "paper":
+            from itertools import islice
+            from aeon.synthesis.modules.synquid.engine import synthes_memory
+            from aeon.synthesis.modules.synquid.search import _LEVEL_BATCH_CAP
+
+            while monotonic() < mem["synquid_deadline"] and (max_level is None or level <= max_level):
+                for result in islice(synthes_memory(ctx, level, search_type, skip, mem), _LEVEL_BATCH_CAP):
+                    if max_candidates is not None and n_candidates >= max_candidates:
+                        return finish()
+                    n_candidates += 1
+                    if consider(result):
+                        return close_candidate(result)
+                level += 1
+            return finish()
+
         if search_mode == "iterative_deepening":
             while done and (max_level is None or level <= max_level):
                 cap_done = False
-                for result in sorted_level_candidates(ctx, level, type, skip, mem):
+                for result in sorted_level_candidates(ctx, level, search_type, skip, mem):
                     if max_candidates is not None and n_candidates >= max_candidates:
                         cap_done = True
                         done = False
                         break
                     n_candidates += 1
                     if consider(result):
-                        return result
+                        return close_candidate(result)
                     if not done:
                         break
                 if cap_done:
@@ -147,13 +181,13 @@ class SynquidSynthesizer(Synthesizer):
             return finish()
 
         for result in iter_candidates_size_then_level(
-            ctx, type, skip, mem, max_level=max_level, seed_levels=seed_levels
+            ctx, search_type, skip, mem, max_level=max_level, seed_levels=seed_levels
         ):
             if max_candidates is not None and n_candidates >= max_candidates:
                 break
             n_candidates += 1
             if consider(result):
-                return result
+                return close_candidate(result)
             if not done:
                 break
         return finish()
