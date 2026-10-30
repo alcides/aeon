@@ -845,6 +845,10 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
     n = 0
     for c in flatten(constraint):
         n += 1
+        # These clauses have no shared assertions. Discard internal search
+        # state too: push/pop alone can make later recursive-measure queries
+        # time out even when the same formula solves quickly in isolation.
+        s.reset()
         s.push()
 
         # Monomorphic, uncurried function declarations need no separate
@@ -915,6 +919,7 @@ def model_for_invalid(constraint: Constraint) -> list[tuple[str, str]] | None:
     s = current_session().state(VerificationState).get_solver()
     translate_memo: dict[int, tuple[LiquidTerm, Any]] = {}
     for c in flatten(constraint):
+        s.reset()
         s.push()
         try:
             try:
