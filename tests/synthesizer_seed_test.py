@@ -14,6 +14,7 @@ SEEDED_BACKENDS = [
     "random_search",
     "enumerative",
     "gp",
+    "regus",
     "tdsyn",
     "tdsyn_enumerative",
     "tdsyn_random",

@@ -77,6 +77,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "random_search",
         "rl_mcts",
         "amaze",
+        "regus",
         "synquid",
         "smt",
         "sygus",
