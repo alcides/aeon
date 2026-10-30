@@ -1,0 +1,14 @@
+# A descending range fold. The callback's accumulator depends on its body.
+# python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/fold.ae
+def fold_range (step:(acc:Int) -> (element:Int) -> Int)
+               (n:{n:Int | n >= 0}) (initial:Int) : Int :=
+    if n <= 0 then initial
+    else fold_range step (n - 1) (step initial n);
+
+@example(sum_to 0 = 0)
+@example(sum_to 1 = 1)
+@example(sum_to 2 = 3)
+@example(sum_to 3 = 6)
+@example(sum_to 4 = 10)
+def sum_to (n:{n:Int | n >= 0}) : Int :=
+    fold_range (fun acc => fun element => ?body) n 0;

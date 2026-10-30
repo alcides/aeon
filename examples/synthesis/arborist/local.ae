@@ -1,0 +1,8 @@
+# python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/local.ae
+def apply (f:(value:Int) -> Int) (value:Int) : Int := f value;
+
+@example(local 2 = 5)
+@example(local 3 = 10)
+@example(local 4 = 17)
+def local (x:Int) : Int :=
+    apply (fun y => ?body) (x * x);
