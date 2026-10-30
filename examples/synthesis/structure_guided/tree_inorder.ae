@@ -1,0 +1,17 @@
+# python -m aeon -s structure_guided --budget 10 examples/synthesis/structure_guided/tree_inorder.ae
+# Search the ordering of child calls and root elements; infer local element holes.
+inductive Chain
+| nil : Chain
+| cons (head:Int) (tail:Chain) : Chain
+
+inductive Tree
+| leaf : Tree
+| branch (left:Tree) (value:Int) (right:Tree) : Tree
+
+@example(f Tree.leaf = Chain.nil)
+@example(f (Tree.branch Tree.leaf 1 Tree.leaf) = Chain.cons 1 Chain.nil)
+@example(f (Tree.branch (Tree.branch Tree.leaf 2 Tree.leaf) 1 (Tree.branch Tree.leaf 3 Tree.leaf)) = Chain.cons 2 (Chain.cons 1 (Chain.cons 3 Chain.nil)))
+@allow_recursion
+def f(t:Tree):Chain := ?traversal;
+
+def main(args:Int):Chain := f (Tree.branch Tree.leaf 9 (Tree.branch Tree.leaf 5 Tree.leaf));

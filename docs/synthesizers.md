@@ -110,6 +110,98 @@ no pretrained model or published 1901-task dataset is bundled.
 
 ---
 
+### `structure_guided` — Structure-Guided Recursive Synthesis
+
+Synthesizes recursive list-producing functions from constructor-literal
+`@example` pairs using **size recurrences, partial-structure pruning, and local
+element synthesis**. Inspired by Lin and Morihata's [Recursive function synthesis
+based on structural relationships](https://jssst.or.jp/files/user/taikai/2025/papers/5a-1-R.pdf)
+and [Structure-Element Separation (GPCE 2026)](https://2026.ecoop.org/details/ecoop-gpce-2026/6/Synthesizing-Recursive-Functional-Programs-via-Structure-Element-Separation).
+This is a bounded adaptation to Aeon's constructor representation, not a
+reproduction of the full published synthesizer or benchmark results.
+
+```bash
+python -m aeon -s structure_guided --budget 10 examples/synthesis/structure_guided/paired_map.ae
+python -m aeon -s structure_guided --budget 10 examples/synthesis/structure_guided/tree_inorder.ae
+```
+
+The target must have one value parameter, a body hole, `@allow_recursion`, and
+literal input/output examples. It may accept a list or binary-tree datatype;
+the result is a list of integers. Datatypes must be registered inductives with
+exactly two constructors: one nullary base and one recursive constructor with
+one or two immediate recursive fields and one or two Int fields. Outputs need
+exactly one recursive field and one Int field. Constructor names, declaration
+order and field order are discovered from the typing context, rather than
+hardcoded. Parametric datatypes instantiated at Int are supported. Explicit
+type applications such as `List.nil{Int}` may be needed in examples when the
+frontend cannot infer a nullary constructor's type arguments.
+
+**Search.** First infer every bounded recurrence consistent with the examples:
+
+```text
+length(f empty) = d
+length(f node)  = c + sum(a_i * length(f child_i))
+```
+
+For lists there is one child; for binary trees there are two. Sizes are computed
+by recursively expanding the input structure, not by assuming recursive outputs
+have the input children's sizes. Ambiguous examples retain all fitting models.
+
+The output-constructor/append grammar normalizes to a word whose tokens are
+individual element holes or calls on immediate input children. Top-down prefix
+expansion tracks constructor and call counts. Prefixes incompatible with every
+inferred model are pruned before element expressions are enumerated. A stutter
+task requiring two new elements per recursive step therefore rejects a complete
+one-constructor skeleton while its element hole is still open. Constructor
+order and the order of recursive calls remain search choices, supporting such
+tasks as reverse, repeated maps and tree traversal.
+
+Next, symbolic execution unrolls each candidate skeleton into **diamond** atoms
+carrying a hole identity and its local integer inputs. Positional alignment with
+expected outputs produces small PBE tasks for each hole. Conflicting observations
+reject a skeleton immediately. Each task is solved by size-ordered enumeration
+of local Int fields, literals and `+`, `-`, `*`, with observational equivalence
+on that task's examples. No reference stutter, reverse, map or traversal program
+is supplied to search.
+
+The resulting core term uses actual datatype constructors, recursors and
+immediate-child self-calls. When concatenation is needed, a local recursive
+append is generated from the output datatype and checked with the rest of the
+candidate. No arbitrary library function is assumed to implement append.
+Acceptance requires **both** the normal whole-program validator and execution
+against every supplied I/O example. The runtime probe ties the recursive self
+name to the candidate, so it cannot accidentally test the placeholder body.
+
+**Bounds.** Each `Config` field can be set with an integer environment variable
+`AEON_STRUCTURE_<FIELD_NAME>`, or through
+`StructureGuidedSynthesizer(Config(...))` (import `Config` from
+`aeon.synthesis.modules.structure_guided.search`). Defaults are:
+
+- `MAX_CALLS=2`: total child-call occurrences in the recursive word.
+- `MAX_ADDED=3`, `MAX_BASE=1`: element constructors per step and in the base.
+- `MAX_ELEMENT_SIZE=7`: maximum AST node count per integer element expression.
+- `MAX_VALUES=5000`, `MAX_SKELETONS=10000`: local value and prefix search caps.
+- `MAX_NODES=128`, `MAX_DEPTH=16`: structural example / symbolic output bounds.
+
+The wall-clock budget covers recurrence inference, structural and element search,
+and runtime example checks. Compiler validation and individual synchronous
+evaluation calls can overrun the budget; no new process-based timeout is added.
+Search counters are available as `backend.stats`, including pruned prefixes,
+alignment/local-task counts and candidate validation/runtime rejections.
+
+**Limits and guarantees.** This backend learns from examples; inferred size
+relationships do not prove a universal functional specification. Any declared
+refinement still has to pass Aeon's ordinary verifier. Fixed-recurrence search
+does not cover value-dependent filtering, arbitrary recursion, accumulator
+parameters, tree-valued results, nested/mutual datatypes, opaque library calls,
+Boolean element computations, extra optimization goals or relational examples.
+Unsupported goals are reported explicitly. Search bounds, finite literal and
+element grammars, and observational merging make search incomplete: exhaustion
+is not evidence that no implementation exists. Like other per-hole backends,
+this backend does not jointly solve coupled holes.
+
+---
+
 ### `synquid` — Type-Directed Synthesis
 
 This backend implements a **Synquid-style** enumerator: type-directed decomposition, **Q**-aware conditional guards (same finite qualifier set as Horn predicate abstraction), and search ordering heuristics.
