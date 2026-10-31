@@ -631,7 +631,11 @@ def synthesize_holes(
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)
 
-    if isinstance(synthesizer, JointSynthesizer) and len({h for _, hs in targets for h in hs}) > 1:
+    if (
+        isinstance(synthesizer, JointSynthesizer)
+        and targets
+        and (len({h for _, hs in targets for h in hs}) > 1 or getattr(synthesizer, "requires_whole_program", False))
+    ):
         return _synthesize_joint(
             ctx,
             ectx,
