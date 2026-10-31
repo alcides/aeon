@@ -1,0 +1,4371 @@
+{
+  "artifacts_note": "All attempts and portable output certificates are retained. Ephemeral source/candidate filenames are omitted. Extract any result entry as JSON and use the verify subcommand to recheck its certificate against the pinned original relation.",
+  "commands": {
+    "cross_backend": "python -m aeon.benchmarks.bounded_boolean run --case misc1_2_1 --case lut1_2_2 --case misc2_3_1 --backend boolean_bounded --backend random_search --backend smt --backend gp --backend enumerative --backend sygus --bound 5 --budget 2 --wall-timeout 10 --output /tmp/bnsynth-comparison",
+    "full_corpus": "python -m aeon.benchmarks.bounded_boolean run --backend boolean_bounded --bound 5 --budget 2 --wall-timeout 10 --output /tmp/bnsynth-all",
+    "import_audit": "python -m aeon.benchmarks.bounded_boolean audit --budget 2 --wall-timeout 10 --output /tmp/bnsynth-audit"
+  },
+  "corpus_revision": "12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4",
+  "description": "Smoke coverage, not a reproduction of paper performance or a minimum-bound study.",
+  "environment": {
+    "machine": "x86_64",
+    "packages": {
+      "cvc5": "1.3.4",
+      "geneticengine": null,
+      "numpy": "2.2.6",
+      "scipy": "1.18.0",
+      "z3-solver": "5.1.0.0"
+    },
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43"
+  },
+  "inventory": {
+    "benchmark_y_lists": 53,
+    "excluded_reference_y_lists": 52,
+    "matched": 38,
+    "orphan_y_lists": [
+      "benchmarks/custom_and_lut/Yvarlist/LUT7_32_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/LUT7_7_26_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/mirror_10_10_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/misc5_6_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/multiplexer_2_2_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xnor-implies_7_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor-implies_1_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_1_2_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_1_3_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_1_5_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_3_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_3_2_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_4_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_5_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_6_1_varstoelim.txt"
+    ],
+    "repository_y_lists_total": 105,
+    "specifications": 38
+  },
+  "provenance_note": "Runs were made before committing this benchmark implementation. aeon_revision records the parent commit; implementation_sha256 records all actual Aeon Python source paths and bytes at run time.",
+  "reports": {
+    "cross_backend": {
+      "attempted": 18,
+      "by_backend": {
+        "boolean_bounded": {
+          "verified_solved": 3
+        },
+        "enumerative": {
+          "unsupported": 1,
+          "verified_solved": 2
+        },
+        "gp": {
+          "no_solution": 1,
+          "verified_solved": 2
+        },
+        "random_search": {
+          "verified_solved": 3
+        },
+        "smt": {
+          "search_failed": 1,
+          "verified_solved": 2
+        },
+        "sygus": {
+          "semantic_failure": 2,
+          "verified_solved": 1
+        }
+      },
+      "corpus_revision": "12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4",
+      "manifest_sha256": "e707efee2c9002b3f6032e554863dfb7b2076042ccc542180177d8ac1664c4e6",
+      "results": [
+        {
+          "backend_report": {
+            "counterexamples": 2,
+            "elapsed": 0.02969944989308715,
+            "iterations": 3,
+            "selectors": 25,
+            "status": "solved"
+          },
+          "candidate_sha256": "940809849351ffee15efebd355eea8af1be9070c7ed30aa56983c8fe2cbff4fd",
+          "clauses": {
+            "i_2": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "f5ecf52031fb5ace05be96a6f3d3143661c11c87a6807088a43c2e3d7b6dfdb0",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [
+              [
+                1
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010130870155990124,
+            "parse": 0.02136695710942149,
+            "synthesis": 0.07990058278664947,
+            "total": 1.3663511951453984,
+            "verification": 0.012944214977324009,
+            "worker_total": 0.12434379709884524
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "940809849351ffee15efebd355eea8af1be9070c7ed30aa56983c8fe2cbff4fd",
+          "clauses": {
+            "i_2": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "random_search",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "e0c41fc9b3d704541917f8d0895703c32044f573241c4696f17aaa2c6820e7ed",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [
+              [
+                1
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010033606085926294,
+            "parse": 0.021290073171257973,
+            "synthesis": 2.0479422989301383,
+            "total": 3.371873551979661,
+            "verification": 0.012506547849625349,
+            "worker_total": 2.0917732981033623
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "ef21258e23affd24d8ffc995bf91b0bcee52af9d2b3d818a0501c40319cf8869",
+          "clauses": {
+            "i_2": 2
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "smt",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "20ab190dc15776610864f06e9be482efe5dbb0d159cc3ec4af9d0f3876bb261f",
+          "literal_count": 2,
+          "max_clauses": 2,
+          "outputs": {
+            "i_2": [
+              [
+                1
+              ],
+              [
+                2
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.009939237963408232,
+            "parse": 0.021429855842143297,
+            "synthesis": 2.0483862971886992,
+            "total": 3.3205202519893646,
+            "verification": 0.012310417834669352,
+            "worker_total": 2.0920665599405766
+          },
+          "total_clauses": 2
+        },
+        {
+          "candidate_sha256": "940809849351ffee15efebd355eea8af1be9070c7ed30aa56983c8fe2cbff4fd",
+          "clauses": {
+            "i_2": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "gp",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "e1174daaf38da403bcd146a60be03162b6684b0db08a9ed85ec774337b84dc31",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [
+              [
+                1
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011252247728407383,
+            "parse": 0.02225374337285757,
+            "synthesis": 2.046169721055776,
+            "total": 3.3217496746219695,
+            "verification": 0.012049985118210316,
+            "worker_total": 2.0917270202189684
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "940809849351ffee15efebd355eea8af1be9070c7ed30aa56983c8fe2cbff4fd",
+          "clauses": {
+            "i_2": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "enumerative",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "36be144d0a9a84495f87db443d67d499e95a7cbd7a979a704f22fbd4a6a9dbf8",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [
+              [
+                1
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010545352939516306,
+            "parse": 0.021498606074601412,
+            "synthesis": 2.087349059060216,
+            "total": 3.372705422807485,
+            "verification": 0.0121613759547472,
+            "worker_total": 2.1315554161556065
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "2c2f4530351f4232ea752393e73aa75f6a0e9708eb6540c0bcdd567cf88dadbb",
+          "clauses": {
+            "i_2": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "sygus",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "counterexample": {
+            "i_0": true,
+            "i_1": true,
+            "i_2": true
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "747e24138ca2fbcfaeef5092f92aba9477a2b8cdb4f8bed9c1bda608ccc6ed70",
+          "literal_count": 0,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [
+              []
+            ]
+          },
+          "phase": "verification",
+          "status": "semantic_failure",
+          "timings": {
+            "import_verification": 0.010020592249929905,
+            "parse": 0.02143468474969268,
+            "synthesis": 0.07085563475266099,
+            "total": 1.3677168749272823,
+            "verification": 0.013049033004790545,
+            "worker_total": 0.11536113684996963
+          },
+          "total_clauses": 1
+        },
+        {
+          "backend_report": {
+            "counterexamples": 2,
+            "elapsed": 0.04313400108367205,
+            "iterations": 3,
+            "selectors": 50,
+            "status": "solved"
+          },
+          "candidate_sha256": "8f9085aabc493cc33f5f645ec75ce8b7cbdc34a47be37ae78be68fccc3fc0750",
+          "clauses": {
+            "i2": 1,
+            "i3": 0
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "50d3c542aba23d7b325874e31935a7824fddbd90e1b1396e068049135122ed75",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i2": [
+              [
+                1
+              ]
+            ],
+            "i3": []
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010321891866624355,
+            "parse": 0.025248620193451643,
+            "synthesis": 0.10928669990971684,
+            "total": 1.4168700478039682,
+            "verification": 0.015677378978580236,
+            "worker_total": 0.16053544310852885
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "8f9085aabc493cc33f5f645ec75ce8b7cbdc34a47be37ae78be68fccc3fc0750",
+          "clauses": {
+            "i2": 1,
+            "i3": 0
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "random_search",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "4274116ac2f1b910220056f8bf97cb50661e882be851f9c5fe912e3a239bd261",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i2": [
+              [
+                1
+              ]
+            ],
+            "i3": []
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010655310936272144,
+            "parse": 0.025389667134732008,
+            "synthesis": 2.062309753149748,
+            "total": 3.371486170217395,
+            "verification": 0.01460673613473773,
+            "worker_total": 2.112962529063225
+          },
+          "total_clauses": 1
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "smt",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "import_check": "equivalent",
+          "key": "52230235b8451e5a3c7a19705c28b622d1a186bf5152d3aa958d2f88f86d9543",
+          "phase": "synthesis",
+          "reason": "Joint Z3: complete assignment failed validation",
+          "status": "search_failed",
+          "timings": {
+            "import_verification": 0.010209198109805584,
+            "parse": 0.025216130074113607,
+            "synthesis": 0.07433367567136884,
+            "total": 1.369552121963352,
+            "worker_total": 0.10976011585444212
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "gp",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "import_check": "equivalent",
+          "key": "2ba6ac14feef6c3341ab65115da0dbd824e82e8b4ecdb14cfae696674577feaa",
+          "phase": "synthesis",
+          "reason": "backend returned no complete candidate",
+          "status": "no_solution",
+          "timings": {
+            "import_verification": 0.010220519732683897,
+            "parse": 0.025140236131846905,
+            "synthesis": 2.185612884350121,
+            "total": 3.4721523951739073,
+            "worker_total": 2.2209750032052398
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "enumerative",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "import_check": "equivalent",
+          "key": "8762a500f73793fbd9f0019b325eefd52a29750c02095254e7fde8eb765f08b3",
+          "phase": "synthesis",
+          "reason": "Unsupported synthesis goal: multiple @bounded_cnf holes require a joint synthesizer",
+          "status": "unsupported",
+          "timings": {
+            "import_verification": 0.011416478082537651,
+            "parse": 0.025383205618709326,
+            "synthesis": 0.0003013201057910919,
+            "total": 1.2678584367968142,
+            "worker_total": 0.03710183501243591
+          }
+        },
+        {
+          "candidate_sha256": "e46ea85dd8bd381a572349446078aa5443fb0eb439030ef9e28d4e7452b831b9",
+          "clauses": {
+            "i2": 0,
+            "i3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "sygus",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "fabc18b0b53989f74171e2726a14cb6de8d2e42f98f045a4d71b7fbb14c70d86",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i2": [],
+            "i3": [
+              [
+                1
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011591759975999594,
+            "parse": 0.02532281121239066,
+            "synthesis": 1.2317360918968916,
+            "total": 2.570249745156616,
+            "verification": 0.029546190053224564,
+            "worker_total": 1.2981980764307082
+          },
+          "total_clauses": 1
+        },
+        {
+          "backend_report": {
+            "counterexamples": 2,
+            "elapsed": 0.03501617396250367,
+            "iterations": 3,
+            "selectors": 35,
+            "status": "solved"
+          },
+          "candidate_sha256": "bbea3650815b646bf4ba72095ac76724d69888f83edbba3fba98f4bcedd8a68c",
+          "clauses": {
+            "i_3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "0e0b8191e4ec6c9d2c60072c6b6a6fad8772e43775febd806eca5225e743d3f7",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_3": [
+              [
+                -3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.012341156136244535,
+            "parse": 0.022317152936011553,
+            "synthesis": 0.11032095365226269,
+            "total": 1.416969336103648,
+            "verification": 0.013520154170691967,
+            "worker_total": 0.15850049909204245
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "bbea3650815b646bf4ba72095ac76724d69888f83edbba3fba98f4bcedd8a68c",
+          "clauses": {
+            "i_3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "random_search",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "b46fc070178c14747ba2ebc672cbf3aa9b4aaedb0c7bda81a7654e3194dc520b",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_3": [
+              [
+                -3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010451355017721653,
+            "parse": 0.022187318187206984,
+            "synthesis": 2.059790843632072,
+            "total": 3.3202787158079445,
+            "verification": 0.014919497072696686,
+            "worker_total": 2.1073500462807715
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "bbea3650815b646bf4ba72095ac76724d69888f83edbba3fba98f4bcedd8a68c",
+          "clauses": {
+            "i_3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "smt",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "70e5c48aba7ea89c3a8848bb6ee81977d54250c6644e7a5eee2a023482518a71",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_3": [
+              [
+                -3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010425587184727192,
+            "parse": 0.0221916357986629,
+            "synthesis": 2.060140403918922,
+            "total": 3.370405368041247,
+            "verification": 0.013904950115829706,
+            "worker_total": 2.1066637388430536
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "bbea3650815b646bf4ba72095ac76724d69888f83edbba3fba98f4bcedd8a68c",
+          "clauses": {
+            "i_3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "gp",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "ec3cb5321129d1735b5ab411dc8206f3631006d939ba5da4177b50e9512e6114",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_3": [
+              [
+                -3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011573385912925005,
+            "parse": 0.0221079271286726,
+            "synthesis": 2.1351442760787904,
+            "total": 3.420856924261898,
+            "verification": 0.014179909601807594,
+            "worker_total": 2.183006249833852
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "bbea3650815b646bf4ba72095ac76724d69888f83edbba3fba98f4bcedd8a68c",
+          "clauses": {
+            "i_3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "enumerative",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "ebec42575c5a9d1a721918e2e6da3c1a84cf49f5c049b5078dcaaf8496277c7f",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_3": [
+              [
+                -3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011671280022710562,
+            "parse": 0.022957602981477976,
+            "synthesis": 2.0933371619321406,
+            "total": 3.3711964818648994,
+            "verification": 0.020042004995048046,
+            "worker_total": 2.148009763099253
+          },
+          "total_clauses": 1
+        },
+        {
+          "candidate_sha256": "8fce4b4fb819428b4921a07fc0e577938b4d0566180dff744dabf2754975dbc5",
+          "clauses": {
+            "i_3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "sygus",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "counterexample": {
+            "i_0": false,
+            "i_1": false,
+            "i_2": false,
+            "i_3": true
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "12a92676ff541ed804ad51b3437967a6fa710d8b3e21e7bf0cfcd6d8d2e5a1fe",
+          "literal_count": 0,
+          "max_clauses": 1,
+          "outputs": {
+            "i_3": [
+              []
+            ]
+          },
+          "phase": "verification",
+          "status": "semantic_failure",
+          "timings": {
+            "import_verification": 0.01064534205943346,
+            "parse": 0.022243875078856945,
+            "synthesis": 0.08104389300569892,
+            "total": 1.3672467470169067,
+            "verification": 0.013768061064183712,
+            "worker_total": 0.1277019432745874
+          },
+          "total_clauses": 1
+        }
+      ],
+      "statuses": {
+        "no_solution": 1,
+        "search_failed": 1,
+        "semantic_failure": 2,
+        "unsupported": 1,
+        "verified_solved": 13
+      }
+    },
+    "full_corpus": {
+      "attempted": 38,
+      "by_backend": {
+        "boolean_bounded": {
+          "bounded_unsat": 8,
+          "timeout": 7,
+          "verified_solved": 23
+        }
+      },
+      "corpus_revision": "12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4",
+      "manifest_sha256": "e707efee2c9002b3f6032e554863dfb7b2076042ccc542180177d8ac1664c4e6",
+      "results": [
+        {
+          "backend_report": {
+            "counterexamples": 178,
+            "elapsed": 1.8076185141690075,
+            "iterations": 179,
+            "selectors": 405,
+            "status": "timeout"
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 4,
+            "memory_mb": 4096,
+            "output_count": 9,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "065253599b5bad5112895b0b5d8897b2ff3d4d7dad9b0d39d5d8907b1be89e2a",
+            "task": "adder_4_9",
+            "verilog_sha256": "672ed7b90432aa7aa2df302984bc92118d97765fb669c1f5065383c5d5c9d850",
+            "wall_timeout": 10.0,
+            "y_sha256": "9e6f432076c7159b7af60914dcfeeb00291d1cb7dcc7a2a8e4491582f83c2017"
+          },
+          "import_check": "equivalent",
+          "key": "c3a450b618cdae6f3d09225ed2820ac7ff832e2d160ef14b23c1ee3d32f0683a",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [timeout]: wall-clock budget exhausted",
+          "status": "timeout",
+          "timings": {
+            "import_verification": 0.011663345154374838,
+            "parse": 0.05780895613133907,
+            "synthesis": 2.0118198948912323,
+            "total": 3.321404271759093,
+            "worker_total": 2.081293578259647
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 2,
+            "elapsed": 0.043067947030067444,
+            "iterations": 3,
+            "selectors": 50,
+            "status": "solved"
+          },
+          "candidate_sha256": "8f9085aabc493cc33f5f645ec75ce8b7cbdc34a47be37ae78be68fccc3fc0750",
+          "clauses": {
+            "i2": 1,
+            "i3": 0
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "50d3c542aba23d7b325874e31935a7824fddbd90e1b1396e068049135122ed75",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i2": [
+              [
+                1
+              ]
+            ],
+            "i3": []
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010500929318368435,
+            "parse": 0.025306570809334517,
+            "synthesis": 0.10844973986968398,
+            "total": 1.4170432747341692,
+            "verification": 0.01576265972107649,
+            "worker_total": 0.1600212217308581
+          },
+          "total_clauses": 1
+        },
+        {
+          "backend_report": {
+            "counterexamples": 6,
+            "elapsed": 0.05554752377793193,
+            "iterations": 7,
+            "selectors": 50,
+            "status": "solved"
+          },
+          "candidate_sha256": "a88de2b970ae31d44752fd747de6babfd6c8751bf2ae536a5fdbb5a28e582118",
+          "clauses": {
+            "i2": 1,
+            "i3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "12d3cb1cc204be321cde10fbabbf023177b8b1f85cc6933bc9172d145adbc47e",
+            "task": "lut2-pla_2_2",
+            "verilog_sha256": "7620c87939e44ba3719a72e12008cc9d9fe25eaa0f063b9e06fb8cfdd51ef2a9",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "35f2643ebe6d7abe8d844ea9db5ab8082e243a3630a55b27967b6c8f0926707f",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i2": [
+              []
+            ],
+            "i3": [
+              [
+                -2
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010607811156660318,
+            "parse": 0.025569978170096874,
+            "synthesis": 0.11965636163949966,
+            "total": 1.41701148590073,
+            "verification": 0.015853592194616795,
+            "worker_total": 0.17168911499902606
+          },
+          "total_clauses": 2
+        },
+        {
+          "backend_report": {
+            "counterexamples": 8,
+            "elapsed": 0.08646516595035791,
+            "iterations": 9,
+            "selectors": 110,
+            "status": "solved"
+          },
+          "candidate_sha256": "a65c0b104dcbf597c48f3b27ccf21b0b8c363814a1b42700f191ea1c856236f7",
+          "clauses": {
+            "i5": 2,
+            "i6": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "fecb27555bd06a8f7e8ee4b9df378cf3bbab916aa80b40cf4a5d2058ac47c737",
+            "task": "lut3-c17a_5_2",
+            "verilog_sha256": "546c2fa5421abb2b112c346955138b8da41daa667b10c05682948adeb39b1cbc",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "df1d378ac2b06195255fb78fd717923c4871828f8fe4befe0fb61533a3997ba2",
+          "literal_count": 4,
+          "max_clauses": 2,
+          "outputs": {
+            "i5": [
+              [
+                -2,
+                3
+              ],
+              [
+                -2,
+                4
+              ]
+            ],
+            "i6": [
+              []
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011019979137927294,
+            "parse": 0.030248176772147417,
+            "synthesis": 0.19488137308508158,
+            "total": 1.5169417699798942,
+            "verification": 0.020499118138104677,
+            "worker_total": 0.25664944807067513
+          },
+          "total_clauses": 3
+        },
+        {
+          "backend_report": {
+            "counterexamples": 15,
+            "elapsed": 0.11317245289683342,
+            "iterations": 16,
+            "selectors": 110,
+            "status": "solved"
+          },
+          "candidate_sha256": "712b79659e57aac14839d553720c49b2821b7594b45d4767055ed28e28334ab7",
+          "clauses": {
+            "i5": 1,
+            "i6": 3
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "cc8bc9d6e1c5ec961f1533d3e0104ca7c3814d4de99d60018e9f1234fe18b4b1",
+            "task": "lut4-c17b_5_2",
+            "verilog_sha256": "2bc4d209a7e2b80ab554f94db41214086e900338bd2442fb02c1b2c9a8089c5d",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "93bd954517dfef7a189b4bbdae1673794706d4c6be1398a0ba902573aaf3a2c9",
+          "literal_count": 8,
+          "max_clauses": 3,
+          "outputs": {
+            "i5": [
+              [
+                -2,
+                3
+              ]
+            ],
+            "i6": [
+              [
+                -5,
+                3
+              ],
+              [
+                -5,
+                4
+              ],
+              [
+                -2,
+                4
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011183668859302998,
+            "parse": 0.03060656413435936,
+            "synthesis": 0.22299245093017817,
+            "total": 1.5173631659708917,
+            "verification": 0.020476916804909706,
+            "worker_total": 0.28526035184040666
+          },
+          "total_clauses": 4
+        },
+        {
+          "backend_report": {
+            "counterexamples": 11,
+            "elapsed": 0.09394288202747703,
+            "iterations": 12,
+            "selectors": 110,
+            "status": "solved"
+          },
+          "candidate_sha256": "68ea54dd7bb43e8169fb133a9597fe8d565c699efe22796a8ed9abd0d0980c0a",
+          "clauses": {
+            "i5": 1,
+            "i6": 2
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "5e2a713e1764c57c76f4c53336b19baff01b8f81698b3faebc0876b92ae6d97b",
+            "task": "lut5-c17c_5_2",
+            "verilog_sha256": "35985231b692daf701a891dfa9dbd5f9687fcdfb0746f435a63b81c4b4646ea4",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "e2f0a3882458170bbb3a2f6e1d19720611ef8efdbda1b96ba8a004b0c0cbb6e9",
+          "literal_count": 4,
+          "max_clauses": 2,
+          "outputs": {
+            "i5": [
+              []
+            ],
+            "i6": [
+              [
+                -4,
+                -3
+              ],
+              [
+                2,
+                5
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011006163898855448,
+            "parse": 0.030204274225980043,
+            "synthesis": 0.19992020213976502,
+            "total": 1.5168517101556063,
+            "verification": 0.019479240756481886,
+            "worker_total": 0.26061090314760804
+          },
+          "total_clauses": 3
+        },
+        {
+          "backend_report": {
+            "counterexamples": 12,
+            "elapsed": 0.09782079886645079,
+            "iterations": 13,
+            "selectors": 110,
+            "status": "solved"
+          },
+          "candidate_sha256": "a6641f5311669c4e74c8b19e841ba9e392d2ae1c5d3cfb5a4720bd8ea27cba18",
+          "clauses": {
+            "i5": 3,
+            "i6": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "ae702d56255da7f19b9b9836b07d54c2183353d19224bf6c5c152e50848c726f",
+            "task": "lut6-c17d_5_2",
+            "verilog_sha256": "e3ae36a49965f334b7ab214c348b907a4cb6eb6fa8c015c7b175c6d659b38e31",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "6b0dc7326c21767038703ba88104d05b707b3a0f0e2bf6b906a26a14b6398183",
+          "literal_count": 7,
+          "max_clauses": 3,
+          "outputs": {
+            "i5": [
+              [
+                -4,
+                -3,
+                1
+              ],
+              [
+                1,
+                2
+              ],
+              [
+                2,
+                3
+              ]
+            ],
+            "i6": [
+              []
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011113116052001715,
+            "parse": 0.029745457228273153,
+            "synthesis": 0.20354414777830243,
+            "total": 1.5175816887058318,
+            "verification": 0.020767195150256157,
+            "worker_total": 0.2651708573102951
+          },
+          "total_clauses": 4
+        },
+        {
+          "backend_report": {
+            "counterexamples": 1,
+            "elapsed": 0.02558905491605401,
+            "iterations": 2,
+            "selectors": 325,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 32,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "cb6625fe124a20feb6290bca117184073a020f765b6b4a5a2fb261ff97b45f6e",
+            "task": "lut7-ctrl_7_1",
+            "verilog_sha256": "1f249584011e72d47309822099c9878c883c3c49cc8626e9bd25af0a97480bc5",
+            "wall_timeout": 10.0,
+            "y_sha256": "9ae8048cc7a897af4c748cf5c7d9dc63fee035ce742d38fe90a38b2e69fc00cc"
+          },
+          "import_check": "equivalent",
+          "key": "4e1823f9d82d98cc376a326d19e8da9c77119192ad9b9d3ecb877835ad64b169",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.011393184773623943,
+            "parse": 0.09438958717510104,
+            "synthesis": 0.6027098959311843,
+            "total": 1.918912067078054,
+            "worker_total": 0.7084932997822762
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 5,
+            "elapsed": 0.9631097260862589,
+            "iterations": 6,
+            "selectors": 4100,
+            "status": "timeout"
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 20,
+            "memory_mb": 4096,
+            "output_count": 20,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "df98b94dea898aed656ac1e25e530ddfb8af12e9e915b254786f32855717e57e",
+            "task": "mirror_20_20",
+            "verilog_sha256": "31173f0109bb6b6a82db6d5babad1f584a38dd8dc5cdeddb11624e9ad6a581b4",
+            "wall_timeout": 10.0,
+            "y_sha256": "3937566726eeb2f1e8ef29fa74f46575451d3182f8340e7b4b9fec49dc19fc8f"
+          },
+          "import_check": "equivalent",
+          "key": "82d7cca98d4cd250413580f1cd9cdbcaca18fff6e172b192f6aac2d4f797a7b7",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [timeout]: wall-clock budget exhausted",
+          "status": "timeout",
+          "timings": {
+            "import_verification": 0.016795601695775986,
+            "parse": 0.33017589803785086,
+            "synthesis": 2.0301304273307323,
+            "total": 3.6259325346909463,
+            "worker_total": 2.377103469800204
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 32,
+            "elapsed": 0.246500332839787,
+            "iterations": 33,
+            "selectors": 275,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 5,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "2727eaf9dd8deab3851345b3c7df770e642b8f13fb8a7ff626e75655ea080810",
+            "task": "mirror_5_5",
+            "verilog_sha256": "a9881c08d700da78066b6a72a1fd857efac984097c7b67c2998a1b5500c900a8",
+            "wall_timeout": 10.0,
+            "y_sha256": "8981e760be4f6e0543cf16285fd6df41e61c727675505d1b6cb1e31535ab0273"
+          },
+          "import_check": "equivalent",
+          "key": "5f037ca423aa239fe52db9bd45fd72cb3e0f6453cff6c17426b93605da5baf11",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.014728045091032982,
+            "parse": 0.05216627614572644,
+            "synthesis": 0.40224312199279666,
+            "total": 1.7186202928423882,
+            "worker_total": 0.46913847513496876
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 2,
+            "elapsed": 0.029642732813954353,
+            "iterations": 3,
+            "selectors": 25,
+            "status": "solved"
+          },
+          "candidate_sha256": "940809849351ffee15efebd355eea8af1be9070c7ed30aa56983c8fe2cbff4fd",
+          "clauses": {
+            "i_2": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "f5ecf52031fb5ace05be96a6f3d3143661c11c87a6807088a43c2e3d7b6dfdb0",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [
+              [
+                1
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010735712014138699,
+            "parse": 0.02151411585509777,
+            "synthesis": 0.08170257788151503,
+            "total": 1.4196781027130783,
+            "verification": 0.013117602095007896,
+            "worker_total": 0.12707109982147813
+          },
+          "total_clauses": 1
+        },
+        {
+          "backend_report": {
+            "counterexamples": 2,
+            "elapsed": 0.03505840478464961,
+            "iterations": 3,
+            "selectors": 35,
+            "status": "solved"
+          },
+          "candidate_sha256": "bbea3650815b646bf4ba72095ac76724d69888f83edbba3fba98f4bcedd8a68c",
+          "clauses": {
+            "i_3": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "0e0b8191e4ec6c9d2c60072c6b6a6fad8772e43775febd806eca5225e743d3f7",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_3": [
+              [
+                -3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.00985011039301753,
+            "parse": 0.022122724913060665,
+            "synthesis": 0.09744637180119753,
+            "total": 1.417341107968241,
+            "verification": 0.01313867187127471,
+            "worker_total": 0.14255910133942962
+          },
+          "total_clauses": 1
+        },
+        {
+          "backend_report": {
+            "counterexamples": 6,
+            "elapsed": 0.060422083362936974,
+            "iterations": 7,
+            "selectors": 75,
+            "status": "solved"
+          },
+          "candidate_sha256": "088a858642e788155ab414574d813e8d0b957e0d1c1774df80895432fb268a0e",
+          "clauses": {
+            "i_0": 0,
+            "i_3": 1,
+            "i_4": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "1548fc52373b91b66c6ce38aa3a1c773977f6ca4270492428fef835056fa8f32",
+            "task": "misc3_2_3",
+            "verilog_sha256": "55e706cf33514ce69b059edcf684d957b43bb16319245bf8e3bf775ca5131bcc",
+            "wall_timeout": 10.0,
+            "y_sha256": "4adf73061574188858040a9522f59d073cd71fe357d22fbed2911f934090044c"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "8bb96acb9fc86e177e78ba87b925e72e4ea11ad20ee7b4ea5232f908ce168e55",
+          "literal_count": 0,
+          "max_clauses": 1,
+          "outputs": {
+            "i_0": [],
+            "i_3": [
+              []
+            ],
+            "i_4": [
+              []
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010011843871325254,
+            "parse": 0.02553927106782794,
+            "synthesis": 0.13917331537231803,
+            "total": 1.4669610331766307,
+            "verification": 0.014919326640665531,
+            "worker_total": 0.18964507896453142
+          },
+          "total_clauses": 2
+        },
+        {
+          "backend_report": {
+            "counterexamples": 4,
+            "elapsed": 0.05533487210050225,
+            "iterations": 5,
+            "selectors": 75,
+            "status": "solved"
+          },
+          "candidate_sha256": "ca6add64745d99ad596c854b100550f98473ee7148f5b4334a1991c7bc506117",
+          "clauses": {
+            "i_2": 0,
+            "i_3": 0,
+            "i_4": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "f674a0de02ef864bcb386894061183c04dd3e0fa134d6e1c2ad4f11e7679da30",
+            "task": "misc4_2_3",
+            "verilog_sha256": "8825b0ea91645b6ad21ccde7b1a77075ce4585299a3ae2080e650b06ba6b64e4",
+            "wall_timeout": 10.0,
+            "y_sha256": "cf2a4522756f8daf446e62e23b69595febcd109b6ba9115a7fcb63be8a39df91"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "ae110a7b00dfe412e9fc27a00a8d6597a25ddc25201310ef2015fc8faa0cea5a",
+          "literal_count": 0,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [],
+            "i_3": [],
+            "i_4": [
+              []
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011381783057004213,
+            "parse": 0.02573483996093273,
+            "synthesis": 0.13323322171345353,
+            "total": 1.4697241829708219,
+            "verification": 0.015071664936840534,
+            "worker_total": 0.18542256206274033
+          },
+          "total_clauses": 1
+        },
+        {
+          "backend_report": {
+            "counterexamples": 0,
+            "elapsed": 0.021494800224900246,
+            "iterations": 1,
+            "selectors": 15,
+            "status": "solved"
+          },
+          "candidate_sha256": "bd5736c81c2bc3a3016fd9acc29bb7fa838cdbe36ce9937034e7a1729ed3b38d",
+          "clauses": {
+            "i_1": 0
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 1,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "d729e2db6c775c2dad337257583f84485c2a1823be74b5ae577f1b1370d96ae6",
+            "task": "multiplexer_1_1",
+            "verilog_sha256": "f57b1816800f6283f72a2b906e6dc1dcf941c149ee2554bb8ceae1cdc567da91",
+            "wall_timeout": 10.0,
+            "y_sha256": "bfc3ed441f5e7466d8d2fa5effd67b360ad6458558d42798fed8872eb83fa096"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "7ed655824a5074ca4f57c7903f52500e28a45c9d1c42ae1e9697f43b2c05b41e",
+          "literal_count": 0,
+          "max_clauses": 0,
+          "outputs": {
+            "i_1": []
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011322400067001581,
+            "parse": 0.02009746991097927,
+            "synthesis": 0.061716729775071144,
+            "total": 1.3679801132529974,
+            "verification": 0.012904679868370295,
+            "worker_total": 0.10604260303080082
+          },
+          "total_clauses": 0
+        },
+        {
+          "backend_report": {
+            "counterexamples": 16,
+            "elapsed": 0.13222120981663465,
+            "iterations": 17,
+            "selectors": 105,
+            "status": "solved"
+          },
+          "candidate_sha256": "4e47085493ca0917dbdd4135d3d94b51e8dc84cd07d683d83848f3d4fd66d19b",
+          "clauses": {
+            "i_3": 3,
+            "i_4": 1,
+            "i_5": 2
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "e14b751f212dad6f9998770959239672b96d2a890440070501c784e8ecd5366b",
+            "task": "multiplexer_3_3",
+            "verilog_sha256": "1b581661462d417a376e5caaa4b046dc2909d16dbc3e27fa555472aed5d698f0",
+            "wall_timeout": 10.0,
+            "y_sha256": "8fa3884f0806eee3fc3a3b3213a8835edd2eadef325b02491076b26d2deef187"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "17fe768c876393d78bfb7180981413980eca7b1c1aa805fe708bc64e9ae51911",
+          "literal_count": 6,
+          "max_clauses": 3,
+          "outputs": {
+            "i_3": [
+              [
+                -3
+              ],
+              [
+                -2
+              ],
+              [
+                1
+              ]
+            ],
+            "i_4": [
+              [
+                2
+              ]
+            ],
+            "i_5": [
+              [
+                -2
+              ],
+              [
+                3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.012566730845719576,
+            "parse": 0.036697572097182274,
+            "synthesis": 0.23236517887562513,
+            "total": 1.5669771903194487,
+            "verification": 0.021194432396441698,
+            "worker_total": 0.3028253368102014
+          },
+          "total_clauses": 6
+        },
+        {
+          "backend_report": {
+            "counterexamples": 79,
+            "elapsed": 1.0766178728081286,
+            "iterations": 80,
+            "selectors": 130,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "3d66b095dfbae95e85baea91e9b6da2c2a1aebac111c11c8edc221dd16c081ae",
+            "task": "xnor-implies_6_2",
+            "verilog_sha256": "816476f2cff5f9ee9051a95582d13aefd42825b2b3c76e4f80c7b9beda6f39b9",
+            "wall_timeout": 10.0,
+            "y_sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+          },
+          "import_check": "equivalent",
+          "key": "ee97aff606be5fd70c4053c11486047f1ec8def1c785dd1ad711bba98573af57",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.011569858994334936,
+            "parse": 0.03541528806090355,
+            "synthesis": 1.1949430797249079,
+            "total": 2.5197155717760324,
+            "worker_total": 1.241928867995739
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 150,
+            "elapsed": 1.8617221401073039,
+            "iterations": 151,
+            "selectors": 170,
+            "status": "timeout"
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "6bc0faf4ea32594b73a780400a47efabeb34c63fcec62c770ee45a7af7bea4f0",
+            "task": "xnor-implies_8_2",
+            "verilog_sha256": "7f89be04a97bd46e9a5acae84f3a4898a5602ba5a4ae3e13c38ce45fef99eb0e",
+            "wall_timeout": 10.0,
+            "y_sha256": "f8e9eeef794096633b58e3daffed252a33224e61e0ac7943cbd0c4d390eae752"
+          },
+          "import_check": "equivalent",
+          "key": "a68eb787ac5c47295781b6a6d2da5cf92a67da3d53f4ae3747c5abe2e9945af1",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [timeout]: canceled",
+          "status": "timeout",
+          "timings": {
+            "import_verification": 0.011795475147664547,
+            "parse": 0.04095284081995487,
+            "synthesis": 2.008648402057588,
+            "total": 3.271130220964551,
+            "worker_total": 2.061397729907185
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 82,
+            "elapsed": 0.4198904330842197,
+            "iterations": 83,
+            "selectors": 130,
+            "status": "solved"
+          },
+          "candidate_sha256": "e15bf76883b75ea614ab4d3ef4838a41c10abda8d6a73254976eeffb37cd6730",
+          "clauses": {
+            "i_6": 5,
+            "i_7": 4
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "f9d0d25a70c9d9eee71beb4e421f4a7ca500b89a7c710edcadcb82764747c528",
+            "task": "xnor_6_2",
+            "verilog_sha256": "1a1a54f9b374fae8052231b09b5680392935e3ec768b2acaf7f7f6a2e321ac5c",
+            "wall_timeout": 10.0,
+            "y_sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "bfc6584e06045e4b8811366faf422181cc4ec83659d91249e177dd0ac2965419",
+          "literal_count": 28,
+          "max_clauses": 5,
+          "outputs": {
+            "i_6": [
+              [
+                -6,
+                -3,
+                -2
+              ],
+              [
+                -6,
+                2,
+                3
+              ],
+              [
+                -3,
+                2,
+                4,
+                6
+              ],
+              [
+                -3,
+                2,
+                6
+              ],
+              [
+                -2,
+                3,
+                6
+              ]
+            ],
+            "i_7": [
+              [
+                -5,
+                -4,
+                -1
+              ],
+              [
+                -5,
+                1,
+                4
+              ],
+              [
+                -4,
+                1,
+                5
+              ],
+              [
+                -1,
+                4,
+                5
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010551845654845238,
+            "parse": 0.031100486405193806,
+            "synthesis": 0.5455544251017272,
+            "total": 1.8683071918785572,
+            "verification": 0.027007173281162977,
+            "worker_total": 0.6142148519866168
+          },
+          "total_clauses": 9
+        },
+        {
+          "backend_report": {
+            "counterexamples": 33,
+            "elapsed": 0.10322472872212529,
+            "iterations": 34,
+            "selectors": 75,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 7,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "83b7f6b47118604a8de31ff7e6924e55bf8afe5102f4ad83aeea72f957288c1d",
+            "task": "xnor_7_1",
+            "verilog_sha256": "1a1a54f9b374fae8052231b09b5680392935e3ec768b2acaf7f7f6a2e321ac5c",
+            "wall_timeout": 10.0,
+            "y_sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+          },
+          "import_check": "equivalent",
+          "key": "28bf57df533adc140549b63a68ed9c1f76d35f042cc404ba2098abde4d5ffd8f",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.010551945306360722,
+            "parse": 0.028854263946413994,
+            "synthesis": 0.21345403091982007,
+            "total": 1.517401559278369,
+            "worker_total": 0.25286127207800746
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 28,
+            "elapsed": 0.0948727298527956,
+            "iterations": 29,
+            "selectors": 75,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 7,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "02172f06e240e716e80f8492d05176800953838ca1d8ef2e119c431763daa37c",
+            "task": "xor-implies_6_2",
+            "verilog_sha256": "d592b8fdc49e1fb30de092aaccdb673a5a0d49152a11c2a3b5b0583046690cdb",
+            "wall_timeout": 10.0,
+            "y_sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+          },
+          "import_check": "equivalent",
+          "key": "a7035f6344f6884c2cfbc104884880b3c330064df5385d058b2608796d41c948",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.011322981677949429,
+            "parse": 0.02939682826399803,
+            "synthesis": 0.20563935721293092,
+            "total": 1.4671335997991264,
+            "worker_total": 0.24636000907048583
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 106,
+            "elapsed": 1.750157706439495,
+            "iterations": 107,
+            "selectors": 680,
+            "status": "timeout"
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 8,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "2e63accb5446546f876a463579aef3644817ffe022b0e2bd4587fe4e23f2acac",
+            "task": "xor-implies_8_8",
+            "verilog_sha256": "baea460bc1ef7485f9fe7732b4438f8dd7969b7195276aa32fd98e938bd6dcdb",
+            "wall_timeout": 10.0,
+            "y_sha256": "f7d1474528028428bfbabd91b9db2fcdce0dafc0104606cf98423839c5be5cfa"
+          },
+          "import_check": "equivalent",
+          "key": "25a49927983323ed8df3b5993e577d9f24b7372e63b11711568d74f45fe8ee37",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [timeout]: wall-clock budget exhausted",
+          "status": "timeout",
+          "timings": {
+            "import_verification": 0.011938215233385563,
+            "parse": 0.06622795201838017,
+            "synthesis": 2.0131158619187772,
+            "total": 3.321032450068742,
+            "worker_total": 2.091283752117306
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 2,
+            "elapsed": 0.0468064290471375,
+            "iterations": 3,
+            "selectors": 60,
+            "status": "solved"
+          },
+          "candidate_sha256": "9e801bb0041176725718e68350889b6dcc71a6bceaaa114593e3b28cbf4478f4",
+          "clauses": {
+            "i_1": 0,
+            "i_2": 1,
+            "i_3": 0,
+            "i_4": 0
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 1,
+            "memory_mb": 4096,
+            "output_count": 4,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "3ef7aaa72df7c2848da16858d1b34640ba29ed63eb28c772d0e831858beeb89e",
+            "task": "xor_1_4",
+            "verilog_sha256": "1e2c72c89e67f00e380a459eda2b6e1bce8b2452304bd7e957fc187fb4a3ac33",
+            "wall_timeout": 10.0,
+            "y_sha256": "28d991037a34d7f751060fb43e9018ad042b64b56a010d0971a936eae8ae5dd4"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "1ac76b81c069623f5f6a8289a58ed14732ea34fe7d634e67e6a5d20a90c51dcf",
+          "literal_count": 1,
+          "max_clauses": 1,
+          "outputs": {
+            "i_1": [],
+            "i_2": [
+              [
+                1
+              ]
+            ],
+            "i_3": [],
+            "i_4": []
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010528461076319218,
+            "parse": 0.025244293734431267,
+            "synthesis": 0.12499571917578578,
+            "total": 1.417214959859848,
+            "verification": 0.015629407949745655,
+            "worker_total": 0.1763990237377584
+          },
+          "total_clauses": 1
+        },
+        {
+          "backend_report": {
+            "counterexamples": 6,
+            "elapsed": 0.05055934004485607,
+            "iterations": 7,
+            "selectors": 50,
+            "status": "solved"
+          },
+          "candidate_sha256": "53cff06e02ae1200f52832669f6961e1fd789a3f368cc8397aa10ff604887f1a",
+          "clauses": {
+            "i_2": 1,
+            "i_3": 2
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "196ab917b65a307e3407f46d04a375bdfe3d64ea8c6beb916426d5e07642dce4",
+            "task": "xor_2_2",
+            "verilog_sha256": "25b9234d727e38527de6c676159d1486b7feaa46e363174f1144d3db992b9ef1",
+            "wall_timeout": 10.0,
+            "y_sha256": "7160a3f9a13b4e158d4e22c0d6e8adb373ad7d82170e555606420fde90fb7e80"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "e01d4b64c9a2af2f439b71824fb151b65d2bbe3f76871920459fe3c186b8df13",
+          "literal_count": 4,
+          "max_clauses": 2,
+          "outputs": {
+            "i_2": [
+              []
+            ],
+            "i_3": [
+              [
+                -2,
+                1
+              ],
+              [
+                -1,
+                2
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.01148226298391819,
+            "parse": 0.022988691926002502,
+            "synthesis": 0.11715458473190665,
+            "total": 1.4175221398472786,
+            "verification": 0.01533138519152999,
+            "worker_total": 0.16695800703018904
+          },
+          "total_clauses": 3
+        },
+        {
+          "backend_report": {
+            "counterexamples": 9,
+            "elapsed": 0.06912604719400406,
+            "iterations": 10,
+            "selectors": 75,
+            "status": "solved"
+          },
+          "candidate_sha256": "118c897cb033f2dc45af00fd2bf993322321e76e1aa494579bb3ca6421124e54",
+          "clauses": {
+            "i_2": 1,
+            "i_3": 1,
+            "i_4": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "c3e5993bb06ad6834b5a0ba9874bca31f9222b170f532e21568c5ffb21d166fe",
+            "task": "xor_2_3",
+            "verilog_sha256": "1e2c72c89e67f00e380a459eda2b6e1bce8b2452304bd7e957fc187fb4a3ac33",
+            "wall_timeout": 10.0,
+            "y_sha256": "cf2a4522756f8daf446e62e23b69595febcd109b6ba9115a7fcb63be8a39df91"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "a7940f1e82dcdb84e663096de752004771507b7fb3c3b841397c7ee42538142b",
+          "literal_count": 2,
+          "max_clauses": 1,
+          "outputs": {
+            "i_2": [
+              []
+            ],
+            "i_3": [
+              [
+                1
+              ]
+            ],
+            "i_4": [
+              [
+                -2
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011035650037229061,
+            "parse": 0.02587672835215926,
+            "synthesis": 0.14742344059050083,
+            "total": 1.4671114766970277,
+            "verification": 0.016196830198168755,
+            "worker_total": 0.20053394231945276
+          },
+          "total_clauses": 3
+        },
+        {
+          "backend_report": {
+            "counterexamples": 10,
+            "elapsed": 0.08370564226061106,
+            "iterations": 11,
+            "selectors": 100,
+            "status": "solved"
+          },
+          "candidate_sha256": "f3c54f223253daa68efa9e3c3df70bdceda9d21aacb5e82c4628b46842ab0e4b",
+          "clauses": {
+            "i_2": 2,
+            "i_3": 1,
+            "i_4": 2,
+            "i_5": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 4,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "4a30c8d468ced7f81893624fbe382cd8886ecce3a78ee6913ab44fc816b51a4e",
+            "task": "xor_2_4",
+            "verilog_sha256": "295c305a5ad6f3f8b910f60040de33fd48d61d80f6d5198d7e727be32e42c2bd",
+            "wall_timeout": 10.0,
+            "y_sha256": "420f332ac530851614b3d3e595a9410862633a068bf19bdaa43051751e497e74"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "5144a99e8afdba58a049a13fe35e4a7b45159ca8d5befc24b08028c8d4462aef",
+          "literal_count": 5,
+          "max_clauses": 2,
+          "outputs": {
+            "i_2": [
+              [
+                -1
+              ],
+              [
+                2
+              ]
+            ],
+            "i_3": [
+              []
+            ],
+            "i_4": [
+              [
+                1
+              ],
+              [
+                2
+              ]
+            ],
+            "i_5": [
+              [
+                -1
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010891968384385109,
+            "parse": 0.02704088669270277,
+            "synthesis": 0.17492212401703,
+            "total": 1.4671802367083728,
+            "verification": 0.01674341270700097,
+            "worker_total": 0.2296001547947526
+          },
+          "total_clauses": 6
+        },
+        {
+          "backend_report": {
+            "counterexamples": 14,
+            "elapsed": 0.1054440219886601,
+            "iterations": 15,
+            "selectors": 105,
+            "status": "solved"
+          },
+          "candidate_sha256": "609688751bae0e3902a6eb1e643073e88bf5e13fec736a391a4d5ef7c1c262c2",
+          "clauses": {
+            "i_3": 2,
+            "i_4": 3,
+            "i_5": 1
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "14f58cbf6826806f45283b481d145359f8c5ccbfee81069b932e707bc422c527",
+            "task": "xor_3_3",
+            "verilog_sha256": "4fa5296b21c8b22684adac5c973f582f8db14853e5bbc3ad0703e9e777ff38ee",
+            "wall_timeout": 10.0,
+            "y_sha256": "8fa3884f0806eee3fc3a3b3213a8835edd2eadef325b02491076b26d2deef187"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "a252e3230965487da2350cefb0e9754ff80419d83574618fb307abd1758aa31e",
+          "literal_count": 9,
+          "max_clauses": 3,
+          "outputs": {
+            "i_3": [
+              [
+                -2
+              ],
+              [
+                1
+              ]
+            ],
+            "i_4": [
+              [
+                -3,
+                -1
+              ],
+              [
+                -3,
+                2
+              ],
+              [
+                -2,
+                1,
+                3
+              ]
+            ],
+            "i_5": [
+              []
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010872652288526297,
+            "parse": 0.027706964872777462,
+            "synthesis": 0.19891177583485842,
+            "total": 1.5169376623816788,
+            "verification": 0.018543835263699293,
+            "worker_total": 0.256036669947207
+          },
+          "total_clauses": 6
+        },
+        {
+          "backend_report": {
+            "counterexamples": 19,
+            "elapsed": 0.1224226881749928,
+            "iterations": 20,
+            "selectors": 90,
+            "status": "solved"
+          },
+          "candidate_sha256": "a5366f2976bf2313431a16c14dfab8c2ec20a00529ad1b942c4b85ae08966b67",
+          "clauses": {
+            "i_4": 5,
+            "i_5": 4
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 4,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "f5a71b9b374f5987bfb9844f1bddaacc034d8ea6391853a884f6f461cc341a84",
+            "task": "xor_4_2",
+            "verilog_sha256": "4fa5296b21c8b22684adac5c973f582f8db14853e5bbc3ad0703e9e777ff38ee",
+            "wall_timeout": 10.0,
+            "y_sha256": "358f0763d43702075f969ea4729f01aeceab1fdf81170b6453d017fdec6bd4d6"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "1e39f6ae95919d5f02d381c76eb8ceab9926d7d2bdea8061757880f9fead7b19",
+          "literal_count": 23,
+          "max_clauses": 5,
+          "outputs": {
+            "i_4": [
+              [
+                -4,
+                -1
+              ],
+              [
+                -4,
+                2
+              ],
+              [
+                -3,
+                1,
+                2
+              ],
+              [
+                -2,
+                1,
+                4
+              ],
+              [
+                -1,
+                2,
+                3
+              ]
+            ],
+            "i_5": [
+              [
+                -3,
+                -1,
+                2
+              ],
+              [
+                -2,
+                -1,
+                3
+              ],
+              [
+                1,
+                3
+              ],
+              [
+                2,
+                4
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011271014343947172,
+            "parse": 0.02723709773272276,
+            "synthesis": 0.21835544984787703,
+            "total": 1.5173914697952569,
+            "verification": 0.021033146884292364,
+            "worker_total": 0.27789783105254173
+          },
+          "total_clauses": 9
+        },
+        {
+          "backend_report": {
+            "counterexamples": 31,
+            "elapsed": 0.1981154321692884,
+            "iterations": 32,
+            "selectors": 135,
+            "status": "solved"
+          },
+          "candidate_sha256": "7cd2945b3b1eb16b07431dd2c2c4b3d94ca29a65d0cc9658d796631ed25dab17",
+          "clauses": {
+            "i_4": 4,
+            "i_5": 2,
+            "i_6": 4
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 4,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "5da7784d97ecf52811bd2176323357b3badd60e58129beddbf4827c74f734b05",
+            "task": "xor_4_3",
+            "verilog_sha256": "368dcdff8fc8155802446c64bc3fd82db397e6fbfc44c4cbb6a58d9a441bc9a1",
+            "wall_timeout": 10.0,
+            "y_sha256": "8c5bffc3097503e10c30afa6c42771329da3e24724d3b45daf2ecb8a50a9841e"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "b69c5152fb1562f7062407357fdde4b1193a958f4390f6295c03331f476fdcba",
+          "literal_count": 26,
+          "max_clauses": 4,
+          "outputs": {
+            "i_4": [
+              [
+                -4,
+                -2,
+                3
+              ],
+              [
+                -3,
+                1,
+                4
+              ],
+              [
+                -3,
+                2,
+                4
+              ],
+              [
+                1,
+                2,
+                4
+              ]
+            ],
+            "i_5": [
+              [
+                -2
+              ],
+              [
+                -1
+              ]
+            ],
+            "i_6": [
+              [
+                -4,
+                -2,
+                -1
+              ],
+              [
+                -4,
+                -1,
+                3
+              ],
+              [
+                -2,
+                -1,
+                3
+              ],
+              [
+                1,
+                2,
+                3
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011290261056274176,
+            "parse": 0.030261251144111156,
+            "synthesis": 0.3123232596553862,
+            "total": 1.6175175537355244,
+            "verification": 0.02454787725582719,
+            "worker_total": 0.3784237811341882
+          },
+          "total_clauses": 10
+        },
+        {
+          "backend_report": {
+            "counterexamples": 49,
+            "elapsed": 0.24018568405881524,
+            "iterations": 50,
+            "selectors": 110,
+            "status": "solved"
+          },
+          "candidate_sha256": "db1a8041b8f75bcbd3ec29bed0a1a5f54fe3c6f3f6ec04aa04407364ef519d68",
+          "clauses": {
+            "i_5": 5,
+            "i_6": 5
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "6eda95c44ea6103eae8f03cdd544df3de498529fefc5297852d667b5f0dc8be6",
+            "task": "xor_5_2",
+            "verilog_sha256": "368dcdff8fc8155802446c64bc3fd82db397e6fbfc44c4cbb6a58d9a441bc9a1",
+            "wall_timeout": 10.0,
+            "y_sha256": "2fc4440bb559ee6416dbbe5a825e9c71cb48111781d572ba0308036de7b472e4"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "6e24050726bbc81f302666909393fc701f3f87da2b4df93e490ba5f93756431a",
+          "literal_count": 33,
+          "max_clauses": 5,
+          "outputs": {
+            "i_5": [
+              [
+                -5,
+                -4,
+                -2
+              ],
+              [
+                -5,
+                2,
+                4
+              ],
+              [
+                -3,
+                -2,
+                1,
+                5
+              ],
+              [
+                -1,
+                2,
+                5
+              ],
+              [
+                -1,
+                3,
+                5
+              ]
+            ],
+            "i_6": [
+              [
+                -5,
+                -3,
+                -1
+              ],
+              [
+                -5,
+                1,
+                3
+              ],
+              [
+                -4,
+                -3,
+                2,
+                5
+              ],
+              [
+                -4,
+                -2,
+                5
+              ],
+              [
+                2,
+                3,
+                4,
+                5
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010693952906876802,
+            "parse": 0.028340754099190235,
+            "synthesis": 0.3496705391444266,
+            "total": 1.6173752346076071,
+            "verification": 0.02527921972796321,
+            "worker_total": 0.413985688239336
+          },
+          "total_clauses": 10
+        },
+        {
+          "backend_report": {
+            "counterexamples": 54,
+            "elapsed": 0.3391700708307326,
+            "iterations": 55,
+            "selectors": 165,
+            "status": "solved"
+          },
+          "candidate_sha256": "f3d1574b90c210aa5ef4736f80069be2573e4fd635edf79b909269a8ed33d805",
+          "clauses": {
+            "i_5": 5,
+            "i_6": 2,
+            "i_7": 5
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "fe6ad697a003489083593fd06ab3424c7a0a3a97f74fc0d1ef9c9d2cc1205c51",
+            "task": "xor_5_3",
+            "verilog_sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9",
+            "wall_timeout": 10.0,
+            "y_sha256": "e28c1b7e54670e0ca9e7423cb801386402bc79e607fafd7ce06252b50150ab2d"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "be1559367f9c6bd5d3eac05b5202f229393470073589f975debd5ddb85b0c0c5",
+          "literal_count": 34,
+          "max_clauses": 5,
+          "outputs": {
+            "i_5": [
+              [
+                -5,
+                -2,
+                3
+              ],
+              [
+                -5,
+                1,
+                3
+              ],
+              [
+                -5,
+                4
+              ],
+              [
+                -3,
+                4
+              ],
+              [
+                -1,
+                3,
+                5
+              ]
+            ],
+            "i_6": [
+              [
+                -3,
+                1,
+                5
+              ],
+              [
+                2
+              ]
+            ],
+            "i_7": [
+              [
+                -5,
+                -4,
+                -2,
+                -1
+              ],
+              [
+                -5,
+                -3,
+                -1
+              ],
+              [
+                -3,
+                1,
+                2,
+                5
+              ],
+              [
+                1,
+                3,
+                4
+              ],
+              [
+                3,
+                4,
+                5
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.010923647787421942,
+            "parse": 0.031285075936466455,
+            "synthesis": 0.46782997343689203,
+            "total": 1.7675589811988175,
+            "verification": 0.02919731056317687,
+            "worker_total": 0.5392369600012898
+          },
+          "total_clauses": 12
+        },
+        {
+          "backend_report": {
+            "counterexamples": 112,
+            "elapsed": 1.7631126609630883,
+            "iterations": 113,
+            "selectors": 650,
+            "status": "timeout"
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 10,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "3cb6874988ee7b126d72f3b1b3bcfdeaa6e2a825daa31693fae8e3c8975d21e6",
+            "task": "xor_6_10",
+            "verilog_sha256": "886ee140d1abe8451e32104ff7300599feb53fde7c00a61114f0ee3e255139dc",
+            "wall_timeout": 10.0,
+            "y_sha256": "c5644906dedb9cbaecd3359a551a659e7fc14aff98df4c10d171e10be3bc30f3"
+          },
+          "import_check": "equivalent",
+          "key": "2cab5bb229a8d4435fcd0485ae1eef29c81d53e7396819095e667cfffcec58a3",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [timeout]: wall-clock budget exhausted",
+          "status": "timeout",
+          "timings": {
+            "import_verification": 0.01229250431060791,
+            "parse": 0.0625199768692255,
+            "synthesis": 2.0188476308248937,
+            "total": 3.320587048307061,
+            "worker_total": 2.0936608938500285
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 84,
+            "elapsed": 0.41419114638119936,
+            "iterations": 85,
+            "selectors": 130,
+            "status": "solved"
+          },
+          "candidate_sha256": "a765d72cc4801c34bd381851d5f1541f82b63f5bbd691920c731eb98a4354a80",
+          "clauses": {
+            "i_6": 4,
+            "i_7": 4
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "4929da557453121b0a4c2685172fe4ea19b39cfdde14ef7dfe4e524f833c0ef0",
+            "task": "xor_6_2",
+            "verilog_sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9",
+            "wall_timeout": 10.0,
+            "y_sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+          },
+          "exhaustive_checked": true,
+          "import_check": "equivalent",
+          "key": "c54b22d340e71eb88d0c6d669173e5a13436b582dd1e317872374a757a8ed6a4",
+          "literal_count": 24,
+          "max_clauses": 4,
+          "outputs": {
+            "i_6": [
+              [
+                -6,
+                -4,
+                -1
+              ],
+              [
+                -6,
+                1,
+                4
+              ],
+              [
+                -4,
+                1,
+                6
+              ],
+              [
+                -1,
+                4,
+                6
+              ]
+            ],
+            "i_7": [
+              [
+                -5,
+                -3,
+                2
+              ],
+              [
+                -5,
+                -2,
+                3
+              ],
+              [
+                -3,
+                -2,
+                5
+              ],
+              [
+                2,
+                3,
+                5
+              ]
+            ]
+          },
+          "phase": "verification",
+          "status": "verified_solved",
+          "timings": {
+            "import_verification": 0.011641132645308971,
+            "parse": 0.030236043967306614,
+            "synthesis": 0.5416008559986949,
+            "total": 1.8681463277898729,
+            "verification": 0.02816789597272873,
+            "worker_total": 0.6116470010019839
+          },
+          "total_clauses": 8
+        },
+        {
+          "backend_report": {
+            "counterexamples": 32,
+            "elapsed": 1.387134739663452,
+            "iterations": 33,
+            "selectors": 1690,
+            "status": "timeout"
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 26,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "82924b8cc04fe8574e4b72d214558a4b39f75d05281b7c712f1e1086e700b351",
+            "task": "xor_6_26",
+            "verilog_sha256": "b16f7665e2b931c1e7b3b7c7be054358f2248c3f8273e05be898fc22680db4d5",
+            "wall_timeout": 10.0,
+            "y_sha256": "9f52782648f3ae760b81e95fb0a24ccb903d91a7a1096b115ca42c7ff774b961"
+          },
+          "import_check": "equivalent",
+          "key": "1b98aac29258295bafc07453b9b90528b4db1b2788dbce01298b77aad5150f70",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [timeout]: wall-clock budget exhausted",
+          "status": "timeout",
+          "timings": {
+            "import_verification": 0.012955906800925732,
+            "parse": 0.13634582329541445,
+            "synthesis": 2.027257699985057,
+            "total": 3.370738027151674,
+            "worker_total": 2.176560723222792
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 34,
+            "elapsed": 0.10770486202090979,
+            "iterations": 35,
+            "selectors": 75,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 7,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "7d277ca7609390318c4719f123b7b4e32981753e0fa2050b9ad8da24601d161a",
+            "task": "xor_7_1",
+            "verilog_sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9",
+            "wall_timeout": 10.0,
+            "y_sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+          },
+          "import_check": "equivalent",
+          "key": "79ebdaf148de1679b2be4d03e8eefa75d39b731002184c3778fd71fb0dda3f3b",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.011325195897370577,
+            "parse": 0.028249790892004967,
+            "synthesis": 0.21861422015354037,
+            "total": 1.4672365738078952,
+            "worker_total": 0.2581905787810683
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 37,
+            "elapsed": 0.12200089078396559,
+            "iterations": 38,
+            "selectors": 85,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "0e84dd6960c53e98c79ffa48382f9282a6b662b4ffdbc0a41df817f433fc030d",
+            "task": "xor_8_1",
+            "verilog_sha256": "c23f6ee2304ce01cd8fd02dda8220d4b9e3e987d2fc2863c5a5d3acf2b95d608",
+            "wall_timeout": 10.0,
+            "y_sha256": "a4911eee001c8463d49ed4d0955e78e5541de579e3188bc1077ec647f489792a"
+          },
+          "import_check": "equivalent",
+          "key": "34af7ded617fe53db64a6a820eeb018b0558032ed188740d2a78b95033dc00c3",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.011141398921608925,
+            "parse": 0.030050884000957012,
+            "synthesis": 0.24480904918164015,
+            "total": 1.5167486048303545,
+            "worker_total": 0.28600365575402975
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 108,
+            "elapsed": 1.7559405607171357,
+            "iterations": 109,
+            "selectors": 680,
+            "status": "timeout"
+          },
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 8,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "c93439920af0ac2e2ca8d177884e794bd50e027235cc28ce90202f60ff6980f8",
+            "task": "xor_8_8",
+            "verilog_sha256": "886ee140d1abe8451e32104ff7300599feb53fde7c00a61114f0ee3e255139dc",
+            "wall_timeout": 10.0,
+            "y_sha256": "f7d1474528028428bfbabd91b9db2fcdce0dafc0104606cf98423839c5be5cfa"
+          },
+          "import_check": "equivalent",
+          "key": "493bc0befbb0b88c34b13f3ab68fd55a37db7fa8e34ccd1586b3a81f964f3c2e",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [timeout]: wall-clock budget exhausted",
+          "status": "timeout",
+          "timings": {
+            "import_verification": 0.011738817673176527,
+            "parse": 0.06235926318913698,
+            "synthesis": 2.0117781250737607,
+            "total": 3.3205136698670685,
+            "worker_total": 2.0858770068734884
+          }
+        },
+        {
+          "backend_report": {
+            "counterexamples": 51,
+            "elapsed": 0.17724493192508817,
+            "iterations": 52,
+            "selectors": 95,
+            "status": "bounded_unsat"
+          },
+          "certification": "solver_reported_not_independently_certified",
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": false,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 9,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "9e2cefe6439d32f1b004b738c2a9a7d62eafcc8d2f3eb452fdb8472ff2da5ebf",
+            "task": "xor_9_1",
+            "verilog_sha256": "b78f0dceb5f49563453a0dd8bea6c16800af1818bf8e51de825ae3c1d78c822c",
+            "wall_timeout": 10.0,
+            "y_sha256": "a07f65ce6f0a9803aacab56048e7b8f823e1537974dabb98e5e9a337b6620ad3"
+          },
+          "import_check": "equivalent",
+          "key": "99bfc25bdcde83bf99abea6b098d19b2de440c8e3b3b5562f70af0a6948a078c",
+          "phase": "synthesis",
+          "reason": "boolean_bounded [bounded_unsat]: no solution within the stated CNF bounds and supported grammar",
+          "status": "bounded_unsat",
+          "timings": {
+            "import_verification": 0.012087566778063774,
+            "parse": 0.031750855036079884,
+            "synthesis": 0.3157148682512343,
+            "total": 1.5677019199356437,
+            "worker_total": 0.3595543117262423
+          }
+        }
+      ],
+      "statuses": {
+        "bounded_unsat": 8,
+        "timeout": 7,
+        "verified_solved": 23
+      }
+    },
+    "import_audit": {
+      "attempted": 38,
+      "by_backend": {
+        "boolean_bounded": {
+          "import_verified": 38
+        }
+      },
+      "corpus_revision": "12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4",
+      "manifest_sha256": "e707efee2c9002b3f6032e554863dfb7b2076042ccc542180177d8ac1664c4e6",
+      "results": [
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 4,
+            "memory_mb": 4096,
+            "output_count": 9,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "065253599b5bad5112895b0b5d8897b2ff3d4d7dad9b0d39d5d8907b1be89e2a",
+            "task": "adder_4_9",
+            "verilog_sha256": "672ed7b90432aa7aa2df302984bc92118d97765fb669c1f5065383c5d5c9d850",
+            "wall_timeout": 10.0,
+            "y_sha256": "9e6f432076c7159b7af60914dcfeeb00291d1cb7dcc7a2a8e4491582f83c2017"
+          },
+          "import_check": "equivalent",
+          "key": "d84e19d95713a0ea74ed1d88d053b9a0d3217c45eacc3b541a73fd4193d60de2",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.013459128327667713,
+            "parse": 0.05782225076109171,
+            "total": 1.3166523007676005,
+            "worker_total": 0.07128240074962378
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+            "task": "lut1_2_2",
+            "verilog_sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "import_check": "equivalent",
+          "key": "9773d32cc7af4d751ec3c0d0e9610ce90080b9a9989f552f9834926f2667d239",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011057118885219097,
+            "parse": 0.025563005823642015,
+            "total": 1.2671899432316422,
+            "worker_total": 0.036620876751840115
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "12d3cb1cc204be321cde10fbabbf023177b8b1f85cc6933bc9172d145adbc47e",
+            "task": "lut2-pla_2_2",
+            "verilog_sha256": "7620c87939e44ba3719a72e12008cc9d9fe25eaa0f063b9e06fb8cfdd51ef2a9",
+            "wall_timeout": 10.0,
+            "y_sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+          },
+          "import_check": "equivalent",
+          "key": "3194aceb8dc557f282285c039ef3df7b56d48a8a64b2de1be577c13abce5b471",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010729630943387747,
+            "parse": 0.02570054493844509,
+            "total": 1.266886921133846,
+            "worker_total": 0.03643120778724551
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "fecb27555bd06a8f7e8ee4b9df378cf3bbab916aa80b40cf4a5d2058ac47c737",
+            "task": "lut3-c17a_5_2",
+            "verilog_sha256": "546c2fa5421abb2b112c346955138b8da41daa667b10c05682948adeb39b1cbc",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "import_check": "equivalent",
+          "key": "570f3e91a23bfa34e5a6453e1fe2f202fb8fb8ca34692226fc7eb837bb8a7a95",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011812727898359299,
+            "parse": 0.03015997027978301,
+            "total": 1.2669847859069705,
+            "worker_total": 0.04197408026084304
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "cc8bc9d6e1c5ec961f1533d3e0104ca7c3814d4de99d60018e9f1234fe18b4b1",
+            "task": "lut4-c17b_5_2",
+            "verilog_sha256": "2bc4d209a7e2b80ab554f94db41214086e900338bd2442fb02c1b2c9a8089c5d",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "import_check": "equivalent",
+          "key": "7c6f999321c6284a68c9a31319d03952b8cec9b74f9f4bd042afcad6e4bb5cdb",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.01093357615172863,
+            "parse": 0.0309724947437644,
+            "total": 1.2667963397689164,
+            "worker_total": 0.04190682293847203
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "5e2a713e1764c57c76f4c53336b19baff01b8f81698b3faebc0876b92ae6d97b",
+            "task": "lut5-c17c_5_2",
+            "verilog_sha256": "35985231b692daf701a891dfa9dbd5f9687fcdfb0746f435a63b81c4b4646ea4",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "import_check": "equivalent",
+          "key": "ea57b8ba9cf575a27aec1fb8ba2a6371ebf5de62cad1196ecebb574062989587",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010994060896337032,
+            "parse": 0.029805771075189114,
+            "total": 1.2666786881163716,
+            "worker_total": 0.04080144502222538
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "ae702d56255da7f19b9b9836b07d54c2183353d19224bf6c5c152e50848c726f",
+            "task": "lut6-c17d_5_2",
+            "verilog_sha256": "e3ae36a49965f334b7ab214c348b907a4cb6eb6fa8c015c7b175c6d659b38e31",
+            "wall_timeout": 10.0,
+            "y_sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+          },
+          "import_check": "equivalent",
+          "key": "c6ddbf1288beebdc9c01401ad4eb7bf671f1eb8a1103b6cb1db6b0394b5ee870",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010816264897584915,
+            "parse": 0.029750897083431482,
+            "total": 1.2668803688138723,
+            "worker_total": 0.040568423923105
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 32,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "cb6625fe124a20feb6290bca117184073a020f765b6b4a5a2fb261ff97b45f6e",
+            "task": "lut7-ctrl_7_1",
+            "verilog_sha256": "1f249584011e72d47309822099c9878c883c3c49cc8626e9bd25af0a97480bc5",
+            "wall_timeout": 10.0,
+            "y_sha256": "9ae8048cc7a897af4c748cf5c7d9dc63fee035ce742d38fe90a38b2e69fc00cc"
+          },
+          "import_check": "equivalent",
+          "key": "9ed96eee7f9f8af33872cbcd05355a3f57330c94fa48d1a71ae212c5b534da28",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.01217063283547759,
+            "parse": 0.09450097801163793,
+            "total": 1.3168066120706499,
+            "worker_total": 0.1066723926924169
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 20,
+            "memory_mb": 4096,
+            "output_count": 20,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "df98b94dea898aed656ac1e25e530ddfb8af12e9e915b254786f32855717e57e",
+            "task": "mirror_20_20",
+            "verilog_sha256": "31173f0109bb6b6a82db6d5babad1f584a38dd8dc5cdeddb11624e9ad6a581b4",
+            "wall_timeout": 10.0,
+            "y_sha256": "3937566726eeb2f1e8ef29fa74f46575451d3182f8340e7b4b9fec49dc19fc8f"
+          },
+          "import_check": "equivalent",
+          "key": "2025138702811aaa964e9a2fd4a8b68ed9bd4a9fcc1c7d3dae5be4fd1504a3db",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.01692923391237855,
+            "parse": 0.3293949132785201,
+            "total": 1.566881198901683,
+            "worker_total": 0.34632566990330815
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 5,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "2727eaf9dd8deab3851345b3c7df770e642b8f13fb8a7ff626e75655ea080810",
+            "task": "mirror_5_5",
+            "verilog_sha256": "a9881c08d700da78066b6a72a1fd857efac984097c7b67c2998a1b5500c900a8",
+            "wall_timeout": 10.0,
+            "y_sha256": "8981e760be4f6e0543cf16285fd6df41e61c727675505d1b6cb1e31535ab0273"
+          },
+          "import_check": "equivalent",
+          "key": "b5d7a424ffcdd3d3e4d0c1ac9179e9402f07564795692ea268978ced40ac5af3",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.01314717810600996,
+            "parse": 0.04469350818544626,
+            "total": 1.2666776459664106,
+            "worker_total": 0.05784177826717496
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+            "task": "misc1_2_1",
+            "verilog_sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be",
+            "wall_timeout": 10.0,
+            "y_sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+          },
+          "import_check": "equivalent",
+          "key": "d315b38a303ac34f90546a92f46e9dd2c699a372e7d556390aaeab7629dc75e0",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011120479088276625,
+            "parse": 0.02129347901791334,
+            "total": 1.266387326642871,
+            "worker_total": 0.03241480002179742
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+            "task": "misc2_3_1",
+            "verilog_sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0",
+            "wall_timeout": 10.0,
+            "y_sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+          },
+          "import_check": "equivalent",
+          "key": "b566ce86c20db73ecf4911402f017948e63a5720cf38a19fe642b2e3ad8e575b",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010591470170766115,
+            "parse": 0.02232385566458106,
+            "total": 1.2667417167685926,
+            "worker_total": 0.03291641781106591
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "1548fc52373b91b66c6ce38aa3a1c773977f6ca4270492428fef835056fa8f32",
+            "task": "misc3_2_3",
+            "verilog_sha256": "55e706cf33514ce69b059edcf684d957b43bb16319245bf8e3bf775ca5131bcc",
+            "wall_timeout": 10.0,
+            "y_sha256": "4adf73061574188858040a9522f59d073cd71fe357d22fbed2911f934090044c"
+          },
+          "import_check": "equivalent",
+          "key": "f2442aa9fa2df799b9e9a74d7c80ad5bde700b77392ece3c05790eaab48d0e8e",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010259171947836876,
+            "parse": 0.0256304033100605,
+            "total": 1.266532822046429,
+            "worker_total": 0.035890397150069475
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "f674a0de02ef864bcb386894061183c04dd3e0fa134d6e1c2ad4f11e7679da30",
+            "task": "misc4_2_3",
+            "verilog_sha256": "8825b0ea91645b6ad21ccde7b1a77075ce4585299a3ae2080e650b06ba6b64e4",
+            "wall_timeout": 10.0,
+            "y_sha256": "cf2a4522756f8daf446e62e23b69595febcd109b6ba9115a7fcb63be8a39df91"
+          },
+          "import_check": "equivalent",
+          "key": "9ea7f59f832b5fd382a3b6d7e2a463f7e323c949cd768c9c773be4b41ca7229b",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010458829812705517,
+            "parse": 0.025195531081408262,
+            "total": 1.2665254389867187,
+            "worker_total": 0.03565520187839866
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 1,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "d729e2db6c775c2dad337257583f84485c2a1823be74b5ae577f1b1370d96ae6",
+            "task": "multiplexer_1_1",
+            "verilog_sha256": "f57b1816800f6283f72a2b906e6dc1dcf941c149ee2554bb8ceae1cdc567da91",
+            "wall_timeout": 10.0,
+            "y_sha256": "bfc3ed441f5e7466d8d2fa5effd67b360ad6458558d42798fed8872eb83fa096"
+          },
+          "import_check": "equivalent",
+          "key": "288ab110353889a62680d72a2947ac11b52b882b72c0eba92862e1d81db5604b",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011742294766008854,
+            "parse": 0.019751666113734245,
+            "total": 1.2667496018111706,
+            "worker_total": 0.03149501280859113
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "e14b751f212dad6f9998770959239672b96d2a890440070501c784e8ecd5366b",
+            "task": "multiplexer_3_3",
+            "verilog_sha256": "1b581661462d417a376e5caaa4b046dc2909d16dbc3e27fa555472aed5d698f0",
+            "wall_timeout": 10.0,
+            "y_sha256": "8fa3884f0806eee3fc3a3b3213a8835edd2eadef325b02491076b26d2deef187"
+          },
+          "import_check": "equivalent",
+          "key": "e03bff70c0210ddfa1d3bb76010db28631d028e0afa5afe458b9a8157efca109",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.012037431821227074,
+            "parse": 0.031494221184402704,
+            "total": 1.266790078021586,
+            "worker_total": 0.04353282507508993
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "3d66b095dfbae95e85baea91e9b6da2c2a1aebac111c11c8edc221dd16c081ae",
+            "task": "xnor-implies_6_2",
+            "verilog_sha256": "816476f2cff5f9ee9051a95582d13aefd42825b2b3c76e4f80c7b9beda6f39b9",
+            "wall_timeout": 10.0,
+            "y_sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+          },
+          "import_check": "equivalent",
+          "key": "1df2e4efc8a55b56c1f94f50f3b1f3bc28bddc6d81e16791b652dcf8d2190b9d",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011820271145552397,
+            "parse": 0.03518015518784523,
+            "total": 1.266574160195887,
+            "worker_total": 0.047001568134874105
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "6bc0faf4ea32594b73a780400a47efabeb34c63fcec62c770ee45a7af7bea4f0",
+            "task": "xnor-implies_8_2",
+            "verilog_sha256": "7f89be04a97bd46e9a5acae84f3a4898a5602ba5a4ae3e13c38ce45fef99eb0e",
+            "wall_timeout": 10.0,
+            "y_sha256": "f8e9eeef794096633b58e3daffed252a33224e61e0ac7943cbd0c4d390eae752"
+          },
+          "import_check": "equivalent",
+          "key": "835d8360cf42b24c2ff112a5a71cf4edc87edd131910fb326d10ecefb24267e0",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.012072757817804813,
+            "parse": 0.040958913043141365,
+            "total": 1.2664440451189876,
+            "worker_total": 0.05303272278979421
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "f9d0d25a70c9d9eee71beb4e421f4a7ca500b89a7c710edcadcb82764747c528",
+            "task": "xnor_6_2",
+            "verilog_sha256": "1a1a54f9b374fae8052231b09b5680392935e3ec768b2acaf7f7f6a2e321ac5c",
+            "wall_timeout": 10.0,
+            "y_sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+          },
+          "import_check": "equivalent",
+          "key": "8d54089145c305d82ff80858428b73aec0763556527f43e8bce03ebad8c9943a",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011864244937896729,
+            "parse": 0.030829634983092546,
+            "total": 1.2672576820477843,
+            "worker_total": 0.04269518190994859
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 7,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "83b7f6b47118604a8de31ff7e6924e55bf8afe5102f4ad83aeea72f957288c1d",
+            "task": "xnor_7_1",
+            "verilog_sha256": "1a1a54f9b374fae8052231b09b5680392935e3ec768b2acaf7f7f6a2e321ac5c",
+            "wall_timeout": 10.0,
+            "y_sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+          },
+          "import_check": "equivalent",
+          "key": "f71aa8451796d5d7690829c18d672fbad6f4326d341f5c4f4d8093ee3d615059",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010860598180443048,
+            "parse": 0.029032209888100624,
+            "total": 1.2666614349000156,
+            "worker_total": 0.03989383019506931
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 7,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "02172f06e240e716e80f8492d05176800953838ca1d8ef2e119c431763daa37c",
+            "task": "xor-implies_6_2",
+            "verilog_sha256": "d592b8fdc49e1fb30de092aaccdb673a5a0d49152a11c2a3b5b0583046690cdb",
+            "wall_timeout": 10.0,
+            "y_sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+          },
+          "import_check": "equivalent",
+          "key": "b4ceb7e41dec20182178d88b1aa024098f3eff56a08bdfb288ffe64503b7578b",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.0107697369530797,
+            "parse": 0.0292674140073359,
+            "total": 1.266602142713964,
+            "worker_total": 0.04004365298897028
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 8,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "2e63accb5446546f876a463579aef3644817ffe022b0e2bd4587fe4e23f2acac",
+            "task": "xor-implies_8_8",
+            "verilog_sha256": "baea460bc1ef7485f9fe7732b4438f8dd7969b7195276aa32fd98e938bd6dcdb",
+            "wall_timeout": 10.0,
+            "y_sha256": "f7d1474528028428bfbabd91b9db2fcdce0dafc0104606cf98423839c5be5cfa"
+          },
+          "import_check": "equivalent",
+          "key": "3bc77b986bd75533bd4daa59825f4c732724521f6dd039bcadb6384891ffac7e",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.012935608625411987,
+            "parse": 0.06592709431424737,
+            "total": 1.316866755951196,
+            "worker_total": 0.0788637949153781
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 1,
+            "memory_mb": 4096,
+            "output_count": 4,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "3ef7aaa72df7c2848da16858d1b34640ba29ed63eb28c772d0e831858beeb89e",
+            "task": "xor_1_4",
+            "verilog_sha256": "1e2c72c89e67f00e380a459eda2b6e1bce8b2452304bd7e957fc187fb4a3ac33",
+            "wall_timeout": 10.0,
+            "y_sha256": "28d991037a34d7f751060fb43e9018ad042b64b56a010d0971a936eae8ae5dd4"
+          },
+          "import_check": "equivalent",
+          "key": "2e0842b02b07eb973e5f3627d1bfffec6b7f7e7c547ede76eef0a560b310fe8a",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011251757852733135,
+            "parse": 0.025422438979148865,
+            "total": 1.2664899514056742,
+            "worker_total": 0.03667510859668255
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "196ab917b65a307e3407f46d04a375bdfe3d64ea8c6beb916426d5e07642dce4",
+            "task": "xor_2_2",
+            "verilog_sha256": "25b9234d727e38527de6c676159d1486b7feaa46e363174f1144d3db992b9ef1",
+            "wall_timeout": 10.0,
+            "y_sha256": "7160a3f9a13b4e158d4e22c0d6e8adb373ad7d82170e555606420fde90fb7e80"
+          },
+          "import_check": "equivalent",
+          "key": "f7dbe4db70e3436c8c52adfb3df578776e21c2174b9248e95574fb71c536fc95",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011029438115656376,
+            "parse": 0.023070706985890865,
+            "total": 1.2666354863904417,
+            "worker_total": 0.034101066179573536
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "c3e5993bb06ad6834b5a0ba9874bca31f9222b170f532e21568c5ffb21d166fe",
+            "task": "xor_2_3",
+            "verilog_sha256": "1e2c72c89e67f00e380a459eda2b6e1bce8b2452304bd7e957fc187fb4a3ac33",
+            "wall_timeout": 10.0,
+            "y_sha256": "cf2a4522756f8daf446e62e23b69595febcd109b6ba9115a7fcb63be8a39df91"
+          },
+          "import_check": "equivalent",
+          "key": "9e61f20f2b3a61f21c2258de590cc90a0c9997556160646cd6990631135a600c",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010168451350182295,
+            "parse": 0.025648916605859995,
+            "total": 1.2662711380980909,
+            "worker_total": 0.035818449687212706
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 2,
+            "memory_mb": 4096,
+            "output_count": 4,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "4a30c8d468ced7f81893624fbe382cd8886ecce3a78ee6913ab44fc816b51a4e",
+            "task": "xor_2_4",
+            "verilog_sha256": "295c305a5ad6f3f8b910f60040de33fd48d61d80f6d5198d7e727be32e42c2bd",
+            "wall_timeout": 10.0,
+            "y_sha256": "420f332ac530851614b3d3e595a9410862633a068bf19bdaa43051751e497e74"
+          },
+          "import_check": "equivalent",
+          "key": "47763d0fae637b88f9f7bdff4a2aca8b740ea68c1381eec41fb34c38aacb7655",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010512551292777061,
+            "parse": 0.027255583088845015,
+            "total": 1.2672147401608527,
+            "worker_total": 0.03776910621672869
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 3,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "14f58cbf6826806f45283b481d145359f8c5ccbfee81069b932e707bc422c527",
+            "task": "xor_3_3",
+            "verilog_sha256": "4fa5296b21c8b22684adac5c973f582f8db14853e5bbc3ad0703e9e777ff38ee",
+            "wall_timeout": 10.0,
+            "y_sha256": "8fa3884f0806eee3fc3a3b3213a8835edd2eadef325b02491076b26d2deef187"
+          },
+          "import_check": "equivalent",
+          "key": "6f1a4231c3b755c017c2cf598de2e520601e90ba5f51fde896a2c5a1b5f171f4",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010313394945114851,
+            "parse": 0.027754655107855797,
+            "total": 1.2664420399814844,
+            "worker_total": 0.03806913224980235
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 4,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "f5a71b9b374f5987bfb9844f1bddaacc034d8ea6391853a884f6f461cc341a84",
+            "task": "xor_4_2",
+            "verilog_sha256": "4fa5296b21c8b22684adac5c973f582f8db14853e5bbc3ad0703e9e777ff38ee",
+            "wall_timeout": 10.0,
+            "y_sha256": "358f0763d43702075f969ea4729f01aeceab1fdf81170b6453d017fdec6bd4d6"
+          },
+          "import_check": "equivalent",
+          "key": "a0fabd992261e82061754d68f8c6beeeef8091b0fbf1eed851c9390ddccbc8ab",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010649228934198618,
+            "parse": 0.02716543199494481,
+            "total": 1.2664121631532907,
+            "worker_total": 0.037816193886101246
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 4,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "5da7784d97ecf52811bd2176323357b3badd60e58129beddbf4827c74f734b05",
+            "task": "xor_4_3",
+            "verilog_sha256": "368dcdff8fc8155802446c64bc3fd82db397e6fbfc44c4cbb6a58d9a441bc9a1",
+            "wall_timeout": 10.0,
+            "y_sha256": "8c5bffc3097503e10c30afa6c42771329da3e24724d3b45daf2ecb8a50a9841e"
+          },
+          "import_check": "equivalent",
+          "key": "e553392bfb5505c828de8dfe069bfa72628831d16eacf93452975d816b3e24c8",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011536374688148499,
+            "parse": 0.02928685024380684,
+            "total": 1.266729031689465,
+            "worker_total": 0.04082436813041568
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "6eda95c44ea6103eae8f03cdd544df3de498529fefc5297852d667b5f0dc8be6",
+            "task": "xor_5_2",
+            "verilog_sha256": "368dcdff8fc8155802446c64bc3fd82db397e6fbfc44c4cbb6a58d9a441bc9a1",
+            "wall_timeout": 10.0,
+            "y_sha256": "2fc4440bb559ee6416dbbe5a825e9c71cb48111781d572ba0308036de7b472e4"
+          },
+          "import_check": "equivalent",
+          "key": "bcd4f9f36765872782519c292e10194a8791045f5d97a8318947ea6b47b401a1",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.01027592271566391,
+            "parse": 0.028211107943207026,
+            "total": 1.2666744599118829,
+            "worker_total": 0.038488092832267284
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 5,
+            "memory_mb": 4096,
+            "output_count": 3,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "fe6ad697a003489083593fd06ab3424c7a0a3a97f74fc0d1ef9c9d2cc1205c51",
+            "task": "xor_5_3",
+            "verilog_sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9",
+            "wall_timeout": 10.0,
+            "y_sha256": "e28c1b7e54670e0ca9e7423cb801386402bc79e607fafd7ce06252b50150ab2d"
+          },
+          "import_check": "equivalent",
+          "key": "ad5a801a96365eda8dac8f98c5304b76ed9a00d5e9faa0c7c7c7dc9fc4fd439b",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.010941070970147848,
+            "parse": 0.031457852106541395,
+            "total": 1.2664701342582703,
+            "worker_total": 0.04240062600001693
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 10,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "3cb6874988ee7b126d72f3b1b3bcfdeaa6e2a825daa31693fae8e3c8975d21e6",
+            "task": "xor_6_10",
+            "verilog_sha256": "886ee140d1abe8451e32104ff7300599feb53fde7c00a61114f0ee3e255139dc",
+            "wall_timeout": 10.0,
+            "y_sha256": "c5644906dedb9cbaecd3359a551a659e7fc14aff98df4c10d171e10be3bc30f3"
+          },
+          "import_check": "equivalent",
+          "key": "a613a66b57917e4fbf909c716546de036d91eae2355feafc11aad1e9642d5523",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011385160032659769,
+            "parse": 0.060897231101989746,
+            "total": 1.266698774881661,
+            "worker_total": 0.07228386402130127
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 2,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "4929da557453121b0a4c2685172fe4ea19b39cfdde14ef7dfe4e524f833c0ef0",
+            "task": "xor_6_2",
+            "verilog_sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9",
+            "wall_timeout": 10.0,
+            "y_sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+          },
+          "import_check": "equivalent",
+          "key": "f410057f5fc37f1b503d043e60adf311dad1cce0169ac9e131dfd6e754dde87c",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011321278754621744,
+            "parse": 0.030350320041179657,
+            "total": 1.2666842280887067,
+            "worker_total": 0.04167316108942032
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 6,
+            "memory_mb": 4096,
+            "output_count": 26,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "82924b8cc04fe8574e4b72d214558a4b39f75d05281b7c712f1e1086e700b351",
+            "task": "xor_6_26",
+            "verilog_sha256": "b16f7665e2b931c1e7b3b7c7be054358f2248c3f8273e05be898fc22680db4d5",
+            "wall_timeout": 10.0,
+            "y_sha256": "9f52782648f3ae760b81e95fb0a24ccb903d91a7a1096b115ca42c7ff774b961"
+          },
+          "import_check": "equivalent",
+          "key": "1c215ec8f8ec4e43ad90b75ab548a7576a4e8f4458ed7ac44bf9a2c4e941f7c7",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.012507559731602669,
+            "parse": 0.13625843822956085,
+            "total": 1.3669741018675268,
+            "worker_total": 0.14876720029860735
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 7,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "7d277ca7609390318c4719f123b7b4e32981753e0fa2050b9ad8da24601d161a",
+            "task": "xor_7_1",
+            "verilog_sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9",
+            "wall_timeout": 10.0,
+            "y_sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+          },
+          "import_check": "equivalent",
+          "key": "a7eac97652a6bd7d76de71c8791ad8738897690357be534b3dbce84b6016d73f",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011499895714223385,
+            "parse": 0.02937919506803155,
+            "total": 1.3170960592105985,
+            "worker_total": 0.04088067403063178
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "0e84dd6960c53e98c79ffa48382f9282a6b662b4ffdbc0a41df817f433fc030d",
+            "task": "xor_8_1",
+            "verilog_sha256": "c23f6ee2304ce01cd8fd02dda8220d4b9e3e987d2fc2863c5a5d3acf2b95d608",
+            "wall_timeout": 10.0,
+            "y_sha256": "a4911eee001c8463d49ed4d0955e78e5541de579e3188bc1077ec647f489792a"
+          },
+          "import_check": "equivalent",
+          "key": "007becc8b93a9464c9a33f216a23f2ac83b096fc4043a22591004801de6e74c4",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011985393706709146,
+            "parse": 0.030257474165409803,
+            "total": 1.2666027140803635,
+            "worker_total": 0.04224430024623871
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 8,
+            "memory_mb": 4096,
+            "output_count": 8,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "c93439920af0ac2e2ca8d177884e794bd50e027235cc28ce90202f60ff6980f8",
+            "task": "xor_8_8",
+            "verilog_sha256": "886ee140d1abe8451e32104ff7300599feb53fde7c00a61114f0ee3e255139dc",
+            "wall_timeout": 10.0,
+            "y_sha256": "f7d1474528028428bfbabd91b9db2fcdce0dafc0104606cf98423839c5be5cfa"
+          },
+          "import_check": "equivalent",
+          "key": "dd6c9d7390aa5ef0f252d807837606d712404178132a7392d8a8526a3c40630d",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.012418622151017189,
+            "parse": 0.061688174959272146,
+            "total": 1.2663740226998925,
+            "worker_total": 0.0741078988648951
+          }
+        },
+        {
+          "config": {
+            "aeon_revision": "6c8f948887a6e02291eff4eee1cef45ebf83306a",
+            "audit": true,
+            "backend": "boolean_bounded",
+            "bound": 5,
+            "budget": 2.0,
+            "implementation_sha256": "cd015ef5af50a666cf9fb0dc887f51c14e37604e05b0b797b63d013f81f72e7e",
+            "input_count": 9,
+            "memory_mb": 4096,
+            "output_count": 1,
+            "python": "3.13.15",
+            "seed": 0,
+            "source_sha256": "9e2cefe6439d32f1b004b738c2a9a7d62eafcc8d2f3eb452fdb8472ff2da5ebf",
+            "task": "xor_9_1",
+            "verilog_sha256": "b78f0dceb5f49563453a0dd8bea6c16800af1818bf8e51de825ae3c1d78c822c",
+            "wall_timeout": 10.0,
+            "y_sha256": "a07f65ce6f0a9803aacab56048e7b8f823e1537974dabb98e5e9a337b6620ad3"
+          },
+          "import_check": "equivalent",
+          "key": "175a69314122aebb78344f1e8bae9df2826e26acad00effee7658fd069eef65b",
+          "phase": "import_verification",
+          "status": "import_verified",
+          "timings": {
+            "import_verification": 0.011034537106752396,
+            "parse": 0.03180478699505329,
+            "total": 1.2668074308894575,
+            "worker_total": 0.04284025589004159
+          }
+        }
+      ],
+      "statuses": {
+        "import_verified": 38
+      }
+    }
+  },
+  "unsat_note": "All eight bounded_unsat results in the full-corpus smoke run are solver reports, not independently certified infeasibility proofs."
+}
