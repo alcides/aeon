@@ -603,7 +603,9 @@ def desugar(
 
     # Folded snapshot used to lower `match` expressions everywhere — main module's
     # inductives plus inductives discovered via imports.
-    combined_inductives = list(inductive_decls_snapshot) + list(imported_inductives)
+    # Shared dependencies can expose the same declaration through several
+    # imports. Match lowering must emit each constructor handler exactly once.
+    combined_inductives = list({decl.name: decl for decl in [*inductive_decls_snapshot, *imported_inductives]}.values())
 
     # Collapse duplicate type declarations sharing a name. When two libraries
     # declare the "same" name with different arities (e.g. libraries/List.ae's
@@ -686,7 +688,7 @@ def desugar(
     defs, metadata = lower_by_blocks_in_definitions(defs, metadata)
 
     defs = expand_bare_parametric_type_ctors(defs, type_decls)
-    defs = introduce_forall_in_types(defs, type_decls)
+    defs = introduce_forall_in_types(defs, type_decls, {decl.name.name for decl in combined_inductives})
     defs = introduce_rforall_in_types(defs)
 
     defs, metadata = collect_core_decorator_queue(defs, metadata)
@@ -1073,8 +1075,11 @@ def _collect_type_vars_in_sterm(t: STerm, acc: set[STypeVar], bound: set[Name]) 
             return
 
 
-def introduce_forall_in_types(defs: list[Definition], type_decls: list[TypeDecl]) -> list[Definition]:
-    type_names = {td.name.name for td in type_decls}
+def introduce_forall_in_types(
+    defs: list[Definition], type_decls: list[TypeDecl], known_type_names: set[str] | None = None
+) -> list[Definition]:
+    # Imported inductives are concrete types, not implicit type parameters.
+    type_names = {td.name.name for td in type_decls} | (known_type_names or set())
     ndefs = []
     for d in defs:
         match d:
