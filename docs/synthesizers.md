@@ -34,6 +34,16 @@ Native breadth-first enumeration over Aeon's core term grammar (backward and for
 
 ---
 
+### `amaze` — Standard-Library-Trained Grammar Optimization
+
+Offline AMaze-style learning mines typed macro compositions only from the packaged
+standard library, fits rank-based cost models and searches additions to a finite
+Int/Bool grammar. The inference backend consumes the immutable selected profile,
+expands candidates into Core, and uses normal whole-program validation and
+objective evaluation. It includes a package-only trainer, audited source/split
+manifest, independent tiny-grammar rank tests and a held-out stdlib comparison.
+See [training, supported features and measured limitations](amaze.md).
+
 ### `rl_mcts` — Reinforcement-Learning Guided Grammar Tree Search
 
 An Aeon adaptation of Parsert and Polgreen's [Reinforcement Learning and
@@ -471,6 +481,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `rl_mcts`       | Policy/value-guided Monte-Carlo grammar search | Refinement-only synthesis, learned search experiments |
+| `amaze` | Stdlib-trained additions and rank-cost grammar optimization | First-order Int/Bool synthesis with an immutable profile |
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |
