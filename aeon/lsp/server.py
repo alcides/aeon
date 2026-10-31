@@ -80,6 +80,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "smt",
         "sygus",
         "decision_tree",
+        "noisy",
         "bustle",
         "bustle_baseline",
         *llm_synthesizer_menu_ids(),

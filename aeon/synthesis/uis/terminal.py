@@ -141,6 +141,16 @@ class TerminalUI(SynthesisUI):
         ):
             print(line, flush=True)
 
+    def report(self, report: dict) -> None:
+        if report.get("backend") == "noisy":
+            print(
+                f"# noisy: {len(report['residuals'])}/{report['row_count']} residuals; "
+                f"error={report['empirical_error']:.4g}, complexity={report['complexity']}, "
+                f"lambda={report['regularization']:.4g}, score={report['objective']:.4g}; "
+                f"rounds={len(report['rounds'])}, stop={report['stop_reason']}",
+                flush=True,
+            )
+
     def end(self, solution: Term, quality: Any):
         if not (self._uses_front and self.pareto_front):
             return

@@ -329,6 +329,13 @@ def _synthesize_one(
     replace = make_program(prog, hole_name)
     validator = make_validator(ctx, replace)
 
+    from aeon.synthesis.modules.noisy import NoisySynthesizer
+
+    if isinstance(synthesizer, NoisySynthesizer):
+        return synthesizer.synthesize_source(
+            ctx, tyctx, ectx, prog, fun_name, hole_name, ty, metadata, validator, budget, ui
+        )
+
     # Properties are runtime objectives rather than generated Aeon helper
     # bindings. Give the selected target a synthesis-local property goal for each
     # deterministic corpus so every fitness backend sees the right objective
@@ -622,6 +629,11 @@ def synthesize_holes(
         raise UnsupportedSynthesisGoal(
             "@require needs a synthesizer supporting hard constraints (currently -s ortools)"
         )
+
+    from aeon.synthesis.modules.noisy import NoisySynthesizer
+
+    if isinstance(synthesizer, NoisySynthesizer) and len({h for _, hs in targets for h in hs}) != 1:
+        raise UnsupportedSynthesisGoal("noisy requires one independent open body hole")
 
     # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
     # hole at once rather than one function at a time.

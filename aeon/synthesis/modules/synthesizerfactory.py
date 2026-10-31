@@ -25,6 +25,7 @@ from aeon.synthesis.modules.afta import AFTASynthesizer
 from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
 from aeon.synthesis.modules.bustle import BustleSynthesizer
+from aeon.synthesis.modules.noisy import NoisySynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -74,6 +75,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "synquid": "Synquid enumeration (Q-guided)",
     "tactics": "Tactic search (random)",
     "decision_tree": "Decision tree regression (from examples)",
+    "noisy": "Noisy examples (regularized adaptive sampling)",
     "contata": "Version-space synthesis (from I/O examples)",
     "bustle": "BUSTLE learning-guided bottom-up search",
     "bustle_baseline": "BUSTLE bottom-up search (unguided)",
@@ -118,6 +120,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "tactics": SynthesizerFamily.TYPE_DIRECTED,
     # Example-driven — learn from @example / @csv_data I/O.
     "decision_tree": SynthesizerFamily.EXAMPLE_DRIVEN,
+    "noisy": SynthesizerFamily.EXAMPLE_DRIVEN,
     "contata": SynthesizerFamily.EXAMPLE_DRIVEN,
     "bustle": SynthesizerFamily.EXAMPLE_DRIVEN,
     "bustle_baseline": SynthesizerFamily.EXAMPLE_DRIVEN,
@@ -156,6 +159,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "cpsat",
         "synquid",
         "decision_tree",
+        "noisy",
         "smt",
         "sygus",
         "tdsyn",
@@ -258,6 +262,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return DecisionTreeSynthesizer()
         case "smt":
             return SMTSynthesizer()
+        case "noisy":
+            return NoisySynthesizer(seed=seed)
         case "sygus":
             return SygusSynthesizer()
         case "tdsyn" | "tdsyn_enumerative":

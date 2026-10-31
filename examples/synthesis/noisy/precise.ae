@@ -1,0 +1,6 @@
+# The precise hard contract forbids fitting the outlying assertion.
+@example(identity 0 = 0)
+@example(identity 1 = 1)
+@example(identity 2 = 2)
+@example(identity 3 = 99)
+def identity(x:{u:Int | u >= 0}):{v:Int | v = x} := ?body;

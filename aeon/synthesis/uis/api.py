@@ -66,6 +66,10 @@ class SynthesisUI(abc.ABC):
 
     def end(self, solution: Term, quality: Any): ...
 
+    def report(self, report: dict) -> None:
+        """Optional structured backend diagnostics, separate from fitness."""
+        return None
+
     def display_results(
         self,
         program: Term,

@@ -1,0 +1,6 @@
+# Held-out benchmark task; no candidate or answer is supplied to the grammar.
+@example(successor 0 = 1)
+@example(successor 1 = 2)
+@example(successor 2 = 3)
+@example(successor 3 = 99)
+def successor(x:{u:Int | u >= 0}):{v:Int | v >= 0} := ?body;
