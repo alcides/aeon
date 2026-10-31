@@ -216,6 +216,88 @@ This backend implements a **Synquid-style** enumerator: type-directed decomposit
 
 ---
 
+### `polynomial` — Polynomial Certificate Synthesis
+
+Synthesizes bounded-degree polynomial expressions using algebraic certificates,
+inspired by Goharshady et al., [Template-based Program Synthesis using
+Stellensätze](https://arxiv.org/abs/2209.03602). It fills all program holes jointly
+using the compiler's shared verification conditions, including when there is
+only one hole. Refinement contracts, surrounding code, `@example` relations,
+and `@property` functions contribute logical obligations; properties are checked
+universally by the certificate encoding, rather than only on their runtime corpus.
+
+```bash
+python -m aeon -s polynomial --budget 10 examples/synthesis/polynomial.ae
+python -m aeon -s polynomial --budget 10 examples/synthesis/polynomial_sketch.ae
+```
+
+Each numeric hole receives a polynomial template over its lexical inputs with
+unknown coefficients. For example, an `Int -> Int` hole at degree two searches
+`c0 + c1*x + c2*x*x`. Int holes use integer coefficients; Float holes use real
+coefficients. Explicit coefficient holes can also fill a programmer-supplied
+larger sketch, as the second example demonstrates.
+
+For an obligation `g_i >= 0, h_j = 0 => p >= 0`, the backend constructs:
+
+```text
+p = sum(lambda_alpha * product(g_i ** alpha_i))
+    + sigma_0 + sum(sigma_i * g_i) + sum(q_j * h_j)
+```
+
+The `lambda` coefficients are nonnegative (Handelman products); every `sigma`
+is a sum of polynomial squares (Putinar-style multipliers); the `q` polynomials
+are unrestricted equality multipliers. Coefficient matching makes this a purely
+existential SMT problem: universal input variables disappear from the synthesis
+solver. Linear cases include Farkas-style certificates. Equalities are proved
+in both directions; strict conclusions additionally require a positive constant
+margin. The solver returns a feasible program, not an objective optimum. The
+complete result must pass Aeon's ordinary whole-program validator before fitness
+evaluation or publication to the UI.
+
+Configure the finite search space through environment variables:
+
+- `AEON_POLYNOMIAL_DEGREE` (default `2`): total degree of each hole template.
+- `AEON_POLYNOMIAL_CERTIFICATE_DEGREE` (default `2`): maximum number of factors
+  in a Handelman product, and total degree of each equality multiplier.
+- `AEON_POLYNOMIAL_SOS_DEGREE` (default `1`): degree of each polynomial before
+  squaring. Set to `0` to disable the SOS terms and use Handelman/equality
+  certificates alone.
+
+The Python API accepts `PolynomialConfig`, including limits of 4096 monomials /
+product expansion pairs, 10,000 unknown coefficients, and 64 premise branches.
+The budget covers template construction, certificate expansion and solving;
+the final synchronous compiler validation / objective evaluation is additional.
+
+**Supported subset and guarantees.** Numeric holes need homogeneous Int or
+Float parameters and results. Expressions support constants, variables, hole
+calls, addition, subtraction and multiplication. Conclusions are conjunctions
+of numeric equalities/inequalities; premises also allow disjunction and negation.
+Boolean compiler value binders are eliminated when they are definitions; arbitrary
+Boolean inputs and Boolean-valued holes are unsupported. Integer division,
+modulo, division in source specifications, conditional arithmetic, ADTs and opaque
+native calls are rejected explicitly. A positive SOS degree uses a full square
+factorization of the bounded monomial Gram matrix, rather than only diagonal
+squares; no external SDP solver is needed.
+
+Certificates prove obligations over mathematical reals. Int variables are
+conservatively relaxed to reals while program coefficients remain integers;
+strict premise inequalities are conservatively closed. These choices are sound
+but can miss programs valid only on discrete or open domains. Float follows
+Aeon's existing real-arithmetic refinement semantics, not an IEEE-754 roundoff
+guarantee. Rational program coefficients are emitted as ratios of exactly
+representable integer-valued Float literals; irrational or excessively large
+coefficients are rejected.
+
+Failure means no certificate was found at these bounds, or the solver timed
+out / returned unknown; it does not establish unrealizability. This is a bounded
+Handelman/SOS backend, not the paper's full imperative-program frontend,
+automatic loop-invariant synthesis, Real Nullstellensatz procedure, or its
+semi-completeness theorem. The generated constraints can be higher than quadratic
+when holes occur in assumptions or are composed; no general QP reduction or
+published performance result is claimed.
+
+---
+
 ### `smt` — SMT-Guided Synthesis
 
 Constructs a candidate expression top-down using the typing context:
@@ -238,6 +320,18 @@ Implements the core of [BUSTLE (ICLR 2021)](https://arxiv.org/abs/2007.14381): e
 The bundled model was trained reproducibly on synthetic bottom-up searches. It uses NumPy when installed and otherwise standard-library inference, with no model downloads or PyTorch dependency. `AEON_BUSTLE_MODEL` selects a compatible JSON checkpoint. `-s bustle_baseline` explicitly disables learned guidance for comparison.
 
 Supports one to three scalar or registered ADT inputs, scalar or ADT results, first-order in-scope components, and conditionals. ADT guidance uses constructor identity, depth, size, and subtree relations; merging uses full structural identity, including scalar field types. Concrete polymorphic ADT instantiations are supported. ADTs are bounded to depth 16 and 128 constructor nodes. This is an example-driven backend, not an optimizer for arbitrary fitness objectives; unsupported goals/types are reported explicitly. Search is bounded by adjusted weight 40, 20,000 distinct values, and the time budget. See [examples, training instructions, and differences from the paper](../examples/synthesis/bustle/README.md).
+
+---
+
+### `arborist` — Lifted Interpretation with Local Variables
+
+Adapts the lifted interpretation algorithm from [Li et al., POPL 2024](https://arxiv.org/abs/2311.03705), Section 3 and Appendix A. A bounded typed grammar is stored as a packed tree language. Interpreting the enclosing Aeon sketch discovers reachable local bindings; specializing the grammar under each binding context constructs observational classes bottom-up while retaining all their alternatives. A subsequent call specializes the surviving language, allowing classes to split and ensuring that every fold iteration uses the same candidate body.
+
+Select it with `python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/list_fold.ae`. It accepts literal Int/Bool or closed registered-constructor inputs, Int/Bool outputs, and one Int/Bool expression hole inside a supplied pure functional sketch. Supported surrounding Core forms include lambdas, applications, local bindings, conditionals, recursive functions, and compiler-generated constructors/eliminators (`match`). The supplied fold combinators are interpreted from their Aeon definitions; their accumulator contexts depend on candidate outputs. Generated expressions use lexical scalar variables, small constants, arithmetic, comparisons, Boolean operations, and conditionals. `list_fold.ae` preserves the paper's ambiguous `[1,2,4] → 7` example; `list_sum.ae` adds distinguishing examples.
+
+The backend uses the program-level synthesis interface to observe the enclosing execution. Every extracted solution passes the usual whole-program type/refinement validator and the examples in Aeon's normal evaluator. Rejection of one example-equivalent representative does not discard its alternatives. Search observes the wall-clock budget, with default limits of three nested grammar operations, 100,000 packed states, one million interpreter steps, and 4096-bit integers. An in-flight compiler check or final runtime check can overrun the budget.
+
+This implementation searches bodies in a fixed sketch, not arbitrary loop structures or the paper's web-automation language. Constructor inputs/intermediates are bounded to 128 total nodes and depth 32. ADT-valued holes/results, Float/String leaves, arbitrary native/effectful components, multiple holes, and optimization objectives are unsupported. Recognizing compiler-generated inductives does not enable general native execution in the lifted interpreter. Unlike `fta` and `bustle`, its equivalence classes account for execution-dependent local bindings; unlike `afta`, it uses exact concrete observations rather than abstraction refinement. See the [examples, invariants, restrictions, and compression experiment](../examples/synthesis/arborist/README.md).
 
 ---
 

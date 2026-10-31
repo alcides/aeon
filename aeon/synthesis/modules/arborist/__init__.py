@@ -1,0 +1,1 @@
+from aeon.synthesis.modules.arborist.synthesizer import ArboristSynthesizer as ArboristSynthesizer

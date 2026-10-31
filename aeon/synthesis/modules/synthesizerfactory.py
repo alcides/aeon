@@ -18,11 +18,13 @@ from aeon.synthesis.modules.llm.ids import (
 )
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.structure_guided import StructureGuidedSynthesizer
+from aeon.synthesis.modules.polynomial import PolynomialSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TDSynSynthesizer
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
 from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.modules.afta import AFTASynthesizer
+from aeon.synthesis.modules.arborist import ArboristSynthesizer
 from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
 from aeon.synthesis.modules.bustle import BustleSynthesizer
@@ -81,11 +83,13 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "bustle_baseline": "BUSTLE bottom-up search (unguided)",
     "smt": "SMT model finding (Z3)",
     "sygus": "SyGuS translation (CVC5)",
+    "polynomial": "Polynomial certificates (Handelman / SOS)",
     "ortools": "CP-SAT optimisation (OR-Tools)",
     "ortools_int": "CP-SAT optimisation (OR-Tools)",
     "cpsat": "CP-SAT optimisation (OR-Tools)",
     "fta": "Finite tree automata (library compose)",
     "afta": "Abstraction-refinement FTA (from examples)",
+    "arborist": "Lifted interpretation (local binding contexts)",
     "cata": "Constraint tree automata (relational)",
     "lta": "Liquid tree automata (refined compose)",
     "symetric": "Metric-guided composition (diversity)",
@@ -127,12 +131,14 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     # Constraint solving — SMT / CP-SAT exact solvers.
     "smt": SynthesizerFamily.CONSTRAINT_SOLVING,
     "sygus": SynthesizerFamily.CONSTRAINT_SOLVING,
+    "polynomial": SynthesizerFamily.CONSTRAINT_SOLVING,
     "ortools": SynthesizerFamily.CONSTRAINT_SOLVING,
     "ortools_int": SynthesizerFamily.CONSTRAINT_SOLVING,
     "cpsat": SynthesizerFamily.CONSTRAINT_SOLVING,
     # Automata — compose library functions via tree automata.
     "fta": SynthesizerFamily.AUTOMATA,
     "afta": SynthesizerFamily.AUTOMATA,
+    "arborist": SynthesizerFamily.AUTOMATA,
     "cata": SynthesizerFamily.AUTOMATA,
     "lta": SynthesizerFamily.AUTOMATA,
     "symetric": SynthesizerFamily.AUTOMATA,
@@ -161,6 +167,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "decision_tree",
         "smt",
         "sygus",
+        "polynomial",
         "tdsyn",
         "tdsyn_enumerative",
         "tdsyn_random",
@@ -182,6 +189,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "xfta",
         "fta",
         "afta",
+        "arborist",
         "cata",
         "contata",
         "structure_guided",
@@ -264,6 +272,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return SMTSynthesizer()
         case "sygus":
             return SygusSynthesizer()
+        case "polynomial":
+            return PolynomialSynthesizer()
         case "tdsyn" | "tdsyn_enumerative":
             return TDSynSynthesizer(mode="enumerative", seed=seed)
         case "tdsyn_random":
@@ -293,6 +303,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return FTASynthesizer()
         case "afta":
             return AFTASynthesizer()
+        case "arborist":
+            return ArboristSynthesizer()
         case "cata":
             return CATASynthesizer()
         case "bustle":

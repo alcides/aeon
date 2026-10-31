@@ -1,0 +1,17 @@
+# Example 3.1, Efficient Bottom-Up Synthesis for Programs with Local Variables.
+# https://arxiv.org/abs/2311.03705
+# python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/list_fold.ae
+# The paper's sole example admits both acc + element and acc * 2 + 1.
+inductive IntList
+| nil : IntList
+| cons (head:Int) (tail:IntList) : IntList
+
+def fold_left (step:(acc:Int) -> (element:Int) -> Int)
+              (initial:Int) (xs:IntList) : Int :=
+    match xs with
+    | .nil => initial
+    | .cons head tail => fold_left step (step initial head) tail;
+
+@example(fold_example (.cons 1 (.cons 2 (.cons 4 .nil))) = 7)
+def fold_example (xs:IntList) : Int :=
+    fold_left (fun acc => fun element => ?body) 0 xs;
