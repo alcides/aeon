@@ -1,3 +1,5 @@
+# Preserve byte-for-byte, checksum-pinned upstream benchmark sources.
+exclude: ^examples/synthesis/boolean_bounded/bnsynth/upstream/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
