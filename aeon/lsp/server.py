@@ -85,6 +85,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         *llm_synthesizer_menu_ids(),
         "fta",
         "afta",
+        "arborist",
         "cata",
         "lta",
         "symetric",

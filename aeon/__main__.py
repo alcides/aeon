@@ -179,6 +179,7 @@ def _parse_common_arguments(parser: ArgumentParser):
             "bustle (learning-guided bottom-up PBE), bustle_baseline (unguided bottom-up PBE), "
             "fta (Finite Tree Automata, OOPSLA'17), "
             "afta (abstraction-refinement FTA, POPL'18), "
+            "arborist (lifted interpretation with local binding contexts, POPL'24), "
             "cata (constraint-annotated tree automata, recursive/relational), "
             "contata (cata version space, synthesises from @example I/O facts), "
             "symetric / xfta (metric program synthesis, arXiv:2206.06164)"

@@ -22,6 +22,7 @@ from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TD
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
 from aeon.synthesis.modules.fta import FTASynthesizer
 from aeon.synthesis.modules.afta import AFTASynthesizer
+from aeon.synthesis.modules.arborist import ArboristSynthesizer
 from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
 from aeon.synthesis.modules.bustle import BustleSynthesizer
@@ -84,6 +85,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "cpsat": "CP-SAT optimisation (OR-Tools)",
     "fta": "Finite tree automata (library compose)",
     "afta": "Abstraction-refinement FTA (from examples)",
+    "arborist": "Lifted interpretation (local binding contexts)",
     "cata": "Constraint tree automata (relational)",
     "lta": "Liquid tree automata (refined compose)",
     "symetric": "Metric-guided composition (diversity)",
@@ -130,6 +132,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     # Automata — compose library functions via tree automata.
     "fta": SynthesizerFamily.AUTOMATA,
     "afta": SynthesizerFamily.AUTOMATA,
+    "arborist": SynthesizerFamily.AUTOMATA,
     "cata": SynthesizerFamily.AUTOMATA,
     "lta": SynthesizerFamily.AUTOMATA,
     "symetric": SynthesizerFamily.AUTOMATA,
@@ -179,6 +182,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "xfta",
         "fta",
         "afta",
+        "arborist",
         "cata",
         "contata",
         "bustle",
@@ -289,6 +293,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return FTASynthesizer()
         case "afta":
             return AFTASynthesizer()
+        case "arborist":
+            return ArboristSynthesizer()
         case "cata":
             return CATASynthesizer()
         case "bustle":
