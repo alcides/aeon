@@ -1,0 +1,925 @@
+{
+  "revision": "d52fa3f886bcfc72c226480e1b9d50bc2940b473",
+  "dirty": false,
+  "protocol": "Same base grammar, lambda=0.05, 4 rounds x 8 proposals, depth=3, seed and wall budget; no tuning",
+  "results": [
+    {
+      "case": "identity",
+      "split": "development",
+      "sampler": "full",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "c65de2c7377a37cb0015ede16478298df5f29bfc04596b14e4db27efb603d8bd",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.25,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.3,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 3
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 6
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 14
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 16
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 24,
+        "invalid_candidates": 8,
+        "row_evaluations": 96,
+        "elapsed_seconds": 0.48549744626507163,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u2079": "x\u2076"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        4,
+        10,
+        50
+      ],
+      "held_out_actual": [
+        4,
+        10,
+        50
+      ],
+      "held_out_error": 0.0
+    },
+    {
+      "case": "identity",
+      "split": "development",
+      "sampler": "uniform",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "c65de2c7377a37cb0015ede16478298df5f29bfc04596b14e4db27efb603d8bd",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.25,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.3,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 3
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              1,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "uniform",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 2
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 14
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 16
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 24,
+        "invalid_candidates": 8,
+        "row_evaluations": 96,
+        "elapsed_seconds": 0.48738535307347775,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u00b3\u2078\u2079": "x\u00b3\u2078\u2076"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        4,
+        10,
+        50
+      ],
+      "held_out_actual": [
+        4,
+        10,
+        50
+      ],
+      "held_out_error": 0.0
+    },
+    {
+      "case": "identity",
+      "split": "development",
+      "sampler": "adaptive",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "c65de2c7377a37cb0015ede16478298df5f29bfc04596b14e4db27efb603d8bd",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.25,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.3,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 3
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              1,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "uniform",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 2
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 14
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 16
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 24,
+        "invalid_candidates": 8,
+        "row_evaluations": 96,
+        "elapsed_seconds": 0.4847610457800329,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u2077\u2076\u2079": "x\u2077\u2076\u2076"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        4,
+        10,
+        50
+      ],
+      "held_out_actual": [
+        4,
+        10,
+        50
+      ],
+      "held_out_error": 0.0
+    },
+    {
+      "case": "precise",
+      "split": "development",
+      "sampler": "full",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "ab375711e39e4975c470ade819443ae38f58e7dc742c45fa845b4ad319e681b2",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.25,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.3,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 3
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 1
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 3
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 3,
+        "invalid_candidates": 29,
+        "row_evaluations": 12,
+        "elapsed_seconds": 0.2586065880022943,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u00b9\u00b9\u2074\u2079": "x\u00b9\u00b9\u2074\u2076"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        4,
+        10,
+        50
+      ],
+      "held_out_actual": [
+        4,
+        10,
+        50
+      ],
+      "held_out_error": 0.0
+    },
+    {
+      "case": "precise",
+      "split": "development",
+      "sampler": "uniform",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "ab375711e39e4975c470ade819443ae38f58e7dc742c45fa845b4ad319e681b2",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.25,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.3,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 3
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              1,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "uniform",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 1
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 3
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 3,
+        "invalid_candidates": 29,
+        "row_evaluations": 12,
+        "elapsed_seconds": 0.26952499616891146,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u00b9\u2075\u00b2\u2079": "x\u00b9\u2075\u00b2\u2076"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        4,
+        10,
+        50
+      ],
+      "held_out_actual": [
+        4,
+        10,
+        50
+      ],
+      "held_out_error": 0.0
+    },
+    {
+      "case": "precise",
+      "split": "development",
+      "sampler": "adaptive",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "ab375711e39e4975c470ade819443ae38f58e7dc742c45fa845b4ad319e681b2",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.25,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.3,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 3
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              1,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "uniform",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 1
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 3
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 3,
+        "invalid_candidates": 29,
+        "row_evaluations": 12,
+        "elapsed_seconds": 0.2666982263326645,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u00b9\u2079\u2070\u2079": "x\u00b9\u2079\u2070\u2076"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        4,
+        10,
+        50
+      ],
+      "held_out_actual": [
+        4,
+        10,
+        50
+      ],
+      "held_out_error": 0.0
+    },
+    {
+      "case": "successor",
+      "split": "held_out_task",
+      "sampler": "full",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "2b9bcce281e79c10de8bd59954a9cccb78cf5bf40159c0f93a0926d3f7dd078c",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.75,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.8,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 1,
+            "expected": 2,
+            "actual": 1
+          },
+          {
+            "observation_id": 2,
+            "expected": 3,
+            "actual": 1
+          },
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 1
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 6
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 14
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 16
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 24,
+        "invalid_candidates": 8,
+        "row_evaluations": 96,
+        "elapsed_seconds": 0.4878067201934755,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u00b2\u00b2\u2078\u2079": "1"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        5,
+        11,
+        51
+      ],
+      "held_out_actual": [
+        1,
+        1,
+        1
+      ],
+      "held_out_error": 1.0
+    },
+    {
+      "case": "successor",
+      "split": "held_out_task",
+      "sampler": "uniform",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "2b9bcce281e79c10de8bd59954a9cccb78cf5bf40159c0f93a0926d3f7dd078c",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.75,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.8,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 1,
+            "expected": 2,
+            "actual": 1
+          },
+          {
+            "observation_id": 2,
+            "expected": 3,
+            "actual": 1
+          },
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 1
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              1,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "uniform",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 2
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 14
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 16
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 24,
+        "invalid_candidates": 8,
+        "row_evaluations": 96,
+        "elapsed_seconds": 0.4817629619501531,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u00b2\u2076\u2076\u2079": "1"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        5,
+        11,
+        51
+      ],
+      "held_out_actual": [
+        1,
+        1,
+        1
+      ],
+      "held_out_error": 1.0
+    },
+    {
+      "case": "successor",
+      "split": "held_out_task",
+      "sampler": "adaptive",
+      "seed": 0,
+      "budget": 3.0,
+      "candidate_limit": 32,
+      "source_sha256": "2b9bcce281e79c10de8bd59954a9cccb78cf5bf40159c0f93a0926d3f7dd078c",
+      "status": "completed",
+      "report": {
+        "backend": "noisy",
+        "empirical_error": 0.75,
+        "regularization": 0.05,
+        "regularization_term": 0.05,
+        "complexity": 1,
+        "objective": 0.8,
+        "row_count": 4,
+        "residuals": [
+          {
+            "observation_id": 1,
+            "expected": 2,
+            "actual": 1
+          },
+          {
+            "observation_id": 2,
+            "expected": 3,
+            "actual": 1
+          },
+          {
+            "observation_id": 3,
+            "expected": 99,
+            "actual": 1
+          }
+        ],
+        "rounds": [
+          {
+            "sample": [
+              1,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "uniform",
+            "history_count": 0
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 2
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 14
+          },
+          {
+            "sample": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "discrepancy": 0.0,
+            "method": "full",
+            "history_count": 16
+          }
+        ],
+        "seed": 0,
+        "stop_reason": "round_limit",
+        "candidates_generated": 32,
+        "candidates_validated": 32,
+        "candidates_fully_scored": 24,
+        "invalid_candidates": 8,
+        "row_evaluations": 96,
+        "elapsed_seconds": 0.4894780069589615,
+        "generator": "bounded native enumeration (approximate)"
+      },
+      "candidate": {
+        "body\u00b3\u2070\u2074\u2079": "1"
+      },
+      "held_out_inputs": [
+        4,
+        10,
+        50
+      ],
+      "held_out_expected": [
+        5,
+        11,
+        51
+      ],
+      "held_out_actual": [
+        1,
+        1,
+        1
+      ],
+      "held_out_error": 1.0
+    }
+  ]
+}

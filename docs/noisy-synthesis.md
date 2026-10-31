@@ -124,6 +124,31 @@ runs, actual generation/scoring counts, elapsed time, empirical error, and
 complexity for equal declared budgets. It is a reproducible diagnostic, not
 evidence of general speedups or a generalization bound.
 
+The [recorded comparison](benchmarks/noisy-comparison.json) used clean revision
+`d52fa3f886bcfc72c226480e1b9d50bc2940b473`, seed 0, lambda 0.05 and a three-second
+limit per run. Each run generated and validated 32 proposals. Times below are
+backend elapsed seconds; compilation and held-out evaluation are excluded.
+
+| Task | Sampler | Seconds | Fully scored | Training error | Complexity | Held-out error |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Identity (development) | full | 0.485 | 24 | 0.25 | 1 | 0 |
+| Identity (development) | uniform | 0.487 | 24 | 0.25 | 1 | 0 |
+| Identity (development) | adaptive | 0.485 | 24 | 0.25 | 1 | 0 |
+| Precise identity (development) | full | 0.259 | 3 | 0.25 | 1 | 0 |
+| Precise identity (development) | uniform | 0.270 | 3 | 0.25 | 1 | 0 |
+| Precise identity (development) | adaptive | 0.267 | 3 | 0.25 | 1 | 0 |
+| Successor (held-out task) | full | 0.488 | 24 | 0.75 | 1 | 1 |
+| Successor (held-out task) | uniform | 0.482 | 24 | 0.75 | 1 | 1 |
+| Successor (held-out task) | adaptive | 0.489 | 24 | 0.75 | 1 | 1 |
+
+All modes returned `x` for identity and constant `1` for successor. Successor
+therefore failed every held-out input under this proposal limit, despite
+returning a type-valid program. Every run stopped at the round limit. These
+four-row datasets reach the full sample in round two, so this comparison does
+not demonstrate a benefit from adaptive selection; the separate exact-oracle
+tests exercise selection using multiple history vectors. The JSON retains
+samples, discrepancy, work counters and residuals for inspection.
+
 The regularized-generator/history-sampler loop follows the framework in
 [Learning Programs from Noisy Data (POPL 2016)](https://files.sri.inf.ethz.ch/website/papers/popl16.pdf).
 This bounded Aeon adaptation does not reproduce BITSYN, DEEPSYN, or their
