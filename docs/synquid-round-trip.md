@@ -42,6 +42,21 @@ field types, result refinements, and exact constructor equation. Computed
 scrutinees are let-bound so checking and termination analysis share the same
 witness. `synquid_match_depth` bounds match nesting independently (default: 2).
 
+MATCH retains the scrutinee's refined type arguments, including nested and
+abstract element refinements. Eliminator predicate parameters are fresh liquid
+unknowns, constrained together across all handlers and emitted as explicit
+predicate arguments after solving. The verifier also infers omitted match
+predicates instead of fixing them to `true`.
+
+Aeon's datatype representation has no separate slots for abstract relations.
+Consequently, a predicate absent from the scrutinee's representation must be
+justified from its actual refined fields and constructor equations before a
+handler can assume it. This obligation applies to explicit predicates too:
+choosing `false` or an unsupported stronger invariant cannot make a branch
+vacuously correct. `true` remains a valid inferred result when no stronger
+predicate is needed. These changes preserve the MATCH rule's available evidence;
+they do not add the missing datatype invariants to the 64 benchmark ports.
+
 ## Incremental constraints
 
 `ConstraintState` owns the typing/path context, precise contextual witnesses,
@@ -132,7 +147,10 @@ These counts measure early pruning, not wall-clock speed. Tests cover exhaustive
 finite-grammar solution preservation, branch isolation, weakest guards,
 SMT unknowns, incremental shape/refinement discovery, polymorphic identity,
 conditional nesting, synthesized predicate wrappers, matches on applications,
-and generated measured recursion. Accepted fixtures pass the final verifier;
+and generated measured recursion. Match regressions also cover opaque element
+predicates, computed scrutinees, nested refined type arguments, binary predicates,
+and rejection of invented explicit or implicit field invariants.
+Accepted fixtures pass the final verifier;
 non-decreasing monomorphic and explicitly type-applied polymorphic calls fail it.
 The SMT regressions also check that polymorphic datatype measure specializations
 use their actual carrier sort and reject an incorrect result.

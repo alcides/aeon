@@ -68,7 +68,11 @@ from aeon.errors import (
     UnreachablePatternError,
 )
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.branch_evidence import match_branch_evidence
+from aeon.typechecking.branch_evidence import (
+    match_branch_evidence,
+    match_refinement_obligation,
+    unconstrained_predicate,
+)
 from aeon.typechecking.entailment import entailment, entailment_context
 from aeon.typechecking.termination import termination_metric_constraints
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
@@ -1090,26 +1094,27 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
     # Re-instantiate the eliminator with the spine's args, but bind the motive to
     # the expected type ``ty`` instead of its elaboration-erased base.
     inst: Type = rec_type
+    safe_inst: Type = rec_type
+    has_refinements = False
     for kind, val in spine:
         if isinstance(inst, TypePolymorphism) and kind == "T":
             assert isinstance(val, Type)
             repl = ty if inst.name == ret_var else fresh(ctx, val)
             inst = type_substitution(inst.body, inst.name, repl)
+            assert isinstance(safe_inst, TypePolymorphism)
+            safe_inst = type_substitution(safe_inst.body, safe_inst.name, repl)
         elif isinstance(inst, RefinementPolymorphism) and kind == "R":
+            has_refinements = True
+            assert isinstance(safe_inst, RefinementPolymorphism)
+            safe_inst = instantiate_refinement_in_type(
+                safe_inst.body, safe_inst.name, unconstrained_predicate(safe_inst.sort)
+            )
             if isinstance(val, ImplicitRefinementHole):
-                # An erased scrutinee supplies no element-predicate evidence.
-                # A fresh Horn predicate could become false and make branches
-                # vacuous, so omitted predicates must accept every element.
-                predicate: Term = Literal(True, t_bool)
-                sort = inst.sort
-                parameters: list[Name] = []
-                while isinstance(sort, AbstractionType):
-                    parameters.append(sort.var_name)
-                    sort = sort.type
-                for parameter in reversed(parameters):
-                    predicate = Abstraction(parameter, predicate)
-                assert isinstance(predicate, Abstraction)
-                inst = instantiate_refinement_in_type(inst.body, inst.name, predicate)
+                # Infer the same predicate across every case. The obligations
+                # below bound it by facts from the scrutinee, preventing a
+                # false/unsupported invariant from making the match vacuous.
+                horn = Name("match_predicate", fresh_counter.fresh())
+                inst = instantiate_refinement_with_horn_in_type(inst.body, inst.name, inst.sort, horn)
             elif isinstance(val, Abstraction):
                 inst = instantiate_refinement_in_type(inst.body, inst.name, val)
             else:
@@ -1121,12 +1126,21 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
 
     # ``inst`` is now ``(this: D) -> (case_1: CT_1) -> … -> ty``.
     rest: Type = substitution_in_type(inst.type, scrut_inner, inst.var_name)
+    assert isinstance(safe_inst, AbstractionType)
+    safe_rest: Type = substitution_in_type(safe_inst.type, scrut_inner, safe_inst.var_name)
     tyname = head.name.name[: -len("_rec")]
     constraints: list[Constraint] = [check(ctx, scrut, inst.var_type)]
     for h in handlers:
         if not isinstance(rest, AbstractionType):
             return None
         case_name, case_type, rest = rest.var_name, rest.var_type, rest.type
+        if not isinstance(safe_rest, AbstractionType):
+            return None
+        if has_refinements:
+            constraints.append(
+                match_refinement_obligation(ctx, h, safe_rest.var_type, case_type, tyname, case_name, scrut_inner)
+            )
+        safe_rest = safe_rest.type
         constraints.append(_check_recursor_branch(ctx, h, case_type, tyname, case_name, scrut_inner))
     out: Constraint = constraints[0]
     for c in constraints[1:]:

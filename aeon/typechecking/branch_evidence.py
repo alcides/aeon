@@ -8,13 +8,41 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from aeon.core.liquid import LiquidApp, LiquidTerm, LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
 from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
-from aeon.core.terms import Abstraction, Term, Var
-from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism, Type, TypePolymorphism
+from aeon.core.terms import Abstraction, Literal, Term, Var
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    RefinementPolymorphism,
+    Type,
+    TypePolymorphism,
+    t_bool,
+    extract_parts,
+)
+from aeon.core.liquid_ops import mk_liquid_and
 from aeon.typechecking.context import TypingContext
-from aeon.utils.name import Name
-from aeon.verification.sub import ensure_refined
+from aeon.utils.name import Name, fresh_counter
+from aeon.verification.sub import ensure_refined, implication_constraint, sub
+from aeon.verification.vcs import Constraint, LiquidConstraint, conjoin
+
+
+def unconstrained_predicate(sort: Type) -> Abstraction:
+    """Forget an erased predicate only in the evidence used to justify it.
+
+    Aeon's datatype representation stores refined type arguments, but has no
+    separate slots for abstract relations. Such a relation must be proved from
+    constructor/scrutinee facts before a match can assume it in its fields.
+    """
+    parameters = []
+    while isinstance(sort, AbstractionType):
+        parameters.append(sort.var_name)
+        sort = sort.type
+    result: Term = Literal(True, t_bool)
+    for parameter in reversed(parameters):
+        result = Abstraction(parameter, result)
+    assert isinstance(result, Abstraction)
+    return result
 
 
 @dataclass(frozen=True)
@@ -73,3 +101,43 @@ def match_branch_evidence(
     constructor = LiquidApp(ctor_name, [LiquidVar(n) for n, _ in fields]) if fields else LiquidVar(ctor_name)
     fact = LiquidApp(Name("&&", 0), [fact, LiquidApp(Name("==", 0), [LiquidVar(scrut.name), constructor])])
     return MatchBranchEvidence(body, expected, tuple(fields), fact)
+
+
+def match_refinement_obligation(
+    ctx: TypingContext,
+    handler: Term,
+    safe_case: Type,
+    case: Type,
+    tyname: str,
+    case_name: Name,
+    scrut: Var,
+) -> Constraint:
+    """Require instantiated field predicates to follow from actual match facts.
+
+    The safe case retains the scrutinee's refined type arguments but erases
+    abstract relations absent from its representation. In particular, neither
+    an inferred false predicate nor an explicit stronger predicate may make a
+    branch vacuously correct. Dependent fields share the handler's binders.
+    """
+    safe = match_branch_evidence(ctx, handler, safe_case, tyname, case_name, scrut)
+    wanted = match_branch_evidence(ctx, handler, case, tyname, case_name, scrut)
+    if safe is None or wanted is None or len(safe.fields) != len(wanted.fields):
+        return LiquidConstraint(LiquidLiteralBool(False))
+    field_ctx = ctx
+    for name, ty in safe.fields:
+        field_ctx = field_ctx.with_var(name, ty)
+    constraint: Constraint = LiquidConstraint(LiquidLiteralBool(True))
+    for (name, actual), (_, expected) in zip(safe.fields, wanted.fields):
+        if not isinstance(actual, AbstractionType):
+            binder, base, refinement = extract_parts(actual)
+            # The obligation concerns this field, not every inhabitant of its
+            # unrefined sort. Its singleton links constructor equations and
+            # scrutinee measures to the predicate being inferred.
+            equality = LiquidApp(Name("==", 0), [LiquidVar(binder), LiquidVar(name)])
+            actual = RefinedType(binder, base, mk_liquid_and(refinement, equality))
+        constraint = conjoin(constraint, sub(field_ctx, actual, expected))
+    witness = Name("match_fact", fresh_counter.fresh())
+    constraint = implication_constraint(witness, RefinedType(witness, t_bool, safe.fact), constraint)
+    for name, ty in reversed(safe.fields):
+        constraint = implication_constraint(name, ty, constraint)
+    return constraint
