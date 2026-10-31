@@ -121,6 +121,26 @@ programs in a fresh driver, and checks every declared input again. Failed runs
 remain in the report. No end-to-end GP performance ranking is inferred: the
 component grammar and the unrestricted program grammar search different spaces.
 
+The [recorded runs and generated programs](https://github.com/alcides/aeon/tree/master/examples/synthesis/dp_gp/generated)
+use clean revision `75985e0a`, seeds 0/1/2, 160 proposals per epoch and a
+30-second synthesis limit. All six runs completed, and the saved programs passed
+all 120 round-trip input checks (30 knapsack and 10 path inputs per seed).
+Every seed produced the same transformations and deterministic costs:
+
+| Problem | Stage | Expanded states | Retained solutions | Solution fields constructed | State fields constructed |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Knapsack | Reference | 216 | 428 | 1284 | 648 |
+| Knapsack | Thinning | 216 | 216 | 894 | 648 |
+| Knapsack | Full | 145 | 145 | 218 | 396 |
+| Path | Reference | 114 | 258 | 774 | 342 |
+| Path | Thinning | 114 | 114 | 498 | 342 |
+| Path | Full | 50 | 50 | 82 | 148 |
+
+The discovered relation compares the objective field with `>=`. Solutions keep
+that field with the discovered `old + delta` update. Memoization keys and search
+states retain the first two state fields and discard history. These counts sum
+over the declared input boxes and establish reductions for these examples only.
+
 ## Configuration and limits
 
 Use `AEON_SEED` plus these environment variables:
