@@ -20,6 +20,7 @@ from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
 from aeon.synthesis.decorators import (
     allow_recursion,
+    bounded_cnf,
     cluster,
     csv_data,
     csv_file,
@@ -43,6 +44,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 sugar_decorators_environment: dict[str, DecoratorType] = {
+    "bounded_cnf": bounded_cnf,
     "minimize_int": minimize_int,
     "maximize_int": maximize_int,
     "minimize_float": minimize_float,
@@ -87,6 +89,9 @@ def _is_decorator_name_prefix(name: str) -> bool:
 
 
 def _sugar_decorator_ready(dname: str, decorator: Decorator) -> bool:
+    # A malformed hard contract must never be silently deferred/ignored.
+    if dname == "bounded_cnf":
+        return True
     expected = _SUGAR_DECORATOR_ARITY.get(dname, 1)
     n = len(decorator.macro_args)
     if isinstance(expected, frozenset):

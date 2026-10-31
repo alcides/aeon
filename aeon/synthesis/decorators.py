@@ -427,6 +427,20 @@ def example(
     return fun, [test_fn] + extra, metadata
 
 
+def bounded_cnf(
+    decorator: Decorator, fun: Definition, metadata: Metadata
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Declare a hard upper bound on normalized CNF clauses, independent of fitness."""
+    from aeon.errors import InvalidDecoratorArgumentError
+
+    args = decorator.macro_args
+    if len(args) != 1 or not isinstance(args[0], SLiteral) or type(args[0].value) is not int or args[0].value < 0:
+        raise InvalidDecoratorArgumentError(decorator, "expected one nonnegative integer literal clause bound")
+    if "bounded_cnf" in metadata.get(fun.name, {}):
+        raise InvalidDecoratorArgumentError(decorator, "duplicate clause bound")
+    return fun, [], metadata_update(metadata, fun, {"bounded_cnf": args[0].value})
+
+
 def prompt(
     decorator: Decorator,
     fun: Definition,

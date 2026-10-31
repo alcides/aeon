@@ -124,6 +124,81 @@ This backend implements a **Synquid-style** enumerator: type-directed decomposit
 
 ---
 
+### `boolean_bounded` — Bounded Boolean CNF with CEGIS
+
+Opt-in, solver-based synthesis using the existing Z3 dependency. Each target
+must declare a literal, nonnegative clause bound in the Aeon source:
+
+```aeon
+@bounded_cnf(2)
+def xor (x:Bool) (y:Bool) : {r:Bool | r = (x != y)} := ?body;
+```
+
+```bash
+python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/xor.ae
+python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/partial_relation.ae
+```
+
+`@bounded_cnf(K)` is a **hard maximum of K CNF clauses per completed definition**,
+not a fitness penalty. A clause contains Boolean input variables or their
+negations, joined by OR; clauses are joined by AND. True is the empty conjunction
+(zero clauses); false is one empty clause and requires K ≥ 1. Duplicate literals
+and clauses, tautologies, and Boolean constants are normalized before counting.
+Lexical let aliases are expanded with their defining scope. Conditionals,
+arbitrary helper calls, conjunctions inside disjunctions, and negated compound
+expressions are rejected rather than treated as literal atoms or distributed
+exponentially. Type annotations do not change the count. No hidden auxiliary
+inputs or Tseitin variables are admitted. The structural checker is independent
+of the solver encoding and checks the actual completed function.
+
+The first version supports one hole per annotated definition, including nullary
+constants, function bodies with Boolean lexical captures, and full function
+holes. Multiple annotated definitions are solved together, with their individual
+bounds and lexical scopes preserved. Unknown functions have only unrestricted
+Boolean parameters and a Boolean result. Arithmetic, native/opaque logical
+specifications, recursive specifications, higher-order unknowns, unresolved
+polymorphism and other multiplicities produce capability errors. Surrounding
+sketches and captures must still normalize to CNF over the definition's Boolean
+parameters; a solver candidate that fails this or Aeon's typechecker is reported
+as a validation error, never accepted or reported as bounded infeasibility.
+
+Compiler-generated verification conditions, refinements, `@example` assertions,
+and compatible `@property` laws constrain a shared family of CNF templates.
+Counterexamples add instances of the full relation, preserving multiple valid
+output choices. The same selectors are reused at every call, including nested
+Boolean calls. Properties are checked universally, independently of their sampled
+fitness corpus. A partial relation must explicitly state its Skolem law in the
+source, as in `partial_relation.ae`: witnesses belong to the law's quantification,
+not the synthesized functions' parameters. Ordinary total refinements are never
+automatically weakened to a feasibility domain.
+
+The solver returns the first feasible bounded candidate. Optional objectives
+are evaluated only after structural and full Aeon validation; this release does
+**not** optimize them, minimize K, or prove global synthesis impossibility. Other
+backends may parse the same annotation, but the shared acceptance/scoring gate
+still enforces it. Program-level adapters without that gate, and non-joint
+adapters handling multiple annotated holes, reject the annotation explicitly.
+Unannotated programs keep their existing behavior.
+
+`AEON_SEED` controls solver seeds. Each run owns fresh selectors and solvers.
+`BooleanBoundedSynthesizer.report` records status, iterations, counterexamples,
+selector count and elapsed solver-adapter time. `BoundedBooleanFailure.category`
+distinguishes `bounded_unsat`, `timeout`, `resource_limit`, `unknown`, and
+`validation_error`; capability mismatches use `UnsupportedSynthesisGoal`.
+`bounded_unsat` means no solution in the fixed, supported CNF family. Limits of
+100,000 selector bits and 100,000 translated predicate/template nodes prevent
+unbounded allocation; the Python API can configure these limits. The independent
+normalizer limits each definition to 10,000 visited syntax nodes. Search, extraction and
+validation share the remaining wall-clock budget, with Z3 timeouts set before
+each solver call. Shared compiler preparation is deducted from that budget;
+synchronous compiler/validation calls can overrun it before control returns.
+
+This implements a solver-based bounded Boolean search, not BNSynth's neural
+learner. The separate benchmark corpus and evaluation harness are tracked in
+[#650](https://github.com/alcides/aeon/issues/650).
+
+---
+
 ### `smt` — SMT-Guided Synthesis
 
 Constructs a candidate expression top-down using the typing context:
@@ -270,6 +345,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `rl_mcts`       | Policy/value-guided Monte-Carlo grammar search | Refinement-only synthesis, learned search experiments |
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |
+| `boolean_bounded` | Constraint solving | Boolean CNF within a source-declared clause bound |
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |
 | `llm`           | LLM generation   | Problems that are easy to describe in natural language |

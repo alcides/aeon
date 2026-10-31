@@ -78,6 +78,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "rl_mcts",
         "synquid",
         "smt",
+        "boolean_bounded",
         "sygus",
         "decision_tree",
         "bustle",

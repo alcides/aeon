@@ -17,6 +17,7 @@ from aeon.synthesis.modules.llm.ids import (
     llm_synthesizer_label,
 )
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
+from aeon.synthesis.modules.boolean_bounded import BooleanBoundedSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TDSynSynthesizer
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
@@ -78,6 +79,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "bustle": "BUSTLE learning-guided bottom-up search",
     "bustle_baseline": "BUSTLE bottom-up search (unguided)",
     "smt": "SMT model finding (Z3)",
+    "boolean_bounded": "Bounded Boolean CNF (Z3 CEGIS)",
     "sygus": "SyGuS translation (CVC5)",
     "ortools": "CP-SAT optimisation (OR-Tools)",
     "ortools_int": "CP-SAT optimisation (OR-Tools)",
@@ -123,6 +125,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "bustle_baseline": SynthesizerFamily.EXAMPLE_DRIVEN,
     # Constraint solving — SMT / CP-SAT exact solvers.
     "smt": SynthesizerFamily.CONSTRAINT_SOLVING,
+    "boolean_bounded": SynthesizerFamily.CONSTRAINT_SOLVING,
     "sygus": SynthesizerFamily.CONSTRAINT_SOLVING,
     "ortools": SynthesizerFamily.CONSTRAINT_SOLVING,
     "ortools_int": SynthesizerFamily.CONSTRAINT_SOLVING,
@@ -157,6 +160,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "synquid",
         "decision_tree",
         "smt",
+        "boolean_bounded",
         "sygus",
         "tdsyn",
         "tdsyn_enumerative",
@@ -256,6 +260,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             except ImportError as e:
                 raise ImportError("decision_tree requires the optional 'ml' extra: pip install 'AeonLang[ml]'") from e
             return DecisionTreeSynthesizer()
+        case "boolean_bounded":
+            return BooleanBoundedSynthesizer(seed=seed)
         case "smt":
             return SMTSynthesizer()
         case "sygus":

@@ -1,0 +1,17 @@
+# python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/partial_relation.ae
+# There are two output choices when enabled=true, and none when enabled=false.
+def relation (enabled:Bool) (left:Bool) (right:Bool) : Bool :=
+    enabled && (left != right);
+
+@bounded_cnf(1)
+def choose_left (enabled:Bool) : Bool := ?left;
+
+@bounded_cnf(1)
+def choose_right (enabled:Bool) : Bool := ?right;
+
+# Witnesses occur only in the law. The synthesized functions see only enabled.
+# With this backend @property is verified universally; 4 is the fitness corpus size.
+@property(4)
+def skolem_law (enabled:Bool) (witness_left:Bool) (witness_right:Bool) : Bool :=
+    relation enabled witness_left witness_right -->
+        relation enabled (choose_left enabled) (choose_right enabled);

@@ -37,6 +37,7 @@ from aeon.errors import (
     UnificationUnknownTypeError,
     UnreachablePatternError,
     UnknownDecoratorError,
+    InvalidDecoratorArgumentError,
 )
 
 __all__ = [
@@ -72,4 +73,5 @@ __all__ = [
     "UnificationUnknownTypeError",
     "UnreachablePatternError",
     "UnknownDecoratorError",
+    "InvalidDecoratorArgumentError",
 ]
