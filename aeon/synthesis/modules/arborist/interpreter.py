@@ -8,7 +8,7 @@ The combinator is interpreted from Aeon Core; there is no fold-name special case
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterator
 
 from aeon.core.multiplicity import M0
@@ -29,7 +29,8 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.synthesis.api import SynthesisNotSuccessful, UnsupportedSynthesisGoal
-from aeon.core.types import t_bool, t_int, t_unit
+from aeon.core.types import t_unit
+from aeon.synthesis.modules.arborist.data import Algebraic, generated_inductives
 from aeon.synthesis.modules.arborist.forest import Forest, OPERATORS, scalar_key
 from aeon.utils.name import Name
 
@@ -53,6 +54,35 @@ class LiftedInterpreter:
         self.hole = hole
         self.max_steps = max_steps
         self.reachable: set[tuple] = set()
+        self.inductives = generated_inductives(definitions)
+        self.constructors = {p.name: p.arity for p in self.inductives.values() if not p.cases}
+
+    def check_data(self, value: Any) -> None:
+        """Bound constructor inputs and intermediate data before traversing them.
+
+        Types of constructor literals are checked by the normal compiler. This
+        additionally rejects opaque values, malformed tags/arities, unsupported
+        leaves and oversized trees, including when called through the Python API.
+        """
+        remaining = 128
+
+        def visit(current: Any, depth: int) -> None:
+            nonlocal remaining
+            self.forest.check_budget()
+            remaining -= 1
+            if remaining < 0 or depth > 32:
+                raise SynthesisNotSuccessful("arborist data size limit exhausted")
+            if type(current) is tuple:
+                if not current or type(current[0]) is not str or self.constructors.get(current[0]) != len(current) - 1:
+                    raise UnsupportedSynthesisGoal(
+                        "arborist requires registered constructor values with matching arity"
+                    )
+                for field in current[1:]:
+                    visit(field, depth + 1)
+            else:
+                scalar_key(current)
+
+        visit(value, 0)
 
     def evaluate(self, term: Term, environment: dict[Name, Any], language: int) -> Iterator[tuple[Any, int]]:
         self.forest.check_budget()
@@ -67,6 +97,9 @@ class LiftedInterpreter:
             case Var(name):
                 if name in environment:
                     yield environment[name], language
+                elif name in self.inductives:
+                    primitive = self.inductives[name]
+                    yield (primitive.name,) if primitive.arity == 0 else primitive, language
                 elif name in self.definitions:
                     # Definitions are closed over their lexical top-level scope,
                     # not the caller's local bindings. Names already have IDs.
@@ -128,12 +161,33 @@ class LiftedInterpreter:
                 yield result, language
             else:
                 yield Primitive(function.name, args), language
+        elif isinstance(function, Algebraic):
+            args = (*function.arguments, argument)
+            if len(args) < function.arity:
+                yield replace(function, arguments=args), language
+            elif not function.cases:
+                value = (function.name, *args)
+                self.check_data(value)
+                yield value, language
+            else:
+                value, *handlers = args
+                self.check_data(value)
+                if type(value) is not tuple or value[0] not in function.cases:
+                    raise UnsupportedSynthesisGoal("arborist eliminator received a value of another datatype")
+                handler = handlers[function.cases.index(value[0])]
+                yield from self.apply_many(handler, value[1:], language)
         else:
             raise UnsupportedSynthesisGoal("arborist requires an interpreted pure function")
 
+    def apply_many(self, function: Any, arguments: tuple[Any, ...], language: int) -> Iterator[tuple[Any, int]]:
+        if not arguments:
+            yield function, language
+        else:
+            for value, narrowed in self.apply(function, arguments[0], language):
+                yield from self.apply_many(value, arguments[1:], narrowed)
+
     def run(self, target: Name, inputs: list[Any], language: int) -> Iterator[tuple[Any, int]]:
-        term: Term = Var(target)
         for value in inputs:
-            scalar_key(value)
-            term = Application(term, Literal(value, t_bool if type(value) is bool else t_int))
-        yield from self.evaluate(term, {}, language)
+            self.check_data(value)
+        for function, narrowed in self.evaluate(Var(target), {}, language):
+            yield from self.apply_many(function, tuple(inputs), narrowed)

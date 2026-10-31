@@ -8,12 +8,13 @@ import pytest
 
 from aeon.backend.evaluator import EvaluationContext, eval as evaluate
 from aeon.core.substitutions import substitution
-from aeon.core.terms import Abstraction, Application, Hole, Let, Literal, Term, TypeApplication, Var
+from aeon.core.terms import Abstraction, Application, Hole, Let, Literal, Rec, Term, TypeApplication, Var
 from aeon.core.types import t_int, t_bool
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.api import SynthesisNotSuccessful, UnsupportedSynthesisGoal
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.fitness_eval import set_program_tail
+from aeon.synthesis.identification import get_holes_info
 from aeon.synthesis.modules.arborist import ArboristSynthesizer
 from aeon.synthesis.modules.arborist.forest import Forest, scalar_labels, scalar_key
 from aeon.synthesis.modules.arborist.interpreter import LiftedInterpreter
@@ -226,3 +227,151 @@ def test_state_and_execution_limits_report_exhaustion():
         solve(source, ArboristSynthesizer(max_states=1))
     with pytest.raises(SynthesisNotSuccessful, match="step limit"):
         solve(source, ArboristSynthesizer(max_steps=1))
+
+
+def int_list(*values, prefix="IntList"):
+    result = (prefix + "_nil",)
+    for value in reversed(values):
+        result = (prefix + "_cons", value, result)
+    return result
+
+
+def test_paper_list_fold_synthesizes_and_preserves_both_paper_programs():
+    source = (ROOT / "examples/synthesis/arborist/list_fold.ae").read_text()
+    fun, _, _ = solve(source)
+    assert fun(int_list(1, 2, 4)) == 7
+
+    driver = AeonDriver(AeonConfig("arborist", SilentSynthesisUI(), 10, no_main=True))
+    assert not list(driver.parse(aeon_code=source))
+    driver.has_synth()
+    with driver.session.activate():
+        function, (hole,) = driver.incomplete_functions[0]
+        _, ctx = get_holes_info(driver.typing_ctx, driver.core, t_int, driver.incomplete_functions)[hole]
+        names = {n.name: n for n, _ in ctx.vars() if n.name in ("acc", "element")}
+        definitions = {}
+        current = driver.core
+        while isinstance(current, (Let, Rec)):
+            definitions[current.var_name] = current.var_value
+            if current.var_name == function:
+                break
+            current = current.body
+        labels = scalar_labels(
+            [(n, t_int) for n in names.values()],
+            {Name("+", 0), Name("*", 0)},
+            constants=(1, 2),
+            operators=("+", "*"),
+            conditionals=False,
+        )
+        f = Forest(labels, monotonic() + 10)
+        interpreter = LiftedInterpreter(f, definitions, hole)
+        root = f.grammar(t_int, 2)
+        survivors = [s for v, s in interpreter.run(function, [int_list(1, 2, 4)], root) if v == 7]
+        terms = set(f.terms(f.union(survivors)))
+        plus = TypeApplication(Var(Name("+", 0)), t_int)
+        times = TypeApplication(Var(Name("*", 0)), t_int)
+        p1 = application(plus, (Var(names["acc"]), Var(names["element"])))
+        p2 = application(plus, (application(times, (Var(names["acc"]), Literal(2, t_int))), Literal(1, t_int)))
+        assert p1 in terms and p2 in terms
+        # Independently execute both callbacks with the ordinary Aeon fold.
+        fold_name = next(n for n in definitions if n.name == "fold_left")
+        for candidate in (p1, p2):
+            filled = substitution(driver.core, candidate, hole)
+            fold = evaluate(set_program_tail(filled, Var(fold_name)), driver.evaluation_ctx)
+            callback = evaluate(
+                Abstraction(names["acc"], Abstraction(names["element"], candidate)), driver.evaluation_ctx
+            )
+            footprint = []
+
+            def step(acc):
+                def apply(element):
+                    result = callback(acc)(element)
+                    footprint.append((acc, element, result))
+                    return result
+
+                return apply
+
+            assert fold(step)(0)(int_list(1, 2, 4)) == 7
+            assert footprint == [(0, 1, 1), (1, 2, 3), (3, 4, 7)]
+        # A second input separates the paper's observationally equal bodies.
+        second = [s for v, s in interpreter.run(function, [int_list(4)], f.union(survivors)) if v == 4]
+        terms = set(f.terms(f.union(second)))
+        assert p1 in terms and p2 not in terms
+
+
+def test_list_sum_synthesizes_and_generalizes_to_unseen_lists():
+    source = (ROOT / "examples/synthesis/arborist/list_sum.ae").read_text()
+    fun, backend, _ = solve(source)
+    for values in ((), (0,), (-3, 8), (4, 2, 1), (10, -2, 7, 0), (1, 1, 1, 1, 1)):
+        assert fun(int_list(*values)) == sum(values)
+    assert backend.stats.merges > 0
+
+
+def test_list_fold_order_is_left_to_right():
+    source = (ROOT / "examples/synthesis/arborist/list_fold.ae").read_text().replace("= 7)", "= 124)")
+    source = source.replace(
+        "def fold_example",
+        "@example(fold_example (.cons 4 (.cons 2 (.cons 1 .nil))) = 421)\ndef fold_example",
+    )
+    fun, _, _ = solve(source, ArboristSynthesizer(constants=(0, 1, 2, 10), operators=("+", "*"), conditionals=False))
+    assert fun(int_list(3, 1)) == 31
+    assert fun(int_list()) == 0
+
+
+def test_inductive_support_uses_declarations_including_constructor_order():
+    # Neither the datatype name nor its constructors/order are list-specific.
+    source = """inductive Chain a
+        | link (head:a) (tail:(Chain a)) : (Chain a)
+        | end : (Chain a)
+        def walk (f:(acc:Int) -> (value:Int) -> Int) (acc:Int) (xs:(Chain Int)) : Int :=
+            match xs with | .end => acc | .link head tail => walk f (f acc head) tail;
+        @example(total (.link 2 (.link 5 .end)) = 7)
+        @example(total (.link 4 .end) = 4)
+        @example(total .end = 0)
+        def total (xs:(Chain Int)) : Int := walk (fun acc => fun value => ?body) 0 xs;"""
+    fun, _, _ = solve(source)
+    assert fun(("Chain_link", 3, ("Chain_link", 6, ("Chain_end",)))) == 9
+
+
+def test_constructor_creation_inside_the_sketch_and_scalar_inputs():
+    source = """inductive Box | box (x:Int) : Box
+        def unpack (b:Box) : Int := match b with | .box x => x;
+        @example(f 2 = 3)
+        @example(f 5 = 6)
+        def f (x:Int) : Int :=
+            let b : Box := .box (x + 1) in
+            let x : Unit := unit in
+            let y := unpack b in ?body;"""
+    fun, _, _ = solve(source)
+    assert fun(11) == 12
+
+
+def test_native_and_shadowed_constructor_names_do_not_gain_inductive_semantics():
+    for source in (
+        """inductive Box | box (x:Int) : Box
+        def Box_box (x:Int) : Int := x + 3;
+        @example(f 2 = 5)
+        @example(f 4 = 7)
+        def f (x:Int) : Int := let y := Box_box x in let x : Unit := unit in ?body;""",
+        """inductive Box | box (x:Int) : Box
+        def Box_rec (x:Int) : Int := x + 3;
+        @example(f 2 = 5)
+        @example(f 4 = 7)
+        def f (x:Int) : Int := let y := Box_rec x in let x : Unit := unit in ?body;""",
+    ):
+        fun, _, _ = solve(source)
+        assert fun(8) == 11
+    with pytest.raises(UnsupportedSynthesisGoal, match="component native"):
+        solve("""@example(f 1 = 3)
+            def f (x:Int) : Int := let y : Int := native "x + 1" in y + ?body;""")
+
+
+def test_constructor_data_limits_and_malformed_values():
+    interpreter = LiftedInterpreter(forest(), {}, H)
+    interpreter.constructors = {"IntList_nil": 0, "IntList_cons": 2}
+    for value in (("Unknown",), ("IntList_cons", 1), (1, 2, 4), ("IntList_nil", 1)):
+        with pytest.raises(UnsupportedSynthesisGoal, match="registered constructor"):
+            interpreter.check_data(value)
+    with pytest.raises(UnsupportedSynthesisGoal, match="Int or Bool"):
+        interpreter.check_data(int_list(1.0))
+    with pytest.raises(SynthesisNotSuccessful, match="data size limit"):
+        interpreter.check_data(int_list(*range(34)))

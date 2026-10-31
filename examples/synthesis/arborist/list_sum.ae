@@ -1,0 +1,18 @@
+# A disambiguated variant of list_fold.ae, with extra examples beyond the paper.
+# python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/list_sum.ae
+inductive IntList
+| nil : IntList
+| cons (head:Int) (tail:IntList) : IntList
+
+def fold_left (step:(acc:Int) -> (element:Int) -> Int)
+              (initial:Int) (xs:IntList) : Int :=
+    match xs with
+    | .nil => initial
+    | .cons head tail => fold_left step (step initial head) tail;
+
+@example(sum_list (.cons 1 (.cons 2 (.cons 4 .nil))) = 7)
+@example(sum_list .nil = 0)
+@example(sum_list (.cons 4 .nil) = 4)
+@example(sum_list (.cons 2 (.cons 3 .nil)) = 5)
+def sum_list (xs:IntList) : Int :=
+    fold_left (fun acc => fun element => ?body) 0 xs;

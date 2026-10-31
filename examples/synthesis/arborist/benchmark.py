@@ -13,7 +13,7 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 def main() -> None:
     logger.remove()
     print("example,compressed,transitions,merges,contexts,interpreter_steps,validated")
-    for name in ("local", "fold"):
+    for name in ("local", "fold", "list_fold", "list_sum"):
         for compress in (True, False):
             driver = AeonDriver(AeonConfig("arborist", SilentSynthesisUI(), 10, no_main=True))
             errors = list(driver.parse(aeon_code=Path(__file__).with_name(f"{name}.ae").read_text()))
