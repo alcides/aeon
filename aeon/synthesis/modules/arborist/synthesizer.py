@@ -74,9 +74,12 @@ class ArboristSynthesizer(ProgramSynthesizer):
         function, holes = targets[0]
         hole = holes[0]
         entry = metadata.get(function, {})
-        rows = entry.get("io_examples", [])
+        # Prefer tagged constructors over the legacy flattened-list I/O encoding.
+        rows = entry.get("constructor_io_examples") or entry.get("io_examples", [])
         if not rows:
-            raise UnsupportedSynthesisGoal("arborist requires literal Int/Bool @example I/O pairs")
+            raise UnsupportedSynthesisGoal(
+                "arborist requires literal scalar/constructor @example inputs and Int/Bool outputs"
+            )
         if (
             len(rows) != len(entry.get("examples", []))
             or len(entry.get("goals", [])) != len(rows)
@@ -86,8 +89,7 @@ class ArboristSynthesizer(ProgramSynthesizer):
                 "arborist supports literal I/O examples, not additional optimization objectives"
             )
         for inputs, output in rows:
-            for value in [*inputs, output]:
-                scalar_key(value)
+            scalar_key(output)
 
         ty, hole_ctx = get_holes_info(ctx, program, top, targets, refined_types=True)[hole]
         result_type = refined_to_unrefined_type(ty)
@@ -129,6 +131,9 @@ class ArboristSynthesizer(ProgramSynthesizer):
             max_states=self.max_states,
         )
         interpreter = LiftedInterpreter(forest, definitions, hole, max_steps=self.max_steps)
+        for inputs, _ in rows:
+            for argument in inputs:
+                interpreter.check_data(argument)
         self.stats = forest.stats
         self.reachable = interpreter.reachable
         replace = make_program(program, hole)
