@@ -1,0 +1,99 @@
+# NAND-only one-bit full-adder synthesis, minimizing circuit depth.
+# Source: https://btmc.substack.com/p/the-awesome-power-of-constraint-solvers
+# Inputs: a, b, carry_in. Outputs: sum, carry_out.
+# Correctness: 2 * carry_out + sum = a + b + carry_in, for every input.
+# Inputs have depth zero; a NAND adds one to the maximum input depth.
+# The objective is the worst output depth across all eight input combinations.
+# Gate count is unrestricted; no implementation is supplied.
+#
+# python -m aeon --no-main --budget 600 -s gp examples/synthesis/nand_full_adder.ae
+
+inductive Bit
+| low (level:{d:Int | d >= 0}) : {b:Bit | value b = 0 && depth b = level}
+| high (level:{d:Int | d >= 0}) : {b:Bit | value b = 1 && depth b = level}
++ value (b:Bit) : {v:Int | 0 <= v && v <= 1}
++ depth (b:Bit) : {d:Int | d >= 0}
+
+def bit_depth (b:Bit) : {d:Int | d = Bit.depth b && d >= 0} :=
+    match b with
+    | .low d => d
+    | .high d => d;
+
+def max_depth (x:{d:Int | d >= 0}) (y:{d:Int | d >= 0}) :
+    {d:Int | d >= x && d >= y && (d = x || d = y)} :=
+    if x >= y then x else y;
+
+# Logical helpers are hidden from the synthesis context.
+def logical_not (x:Bit) : {r:Bit | Bit.value r = 1 - Bit.value x} :=
+    match x with
+    | .low d => Bit.high d
+    | .high d => Bit.low d;
+
+def logical_and (x:Bit) (y:Bit) :
+    {r:Bit | (Bit.value r = 1) = (Bit.value x = 1 && Bit.value y = 1)} :=
+    match x with
+    | .low d => Bit.low d
+    | .high d => y;
+
+def at_depth (x:Bit) (level:{d:Int | d >= 0}) :
+    {r:Bit | Bit.value r = Bit.value x && Bit.depth r = level} :=
+    match x with
+    | .low d => Bit.low level
+    | .high d => Bit.high level;
+
+# This is the only Bit-producing gate available to synthesis.
+def nand (x:Bit) (y:Bit) :
+    {r:Bit |
+        (Bit.value r = 0) = (Bit.value x = 1 && Bit.value y = 1) &&
+        Bit.depth r > Bit.depth x && Bit.depth r > Bit.depth y &&
+        (Bit.depth r = Bit.depth x + 1 || Bit.depth r = Bit.depth y + 1)
+    } :=
+    at_depth (logical_not (logical_and x y))
+        (1 + max_depth (bit_depth x) (bit_depth y));
+
+inductive AdderOutput
+| mk (sum:Bit) (carry_out:Bit) :
+    {r:AdderOutput | sum_value r = Bit.value sum && carry_value r = Bit.value carry_out}
++ sum_value (r:AdderOutput) : {v:Int | 0 <= v && v <= 1}
++ carry_value (r:AdderOutput) : {v:Int | 0 <= v && v <= 1}
+
+def output_depth (r:AdderOutput) : {d:Int | d >= 0} :=
+    match r with
+    | .mk sum carry_out => max_depth (bit_depth sum) (bit_depth carry_out);
+
+def worst_depth (adder:(a:{b:Bit | Bit.depth b = 0}) ->
+                         (b:{b:Bit | Bit.depth b = 0}) ->
+                         (carry_in:{b:Bit | Bit.depth b = 0}) -> AdderOutput) : Int :=
+    let low := Bit.low 0 in
+    let high := Bit.high 0 in
+    max_depth
+        (max_depth
+            (max_depth (output_depth (adder low low low)) (output_depth (adder low low high)))
+            (max_depth (output_depth (adder low high low)) (output_depth (adder low high high))))
+        (max_depth
+            (max_depth (output_depth (adder high low low)) (output_depth (adder high low high)))
+            (max_depth (output_depth (adder high high low)) (output_depth (adder high high high))));
+
+@minimize_int(worst_depth full_adder)
+def full_adder (a:{b:Bit | Bit.depth b = 0})
+               (b:{b:Bit | Bit.depth b = 0})
+               (carry_in:{b:Bit | Bit.depth b = 0}) :
+    {r:AdderOutput |
+        2 * AdderOutput.carry_value r + AdderOutput.sum_value r =
+            Bit.value a + Bit.value b + Bit.value carry_in
+    } :=
+    let logical_not : Unit := unit in
+    let logical_and : Unit := unit in
+    let at_depth : Unit := unit in
+    let bit_depth : Unit := unit in
+    let Bit_rec : Unit := unit in
+    let Bit_low : Unit := unit in
+    let Bit_high : Unit := unit in
+    let Bit_value : Unit := unit in
+    let Bit_depth : Unit := unit in
+    let AdderOutput_rec : Unit := unit in
+    let AdderOutput_sum_value : Unit := unit in
+    let AdderOutput_carry_value : Unit := unit in
+    let full_adder : Unit := unit in
+    let worst_depth : Unit := unit in
+    ?circuit;

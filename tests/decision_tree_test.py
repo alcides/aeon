@@ -94,8 +94,8 @@ def test_decision_tree_single_example_int():
     assert list(mapping.values())[0] is not None
 
 
-def test_decision_tree_int_threshold_uses_float_split():
-    """Int feature splits compare ``toFloat n <= thresh`` to match sklearn thresholds."""
+def test_decision_tree_int_threshold_preserves_sklearn_partition():
+    """Flooring an Int feature's fractional threshold preserves its partition."""
     source = """
         @example(double 3 = 6)
         @example(double 4 = 8)

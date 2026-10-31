@@ -280,7 +280,7 @@ def test_typechecker_rejects_example_consistent_but_invalid_refinement():
 
 
 def test_missing_examples_and_bad_checkpoint_fail_clearly(tmp_path):
-    with pytest.raises(SynthesisNotSuccessful, match="needs literal @example"):
+    with pytest.raises(SynthesisNotSuccessful, match="needs an output refinement"):
         _solve("def f (x:Int) : Int := ?hole;")
     with pytest.raises(SynthesisNotSuccessful, match="cannot load trained guidance"):
         _solve("@example(f 1 = 2)\ndef f (x:Int) : Int := ?hole;", BustleSynthesizer(tmp_path / "missing.json"))

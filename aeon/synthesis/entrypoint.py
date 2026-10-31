@@ -63,6 +63,7 @@ from aeon.synthesis.modules.tdsyn.helpers import base_type_of, get_return_type
 
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.resource_meters import measure_cputime, measure_energy
+from aeon.synthesis.refinement_examples import derive_refinement_examples
 
 
 def make_program(whole_program: Term, hole_name: Name) -> Callable[[Term], Term]:
@@ -341,6 +342,18 @@ def _synthesize_one(
     # deterministic corpus so every fitness backend sees the right objective
     # count and orientation without mutating metadata shared by other targets.
     synthesis_metadata = metadata
+    entry = metadata.get(fun_name, {})
+    if synthesizer.requires_examples and not any(
+        entry.get(key)
+        for key in ("training_data", "io_examples", "constructor_io_examples", "examples", "tactic_scripts")
+    ):
+        started = time.monotonic()
+        generated = derive_refinement_examples(
+            ctx, prog, fun_name, hole_name=hole_name, budget=min(2.0, max(0.0, budget / 5))
+        )
+        synthesis_metadata = dict(metadata)
+        synthesis_metadata[fun_name] = dict(entry) | generated
+        budget = max(0.0, budget - (time.monotonic() - started))
     property_evaluators: PropertyEvaluators = []
     corpora = property_corpora_for_target(
         ctx,
@@ -352,8 +365,8 @@ def _synthesize_one(
         evaluation_ctx=ectx,
     )
     if corpora:
-        synthesis_metadata = dict(metadata)
-        entry = dict(metadata.get(fun_name, {}))
+        synthesis_metadata = dict(synthesis_metadata)
+        entry = dict(synthesis_metadata.get(fun_name, {}))
         goals = list(entry.get("goals", []))
         goals.extend(Goal(minimize=True, length=1, function=corpus.spec.name, kind="property") for corpus in corpora)
         entry["goals"] = goals
@@ -409,23 +422,22 @@ def _synthesize_one(
     # outputs), this stays in-process, so a String -> String candidate can be
     # applied to each example's inputs. This is what lets ``afta`` build a
     # tree automaton keyed by per-example outputs (the BLAZE construction).
-    if metadata.get(fun_name, {}).get("io_examples") or metadata.get(fun_name, {}).get("constructor_io_examples"):
-        io_params: list[Name] = metadata.get(fun_name, {}).get("io_params", [])
-        # Fill the hole with a harmless dummy so building the program's
-        # def-environment (which includes the @example test bindings that
-        # *call* the synthesised function) never reaches the unfilled hole
-        # and blocks on the interactive prompt. The dummy body is irrelevant:
-        # the sub-terms we probe are built from the DSL components and the
-        # parameters, not from the function under synthesis.
-        _dummy_prog = dummy_prog
+    if any(
+        synthesis_metadata.get(fun_name, {}).get(key)
+        for key in ("io_examples", "constructor_io_examples", "refinement_examples")
+    ):
+        io_params: list[Name] = synthesis_metadata.get(fun_name, {}).get("io_params", [])
         # Build the evaluation environment (all in-scope DSL bindings) ONCE,
         # rather than re-evaluating the whole def-chain for every probed
         # sub-term. Each binding is bound by evaluating it with its own name
         # as the tail, which reuses ``eval``'s Let/Rec (incl. recursion-tying)
-        # handling without duplicating it.
+        # handling without duplicating it. Stop before the target so neither
+        # its unfinished body nor later objective/example calls are evaluated.
         _base_ctx = ectx
-        _t: Term = _dummy_prog
+        _t: Term = prog
         while isinstance(_t, (Let, Rec)):
+            if _t.var_name == fun_name:
+                break
             _bound = eval(dataclasses.replace(_t, body=Var(_t.var_name)), _base_ctx)
             _base_ctx = _base_ctx.with_var(_t.var_name, _bound)
             _t = _t.body
@@ -438,7 +450,8 @@ def _synthesize_one(
                 e = e.with_var(pname, v)
             return eval(sub_term, e)
 
-        synthesis_metadata.setdefault(fun_name, {})["pbe_probe"] = _pbe_probe
+        synthesis_metadata = dict(synthesis_metadata)
+        synthesis_metadata[fun_name] = dict(synthesis_metadata.get(fun_name, {})) | {"pbe_probe": _pbe_probe}
 
     try:
         t = syn_impl.synthesize(

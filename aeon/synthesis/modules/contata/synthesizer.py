@@ -32,7 +32,7 @@ from loguru import logger
 from aeon.core.terms import Application, If, Literal, Term, Var
 from aeon.core.types import Type, t_bool, t_int
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful, UnsupportedSynthesisGoal
 from aeon.synthesis.modules.fta.synthesizer import _safe
 from aeon.synthesis.modules.contata.cata import (
     BOOL,
@@ -55,6 +55,8 @@ _loc = SynthesizedLocation("contata")
 
 class ContataSynthesizer(Synthesizer):
     """Example-driven CATA version space, single-hole adapter."""
+
+    requires_examples = True
 
     def __init__(self, max_size: int = 4):
         self.max_size = max_size
@@ -83,6 +85,10 @@ class ContataSynthesizer(Synthesizer):
 
         # The version space synthesises *unary* members from a ground spec.
         if not io_examples:
+            if entry.get("refinement_examples"):
+                raise UnsupportedSynthesisGoal(
+                    "contata requires exact outputs; this refinement leaves outputs non-unique"
+                )
             miss = entry.get("example_io_miss", [])
             hint = ""
             if miss:
