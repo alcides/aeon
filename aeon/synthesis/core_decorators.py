@@ -15,6 +15,12 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 
+def dp_decorator(dec, fun_name, typing_ctx, program, metadata):
+    from aeon.synthesis.modules.dp_gp.source import dp_decorator as apply_dp
+
+    return apply_dp(dec, fun_name, typing_ctx, program, metadata)
+
+
 def after_typecheck(
     dec: Decorator,
     fun_name: Name,
@@ -35,6 +41,7 @@ def after_typecheck(
 
 
 core_decorators_environment: dict[str, CoreDecoratorType] = {
+    "dp_gp": dp_decorator,
     "after_typecheck": after_typecheck,
     "llvm": llvm_core,
     "gpu": gpu_core,

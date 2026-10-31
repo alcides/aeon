@@ -32,6 +32,7 @@ from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
 from aeon.synthesis.modules.bustle import BustleSynthesizer
 from aeon.synthesis.modules.noisy import NoisySynthesizer
 from aeon.synthesis.modules.amaze import AmazeSynthesizer
+from aeon.synthesis.modules.dp_gp import DPSynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -105,6 +106,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "amaze": "AMaze grammar optimization (stdlib-trained)",
     "regus": "ReGuS reward-guided controller synthesis",
     "gp": "Native genetic programming (linear genome)",
+    "dp_gp": "Dynamic-programming transformations (GP components)",
     **{sid: llm_synthesizer_label(sid) for sid in LLM_OLLAMA_MODELS},
     LLM_OPENAI_SYNTHESIZER_ID: llm_synthesizer_label(LLM_OPENAI_SYNTHESIZER_ID),
     LLM_TYPE_CONSTRAINED_ID: llm_synthesizer_label(LLM_TYPE_CONSTRAINED_ID),
@@ -160,6 +162,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "regus": SynthesizerFamily.GRAMMAR_SEARCH,
     # Metaheuristic — improve candidates with a fitness landscape.
     "gp": SynthesizerFamily.METAHEURISTIC,
+    "dp_gp": SynthesizerFamily.METAHEURISTIC,
     # LLM-assisted — generate candidates from natural language.
     **dict.fromkeys(LLM_OLLAMA_MODELS, SynthesizerFamily.LLM_ASSISTED),
     LLM_OPENAI_SYNTHESIZER_ID: SynthesizerFamily.LLM_ASSISTED,
@@ -174,6 +177,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "regus",
         "enumerative",
         "gp",
+        "dp_gp",
         "ortools",
         "ortools_int",
         "cpsat",
@@ -293,6 +297,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return DecisionTreeSynthesizer()
         case "smt":
             return SMTSynthesizer()
+        case "dp_gp":
+            return DPSynthesizer(seed=seed)
         case "noisy":
             return NoisySynthesizer(seed=seed)
         case "sygus":
