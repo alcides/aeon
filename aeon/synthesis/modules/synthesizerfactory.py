@@ -17,6 +17,7 @@ from aeon.synthesis.modules.llm.ids import (
     llm_synthesizer_label,
 )
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
+from aeon.synthesis.modules.structure_guided import StructureGuidedSynthesizer
 from aeon.synthesis.modules.polynomial import PolynomialSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TDSynSynthesizer
@@ -77,6 +78,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tactics": "Tactic search (random)",
     "decision_tree": "Decision tree regression (from examples)",
     "contata": "Version-space synthesis (from I/O examples)",
+    "structure_guided": "Structure-guided recursive synthesis (from examples)",
     "bustle": "BUSTLE learning-guided bottom-up search",
     "bustle_baseline": "BUSTLE bottom-up search (unguided)",
     "smt": "SMT model finding (Z3)",
@@ -123,6 +125,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     # Example-driven — learn from @example / @csv_data I/O.
     "decision_tree": SynthesizerFamily.EXAMPLE_DRIVEN,
     "contata": SynthesizerFamily.EXAMPLE_DRIVEN,
+    "structure_guided": SynthesizerFamily.EXAMPLE_DRIVEN,
     "bustle": SynthesizerFamily.EXAMPLE_DRIVEN,
     "bustle_baseline": SynthesizerFamily.EXAMPLE_DRIVEN,
     # Constraint solving — SMT / CP-SAT exact solvers.
@@ -189,6 +192,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "arborist",
         "cata",
         "contata",
+        "structure_guided",
         "bustle",
         "bustle_baseline",
     }
@@ -309,5 +313,7 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return BustleSynthesizer(guided=False)
         case "contata":
             return ContataSynthesizer()
+        case "structure_guided":
+            return StructureGuidedSynthesizer()
         case _:
             raise UnknownSynthesizerError(module)

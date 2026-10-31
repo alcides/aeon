@@ -79,6 +79,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "synquid",
         "smt",
         "sygus",
+        "structure_guided",
         "polynomial",
         "decision_tree",
         "bustle",
