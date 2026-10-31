@@ -29,6 +29,8 @@ R = TypeVar("R")
 class CompilationOptions:
     smt_timeout_ms: int = 200
     cache_limit: int = 1024
+    # Offline stdlib tools must never resolve project/AEONPATH overrides.
+    package_only_imports: bool = False
 
     def __post_init__(self) -> None:
         if self.smt_timeout_ms <= 0 or self.cache_limit <= 0:

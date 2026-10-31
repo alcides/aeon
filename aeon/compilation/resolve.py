@@ -55,6 +55,11 @@ def split_aeonpath() -> list[Path]:
 
 def import_search_containers() -> list[Path]:
     """Ordered import roots: cwd, ``cwd/libraries/``, package ``libraries/``, ``AEONPATH``."""
+    if current_session().options.package_only_imports:
+        root = get_package_libraries_dir()
+        if root is None:
+            raise ValueError("packaged standard library is unavailable")
+        return [root.resolve(strict=True)]
     seen: set[Path] = set()
     containers: list[Path] = []
 
@@ -84,6 +89,9 @@ def resolve_module_source(module_path: str) -> str | None:
     for container in import_search_containers():
         candidate = container / rel
         if candidate.exists():
+            if current_session().options.package_only_imports:
+                if not candidate.resolve(strict=True).is_relative_to(container.resolve(strict=True)):
+                    raise ValueError(f"stdlib import escapes the package: {module_path}")
             return str(candidate.resolve())
     return None
 
