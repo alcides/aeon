@@ -298,6 +298,14 @@ published performance result is claimed.
 
 ---
 
+### `noisy` — Regularized Synthesis from Noisy Examples
+
+Treat scalar I/O examples as soft observations while keeping refinement checking
+mandatory. A bounded native generator and history-based sampler minimize
+mismatch rate plus a configurable complexity penalty. See
+[noisy-example synthesis](noisy-synthesis.md) for configuration, residual reports,
+supported inputs, and reproducible adaptive/uniform/full-data comparisons.
+
 ### `smt` — SMT-Guided Synthesis
 
 Constructs a candidate expression top-down using the typing context:
@@ -458,6 +466,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |
+| `noisy` | Regularized native search with adaptive sampling | Scalar examples with outliers or contradictory observations |
 | `llm`           | LLM generation   | Problems that are easy to describe in natural language |
 | `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |

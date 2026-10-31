@@ -82,6 +82,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "structure_guided",
         "polynomial",
         "decision_tree",
+        "noisy",
         "bustle",
         "bustle_baseline",
         *llm_synthesizer_menu_ids(),
