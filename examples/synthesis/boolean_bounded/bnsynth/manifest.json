@@ -1,0 +1,2233 @@
+{
+  "cases": [
+    {
+      "aeon": "cases/adder_4_9.ae",
+      "aeon_sha256": "065253599b5bad5112895b0b5d8897b2ff3d4d7dad9b0d39d5d8907b1be89e2a",
+      "bound": 5,
+      "functions": {
+        "i_1": "choose_vi_5f_1",
+        "i_10": "choose_vi_5f_10",
+        "i_11": "choose_vi_5f_11",
+        "i_12": "choose_vi_5f_12",
+        "i_2": "choose_vi_5f_2",
+        "i_3": "choose_vi_5f_3",
+        "i_7": "choose_vi_5f_7",
+        "i_8": "choose_vi_5f_8",
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "adder_4_9",
+      "inputs": [
+        "x_0",
+        "x_4",
+        "x_5",
+        "x_6"
+      ],
+      "outputs": [
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12"
+      ],
+      "source": "benchmarks/custom_and_lut/adder_4_9.v",
+      "status": "imported",
+      "unused_declarations": [
+        "i_2"
+      ],
+      "variable_order": [
+        "x_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "x_4",
+        "x_5",
+        "x_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/adder_4_9_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/lut1_2_2.ae",
+      "aeon_sha256": "26a8c8874dd8be6ea30d98d0188df48aa9b8404fd0819e468670ecad8878bf8f",
+      "bound": 5,
+      "functions": {
+        "i2": "choose_vi2",
+        "i3": "choose_vi3"
+      },
+      "id": "lut1_2_2",
+      "inputs": [
+        "i0",
+        "i1"
+      ],
+      "outputs": [
+        "i2",
+        "i3"
+      ],
+      "source": "benchmarks/custom_and_lut/lut1_2_2.v",
+      "status": "imported",
+      "unused_declarations": [
+        "h",
+        "o1"
+      ],
+      "variable_order": [
+        "i0",
+        "i1",
+        "i2",
+        "i3"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/lut1_2_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/lut2-pla_2_2.ae",
+      "aeon_sha256": "12d3cb1cc204be321cde10fbabbf023177b8b1f85cc6933bc9172d145adbc47e",
+      "bound": 5,
+      "functions": {
+        "i2": "choose_vi2",
+        "i3": "choose_vi3"
+      },
+      "id": "lut2-pla_2_2",
+      "inputs": [
+        "i0",
+        "i1"
+      ],
+      "outputs": [
+        "i2",
+        "i3"
+      ],
+      "source": "benchmarks/custom_and_lut/lut2-pla_2_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i0",
+        "i1",
+        "i2",
+        "i3"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/lut2-pla_2_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/lut3-c17a_5_2.ae",
+      "aeon_sha256": "fecb27555bd06a8f7e8ee4b9df378cf3bbab916aa80b40cf4a5d2058ac47c737",
+      "bound": 5,
+      "functions": {
+        "i5": "choose_vi5",
+        "i6": "choose_vi6"
+      },
+      "id": "lut3-c17a_5_2",
+      "inputs": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4"
+      ],
+      "outputs": [
+        "i5",
+        "i6"
+      ],
+      "source": "benchmarks/custom_and_lut/lut3-c17a_5_2.v",
+      "status": "imported",
+      "unused_declarations": [
+        "N19",
+        "N23_1",
+        "N23_2",
+        "i4",
+        "i6"
+      ],
+      "variable_order": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4",
+        "i5",
+        "i6"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/lut3-c17a_5_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/lut4-c17b_5_2.ae",
+      "aeon_sha256": "cc8bc9d6e1c5ec961f1533d3e0104ca7c3814d4de99d60018e9f1234fe18b4b1",
+      "bound": 5,
+      "functions": {
+        "i5": "choose_vi5",
+        "i6": "choose_vi6"
+      },
+      "id": "lut4-c17b_5_2",
+      "inputs": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4"
+      ],
+      "outputs": [
+        "i5",
+        "i6"
+      ],
+      "source": "benchmarks/custom_and_lut/lut4-c17b_5_2.v",
+      "status": "imported",
+      "unused_declarations": [
+        "N10",
+        "N22_1",
+        "N22_2",
+        "i0"
+      ],
+      "variable_order": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4",
+        "i5",
+        "i6"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/lut4-c17b_5_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/lut5-c17c_5_2.ae",
+      "aeon_sha256": "5e2a713e1764c57c76f4c53336b19baff01b8f81698b3faebc0876b92ae6d97b",
+      "bound": 5,
+      "functions": {
+        "i5": "choose_vi5",
+        "i6": "choose_vi6"
+      },
+      "id": "lut5-c17c_5_2",
+      "inputs": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4"
+      ],
+      "outputs": [
+        "i5",
+        "i6"
+      ],
+      "source": "benchmarks/custom_and_lut/lut5-c17c_5_2.v",
+      "status": "imported",
+      "unused_declarations": [
+        "N10",
+        "N22_1",
+        "N22_2",
+        "i0",
+        "i5"
+      ],
+      "variable_order": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4",
+        "i5",
+        "i6"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/lut5-c17c_5_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/lut6-c17d_5_2.ae",
+      "aeon_sha256": "ae702d56255da7f19b9b9836b07d54c2183353d19224bf6c5c152e50848c726f",
+      "bound": 5,
+      "functions": {
+        "i5": "choose_vi5",
+        "i6": "choose_vi6"
+      },
+      "id": "lut6-c17d_5_2",
+      "inputs": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4"
+      ],
+      "outputs": [
+        "i5",
+        "i6"
+      ],
+      "source": "benchmarks/custom_and_lut/lut6-c17d_5_2.v",
+      "status": "imported",
+      "unused_declarations": [
+        "N19",
+        "N23_1",
+        "N23_2",
+        "i4",
+        "i6"
+      ],
+      "variable_order": [
+        "i0",
+        "i1",
+        "i2",
+        "i3",
+        "i4",
+        "i5",
+        "i6"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/lut6-c17d_5_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/lut7-ctrl_7_1.ae",
+      "aeon_sha256": "cb6625fe124a20feb6290bca117184073a020f765b6b4a5a2fb261ff97b45f6e",
+      "bound": 5,
+      "functions": {
+        "i_32": "choose_vi_5f_32"
+      },
+      "id": "lut7-ctrl_7_1",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15",
+        "i_16",
+        "i_17",
+        "i_18",
+        "i_19",
+        "i_20",
+        "i_21",
+        "i_22",
+        "i_23",
+        "i_24",
+        "i_25",
+        "i_26",
+        "i_27",
+        "i_28",
+        "i_29",
+        "i_30",
+        "i_31"
+      ],
+      "outputs": [
+        "i_32"
+      ],
+      "source": "benchmarks/custom_and_lut/lut7-ctrl_7_1.v",
+      "status": "imported",
+      "unused_declarations": [
+        "Cin",
+        "alu_i_31",
+        "alu_i_32",
+        "alu_op_0",
+        "alu_op_1",
+        "alu_op_2",
+        "alu_op_ext_2",
+        "alu_op_ext_3",
+        "beqz",
+        "bgez",
+        "bltz",
+        "bnez",
+        "halt",
+        "i_0",
+        "i_1",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15",
+        "i_16",
+        "i_17",
+        "i_18",
+        "i_19",
+        "i_2",
+        "i_20",
+        "i_21",
+        "i_22",
+        "i_23",
+        "i_24",
+        "i_25",
+        "i_3",
+        "i_31",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "invA",
+        "invB",
+        "jump",
+        "mem_write",
+        "n100",
+        "n101",
+        "n102",
+        "n103",
+        "n104",
+        "n106",
+        "n107",
+        "n108",
+        "n109",
+        "n110",
+        "n111",
+        "n112",
+        "n113",
+        "n114",
+        "n115",
+        "n117",
+        "n118",
+        "n119",
+        "n120",
+        "n121",
+        "n123",
+        "n124",
+        "n125",
+        "n126",
+        "n127",
+        "n128",
+        "n129",
+        "n131",
+        "n132",
+        "n134",
+        "n135",
+        "n136",
+        "n137",
+        "n139",
+        "n140",
+        "n141",
+        "n142",
+        "n143",
+        "n145",
+        "n146",
+        "n147",
+        "n148",
+        "n149",
+        "n150",
+        "n151",
+        "n153",
+        "n154",
+        "n156",
+        "n158",
+        "n159",
+        "n160",
+        "n161",
+        "n162",
+        "n164",
+        "n165",
+        "n166",
+        "n167",
+        "n169",
+        "n170",
+        "n171",
+        "n173",
+        "n174",
+        "n175",
+        "n177",
+        "n179",
+        "n180",
+        "n181",
+        "n182",
+        "n183",
+        "n184",
+        "n185",
+        "n186",
+        "n188",
+        "n189",
+        "n190",
+        "n191",
+        "n192",
+        "n193",
+        "n194",
+        "n195",
+        "n197",
+        "n198",
+        "n200",
+        "n201",
+        "n202",
+        "n203",
+        "n205",
+        "n206",
+        "n207",
+        "n50",
+        "n51",
+        "n52",
+        "n53",
+        "n54",
+        "n55",
+        "n56",
+        "n57",
+        "n58",
+        "n59",
+        "n60",
+        "n61",
+        "n63",
+        "n64",
+        "n65",
+        "n66",
+        "n67",
+        "n68",
+        "n69",
+        "n71",
+        "n72",
+        "n73",
+        "n74",
+        "n75",
+        "n76",
+        "n77",
+        "n78",
+        "n80",
+        "n81",
+        "n82",
+        "n83",
+        "n84",
+        "n85",
+        "n86",
+        "n87",
+        "n88",
+        "n89",
+        "n90",
+        "n91",
+        "n92",
+        "n93",
+        "n94",
+        "n95",
+        "n96",
+        "n97",
+        "n99",
+        "reg_write",
+        "sel_alu_opB_0",
+        "sel_alu_opB_1",
+        "sel_pc_opA",
+        "sel_pc_opB",
+        "sel_reg_dst_1",
+        "sel_wb",
+        "sign"
+      ],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15",
+        "i_16",
+        "i_17",
+        "i_18",
+        "i_19",
+        "i_20",
+        "i_21",
+        "i_22",
+        "i_23",
+        "i_24",
+        "i_25",
+        "i_26",
+        "i_27",
+        "i_28",
+        "i_29",
+        "i_30",
+        "i_31",
+        "i_32"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/lut7-ctrl_7_1_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/mirror_20_20.ae",
+      "aeon_sha256": "df98b94dea898aed656ac1e25e530ddfb8af12e9e915b254786f32855717e57e",
+      "bound": 5,
+      "functions": {
+        "i_20": "choose_vi_5f_20",
+        "i_21": "choose_vi_5f_21",
+        "i_22": "choose_vi_5f_22",
+        "i_23": "choose_vi_5f_23",
+        "i_24": "choose_vi_5f_24",
+        "i_25": "choose_vi_5f_25",
+        "i_26": "choose_vi_5f_26",
+        "i_27": "choose_vi_5f_27",
+        "i_28": "choose_vi_5f_28",
+        "i_29": "choose_vi_5f_29",
+        "i_30": "choose_vi_5f_30",
+        "i_31": "choose_vi_5f_31",
+        "i_32": "choose_vi_5f_32",
+        "i_33": "choose_vi_5f_33",
+        "i_34": "choose_vi_5f_34",
+        "i_35": "choose_vi_5f_35",
+        "i_36": "choose_vi_5f_36",
+        "i_37": "choose_vi_5f_37",
+        "i_38": "choose_vi_5f_38",
+        "i_39": "choose_vi_5f_39"
+      },
+      "id": "mirror_20_20",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15",
+        "i_16",
+        "i_17",
+        "i_18",
+        "i_19"
+      ],
+      "outputs": [
+        "i_20",
+        "i_21",
+        "i_22",
+        "i_23",
+        "i_24",
+        "i_25",
+        "i_26",
+        "i_27",
+        "i_28",
+        "i_29",
+        "i_30",
+        "i_31",
+        "i_32",
+        "i_33",
+        "i_34",
+        "i_35",
+        "i_36",
+        "i_37",
+        "i_38",
+        "i_39"
+      ],
+      "source": "benchmarks/custom_and_lut/mirror_20_20.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15",
+        "i_16",
+        "i_17",
+        "i_18",
+        "i_19",
+        "i_20",
+        "i_21",
+        "i_22",
+        "i_23",
+        "i_24",
+        "i_25",
+        "i_26",
+        "i_27",
+        "i_28",
+        "i_29",
+        "i_30",
+        "i_31",
+        "i_32",
+        "i_33",
+        "i_34",
+        "i_35",
+        "i_36",
+        "i_37",
+        "i_38",
+        "i_39"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/mirror_20_20_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/mirror_5_5.ae",
+      "aeon_sha256": "2727eaf9dd8deab3851345b3c7df770e642b8f13fb8a7ff626e75655ea080810",
+      "bound": 5,
+      "functions": {
+        "i_5": "choose_vi_5f_5",
+        "i_6": "choose_vi_5f_6",
+        "i_7": "choose_vi_5f_7",
+        "i_8": "choose_vi_5f_8",
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "mirror_5_5",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "outputs": [
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9"
+      ],
+      "source": "benchmarks/custom_and_lut/mirror_5_5.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/mirror_5_5_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/misc1_2_1.ae",
+      "aeon_sha256": "b3588316a1fac294518fc7e7205203800a0f0642c7738078c20b11a6be4d56ff",
+      "bound": 5,
+      "functions": {
+        "i_2": "choose_vi_5f_2"
+      },
+      "id": "misc1_2_1",
+      "inputs": [
+        "i_0",
+        "i_1"
+      ],
+      "outputs": [
+        "i_2"
+      ],
+      "source": "benchmarks/custom_and_lut/misc1_2_1.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/misc1_2_1_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/misc2_3_1.ae",
+      "aeon_sha256": "17a3194ea43b40dc32ff9e06a3052494e5e41404037071a9b0ca9fa1ea0732c0",
+      "bound": 5,
+      "functions": {
+        "i_3": "choose_vi_5f_3"
+      },
+      "id": "misc2_3_1",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2"
+      ],
+      "outputs": [
+        "i_3"
+      ],
+      "source": "benchmarks/custom_and_lut/misc2_3_1.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/misc2_3_1_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/misc3_2_3.ae",
+      "aeon_sha256": "1548fc52373b91b66c6ce38aa3a1c773977f6ca4270492428fef835056fa8f32",
+      "bound": 5,
+      "functions": {
+        "i_0": "choose_vi_5f_0",
+        "i_3": "choose_vi_5f_3",
+        "i_4": "choose_vi_5f_4"
+      },
+      "id": "misc3_2_3",
+      "inputs": [
+        "i_1",
+        "i_2"
+      ],
+      "outputs": [
+        "i_0",
+        "i_3",
+        "i_4"
+      ],
+      "source": "benchmarks/custom_and_lut/misc3_2_3.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/misc3_2_3_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/misc4_2_3.ae",
+      "aeon_sha256": "f674a0de02ef864bcb386894061183c04dd3e0fa134d6e1c2ad4f11e7679da30",
+      "bound": 5,
+      "functions": {
+        "i_2": "choose_vi_5f_2",
+        "i_3": "choose_vi_5f_3",
+        "i_4": "choose_vi_5f_4"
+      },
+      "id": "misc4_2_3",
+      "inputs": [
+        "i_0",
+        "i_1"
+      ],
+      "outputs": [
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "source": "benchmarks/custom_and_lut/misc4_2_3.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/misc4_2_3_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/multiplexer_1_1.ae",
+      "aeon_sha256": "d729e2db6c775c2dad337257583f84485c2a1823be74b5ae577f1b1370d96ae6",
+      "bound": 5,
+      "functions": {
+        "i_1": "choose_vi_5f_1"
+      },
+      "id": "multiplexer_1_1",
+      "inputs": [
+        "i_0"
+      ],
+      "outputs": [
+        "i_1"
+      ],
+      "source": "benchmarks/custom_and_lut/multiplexer_1_1.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/multiplexer_1_1_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/multiplexer_3_3.ae",
+      "aeon_sha256": "e14b751f212dad6f9998770959239672b96d2a890440070501c784e8ecd5366b",
+      "bound": 5,
+      "functions": {
+        "i_3": "choose_vi_5f_3",
+        "i_4": "choose_vi_5f_4",
+        "i_5": "choose_vi_5f_5"
+      },
+      "id": "multiplexer_3_3",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2"
+      ],
+      "outputs": [
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "source": "benchmarks/custom_and_lut/multiplexer_3_3.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/multiplexer_3_3_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xnor-implies_6_2.ae",
+      "aeon_sha256": "3d66b095dfbae95e85baea91e9b6da2c2a1aebac111c11c8edc221dd16c081ae",
+      "bound": 5,
+      "functions": {
+        "i_6": "choose_vi_5f_6",
+        "i_7": "choose_vi_5f_7"
+      },
+      "id": "xnor-implies_6_2",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "outputs": [
+        "i_6",
+        "i_7"
+      ],
+      "source": "benchmarks/custom_and_lut/xnor-implies_6_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xnor-implies_6_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xnor-implies_8_2.ae",
+      "aeon_sha256": "6bc0faf4ea32594b73a780400a47efabeb34c63fcec62c770ee45a7af7bea4f0",
+      "bound": 5,
+      "functions": {
+        "i_8": "choose_vi_5f_8",
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "xnor-implies_8_2",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "outputs": [
+        "i_8",
+        "i_9"
+      ],
+      "source": "benchmarks/custom_and_lut/xnor-implies_8_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xnor-implies_8_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xnor_6_2.ae",
+      "aeon_sha256": "f9d0d25a70c9d9eee71beb4e421f4a7ca500b89a7c710edcadcb82764747c528",
+      "bound": 5,
+      "functions": {
+        "i_6": "choose_vi_5f_6",
+        "i_7": "choose_vi_5f_7"
+      },
+      "id": "xnor_6_2",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "outputs": [
+        "i_6",
+        "i_7"
+      ],
+      "source": "benchmarks/custom_and_lut/xnor_6_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xnor_6_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xnor_7_1.ae",
+      "aeon_sha256": "83b7f6b47118604a8de31ff7e6924e55bf8afe5102f4ad83aeea72f957288c1d",
+      "bound": 5,
+      "functions": {
+        "i_7": "choose_vi_5f_7"
+      },
+      "id": "xnor_7_1",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6"
+      ],
+      "outputs": [
+        "i_7"
+      ],
+      "source": "benchmarks/custom_and_lut/xnor_7_1.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xnor_7_1_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor-implies_6_2.ae",
+      "aeon_sha256": "02172f06e240e716e80f8492d05176800953838ca1d8ef2e119c431763daa37c",
+      "bound": 5,
+      "functions": {
+        "i_7": "choose_vi_5f_7"
+      },
+      "id": "xor-implies_6_2",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6"
+      ],
+      "outputs": [
+        "i_7"
+      ],
+      "source": "benchmarks/custom_and_lut/xor-implies_6_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor-implies_6_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor-implies_8_8.ae",
+      "aeon_sha256": "2e63accb5446546f876a463579aef3644817ffe022b0e2bd4587fe4e23f2acac",
+      "bound": 5,
+      "functions": {
+        "i_10": "choose_vi_5f_10",
+        "i_11": "choose_vi_5f_11",
+        "i_12": "choose_vi_5f_12",
+        "i_13": "choose_vi_5f_13",
+        "i_14": "choose_vi_5f_14",
+        "i_15": "choose_vi_5f_15",
+        "i_8": "choose_vi_5f_8",
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "xor-implies_8_8",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "outputs": [
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15"
+      ],
+      "source": "benchmarks/custom_and_lut/xor-implies_8_8.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor-implies_8_8_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_1_4.ae",
+      "aeon_sha256": "3ef7aaa72df7c2848da16858d1b34640ba29ed63eb28c772d0e831858beeb89e",
+      "bound": 5,
+      "functions": {
+        "i_1": "choose_vi_5f_1",
+        "i_2": "choose_vi_5f_2",
+        "i_3": "choose_vi_5f_3",
+        "i_4": "choose_vi_5f_4"
+      },
+      "id": "xor_1_4",
+      "inputs": [
+        "i_0"
+      ],
+      "outputs": [
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_1_4.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_1_4_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_2_2.ae",
+      "aeon_sha256": "196ab917b65a307e3407f46d04a375bdfe3d64ea8c6beb916426d5e07642dce4",
+      "bound": 5,
+      "functions": {
+        "i_2": "choose_vi_5f_2",
+        "i_3": "choose_vi_5f_3"
+      },
+      "id": "xor_2_2",
+      "inputs": [
+        "i_0",
+        "i_1"
+      ],
+      "outputs": [
+        "i_2",
+        "i_3"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_2_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_2_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_2_3.ae",
+      "aeon_sha256": "c3e5993bb06ad6834b5a0ba9874bca31f9222b170f532e21568c5ffb21d166fe",
+      "bound": 5,
+      "functions": {
+        "i_2": "choose_vi_5f_2",
+        "i_3": "choose_vi_5f_3",
+        "i_4": "choose_vi_5f_4"
+      },
+      "id": "xor_2_3",
+      "inputs": [
+        "i_0",
+        "i_1"
+      ],
+      "outputs": [
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_2_3.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_2_3_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_2_4.ae",
+      "aeon_sha256": "4a30c8d468ced7f81893624fbe382cd8886ecce3a78ee6913ab44fc816b51a4e",
+      "bound": 5,
+      "functions": {
+        "i_2": "choose_vi_5f_2",
+        "i_3": "choose_vi_5f_3",
+        "i_4": "choose_vi_5f_4",
+        "i_5": "choose_vi_5f_5"
+      },
+      "id": "xor_2_4",
+      "inputs": [
+        "i_0",
+        "i_1"
+      ],
+      "outputs": [
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_2_4.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_2_4_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_3_3.ae",
+      "aeon_sha256": "14f58cbf6826806f45283b481d145359f8c5ccbfee81069b932e707bc422c527",
+      "bound": 5,
+      "functions": {
+        "i_3": "choose_vi_5f_3",
+        "i_4": "choose_vi_5f_4",
+        "i_5": "choose_vi_5f_5"
+      },
+      "id": "xor_3_3",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2"
+      ],
+      "outputs": [
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_3_3.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_3_3_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_4_2.ae",
+      "aeon_sha256": "f5a71b9b374f5987bfb9844f1bddaacc034d8ea6391853a884f6f461cc341a84",
+      "bound": 5,
+      "functions": {
+        "i_4": "choose_vi_5f_4",
+        "i_5": "choose_vi_5f_5"
+      },
+      "id": "xor_4_2",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3"
+      ],
+      "outputs": [
+        "i_4",
+        "i_5"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_4_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_4_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_4_3.ae",
+      "aeon_sha256": "5da7784d97ecf52811bd2176323357b3badd60e58129beddbf4827c74f734b05",
+      "bound": 5,
+      "functions": {
+        "i_4": "choose_vi_5f_4",
+        "i_5": "choose_vi_5f_5",
+        "i_6": "choose_vi_5f_6"
+      },
+      "id": "xor_4_3",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3"
+      ],
+      "outputs": [
+        "i_4",
+        "i_5",
+        "i_6"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_4_3.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_4_3_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_5_2.ae",
+      "aeon_sha256": "6eda95c44ea6103eae8f03cdd544df3de498529fefc5297852d667b5f0dc8be6",
+      "bound": 5,
+      "functions": {
+        "i_5": "choose_vi_5f_5",
+        "i_6": "choose_vi_5f_6"
+      },
+      "id": "xor_5_2",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "outputs": [
+        "i_5",
+        "i_6"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_5_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_5_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_5_3.ae",
+      "aeon_sha256": "fe6ad697a003489083593fd06ab3424c7a0a3a97f74fc0d1ef9c9d2cc1205c51",
+      "bound": 5,
+      "functions": {
+        "i_5": "choose_vi_5f_5",
+        "i_6": "choose_vi_5f_6",
+        "i_7": "choose_vi_5f_7"
+      },
+      "id": "xor_5_3",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4"
+      ],
+      "outputs": [
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_5_3.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_5_3_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_6_10.ae",
+      "aeon_sha256": "3cb6874988ee7b126d72f3b1b3bcfdeaa6e2a825daa31693fae8e3c8975d21e6",
+      "bound": 5,
+      "functions": {
+        "i_10": "choose_vi_5f_10",
+        "i_11": "choose_vi_5f_11",
+        "i_12": "choose_vi_5f_12",
+        "i_13": "choose_vi_5f_13",
+        "i_14": "choose_vi_5f_14",
+        "i_15": "choose_vi_5f_15",
+        "i_6": "choose_vi_5f_6",
+        "i_7": "choose_vi_5f_7",
+        "i_8": "choose_vi_5f_8",
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "xor_6_10",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "outputs": [
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_6_10.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_6_10_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_6_2.ae",
+      "aeon_sha256": "4929da557453121b0a4c2685172fe4ea19b39cfdde14ef7dfe4e524f833c0ef0",
+      "bound": 5,
+      "functions": {
+        "i_6": "choose_vi_5f_6",
+        "i_7": "choose_vi_5f_7"
+      },
+      "id": "xor_6_2",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "outputs": [
+        "i_6",
+        "i_7"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_6_2.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_6_2_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_6_26.ae",
+      "aeon_sha256": "82924b8cc04fe8574e4b72d214558a4b39f75d05281b7c712f1e1086e700b351",
+      "bound": 5,
+      "functions": {
+        "i_10": "choose_vi_5f_10",
+        "i_11": "choose_vi_5f_11",
+        "i_12": "choose_vi_5f_12",
+        "i_13": "choose_vi_5f_13",
+        "i_14": "choose_vi_5f_14",
+        "i_15": "choose_vi_5f_15",
+        "i_16": "choose_vi_5f_16",
+        "i_17": "choose_vi_5f_17",
+        "i_18": "choose_vi_5f_18",
+        "i_19": "choose_vi_5f_19",
+        "i_20": "choose_vi_5f_20",
+        "i_21": "choose_vi_5f_21",
+        "i_22": "choose_vi_5f_22",
+        "i_23": "choose_vi_5f_23",
+        "i_24": "choose_vi_5f_24",
+        "i_25": "choose_vi_5f_25",
+        "i_26": "choose_vi_5f_26",
+        "i_27": "choose_vi_5f_27",
+        "i_28": "choose_vi_5f_28",
+        "i_29": "choose_vi_5f_29",
+        "i_30": "choose_vi_5f_30",
+        "i_31": "choose_vi_5f_31",
+        "i_6": "choose_vi_5f_6",
+        "i_7": "choose_vi_5f_7",
+        "i_8": "choose_vi_5f_8",
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "xor_6_26",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5"
+      ],
+      "outputs": [
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15",
+        "i_16",
+        "i_17",
+        "i_18",
+        "i_19",
+        "i_20",
+        "i_21",
+        "i_22",
+        "i_23",
+        "i_24",
+        "i_25",
+        "i_26",
+        "i_27",
+        "i_28",
+        "i_29",
+        "i_30",
+        "i_31"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_6_26.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15",
+        "i_16",
+        "i_17",
+        "i_18",
+        "i_19",
+        "i_20",
+        "i_21",
+        "i_22",
+        "i_23",
+        "i_24",
+        "i_25",
+        "i_26",
+        "i_27",
+        "i_28",
+        "i_29",
+        "i_30",
+        "i_31"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_6_26_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_7_1.ae",
+      "aeon_sha256": "7d277ca7609390318c4719f123b7b4e32981753e0fa2050b9ad8da24601d161a",
+      "bound": 5,
+      "functions": {
+        "i_7": "choose_vi_5f_7"
+      },
+      "id": "xor_7_1",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6"
+      ],
+      "outputs": [
+        "i_7"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_7_1.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_7_1_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_8_1.ae",
+      "aeon_sha256": "0e84dd6960c53e98c79ffa48382f9282a6b662b4ffdbc0a41df817f433fc030d",
+      "bound": 5,
+      "functions": {
+        "i_8": "choose_vi_5f_8"
+      },
+      "id": "xor_8_1",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "outputs": [
+        "i_8"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_8_1.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_8_1_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_8_8.ae",
+      "aeon_sha256": "c93439920af0ac2e2ca8d177884e794bd50e027235cc28ce90202f60ff6980f8",
+      "bound": 5,
+      "functions": {
+        "i_10": "choose_vi_5f_10",
+        "i_11": "choose_vi_5f_11",
+        "i_12": "choose_vi_5f_12",
+        "i_13": "choose_vi_5f_13",
+        "i_14": "choose_vi_5f_14",
+        "i_15": "choose_vi_5f_15",
+        "i_8": "choose_vi_5f_8",
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "xor_8_8",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7"
+      ],
+      "outputs": [
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_8_8.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9",
+        "i_10",
+        "i_11",
+        "i_12",
+        "i_13",
+        "i_14",
+        "i_15"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_8_8_varstoelim.txt"
+    },
+    {
+      "aeon": "cases/xor_9_1.ae",
+      "aeon_sha256": "9e2cefe6439d32f1b004b738c2a9a7d62eafcc8d2f3eb452fdb8472ff2da5ebf",
+      "bound": 5,
+      "functions": {
+        "i_9": "choose_vi_5f_9"
+      },
+      "id": "xor_9_1",
+      "inputs": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8"
+      ],
+      "outputs": [
+        "i_9"
+      ],
+      "source": "benchmarks/custom_and_lut/xor_9_1.v",
+      "status": "imported",
+      "unused_declarations": [],
+      "variable_order": [
+        "i_0",
+        "i_1",
+        "i_2",
+        "i_3",
+        "i_4",
+        "i_5",
+        "i_6",
+        "i_7",
+        "i_8",
+        "i_9"
+      ],
+      "y_file": "benchmarks/custom_and_lut/Yvarlist/xor_9_1_varstoelim.txt"
+    }
+  ],
+  "default_bound": 5,
+  "files": {
+    "LICENSE": {
+      "bytes": 1066,
+      "sha256": "bd9f6d11f0fb8657285361ac410a126ce10e785332fc6c6b5e805d8b90cc50e2"
+    },
+    "README.md": {
+      "bytes": 1379,
+      "sha256": "e6f01befb8bc3a8581a19ee986205fdd2d81369385df195e1fc83547fb52cf6e"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/LUT7_32_1_varstoelim.txt": {
+      "bytes": 6,
+      "sha256": "613fd50fa8f9d2259eeccfdac60cd4d8121e95e9ac93a41d5cec72e8a333c870"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/LUT7_7_26_varstoelim.txt": {
+      "bytes": 134,
+      "sha256": "772f4a8fc4c281cc5fbc8d01ed2c1009e6db22ae4d513ba756eb1901adbe372c"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/adder_4_9_varstoelim.txt": {
+      "bytes": 39,
+      "sha256": "9e6f432076c7159b7af60914dcfeeb00291d1cb7dcc7a2a8e4491582f83c2017"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/lut1_2_2_varstoelim.txt": {
+      "bytes": 6,
+      "sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/lut2-pla_2_2_varstoelim.txt": {
+      "bytes": 6,
+      "sha256": "6d80d711e6333f957ef8ee4f87216afc0340adce1c564c65de7f1db99712e07b"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/lut3-c17a_5_2_varstoelim.txt": {
+      "bytes": 6,
+      "sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/lut4-c17b_5_2_varstoelim.txt": {
+      "bytes": 6,
+      "sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/lut5-c17c_5_2_varstoelim.txt": {
+      "bytes": 6,
+      "sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/lut6-c17d_5_2_varstoelim.txt": {
+      "bytes": 6,
+      "sha256": "fbeefaac02ae79f222ba013867a2c0436d11b807551eec18d9118a2f059979e9"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/lut7-ctrl_7_1_varstoelim.txt": {
+      "bytes": 5,
+      "sha256": "9ae8048cc7a897af4c748cf5c7d9dc63fee035ce742d38fe90a38b2e69fc00cc"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/mirror_10_10_varstoelim.txt": {
+      "bytes": 50,
+      "sha256": "ef8befe3f05a436210175013837a3a04239ec80dc98cdd6adfedbbb1e83f32d5"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/mirror_20_20_varstoelim.txt": {
+      "bytes": 100,
+      "sha256": "3937566726eeb2f1e8ef29fa74f46575451d3182f8340e7b4b9fec49dc19fc8f"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/mirror_5_5_varstoelim.txt": {
+      "bytes": 20,
+      "sha256": "8981e760be4f6e0543cf16285fd6df41e61c727675505d1b6cb1e31535ab0273"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/misc1_2_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "93fffc393c06eb3336bb75a88dcbc48b29fb1254712661b96c670495df0db094"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/misc2_3_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/misc3_2_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "4adf73061574188858040a9522f59d073cd71fe357d22fbed2911f934090044c"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/misc4_2_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "cf2a4522756f8daf446e62e23b69595febcd109b6ba9115a7fcb63be8a39df91"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/misc5_6_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "41646f9934ebd9c4b66c3deafe2a51b49f6d65ef179ef413af510596dc7d18b0"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/multiplexer_1_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "bfc3ed441f5e7466d8d2fa5effd67b360ad6458558d42798fed8872eb83fa096"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/multiplexer_2_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "7160a3f9a13b4e158d4e22c0d6e8adb373ad7d82170e555606420fde90fb7e80"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/multiplexer_3_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "8fa3884f0806eee3fc3a3b3213a8835edd2eadef325b02491076b26d2deef187"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xnor-implies_6_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xnor-implies_7_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xnor-implies_8_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "f8e9eeef794096633b58e3daffed252a33224e61e0ac7943cbd0c4d390eae752"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xnor_6_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xnor_7_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor-implies_1_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "bfc3ed441f5e7466d8d2fa5effd67b360ad6458558d42798fed8872eb83fa096"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor-implies_6_2_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor-implies_8_8_varstoelim.txt": {
+      "bytes": 38,
+      "sha256": "f7d1474528028428bfbabd91b9db2fcdce0dafc0104606cf98423839c5be5cfa"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_1_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "b77f2e51106a3e37aed2550148f1b5c0a129b6e58b9c016f68e66a7f6959651f"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_1_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "48f1ec673325f35a9c0027ed835c530c8e6da64bc876e9f943deee9563d6ad01"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_1_4_varstoelim.txt": {
+      "bytes": 16,
+      "sha256": "28d991037a34d7f751060fb43e9018ad042b64b56a010d0971a936eae8ae5dd4"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_1_5_varstoelim.txt": {
+      "bytes": 20,
+      "sha256": "c7ba565c70969308b2efa613fa3b8fbfc100cdf10760f53ae5cbd687059cf463"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_2_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "7160a3f9a13b4e158d4e22c0d6e8adb373ad7d82170e555606420fde90fb7e80"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_2_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "cf2a4522756f8daf446e62e23b69595febcd109b6ba9115a7fcb63be8a39df91"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_2_4_varstoelim.txt": {
+      "bytes": 16,
+      "sha256": "420f332ac530851614b3d3e595a9410862633a068bf19bdaa43051751e497e74"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_3_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "83b83f1069b9983bf10f193f68f3e4efb9f3bbc8eddd09272437955de7351e2c"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_3_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "abe1db5d9d5e8d2c25dcf4eb92cba2db7178626bc0f2a0ca6783a01042b3b439"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_3_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "8fa3884f0806eee3fc3a3b3213a8835edd2eadef325b02491076b26d2deef187"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_4_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "9d54db317a1c0375b1b30e5aa332d5870529eabb0e0a191afbd3613a3124f35f"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_4_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "358f0763d43702075f969ea4729f01aeceab1fdf81170b6453d017fdec6bd4d6"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_4_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "8c5bffc3097503e10c30afa6c42771329da3e24724d3b45daf2ecb8a50a9841e"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_5_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "917c058b9eb1b4058acee13a3ea66801f6b5b435fa0e8bdfd4e84db4a93b1369"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_5_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "2fc4440bb559ee6416dbbe5a825e9c71cb48111781d572ba0308036de7b472e4"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_5_3_varstoelim.txt": {
+      "bytes": 12,
+      "sha256": "e28c1b7e54670e0ca9e7423cb801386402bc79e607fafd7ce06252b50150ab2d"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_6_10_varstoelim.txt": {
+      "bytes": 46,
+      "sha256": "c5644906dedb9cbaecd3359a551a659e7fc14aff98df4c10d171e10be3bc30f3"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_6_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "41646f9934ebd9c4b66c3deafe2a51b49f6d65ef179ef413af510596dc7d18b0"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_6_26_varstoelim.txt": {
+      "bytes": 126,
+      "sha256": "9f52782648f3ae760b81e95fb0a24ccb903d91a7a1096b115ca42c7ff774b961"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_6_2_varstoelim.txt": {
+      "bytes": 8,
+      "sha256": "c3b42b513ef237367e6c13eb1c5d59e5b6f603342f24bd3a6f80bbf2a2a9eca0"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_7_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "b39cef1c5e8d647858ce6e6aeb847868e33b5179708581acd4f16f21929fccbe"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_8_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "a4911eee001c8463d49ed4d0955e78e5541de579e3188bc1077ec647f489792a"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_8_8_varstoelim.txt": {
+      "bytes": 38,
+      "sha256": "f7d1474528028428bfbabd91b9db2fcdce0dafc0104606cf98423839c5be5cfa"
+    },
+    "benchmarks/custom_and_lut/Yvarlist/xor_9_1_varstoelim.txt": {
+      "bytes": 4,
+      "sha256": "a07f65ce6f0a9803aacab56048e7b8f823e1537974dabb98e5e9a337b6620ad3"
+    },
+    "benchmarks/custom_and_lut/adder_4_9.v": {
+      "bytes": 947,
+      "sha256": "672ed7b90432aa7aa2df302984bc92118d97765fb669c1f5065383c5d5c9d850"
+    },
+    "benchmarks/custom_and_lut/lut1_2_2.v": {
+      "bytes": 218,
+      "sha256": "ce2fec61f78a5aeb8298a92b82196ed9965983e21930ca15e6440d9b135cc916"
+    },
+    "benchmarks/custom_and_lut/lut2-pla_2_2.v": {
+      "bytes": 240,
+      "sha256": "7620c87939e44ba3719a72e12008cc9d9fe25eaa0f063b9e06fb8cfdd51ef2a9"
+    },
+    "benchmarks/custom_and_lut/lut3-c17a_5_2.v": {
+      "bytes": 409,
+      "sha256": "546c2fa5421abb2b112c346955138b8da41daa667b10c05682948adeb39b1cbc"
+    },
+    "benchmarks/custom_and_lut/lut4-c17b_5_2.v": {
+      "bytes": 409,
+      "sha256": "2bc4d209a7e2b80ab554f94db41214086e900338bd2442fb02c1b2c9a8089c5d"
+    },
+    "benchmarks/custom_and_lut/lut5-c17c_5_2.v": {
+      "bytes": 392,
+      "sha256": "35985231b692daf701a891dfa9dbd5f9687fcdfb0746f435a63b81c4b4646ea4"
+    },
+    "benchmarks/custom_and_lut/lut6-c17d_5_2.v": {
+      "bytes": 392,
+      "sha256": "e3ae36a49965f334b7ab214c348b907a4cb6eb6fa8c015c7b175c6d659b38e31"
+    },
+    "benchmarks/custom_and_lut/lut7-ctrl_7_1.v": {
+      "bytes": 7186,
+      "sha256": "1f249584011e72d47309822099c9878c883c3c49cc8626e9bd25af0a97480bc5"
+    },
+    "benchmarks/custom_and_lut/mirror_20_20.v": {
+      "bytes": 1658,
+      "sha256": "31173f0109bb6b6a82db6d5babad1f584a38dd8dc5cdeddb11624e9ad6a581b4"
+    },
+    "benchmarks/custom_and_lut/mirror_5_5.v": {
+      "bytes": 428,
+      "sha256": "a9881c08d700da78066b6a72a1fd857efac984097c7b67c2998a1b5500c900a8"
+    },
+    "benchmarks/custom_and_lut/misc1_2_1.v": {
+      "bytes": 168,
+      "sha256": "773f1b5ab6ff82e7482943fc3326392be5c13f40a8da5b6771fd909efaebd8be"
+    },
+    "benchmarks/custom_and_lut/misc2_3_1.v": {
+      "bytes": 177,
+      "sha256": "580eb808759d740427a679bd61dc67880ea38ad9bc16124aa160691b4a6546b0"
+    },
+    "benchmarks/custom_and_lut/misc3_2_3.v": {
+      "bytes": 288,
+      "sha256": "55e706cf33514ce69b059edcf684d957b43bb16319245bf8e3bf775ca5131bcc"
+    },
+    "benchmarks/custom_and_lut/misc4_2_3.v": {
+      "bytes": 214,
+      "sha256": "8825b0ea91645b6ad21ccde7b1a77075ce4585299a3ae2080e650b06ba6b64e4"
+    },
+    "benchmarks/custom_and_lut/multiplexer_1_1.v": {
+      "bytes": 108,
+      "sha256": "f57b1816800f6283f72a2b906e6dc1dcf941c149ee2554bb8ceae1cdc567da91"
+    },
+    "benchmarks/custom_and_lut/multiplexer_3_3.v": {
+      "bytes": 243,
+      "sha256": "1b581661462d417a376e5caaa4b046dc2909d16dbc3e27fa555472aed5d698f0"
+    },
+    "benchmarks/custom_and_lut/xnor-implies_6_2.v": {
+      "bytes": 221,
+      "sha256": "816476f2cff5f9ee9051a95582d13aefd42825b2b3c76e4f80c7b9beda6f39b9"
+    },
+    "benchmarks/custom_and_lut/xnor-implies_8_2.v": {
+      "bytes": 258,
+      "sha256": "7f89be04a97bd46e9a5acae84f3a4898a5602ba5a4ae3e13c38ce45fef99eb0e"
+    },
+    "benchmarks/custom_and_lut/xnor_6_2.v": {
+      "bytes": 199,
+      "sha256": "1a1a54f9b374fae8052231b09b5680392935e3ec768b2acaf7f7f6a2e321ac5c"
+    },
+    "benchmarks/custom_and_lut/xnor_7_1.v": {
+      "bytes": 199,
+      "sha256": "1a1a54f9b374fae8052231b09b5680392935e3ec768b2acaf7f7f6a2e321ac5c"
+    },
+    "benchmarks/custom_and_lut/xor-implies_6_2.v": {
+      "bytes": 213,
+      "sha256": "d592b8fdc49e1fb30de092aaccdb673a5a0d49152a11c2a3b5b0583046690cdb"
+    },
+    "benchmarks/custom_and_lut/xor-implies_8_8.v": {
+      "bytes": 413,
+      "sha256": "baea460bc1ef7485f9fe7732b4438f8dd7969b7195276aa32fd98e938bd6dcdb"
+    },
+    "benchmarks/custom_and_lut/xor_1_4.v": {
+      "bytes": 213,
+      "sha256": "1e2c72c89e67f00e380a459eda2b6e1bce8b2452304bd7e957fc187fb4a3ac33"
+    },
+    "benchmarks/custom_and_lut/xor_2_2.v": {
+      "bytes": 177,
+      "sha256": "25b9234d727e38527de6c676159d1486b7feaa46e363174f1144d3db992b9ef1"
+    },
+    "benchmarks/custom_and_lut/xor_2_3.v": {
+      "bytes": 213,
+      "sha256": "1e2c72c89e67f00e380a459eda2b6e1bce8b2452304bd7e957fc187fb4a3ac33"
+    },
+    "benchmarks/custom_and_lut/xor_2_4.v": {
+      "bytes": 162,
+      "sha256": "295c305a5ad6f3f8b910f60040de33fd48d61d80f6d5198d7e727be32e42c2bd"
+    },
+    "benchmarks/custom_and_lut/xor_3_3.v": {
+      "bytes": 247,
+      "sha256": "4fa5296b21c8b22684adac5c973f582f8db14853e5bbc3ad0703e9e777ff38ee"
+    },
+    "benchmarks/custom_and_lut/xor_4_2.v": {
+      "bytes": 247,
+      "sha256": "4fa5296b21c8b22684adac5c973f582f8db14853e5bbc3ad0703e9e777ff38ee"
+    },
+    "benchmarks/custom_and_lut/xor_4_3.v": {
+      "bytes": 178,
+      "sha256": "368dcdff8fc8155802446c64bc3fd82db397e6fbfc44c4cbb6a58d9a441bc9a1"
+    },
+    "benchmarks/custom_and_lut/xor_5_2.v": {
+      "bytes": 178,
+      "sha256": "368dcdff8fc8155802446c64bc3fd82db397e6fbfc44c4cbb6a58d9a441bc9a1"
+    },
+    "benchmarks/custom_and_lut/xor_5_3.v": {
+      "bytes": 196,
+      "sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9"
+    },
+    "benchmarks/custom_and_lut/xor_6_10.v": {
+      "bytes": 343,
+      "sha256": "886ee140d1abe8451e32104ff7300599feb53fde7c00a61114f0ee3e255139dc"
+    },
+    "benchmarks/custom_and_lut/xor_6_2.v": {
+      "bytes": 196,
+      "sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9"
+    },
+    "benchmarks/custom_and_lut/xor_6_26.v": {
+      "bytes": 647,
+      "sha256": "b16f7665e2b931c1e7b3b7c7be054358f2248c3f8273e05be898fc22680db4d5"
+    },
+    "benchmarks/custom_and_lut/xor_7_1.v": {
+      "bytes": 196,
+      "sha256": "63ee9dec83de1dbadc5bd055e8216842864cd2552a7f5b24078f5a04229c4ee9"
+    },
+    "benchmarks/custom_and_lut/xor_8_1.v": {
+      "bytes": 220,
+      "sha256": "c23f6ee2304ce01cd8fd02dda8220d4b9e3e987d2fc2863c5a5d3acf2b95d608"
+    },
+    "benchmarks/custom_and_lut/xor_8_8.v": {
+      "bytes": 343,
+      "sha256": "886ee140d1abe8451e32104ff7300599feb53fde7c00a61114f0ee3e255139dc"
+    },
+    "benchmarks/custom_and_lut/xor_9_1.v": {
+      "bytes": 238,
+      "sha256": "b78f0dceb5f49563453a0dd8bea6c16800af1818bf8e51de825ae3c1d78c822c"
+    },
+    "bnsynth.sh": {
+      "bytes": 344,
+      "sha256": "79d03ce1b96d8f51680b4c35ca08d47e1e76f1d2db01e0da72902672c19cab2a"
+    },
+    "code/utils/utils.py": {
+      "bytes": 62134,
+      "sha256": "dc38da7c01fd340ec3f3b327e723c34aff64a37eb6548287e2682a2261ece1e4"
+    },
+    "experiments/evaluate.py": {
+      "bytes": 1113,
+      "sha256": "38ae41b7f8189c9143f5eaa467de7d59ee8b2f6b6c1efc41423ad328f7650d7c"
+    }
+  },
+  "format": "CNF",
+  "inventory": {
+    "benchmark_y_lists": 53,
+    "excluded_reference_y_lists": 52,
+    "matched": 38,
+    "orphan_y_lists": [
+      "benchmarks/custom_and_lut/Yvarlist/LUT7_32_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/LUT7_7_26_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/mirror_10_10_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/misc5_6_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/multiplexer_2_2_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xnor-implies_7_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor-implies_1_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_1_2_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_1_3_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_1_5_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_3_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_3_2_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_4_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_5_1_varstoelim.txt",
+      "benchmarks/custom_and_lut/Yvarlist/xor_6_1_varstoelim.txt"
+    ],
+    "repository_y_lists_total": 105,
+    "specifications": 38
+  },
+  "license": "MIT",
+  "paper_schedule": [
+    [
+      1,
+      60
+    ],
+    [
+      5,
+      120
+    ],
+    [
+      20,
+      120
+    ],
+    [
+      50,
+      180
+    ],
+    [
+      500,
+      300
+    ],
+    [
+      1000,
+      600
+    ]
+  ],
+  "repository": "https://github.com/rrlcs/bnsynth",
+  "revision": "12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4",
+  "schema_version": 1,
+  "semantics": "forall X,Y. F(X,Y) => F(X,psi(X))"
+}
