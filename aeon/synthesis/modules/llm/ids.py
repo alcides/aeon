@@ -24,20 +24,23 @@ LLM_OLLAMA_MODELS["llm"] = LLM_OLLAMA_MODELS[DEFAULT_LLM_SYNTHESIZER_ID]
 
 # OpenAI-compatible backend (model from ``AEON_LLM_MODEL``, endpoint from ``AEON_LLM_BASE_URL``).
 LLM_OPENAI_SYNTHESIZER_ID = "llm_openai"
+LLM_TYPE_CONSTRAINED_ID = "llm_type_constrained"
 
 
 def is_llm_synthesizer(synthesizer_id: str) -> bool:
-    return synthesizer_id in LLM_OLLAMA_MODELS or synthesizer_id == LLM_OPENAI_SYNTHESIZER_ID
+    return synthesizer_id in LLM_OLLAMA_MODELS or synthesizer_id in {LLM_OPENAI_SYNTHESIZER_ID, LLM_TYPE_CONSTRAINED_ID}
 
 
 def llm_synthesizer_menu_ids() -> list[str]:
     """Synthesizer ids shown in the LSP/infoview menus (one entry per model)."""
-    return [sid for sid in LLM_OLLAMA_MODELS if sid != "llm"] + [LLM_OPENAI_SYNTHESIZER_ID]
+    return [sid for sid in LLM_OLLAMA_MODELS if sid != "llm"] + [LLM_OPENAI_SYNTHESIZER_ID, LLM_TYPE_CONSTRAINED_ID]
 
 
 def llm_synthesizer_label(synthesizer_id: str) -> str:
     """Display label with the backend model visible in menus."""
     if synthesizer_id == LLM_OPENAI_SYNTHESIZER_ID:
         return "LLM generation (OpenAI-compatible)"
+    if synthesizer_id == LLM_TYPE_CONSTRAINED_ID:
+        return "Type-constrained LLM generation (local Transformers)"
     model = LLM_OLLAMA_MODELS.get(synthesizer_id, synthesizer_id)
     return f"LLM generation ({model})"

@@ -20,6 +20,7 @@ from aeon.synthesis.modules.llm.ids import (
     DEFAULT_LLM_SYNTHESIZER_ID,
     LLM_OLLAMA_MODELS,
     LLM_OPENAI_SYNTHESIZER_ID,
+    LLM_TYPE_CONSTRAINED_ID,
     is_llm_synthesizer as is_llm_synthesizer,
     llm_synthesizer_label as llm_synthesizer_label,
     llm_synthesizer_menu_ids as llm_synthesizer_menu_ids,
@@ -39,6 +40,11 @@ from aeon.utils.name import Name
 def resolve_llm_backend(synthesizer_id: str) -> tuple[str, str]:
     """Return ``(model, provider)`` for synthesizer id ``synthesizer_id``."""
     from aeon.synthesis.modules.llm.client import default_openai_model, llm_provider
+
+    if synthesizer_id == LLM_TYPE_CONSTRAINED_ID:
+        from aeon.synthesis.api import UnsupportedSynthesisGoal
+
+        raise UnsupportedSynthesisGoal("llm_type_constrained requires its token-level Transformers adapter")
 
     if synthesizer_id == LLM_OPENAI_SYNTHESIZER_ID or llm_provider() == "openai":
         return default_openai_model(), "openai"
