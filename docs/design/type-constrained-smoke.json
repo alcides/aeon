@@ -1,0 +1,49 @@
+{
+  "fixture": "Torch GRU (fixed output biases)",
+  "torch_version": "2.14.1+cpu",
+  "seed": 0,
+  "temperature": 0,
+  "max_tokens": 4,
+  "purpose": "adapter/masking correctness, not generation quality",
+  "cases": [
+    {
+      "case": "literal",
+      "source": " true",
+      "validated": true,
+      "seconds": 0.004475895781069994,
+      "tokens": 2,
+      "rejected_tokens": 5,
+      "unknown_tokens": 0,
+      "oracle_seconds": 0.0015804744325578213,
+      "attempts": 1,
+      "validation_passed": 1,
+      "validation_failed": 0
+    },
+    {
+      "case": "application",
+      "source": " f 0",
+      "validated": true,
+      "seconds": 0.004086259286850691,
+      "tokens": 2,
+      "rejected_tokens": 5,
+      "unknown_tokens": 0,
+      "oracle_seconds": 0.00304472167044878,
+      "attempts": 1,
+      "validation_passed": 1,
+      "validation_failed": 0
+    },
+    {
+      "case": "function",
+      "source": " fun x => x",
+      "validated": true,
+      "seconds": 0.0053007337264716625,
+      "tokens": 2,
+      "rejected_tokens": 5,
+      "unknown_tokens": 0,
+      "oracle_seconds": 0.004246714059263468,
+      "attempts": 1,
+      "validation_passed": 1,
+      "validation_failed": 0
+    }
+  ]
+}

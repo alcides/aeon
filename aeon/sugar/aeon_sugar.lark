@@ -358,7 +358,8 @@ kind : "B" -> base_kind
 OPSECTION.5 : "(==)" | "(=)" | "(!=)" | "(≠)" | "(<=)" | "(≤)" | "(>=)" | "(≥)" | "(<)" | "(>)"
             | "(+)" | "(-)" | "(*)" | "(/)" | "(%)" | "(&&)" | "(||)"
 
-BOOLLIT.5 : "true" | "false"
+// Boolean keywords must not split an identifier such as ``falsehood``.
+BOOLLIT.5 : /(?:true|false)(?![A-Za-z_0-9])/
 // QTT multiplicities. The contextual LALR lexer routes to ``MULT`` only
 // in binder positions (after `let`, after `(`); in regular expression
 // positions ``0`` and ``1`` continue to be ``INTLIT``.

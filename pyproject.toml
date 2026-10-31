@@ -62,6 +62,10 @@ image = [
 llm = [
     "ollama",
 ]
+llm-type-constrained = [
+    "torch>=2.5,<3",
+    "transformers>=4.46,<6",
+]
 synthesis-ortools = [
     "ortools"
 ]

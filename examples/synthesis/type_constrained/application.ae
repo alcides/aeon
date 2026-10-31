@@ -1,0 +1,6 @@
+def positive (x:Int) : {v:Bool | v = (x > 0)} := x > 0;
+
+@prompt("Apply the available positive predicate to x.")
+@example(answer 0 = false)
+@example(answer 2 = true)
+def answer (x:Int) : {v:Bool | v = (x > 0)} := ?body;
