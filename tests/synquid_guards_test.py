@@ -1,5 +1,5 @@
 from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
-from aeon.core.terms import Annotation, Application, Literal, Var
+from aeon.core.terms import Annotation, Application, Literal, TypeApplication, Var
 from aeon.core.types import TypeConstructor
 from aeon.synthesis.modules.synquid.guards import (
     bool_pairwise_conjunctions,
@@ -55,7 +55,7 @@ def test_template_instantiation_over_in_scope_int_vars():
 
     def _rel(t, op, lhs, rhs):
         match t:
-            case Annotation(Application(Application(Var(o), x), y), _):
+            case Annotation(Application(Application(TypeApplication(Var(o), _), x), y), _):
                 return o.name == op and _leaf(x) == lhs and _leaf(y) == rhs
             case _:
                 return False

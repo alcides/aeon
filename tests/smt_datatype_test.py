@@ -152,3 +152,38 @@ def test_list_size_cons_entailment(list_int):
         ),
     )
     assert smt_valid(constraint)
+
+
+def test_polymorphic_measure_specialization_uses_matching_datatype_sort(list_int):
+    from aeon.core.types import TypeVar, AbstractionType
+    from aeon.verification.sub import lower_constraint_type
+    from aeon.verification.vcs import UninterpretedFunctionDeclaration
+    from aeon.core.liquid import LiquidLiteralBool
+
+    element = TypeVar(Name("a", 9501))
+    datatype = TypeConstructor(list_int.name, [element])
+    xs, hd, size = Name("xs", 9502), Name("hd", 9503), Name("List_size", 9504)
+    cons = LiquidApp(Name("List_cons", 9505), [LiquidVar(hd), LiquidVar(Name("List_nil", 9506))])
+    signature = lower_constraint_type(AbstractionType(Name("list", 9507), datatype, t_int))
+
+    def obligation(length):
+        return UninterpretedFunctionDeclaration(
+            size,
+            signature,
+            Implication(
+                hd,
+                element,
+                LiquidLiteralBool(True),
+                Implication(
+                    xs,
+                    datatype,
+                    LiquidApp(Name("==", 0), [LiquidVar(xs), cons]),
+                    LiquidConstraint(
+                        LiquidApp(Name("==", 0), [LiquidApp(size, [LiquidVar(xs)]), LiquidLiteralInt(length)])
+                    ),
+                ),
+            ),
+        )
+
+    assert smt_valid(obligation(1))
+    assert not smt_valid(obligation(2))

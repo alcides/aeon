@@ -185,6 +185,22 @@ def test_infer_polymorphic_eq_mismatch():
         type_infer_liquid(ctx, term)
 
 
+@pytest.mark.parametrize("other,valid", [(t_int, True), (t_bool, False)])
+def test_polymorphic_equality_uses_sorts_of_nested_refined_arguments(other, valid):
+    a = TypeVar(Name("a"))
+    element = RefinedType(x, t_int, LiquidApp(Name(">"), [LiquidVar(x), LiquidLiteralInt(0)]))
+
+    def nested(ty):
+        return TypeConstructor(Name("Box"), [TypeConstructor(Name("List"), [ty])])
+
+    ctx = _lctx(
+        variables={x: nested(element), y: nested(other)},
+        functions={Name("=="): [a, a, t_bool]},
+    )
+    equality = LiquidApp(Name("=="), [LiquidVar(x), LiquidVar(y)])
+    assert check_liquid(ctx, equality, t_bool) is valid
+
+
 # ---------------------------------------------------------------------------
 # type_infer_liquid: horn application
 # ---------------------------------------------------------------------------

@@ -242,6 +242,12 @@ def type_infer_liquid(
 
             def resolve_type(ty: Type) -> TypeConstructor | TypeVar:
                 match ty:
+                    case RefinedType(_, base, _):
+                        # MATCH retains refinements inside datatype arguments.
+                        # Qualifier unification compares their logical sorts,
+                        # including when an entire container instantiates a
+                        # polymorphic operand (for example list equality).
+                        return resolve_type(base)
                     case TypeConstructor(name, args):
                         return TypeConstructor(name, [resolve_type(arg) for arg in args], loc=ty.loc)
                     case TypeVar(tv):

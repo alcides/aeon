@@ -4,6 +4,7 @@ from aeon.core.terms import Literal
 from aeon.core.types import t_int
 from aeon.synthesis.api import InvalidIndividualException, TimeoutInEvaluationException, SynthesisNotSuccessful
 from aeon.synthesis.modules.synquid import synthesizer as module
+from aeon.synthesis.modules.synquid import engine
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -11,9 +12,12 @@ from aeon.synthesis.decorators import Goal
 
 
 @pytest.mark.parametrize("error", [InvalidIndividualException, TimeoutInEvaluationException])
-def test_synquid_continues_after_invalid_fitness(monkeypatch, error):
+@pytest.mark.parametrize("mode", ["paper", "size_merge", "iterative_deepening"])
+def test_synquid_continues_after_invalid_fitness(monkeypatch, error, mode):
     candidates = [Literal(0, t_int), Literal(1, t_int)]
     monkeypatch.setattr(module, "iter_candidates_size_then_level", lambda *a, **kw: iter(candidates))
+    monkeypatch.setattr(module, "sorted_level_candidates", lambda *a, **kw: iter(candidates))
+    monkeypatch.setattr(engine, "synthes_memory", lambda *a, **kw: iter(candidates))
     observed = []
 
     def evaluate(term):
@@ -29,15 +33,18 @@ def test_synquid_continues_after_invalid_fitness(monkeypatch, error):
         lambda term: True,
         evaluate,
         name,
-        {name: {"goals": [Goal(True, 1, name)]}},
+        {name: {"goals": [Goal(True, 1, name)], "synquid_search": mode, "synquid_max_level": 0}},
         ui=SilentSynthesisUI(),
     )
     assert result == candidates[1]
     assert observed == [0, 1]
 
 
-def test_all_invalid_fitness_returns_no_solution(monkeypatch):
+@pytest.mark.parametrize("mode", ["paper", "size_merge", "iterative_deepening"])
+def test_all_invalid_fitness_returns_no_solution(monkeypatch, mode):
     monkeypatch.setattr(module, "iter_candidates_size_then_level", lambda *a, **kw: iter([Literal(0, t_int)]))
+    monkeypatch.setattr(module, "sorted_level_candidates", lambda *a, **kw: iter([Literal(0, t_int)]))
+    monkeypatch.setattr(engine, "synthes_memory", lambda *a, **kw: iter([Literal(0, t_int)]))
 
     def evaluate(term):
         raise InvalidIndividualException()
@@ -50,6 +57,6 @@ def test_all_invalid_fitness_returns_no_solution(monkeypatch):
             lambda term: True,
             evaluate,
             name,
-            {name: {"goals": [Goal(True, 1, name)]}},
+            {name: {"goals": [Goal(True, 1, name)], "synquid_search": mode, "synquid_max_level": 0}},
             ui=SilentSynthesisUI(),
         )

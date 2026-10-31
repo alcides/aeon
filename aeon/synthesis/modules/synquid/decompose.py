@@ -1,8 +1,9 @@
 """Synquid-style goal decomposition (application spine).
 
 Maps a function type and a goal return type to argument goal types when the
-unrefined return shape matches (necessary precondition for APP-style
-synthesis). Full round-trip refinement propagation is future work.
+unrefined return shape matches. This compatibility API is only a shape filter;
+``round_trip.ApplicationState`` owns result obligations, contextual argument
+facts, polymorphic constraints and partial-application consistency in search.
 """
 
 from __future__ import annotations

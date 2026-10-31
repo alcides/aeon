@@ -287,6 +287,10 @@ def instantiate_refinement_with_horn_in_liquid(
                 paired: list[tuple[LiquidTerm, TypeConstructor | TypeVar]] = []
                 for i, a in enumerate(args):
                     d = domains[i] if i < len(domains) else domains[-1]
+                    # A solved liquid type argument may refine a predicate's
+                    # domain. Horn slots carry its sort, not its refinement.
+                    if isinstance(d, RefinedType):
+                        d = d.type
                     assert isinstance(d, (TypeConstructor, TypeVar))
                     paired.append((a, d))
                 return LiquidHornApplication(horn_name, paired, loc=loc)

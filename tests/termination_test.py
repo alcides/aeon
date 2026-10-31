@@ -291,14 +291,13 @@ def test_termination_factorial_generates_constraints():
     rec = Rec(f, int_arrow_int, _abs(n, body), _lit(0), decreasing_by=(_var(n),))
     result = termination_metric_constraints(rec)
     assert not isinstance(result, type(None))
-    assert isinstance(result, LiquidConstraint)
+    assert isinstance(result, Implication)
 
 
 def test_termination_factorial_with_refinement_is_valid():
     """Factorial with n >= 0 precondition should produce valid termination constraints.
 
-    The constraint is wrapped in an Implication to bind `n` in the SMT context,
-    since termination constraints are normally conjoined with typing constraints.
+    Entry parameters are bound by the termination constraint itself.
     """
     refined_ty = AbstractionType(
         n,
@@ -315,10 +314,8 @@ def test_termination_factorial_with_refinement_is_valid():
     )
     rec = Rec(f, refined_ty, _abs(n, body), _lit(0), decreasing_by=(_var(n),))
     constraint = termination_metric_constraints(rec)
-    assert isinstance(constraint, LiquidConstraint)
-    # Wrap in Implication to bind n for the SMT solver
-    wrapped = Implication(n, t_int, LiquidLiteralBool(True), constraint)
-    assert smt_valid(wrapped)
+    assert isinstance(constraint, Implication)
+    assert smt_valid(constraint)
 
 
 def test_termination_ackermann_generates_conjunction():
@@ -334,7 +331,9 @@ def test_termination_ackermann_generates_conjunction():
     )
     rec = Rec(f, two_int_arrow_int, _abs(m, _abs(n, body)), _lit(0), decreasing_by=(_var(m), _var(n)))
     constraint = termination_metric_constraints(rec)
-    assert isinstance(constraint, Conjunction)
+    assert isinstance(constraint, Implication)
+    assert isinstance(constraint.seq, Implication)
+    assert isinstance(constraint.seq.seq, Conjunction)
 
 
 def test_termination_ackermann_with_refinements_is_valid():
@@ -353,10 +352,8 @@ def test_termination_ackermann_with_refinements_is_valid():
     )
     rec = Rec(f, ty, _abs(m, _abs(n, body)), _lit(0), decreasing_by=(_var(m), _var(n)))
     constraint = termination_metric_constraints(rec)
-    assert isinstance(constraint, Conjunction)
-    # Wrap in Implications to bind m and n for the SMT solver
-    wrapped = Implication(m, t_int, LiquidLiteralBool(True), Implication(n, t_int, LiquidLiteralBool(True), constraint))
-    assert smt_valid(wrapped)
+    assert isinstance(constraint, Implication)
+    assert smt_valid(constraint)
 
 
 def test_termination_mismatched_formals_returns_false():
@@ -367,3 +364,29 @@ def test_termination_mismatched_formals_returns_false():
     constraint = termination_metric_constraints(rec)
     assert isinstance(constraint, LiquidConstraint)
     assert constraint.expr == LiquidLiteralBool(False)
+
+
+def test_polymorphic_recursive_calls_are_checked_for_decrease():
+    from aeon.core.types import TypePolymorphism, TypeVar, Kind
+    from aeon.core.terms import TypeApplication, TypeAbstraction
+    from aeon.typechecking.typeinfer import check_type
+    from aeon.utils.ctx_helpers import built_std_context
+
+    a = Name("a", 9400)
+    n, x, v, f = (Name(label, 9401 + i) for i, label in enumerate(("n", "x", "v", "f")))
+    nat = RefinedType(v, t_int, LiquidApp(Name(">=", 0), [LiquidVar(v), LiquidLiteralInt(0)]))
+    goal = TypePolymorphism(a, Kind.BASE, AbstractionType(n, nat, AbstractionType(x, TypeVar(a), TypeVar(a))))
+
+    def binary(op, left, right):
+        return _app(_app(TypeApplication(Var(Name(op, 0)), t_int), left), right)
+
+    def function(argument):
+        call = _app(_app(TypeApplication(Var(f), TypeVar(a)), argument), Var(x))
+        body = _if(binary("<=", Var(n), _lit(0)), Var(x), call)
+        value = TypeAbstraction(a, Kind.BASE, _abs(n, _abs(x, body)))
+        return Rec(f, goal, value, Var(f), decreasing_by=(Var(n),))
+
+    good = function(binary("-", Var(n), _lit(1)))
+    bad = function(Var(n))
+    assert check_type(built_std_context(), good, goal)
+    assert not check_type(built_std_context(), bad, goal)

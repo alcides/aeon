@@ -786,17 +786,14 @@ def flatten(
                 pred = substitution_in_liquid(pred, LiquidVar(name), oname)
                 seq = rename_constraint(seq, oname, name)
             _bound_names.add(str(name))
-            match base:
-                case TypeVar(iname):
-                    base = TypeConstructor(iname)
-                case TypeConstructor(_, _):
-                    # Keep args; ``get_sort`` mangles to a per-instantiation
-                    # Z3 sort while leaving the Aeon-level type intact so
-                    # ``_specialize_liquid_term`` can read its shape.
-                    pass
-                case _:
-                    assert False, f"{base} ({type(base)}) is not a base type."
-            yield from flatten(seq, ctx.with_var(name, base).with_premise(pred), _trivial_memo, _bound_names)
+            # Lower nested variables too: a binder of ``List a`` must use
+            # the same monomorphic carrier as a measure specialised at a.
+            # Leaving the inner TypeVar intact breaks both specialisation and
+            # constructor equations for polymorphic matches.
+            assert isinstance(base, (TypeVar, TypeConstructor)), f"{base} is not a base type"
+            lowered_base = lower_constraint_type(base)
+            assert isinstance(lowered_base, TypeConstructor)
+            yield from flatten(seq, ctx.with_var(name, lowered_base).with_premise(pred), _trivial_memo, _bound_names)
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
@@ -848,6 +845,10 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
     n = 0
     for c in flatten(constraint):
         n += 1
+        # These clauses have no shared assertions. Discard internal search
+        # state too: push/pop alone can make later recursive-measure queries
+        # time out even when the same formula solves quickly in isolation.
+        s.reset()
         s.push()
 
         # Monomorphic, uncurried function declarations need no separate
@@ -918,6 +919,7 @@ def model_for_invalid(constraint: Constraint) -> list[tuple[str, str]] | None:
     s = current_session().state(VerificationState).get_solver()
     translate_memo: dict[int, tuple[LiquidTerm, Any]] = {}
     for c in flatten(constraint):
+        s.reset()
         s.push()
         try:
             try:
@@ -1359,21 +1361,20 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                         else translate_liq(rhs, variables, memo)
                     )
                 return left == right if fun_name.name == "==" else left != right
-            # Prefer reflected datatype constructors / LH measures over
-            # specialised uninterpreted twins when the symbol is exact.
-            # ``__spec__`` twins are monomorphisations over *opaque* sorts
-            # (``List a``); the RecFunction lives at ``List_Int`` and must not
-            # steal those applications (sort mismatch / unsound domain patch).
+            # Resolve a measure at the actual argument sort, including
+            # specialised twins. A measure from another instantiation must
+            # never replace an uninterpreted symbol over an opaque carrier.
             raw_fun = str(fun_name)
-            is_spec_twin = "__spec__" in fun_name.name or "__spec__" in raw_fun
             ctor = lookup_constructor(fun_name.name)
             if ctor is None:
                 ctor = lookup_constructor(raw_fun)
             measure = None
-            if ctor is None and not is_spec_twin:
-                measure = lookup_measure(fun_name.name)
-                if measure is None:
-                    measure = lookup_measure(raw_fun)
+            if ctor is None and args and lookup_measure(raw_fun) is not None:
+                argument = translate_liq(args[0], variables, memo)
+                if hasattr(argument, "sort"):
+                    proposed = lookup_measure(raw_fun, str(argument.sort()))
+                    if proposed is not None and proposed.domain(0) == argument.sort():
+                        measure = proposed
             if ctor is not None:
                 fun = ctor
             elif measure is not None:
