@@ -22,6 +22,16 @@ Best suited for problems with a rich fitness landscape and sufficient budget.
 
 ---
 
+### `dp_gp` — Dynamic-Programming Transformations
+
+Uses native GP to synthesize pruning, compact solution representations and
+updates, memoization keys, and compact search states for an explicit
+`@dp_gp(reference, bound1, bound2)` finite additive generator. Emits executable
+Aeon code and checks equivalence exhaustively on the declared input domain.
+See [the source interface, assurance limits and examples](dp-gp.md).
+
+---
+
 ### `random_search` — Random Search
 
 Native random walks over Aeon's core term grammar (the same backward and forward actions as `enumerative`). Each sample expands holes at random until a complete term is produced (or the depth bound is hit); the shared driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Simple but effective as a baseline or for problems where the search space is small.
@@ -468,6 +478,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
 | `gp`            | Native linear-genome GP | Complex expressions, multi-objective problems |
+| `dp_gp`         | GP components for structured DP transformations | Bounded additive reference generators |
 | `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `rl_mcts`       | Policy/value-guided Monte-Carlo grammar search | Refinement-only synthesis, learned search experiments |

@@ -1,0 +1,5 @@
+import DPVector;
+import DPFrontier;
+inductive DPCache
+| no_cache : DPCache
+| entry(key:DPVector)(values:DPFrontier)(rest:DPCache):DPCache

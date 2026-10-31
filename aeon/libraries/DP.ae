@@ -1,0 +1,108 @@
+# Pure generic finite choice-tree and DP transformation combinators.
+import DPVector;
+import DPFrontier;
+import DPCache;
+import DPLookup;
+import DPRun;
+
+def vector(a:Int)(b:Int)(c:Int):DPVector := DPVector.cell a (DPVector.cell b (DPVector.cell c DPVector.vnil));
+def get(v:DPVector)(i:Int):Int := match v with
+| DPVector.vnil => 0
+| DPVector.cell h t => if i <= 0 then h else get t (i - 1);
+
+def equal(a:DPVector)(b:DPVector):Bool := match a with
+| DPVector.vnil => (match b with | DPVector.vnil => true | DPVector.cell h t => false)
+| DPVector.cell h t => (match b with | DPVector.vnil => false | DPVector.cell j u => h = j && equal t u);
+
+def lookup(k:DPVector)(c:DPCache):DPLookup := match c with
+| DPCache.no_cache => DPLookup.absent
+| DPCache.entry j v rest => if equal k j then DPLookup.present v else lookup k rest;
+
+def append(xs:DPFrontier)(ys:DPFrontier):DPFrontier := match xs with
+| DPFrontier.empty => ys
+| DPFrontier.more x rest => DPFrontier.more x (append rest ys);
+
+def map(f:(p:DPVector)->DPVector)(xs:DPFrontier):DPFrontier := match xs with
+| DPFrontier.empty => DPFrontier.empty
+| DPFrontier.more p rest => DPFrontier.more (f p) (map f rest);
+
+# Keep an existing representative on equality. Never delete both sides of a
+# reflexive/symmetric comparison.
+def covered(dom:(a:DPVector)->(b:DPVector)->Bool)(p:DPVector)(xs:DPFrontier):Bool := match xs with
+| DPFrontier.empty => false
+| DPFrontier.more q rest => dom q p || covered dom p rest;
+def remove(dom:(a:DPVector)->(b:DPVector)->Bool)(p:DPVector)(xs:DPFrontier):DPFrontier := match xs with
+| DPFrontier.empty => DPFrontier.empty
+| DPFrontier.more q rest => if dom p q then remove dom p rest else DPFrontier.more q (remove dom p rest);
+def insert(dom:(a:DPVector)->(b:DPVector)->Bool)(p:DPVector)(xs:DPFrontier):DPFrontier :=
+  if covered dom p xs then xs else DPFrontier.more p (remove dom p xs);
+def thin(dom:(a:DPVector)->(b:DPVector)->Bool)(xs:DPFrontier):DPFrontier := match xs with
+| DPFrontier.empty => DPFrontier.empty
+| DPFrontier.more p rest => insert dom p (thin dom rest);
+
+def best(score:(p:DPVector)->Int)(floor:Int)(xs:DPFrontier):Int := match xs with
+| DPFrontier.empty => floor
+| DPFrontier.more p rest => let v := score p in let tail := best score floor rest in if v >= tail then v else tail;
+
+# The reference keeps every solution and does not memoize any subproblem.
+def generate(fuel:Int)(state:DPVector)
+  (allow:(s:DPVector)->(a:Int)->Bool)(step:(s:DPVector)->(a:Int)->DPVector)
+  (build:(s:DPVector)->(a:Int)->(p:DPVector)->DPVector)(base:DPVector):DPFrontier :=
+  if fuel <= 0 then DPFrontier.more base DPFrontier.empty else
+    let left : DPFrontier := if allow state 0 then
+      map (build state 0) (generate (fuel - 1) (step state 0) allow step build base) else DPFrontier.empty in
+    let right : DPFrontier := if allow state 1 then
+      map (build state 1) (generate (fuel - 1) (step state 1) allow step build base) else DPFrontier.empty in
+    append left right;
+
+# Generic transformed generator. The memo table is local to this invocation;
+# fuel is always part of a key, so different remaining depths cannot collide.
+def run(fuel:Int)(state:DPVector)
+  (allow:(s:DPVector)->(a:Int)->Bool)(step:(s:DPVector)->(a:Int)->DPVector)
+  (build:(s:DPVector)->(a:Int)->(p:DPVector)->DPVector)(base:DPVector)
+  (dom:(a:DPVector)->(b:DPVector)->Bool)(key:(s:DPVector)->DPVector)(cache:DPCache):DPRun :=
+  let k := DPVector.cell fuel (key state) in
+  match lookup k cache with
+  | DPLookup.present values => DPRun.result values cache
+  | DPLookup.absent =>
+    if fuel <= 0 then DPRun.result (DPFrontier.more base DPFrontier.empty) (DPCache.entry k (DPFrontier.more base DPFrontier.empty) cache) else
+    let left : DPRun := if allow state 0 then
+      run (fuel - 1) (step state 0) allow step build base dom key cache else DPRun.result DPFrontier.empty cache in
+    match left with | DPRun.result l lc =>
+      let right : DPRun := if allow state 1 then
+        run (fuel - 1) (step state 1) allow step build base dom key lc else DPRun.result DPFrontier.empty lc in
+      match right with | DPRun.result r rc =>
+        let values := thin dom (append (map (build state 0) l) (map (build state 1) r)) in
+        DPRun.result values (DPCache.entry k values rc);
+
+def solve(fuel:Int)(state:DPVector)
+  (allow:(s:DPVector)->(a:Int)->Bool)(step:(s:DPVector)->(a:Int)->DPVector)
+  (build:(s:DPVector)->(a:Int)->(p:DPVector)->DPVector)(base:DPVector)
+  (dom:(a:DPVector)->(b:DPVector)->Bool)(key:(s:DPVector)->DPVector)
+  (score:(p:DPVector)->Int)(floor:Int):Int :=
+  match run fuel state allow step build base dom key DPCache.no_cache with
+  | DPRun.result values cache => best score floor values;
+
+# Explicit scalar interface inspected by @dp_gp. Three fields are a supported
+# input fragment, not a restriction on the widths of emitted representations.
+def reference(fuel:Int)(s0:Int)(s1:Int)(s2:Int)
+  (allow:(x:Int)->(y:Int)->(z:Int)->(a:Int)->Bool)
+  (n0:(x:Int)->(y:Int)->(z:Int)->(a:Int)->Int)
+  (n1:(x:Int)->(y:Int)->(z:Int)->(a:Int)->Int)
+  (n2:(x:Int)->(y:Int)->(z:Int)->(a:Int)->Int)
+  (d0:(x:Int)->(y:Int)->(z:Int)->(a:Int)->Int)
+  (d1:(x:Int)->(y:Int)->(z:Int)->(a:Int)->Int)
+  (d2:(x:Int)->(y:Int)->(z:Int)->(a:Int)->Int)
+  (score:(x:Int)->(y:Int)->(z:Int)->Int)
+  (b0:Int)(b1:Int)(b2:Int)(floor:Int):Int :=
+  best (fun p => score (get p 0) (get p 1) (get p 2)) floor
+    (generate fuel (vector s0 s1 s2)
+      (fun s => fun a => allow (get s 0) (get s 1) (get s 2) a)
+      (fun s => fun a => vector (n0 (get s 0) (get s 1) (get s 2) a)
+                            (n1 (get s 0) (get s 1) (get s 2) a)
+                            (n2 (get s 0) (get s 1) (get s 2) a))
+      (fun s => fun a => fun p => vector
+        ((get p 0) + d0 (get s 0) (get s 1) (get s 2) a)
+        ((get p 1) + d1 (get s 0) (get s 1) (get s 2) a)
+        ((get p 2) + d2 (get s 0) (get s 1) (get s 2) a))
+      (vector b0 b1 b2));
