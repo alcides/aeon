@@ -416,7 +416,17 @@ class Emitter:
             for pat, body in reversed(e[2]):
                 inner = {**env, **self.bindings(pat, typ)}
                 rhs = self.expr(body, inner, result_type)
-                result = self.pattern_test(pat, scrutinee, typ, rhs, result, result_type)
+                # A nested pattern may fail at several depths. Share the
+                # remaining clauses as a thunk instead of copying the whole
+                # decision tree at every failure edge (exponential growth).
+                continuation = self.fresh()
+                fallback = self.fresh()
+                branch = self.pattern_test(pat, scrutinee, typ, rhs, f"(forceBranch {fallback})", result_type)
+                result = (
+                    f"(let {continuation} : (ignored:Bool) -> {self.typ(result_type)} := "
+                    f"(fun delayed_branch => {result}) in "
+                    f"let {fallback} : (Delayed {self.typ(result_type)}) := Delayed.delayed {continuation} in {branch})"
+                )
             return result
         raise ValueError(e)
 
