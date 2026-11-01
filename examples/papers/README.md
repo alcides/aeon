@@ -17,10 +17,10 @@ an Aeon synthesizer solves them, nor a reproduction of the papers' timings.
 | [GuideSyn, ICSE 2026](https://psl.hanyang.ac.kr/assets/pdf/icse26.pdf) | 80 | All artifact `test/auto_gen` example tasks |
 | [Para, PLDI 2024](https://doi.org/10.1145/3656381) | 52 | All active reference definitions in the available mirror, with regenerated examples |
 | [Hoogle+, POPL 2020](https://github.com/TyGuS/hoogle_plus) | 44 | Type-inhabitation queries |
-| [Hectare, OOPSLA 2022](https://github.com/jkoppel/ecta) | 64 | 45 Hoogle+ and 19 Stack Overflow type-inhabitation queries |
+| [Hectare, ICFP 2022](https://github.com/jkoppel/ecta) | 64 | 45 Hoogle+ and 19 Stack Overflow type-inhabitation queries |
 | [SynMem, OOPSLA 2023](https://doi.org/10.5281/zenodo.8325410) | 64 | Bounded memoization-partition tasks from 64 components in 40 benchmark files |
-| [ASAC, ISSTA 2024](https://github.com/AuQWQuA/ASAC) | 136 | Original contest I/O corpora, with token-exact output comparison |
-| [Clause2Inv, FSE 2025](https://github.com/SoftWiser-group/Clause2Inv) | 366 | 316 linear + 50 nonlinear invariant tasks; three sampled obligations each |
+| [ASAC, FSE 2024](https://github.com/AuQWQuA/ASAC) | 136 | Original contest I/O corpora, with token-exact output comparison |
+| [Clause2Inv, ISSTA 2025](https://github.com/SoftWiser-group/Clause2Inv) | 366 | 316 linear + 50 nonlinear invariant tasks; three sampled obligations each |
 
 ## Running and regenerating
 
