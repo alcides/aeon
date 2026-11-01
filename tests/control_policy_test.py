@@ -202,6 +202,9 @@ def solve(driver, backend, budget):
             backend,
             budget,
             SilentSynthesisUI(),
+            # Real rollouts can exceed the one-second default on shared CI
+            # workers. This checks validation and scoring, not throughput.
+            budget_eval=10,
         )
         for name, term in mapping.items():
             assert term is not None

@@ -79,6 +79,7 @@ def solve(driver, backend, budget=1):
             backend,
             budget,
             SilentSynthesisUI(),
+            budget_eval=10,
         )
         for name, term in mapping.items():
             assert term is not None
@@ -97,8 +98,12 @@ def test_factory_menu_and_seed(monkeypatch):
 @pytest.mark.parametrize("desired", [0, 1])
 def test_real_search_obeys_goals_defined_by_the_problem(desired):
     driver = parse(TOY.replace("DESIRED", str(desired)))
-    backend = ReGuSSynthesizer(config=Config(max_loops=1, max_sketch_nodes=3, completion_batch=1))
-    solve(driver, backend, budget=2)
+    # Bound search work, rather than requiring a loaded CI worker to discover
+    # an optimum in two seconds. The wall-clock limit remains a safety guard.
+    backend = ReGuSSynthesizer(
+        config=Config(max_nodes=3, max_loops=1, max_sketch_nodes=3, max_states=64, completion_batch=1)
+    )
+    solve(driver, backend, budget=60)
     assert call(driver, "complete") is True
     assert call(driver, "score") == 0.0
     assert backend.stats.sketches >= 2 and backend.stats.complete > 0
@@ -107,7 +112,7 @@ def test_real_search_obeys_goals_defined_by_the_problem(desired):
 
 def test_same_problem_runs_with_gp_without_translating_the_goal():
     driver = parse(TOY.replace("DESIRED", "0"))
-    solve(driver, GeneticProgrammingSynthesizer(seed=0), budget=3)
+    solve(driver, GeneticProgrammingSynthesizer(seed=0), budget=30)
     assert call(driver, "complete") is True
     assert math.isfinite(call(driver, "score"))
 
@@ -122,8 +127,10 @@ def test_execution_guided_search_learns_a_needed_conditional():
     # This plant needs feedback even on one start: a constant action overshoots
     # the target, whereas a branch can keep its state around the target.
     driver = parse(source)
-    backend = ReGuSSynthesizer(config=Config(max_nodes=4, max_loops=1, max_sketch_nodes=2, completion_batch=1))
-    mapping = solve(driver, backend, budget=8)
+    backend = ReGuSSynthesizer(
+        config=Config(max_nodes=4, max_loops=1, max_sketch_nodes=2, max_states=128, completion_batch=1)
+    )
+    mapping = solve(driver, backend, budget=120)
     assert call(driver, "score") <= 8.0
     assert backend.stats.branches > 0
     assert any("ControlProgram_branch" in str(term) for term in mapping.values())
