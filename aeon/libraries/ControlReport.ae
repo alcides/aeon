@@ -1,0 +1,6 @@
+import ControlTrace;
+
+inductive ControlReport
+| empty : ControlReport
+| episode (blocked:Int) (steps:Int) (failed:Bool) (loss:Float)
+          (trace:ControlTrace) (rest:ControlReport) : ControlReport

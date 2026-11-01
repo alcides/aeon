@@ -141,7 +141,16 @@ primitive signatures, source inventory/hashes, template typing and lineage.
 Relocating an installation is supported when relative source paths and hashes
 match; missing/stale/incompatible profiles require explicit stdlib retraining.
 
-The recorded 20,000-candidate experiment selected one macro equivalent to
+When adding or editing packaged library sources, regenerate the bundled profile
+with the `train-stdlib` command above and run `tests/amaze_test.py`. Keep the
+inventory and provenance checks enabled; updating hashes alone would misrepresent
+the training run. The current artifact records its own configuration, source
+inventory, outcomes and timings.
+
+### Initial profile measurements
+
+The [initial 20,000-candidate experiment](https://github.com/alcides/aeon/blob/f0f29b09c9d2f3fb2feda788a17994c6a197be29/aeon/synthesis/modules/amaze/stdlib-profile.json)
+selected one macro equivalent to
 `(a <= b) && c`. Initially 2/5 training functions solved; after the refresh,
 4/5 solved, including `in_range` and `bounded`. The two held-out predicates both
 solved under both grammars at **39 and 35 candidates**, respectively. There is
@@ -158,8 +167,8 @@ speedups are not claims about this adapter.
 | Held-out, selected addition | 2 / 2 | 74 | 0.00682 |
 
 All four rows recorded zero validation failures. Total offline collection,
-fitting, search and evaluation took 6.14 seconds on this run. The complete JSON
-profile, including all skipped-definition records and measurements, is 390,598
+fitting, search and evaluation took 6.14 seconds on this run. That initial JSON
+profile, including all skipped-definition records and measurements, was 390,598
 bytes (about 381 KiB). Times are observations from one small run, not stable
 performance estimates.
 

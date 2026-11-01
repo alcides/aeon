@@ -1,0 +1,5 @@
+import ControlReport;
+
+# This is an ordinary candidate feature, supplied through @cluster.
+inductive ControlObservation
+| snapshot (actions:Int) (predicates:Int) (seeds:Int) (closed:Bool) (episodes:ControlReport) : ControlObservation
