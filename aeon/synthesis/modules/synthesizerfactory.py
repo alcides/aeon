@@ -13,6 +13,7 @@ from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm.ids import (
     LLM_OLLAMA_MODELS,
     LLM_OPENAI_SYNTHESIZER_ID,
+    LLM_TYPE_CONSTRAINED_ID,
     is_llm_synthesizer,
     llm_synthesizer_label,
 )
@@ -102,6 +103,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "gp": "Native genetic programming (linear genome)",
     **{sid: llm_synthesizer_label(sid) for sid in LLM_OLLAMA_MODELS},
     LLM_OPENAI_SYNTHESIZER_ID: llm_synthesizer_label(LLM_OPENAI_SYNTHESIZER_ID),
+    LLM_TYPE_CONSTRAINED_ID: llm_synthesizer_label(LLM_TYPE_CONSTRAINED_ID),
 }
 
 
@@ -155,6 +157,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     # LLM-assisted — generate candidates from natural language.
     **dict.fromkeys(LLM_OLLAMA_MODELS, SynthesizerFamily.LLM_ASSISTED),
     LLM_OPENAI_SYNTHESIZER_ID: SynthesizerFamily.LLM_ASSISTED,
+    LLM_TYPE_CONSTRAINED_ID: SynthesizerFamily.LLM_ASSISTED,
 }
 
 _BUILTIN_SYNTHESIZER_IDS = frozenset(
@@ -259,6 +262,10 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return CPSatHoleSynthesizer(seed=seed)
         case "synquid":
             return SynquidSynthesizer(seed=seed)
+        case "llm_type_constrained":
+            from aeon.synthesis.modules.type_constrained import TypeConstrainedSynthesizer
+
+            return TypeConstrainedSynthesizer(seed=seed)
         case id if id in LLM_OLLAMA_MODELS or id == LLM_OPENAI_SYNTHESIZER_ID:
             try:
                 from aeon.synthesis.modules.llm import LLMSynthesizer, resolve_llm_backend

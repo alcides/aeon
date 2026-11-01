@@ -206,7 +206,7 @@ def test_complete_synthesis_still_exits_zero(tmp_path):
     assert "Synthesized holes:" in result.stdout
 
 
-def test_cli_backend_without_candidate_exits_two(tmp_path):
+def test_cli_decision_tree_without_examples_exits_two(tmp_path):
     path = tmp_path / "no_candidate.ae"
     path.write_text("def f(x:Int):Int := ?hole;")
     result = subprocess.run(
@@ -217,7 +217,8 @@ def test_cli_backend_without_candidate_exits_two(tmp_path):
         timeout=15,
     )
     assert result.returncode == ExitCode.SYNTHESIS_NOT_SUCCESSFUL, result.stderr
-    assert "unfilled holes" in result.stderr
+    assert "Unsupported synthesis goal" in result.stderr
+    assert "needs an output refinement to derive examples" in result.stderr
     assert "Synthesized holes:" not in result.stdout
 
 

@@ -645,6 +645,11 @@ def synthesize_holes(
 
     from aeon.synthesis.modules.noisy import NoisySynthesizer
 
+    from aeon.synthesis.modules.type_constrained import TypeConstrainedSynthesizer, check_program_scope
+
+    if isinstance(synthesizer, TypeConstrainedSynthesizer):
+        check_program_scope(term, metadata)
+
     if isinstance(synthesizer, NoisySynthesizer) and len({h for _, hs in targets for h in hs}) != 1:
         raise UnsupportedSynthesisGoal("noisy requires one independent open body hole")
 

@@ -378,6 +378,29 @@ Requires Ollama to be running locally. Use the `@prompt` decorator to provide a 
 
 ---
 
+### `llm_type_constrained` — Type-constrained local LLM decoding
+
+Constrains tokens before they are committed, using bounded ordinary-type
+completion witnesses. For example, `f : Int -> Bool` remains viable for a
+`Bool` goal because `f 0` completes it, whereas `f true ` is rejected. Complete
+expressions still pass Aeon's original refinement validator before fitness
+evaluation. A well-typed `0` can therefore be rejected for `{v:Int | v > 0}`.
+
+Install `AeonLang[llm-type-constrained]`, set `AEON_TC_MODEL` to a local
+Transformers causal model directory or model ID, and run:
+
+```bash
+AEON_TC_MODEL=/path/to/model AEON_SEED=0 python -m aeon --no-main \
+  -s llm_type_constrained --budget 60 examples/synthesis/type_constrained/application.ae
+```
+
+This provider uses token logits; Ollama and OpenAI whole-text clients remain
+separate baselines. Unsupported providers fail explicitly. Dependencies load
+only when this backend runs. See [the fragment, bounds, adapter, and smoke-test
+contract](design/type-constrained-decoding.md) for limitations and configuration.
+
+---
+
 ### `tdsyn` / `tdsyn_enumerative` — Type-Directed Synthesis (BFS) *(default)*
 
 Top-down, type-directed synthesizer that grows a partial AST by applying **backward** and **forward** actions to each open hole. Subtyping queries are discharged by an SMT solver, and when every remaining hole is a base-type leaf the synthesizer asks z3 to solve them all in one shot.
