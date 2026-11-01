@@ -142,6 +142,12 @@ class TerminalUI(SynthesisUI):
             print(line, flush=True)
 
     def report(self, report: dict) -> None:
+        if report.get("backend") == "dp_gp":
+            print(
+                f"# dp_gp: {report['assurance']}; checked={report['checked_instances']}; "
+                f"stages={len(report['stages'])}; seed={report['seed']}",
+                flush=True,
+            )
         if report.get("backend") == "noisy":
             print(
                 f"# noisy: {len(report['residuals'])}/{report['row_count']} residuals; "

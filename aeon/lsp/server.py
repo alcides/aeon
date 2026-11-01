@@ -73,6 +73,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "forward_let_tabs",
         "tactics",
         "gp",
+        "dp_gp",
         "enumerative",
         "random_search",
         "rl_mcts",

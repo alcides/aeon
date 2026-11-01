@@ -603,7 +603,9 @@ def desugar(
 
     # Folded snapshot used to lower `match` expressions everywhere — main module's
     # inductives plus inductives discovered via imports.
-    combined_inductives = list(inductive_decls_snapshot) + list(imported_inductives)
+    # Shared dependencies can expose the same declaration through several
+    # imports. Match lowering must emit each constructor handler exactly once.
+    combined_inductives = list({decl.name: decl for decl in [*inductive_decls_snapshot, *imported_inductives]}.values())
 
     # Collapse duplicate type declarations sharing a name. When two libraries
     # declare the "same" name with different arities (e.g. libraries/List.ae's
