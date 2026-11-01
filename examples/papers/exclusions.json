@@ -1,0 +1,56 @@
+[
+  {
+    "suite": "faery",
+    "paper": "https://chyanju.github.io/publications/ase23-faery.pdf",
+    "tasks": [
+      "r1",
+      "r2",
+      "r3",
+      "r4",
+      "r5",
+      "r6",
+      "r7",
+      "r8",
+      "r9",
+      "r10",
+      "r11",
+      "r12",
+      "r13",
+      "r14",
+      "r15",
+      "z1",
+      "z2",
+      "z3",
+      "z4",
+      "z5",
+      "z6",
+      "z7",
+      "z8",
+      "z9",
+      "z10",
+      "z11",
+      "z12",
+      "z13",
+      "z14",
+      "z15"
+    ],
+    "reason": "The 30 evaluation specifications and a mapping to their source tasks were not available in the located public paper/source material. Natural-language descriptions cannot recover their exact inputs, outputs, or reference functions."
+  },
+  {
+    "suite": "clause2inv",
+    "source": "clause2inv/combinator/Benchmarks/NL/c_smt/NL51.c_smt",
+    "reason": "Extra file beyond the paper's 50 nonlinear tasks; erased identifiers and incomplete terms do not define a translatable specification."
+  },
+  {
+    "suite": "synmem",
+    "paper_benchmarks": 42,
+    "artifact_benchmark_files": 40,
+    "reason": "The pinned official artifact contains 40 benchmark files (64 component problems). The two additional paper cases cannot be identified from this artifact. Imported tasks cover the finite partition subproblem, not local-objective synthesis."
+  },
+  {
+    "suite": "para",
+    "paper_configurations": 59,
+    "active_definitions_in_mirror": 52,
+    "reason": "The public mirror omits examples.lisp/tests.lisp and does not reproduce the paper's complete library configurations. Available executable definitions are imported with regenerated examples."
+  }
+]

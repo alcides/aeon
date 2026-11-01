@@ -1,0 +1,104 @@
+# Persistent functional operations used by the paper benchmark ports.
+# All folds take the function, initial accumulator, then collection.
+open Seq
+open Maybe
+open Pair
+
+def identity (x:a) : a := x;
+def compose (f:(y:b) -> c) (g:(x:a) -> b) (x:a) : c := f (g x);
+def constant (x:a) (y:b) : a := x;
+def flip (f:(x:a) -> (y:b) -> c) (y:b) (x:a) : c := f x y;
+
+def foldl (f:(acc:b) -> (x:a) -> b) (z:b) (xs:(Seq a)) : b :=
+    match xs with
+    | nil => z
+    | cons x rest => foldl f (f z x) rest;
+
+def filter (p:(x:a) -> Bool) (xs:(Seq a)) : (Seq a) :=
+    match xs with
+    | nil => nil
+    | cons x rest => if p x then cons x (filter p rest) else filter p rest;
+
+def any (p:(x:a) -> Bool) (xs:(Seq a)) : Bool :=
+    match xs with
+    | nil => false
+    | cons x rest => p x || (any p rest);
+
+def take (n:Int) (xs:(Seq a)) : (Seq a) :=
+    if n <= 0 then nil else
+    match xs with
+    | nil => nil
+    | cons x rest => cons x (take (n - 1) rest);
+
+def drop (n:Int) (xs:(Seq a)) : (Seq a) :=
+    if n <= 0 then xs else
+    match xs with
+    | nil => nil
+    | cons x rest => drop (n - 1) rest;
+
+def takeWhile (p:(x:a) -> Bool) (xs:(Seq a)) : (Seq a) :=
+    match xs with
+    | nil => nil
+    | cons x rest => if p x then cons x (takeWhile p rest) else take 0 xs;
+
+def dropWhile (p:(x:a) -> Bool) (xs:(Seq a)) : (Seq a) :=
+    match xs with
+    | nil => nil
+    | cons x rest => if p x then dropWhile p rest else xs;
+
+def concat (xss:(Seq (Seq a))) : (Seq a) :=
+    match xss with | nil => nil | cons xs rest => Seq.append xs (concat rest);
+def concatMap (f:(x:a) -> (Seq b)) (xs:(Seq a)) : (Seq b) := concat (Seq.map f xs);
+
+def head (xs:(Seq a)) : (Maybe a) :=
+    match xs with | nil => none | cons x rest => just x;
+
+def last (xs:(Seq a)) : (Maybe a) :=
+    match xs with
+    | nil => none
+    | cons x rest => if Seq.empty rest then just x else last rest;
+
+def nth (n:Int) (xs:(Seq a)) : (Maybe a) := if n < 0 then none else head (drop n xs);
+
+def zipWith (f:(x:a) -> (y:b) -> c) (xs:(Seq a)) (ys:(Seq b)) : (Seq c) :=
+    match xs with
+    | nil => nil
+    | cons x rest => (match ys with
+        | nil => nil
+        | cons y tail => cons (f x y) (zipWith f rest tail));
+
+def zip (xs:(Seq a)) (ys:(Seq b)) : (Seq (Pair a b)) := zipWith Pair.mk xs ys;
+
+def replicate (n:Int) (x:a) : (Seq a) :=
+    if n <= 0 then nil else cons x (replicate (n - 1) x);
+
+# Half-open interval, including negative endpoints.
+def range (lo:Int) (hi:Int) : (Seq Int) :=
+    if lo >= hi then nil else cons lo (range (lo + 1) hi);
+
+def scanl (f:(acc:b) -> (x:a) -> b) (z:b) (xs:(Seq a)) : (Seq b) :=
+    cons z (match xs with | nil => nil | cons x rest => scanl f (f z x) rest);
+
+# Equality is supplied explicitly, so these operations work on nested ADTs.
+def equal (eq:(x:a) -> (y:a) -> Bool) (xs:(Seq a)) (ys:(Seq a)) : Bool :=
+    match xs with
+    | nil => Seq.empty ys
+    | cons x rest => (match ys with
+        | nil => false
+        | cons y tail => eq x y && (equal eq rest tail));
+
+def member (eq:(x:a) -> (y:a) -> Bool) (x:a) (xs:(Seq a)) : Bool :=
+    any (fun y => eq x y) xs;
+
+def unique (eq:(x:a) -> (y:a) -> Bool) (xs:(Seq a)) : (Seq a) :=
+    match xs with
+    | nil => nil
+    | cons x rest => cons x (unique eq (filter (fun y => !(eq x y)) rest));
+
+def insertBy (le:(x:a) -> (y:a) -> Bool) (x:a) (xs:(Seq a)) : (Seq a) :=
+    match xs with
+    | nil => cons x nil
+    | cons y rest => if le x y then cons x xs else cons y (insertBy le x rest);
+
+def sortBy (le:(x:a) -> (y:a) -> Bool) (xs:(Seq a)) : (Seq a) :=
+    match xs with | nil => nil | cons x rest => insertBy le x (sortBy le rest);

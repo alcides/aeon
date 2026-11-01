@@ -1,0 +1,102 @@
+[
+  {
+    "id": "l2",
+    "repo": "jfeser/L2",
+    "ref": "pldi-modernize",
+    "sha": "dc61898cfe6b6e4025c9954df869608fad10fef8",
+    "url": "https://codeload.github.com/jfeser/L2/tar.gz/dc61898cfe6b6e4025c9954df869608fad10fef8",
+    "archive_sha256": "55b533335882c1e98d5c628810d639604cefd3779bb9883820c66e57f9b60a17"
+  },
+  {
+    "id": "smyth",
+    "repo": "uchicago-pl/smyth",
+    "ref": "main",
+    "sha": "08fea281f70d3ee604fde9dde140c8a570d6905d",
+    "url": "https://codeload.github.com/uchicago-pl/smyth/tar.gz/08fea281f70d3ee604fde9dde140c8a570d6905d",
+    "archive_sha256": "f859136223016acebadb4e7bb54f782b4fafef47ee9da58621c28d863c9b84b6"
+  },
+  {
+    "id": "burst",
+    "repo": "amiltner/BurstArtifactEvaluation",
+    "ref": "main",
+    "sha": "de1e675d0c4eebe005a9a79f8ab83cb46eeb76ec",
+    "url": "https://codeload.github.com/amiltner/BurstArtifactEvaluation/tar.gz/de1e675d0c4eebe005a9a79f8ab83cb46eeb76ec",
+    "archive_sha256": "6666a1ce640cd99469f319d5958b2926a3e8536816cb2a573eebe2ef150322da"
+  },
+  {
+    "id": "trio",
+    "repo": "pslhy/trio",
+    "ref": "master",
+    "sha": "2415ff0502dd3e99919c288c9d68d2a421196612",
+    "url": "https://codeload.github.com/pslhy/trio/tar.gz/2415ff0502dd3e99919c288c9d68d2a421196612",
+    "archive_sha256": "6dc527acf13ecc1d7d52d0fa407866cf97629c46e218ca5b018e89d4997dfe41"
+  },
+  {
+    "id": "hoogle",
+    "repo": "TyGuS/hoogle_plus",
+    "ref": "master",
+    "sha": "225a1d0d239328a1ddac20f1a1984b77ec80535d",
+    "url": "https://codeload.github.com/TyGuS/hoogle_plus/tar.gz/225a1d0d239328a1ddac20f1a1984b77ec80535d",
+    "archive_sha256": "76b697892d9a7f0944f076cd9f75a894e9454983834c1a2d1029b1e26658fa9d"
+  },
+  {
+    "id": "hectare",
+    "repo": "jkoppel/ecta",
+    "ref": "main",
+    "sha": "37f167a2525c6d3b51d77a52cc982dc50cf17514",
+    "url": "https://codeload.github.com/jkoppel/ecta/tar.gz/37f167a2525c6d3b51d77a52cc982dc50cf17514",
+    "archive_sha256": "d1bc1ef28f9cdfa94b83be7da9c6ced8e9554b4d00f9b58d3585ba3da85d53d4"
+  },
+  {
+    "id": "dreamcoder",
+    "repo": "ellisk42/ec",
+    "ref": "master",
+    "sha": "cb0e63f5c33cd2de360b791038b0f5272750270e",
+    "url": "https://codeload.github.com/ellisk42/ec/tar.gz/cb0e63f5c33cd2de360b791038b0f5272750270e",
+    "archive_sha256": "d5483788999ab3b37650b5f926f67d8024c0fe2eb5705ad03dc39619c3cb2bf4"
+  },
+  {
+    "id": "asac",
+    "repo": "AuQWQuA/ASAC",
+    "ref": "main",
+    "sha": "e4332207bc502e701b116719dd8362ac2303e5d9",
+    "url": "https://codeload.github.com/AuQWQuA/ASAC/tar.gz/e4332207bc502e701b116719dd8362ac2303e5d9",
+    "archive_sha256": "cae3d9348572d6f11cab94bf0ee69de0fe7a5668c3af69d98ed58d2f29121175"
+  },
+  {
+    "id": "clause2inv",
+    "repo": "SoftWiser-group/Clause2Inv",
+    "ref": "main",
+    "sha": "326a84b468663e3921917c5e57857a1808626d9d",
+    "url": "https://codeload.github.com/SoftWiser-group/Clause2Inv/tar.gz/326a84b468663e3921917c5e57857a1808626d9d",
+    "archive_sha256": "3683522a6e683578fe57c66af4d050270136ed4dbdf73e8cd51c06e33ea9117a"
+  },
+  {
+    "id": "guide",
+    "repo": "pslhy/guide_syn_artifact",
+    "sha": "2bd0de97850b4120c70b54dd21ffa76f1341822d",
+    "url": "https://codeload.github.com/pslhy/guide_syn_artifact/tar.gz/2bd0de97850b4120c70b54dd21ffa76f1341822d",
+    "archive_sha256": "b67289e300b366b6e73aeb98cbe4ef7e567f7d5c47b0e0a75327ee724b9d2117"
+  },
+  {
+    "id": "para",
+    "repo": "nicolas-abril/para-artifact",
+    "sha": "9326ff2121e1611312be4b3456ccc6a6cd793010",
+    "url": "https://codeload.github.com/nicolas-abril/para-artifact/tar.gz/9326ff2121e1611312be4b3456ccc6a6cd793010",
+    "archive_sha256": "8e138986e812b9e83835028b9db7021a44a3ad6564a24b04ba5d0cb98fbf4630"
+  },
+  {
+    "id": "trio-jfp",
+    "url": "https://zenodo.org/api/records/15690878/files/trio_artifacts_JFP.zip/content",
+    "kind": "zip",
+    "archive_sha256": "aa5b3d96baa6a65f13086ce43a18ce047985d5d75053dd1a7214b81212ce4394",
+    "doi": "10.5281/zenodo.15690878"
+  },
+  {
+    "id": "synmem",
+    "url": "https://zenodo.org/records/8325410/files/alpine-3.13-synmem.tar?download=1",
+    "kind": "docker",
+    "archive_sha256": "ac15755681ce9129cf3816f4c0f5cbd91b2bc6e5fbf40c012b37e71206f522f6",
+    "doi": "10.5281/zenodo.8325410"
+  }
+]

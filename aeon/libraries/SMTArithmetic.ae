@@ -1,0 +1,21 @@
+# SMT-LIB Euclidean integer arithmetic for invariant specifications.
+# Division by zero is unspecified by SMT-LIB. The concrete evaluator chooses
+# zero, which is only one interpretation; universal validation uses the SMT file.
+def smt_div (x:Int) (y:Int) : Int := native "(x // y if y > 0 else -(x // -y)) if y else 0";
+def smt_mod (x:Int) (y:Int) : Int := native "x % abs(y) if y else 0";
+
+# The source templates also contain `/` on integer-valued expressions. SMT-LIB
+# interprets this as real division: keep an exact rational at runtime.
+def fractions : Unit := native_import "fractions";
+type Rational
+def rational (x:Int) : Rational := native "fractions.Fraction(x)";
+def rationalAdd (x:Rational) (y:Rational) : Rational := native "x + y";
+def rationalSub (x:Rational) (y:Rational) : Rational := native "x - y";
+def rationalMul (x:Rational) (y:Rational) : Rational := native "x * y";
+def rationalDiv (x:Rational) (y:Rational) : Rational := native "x / y if y else fractions.Fraction(0)";
+def rationalFloor (x:Rational) : Int := native "x.numerator // x.denominator";
+def rationalEq (x:Rational) (y:Rational) : Bool := native "x == y";
+def rationalLt (x:Rational) (y:Rational) : Bool := native "x < y";
+def rationalLe (x:Rational) (y:Rational) : Bool := native "x <= y";
+def rationalGt (x:Rational) (y:Rational) : Bool := native "x > y";
+def rationalGe (x:Rational) (y:Rational) : Bool := native "x >= y";

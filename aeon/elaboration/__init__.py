@@ -360,13 +360,45 @@ def _resolve_uvars(ty: SType) -> SType:
         case SRefinedType(name, inner, ref, loc=loc):
             return SRefinedType(name, _resolve_uvars(inner), ref, loc=loc)
         case SAbstractionType(vname, vty, rty, loc=loc):
-            return SAbstractionType(vname, _resolve_uvars(vty), _resolve_uvars(rty), loc=loc)
+            return SAbstractionType(
+                vname,
+                _resolve_uvars(vty),
+                _resolve_uvars(rty),
+                loc=loc,
+                multiplicity=ty.multiplicity,
+                is_instance=ty.is_instance,
+            )
         case STypePolymorphism(name, kind, body, loc=loc):
             return STypePolymorphism(name, kind, _resolve_uvars(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc=loc):
             return SRefinementPolymorphism(name, _resolve_uvars(sort), _resolve_uvars(body), loc=loc)
         case _:
             return ty
+
+
+def _same_inferred_type(left: SType, right: SType) -> bool:
+    """Compare inferred function types without depending on binder identities.
+
+    Product fields can constrain the same type variable with two independently
+    bound copies of ``a -> b``. Their fresh argument names do not change the
+    type. Rename dependent occurrences as well; multiplicities still matter.
+    """
+    match left, right:
+        case SAbstractionType(ln, la, lr), SAbstractionType(rn, ra, rr):
+            common = SVar(Name("_inferred_binder", fresh_counter.fresh()))
+            return (
+                left.multiplicity == right.multiplicity
+                and left.is_instance == right.is_instance
+                and _same_inferred_type(la, ra)
+                and _same_inferred_type(
+                    substitution_sterm_in_stype(lr, common, ln),
+                    substitution_sterm_in_stype(rr, common, rn),
+                )
+            )
+        case STypeConstructor(ln, la), STypeConstructor(rn, ra):
+            return ln == rn and len(la) == len(ra) and all(_same_inferred_type(a, b) for a, b in zip(la, ra))
+        case _:
+            return left == right
 
 
 def unify_single(origin: str, xs: list[SType]) -> SType:
@@ -386,7 +418,7 @@ def unify_single(origin: str, xs: list[SType]) -> SType:
             fst_r = resolved[0]
             fst_original = other[0]
             for snd, snd_r in zip(other[1:], resolved[1:]):
-                if snd_r != fst_r:
+                if not _same_inferred_type(snd_r, fst_r):
                     raise UnificationFailedError(origin, fst_original, snd)
             return fst_r
 
