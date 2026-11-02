@@ -72,6 +72,9 @@ class SolverProblem:
 class ConstraintSynthesizer(JointSynthesizer):
     """Marker for backends needing the compiler's shared logical obligations."""
 
+    def check_source(self, program: Term, holes: tuple[HoleSpec, ...], metadata: Metadata) -> None:
+        """Optional capability check before constructing shared obligations."""
+
 
 # Only strengthen property return contracts; preserve domains and multiplicities.
 def _true_return(ty: Type) -> Type:
@@ -113,10 +116,17 @@ def build_solver_problem(
     program: Term,
     holes: tuple[HoleSpec, ...],
     metadata: Metadata,
+    *,
+    lexical_only: bool = False,
 ) -> SolverProblem:
     """Preserve all hole contracts, surrounding refinements and example relations."""
     program = without_main_placeholder(program)
     globals_ = {entry.name for entry in ctx.entries if hasattr(entry, "name")}
+    if lexical_only:
+        current = program
+        while isinstance(current, (Let, Rec)):
+            globals_.add(current.var_name)
+            current = current.body
     schemas = []
     symbolic = program
     symbolic_ctx = ctx

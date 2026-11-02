@@ -47,6 +47,7 @@ problem class is given.
 | DACE + FTA | `examples/synthesis/dace/`, `fta/` | 16 + 3 | DACE OOPSLA’17 | FTA synth **10s**; PBE **60s** |
 | Karel | `examples/synthesis/karel/` | 10 regression tasks + 2,500 mirrored validation tasks; full-corpus importer/runner | MSR adapter (training/test acquisition pending) | **5s** smoke; longer for loops |
 | OR-Tools IntHole | `examples/synthesis/ortools/` | 7 | Aeon-native CP-SAT | **5–8s** (`ortools`) |
+| [Bounded Boolean synthesis](../examples/synthesis/boolean_bounded/bnsynth/README.md) | `examples/synthesis/boolean_bounded/bnsynth/` | 38 | BNSynth published Verilog corpus | **2s** smoke; optional paper K/time schedule |
 | AutoNumerics | `examples/synthesis/autonumerics/` | 3 | AutoNumerics-Zero / HUMIES’26 | **30–120s** |
 | Grover circuits | `examples/synthesis/grover/` | 1 | GECCO’26 HUMIES Bronze | **30s** (`gp`) |
 | Neuroevolution MNIST | `examples/synthesis/neuroevolution/` | 1 | Aeon-native NN | **60s** (`random_search`) |
@@ -415,3 +416,13 @@ When a file does not state a budget:
 
 Other `scripts/bench_*.py` files measure LLVM/array/dataframe/Horn performance
 and do **not** drive open-ended synthesis search.
+
+## Bounded Boolean functional synthesis (BNSynth)
+
+The [BNSynth corpus](../examples/synthesis/boolean_bounded/bnsynth/README.md)
+contains 38 pinned published Verilog specifications translated to ordinary Aeon
+problems. Relations, output dependencies, property laws and hard CNF bounds are
+in the `.ae` files, so compatible existing synthesizers can use the same tasks.
+A backend-neutral isolated runner records all outcomes and independently checks
+candidate semantics against the original circuits. The README documents
+inventory, provenance, reproduction commands and verified coverage.

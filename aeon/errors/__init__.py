@@ -586,6 +586,18 @@ class UnknownDecoratorError(AeonError):
         return self.decorator.loc
 
 
+@dataclass
+class InvalidDecoratorArgumentError(AeonError):
+    decorator: Decorator
+    message: str
+
+    def __str__(self) -> str:
+        return f"@{self.decorator.name.name}: {self.message}"
+
+    def position(self) -> Location:
+        return self.decorator.loc
+
+
 def _format_location(loc: Location) -> str:
     """Render a ``Location`` as a short, user-readable ``file:line:col``
     pair when we have positional info; otherwise fall back to ``str``."""

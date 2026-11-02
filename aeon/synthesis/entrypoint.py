@@ -39,6 +39,7 @@ from aeon.synthesis.api import (
     ErrorInSynthesis,
     InvalidIndividualException,
     ProgramSynthesizer,
+    SynthesisNotSuccessful,
     UnsupportedSynthesisGoal,
     Synthesizer,
     TimeoutInEvaluationException,
@@ -91,9 +92,16 @@ def _synthesis_dummy_literal(ty: Type) -> Term:
     return Literal(0.0, t_float)
 
 
-def make_validator(ctx: TypingContext, replace: Callable[[Term], Term]) -> Callable[[Term], bool]:
+def make_validator(
+    ctx: TypingContext, replace: Callable[[Term], Term], metadata: Metadata | None = None
+) -> Callable[[Term], bool]:
     def validate(candidate: Term) -> bool:
         prog = without_main_placeholder(replace(candidate))
+        if metadata is not None:
+            from aeon.synthesis.bounded_cnf import check_program
+
+            if not check_program(prog, metadata):
+                return False
         return check_type(ctx, prog, Top())
 
     return validate
@@ -328,7 +336,7 @@ def _synthesize_one(
     ui.start(tyctx, ectx, hole_name.name, ty, budget)
 
     replace = make_program(prog, hole_name)
-    validator = make_validator(ctx, replace)
+    validator = make_validator(ctx, replace, metadata)
 
     from aeon.synthesis.modules.noisy import NoisySynthesizer
 
@@ -417,6 +425,25 @@ def _synthesize_one(
     )
     evaluator, output_evaluator = _pool_backed(pool)
 
+    from aeon.synthesis.bounded_cnf import bounds
+
+    bounded = bool(bounds(metadata))
+    if bounded:
+        # Enforce the contract even when a backend tries scoring before checking.
+        raw_evaluator, raw_output = evaluator, output_evaluator
+
+        def evaluator(candidate):
+            if not validator(candidate):
+                raise InvalidIndividualException("candidate violates @bounded_cnf or its type")
+            return raw_evaluator(candidate)
+
+        if raw_output is not None:
+
+            def output_evaluator(candidate):
+                if not validator(candidate):
+                    raise InvalidIndividualException("candidate violates @bounded_cnf or its type")
+                return raw_output(candidate)
+
     # Example-driven (PBE) probe: evaluate a candidate body on a concrete
     # list of input values *in process*, returning the value the synthesised
     # function produces. Unlike ``output_evaluator`` (which crosses a process
@@ -467,6 +494,8 @@ def _synthesize_one(
             ui=ui,
             output_value=output_evaluator,
         )
+        if bounded and not validator(t):
+            raise SynthesisNotSuccessful("returned candidate violates @bounded_cnf or its type")
     except Exception as e:
         ui.end(None, None)
         raise e
@@ -490,6 +519,39 @@ def _synthesize_joint(
     constructor_names: set[str] | None,
 ) -> dict[Name, Optional[Term]]:
     """Search every typed hole atomically, with one whole-program oracle."""
+    from time import monotonic
+    from aeon.synthesis.bounded_cnf import bounds, check_program
+    from aeon.synthesis.modules.boolean_bounded import BooleanBoundedSynthesizer
+
+    isolated = isinstance(synthesizer, BooleanBoundedSynthesizer)
+    if isinstance(synthesizer, BooleanBoundedSynthesizer) and not synthesizer._in_worker:
+        names = tuple(dict.fromkeys(hole for _, holes in targets for hole in holes))
+        ui.start(ctx, ectx, "+".join(name.name for name in names), None, budget)
+        mapping = None
+        try:
+            mapping = synthesizer.run_bounded(
+                lambda remaining, worker_ui: _synthesize_joint(
+                    ctx,
+                    ectx,
+                    prog,
+                    targets,
+                    metadata,
+                    synthesizer,
+                    remaining,
+                    worker_ui,
+                    budget_eval,
+                    constructor_names,
+                ),
+                budget,
+                ui,
+            )
+            return mapping
+        finally:
+            terms = tuple(mapping.values()) if mapping is not None else ()
+            ui.end(JointCandidate(terms) if terms and all(term is not None for term in terms) else None, None)
+
+    start = monotonic()
+    bounded = bool(bounds(metadata))
     prog = without_main_placeholder(prog)
     info = get_holes_info(ctx, prog, top, targets, refined_types=True)
     owners = {hole: function for function, holes in targets for hole in holes}
@@ -514,7 +576,7 @@ def _synthesize_joint(
             completed = replace(candidate)
         except InvalidIndividualException:
             return False
-        return check_type(ctx, completed, top)
+        return check_program(completed, metadata) and check_type(ctx, completed, top)
 
     goals: list[Goal] = []
     for entry in metadata.values():
@@ -549,7 +611,15 @@ def _synthesize_joint(
     from aeon.synthesis.solver_problem import ConstraintSynthesizer, build_solver_problem
 
     if isinstance(synthesizer, ConstraintSynthesizer):
-        synthesis_metadata[joint_name]["solver_problem"] = build_solver_problem(ctx, prog, holes, metadata)
+        synthesizer.check_source(prog, holes, metadata)
+        try:
+            synthesis_metadata[joint_name]["solver_problem"] = build_solver_problem(
+                ctx, prog, holes, metadata, lexical_only=getattr(synthesizer, "lexical_inputs_only", False)
+            )
+        except SynthesisNotSuccessful as exc:
+            if getattr(synthesizer, "requires_joint_obligations", False):
+                raise UnsupportedSynthesisGoal(str(exc)) from exc
+            raise
 
     # Bind only the static prefix before the earliest hole-bearing definition.
     # Unlike per-hole setup this never pre-evaluates another candidate element.
@@ -557,8 +627,25 @@ def _synthesize_joint(
     workers_ctx = _ectx_for_workers(ectx)
     properties = [make_property_fitness(corpus, workers_ctx, target=anchor) for corpus in corpora]
     fitness = make_bundled_fitness_evaluator(goals, workers_ctx, anchor, prog, properties)
-    pool = EvaluationPool(replace, {"fitness": fitness}, budget_eval=budget_eval)
-    evaluator, _ = _pool_backed(pool)
+    pool = None
+    if isolated:
+        # The whole operation already runs in a killable daemon worker. Execute
+        # fitness there too: nested pools cannot start from daemon processes and
+        # could otherwise outlive the synthesis deadline.
+        def evaluator(candidate):
+            return fitness(replace(candidate))
+
+    else:
+        pool = EvaluationPool(replace, {"fitness": fitness}, budget_eval=budget_eval)
+        evaluator, _ = _pool_backed(pool)
+    if bounded:
+        raw_evaluator = evaluator
+
+        def evaluator(candidate):
+            if not validate(candidate):
+                raise InvalidIndividualException("candidate violates @bounded_cnf or its type")
+            return raw_evaluator(candidate)
+
     ui.start(ctx, ectx, "+".join(name.name for name in names), None, budget)
     result = None
     try:
@@ -568,14 +655,21 @@ def _synthesize_joint(
             evaluator,
             joint_name,
             synthesis_metadata,
-            budget,
+            max(0.0, budget - (monotonic() - start))
+            if getattr(synthesizer, "requires_joint_obligations", False)
+            else budget,
             ui,
         )
         # Backends cannot bypass joint validity or return only some elements.
         if result is not None and not validate(result):
+            if isolated:
+                from aeon.synthesis.modules.boolean_bounded import BoundedBooleanFailure
+
+                raise BoundedBooleanFailure("validation_error", "candidate failed final whole-program validation")
             result = None
     finally:
-        pool.close()
+        if pool is not None:
+            pool.close()
         ui.end(result, None)
     if result is None:
         return {name: None for name in names}
@@ -655,6 +749,14 @@ def synthesize_holes(
     if isinstance(synthesizer, NoisySynthesizer) and len({h for _, hs in targets for h in hs}) != 1:
         raise UnsupportedSynthesisGoal("noisy requires one independent open body hole")
 
+    from aeon.synthesis.bounded_cnf import bounds
+
+    if bounds(metadata):
+        if isinstance(synthesizer, ProgramSynthesizer):
+            raise UnsupportedSynthesisGoal("@bounded_cnf requires the shared candidate-validation interface")
+        if len({h for _, hs in targets for h in hs}) > 1 and not isinstance(synthesizer, JointSynthesizer):
+            raise UnsupportedSynthesisGoal("multiple @bounded_cnf holes require a joint synthesizer")
+
     # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
     # hole at once rather than one function at a time.
     if isinstance(synthesizer, ProgramSynthesizer):
@@ -665,8 +767,12 @@ def synthesize_holes(
 
     if (
         isinstance(synthesizer, JointSynthesizer)
-        and targets
-        and (len({h for _, hs in targets for h in hs}) > 1 or getattr(synthesizer, "requires_whole_program", False))
+        and any(hs for _, hs in targets)
+        and (
+            len({h for _, hs in targets for h in hs}) > 1
+            or getattr(synthesizer, "requires_whole_program", False)
+            or getattr(synthesizer, "requires_joint_obligations", False)
+        )
     ):
         return _synthesize_joint(
             ctx,

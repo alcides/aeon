@@ -1,0 +1,4 @@
+# python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/xor.ae
+# One clause is insufficient. K is fixed; this backend never raises it.
+@bounded_cnf(2)
+def xor (x:Bool) (y:Bool) : {result:Bool | result = (x != y)} := ?body;

@@ -81,6 +81,7 @@ SYNTHESIZERS = sort_synthesizer_ids(
         "regus",
         "synquid",
         "smt",
+        "boolean_bounded",
         "sygus",
         "structure_guided",
         "polynomial",
