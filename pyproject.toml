@@ -43,7 +43,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-beartype",
     "packaging",
     "hypothesis>=6.100,<7",
@@ -83,7 +83,7 @@ denser = [
 ]
 # Full local/CI toolchain (core + test + ML/image/LLM extras).
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-beartype",
     "packaging",
     "hypothesis>=6.100,<7",
