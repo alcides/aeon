@@ -1,0 +1,14 @@
+# Persistent, labelled binary trees; no ordering invariant is imposed.
+inductive BinaryTree a
+| leaf : (BinaryTree a)
+| node (left:(BinaryTree a)) (value:a) (right:(BinaryTree a)) : (BinaryTree a)
+
+def map (f:(x:a) -> b) (tree:(BinaryTree a)) : (BinaryTree b) :=
+    match tree with
+    | leaf => leaf
+    | node left x right => node (map f left) (f x) (map f right);
+
+def fold (z:b) (f:(left:b) -> (x:a) -> (right:b) -> b) (tree:(BinaryTree a)) : b :=
+    match tree with
+    | leaf => z
+    | node left x right => f (fold z f left) x (fold z f right);

@@ -1,0 +1,16 @@
+# Ordered trees with an arbitrary number of children. Empty trees are explicit.
+open Seq
+
+inductive RoseTree a
+| empty : (RoseTree a)
+| node (value:a) (children:(Seq (RoseTree a))) : (RoseTree a)
+
+def map (f:(x:a) -> b) (tree:(RoseTree a)) : (RoseTree b) :=
+    match tree with
+    | empty => empty
+    | node x children => node (f x) (Seq.map (map f) children);
+
+def fold (z:b) (f:(x:a) -> (children:(Seq b)) -> b) (tree:(RoseTree a)) : b :=
+    match tree with
+    | empty => z
+    | node x children => f x (Seq.map (fold z f) children);

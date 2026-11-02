@@ -1,0 +1,7 @@
+inductive Ordering
+| less : Ordering
+| equal : Ordering
+| greater : Ordering
+
+def compareInt (x:Int) (y:Int) : Ordering :=
+    if x < y then less else if x = y then equal else greater;

@@ -1,0 +1,6 @@
+# Immutable byte strings, distinct from Unicode text.
+type ByteString
+def empty : ByteString := native "b''";
+def append (x:ByteString) (y:ByteString) : ByteString := native "x + y";
+def length (x:ByteString) : Int := native "len(x)";
+def decimalInt64 (x:{v:Int | v >= (0 - 9223372036854775808) && v <= 9223372036854775807}) : ByteString := native "str(x).encode('ascii')";

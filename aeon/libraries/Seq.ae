@@ -1,0 +1,27 @@
+# A persistent sequence with unrestricted element types and no abstract
+# refinement parameters. Useful for higher-order programs and nested ADTs.
+inductive Seq a
+| nil : (Seq a)
+| cons (head:a) (tail:(Seq a)) : (Seq a)
+
+def length (xs:(Seq a)) : Int :=
+    match xs with | nil => 0 | cons x tail => 1 + (length tail);
+
+def empty (xs:(Seq a)) : Bool :=
+    match xs with | nil => true | cons x tail => false;
+
+def append (xs:(Seq a)) (ys:(Seq a)) : (Seq a) :=
+    match xs with | nil => ys | cons x tail => cons x (append tail ys);
+
+def map (f:(x:a) -> b) (xs:(Seq a)) : (Seq b) :=
+    match xs with | nil => nil | cons x tail => cons (f x) (map f tail);
+
+def foldr (f:(x:a) -> (acc:b) -> b) (z:b) (xs:(Seq a)) : b :=
+    match xs with | nil => z | cons x tail => f x (foldr f z tail);
+
+def reverseAcc (xs:(Seq a)) (acc:(Seq a)) : (Seq a) :=
+    match xs with | nil => acc | cons x tail => reverseAcc tail (cons x acc);
+
+def reverse (xs:(Seq a)) : (Seq a) := reverseAcc xs nil;
+
+def snoc (xs:(Seq a)) (x:a) : (Seq a) := append xs (cons x nil);

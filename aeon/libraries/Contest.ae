@@ -1,0 +1,25 @@
+# Functional text I/O for programming-contest benchmarks. A program is a pure
+# String -> String transformation; token access is separate from sequencing.
+open Seq
+
+def wordCount (text:String) : Int := native "len(text.split())";
+def wordAt (text:String) (index:Int) : String := native "text.split()[index] if 0 <= index < len(text.split()) else ''";
+def readInt (token:String) : Int := native "int(token)";
+def showInt (value:Int) : String := native "str(value)";
+def readFloat (token:String) : Float := native "float(token)";
+def showFloat (value:Float) : String := native "str(value)";
+def appendText (left:String) (right:String) : String := native "left + right";
+def character (text:String) (index:Int) : String := native "text[index:index+1] if index >= 0 else ''";
+def textLength (text:String) : Int := native "len(text)";
+def wordsFrom (text:String) (index:Int) : (Seq String) :=
+    if index >= wordCount text then nil else cons (wordAt text index) (wordsFrom text (index + 1));
+def words (text:String) : (Seq String) := wordsFrom text 0;
+def integers (text:String) : (Seq Int) := Seq.map readInt (words text);
+def joinWords (xs:(Seq String)) : String :=
+    match xs with | nil => "" | cons x tail =>
+        if Seq.empty tail then x else appendText x (appendText " " (joinWords tail));
+def showIntegers (xs:(Seq Int)) : String := joinWords (Seq.map showInt xs);
+
+# Contest outputs conventionally ignore runs of whitespace. This is an exact
+# token comparison, not a checker for alternate valid witnesses or tolerances.
+def sameTokens (left:String) (right:String) : Bool := native "left.split() == right.split()";

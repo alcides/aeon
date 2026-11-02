@@ -57,8 +57,8 @@ pure lets are supported. Native wrappers, effects, recursion, opaque helper
 calls, ADTs, float/string functions, polymorphism, abstract refinements, refined
 training signatures and non-default multiplicities are explicitly skipped.
 This is a small-corpus pilot: the current library supplies **9 eligible functions
-(8 alpha-distinct groups)** from `Refinement` and `Vec`, out of 1,215 source
-definitions. The remaining 1,206 definitions have recorded skip reasons.
+(8 alpha-distinct groups)** from `Refinement` and `Vec`, out of 1,386 source
+definitions. The remaining 1,377 definitions have recorded skip reasons.
 
 Eligible original AST/source spans are compiled in isolated compiler sessions.
 Only a preflight-audited pure definition is compiled; unrelated module code,

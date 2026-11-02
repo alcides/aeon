@@ -1,0 +1,9 @@
+# Binary trees whose terminal leaves also carry values.
+inductive LeafTree a
+| leaf (value:a) : (LeafTree a)
+| node (left:(LeafTree a)) (value:a) (right:(LeafTree a)) : (LeafTree a)
+
+def map (f:(x:a) -> b) (tree:(LeafTree a)) : (LeafTree b) :=
+    match tree with
+    | leaf x => leaf (f x)
+    | node left x right => node (map f left) (f x) (map f right);

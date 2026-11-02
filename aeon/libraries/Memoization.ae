@@ -1,0 +1,29 @@
+# Finite memoization partition fitness. A key collision is valid only when
+# prefixes have the same residual language. Each mismatch costs 100000, more
+# than the total number of states in any bundled finite corpus.
+open Seq
+open Pair
+
+def collisions (key:Int) (label:Int) (seen:(Seq (Pair Int Int))) : Int :=
+    match seen with
+    | nil => 0
+    | cons pair rest => match pair with
+        | mk k v => (if key = k && !(label = v) then 1 else 0) + collisions key label rest;
+
+def containsKey (key:Int) (seen:(Seq (Pair Int Int))) : Bool :=
+    match seen with
+    | nil => false
+    | cons pair rest => match pair with
+        | mk k v => key = k || containsKey key rest;
+
+def scoreAcc (candidate:(prefix:(Seq Int)) -> Int) (cases:(Seq (Pair (Seq Int) Int))) (seen:(Seq (Pair Int Int))) : Int :=
+    match cases with
+    | nil => 0
+    | cons pair rest => match pair with
+        | mk prefix label => let key := candidate prefix in
+            100000 * collisions key label seen +
+            (if containsKey key seen then 0 else 1) +
+            scoreAcc candidate rest (Seq.cons (Pair.mk key label) seen);
+
+def partitionScore (candidate:(prefix:(Seq Int)) -> Int) (cases:(Seq (Pair (Seq Int) Int))) : Int :=
+    scoreAcc candidate cases (Seq.nil{(Pair Int Int)});

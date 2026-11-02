@@ -1,0 +1,9 @@
+inductive Either a b
+| left (value:a) : (Either a b)
+| right (value:b) : (Either a b)
+
+def either (f:(x:a) -> c) (g:(x:b) -> c) (value:(Either a b)) : c :=
+    match value with | left x => f x | right y => g y;
+
+def map (f:(x:b) -> c) (value:(Either a b)) : (Either a c) :=
+    match value with | left x => left x | right y => right (f y);

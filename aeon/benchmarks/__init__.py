@@ -1,1 +1,1 @@
-"""Dataset adapters and benchmark tooling for embedded Aeon programs."""
+"""Dataset support for executable research benchmark ports."""
