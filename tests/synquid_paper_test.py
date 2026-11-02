@@ -24,12 +24,14 @@ def compilation_session():
 
 
 def search(ctx, goal, *, depth=0, matches=0, names=None, seconds=15):
-    mem = {"synquid_deadline": monotonic() + seconds, "synquid_match_depth": matches}
+    deadline = monotonic() + seconds
+    mem = {"synquid_deadline": deadline, "synquid_match_depth": matches}
     terms = synthes_memory(ctx, depth, goal, lambda n: names is not None and n.name not in names, mem)
     for term in terms:
         if check_type(ctx, term, goal):
             return term, mem
-    raise AssertionError("No verified solution")
+    reason = "search budget exhausted" if monotonic() >= deadline else "candidate search exhausted"
+    raise AssertionError(f"No verified solution: {reason} ({seconds}s budget); {mem.get('synquid_stats')}")
 
 
 def test_conditionals_do_not_consume_application_depth():
@@ -122,7 +124,9 @@ def test_fix_synthesizes_a_decreasing_recursive_function():
     hole = targets[0][1][0]
     goal, local = get_holes_info(root, program, top, targets, refined_types=True)[hole]
     # The generated recursive name and parameter are introduced by the rules.
-    term, mem = search(local, goal, depth=3, names={"Nat_zero", "Nat_succ", "dec", "n"}, seconds=30)
+    # This checks FIX/termination correctness, not search speed. Abduction and
+    # SMT queries need headroom when the full suite shares CI workers.
+    term, mem = search(local, goal, depth=3, names={"Nat_zero", "Nat_succ", "dec", "n"}, seconds=120)
     assert isinstance(term, Rec)
     assert mem["synquid_stats"].recursive_functions >= 1
     assert check_type(root, substitution(program, term, hole), top)
