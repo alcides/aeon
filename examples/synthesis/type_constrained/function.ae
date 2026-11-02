@@ -1,0 +1,2 @@
+@prompt("Return a lambda that adds one to its integer argument.")
+def increment : (x:Int) -> {v:Int | v = x + 1} := ?implementation;

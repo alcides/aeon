@@ -22,6 +22,16 @@ Best suited for problems with a rich fitness landscape and sufficient budget.
 
 ---
 
+### `dp_gp` — Dynamic-Programming Transformations
+
+Uses native GP to synthesize pruning, compact solution representations and
+updates, memoization keys, and compact search states for an explicit
+`@dp_gp(reference, bound1, bound2)` finite additive generator. Emits executable
+Aeon code and checks equivalence exhaustively on the declared input domain.
+See [the source interface, assurance limits and examples](dp-gp.md).
+
+---
+
 ### `random_search` — Random Search
 
 Native random walks over Aeon's core term grammar (the same backward and forward actions as `enumerative`). Each sample expands holes at random until a complete term is produced (or the depth bound is hit); the shared driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Simple but effective as a baseline or for problems where the search space is small.
@@ -33,6 +43,16 @@ Native random walks over Aeon's core term grammar (the same backward and forward
 Native breadth-first enumeration over Aeon's core term grammar (backward and forward actions, plus SMT completion of refinement-constrained leaves). A generator yields complete terms; the driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Works well for small, tightly-constrained holes.
 
 ---
+
+### `amaze` — Standard-Library-Trained Grammar Optimization
+
+Offline AMaze-style learning mines typed macro compositions only from the packaged
+standard library, fits rank-based cost models and searches additions to a finite
+Int/Bool grammar. The inference backend consumes the immutable selected profile,
+expands candidates into Core, and uses normal whole-program validation and
+objective evaluation. It includes a package-only trainer, audited source/split
+manifest, independent tiny-grammar rank tests and a held-out stdlib comparison.
+See [training, supported features and measured limitations](amaze.md).
 
 ### `rl_mcts` — Reinforcement-Learning Guided Grammar Tree Search
 
@@ -107,6 +127,37 @@ components inherit that grammar's limitations. Calls into the compiler/verifier
 are synchronous, so a final in-flight check can overrun the search time budget.
 This implementation is not a reproduction of the paper's performance results;
 no pretrained model or published 1901-task dataset is bundled.
+
+---
+
+### `regus` — Reward-Guided Controller Structure Synthesis
+
+Bounded ReGuS adaptation with high-level loop-sketch UCT, persistent low-level
+completion queues, execution-guided gap expansion, and conditional repair
+triggered by abstract-state disagreements. Existing `ControlProgram` bindings
+can be reused as procedures in an explicit curriculum. The controller
+interpreter and environment callbacks are ordinary Aeon.
+
+```bash
+python -m aeon -s regus --budget 60 examples/synthesis/control/thermostat_structure.ae
+python -m aeon -s gp --budget 60 examples/synthesis/control/thermostat_structure.ae
+```
+
+Targets `ControlProgram` holes with standard numerical objective decorators and
+an `@cluster` feature returning `ControlObservation` (or a deferred function
+returning one). Goals, action/sensor vocabularies, initial states, and penalties
+remain in the problem file and can be used by other ADT-capable fitness
+backends. The current backend handles one program hole at a time. Scalar gain
+holes should use the existing numerical backends; the structure examples
+search finite numeric action palettes.
+
+Uses the shared validation, worker containment, and Pareto selection paths.
+Partial controllers guide search but cannot be returned. The implementation
+uses all training starts together and budgeted optimization; it does not
+implement the paper's progressive seed/threshold protocol, automatic task
+ordering, or full abstract-contract merging. See the
+[control examples and protocol](../examples/synthesis/control/README.md#discovering-controller-structure-with-regus)
+for supported semantics, bounds, and differences from the paper.
 
 ---
 
@@ -378,6 +429,29 @@ Requires Ollama to be running locally. Use the `@prompt` decorator to provide a 
 
 ---
 
+### `llm_type_constrained` — Type-constrained local LLM decoding
+
+Constrains tokens before they are committed, using bounded ordinary-type
+completion witnesses. For example, `f : Int -> Bool` remains viable for a
+`Bool` goal because `f 0` completes it, whereas `f true ` is rejected. Complete
+expressions still pass Aeon's original refinement validator before fitness
+evaluation. A well-typed `0` can therefore be rejected for `{v:Int | v > 0}`.
+
+Install `AeonLang[llm-type-constrained]`, set `AEON_TC_MODEL` to a local
+Transformers causal model directory or model ID, and run:
+
+```bash
+AEON_TC_MODEL=/path/to/model AEON_SEED=0 python -m aeon --no-main \
+  -s llm_type_constrained --budget 60 examples/synthesis/type_constrained/application.ae
+```
+
+This provider uses token logits; Ollama and OpenAI whole-text clients remain
+separate baselines. Unsupported providers fail explicitly. Dependencies load
+only when this backend runs. See [the fragment, bounds, adapter, and smoke-test
+contract](design/type-constrained-decoding.md) for limitations and configuration.
+
+---
+
 ### `tdsyn` / `tdsyn_enumerative` — Type-Directed Synthesis (BFS) *(default)*
 
 Top-down, type-directed synthesizer that grows a partial AST by applying **backward** and **forward** actions to each open hole. Subtyping queries are discharged by an SMT solver, and when every remaining hole is a base-type leaf the synthesizer asks z3 to solve them all in one shot.
@@ -468,9 +542,11 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
 | `gp`            | Native linear-genome GP | Complex expressions, multi-objective problems |
+| `dp_gp`         | GP components for structured DP transformations | Bounded additive reference generators |
 | `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `rl_mcts`       | Policy/value-guided Monte-Carlo grammar search | Refinement-only synthesis, learned search experiments |
+| `amaze` | Stdlib-trained additions and rank-cost grammar optimization | First-order Int/Bool synthesis with an immutable profile |
 | `synquid`       | Type-directed enumeration | Type-rich problems, correctness-only goals |
 | `smt`           | SMT solving      | Arithmetic / boolean constraints on base types |
 | `decision_tree` | Data-driven      | Regression from input–output examples |

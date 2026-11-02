@@ -130,6 +130,9 @@ def compile_program(
         filename = "<stdin>"
     path = str(Path(filename).resolve()) if filename != "<stdin>" else filename
     digest = source_hash(aeon_code)
+    if current_session().options.package_only_imports:
+        # A disk cache may have been built with project import overrides.
+        use_cache = write_cache = False
     # Main programs splice imported definitions during desugar; a cached spine
     # from an earlier compile would omit those bindings at runtime.
     cacheable = use_cache and not is_main and path != "<stdin>"

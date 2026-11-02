@@ -1,0 +1,2 @@
+@prompt("Bind x + 1 to a local variable, then use an if expression to return its absolute value.")
+def shifted_absolute (x:Int) : {v:Int | v >= 0 && (v = x + 1 || v = 0 - (x + 1))} := ?body;

@@ -1,0 +1,25 @@
+# Backend-independent syntax for bounded, stateful controller programs.
+# gap is an execution breakpoint used during search, never a finished program.
+inductive ControlProgram
+| halt : ControlProgram
+| action (choice:Int) : ControlProgram
+| sequence (first:ControlProgram) (second:ControlProgram) : ControlProgram
+| loop (predicate:Int) (body:ControlProgram) : ControlProgram
+| branch (predicate:Int) (yes:ControlProgram) (no:ControlProgram) : ControlProgram
+| gap : ControlProgram
+
+def size (p:ControlProgram):Int := match p with
+| ControlProgram.halt => 1
+| ControlProgram.action choice => 1
+| ControlProgram.sequence first second => 1 + size first + size second
+| ControlProgram.loop predicate body => 1 + size body
+| ControlProgram.branch predicate yes no => 1 + size yes + size no
+| ControlProgram.gap => 1;
+
+def closed (p:ControlProgram):Bool := match p with
+| ControlProgram.halt => true
+| ControlProgram.action choice => true
+| ControlProgram.sequence first second => closed first && closed second
+| ControlProgram.loop predicate body => closed body
+| ControlProgram.branch predicate yes no => closed yes && closed no
+| ControlProgram.gap => false;

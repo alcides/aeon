@@ -1,0 +1,4 @@
+# An ordinary Int expression such as 0 can pass incremental typing but fail
+# this final refinement. The backend must reject it before scoring and retry.
+@prompt("Return a positive integer. Zero does not satisfy the refinement.")
+def positive : {v:Int | v > 0} := ?value;

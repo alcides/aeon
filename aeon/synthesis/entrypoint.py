@@ -412,7 +412,9 @@ def _synthesize_one(
         replace,
         bundled_fitness=bundled_fitness,
     )
-    pool = EvaluationPool(replace, syn_impl.computations(primitives), budget_eval=budget_eval)
+    pool = EvaluationPool(
+        replace, syn_impl.computations(primitives), budget_eval=syn_impl.evaluation_timeout(budget_eval)
+    )
     evaluator, output_evaluator = _pool_backed(pool)
 
     # Example-driven (PBE) probe: evaluate a candidate body on a concrete
@@ -644,6 +646,11 @@ def synthesize_holes(
         )
 
     from aeon.synthesis.modules.noisy import NoisySynthesizer
+
+    from aeon.synthesis.modules.type_constrained import TypeConstrainedSynthesizer, check_program_scope
+
+    if isinstance(synthesizer, TypeConstrainedSynthesizer):
+        check_program_scope(term, metadata)
 
     if isinstance(synthesizer, NoisySynthesizer) and len({h for _, hs in targets for h in hs}) != 1:
         raise UnsupportedSynthesisGoal("noisy requires one independent open body hole")

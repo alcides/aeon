@@ -1,0 +1,35 @@
+# Toy longitudinal vehicle, dt=0.1 s; action [-1,1] combines throttle/brake.
+# dv/dt = 3*action - 0.05*v - 9.81*grade. Grade is a small road slope.
+import Control;
+open Control;
+import Math;
+
+inductive ControlCruise
+| mk (speed:Float) (integral:Float) (target:Float) (grade:Float) : ControlCruise
+
+def speed (s:ControlCruise):Float := match s with | ControlCruise.mk v integral target grade => v;
+def integral (s:ControlCruise):Float := match s with | ControlCruise.mk v i target grade => i;
+def step (s:ControlCruise) (command:Float):ControlCruise :=
+    match s with | ControlCruise.mk v integral target grade =>
+        let action := Control.clip command (0.0 - 1.0) 1.0 in
+        let next_v := v + 0.1 * (3.0 * action - 0.05 * v - 9.81 * grade) in
+        ControlCruise.mk (if next_v < 0.0 then 0.0 else next_v)
+            (Control.clip (integral + 0.1 * (target - v)) (0.0 - 20.0) 20.0) target grade;
+def invalid (s:ControlCruise):Bool :=
+    match s with | ControlCruise.mk v i target grade => !(Math.isfinite v) || !(Math.isfinite i) || v > 60.0 || v < 0.0;
+def pi (kp:Float) (ki:Float) (error:Float) (integral:Float):Float :=
+    Control.clip (kp * error + ki * integral) (0.0 - 1.0) 1.0;
+def reference (error:Float) (integral:Float):Float := pi 0.4 0.1 error integral;
+def coast (error:Float) (integral:Float):Float := 0.0;
+def advance (policy:(error:Float)->(integral:Float)->Float) (s:ControlCruise):ControlCruise :=
+    match s with | ControlCruise.mk v i target grade => step s (policy (target - v) i);
+def cost (policy:(error:Float)->(integral:Float)->Float) (s:ControlCruise):Float :=
+    match s with | ControlCruise.mk v i target grade =>
+        let action := Control.clip (policy (target - v) i) (0.0 - 1.0) 1.0 in
+        Control.square (target - v) + 0.1 * Control.square action;
+def episode (horizon:{n:Int | n >= 0 && n <= 500}) (policy:(error:Float)->(integral:Float)->Float) (initial:ControlCruise):Control :=
+    Control.rollout horizon (advance policy) (cost policy) invalid initial;
+def training (policy:(error:Float)->(integral:Float)->Float):Float :=
+    (Control.loss (episode 60 policy (ControlCruise.mk 14.0 0.0 20.0 0.0)) + Control.loss (episode 60 policy (ControlCruise.mk 24.0 0.0 20.0 0.02))) / 2.0;
+def held_out (policy:(error:Float)->(integral:Float)->Float):Float :=
+    (Control.loss (episode 120 policy (ControlCruise.mk 12.0 0.0 18.0 0.03)) + Control.loss (episode 120 policy (ControlCruise.mk 25.0 0.0 22.0 (0.0 - 0.02)))) / 2.0;

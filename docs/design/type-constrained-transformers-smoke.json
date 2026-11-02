@@ -1,0 +1,50 @@
+{
+  "fixture": "Transformers GPT-2 (zero weights)",
+  "torch_version": "2.14.1+cpu",
+  "transformers_version": "5.22.1",
+  "seed": 0,
+  "temperature": 0,
+  "max_tokens": 4,
+  "purpose": "adapter/masking correctness, not generation quality",
+  "cases": [
+    {
+      "case": "literal",
+      "source": " true",
+      "validated": true,
+      "seconds": 0.008666823618113995,
+      "tokens": 2,
+      "rejected_tokens": 5,
+      "unknown_tokens": 0,
+      "oracle_seconds": 0.0016315816901624203,
+      "attempts": 1,
+      "validation_passed": 1,
+      "validation_failed": 0
+    },
+    {
+      "case": "application",
+      "source": " f 0",
+      "validated": true,
+      "seconds": 0.006214289925992489,
+      "tokens": 2,
+      "rejected_tokens": 5,
+      "unknown_tokens": 0,
+      "oracle_seconds": 0.0027368711307644844,
+      "attempts": 1,
+      "validation_passed": 1,
+      "validation_failed": 0
+    },
+    {
+      "case": "function",
+      "source": " fun x => x",
+      "validated": true,
+      "seconds": 0.006370896007865667,
+      "tokens": 2,
+      "rejected_tokens": 5,
+      "unknown_tokens": 0,
+      "oracle_seconds": 0.0042496672831475735,
+      "attempts": 1,
+      "validation_passed": 1,
+      "validation_failed": 0
+    }
+  ]
+}

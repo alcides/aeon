@@ -1,0 +1,7 @@
+# python -m aeon --budget 10 -s amaze examples/synthesis/amaze/guard.ae
+# The bundled stdlib profile learns (a <= b) && c from Refinement functions.
+# Its expanded candidate still has to satisfy this ordinary refinement.
+def guard (lower:Int) (value:Int) (enabled:Bool) :
+    {result:Bool | result = (lower <= value && enabled)} := ?condition;
+
+def main (args:Int) : Bool := guard 0 7 true;

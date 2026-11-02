@@ -29,21 +29,21 @@ dependencies = [
     # NumPy 2.2 has no CPython 3.14 wheels; keep older interpreters unchanged.
     'numpy==2.2.6; python_version < "3.14"',
     'numpy==2.3.4; python_version >= "3.14"',
-    'pydantic==2.14.1',
+    'pydantic==2.14.2',
     'pygls==2.1.1',
     'requests',
     'types-requests',
     'sympy',
     'textdistance',
     'cvc5 >= 1.1',
-    'z3-solver==5.3.1.0',
+    'z3-solver==5.3.3.0',
     'zss',
     "llvmlite",
 ]
 
 [project.optional-dependencies]
 tests = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-beartype",
     "packaging",
     "hypothesis>=6.100,<7",
@@ -62,6 +62,10 @@ image = [
 llm = [
     "ollama",
 ]
+llm-type-constrained = [
+    "torch>=2.5,<3",
+    "transformers>=4.46,<6",
+]
 synthesis-ortools = [
     "ortools"
 ]
@@ -79,7 +83,7 @@ denser = [
 ]
 # Full local/CI toolchain (core + test + ML/image/LLM extras).
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-beartype",
     "packaging",
     "hypothesis>=6.100,<7",
@@ -118,7 +122,7 @@ include = ["aeon*"]
 [tool.setuptools.package-data]
 # Include grammar files and the bundled standard-library .ae modules
 # (aeon/libraries/*.ae) so imports resolve from an installed wheel/egg.
-aeon = ["**/*.lark", "**/*.ae", "synthesis/modules/bustle/model.json"]
+aeon = ["**/*.lark", "**/*.ae", "synthesis/modules/bustle/model.json", "synthesis/modules/amaze/stdlib-profile.json"]
 
 [tool.docformatter]
 syntax = 'google'

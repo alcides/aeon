@@ -276,6 +276,28 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
     def __init__(self, seed: int = 0):
         self.seed = seed
 
+    def search_components(self, initial, decode, validate, evaluate, budget, max_assessments=1000):
+        """Reuse native evolution for a typed component grammar and one loss.
+
+        Each invocation owns a fresh population/archive. Callers doing CEGIS
+        restart this service after changing obligations, so no stale fitness
+        survives a dataset revision. The ordinary GP entry points are unchanged.
+        """
+        name = Name("component", -1)
+        return self._search(
+            initial,
+            lambda _: True,
+            validate,
+            evaluate,
+            name,
+            {name: {"goals": [Goal(True, 1, name)]}},
+            budget,
+            SynthesisUI(),
+            decode=decode,
+            max_assessments=max_assessments,
+            population_size=32,
+        )
+
     def synthesize(
         self,
         ctx: TypingContext,
@@ -357,6 +379,8 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
         ui: SynthesisUI,
         decode: Callable[[Genome, int], Term | None] | None = None,
         min_genome_length: int = 1,
+        max_assessments: int | None = None,
+        population_size: int | None = None,
     ) -> Term | None:
         clear_tdsyn_caches()
         goals: list[Goal] = metadata.get(fun_name, {}).get("goals", [])
@@ -372,6 +396,11 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
         )
         _resample_generation_params(state, MIN_POPULATION)
 
+        def exhausted():
+            return monotonic() - started >= max(0.0, budget) or (
+                max_assessments is not None and state.assessed >= max_assessments
+            )
+
         def fresh_individual(length: int | None = None) -> Individual:
             glen = (
                 length
@@ -384,18 +413,20 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
         probe: list[Individual] = [fresh_individual() for _ in range(PROBE_INDIVIDUALS)]
         probe_started = monotonic()
         for ind in probe:
+            if max_assessments is not None and exhausted():
+                break
             early = _assess(ind, initial, skip, validate, evaluate, state, ui, started, budget, decode)
             if early is not None:
                 return early
-            if monotonic() - started >= max(0.0, budget):
+            if exhausted():
                 break
         probe_seconds = monotonic() - probe_started
 
-        pop_size = choose_population_size(probe_seconds, budget)
+        pop_size = population_size or choose_population_size(probe_seconds, budget)
         population = list(probe)
 
         # Fill up to pop_size within remaining init allowance / overall budget.
-        while len(population) < pop_size and monotonic() - started < max(0.0, budget):
+        while len(population) < pop_size and not exhausted():
             ind = fresh_individual()
             early = _assess(ind, initial, skip, validate, evaluate, state, ui, started, budget, decode)
             if early is not None:
@@ -407,7 +438,7 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
             return None
 
         # --- Generational loop ---
-        while monotonic() - started < max(0.0, budget):
+        while not exhausted():
             state.generation += 1
             _resample_generation_params(state, pop_size)
             # Allow longer genomes (deeper trees) as evolution advances.
@@ -419,7 +450,7 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
             ]
 
             while len(next_pop) < pop_size:
-                if monotonic() - started >= max(0.0, budget):
+                if exhausted():
                     break
 
                 if state.rng.random() < state.novelty_rate:
@@ -440,7 +471,7 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
                         if early is not None:
                             return early
                         next_pop.append(sibling)
-                        if len(next_pop) >= pop_size:
+                        if len(next_pop) >= pop_size or (max_assessments is not None and exhausted()):
                             break
                 else:
                     parent = tournament_select(state.rng, population, state.tournament_size, minimize)

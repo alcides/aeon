@@ -1,0 +1,4 @@
+import DPVector;
+inductive DPFrontier
+| empty : DPFrontier
+| more(value:DPVector)(rest:DPFrontier):DPFrontier

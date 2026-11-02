@@ -6,6 +6,7 @@ from aeon.synthesis.api import ProgramSynthesizer, Synthesizer, UnknownSynthesiz
 from aeon.synthesis.modules.enumerative import EnumerativeSynthesizer
 from aeon.synthesis.modules.random_search import RandomSearchSynthesizer
 from aeon.synthesis.modules.rl_mcts import RLMCTSSynthesizer
+from aeon.synthesis.modules.regus import ReGuSSynthesizer
 from aeon.synthesis.modules.genetic_programming import GeneticProgrammingSynthesizer
 from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
@@ -13,6 +14,7 @@ from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm.ids import (
     LLM_OLLAMA_MODELS,
     LLM_OPENAI_SYNTHESIZER_ID,
+    LLM_TYPE_CONSTRAINED_ID,
     is_llm_synthesizer,
     llm_synthesizer_label,
 )
@@ -29,6 +31,8 @@ from aeon.synthesis.modules.cata import CATASynthesizer
 from aeon.synthesis.modules.contata.synthesizer import ContataSynthesizer
 from aeon.synthesis.modules.bustle import BustleSynthesizer
 from aeon.synthesis.modules.noisy import NoisySynthesizer
+from aeon.synthesis.modules.amaze import AmazeSynthesizer
+from aeon.synthesis.modules.dp_gp import DPSynthesizer
 from aeon.synthesis.tactics import TacticRandomSynthesizer
 
 
@@ -99,9 +103,13 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "enumerative": "Native grammar enumeration (BFS)",
     "random_search": "Native grammar random search",
     "rl_mcts": "RL-guided Monte-Carlo grammar tree search",
+    "amaze": "AMaze grammar optimization (stdlib-trained)",
+    "regus": "ReGuS reward-guided controller synthesis",
     "gp": "Native genetic programming (linear genome)",
+    "dp_gp": "Dynamic-programming transformations (GP components)",
     **{sid: llm_synthesizer_label(sid) for sid in LLM_OLLAMA_MODELS},
     LLM_OPENAI_SYNTHESIZER_ID: llm_synthesizer_label(LLM_OPENAI_SYNTHESIZER_ID),
+    LLM_TYPE_CONSTRAINED_ID: llm_synthesizer_label(LLM_TYPE_CONSTRAINED_ID),
 }
 
 
@@ -150,19 +158,26 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     "enumerative": SynthesizerFamily.GRAMMAR_SEARCH,
     "random_search": SynthesizerFamily.GRAMMAR_SEARCH,
     "rl_mcts": SynthesizerFamily.GRAMMAR_SEARCH,
+    "amaze": SynthesizerFamily.GRAMMAR_SEARCH,
+    "regus": SynthesizerFamily.GRAMMAR_SEARCH,
     # Metaheuristic — improve candidates with a fitness landscape.
     "gp": SynthesizerFamily.METAHEURISTIC,
+    "dp_gp": SynthesizerFamily.METAHEURISTIC,
     # LLM-assisted — generate candidates from natural language.
     **dict.fromkeys(LLM_OLLAMA_MODELS, SynthesizerFamily.LLM_ASSISTED),
     LLM_OPENAI_SYNTHESIZER_ID: SynthesizerFamily.LLM_ASSISTED,
+    LLM_TYPE_CONSTRAINED_ID: SynthesizerFamily.LLM_ASSISTED,
 }
 
 _BUILTIN_SYNTHESIZER_IDS = frozenset(
     {
         "random_search",
         "rl_mcts",
+        "amaze",
+        "regus",
         "enumerative",
         "gp",
+        "dp_gp",
         "ortools",
         "ortools_int",
         "cpsat",
@@ -251,6 +266,10 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return RandomSearchSynthesizer(seed=seed)
         case "rl_mcts":
             return RLMCTSSynthesizer(seed=seed)
+        case "amaze":
+            return AmazeSynthesizer(seed=seed)
+        case "regus":
+            return ReGuSSynthesizer(seed=seed)
         case "enumerative":
             return EnumerativeSynthesizer(seed=seed)
         case "gp":
@@ -259,6 +278,10 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return CPSatHoleSynthesizer(seed=seed)
         case "synquid":
             return SynquidSynthesizer(seed=seed)
+        case "llm_type_constrained":
+            from aeon.synthesis.modules.type_constrained import TypeConstrainedSynthesizer
+
+            return TypeConstrainedSynthesizer(seed=seed)
         case id if id in LLM_OLLAMA_MODELS or id == LLM_OPENAI_SYNTHESIZER_ID:
             try:
                 from aeon.synthesis.modules.llm import LLMSynthesizer, resolve_llm_backend
@@ -274,6 +297,8 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
             return DecisionTreeSynthesizer()
         case "smt":
             return SMTSynthesizer()
+        case "dp_gp":
+            return DPSynthesizer(seed=seed)
         case "noisy":
             return NoisySynthesizer(seed=seed)
         case "sygus":
