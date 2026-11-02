@@ -60,3 +60,34 @@ def test_all_invalid_fitness_returns_no_solution(monkeypatch, mode):
             {name: {"goals": [Goal(True, 1, name)], "synquid_search": mode, "synquid_max_level": 0}},
             ui=SilentSynthesisUI(),
         )
+
+
+@pytest.mark.parametrize("mode", ["paper", "size_merge", "iterative_deepening"])
+@pytest.mark.parametrize(
+    "minimize,better_score",
+    [(False, 1.0), (True, -1.0)],
+    ids=["maximize-past-zero", "minimize-below-zero"],
+)
+def test_synquid_continues_after_zero_fitness(monkeypatch, mode, minimize, better_score):
+    candidates = [Literal(0, t_int), Literal(1, t_int)]
+    monkeypatch.setattr(module, "iter_candidates_size_then_level", lambda *a, **kw: iter(candidates))
+    monkeypatch.setattr(module, "sorted_level_candidates", lambda *a, **kw: iter(candidates))
+    monkeypatch.setattr(engine, "synthes_memory", lambda *a, **kw: iter(candidates))
+    observed = []
+
+    def evaluate(term):
+        observed.append(term.value)
+        return [0.0 if term.value == 0 else better_score]
+
+    name = Name("f", 100)
+    result = module.SynquidSynthesizer().synthesize(
+        TypingContext(),
+        t_int,
+        lambda term: True,
+        evaluate,
+        name,
+        {name: {"goals": [Goal(minimize, 1, name)], "synquid_search": mode, "synquid_max_level": 0}},
+        ui=SilentSynthesisUI(),
+    )
+    assert observed == [0, 1]
+    assert result == candidates[1]

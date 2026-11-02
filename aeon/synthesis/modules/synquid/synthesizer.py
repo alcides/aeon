@@ -139,8 +139,6 @@ class SynquidSynthesizer(Synthesizer):
                 if on_front:
                     ui.register_front(pareto_front, elapsed)
                 ui.register(result, score, elapsed, on_front)
-                if all(s == 0.0 for s in score):
-                    return True
             else:
                 ui.register(result, "Invalid", get_elapsed_time(start_time), False)
             if get_elapsed_time(start_time) > budget:
