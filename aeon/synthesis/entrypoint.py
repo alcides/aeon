@@ -521,6 +521,34 @@ def _synthesize_joint(
     """Search every typed hole atomically, with one whole-program oracle."""
     from time import monotonic
     from aeon.synthesis.bounded_cnf import bounds, check_program
+    from aeon.synthesis.modules.boolean_bounded import BooleanBoundedSynthesizer
+
+    isolated = isinstance(synthesizer, BooleanBoundedSynthesizer)
+    if isinstance(synthesizer, BooleanBoundedSynthesizer) and not synthesizer._in_worker:
+        names = tuple(dict.fromkeys(hole for _, holes in targets for hole in holes))
+        ui.start(ctx, ectx, "+".join(name.name for name in names), None, budget)
+        mapping = None
+        try:
+            mapping = synthesizer.run_bounded(
+                lambda remaining, worker_ui: _synthesize_joint(
+                    ctx,
+                    ectx,
+                    prog,
+                    targets,
+                    metadata,
+                    synthesizer,
+                    remaining,
+                    worker_ui,
+                    budget_eval,
+                    constructor_names,
+                ),
+                budget,
+                ui,
+            )
+            return mapping
+        finally:
+            terms = tuple(mapping.values()) if mapping is not None else ()
+            ui.end(JointCandidate(terms) if terms and all(term is not None for term in terms) else None, None)
 
     start = monotonic()
     bounded = bool(bounds(metadata))
@@ -599,8 +627,17 @@ def _synthesize_joint(
     workers_ctx = _ectx_for_workers(ectx)
     properties = [make_property_fitness(corpus, workers_ctx, target=anchor) for corpus in corpora]
     fitness = make_bundled_fitness_evaluator(goals, workers_ctx, anchor, prog, properties)
-    pool = EvaluationPool(replace, {"fitness": fitness}, budget_eval=budget_eval)
-    evaluator, _ = _pool_backed(pool)
+    pool = None
+    if isolated:
+        # The whole operation already runs in a killable daemon worker. Execute
+        # fitness there too: nested pools cannot start from daemon processes and
+        # could otherwise outlive the synthesis deadline.
+        def evaluator(candidate):
+            return fitness(replace(candidate))
+
+    else:
+        pool = EvaluationPool(replace, {"fitness": fitness}, budget_eval=budget_eval)
+        evaluator, _ = _pool_backed(pool)
     if bounded:
         raw_evaluator = evaluator
 
@@ -625,9 +662,14 @@ def _synthesize_joint(
         )
         # Backends cannot bypass joint validity or return only some elements.
         if result is not None and not validate(result):
+            if isolated:
+                from aeon.synthesis.modules.boolean_bounded import BoundedBooleanFailure
+
+                raise BoundedBooleanFailure("validation_error", "candidate failed final whole-program validation")
             result = None
     finally:
-        pool.close()
+        if pool is not None:
+            pool.close()
         ui.end(result, None)
     if result is None:
         return {name: None for name in names}

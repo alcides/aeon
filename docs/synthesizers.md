@@ -416,16 +416,21 @@ Unannotated programs keep their existing behavior.
 
 `AEON_SEED` controls solver seeds. Each run owns fresh selectors and solvers.
 `BooleanBoundedSynthesizer.report` records status, iterations, counterexamples,
-selector count and elapsed solver-adapter time. `BoundedBooleanFailure.category`
+selector count and elapsed time for the bounded operation. `BoundedBooleanFailure.category`
 distinguishes `bounded_unsat`, `timeout`, `resource_limit`, `unknown`, and
 `validation_error`; capability mismatches use `UnsupportedSynthesisGoal`.
 `bounded_unsat` means no solution in the fixed, supported CNF family. Limits of
 100,000 selector bits and 100,000 translated predicate/template nodes prevent
 unbounded allocation; the Python API can configure these limits. The independent
-normalizer limits each definition to 10,000 visited syntax nodes. Search, extraction and
-validation share the remaining wall-clock budget, with Z3 timeouts set before
-each solver call. Shared compiler preparation is deducted from that budget;
-synchronous compiler/validation calls can overrun it before control returns.
+normalizer limits each definition to 10,000 visited syntax nodes. Shared compiler
+preparation, search, extraction, final validation and optional fitness evaluation
+run in the same killable worker used by `noisy` and `dp_gp`, under one wall-clock
+budget. Z3 calls also receive the remaining budget as their timeout. At the
+deadline the parent terminates the worker, escalating to kill if necessary, and
+reports `timeout` without accepting or publishing a candidate. Worker cleanup
+has a short bounded grace period. Direct calls to the Boolean adapter similarly
+contain search, extraction, validation and evaluation. Parsing/compilation before
+entering synthesis is outside this budget.
 
 This implements a solver-based bounded Boolean search, not BNSynth's neural
 learner. The separate benchmark corpus and evaluation harness are tracked in

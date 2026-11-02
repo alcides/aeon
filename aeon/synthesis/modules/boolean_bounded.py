@@ -21,6 +21,7 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.api import SynthesisNotSuccessful, TimeoutInEvaluationException, UnsupportedSynthesisGoal
 from aeon.synthesis.bounded_cnf import CNFResourceLimit, base, bounds, normalize
 from aeon.synthesis.joint import HoleSpec, JointCandidate
+from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeout
 from aeon.synthesis.solver_problem import ConstraintSynthesizer, SolverHole, SolverProblem
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.utils.name import Name
@@ -29,6 +30,7 @@ from aeon.utils.name import Name
 class BoundedBooleanFailure(SynthesisNotSuccessful):
     def __init__(self, category: str, message: str):
         self.category = category
+        self.message = message
         super().__init__(f"boolean_bounded [{category}]: {message}")
 
 
@@ -39,6 +41,16 @@ class BooleanReport:
     counterexamples: int = 0
     selectors: int = 0
     elapsed: float = 0.0
+
+
+class _WorkerUI(SynthesisUI):
+    """Publish candidates only after the entire worker operation succeeds."""
+
+    def __init__(self):
+        self.solutions = []
+
+    def register(self, solution, quality, elapsed_time, is_best):
+        self.solutions.append((solution, quality, elapsed_time, is_best))
 
 
 def _boolean_signature(ty: Type) -> None:
@@ -133,6 +145,58 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         self.max_selectors = max_selectors
         self.max_nodes = max_nodes
         self.report = BooleanReport()
+        self._in_worker = False
+
+    def run_bounded(self, operation, budget, ui):
+        """Use the noisy/DP worker to contain even synchronous compiler calls.
+
+        The entrypoint supplies preparation through final acceptance as one
+        operation. Direct adapter callers get the same containment for search,
+        extraction, validation and evaluation. No evaluation subprocesses are
+        needed inside this daemon worker.
+        """
+        started = monotonic()
+        deadline = started + max(0.0, budget)
+        self.report = BooleanReport()
+
+        def work(_):
+            self._in_worker = True
+            worker_ui = _WorkerUI()
+            try:
+                result = operation(max(0.0, deadline - monotonic()), worker_ui)
+                return result, None, self.report, worker_ui.solutions
+            except BoundedBooleanFailure as exc:
+                return None, (exc.category, exc.message), self.report, []
+            except UnsupportedSynthesisGoal as exc:
+                return None, ("unsupported", str(exc)), self.report, []
+
+        worker = None
+        try:
+            if monotonic() >= deadline:
+                raise WorkerTimeout()
+            worker = Worker({"synthesize": work})
+            result, failure, self.report, solutions = worker.call("synthesize", None, deadline - monotonic())
+            if monotonic() >= deadline:
+                raise WorkerTimeout()
+            if failure is not None:
+                category, message = failure
+                self.report.status = category
+                if category == "unsupported":
+                    raise UnsupportedSynthesisGoal(message)
+                raise BoundedBooleanFailure(category, message)
+            for solution, quality, elapsed, is_best in solutions:
+                ui.register(solution, quality, elapsed, is_best)
+            return result
+        except WorkerTimeout as exc:
+            self.report.status = "timeout"
+            raise BoundedBooleanFailure("timeout", "wall-clock budget exhausted") from exc
+        except WorkerError as exc:
+            self.report.status = "validation_error"
+            raise BoundedBooleanFailure("validation_error", str(exc)) from exc
+        finally:
+            if worker is not None:
+                worker.close()
+            self.report.elapsed = monotonic() - started
 
     def check_source(self, program: Term, holes: tuple[HoleSpec, ...], metadata: Metadata) -> None:
         self.report = BooleanReport()
@@ -198,6 +262,14 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
     ) -> JointCandidate:
+        if not self._in_worker:
+            return self.run_bounded(
+                lambda remaining, worker_ui: self.synthesize_joint(
+                    holes, validate, evaluate, fun_name, metadata, remaining, worker_ui
+                ),
+                budget,
+                ui,
+            )
         start = monotonic()
         deadline = start + max(0.0, budget)
         self.report = BooleanReport()
