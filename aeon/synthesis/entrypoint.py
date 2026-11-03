@@ -45,6 +45,7 @@ from aeon.synthesis.api import (
     TimeoutInEvaluationException,
 )
 from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool
+from aeon.synthesis.expression_size import make_size_evaluator
 from aeon.synthesis.fitness_eval import (
     as_objective_vector,
     candidate_key,
@@ -128,7 +129,7 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], list[
     Multi-objective helpers return a native ``Array`` (Python ``list``);
     that value is expanded to ``goal.length`` floats.
     """
-    assert goal.kind != "property", "Property goals are backed by fixed-corpus evaluators"
+    assert goal.kind not in {"property", "size"}, "Property and size goals have dedicated evaluators"
 
     def fitness(v: Term) -> list[float]:
         require_complete_program(v)
@@ -169,6 +170,7 @@ def make_evaluators(
     fun_name: Name,
     metadata: Metadata,
     property_evaluators: PropertyEvaluators | None = None,
+    hole_program: Term | None = None,
 ) -> Evaluators:
     """Build evaluators in the same component order as the target's goals.
 
@@ -180,7 +182,11 @@ def make_evaluators(
     properties = iter(property_evaluators or [])
     fitnesses: Evaluators = []
     for goal in goals:
-        if goal.kind == "property":
+        if goal.kind == "size":
+            if hole_program is None:
+                raise ValueError("size objectives require the original program with holes")
+            fitnesses.append(make_size_evaluator(hole_program, goal.function))
+        elif goal.kind == "property":
             prop = next(properties)
 
             def _property_fitness(prog: Term, p: Callable[[Term], float] = prop, n: int = goal.length) -> list[float]:
@@ -383,14 +389,13 @@ def _synthesize_one(
             make_property_fitness(corpus, _ectx_for_workers(ectx), target=fun_name) for corpus in corpora
         ]
 
-    evaluators = make_evaluators(ectx, fun_name, synthesis_metadata, property_evaluators)
-    dummy_prog = replace(_synthesis_dummy_literal(ty))
+    evaluators = make_evaluators(ectx, fun_name, synthesis_metadata, property_evaluators, hole_program=prog)
     fitness_goals: list[Goal] = synthesis_metadata.get(fun_name, {}).get("goals", [])
     bundled_fitness = make_bundled_fitness_evaluator(
         fitness_goals,
         _ectx_for_workers(ectx),
         fun_name,
-        dummy_prog,
+        prog,
         property_evaluators if corpora else None,
     )
     assert isinstance(tyctx, TypingContext)
@@ -732,6 +737,18 @@ def synthesize_holes(
     relational recursive synthesis), so a candidate for one member may call its
     siblings. ``constructor_names`` (data-constructor names) is forwarded to
     the ``@property`` runner used as a relational/k-safety acceptance oracle."""
+
+    size_objectives = any(goal.kind == "size" for entry in metadata.values() for goal in entry.get("goals", []))
+    if size_objectives and not getattr(synthesizer, "supports_size_objective", False):
+        raise UnsupportedSynthesisGoal(
+            "@minimize_size needs a synthesizer that optimizes expression size "
+            "(use enumerative, random_search, gp, tdsyn_enumerative or tdsyn_random)"
+        )
+    if size_objectives and any(
+        entry.get("tactic_scripts") and any(goal.kind == "size" for goal in entry.get("goals", []))
+        for entry in metadata.values()
+    ):
+        raise UnsupportedSynthesisGoal("@minimize_size cannot optimize a fixed explicit tactic script")
 
     hard_constraints = any(goal.kind == "constraint" for entry in metadata.values() for goal in entry.get("goals", []))
     if hard_constraints and not getattr(synthesizer, "supports_hard_constraints", False):

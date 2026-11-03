@@ -1,0 +1,6 @@
+# Minimize only the expression inserted into ?hole; the existing x * is fixed.
+# The refinement enforces correctness. The smallest replacement is 2 (size 1).
+# python -m aeon --no-main --budget 5 -s enumerative examples/synthesis/minimize_size.ae
+
+@minimize_size
+def double (x:Int) : {r:Int | r = x + x} := x * (?hole : {v:Int | v = 2});

@@ -40,6 +40,9 @@ def fitness_relevant_names(metadata) -> set[str]:
         if not isinstance(entry, dict):
             continue
         for goal in entry.get("goals", []) or []:
+            if goal.kind == "size":
+                # This names the user's definition, not a generated helper.
+                continue
             fn = getattr(goal, "function", None)
             if fn is not None:
                 names.add(fn.name)

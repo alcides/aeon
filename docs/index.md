@@ -758,6 +758,44 @@ def approx (x:Int | x > 0) : Float :=
 - `@maximize_float(expr)` — maximize a float expression
 - `@multi_minimize_float(expr)` — multi-objective float minimization
 
+### Expression-size objective
+
+Use `@minimize_size` without arguments to minimize the size of the expression
+inserted into a hole:
+
+```aeon
+@minimize_size
+def double (x:Int) : {r:Int | r = x + x} := x * (?hole : {v:Int | v = 2});
+```
+
+```bash
+python -m aeon --no-main --budget 5 -s enumerative examples/synthesis/minimize_size.ae
+```
+
+Here `2` is a valid replacement with size **1**. The existing `x *` and the
+function's parameter are outside the hole and do not contribute to its score.
+For a definition with several holes, the objective sums the sizes of their
+replacements; holes in other definitions are excluded. Use `gp` or
+`random_search` to optimize several holes jointly.
+
+Size is the number of nodes in the replacement's **core expression tree**:
+each variable, literal, application, lambda, conditional, binding, annotation,
+and type/refinement wrapper counts once. Types, source locations and
+termination metadata do not count. For example, `f x` has three nodes (an
+application and two variables). A synthesized lambda counts, whereas an
+existing lambda around the hole does not. This is a static score and does not
+execute the candidate.
+
+Supported backends are `enumerative`, `random_search`, `gp`,
+`tdsyn_enumerative` (the default), and `tdsyn_random`. Other backends report an
+unsupported-goal error. Search minimizes size among the valid candidates it
+finds within its budget; it does not prove global minimality.
+
+The decorator composes with numeric, CPU-time, energy, example and property
+objectives. These form a Pareto trade-off: size is another objective, rather
+than a tie-breaker that takes effect only after all example/property errors
+reach zero. Refinement types remain hard validity requirements.
+
 ### Resource-use objectives
 
 These add extra minimization objectives alongside numeric ones (for example `@minimize_int`). The synthesizer measures how expensive it is to **evaluate** the given expression for each candidate; the expression’s *value* is ignored, so its static type is unconstrained.

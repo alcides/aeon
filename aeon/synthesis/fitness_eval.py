@@ -12,6 +12,7 @@ from aeon.core.terms import Application, Hole, Let, Literal, Rec, Term, Var
 from aeon.core.types import t_int
 from aeon.synthesis.api import InvalidIndividualException
 from aeon.synthesis.decorators import Goal
+from aeon.synthesis.expression_size import make_size_evaluator
 from aeon.synthesis.identification import term_has_holes
 from aeon.synthesis.resource_meters import measure_cputime, measure_energy
 from aeon.utils.name import Name
@@ -172,7 +173,13 @@ def make_bundled_fitness_evaluator(
     The static prefix before ``fun_name`` is evaluated once from
     ``prefix_prog``; each candidate only extracts its suffix (no re-eval of
     library bindings).
+
+    For size objectives, ``prefix_prog`` must retain the original holes so
+    only their replacements are measured. Size-only scoring never evaluates
+    program bindings.
     """
+    size_evaluators = {g.function: make_size_evaluator(prefix_prog, g.function) for g in goals if g.kind == "size"}
+    needs_runtime = any(g.kind not in {"size", "property"} for g in goals)
     # A legacy per-hole caller may still have open siblings in its prefix.
     # Defer that prefix rather than evaluating holes during fitness setup.
     current = prefix_prog
@@ -182,7 +189,9 @@ def make_bundled_fitness_evaluator(
             dynamic_prefix = True
             break
         current = current.body
-    prefix_ctx = None if dynamic_prefix else prebind_prefix(prefix_prog, ectx, fun_name)[0]
+    prefix_ctx = (
+        ectx if not needs_runtime else None if dynamic_prefix else prebind_prefix(prefix_prog, ectx, fun_name)[0]
+    )
     expr_functions = {g.function for g in goals if g.kind == "expression"}
 
     def fitness(prog: Term) -> list[float]:
@@ -195,7 +204,9 @@ def make_bundled_fitness_evaluator(
         expr_values = _collect_expression_goals(suffix, candidate_ctx, expr_functions) if expr_functions else {}
         scores: list[float] = []
         for goal in goals:
-            if goal.kind == "property":
+            if goal.kind == "size":
+                scores.extend(size_evaluators[goal.function](prog))
+            elif goal.kind == "property":
                 prop = next(properties)
                 scores.extend(as_objective_vector(prop(prog), goal.length))
             elif goal.kind == "expression":

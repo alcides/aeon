@@ -273,6 +273,8 @@ def _resample_generation_params(state: GPState, pop_size: int) -> None:
 class GeneticProgrammingSynthesizer(JointSynthesizer):
     """Linear-genome genetic programming with adaptive population sizing."""
 
+    supports_size_objective = True
+
     def __init__(self, seed: int = 0):
         self.seed = seed
 
