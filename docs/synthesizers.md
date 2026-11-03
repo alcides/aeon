@@ -25,6 +25,16 @@ Population size is chosen from a timing probe of the first ten random individual
 
 Best suited for problems with a rich fitness landscape and sufficient budget.
 
+With two or more objective components, parent tournaments and elitism use
+**Pareto ranks** computed once per generation. Rank 0 contains all valid
+non-dominated individuals; removing them exposes rank 1, and so on. Tournaments
+prefer the lowest rank among their contestants, and elitism keeps individuals
+from the lowest ranks first. Equal-rank ties, including a front that crosses
+the elite cutoff, are broken randomly using the run's seed. Neither selection
+step prioritizes the first objective. Mixed minimize/maximize directions are
+respected, and invalid or unevaluated individuals rank below valid ones.
+Single-objective problems retain scalar fitness selection.
+
 ---
 
 ### `dp_gp` — Dynamic-Programming Transformations
