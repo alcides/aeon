@@ -63,7 +63,7 @@ def test_explicit_examples_are_preserved(monkeypatch):
     def forbidden(*args, **kwargs):
         raise AssertionError("Explicit examples must not trigger inference")
 
-    monkeypatch.setattr("aeon.synthesis.entrypoint.derive_refinement_examples", forbidden)
+    monkeypatch.setattr("aeon.synthesis.example_adapters.derive_refinement_examples", forbidden)
     with d.session.activate():
         d.synth()
     assert d.metadata == before
