@@ -218,5 +218,8 @@ def test_documented_source_examples(filename, expression):
     result = synthesize_holes(ctx, ectx, term, targets, metadata, backend, budget=20)
     assert result[targets[0][1][0]] is not None
     assert backend.statistics.validation_passed > 0
+    descriptions = [values["doc"] for values in metadata.values() if "doc" in values]
+    assert descriptions
+    assert all(description in adapter.prompts[0] for description in descriptions)
     if filename == "application.ae":
         assert "answer 0" in adapter.prompts[0]

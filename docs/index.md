@@ -48,7 +48,7 @@ def deposit : {d : Int | d > 0 && d * 21900 >= 10000000} := ?hole;
 
 Running this with `uv run python -m aeon --budget 10 -s gp file.ae`, Aeon searches for an integer that satisfies the predicate and is as small as possible — landing on `457` (since `457 * 21900 = 10_008_300`).
 
-The same machinery scales up: holes can appear inside functions, take arguments, and be guided by training data (`@csv_file`), runtime energy use (`@minimize_energy`), or natural-language prompts (`@prompt`, used by the `llm` backend).
+The same machinery scales up: holes can appear inside functions, take arguments, and be guided by training data (`@csv_file`), runtime energy use (`@minimize_energy`), or natural-language prompts (`@doc`, used by the `llm` backend).
 
 ## Important concepts when learning Aeon
 
@@ -623,8 +623,19 @@ For a worked case study of taming two especially error-prone modules — turning
 ## Libraries
 
 The standard library lives in `aeon/libraries/`. Import with `import M`, `open M`, or
-selective `import M (f, g)`. Each module is documented in its `.ae` source (JavaDoc-style
-`#` comments) and rendered to HTML by `python -m aeon --doc`.
+selective `import M (f, g)`. Each module is documented in its `.ae` source and
+rendered to HTML by `python -m aeon --doc`. Use `@doc("description")` on a
+definition to supply its documentation and guide LLM synthesis:
+
+```aeon
+@doc("Adds one to an integer.\nx: The input integer.\nreturns: The input plus one.")
+def increment (x:Int) : Int := x + 1;
+```
+
+`@doc` accepts exactly one string literal. Its text takes precedence over preceding
+`#` comments; comments remain the documentation source when `@doc` is absent.
+Argument descriptions (`x: ...`) and return descriptions (`returns: ...`) work
+in either source. `@doc` replaces the former `@prompt` decorator.
 
 ### Generated reference
 
@@ -862,7 +873,7 @@ aeon --test examples/testing/image_tests.ae
 
 - `@allow_recursion` — allow recursion during synthesis
 - `@error_fitness(value)` — set the fitness value to use when an exception occurs during synthesis
-- `@prompt("description")` — provide a prompt for LLM-based synthesis
+- `@doc("description")` — document a definition for `--doc` and guide LLM-based synthesis
 
 #### Hiding a binding from synthesis
 

@@ -441,20 +441,6 @@ def bounded_cnf(
     return fun, [], metadata_update(metadata, fun, {"bounded_cnf": args[0].value})
 
 
-def prompt(
-    decorator: Decorator,
-    fun: Definition,
-    metadata: Metadata,
-) -> tuple[Definition, list[Definition], Metadata]:
-    "Keeps track of the prompt that should be used in LLM-based synthesis"
-    assert len(decorator.macro_args) == 1
-    assert isinstance(decorator.macro_args[0], SLiteral) and isinstance(decorator.macro_args[0].value, str)
-    val = decorator.macro_args[0].value
-    metadata = metadata_update(metadata, fun, {"prompt": val})
-
-    return fun, [], metadata
-
-
 def _binop(op: str, left: STerm, right: STerm) -> STerm:
     """Build a binary operation AST node: (op left right)."""
     return SApplication(SApplication(SVar(Name(op, 0)), left), right)

@@ -128,7 +128,7 @@ class TypeConstrainedSynthesizer(Synthesizer):
             "Use = for equality. Parenthesize compound arguments.\n"
             f"Required type (including refinements): {type}\nIn-scope components: {variables}\n"
             f"Examples from the source program:\n{examples}\n"
-            f"Task: {current.get('prompt', 'Satisfy the type and examples.')}\nExpression:\n"
+            f"Task: {current.get('doc', 'Satisfy the type and examples.')}\nExpression:\n"
         )
         minimize = minimize_flags_from_goals(current.get("goals", []))
         front: list[ParetoEntry] = []

@@ -136,7 +136,7 @@ models and select a suitable budget. There is no silent provider fallback.
 The ordinary `.ae` files in `examples/synthesis/type_constrained/` cover
 application, a conditional with let binding, a whole function hole, and a
 positive refinement that must reject zero. They also work with compatible
-existing backends. `@prompt` and source examples are included in the model
+existing backends. `@doc` and source examples are included in the model
 prompt; normal shared evaluators supply objective values.
 
 ```bash
