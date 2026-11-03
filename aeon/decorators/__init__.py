@@ -15,6 +15,7 @@ from dataclasses import replace
 
 from aeon.core.terms import Term
 from aeon.decorators.api import CORE_DECORATOR_QUEUE_META_KEY, DecoratorType, Metadata
+from aeon.decorators.documentation import doc
 from aeon.errors import UnknownDecoratorError
 from aeon.sugar.program import Decorator, Definition
 from aeon.synthesis.core_decorators import core_decorators_environment
@@ -36,7 +37,6 @@ from aeon.synthesis.decorators import (
     minimize_int,
     multi_minimize_float,
     multi_minimize_int,
-    prompt,
     property_test,
     require,
 )
@@ -53,7 +53,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "multi_minimize_int": multi_minimize_int,
     "allow_recursion": allow_recursion,
     "error_fitness": error_fitness,
-    "prompt": prompt,
+    "doc": doc,
     "property": property_test,
     "example": example,
     "csv_data": csv_data,
@@ -89,8 +89,8 @@ def _is_decorator_name_prefix(name: str) -> bool:
 
 
 def _sugar_decorator_ready(dname: str, decorator: Decorator) -> bool:
-    # A malformed hard contract must never be silently deferred/ignored.
-    if dname == "bounded_cnf":
+    # Invalid contracts and documentation must not be silently deferred/ignored.
+    if dname in {"bounded_cnf", "doc"}:
         return True
     expected = _SUGAR_DECORATOR_ARITY.get(dname, 1)
     n = len(decorator.macro_args)

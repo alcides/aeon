@@ -19,7 +19,7 @@ from tests.driver import check_and_return_core
 from tests.synthesis_helpers import require_synthesized, synthesize_holes_or_skip
 
 
-def _mock_generate(monkeypatch, responses):
+def _mock_generate(monkeypatch, responses, *, prompts: list[str] | None = None):
     """Patch ``client.generate`` to yield ``responses`` in order, counting calls."""
     import aeon.synthesis.modules.llm.client as llm_client
     import aeon.synthesis.modules.llm.ollama_manager as ollama_manager
@@ -31,6 +31,8 @@ def _mock_generate(monkeypatch, responses):
 
     def fake(*, model=None, prompt=None, temperature=None, provider=None):
         calls["n"] += 1
+        if prompts is not None:
+            prompts.append(prompt)
         return next(it)
 
     monkeypatch.setattr(llm_client, "generate", fake)
@@ -100,6 +102,15 @@ def test_synthesizes_plain_typed_hole(monkeypatch):
     _mock_generate(monkeypatch, ["7"])
     t = _solve("def n : Int := ?hole;")
     assert isinstance(t, Literal) and t.value == 7
+
+
+def test_doc_supplies_the_llm_problem_description(monkeypatch):
+    prompts: list[str] = []
+    _mock_generate(monkeypatch, ["443"], prompts=prompts)
+    t = _solve('@doc("The standard HTTPS port.")\ndef port : Int := ?hole;')
+    assert isinstance(t, Literal) and t.value == 443
+    assert len(prompts) == 1
+    assert prompts[0].endswith("\nThe standard HTTPS port.")
 
 
 def test_recovers_from_unparseable_response(monkeypatch):

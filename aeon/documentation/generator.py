@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from aeon.decorators.documentation import doc_text
 from aeon.sugar.program import (
     Program,
     Decorator,
@@ -478,6 +479,9 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
     for defn in prog.definitions:
         line_num = defn.loc.start[0] if hasattr(defn.loc, "start") else 0
         raw_comment = find_preceding_comment(comments, line_num)
+        for dec in defn.decorators:
+            if dec.name.name == "doc":
+                raw_comment = doc_text(dec)
         # Don't shadow the outer module-level ``header_comment``.
         func_header_comment, arg_docs, return_doc = split_arg_docs(raw_comment)
 
@@ -486,12 +490,14 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
             mult = defn.multiplicity_of(i)
             prefix = "" if mult is MOmega else f"{mult} "
             args_formatted.append((format_name(n), pretty_print_param(n, t, mult), prefix))
-        # ``@example(assertion)`` decorators are surfaced in their own block; the
-        # remaining decorators are shown as chips.
+        # Documentation and examples have their own blocks; other decorators
+        # are shown as chips.
         examples_formatted = [
             pprint_sterm(dec.macro_args[0]) for dec in defn.decorators if dec.name.name == "example" and dec.macro_args
         ]
-        decorators_formatted = [format_decorator(dec) for dec in defn.decorators if dec.name.name != "example"]
+        decorators_formatted = [
+            format_decorator(dec) for dec in defn.decorators if dec.name.name not in {"doc", "example"}
+        ]
         foralls_formatted = [(format_name(n), str(k)) for n, k in defn.foralls]
         rforalls_formatted = [(format_name(n), pretty_print_stype(s)) for n, s in defn.rforalls]
 

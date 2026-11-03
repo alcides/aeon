@@ -115,7 +115,7 @@ class LLMSynthesizer(Synthesizer):
 
         goals: list[Goal] = current_metadata.get("goals", [])
         minimize_list = minimize_flags_from_goals(goals)
-        prompt = current_metadata.get("prompt", "Any program")
+        description = current_metadata.get("doc", "Any program")
 
         start_time = monotonic_ns()
         temperature = 0.0
@@ -126,7 +126,7 @@ class LLMSynthesizer(Synthesizer):
             while get_elapsed_time(start_time) <= budget:
                 r = generate(
                     model=self.model,
-                    prompt=f"{system_prompt}\n{prompt}",
+                    prompt=f"{system_prompt}\n{description}",
                     temperature=temperature,
                     provider=self.provider,
                 )

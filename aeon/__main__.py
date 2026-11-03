@@ -423,7 +423,11 @@ def main() -> None:
         else:
             output_path = str(source_path.with_suffix(".html"))
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        generate_documentation(args.filename, output_path)
+        try:
+            generate_documentation(args.filename, output_path)
+        except AeonError as e:
+            handle_error(e)
+            sys.exit(error_exit_code(e))
         print(f"Documentation generated: {output_path}")
         sys.exit(0)
 
