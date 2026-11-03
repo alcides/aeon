@@ -8,6 +8,11 @@ uv run python -m aeon --budget 30 -s tdsyn_enumerative my_program.ae
 
 The `--budget` flag sets the time limit in seconds (default: 60). The default synthesizer is **`tdsyn_enumerative`** (type-directed BFS); pass `-s gp` (or another id) to override.
 
+Attach [`@minimize_size`](index.md#expression-size-objective) to a definition to
+minimize the core AST size of its hole replacements. This objective is supported
+by `enumerative`, `random_search`, `gp`, `tdsyn_enumerative` and `tdsyn_random`;
+use `random_search` or `gp` for joint optimization of several holes.
+
 ---
 
 ## Available Synthesizers

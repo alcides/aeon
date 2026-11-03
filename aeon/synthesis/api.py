@@ -63,6 +63,9 @@ class Synthesizer(ABC):
     # needs examples and the user has supplied no explicit training corpus.
     requires_examples: bool = False
 
+    # Opt in only when search ranks candidates using shared fitness scores.
+    supports_size_objective: bool = False
+
     def evaluation_timeout(self, default: float) -> float:
         """Per-candidate worker allowance, including all requested observations."""
         return default

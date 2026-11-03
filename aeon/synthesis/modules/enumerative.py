@@ -99,6 +99,8 @@ _candidates = iter_candidates
 class EnumerativeSynthesizer(Synthesizer):
     """Driver over :func:`iter_candidates` with a live Pareto archive."""
 
+    supports_size_objective = True
+
     def __init__(self, seed: int = 0):
         self.seed = seed
 

@@ -35,6 +35,7 @@ from aeon.synthesis.decorators import (
     minimize_energy,
     minimize_float,
     minimize_int,
+    minimize_size,
     multi_minimize_float,
     multi_minimize_int,
     property_test,
@@ -62,6 +63,7 @@ sugar_decorators_environment: dict[str, DecoratorType] = {
     "maximize": maximize,
     "minimize_cputime": minimize_cputime,
     "minimize_energy": minimize_energy,
+    "minimize_size": minimize_size,
     "cluster": cluster,
     "require": require,
 }
@@ -77,6 +79,7 @@ _KNOWN_DECORATOR_NAMES: frozenset[str] = frozenset(sugar_decorators_environment)
 # Omitted names default to exactly one positional argument.
 _SUGAR_DECORATOR_ARITY: dict[str, int | frozenset[int]] = {
     "allow_recursion": 0,
+    "minimize_size": 0,
     "property": frozenset({0, 1}),
     "multi_minimize_float": 2,
     "multi_minimize_int": 2,
@@ -90,7 +93,7 @@ def _is_decorator_name_prefix(name: str) -> bool:
 
 def _sugar_decorator_ready(dname: str, decorator: Decorator) -> bool:
     # Invalid contracts and documentation must not be silently deferred/ignored.
-    if dname in {"bounded_cnf", "doc"}:
+    if dname in {"bounded_cnf", "doc", "minimize_size"}:
         return True
     expected = _SUGAR_DECORATOR_ARITY.get(dname, 1)
     n = len(decorator.macro_args)

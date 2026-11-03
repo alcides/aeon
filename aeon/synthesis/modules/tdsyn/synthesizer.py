@@ -91,6 +91,8 @@ class TDSynSynthesizer(Synthesizer):
     order on each iteration to explore different term structures.
     """
 
+    supports_size_objective = True
+
     def __init__(self, mode: str = "enumerative", seed: int = 0):
         assert mode in ("enumerative", "random")
         self.mode = mode

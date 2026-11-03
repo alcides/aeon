@@ -25,7 +25,8 @@ class Goal(NamedTuple):
     # consumed evaluating it (via RAPL when available, otherwise a CPU-time
     # proxy). ``"property"`` is a runtime objective backed by a fixed corpus;
     # its ``function`` identifies the property rather than a generated numeric
-    # helper. See ``aeon/synthesis/entrypoint.py``.
+    # helper. ``"size"`` counts hole replacements in the definition identified
+    # by ``function``, without evaluating it. See ``aeon/synthesis/entrypoint.py``.
     kind: str = "expression"
 
 
@@ -816,6 +817,21 @@ def maximize(
     # Convert maximize(expr) to minimize(0 - expr)
     negated = _binop("-", SLiteral(0.0, st_float), decorator.macro_args[0])
     return make_optimizer([negated], fun, metadata, st_float, minimize=True)
+
+
+def minimize_size(
+    decorator: Decorator,
+    fun: Definition,
+    metadata: Metadata,
+) -> tuple[Definition, list[Definition], Metadata]:
+    """Minimize the total core AST size of this definition's hole replacements."""
+    from aeon.errors import InvalidDecoratorArgumentError
+
+    if decorator.macro_args:
+        raise InvalidDecoratorArgumentError(decorator, "expected no arguments; use @minimize_size")
+    goals = metadata.get(fun.name, {}).get("goals", [])
+    goal = Goal(minimize=True, length=1, function=fun.name, kind="size")
+    return fun, [], metadata_update(metadata, fun, {"goals": goals + [goal]})
 
 
 def minimize_cputime(

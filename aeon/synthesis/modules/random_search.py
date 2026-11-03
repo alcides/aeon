@@ -51,6 +51,8 @@ def iter_random_candidates(
 class RandomSearchSynthesizer(JointSynthesizer):
     """Driver over :func:`iter_random_candidates` with a live Pareto archive."""
 
+    supports_size_objective = True
+
     def __init__(self, seed: int = 0):
         self.seed = seed
 
