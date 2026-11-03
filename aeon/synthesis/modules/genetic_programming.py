@@ -33,7 +33,7 @@ from aeon.synthesis.modules.native_search import (
     make_skip,
 )
 from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches
-from aeon.synthesis.pareto import minimize_flags_from_goals, pick_pareto_member, update_pareto_front
+from aeon.synthesis.pareto import dominates, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -163,14 +163,66 @@ def mutate(rng: random.Random, genome: Genome, mutation_rate: float, mutation_co
     return child if child else _random_genome(rng, 1)
 
 
-def tournament_select(rng: random.Random, population: list[Individual], k: int, minimize: list[bool]) -> Individual:
+def _pareto_ranks(population: list[Individual], minimize: list[bool]) -> list[int]:
+    """Rank valid individuals by successive non-dominated fronts, best first.
+
+    Equal fitness vectors retain separate population slots at the same rank.
+    Invalid or unevaluated individuals rank below every valid front. Build the
+    dominance graph once so peeling further fronts needs no more comparisons.
+    """
+    scored = [(i, ind.fitness) for i, ind in enumerate(population) if ind.valid and ind.fitness is not None]
+    dominated: list[list[int]] = [[] for _ in population]
+    dominators = [0] * len(population)
+    for pos, (i, score) in enumerate(scored):
+        for j, other in scored[pos + 1 :]:
+            if dominates(score, other, minimize):
+                dominated[i].append(j)
+                dominators[j] += 1
+            elif dominates(other, score, minimize):
+                dominated[j].append(i)
+                dominators[i] += 1
+
+    ranks = [-1] * len(population)
+    front = [i for i, _ in scored if dominators[i] == 0]
+    rank = 0
+    while front:
+        next_front = []
+        for i in front:
+            ranks[i] = rank
+            for j in dominated[i]:
+                dominators[j] -= 1
+                if dominators[j] == 0:
+                    next_front.append(j)
+        front = next_front
+        rank += 1
+    return [rank if value < 0 else value for value in ranks]
+
+
+def tournament_select(
+    rng: random.Random,
+    population: list[Individual],
+    k: int,
+    minimize: list[bool],
+    *,
+    ranks: list[int] | None = None,
+) -> Individual:
+    """Prefer the best population Pareto rank, with seeded random ties.
+
+    A generation can supply precomputed ranks for all its tournaments. With
+    zero or one objective, retain the original scalar tournament behavior.
+    """
     k = max(1, min(k, len(population)))
+    if len(minimize) > 1:
+        ranks = _pareto_ranks(population, minimize) if ranks is None else ranks
+        indices = rng.sample(range(len(population)), k)
+        best_rank = min(ranks[i] for i in indices)
+        return population[rng.choice([i for i in indices if ranks[i] == best_rank])]
     contestants = rng.sample(population, k)
     return _best_individual(contestants, minimize)
 
 
 def _fitness_key(fitness: list[float] | None, minimize: list[bool]) -> tuple:
-    """Sort key: valid fitnesses first, then Pareto-friendly tuple (lower better)."""
+    """Legacy scalar sort key, used only with zero or one objective."""
     if fitness is None:
         return (1, ())
     oriented = tuple(v if is_min else -v for v, is_min in zip(fitness, minimize))
@@ -181,6 +233,25 @@ def _best_individual(population: list[Individual], minimize: list[bool]) -> Indi
     valid = [ind for ind in population if ind.valid and ind.fitness is not None]
     pool = valid if valid else population
     return min(pool, key=lambda ind: _fitness_key(ind.fitness, minimize))
+
+
+def select_elites(
+    rng: random.Random,
+    population: list[Individual],
+    count: int,
+    minimize: list[bool],
+    *,
+    ranks: list[int] | None = None,
+) -> list[Individual]:
+    """Keep the best fronts, randomly breaking ties at the elite cutoff."""
+    count = max(0, min(count, len(population)))
+    if len(minimize) <= 1:
+        return sorted(population, key=lambda ind: _fitness_key(ind.fitness, minimize))[:count]
+    ranks = _pareto_ranks(population, minimize) if ranks is None else ranks
+    indices = list(range(len(population)))
+    rng.shuffle(indices)
+    indices.sort(key=lambda i: ranks[i])
+    return [population[i] for i in indices[:count]]
 
 
 def _elite_count(pop_size: int) -> int:
@@ -445,10 +516,12 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
             _resample_generation_params(state, pop_size)
             # Allow longer genomes (deeper trees) as evolution advances.
             elite_n = min(_elite_count(pop_size), pop_size)
-            ranked = sorted(population, key=lambda ind: _fitness_key(ind.fitness, minimize))
+            # Parent selection and survival share one ranking of this generation.
+            ranks = _pareto_ranks(population, minimize) if len(minimize) > 1 else None
+            elites = select_elites(state.rng, population, elite_n, minimize, ranks=ranks)
             next_pop: list[Individual] = [
                 Individual(genome=list(ind.genome), term=ind.term, fitness=ind.fitness, valid=ind.valid)
-                for ind in ranked[:elite_n]
+                for ind in elites
             ]
 
             while len(next_pop) < pop_size:
@@ -458,8 +531,8 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
                 if state.rng.random() < state.novelty_rate:
                     child = fresh_individual()
                 elif state.rng.random() < state.crossover_rate and pop_size >= 2:
-                    p1 = tournament_select(state.rng, population, state.tournament_size, minimize)
-                    p2 = tournament_select(state.rng, population, state.tournament_size, minimize)
+                    p1 = tournament_select(state.rng, population, state.tournament_size, minimize, ranks=ranks)
+                    p2 = tournament_select(state.rng, population, state.tournament_size, minimize, ranks=ranks)
                     g1, g2 = one_point_crossover(state.rng, p1.genome, p2.genome)
                     if state.rng.random() < state.mutation_rate:
                         g1 = mutate(state.rng, g1, state.mutation_rate, state.mutation_codons)
@@ -476,7 +549,7 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
                         if len(next_pop) >= pop_size or (max_assessments is not None and exhausted()):
                             break
                 else:
-                    parent = tournament_select(state.rng, population, state.tournament_size, minimize)
+                    parent = tournament_select(state.rng, population, state.tournament_size, minimize, ranks=ranks)
                     genome = mutate(state.rng, parent.genome, max(state.mutation_rate, 0.05), state.mutation_codons)
                     child = Individual(genome=genome)
 
