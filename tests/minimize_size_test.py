@@ -226,7 +226,7 @@ def test_type_directed_search_scores_size(backend):
     assert list(result.values()) == [ONE]
 
 
-@pytest.mark.parametrize("backend", ["ortools", "smt", "sygus", "polynomial", "noisy", "boolean_bounded"])
+@pytest.mark.parametrize("backend", ["backward_lit", "forward_close", "dp_gp"])
 def test_backends_without_size_optimization_reject_goal(backend):
     driver = parse("@minimize_size def f:Int := ?h;")
     with pytest.raises(UnsupportedSynthesisGoal, match="@minimize_size"):
@@ -237,7 +237,7 @@ def test_cli_reports_unsupported_size_objective_without_traceback(tmp_path):
     source = tmp_path / "size.ae"
     source.write_text("@minimize_size def f:Int := ?h;")
     result = subprocess.run(
-        [sys.executable, "-m", "aeon", "--no-main", "-s", "smt", str(source)],
+        [sys.executable, "-m", "aeon", "--no-main", "-s", "backward_lit", str(source)],
         capture_output=True,
         text=True,
         timeout=15,

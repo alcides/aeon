@@ -794,6 +794,7 @@ class SymetricSynthesizer(Synthesizer):
 
         goals = _goals_for(metadata, fun_name)
         minimize_flags = [g.minimize for g in goals for _ in range(g.length)]
+        zero_is_optimal = all(g.minimize and g.kind in ("example", "csv", "property") for g in goals)
 
         self._builders, self._atoms = self._collect(ctx, type)
         self._by_name: dict[Name, Component] = {c.name: c for cs in self._builders.values() for c in cs}
@@ -899,9 +900,9 @@ class SymetricSynthesizer(Synthesizer):
         ]
         for st in searches:
             st["tabu"].append(str(st["cur"]))
-        while searches and not out_of_time() and best_score > 0.0:
+        while searches and not out_of_time() and not (zero_is_optimal and best_score <= 0.0):
             for st in list(searches):
-                if out_of_time() or best_score <= 0.0:
+                if out_of_time() or (zero_is_optimal and best_score <= 0.0):
                     break
                 if st["stale"] >= self.patience:
                     searches.remove(st)
@@ -925,7 +926,7 @@ class SymetricSynthesizer(Synthesizer):
                 st["cur"], st["cur_s"] = pick, pick_s
                 st["tabu"].append(str(pick))
 
-        if best_term is not None and best_score <= 0.0 and _safe(validate, best_term):
+        if best_term is not None and zero_is_optimal and best_score <= 0.0 and _safe(validate, best_term):
             ui.register(best_term, [best_score], time.time() - start, True)
             return best_term
         if best_term is not None and _safe(validate, best_term):

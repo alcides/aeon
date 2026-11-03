@@ -33,6 +33,7 @@ from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.terms import Term, Var
 from aeon.core.types import t_float, t_int
 from aeon.synthesis.api import SynthesisNotSuccessful, UnsupportedSynthesisGoal
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.joint import JointCandidate
 from aeon.synthesis.modules.sygus.solver import _apply_op, _num_literal
 from aeon.synthesis.solver_problem import ConstraintSynthesizer, SolverHole, SolverProblem
@@ -299,13 +300,34 @@ class CertificateProblem:
                 self.conclusion(conclusion, nonnegative, equalities, variables, n)
 
     def solve(self) -> JointCandidate:
+        candidates = self.candidates()
+        try:
+            return next(candidates)
+        except StopIteration as exc:
+            raise SynthesisNotSuccessful("Polynomial synthesis: no certificate at the configured degrees") from exc
+        finally:
+            candidates.close()
+
+    def candidates(self):
         self.build()
-        self.solver.set(timeout=self.remaining_ms())
-        result = self.solver.check()
-        if result != z3.sat:
-            detail = "no certificate at the configured degrees" if result == z3.unsat else self.solver.reason_unknown()
-            raise SynthesisNotSuccessful(f"Polynomial synthesis: {detail}")
-        model = self.solver.model()
+        while time.monotonic() < self.deadline:
+            self.solver.set(timeout=self.remaining_ms())
+            if self.solver.check() != z3.sat:
+                return
+            model = self.solver.model()
+            yield self.decode(model)
+            # Certificate multipliers are proof witnesses, not program choices.
+            self.solver.add(
+                z3.Or(
+                    *[
+                        coefficient != model.eval(coefficient, model_completion=True)
+                        for _, template in self.templates.values()
+                        for coefficient in template.values()
+                    ]
+                )
+            )
+
+    def decode(self, model) -> JointCandidate:
         terms = []
         for hole, template in self.templates.values():
             body: Term | None = None
@@ -344,14 +366,18 @@ class PolynomialSynthesizer(ConstraintSynthesizer):
 
     requires_whole_program = True
 
+    supports_optimization = False
+    supports_candidate_enumeration = True
+
     def __init__(self, config: PolynomialConfig | None = None):
         self.config = config if config is not None else PolynomialConfig.from_env()
 
     def synthesize_joint(self, holes, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI()):
-        started = time.monotonic()
-        candidate = solve_polynomial(metadata[fun_name]["solver_problem"], self.config, budget)
-        if not validate(candidate):
-            raise SynthesisNotSuccessful("Polynomial synthesis: complete assignment failed validation")
-        scores = evaluate(candidate) if metadata[fun_name].get("goals") else []
-        ui.register(candidate, scores, time.monotonic() - started, True)
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
+        problem = CertificateProblem(metadata[fun_name]["solver_problem"], self.config, archive.deadline)
+        candidate = archive.search(problem.candidates(), validate)
+        if candidate is None:
+            raise SynthesisNotSuccessful(
+                "Polynomial synthesis: no validated assignment at the configured degrees within budget"
+            )
         return candidate

@@ -67,7 +67,7 @@ from aeon.errors import (
     LiquidTypeCheckingFailedRelation,
     UnreachablePatternError,
 )
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.typechecking.branch_evidence import (
     match_branch_evidence,
     match_refinement_obligation,
@@ -627,6 +627,46 @@ def synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     return result
 
 
+def _synth_array_literal(ctx: TypingContext, literal: Literal, ty: TypeConstructor) -> tuple[Constraint, Type]:
+    """Type native array values returned by solvers, including their length.
+
+    A declared element type is checked against every actual value; it is never
+    trusted as a cast. Only the Array library's size measure is known here.
+    Arbitrary content predicates remain obligations of the ordinary checker.
+    """
+    values = literal.value
+    if not isinstance(values, list) or len(ty.args) != 1 or not wellformed(ctx, ty):
+        raise CoreSubtypingError(ctx, literal, top, ty)
+    element = ty.args[0]
+    base = element.type if isinstance(element, RefinedType) else element
+    scalar_types = {bool: t_bool, int: t_int, float: t_float, str: t_string}
+    constraint: Constraint = ctrue
+    for value in values:
+        actual = scalar_types.get(type(value))
+        if isinstance(value, list) and isinstance(base, TypeConstructor) and base.name.name == "Array":
+            actual = base
+        if actual is None:
+            raise CoreSubtypingError(ctx, literal, top, element)
+        constraint = conjoin(constraint, check(ctx, Literal(value, actual, literal.loc), element))
+    binder = Name("array_literal", fresh_counter.fresh())
+    for declaration in reversed(ctx.entries):
+        if not isinstance(declaration, UninterpretedBinder) or declaration.name.name != "Array_size":
+            continue
+        signature = declaration.type
+        while isinstance(signature, TypePolymorphism):
+            signature = signature.body
+        if (
+            isinstance(signature, AbstractionType)
+            and isinstance(signature.var_type, TypeConstructor)
+            and signature.var_type.name == ty.name
+            and signature.type == t_int
+        ):
+            length = LiquidApp(declaration.name, [LiquidVar(binder)])
+            predicate = LiquidApp(Name("==", 0), [length, LiquidLiteralInt(len(values))])
+            return constraint, RefinedType(binder, ty, predicate)
+    return constraint, ty
+
+
 def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
         case Literal(_, TypeConstructor(Name("Unit", _))):
@@ -643,6 +683,8 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
         case Literal(vs, TypeConstructor(Name("String", _))):
             assert isinstance(vs, str)
             return (ctrue, prim_litstring(vs))
+        case Literal(_, TypeConstructor(Name("Array", _)) as array_type):
+            return _synth_array_literal(ctx, t, array_type)
         case Var(name):
             if name in ops:
                 return (ctrue, prim_op(name))

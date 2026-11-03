@@ -41,7 +41,7 @@ def test_pbe_extracts_prefix(tmp_path):
         '@example(f "938-242-504" = "938")\n'
         '@example(f "308-916-545" = "308")\n'
         '@example(f "623-599-749" = "623")\n'
-        "def f (name: String) : String := (?hole : String);\n",
+        "def f (name: {s:String | len s >= 3}) : String := (?hole : String);\n",
         tmp_path,
     )
     # A solved hole prints a concrete body for f built from the String DSL.

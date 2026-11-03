@@ -12,8 +12,13 @@ from aeon.core.terms import Let, Rec, Term, Var
 from aeon.core.types import Type, refined_to_unrefined_type, t_bool, t_int, top
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import ProgramSynthesizer, SynthesisNotSuccessful, UnsupportedSynthesisGoal
+from aeon.synthesis.candidate_archive import CandidateArchive
+from aeon.synthesis.decorators import Goal
 from aeon.synthesis.evaluation_pool import EvaluationPool, OK
-from aeon.synthesis.fitness_eval import set_program_tail, without_main_placeholder
+from aeon.synthesis.example_adapters import adapt_example_metadata
+from aeon.synthesis.fitness_eval import make_bundled_fitness_evaluator, set_program_tail, without_main_placeholder
+from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_target
+from aeon.synthesis.specifications import CHECKABLE_GOALS, checked_validator
 from aeon.synthesis.identification import get_holes, get_holes_info
 from aeon.synthesis.modules.arborist.forest import Forest, SearchStats, scalar_key, scalar_labels
 from aeon.synthesis.modules.arborist.interpreter import LiftedInterpreter
@@ -30,6 +35,9 @@ class ArboristSynthesizer(ProgramSynthesizer):
     recursive combinators determine local contexts, including candidate-dependent
     accumulators. Only inspecting the hole's typing context would lose them.
     """
+
+    supports_optimization = False
+    supports_candidate_enumeration = True
 
     def __init__(
         self,
@@ -64,7 +72,7 @@ class ArboristSynthesizer(ProgramSynthesizer):
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
     ) -> dict[Name, Optional[Term]]:
-        from aeon.synthesis.entrypoint import make_program, make_validator
+        from aeon.synthesis.entrypoint import _ectx_for_workers, _pool_backed, make_program, make_validator
 
         start = monotonic()
         deadline = start + budget
@@ -73,21 +81,25 @@ class ArboristSynthesizer(ProgramSynthesizer):
             raise UnsupportedSynthesisGoal("arborist requires one expression hole in one function")
         function, holes = targets[0]
         hole = holes[0]
-        entry = metadata.get(function, {})
+        corpora = property_corpora_for_target(ctx, program, metadata, function, {function}, evaluation_ctx=ectx)
+        entry = adapt_example_metadata(
+            ctx,
+            _ectx_for_workers(ectx),
+            program,
+            function,
+            metadata.get(function, {}),
+            corpora,
+            hole_name=hole,
+            budget=min(2.0, max(0.0, budget / 5)),
+        )
         # Prefer tagged constructors over the legacy flattened-list I/O encoding.
         rows = entry.get("constructor_io_examples") or entry.get("io_examples", [])
         if not rows:
             raise UnsupportedSynthesisGoal(
                 "arborist requires literal scalar/constructor @example inputs and Int/Bool outputs"
             )
-        if (
-            len(rows) != len(entry.get("examples", []))
-            or len(entry.get("goals", [])) != len(rows)
-            or entry.get("property")
-        ):
-            raise UnsupportedSynthesisGoal(
-                "arborist supports literal I/O examples, not additional optimization objectives"
-            )
+        # General assertions stay runtime checks; derived/CSV observations can
+        # guide the packed interpreter alongside literal @example rows.
         for inputs, output in rows:
             scalar_key(output)
 
@@ -149,7 +161,24 @@ class ArboristSynthesizer(ProgramSynthesizer):
                     return False
             return True
 
-        pool = EvaluationPool(replace, {"examples": runtime_check}, budget_eval=max(0.01, min(1.0, budget)))
+        workers_ctx = _ectx_for_workers(ectx)
+        properties = [make_property_fitness(corpus, workers_ctx, target=function) for corpus in corpora]
+        goals = list(entry.get("goals", [])) + [Goal(True, 1, corpus.spec.name, "property") for corpus in corpora]
+        local_metadata = dict(metadata) | {function: dict(entry) | {"goals": goals}}
+        checks = [g for g in goals if g.kind in CHECKABLE_GOALS]
+        computations = {
+            "examples": runtime_check,
+            "fitness": make_bundled_fitness_evaluator(goals, workers_ctx, function, program, properties),
+        }
+        if checks:
+            computations["specification"] = make_bundled_fitness_evaluator(
+                checks, workers_ctx, function, program, properties
+            )
+        pool = EvaluationPool(replace, computations, budget_eval=max(0.01, min(1.0, budget)))
+        if checks:
+            validate = checked_validator(validate, pool)
+        fitness, _ = _pool_backed(pool)
+        archive = CandidateArchive(self, function, local_metadata, fitness, max(0.0, deadline - monotonic()), ui)
         ui.start(hole_ctx, ectx, hole.pretty(), ty, budget)
         ui.register(None, None, 0, True)
         try:
@@ -177,6 +206,8 @@ class ArboristSynthesizer(ProgramSynthesizer):
                     status, accepted = pool.run(candidate).get("examples", ("error", False))
                     if status != OK or accepted is not True:
                         continue
+                    if not archive.consider(candidate):
+                        continue
                     elapsed = monotonic() - start
                     ui.register(candidate, [0.0] * len(rows), elapsed, True)
                     ui.end(candidate, [0.0] * len(rows))
@@ -186,12 +217,24 @@ class ArboristSynthesizer(ProgramSynthesizer):
                     )
                     return {hole: candidate}
                 ui.progress(self.stats.transitions, self.stats.validated, monotonic() - start)
+            selected = archive.result()
+            if selected is not None:
+                ui.end(selected, None)
+                return {hole: selected}
             raise SynthesisNotSuccessful(
                 f"arborist: no validated example-consistent expression through depth {self.max_depth}"
             )
         except RecursionError as exc:
             ui.end(None, None)
             raise SynthesisNotSuccessful("arborist interpreter recursion limit exhausted") from exc
+        except UnsupportedSynthesisGoal:
+            raise
+        except SynthesisNotSuccessful:
+            selected = archive.result()
+            ui.end(selected, None)
+            if selected is not None:
+                return {hole: selected}
+            raise
         except Exception:
             ui.end(None, None)
             raise

@@ -127,4 +127,5 @@ class EnumerativeSynthesizer(Synthesizer):
             budget,
             ui,
             self.seed,
+            backend=self,
         )

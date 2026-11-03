@@ -27,12 +27,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
-from loguru import logger
-
 from aeon.core.terms import Application, If, Literal, Term, Var
 from aeon.core.types import Type, t_bool, t_int
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful, UnsupportedSynthesisGoal
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.modules.fta.synthesizer import _safe
 from aeon.synthesis.modules.contata.cata import (
     BOOL,
@@ -58,6 +57,9 @@ class ContataSynthesizer(Synthesizer):
 
     requires_examples = True
 
+    supports_optimization = False
+    supports_candidate_enumeration = True
+
     def __init__(self, max_size: int = 4):
         self.max_size = max_size
 
@@ -79,6 +81,7 @@ class ContataSynthesizer(Synthesizer):
         output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         ui.register(None, None, 0, True)
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
         entry = metadata.get(fun_name, {})
         io_examples = entry.get("io_examples", [])
         io_params = entry.get("io_params", [])
@@ -121,29 +124,26 @@ class ContataSynthesizer(Synthesizer):
             examples.append(Example(fun_name.name, args[0], out))
 
         members = [MemberSig(fun_name.name, arg_key, ret_key)]
-        result = synthesize_group(members, examples, max_size=self.max_size)
-        if result is None:
-            raise SynthesisNotSuccessful(
-                f"contata: no example-consistent body for {fun_name.name} within size {self.max_size}."
-            )
-
         op_names = _operator_names(ctx)
-        body = _to_core(result.bodies[fun_name.name], param_name, {fun_name.name: fun_name}, op_names)
-        if body is None:
-            raise SynthesisNotSuccessful(
-                f"contata: synthesised body uses an operator not in scope for {fun_name.name}."
-            )
-        if not _safe(validate, body):
-            raise SynthesisNotSuccessful(
-                f"contata: synthesised body for {fun_name.name} did not discharge against its type."
-            )
-        ui.register(body, [0.0], 0, True)
-        logger.log(
-            "SYNTHESIZER",
-            f"contata: version-space body for {fun_name.name} accepted under SMT over "
-            f"{len(examples)} example(s) and discharged by the typechecker.",
+
+        def accept_candidate(_name, candidate):
+            body = _to_core(candidate, param_name, {fun_name.name: fun_name}, op_names)
+            return body is not None and _safe(validate, body) and archive.consider(body)
+
+        synthesize_group(
+            members,
+            examples,
+            max_size=self.max_size,
+            accept_candidate=accept_candidate,
+            deadline=archive.deadline,
+            merge_observations=not archive.optimizing,
         )
-        return body
+        selected = archive.result()
+        if selected is not None:
+            return selected
+        raise SynthesisNotSuccessful(
+            f"contata: no validated body for {fun_name.name} within size {self.max_size} and budget {budget}s."
+        )
 
 
 def _param_type(ctx: TypingContext, param_name: Name) -> Optional[Type]:

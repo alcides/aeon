@@ -10,8 +10,12 @@ The `--budget` flag sets the time limit in seconds (default: 60). The default sy
 
 Attach [`@minimize_size`](index.md#expression-size-objective) to a definition to
 minimize the core AST size of its hole replacements. This objective is supported
-by `enumerative`, `random_search`, `gp`, `tdsyn_enumerative` and `tdsyn_random`;
-use `random_search` or `gp` for joint optimization of several holes.
+by backends that rank or enumerate candidates; see the matrix below for
+limits. Use a joint backend for several interacting holes.
+
+See the [specification support matrix](synthesis-specifications.md) for each
+backend's handling of examples, both CSV decorators, optimization, properties,
+refinement conversions, and planned improvements.
 
 ---
 
@@ -124,9 +128,11 @@ for Aeon inference; a generated-SMT checkpoint is not a demonstrated transfer
 model. Keep training and held-out tasks separate. Training fails explicitly
 if no iteration finds a successful policy path.
 
-Unlike the numerical search backends, `rl_mcts` currently supports correctness
-specifications only and rejects objective decorators (including property-fitness
-objectives). Its grammar comes from Aeon's shared backward/forward actions, not
+`rl_mcts` checks examples, sampled properties, and exact-fit CSV data before
+acceptance. With numerical objectives it continues exploring after solutions,
+keeps successful visits as positive rewards, and ranks feasible terms in the
+shared Pareto archive.
+Its grammar comes from Aeon's shared backward/forward actions, not
 an imported arbitrary SyGuS grammar. Constants and supported polymorphic/ADT
 components inherit that grammar's limitations. Calls into the compiler/verifier
 are synchronous, so a final in-flight check can overrun the search time budget.
@@ -250,7 +256,9 @@ relationships do not prove a universal functional specification. Any declared
 refinement still has to pass Aeon's ordinary verifier. Fixed-recurrence search
 does not cover value-dependent filtering, arbitrary recursion, accumulator
 parameters, tree-valued results, nested/mutual datatypes, opaque library calls,
-Boolean element computations, extra optimization goals or relational examples.
+Boolean element computations, or relational examples without a usable I/O corpus.
+Additional examples and `@property` checks validate candidates alongside the
+corpus; numerical, size and resource objectives rank the explored recurrences.
 Unsupported goals are reported explicitly. Search bounds, finite literal and
 element grammars, and observational merging make search incomplete: exhaustion
 is not evidence that no implementation exists. Like other per-hole backends,
@@ -306,9 +314,10 @@ are unrestricted equality multipliers. Coefficient matching makes this a purely
 existential SMT problem: universal input variables disappear from the synthesis
 solver. Linear cases include Farkas-style certificates. Equalities are proved
 in both directions; strict conclusions additionally require a positive constant
-margin. The solver returns a feasible program, not an objective optimum. The
-complete result must pass Aeon's ordinary whole-program validator before fitness
-evaluation or publication to the UI.
+margin. Without numerical objectives it returns a feasible program. With
+objectives it blocks previously emitted program coefficients and retains a
+Pareto front within the budget. Complete candidates must pass Aeon's ordinary
+whole-program validator before fitness evaluation or publication to the UI.
 
 Configure the finite search space through environment variables:
 
@@ -464,7 +473,7 @@ Implements the core of [BUSTLE (ICLR 2021)](https://arxiv.org/abs/2007.14381): e
 
 The bundled model was trained reproducibly on synthetic bottom-up searches. It uses NumPy when installed and otherwise standard-library inference, with no model downloads or PyTorch dependency. `AEON_BUSTLE_MODEL` selects a compatible JSON checkpoint. `-s bustle_baseline` explicitly disables learned guidance for comparison.
 
-Supports one to three scalar or registered ADT inputs, scalar or ADT results, first-order in-scope components, and conditionals. ADT guidance uses constructor identity, depth, size, and subtree relations; merging uses full structural identity, including scalar field types. Concrete polymorphic ADT instantiations are supported. ADTs are bounded to depth 16 and 128 constructor nodes. This is an example-driven backend, not an optimizer for arbitrary fitness objectives; unsupported goals/types are reported explicitly. Search is bounded by adjusted weight 40, 20,000 distinct values, and the time budget. See [examples, training instructions, and differences from the paper](../examples/synthesis/bustle/README.md).
+Supports one to three scalar or registered ADT inputs, scalar or ADT results, first-order in-scope components, and conditionals. ADT guidance uses constructor identity, depth, size, and subtree relations; merging uses full structural identity, including scalar field types. Concrete polymorphic ADT instantiations are supported. ADTs are bounded to depth 16 and 128 constructor nodes. With numerical objectives it continues enumeration and ranks feasible terms in a Pareto archive, retaining syntactically distinct subterms that may differ on objectives. Search is bounded by adjusted weight 40, 20,000 distinct values, and the time budget. See [examples, training instructions, and differences from the paper](../examples/synthesis/bustle/README.md).
 
 ---
 
@@ -476,13 +485,17 @@ Select it with `python -m aeon --no-main --budget 10 -s arborist examples/synthe
 
 The backend uses the program-level synthesis interface to observe the enclosing execution. Every extracted solution passes the usual whole-program type/refinement validator and the examples in Aeon's normal evaluator. Rejection of one example-equivalent representative does not discard its alternatives. Search observes the wall-clock budget, with default limits of three nested grammar operations, 100,000 packed states, one million interpreter steps, and 4096-bit integers. An in-flight compiler check or final runtime check can overrun the budget.
 
-This implementation searches bodies in a fixed sketch, not arbitrary loop structures or the paper's web-automation language. Constructor inputs/intermediates are bounded to 128 total nodes and depth 32. ADT-valued holes/results, Float/String leaves, arbitrary native/effectful components, multiple holes, and optimization objectives are unsupported. Recognizing compiler-generated inductives does not enable general native execution in the lifted interpreter. Unlike `fta` and `bustle`, its equivalence classes account for execution-dependent local bindings; unlike `afta`, it uses exact concrete observations rather than abstraction refinement. See the [examples, invariants, restrictions, and compression experiment](../examples/synthesis/arborist/README.md).
+This implementation searches bodies in a fixed sketch, not arbitrary loop structures or the paper's web-automation language. Constructor inputs/intermediates are bounded to 128 total nodes and depth 32. ADT-valued holes/results, Float/String leaves, arbitrary native/effectful components, and multiple holes are unsupported. Numerical objectives continue extraction from the surviving language and rank candidates in a Pareto archive. Recognizing compiler-generated inductives does not enable general native execution in the lifted interpreter. Unlike `fta` and `bustle`, its equivalence classes account for execution-dependent local bindings; unlike `afta`, it uses exact concrete observations rather than abstraction refinement. See the [examples, invariants, restrictions, and compression experiment](../examples/synthesis/arborist/README.md).
 
 ---
 
 ### `decision_tree` — Decision Tree Regressor
 
 Fits a scikit-learn `DecisionTreeRegressor` to training data provided via `@example`, `@csv_data`, or `@csv_file`, then converts the resulting tree into a nested `if-then-else` Aeon term. Without explicit data, the shared synthesis entrypoint derives examples from the function's input and output refinements. Inputs and outputs must be numeric, and the output must be uniquely determined for each sampled input. Integer splits use an equivalent integer threshold so refinement checking retains the branch condition.
+
+Recognized minimized squared errors, or maximized negative squared errors, also
+provide training labels. A signed difference such as `@minimize(f 1.0 - 5.0)`
+does not specify the label `5.0` and is no longer converted into an example.
 
 Useful for regression problems where input–output pairs are available and a readable, interpretable result is desired.
 
@@ -492,7 +505,7 @@ When `decision_tree`, `contata`, or `bustle` needs examples and no explicit corp
 
 Generation is bounded to 32 distinct inputs and four constructor levels, with a two-second generation budget (or one fifth of the synthesis budget, whichever is smaller). Its elapsed time is deducted from the search budget. It applies to a hole in the function's result position, including one wrapped in local bindings. Finite domains can be exhausted, including all eight zero-depth input combinations in `nand_full_adder.ae`; infinite domains yield a bounded corpus.
 
-Exact labels are emitted only when SMT proves the output unique for each sampled input. Otherwise observations retain the original relation: for example, the adder refinement fixes the sum and carry bits while leaving circuit depth free for optimization. BUSTLE can use relational observations for guidance and checks outputs against the refinement. Decision trees and Contata require exact labels and report unsupported non-unique outputs. Their existing datatype, arity, and optimization limitations still apply; generating examples does not add circuit optimization support to a numeric decision tree or to BUSTLE.
+Exact labels are emitted only when SMT proves the output unique for each sampled input. Otherwise observations retain the original relation: for example, the adder refinement fixes the sum and carry bits while leaving circuit depth free for optimization. BUSTLE can use relational observations for guidance and checks outputs against the refinement. Decision trees and Contata require exact labels and report unsupported non-unique outputs. Their existing datatype, arity and grammar limits still apply; generating examples does not add circuit terms to a numeric decision tree. Additional objectives rank the candidates each backend can generate.
 
 ---
 
@@ -663,3 +676,9 @@ checks of synthesized assignments.
 For the catalogue of synthesis and verification benchmarks bundled with Aeon —
 where they live, how many there are, and how to run them — see
 [benchmarks.md](benchmarks.md).
+
+Satisfaction backends with numerical objectives expose all explored nondominated
+solutions as `backend.pareto_front` and through `SynthesisUI.register_front`;
+the hole-filling API selects one member. See the [specification support matrix](synthesis-specifications.md)
+for acceptance policies, limits, and the distinction between objective-guided
+search and external Pareto enumeration.

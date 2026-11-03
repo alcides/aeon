@@ -267,8 +267,6 @@ def test_real_precise_contract_rejects_overfitting_before_acceptance(monkeypatch
     [
         "def f(x:Int):Int := ?h;",
         "@example(f 0 > 1) def f(x:Int):Int := ?h;",
-        "@example(f 0 = 1) @minimize_int(f 1) def f(x:Int):Int := ?h;",
-        "@example(f 0 = 1) def f(x:Int):Int := ?h; @property(1) def p(x:Int):Bool := f x = x;",
         "@example(f 0 = 1) def f(x:Int):Int := ?h; def g:Int := ?hg;",
         "@example(f 0 = 1) def f(x:Int):Int := if true then ?a else ?b;",
     ],

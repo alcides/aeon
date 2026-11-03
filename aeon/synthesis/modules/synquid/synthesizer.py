@@ -135,6 +135,7 @@ class SynquidSynthesizer(Synthesizer):
                         done = False
                     return False
                 pareto_front, on_front = update_pareto_front(pareto_front, score, result, minimize)
+                self.pareto_front = pareto_front
                 elapsed = get_elapsed_time(start_time)
                 if on_front:
                     ui.register_front(pareto_front, elapsed)

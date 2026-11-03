@@ -10,9 +10,9 @@ from tests.driver import check_and_return_core
 def test_minimize_single_arg():
     """Multiple @minimize decorators provide training data for the decision tree."""
     source = """
-        @minimize(f(1.0) - 5.0)
-        @minimize(f(2.0) - 5.0)
-        @minimize(f(3.0) - 5.0)
+        @minimize((f(1.0) - 5.0) * (f(1.0) - 5.0))
+        @minimize((f(2.0) - 5.0) * (f(2.0) - 5.0))
+        @minimize((f(3.0) - 5.0) * (f(3.0) - 5.0))
         def f(x:Float) : Float := ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
@@ -34,10 +34,10 @@ def test_minimize_single_arg():
 def test_minimize_two_args():
     """@minimize works with multi-argument functions."""
     source = """
-        @minimize(f(1.0)(0.0) - 1.0)
-        @minimize(f(0.0)(1.0) - 1.0)
-        @minimize(f(0.0)(0.0) - 0.0)
-        @minimize(f(1.0)(1.0) - 2.0)
+        @minimize((f(1.0)(0.0) - 1.0) * (f(1.0)(0.0) - 1.0))
+        @minimize((f(0.0)(1.0) - 1.0) * (f(0.0)(1.0) - 1.0))
+        @minimize((f(0.0)(0.0) - 0.0) * (f(0.0)(0.0) - 0.0))
+        @minimize((f(1.0)(1.0) - 2.0) * (f(1.0)(1.0) - 2.0))
         def f(a:Float) (b:Float) : Float := ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
@@ -59,9 +59,9 @@ def test_minimize_two_args():
 def test_maximize_extracts_training_data():
     """@maximize also extracts training data and creates a fitness goal."""
     source = """
-        @maximize(f(1.0) - 5.0)
-        @maximize(f(2.0) - 5.0)
-        @maximize(f(3.0) - 5.0)
+        @maximize(0.0 - ((f(1.0) - 5.0) * (f(1.0) - 5.0)))
+        @maximize(0.0 - ((f(2.0) - 5.0) * (f(2.0) - 5.0)))
+        @maximize(0.0 - ((f(3.0) - 5.0) * (f(3.0) - 5.0)))
         def f(x:Float) : Float := ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
@@ -84,7 +84,7 @@ def test_minimize_combined_with_csv_data():
     """@minimize and @csv_data can be combined, merging training data."""
     source = r"""
         @csv_data("1.0,5.0\n2.0,5.0")
-        @minimize(f(3.0) - 5.0)
+        @minimize((f(3.0) - 5.0) * (f(3.0) - 5.0))
         def f(x:Float) : Float := ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
@@ -106,8 +106,8 @@ def test_minimize_combined_with_csv_data():
 def test_minimize_metadata_has_training_data():
     """@minimize stores training data points in metadata."""
     source = """
-        @minimize(f(1.0) - 10.0)
-        @minimize(f(2.0) - 20.0)
+        @minimize((f(1.0) - 10.0) * (f(1.0) - 10.0))
+        @minimize((f(2.0) - 20.0) * (f(2.0) - 20.0))
         def f(x:Float) : Float := ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)
@@ -126,7 +126,7 @@ def test_minimize_metadata_has_training_data():
 def test_minimize_metadata_has_goals():
     """@minimize also creates fitness goals for standard synthesizers."""
     source = """
-        @minimize(f(1.0) - 10.0)
+        @minimize((f(1.0) - 10.0) * (f(1.0) - 10.0))
         def f(x:Float) : Float := ?hole
     """
     core_ast_anf, ctx, ectx, metadata = check_and_return_core(source)

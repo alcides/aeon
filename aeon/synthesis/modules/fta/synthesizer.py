@@ -72,6 +72,7 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.modules.bottom_up import (
     application,
@@ -148,6 +149,9 @@ class FTASynthesizer(Synthesizer):
     # in the program's context (top-level defs / library primitives in scope).
     _ectx: Optional[EvaluationContext] = None
     _replace: Optional[Callable[[Term], Term]] = None
+
+    supports_optimization = False
+    supports_candidate_enumeration = True
 
     def computations(self, primitives: Any) -> dict[str, Any]:
         # The automaton keys states by each candidate's concrete *output*; the
@@ -271,6 +275,7 @@ class FTASynthesizer(Synthesizer):
         output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         start = time.time()
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
         deadline = start + budget
         rnd = random.Random(self.seed)
         ui.register(None, None, 0, True)
@@ -395,6 +400,11 @@ class FTASynthesizer(Synthesizer):
             equivalence (keep the smallest representative) and validate the
             state's representative once."""
             nonlocal best
+            if archive.optimizing:
+                # Equal example outputs need not imply equal objective values.
+                if (not example_mode or matches_examples(obs_examples(term))) and _safe(validate, term):
+                    archive.consider(term)
+                return
             st = obs(term)
             cur = rep.get(st)
             if cur is None or _term_size(term) < _term_size(cur):
@@ -421,7 +431,7 @@ class FTASynthesizer(Synthesizer):
             if best is not None or time.time() >= deadline:
                 return
             b = bank.setdefault(key, [])
-            if example_mode:
+            if example_mode and not archive.optimizing:
                 # Observational-equivalence compression at *every* type (the FTA's
                 # core idea): keep one representative per distinct output vector
                 # over the examples, so the version space stays small. Sub-terms
@@ -487,6 +497,11 @@ class FTASynthesizer(Synthesizer):
             ui.progress(transitions, len(validated), time.time() - start)
 
         depth = deepen(bank, deadline, self.rounds, lambda: best is not None, step)
+
+        if archive.optimizing:
+            selected = archive.result()
+            if selected is not None:
+                return selected
 
         states = len(rep)
         if best is not None:

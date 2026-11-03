@@ -26,6 +26,8 @@ from aeon.utils.name import Name
 
 
 class ReGuSSynthesizer(Synthesizer):
+    supports_size_objective = True
+
     def __init__(self, seed: int = 0, config: Config = Config()):
         self.seed = seed
         self.config = config
@@ -90,6 +92,7 @@ class ReGuSSynthesizer(Synthesizer):
         )
         started = monotonic()
         front: list[ParetoEntry] = []
+        self.pareto_front = front
         protocol: tuple[int, int, int] | None = None
 
         def assess(plan: Plan):
@@ -121,6 +124,7 @@ class ReGuSSynthesizer(Synthesizer):
             if valid:
                 self.stats.complete += 1
                 front, added = update_pareto_front(front, values, term, flags)
+                self.pareto_front = front
             elapsed = monotonic() - started
             ui.register(term, values if valid else "Partial" if not complete else "Invalid", elapsed, added)
             ui.progress(self.stats.assessments, self.stats.assessments, elapsed)

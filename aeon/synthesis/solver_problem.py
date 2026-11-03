@@ -72,6 +72,8 @@ class SolverProblem:
 class ConstraintSynthesizer(JointSynthesizer):
     """Marker for backends needing the compiler's shared logical obligations."""
 
+    supports_joint_optimization = False
+
     def check_source(self, program: Term, holes: tuple[HoleSpec, ...], metadata: Metadata) -> None:
         """Optional capability check before constructing shared obligations."""
 

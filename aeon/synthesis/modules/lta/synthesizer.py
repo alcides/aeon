@@ -25,12 +25,14 @@ from typing import Callable
 
 from loguru import logger
 
-from aeon.core.terms import Abstraction, Term
+from aeon.core.terms import Abstraction, Term, Var
 from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import synth
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
@@ -73,6 +75,9 @@ class LTASynthesizer(Synthesizer):
     states). `max_depth`, when set, caps the depth explicitly.
     """
 
+    supports_optimization = False
+    supports_candidate_enumeration = True
+
     def __init__(self, max_depth: int | None = None):
         self.max_depth = max_depth
 
@@ -92,6 +97,7 @@ class LTASynthesizer(Synthesizer):
         assert isinstance(type, Type)
 
         start = time.time()
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
         ui.register(None, None, 0, True)
 
         # Peel any function abstractions off the goal type. The body is the
@@ -118,7 +124,10 @@ class LTASynthesizer(Synthesizer):
                 for inst in monomorphize(name, ty, universe_types):
                     e_tapp(lta, tctx, inst.term, inst.mono_type)
             else:
-                e_var(lta, tctx, name, ty)
+                # The ordinary checker retains a variable's identity as a
+                # singleton (v = x); plain binding types lose dependent goals.
+                _, inferred = synth(inner_ctx, Var(name))
+                e_var(lta, tctx, name, inferred)
 
         # Minimal constant repertoire (E-const).
         from aeon.core.types import t_bool, t_int
@@ -136,17 +145,19 @@ class LTASynthesizer(Synthesizer):
 
         # Try to satisfy the goal directly with a size-1 candidate.
         if _try_goal(lta, tctx, inner_type, inner_ctx):
-            term = _extract_solution(lta, abs_names)
-            if term is not None and self._accept(term, validate):
-                ui.register(term, [], time.time() - start, True)
-                return term
+            for term in _extract_solutions(lta, abs_names):
+                if archive.expired:
+                    break
+                if self._accept(term, validate) and archive.consider(term):
+                    ui.register(term, [], time.time() - start, True)
+                    return term
 
         # Enumerate: explore-reduce-check loop.
         equiv_set: set[tuple[int, int]] = set()
         depth = 1
         created = 0
         while (self.max_depth is None or depth < self.max_depth) and (time.time() - start) < budget:
-            new_states = _transition_step(lta, tctx, inner_ctx)
+            new_states = _transition_step(lta, tctx, inner_ctx, deadline=start + budget)
             if not new_states:
                 break
             # With the depth unbounded, the LTA can grow large; re-check the
@@ -161,12 +172,17 @@ class LTASynthesizer(Synthesizer):
             ui.progress(created, depth, time.time() - start)
 
             if _try_goal(lta, tctx, inner_type, inner_ctx):
-                term = _extract_solution(lta, abs_names)
-                if term is not None and self._accept(term, validate):
-                    ui.register(term, [], time.time() - start, True)
-                    return term
+                for term in _extract_solutions(lta, abs_names):
+                    if (time.time() - start) >= budget:
+                        break
+                    if self._accept(term, validate) and archive.consider(term):
+                        ui.register(term, [], time.time() - start, True)
+                        return term
             depth += 1
 
+        selected = archive.result()
+        if selected is not None:
+            return selected
         raise SynthesisNotSuccessful(f"LTASynthesizer: no solution found (reached depth={depth}, budget={budget}s)")
 
     @staticmethod
@@ -191,7 +207,9 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Type, TypingContex
     return cur, cur_ctx, names
 
 
-def _transition_step(lta: LTA, tctx: TypeContextLTA, type_ctx: TypingContext) -> list[State]:
+def _transition_step(
+    lta: LTA, tctx: TypeContextLTA, type_ctx: TypingContext, *, deadline: float | None = None
+) -> list[State]:
     """One round of E-app expansion: pair every function state with every
     argument state and try to introduce a new `app` transition. Returns the
     set of newly-created expression states.
@@ -218,6 +236,8 @@ def _transition_step(lta: LTA, tctx: TypeContextLTA, type_ctx: TypingContext) ->
     new_states: list[State] = []
     for q_f in function_states:
         for q_a in arg_states:
+            if deadline is not None and time.time() >= deadline:
+                return new_states
             q_app = e_app(lta, tctx, q_f, q_a, type_ctx)
             if q_app is not None:
                 new_states.append(q_app)
@@ -246,12 +266,14 @@ def _try_goal(lta: LTA, tctx: TypeContextLTA, goal_type: Type, type_ctx: TypingC
 
 
 def _extract_solution(lta: LTA, abs_names: list[Name]) -> Term | None:
+    return next(_extract_solutions(lta, abs_names), None)
+
+
+def _extract_solutions(lta: LTA, abs_names: list[Name]):
     """Pull a concrete term from the LTA's language and wrap it in the
     abstractions that were peeled off the goal type."""
     terms = language(lta, max_terms_per_state=4)
-    if not terms:
-        return None
-    term: Term = terms[0]
-    for name in reversed(abs_names):
-        term = Abstraction(name, term, _loc)
-    return term
+    for term in terms:
+        for name in reversed(abs_names):
+            term = Abstraction(name, term, _loc)
+        yield term

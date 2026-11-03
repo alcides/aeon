@@ -8,6 +8,7 @@ from aeon.core.types import TypeConstructor
 from aeon.core.types import extract_parts
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
+from aeon.core.types import Top
 from aeon.typechecking.context import TypeConstructorBinder
 from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
@@ -48,6 +49,12 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                 else:
                     # Refinement-polymorphic binders are skipped (same limitation as above).
                     pass
+            case VariableBinder(_, Top()):
+                # Top erases the value's logical sort and carries no predicate.
+                # Runtime-only bindings (including resource objectives) add no
+                # SMT assumption; all remaining declarations and obligations
+                # retain their ordinary refinement checks.
+                pass
             case VariableBinder(name, ty):
                 (nname, base, cond) = extract_parts(ty)
                 match base:

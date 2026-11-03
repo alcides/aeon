@@ -27,6 +27,9 @@ class Goal(NamedTuple):
     # its ``function`` identifies the property rather than a generated numeric
     # helper. ``"size"`` counts hole replacements in the definition identified
     # by ``function``, without evaluating it. See ``aeon/synthesis/entrypoint.py``.
+    # ``"example"`` and ``"csv"`` preserve the source of zero-target error
+    # goals, so satisfaction backends can validate them without guessing what
+    # value an arbitrary optimization expression is supposed to attain.
     kind: str = "expression"
 
 
@@ -139,6 +142,7 @@ def minimize_int(
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
     assert len(decorator.macro_args) == 1, "minimize_int decorator expects a single argument"
+    metadata = _store_training_point(decorator.macro_args[0], fun, metadata)
     return make_optimizer(decorator.macro_args, fun, metadata, st_int, minimize=True)
 
 
@@ -165,6 +169,7 @@ def maximize_int(
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
     assert len(decorator.macro_args) == 1, "maximize_int decorator expects a single argument"
+    metadata = _store_training_point(decorator.macro_args[0], fun, metadata, maximize=True)
     return make_optimizer(decorator.macro_args, fun, metadata, st_int, minimize=False)
 
 
@@ -174,6 +179,7 @@ def minimize_float(
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
     assert len(decorator.macro_args) == 1, "minimize_float decorator expects a single argument"
+    metadata = _store_training_point(decorator.macro_args[0], fun, metadata)
     return make_optimizer(decorator.macro_args, fun, metadata, st_float, minimize=True)
 
 
@@ -183,6 +189,7 @@ def maximize_float(
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
     assert len(decorator.macro_args) == 1, "maximize_float decorator expects a single argument"
+    metadata = _store_training_point(decorator.macro_args[0], fun, metadata, maximize=True)
     return make_optimizer(decorator.macro_args, fun, metadata, st_float, minimize=False)
 
 
@@ -424,7 +431,7 @@ def example(
     # (3) A synthesis goal: minimize (if assertion then 0 else 1), so a
     # fitness-based synthesizer is rewarded for satisfying the example.
     goal_body = SIf(assertion, SLiteral(0, st_int), SLiteral(1, st_int))
-    fun, extra, metadata = make_optimizer([goal_body], fun, metadata, st_int, minimize=True)
+    fun, extra, metadata = make_optimizer([goal_body], fun, metadata, st_int, minimize=True, kind="example")
     return fun, [test_fn] + extra, metadata
 
 
@@ -452,47 +459,85 @@ def _squared(expr: STerm) -> STerm:
     return _binop("*", expr, expr)
 
 
-def _parse_csv_rows(text: str) -> list[list[float]]:
-    """Parse CSV text into a list of rows of floats."""
-    # Handle escaped newlines from string literals
-    text = text.replace("\\n", "\n")
-    reader = csv.reader(io.StringIO(text.strip()))
+def _csv_scalar_type(ty: SType) -> SType:
+    """Read columns using the declaration, retaining Int/Bool/String values."""
+    while isinstance(ty, SRefinedType):
+        ty = ty.type
+    scalar_types = {"Int": st_int, "Float": st_float, "Bool": st_bool, "String": st_string}
+    if isinstance(ty, STypeConstructor) and not ty.args and ty.name.name in scalar_types:
+        return scalar_types[ty.name.name]
+    raise ValueError(f"CSV specifications require scalar Int/Float/Bool/String columns, got {ty}")
+
+
+def _parse_csv_rows(text: str, column_types: list[SType]) -> list[list]:
+    """Parse both CSV decorators with the same arity and scalar-type checks."""
+    from math import isfinite
+
     rows = []
-    for row in reader:
-        if not row or all(cell.strip() == "" for cell in row):
+    reader = csv.reader(io.StringIO(text.replace("\\n", "\n")))
+    for line, row in enumerate(reader, 1):
+        if not row or (st_string not in column_types and all(cell.strip() == "" for cell in row)):
             continue
-        rows.append([float(cell.strip()) for cell in row])
+        if len(row) != len(column_types):
+            raise ValueError(f"CSV row {line} has {len(row)} columns, expected {len(column_types)}")
+        values = []
+        for column, (cell, ty) in enumerate(zip(row, column_types), 1):
+            value: str | bool | int | float
+            try:
+                if ty == st_string:
+                    value = cell
+                elif ty == st_bool:
+                    if cell.strip().lower() not in ("true", "false"):
+                        raise ValueError("expected true or false")
+                    value = cell.strip().lower() == "true"
+                elif ty == st_int:
+                    value = int(cell.strip())
+                else:
+                    value = float(cell.strip())
+                    if not isfinite(value):
+                        raise ValueError("expected a finite number")
+            except ValueError as exc:
+                raise ValueError(f"CSV row {line}, column {column}: invalid {ty}: {cell!r}") from exc
+            values.append(value)
+        rows.append(values)
+    if not rows:
+        raise ValueError("CSV data must contain at least one row")
     return rows
 
 
-def _build_csv_fitness_body(rows: list[list[float]], fun_name: Name) -> STerm:
-    """Build the fitness body: sum of abs(f(x1,...,xn) - expected) for each row."""
-    assert len(rows) > 0, "CSV data must contain at least one row"
-    n_cols = len(rows[0])
-    assert n_cols >= 2, "CSV data must have at least 2 columns (inputs + expected output)"
-    for i, row in enumerate(rows):
-        assert len(row) == n_cols, f"CSV row {i} has {len(row)} columns, expected {n_cols}"
+def _csv_specification(text: str, fun: Definition, metadata: Metadata) -> tuple[Definition, list[Definition], Metadata]:
+    """Expose typed I/O to learners and retain CSV's runtime loss objective.
 
-    error_terms = []
+    Numeric outputs use squared error, preserving regression semantics. Bool
+    and String outputs use a count of mismatches, whose exact-fit target is
+    likewise zero. Only wholly numeric rows become regression training data.
+    """
+    columns = [_csv_scalar_type(ty) for _, ty in fun.args] + [_csv_scalar_type(fun.type)]
+    rows = _parse_csv_rows(text, columns)
+    numeric_output = columns[-1] in (st_int, st_float)
+    fitness_type = columns[-1] if numeric_output else st_int
+    errors: list[STerm] = []
     for row in rows:
-        inputs = row[:-1]
-        expected = row[-1]
-
-        # Build f(x1)(x2)...(xn)
-        call: STerm = SVar(fun_name)
-        for val in inputs:
-            call = SApplication(call, SLiteral(val, st_float))
-
-        # (call - expected)^2
-        diff = _binop("-", call, SLiteral(expected, st_float))
-        error_terms.append(_squared(diff))
-
-    # Sum all error terms
-    total = error_terms[0]
-    for term in error_terms[1:]:
-        total = _binop("+", total, term)
-
-    return total
+        call: STerm = SVar(fun.name)
+        for value, ty in zip(row[:-1], columns[:-1]):
+            call = SApplication(call, SLiteral(value, ty))
+        expected = SLiteral(row[-1], columns[-1])
+        if numeric_output:
+            errors.append(_squared(_binop("-", call, expected)))
+        else:
+            errors.append(SIf(_binop("==", call, expected), SLiteral(0, st_int), SLiteral(1, st_int)))
+    total = errors[0]
+    for error in errors[1:]:
+        total = _binop("+", total, error)
+    entry = metadata.get(fun.name, {})
+    additions = {
+        "csv_examples": entry.get("csv_examples", []) + [(row[:-1], row[-1]) for row in rows],
+        "io_params": [name for name, _ in fun.args],
+    }
+    if all(ty in (st_int, st_float) for ty in columns):
+        additions["training_data"] = entry.get("training_data", []) + rows
+    metadata = metadata_update(metadata, fun, additions)
+    return make_optimizer([total], fun, metadata, fitness_type, minimize=True, kind="csv")
 
 
 def csv_data(
@@ -500,23 +545,16 @@ def csv_data(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """Decorator that accepts inline CSV data as a string.
+    """Inline CSV: arguments followed by the expected result in each row.
 
-    Each row is a data point where the last column is the expected output
-    and preceding columns are function arguments. Minimizes sum of absolute errors.
-
-    Usage: @csv_data("1.0,2.0,3.0\\n4.0,5.0,12.0")
+    Columns follow the function's scalar types. Numeric outputs minimize
+    squared error; Bool/String outputs minimize the number of mismatches.
     """
     assert len(decorator.macro_args) == 1, "csv_data decorator expects a single string argument"
     assert isinstance(decorator.macro_args[0], SLiteral) and isinstance(decorator.macro_args[0].value, str), (
         "csv_data decorator expects a string literal"
     )
-
-    rows = _parse_csv_rows(decorator.macro_args[0].value)
-    body = _build_csv_fitness_body(rows, fun.name)
-    current_data = metadata.get(fun.name, {}).get("training_data", [])
-    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
-    return make_optimizer([body], fun, metadata, st_float, minimize=True)
+    return _csv_specification(decorator.macro_args[0].value, fun, metadata)
 
 
 def csv_file(
@@ -524,28 +562,13 @@ def csv_file(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """Decorator that accepts a CSV filename.
-
-    Reads the file and behaves like csv_data: each row is a data point where
-    the last column is the expected output and preceding columns are function arguments.
-    Minimizes sum of absolute errors.
-
-    Usage: @csv_file("data.csv")
-    """
+    """File-backed version of ``csv_data``, with identical types and losses."""
     assert len(decorator.macro_args) == 1, "csv_file decorator expects a single string argument"
     assert isinstance(decorator.macro_args[0], SLiteral) and isinstance(decorator.macro_args[0].value, str), (
         "csv_file decorator expects a string literal"
     )
-
-    filename = decorator.macro_args[0].value
-    with open(filename) as f:
-        text = f.read()
-
-    rows = _parse_csv_rows(text)
-    body = _build_csv_fitness_body(rows, fun.name)
-    current_data = metadata.get(fun.name, {}).get("training_data", [])
-    metadata = metadata_update(metadata, fun, {"training_data": current_data + rows})
-    return make_optimizer([body], fun, metadata, st_float, minimize=True)
+    with open(decorator.macro_args[0].value) as stream:
+        return _csv_specification(stream.read(), fun, metadata)
 
 
 def _call_arg_literals(term: STerm, fun_name: Name) -> list[float] | None:
@@ -771,9 +794,32 @@ def _constructor_literal_value(term: STerm, level: int = 0):
     return (term.name.name, *reversed(arguments))
 
 
-def _store_training_point(expr: STerm, fun: Definition, metadata: Metadata) -> Metadata:
-    """If the expression matches f(args) - expected, store as training data."""
-    point = _extract_training_point(expr, fun.name)
+def _store_training_point(expr: STerm, fun: Definition, metadata: Metadata, *, maximize: bool = False) -> Metadata:
+    """Extract labels only from a squared error (or its maximized negation).
+
+    Minimizing f(x)-c does NOT ask for f(x)=c. Squared error has the known
+    minimum zero at that label. The actual objective is always retained.
+    """
+    if maximize:
+        if not (
+            isinstance(expr, SApplication)
+            and isinstance(expr.fun, SApplication)
+            and isinstance(expr.fun.fun, SVar)
+            and expr.fun.fun.name.name == "-"
+            and isinstance(expr.fun.arg, SLiteral)
+            and expr.fun.arg.value == 0
+        ):
+            return metadata
+        expr = expr.arg
+    if not (
+        isinstance(expr, SApplication)
+        and isinstance(expr.fun, SApplication)
+        and isinstance(expr.fun.fun, SVar)
+        and expr.fun.fun.name.name == "*"
+        and expr.fun.arg == expr.arg
+    ):
+        return metadata
+    point = _extract_training_point(expr.arg, fun.name)
     if point is not None:
         current_data = metadata.get(fun.name, {}).get("training_data", [])
         metadata = metadata_update(metadata, fun, {"training_data": current_data + [point]})
@@ -785,14 +831,7 @@ def minimize(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """Minimize decorator that also extracts training data when possible.
-
-    Usage: @minimize(f(1.0, 2.0) - 3.0)
-
-    Creates a fitness goal (like minimize_float) and, if the expression matches
-    the pattern f(literal_args) - expected_literal, also stores a training data
-    point for the decision tree synthesizer.
-    """
+    """Minimize a Float expression; recognized squared errors also provide labels."""
     assert len(decorator.macro_args) == 1, "minimize decorator expects a single argument"
     metadata = _store_training_point(decorator.macro_args[0], fun, metadata)
     return make_optimizer(decorator.macro_args, fun, metadata, st_float, minimize=True)
@@ -803,18 +842,9 @@ def maximize(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """Maximize decorator converted to minimize, also extracts training data.
-
-    Usage: @maximize(3.0 - f(1.0, 2.0))
-
-    Internally converts to minimizing the negated expression (0 - expr).
-    If the original expression matches the pattern f(literal_args) - expected_literal,
-    stores a training data point for the decision tree synthesizer.
-    """
+    """Maximize a Float expression; negated squared errors also provide labels."""
     assert len(decorator.macro_args) == 1, "maximize decorator expects a single argument"
-    # Extract training data from the original expression
-    metadata = _store_training_point(decorator.macro_args[0], fun, metadata)
-    # Convert maximize(expr) to minimize(0 - expr)
+    metadata = _store_training_point(decorator.macro_args[0], fun, metadata, maximize=True)
     negated = _binop("-", SLiteral(0.0, st_float), decorator.macro_args[0])
     return make_optimizer([negated], fun, metadata, st_float, minimize=True)
 

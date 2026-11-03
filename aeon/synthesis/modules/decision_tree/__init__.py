@@ -10,6 +10,7 @@ from aeon.core.types import Type, t_float, t_int
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
+from aeon.synthesis.modules.native_search import drive_candidates
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext, VariableBinder
@@ -90,6 +91,7 @@ def _tree_to_term(
 
 class DecisionTreeSynthesizer(Synthesizer):
     requires_examples = True
+    supports_size_objective = True
 
     def __init__(self, max_depth: int | None = None):
         self.max_depth = max_depth
@@ -108,6 +110,7 @@ class DecisionTreeSynthesizer(Synthesizer):
     ) -> Term:
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
+        self.pareto_front = []
 
         start_time = monotonic_ns()
 
@@ -141,8 +144,14 @@ class DecisionTreeSynthesizer(Synthesizer):
         arg_types = [aty for _, aty in fun_args]
         return_type = type
         if not arg_names:
-            candidate = _numeric_literal(float(y[0]), return_type)
-            return candidate if validate(candidate) else None
+            # A zero-feature regression tree is a constant model. Include the
+            # least-squares mean and observed labels so extra objectives still
+            # participate in the ordinary Pareto selection.
+            values = dict.fromkeys([float(np.mean(y)), *(float(value) for value in y)])
+            candidates = (_numeric_literal(value, return_type) for value in values)
+            return drive_candidates(
+                candidates, validate, evaluate, fun_name, metadata, budget, ui, seed=0, backend=self
+            )
 
         # Try increasing depths until budget runs out or validation passes
         goals = current_metadata.get("goals", [])
@@ -169,11 +178,12 @@ class DecisionTreeSynthesizer(Synthesizer):
                 try:
                     quality = evaluate(candidate)
                     front, is_best = update_pareto_front(front, quality, candidate, minimize)
+                    self.pareto_front = front
                     if is_best:
                         ui.register_front(front, elapsed)
                     ui.register(candidate, quality, elapsed, is_best)
                     # Perfect fit: no need to try deeper trees
-                    if all(q == 0.0 for q in quality):
+                    if all(g.kind in ("example", "csv", "property") for g in goals) and all(q == 0.0 for q in quality):
                         break
                 except Exception:
                     ui.register(candidate, None, elapsed, False)

@@ -53,9 +53,13 @@ changes a graph vertex at each action.
 Reference scalar functions may use finite literals, arguments, acyclic helpers,
 let, if, arithmetic `+ - *`, integer/Boolean comparisons and Boolean operations.
 Native calls, effects, recursion in components, opaque functions, arbitrary
-recursive generators, ADT input data, additional optimization/property goals,
+recursive generators, ADT input data, additional numerical optimization goals,
 and coupled holes are explicit capability errors. General non-additive solution
 constructors are outside this fragment. There is no whole-program GP fallback.
+Additional examples, typed CSV observations and sampled properties are checked
+on the reference-preserving result through the shared program validator. Size,
+CPU-time and energy optimization require alternative transformations and remain
+unsupported by this single-transformation interface.
 
 ## Transformation obligations
 

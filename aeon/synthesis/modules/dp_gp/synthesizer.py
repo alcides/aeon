@@ -9,16 +9,22 @@ from aeon.backend.evaluator import eval as evaluate
 from aeon.core.terms import Hole, Var
 from aeon.core.types import top
 from aeon.synthesis.api import ProgramSynthesizer, SynthesisNotSuccessful, UnsupportedSynthesisGoal
-from aeon.synthesis.fitness_eval import set_program_tail, without_main_placeholder
+from aeon.synthesis.fitness_eval import prebind_prefix, set_program_tail, without_main_placeholder
 from aeon.synthesis.identification import get_holes, get_holes_info, iterate_top_level
 from aeon.synthesis.modules.dp_gp.emission import Emitter, apply, integer
 from aeon.synthesis.modules.dp_gp.model import Config, Meter, optimum, trace
 from aeon.synthesis.modules.dp_gp.search import search
 from aeon.synthesis.modules.dp_gp.source import problem_from_source, unpack
 from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeout
+from aeon.synthesis.program_specifications import ProgramSpecifications
+from aeon.synthesis.specifications import require_checkable
 
 
 class DPSynthesizer(ProgramSynthesizer):
+    # The DP reference fixes the semantic optimum. Additional specifications
+    # are acceptance checks, not objectives over alternative DP algorithms.
+    supports_optimization = False
+
     def __init__(self, seed=0, config=None):
         self.config = config or Config.from_env(seed)
         self.seed = self.config.seed
@@ -42,9 +48,12 @@ class DPSynthesizer(ProgramSynthesizer):
         if declaration is None:
             raise UnsupportedSynthesisGoal("dp_gp requires @dp_gp(reference, max_first_input, max_second_input)")
         for data in metadata.values():
-            if isinstance(data, dict) and any(data.get(k) for k in ("goals", "property", "cluster", "recursion")):
+            if not isinstance(data, dict):
+                continue
+            require_checkable(data.get("goals", []), self)
+            if any(data.get(k) for k in ("cluster", "recursion")):
                 raise UnsupportedSynthesisGoal(
-                    "dp_gp uses the reference objective; extra goals/properties are unsupported"
+                    "dp_gp uses the reference recurrence; cluster/recursive search annotations are unsupported"
                 )
         reference_name, *bounds = declaration
         if bounds[0] > self.config.max_fuel or (bounds[0] + 1) * (bounds[1] + 1) > self.config.max_instances:
@@ -89,10 +98,13 @@ class DPSynthesizer(ProgramSynthesizer):
             if any(problem.score.run(p) < problem.floor for root in roots for p in root.solutions):
                 raise UnsupportedSynthesisGoal("dp_gp floor must bound every feasible objective from below")
             # Preserve and execute the supplied Aeon reference as the oracle.
+            # Example helpers after the target may call its still-open hole;
+            # the reference needs only the preceding static definitions.
+            reference_ctx, _ = prebind_prefix(program, ectx, function)
             for values, root in zip(inputs, roots):
                 meter.tick()
                 call = apply(Var(reference.var_name), *(integer(v) for v in values))
-                actual = evaluate(set_program_tail(program, call), ectx)
+                actual = evaluate(call, reference_ctx)
                 if type(actual) is not int or actual != optimum(problem, root.solutions):
                     raise SynthesisNotSuccessful("dp_gp IR disagrees with executable reference")
             indices = list(range(len(inputs)))
@@ -114,6 +126,21 @@ class DPSynthesizer(ProgramSynthesizer):
                 )
                 if type(actual) is not int or actual != optimum(problem, root.solutions):
                     raise SynthesisNotSuccessful("dp_gp emitted algorithm disagrees with reference")
+            # Reuse whole-program contracts while the worker bounds both
+            # generation and final acceptance. Avoid child evaluation pools
+            # inside the daemon worker.
+            with ProgramSpecifications(
+                ctx,
+                ectx,
+                program,
+                targets,
+                metadata,
+                hard_kinds=frozenset({"example", "csv", "constraint"}),
+                properties_hard=True,
+                pooled=False,
+            ) as specifications:
+                if not specifications.validate(specifications.candidate({hole: candidate})):
+                    raise SynthesisNotSuccessful("dp_gp emitted algorithm failed the additional specifications")
             report = {
                 "backend": "dp_gp",
                 "assurance": "exhaustive on declared finite input domain",

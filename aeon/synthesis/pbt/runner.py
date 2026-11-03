@@ -550,7 +550,8 @@ def property_corpora_for_target(
 ) -> list[PropertyCorpus]:
     """Build fixed corpora for properties that can guide one ordinary target.
 
-    A property is relevant when its core body directly references ``target``. It
+    A property is relevant when its core body reaches ``target``, directly or
+    through helper definitions. It
     is excluded when it also references another open synthesis target, because
     independent one-hole synthesis cannot execute that sibling. Such relational
     properties remain part of Contata's joint acceptance oracle.
@@ -587,8 +588,28 @@ def property_corpora_for_targets(
     """
     from aeon.synthesis.pbt.generators import build_adt_context
 
-    specs, _ = _collect_properties(core, metadata)
+    from aeon.synthesis.api import UnsupportedSynthesisGoal
+
+    specs, skipped = _collect_properties(core, metadata)
     values = _top_level_values(core)
+
+    def dependencies(name: Name) -> set[Name]:
+        """Include properties that reach a synthesis target through helpers."""
+        seen: set[Name] = set()
+        pending = [name]
+        while pending:
+            current = pending.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            body = values.get(current)
+            if body is not None:
+                pending.extend(_term_references(body) - seen)
+        return seen
+
+    for skip in skipped:
+        if dependencies(skip.name) & targets:
+            raise UnsupportedSynthesisGoal(f"Cannot check property {skip.name}: {skip.error}")
     # Fixed inputs must not call an unfinished target, even indirectly through
     # an otherwise ordinary helper or a property used in an if condition.
     unavailable = set(open_targets)
@@ -610,10 +631,12 @@ def property_corpora_for_targets(
         body = values.get(spec.name)
         if body is None:
             continue
-        references = _term_references(body)
+        references = dependencies(spec.name)
         if not references & targets or references & other_targets:
             continue
         cases = _generate_property_cases(spec, typing_ctx, adt_ctx, metadata, seed, input_synthesizers, runtime_valid)
+        if not cases:
+            raise UnsupportedSynthesisGoal(f"Cannot check property {spec.name}: no input cases could be generated")
         corpora.append(PropertyCorpus(spec, tuple(tuple(terms) for terms, _ in cases)))
     return corpora
 

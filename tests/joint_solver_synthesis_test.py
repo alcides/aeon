@@ -99,19 +99,19 @@ def test_invalid_complete_solver_result_never_reaches_fitness(backend, monkeypat
     from aeon.synthesis import solver_z3
 
     module = solver_z3 if isinstance(backend, SMTSynthesizer) else cvc_solver
-    name = "solve_joint_z3" if module is solver_z3 else "solve_joint_cvc5"
-    monkeypatch.setattr(module, name, lambda *args: JointCandidate((Hole(Name("open", 1)),)))
+    name = "enumerate_joint_z3" if module is solver_z3 else "enumerate_cvc5"
+    monkeypatch.setattr(module, name, lambda *args, **kwargs: iter([JointCandidate((Hole(Name("open", 1)),))]))
 
     def must_not_evaluate(candidate):
         raise AssertionError("Fitness ran on an invalid assignment")
 
-    with pytest.raises(SynthesisNotSuccessful, match="failed validation"):
+    with pytest.raises(SynthesisNotSuccessful, match="no validated assignment"):
         backend.synthesize_joint(
             (),
             lambda candidate: False,
             must_not_evaluate,
             Name("joint", 0),
-            {Name("joint", 0): {"solver_problem": None, "goals": [1]}},
+            {Name("joint", 0): {"solver_problem": None, "goals": []}},
             1,
         )
 

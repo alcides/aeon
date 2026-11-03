@@ -71,7 +71,17 @@ class PowercapMeter:
         return sorted(glob.glob(self.PATTERN))
 
     def available(self) -> bool:
-        return bool(self._files())
+        # Linux may expose the counter paths but restrict their contents to
+        # root. Select the proxy before evaluating a candidate in that case.
+        files = self._files()
+        if not files:
+            return False
+        try:
+            for path in files:
+                self._read(path)
+        except (OSError, ValueError):
+            return False
+        return True
 
     @staticmethod
     def _read(path: str) -> int:

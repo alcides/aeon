@@ -80,6 +80,7 @@ class RandomSearchSynthesizer(JointSynthesizer):
             budget,
             ui,
             self.seed,
+            backend=self,
         )
 
     def synthesize_joint(
@@ -99,6 +100,8 @@ class RandomSearchSynthesizer(JointSynthesizer):
             for terms in zip(*streams):
                 yield JointCandidate(terms)
 
-        result = drive_candidates(candidates(), validate, evaluate, fun_name, metadata, budget, ui, self.seed)
+        result = drive_candidates(
+            candidates(), validate, evaluate, fun_name, metadata, budget, ui, self.seed, backend=self
+        )
         assert result is None or isinstance(result, JointCandidate)
         return result

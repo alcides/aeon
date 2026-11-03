@@ -71,6 +71,7 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.modules.bottom_up import (
     application,
@@ -109,6 +110,9 @@ class AFTASynthesizer(Synthesizer):
     """Component-based synthesis by building a *predicate-abstract* tree
     automaton bottom-up and refining the abstraction (CEGAR) until the smallest
     abstractly-accepting program is concretely validated."""
+
+    supports_optimization = False
+    supports_candidate_enumeration = True
 
     def computations(self, primitives: Any) -> dict[str, Any]:
         # The abstraction is computed from each candidate's concrete *output*;
@@ -217,6 +221,7 @@ class AFTASynthesizer(Synthesizer):
         output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         start = time.time()
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
         deadline = start + budget
         rnd = random.Random(self.seed)
         ui.register(None, None, 0, True)
@@ -228,7 +233,7 @@ class AFTASynthesizer(Synthesizer):
         # construction. Pure-refinement holes fall through to the spec-guided
         # path below.
         if has_io_examples(metadata, fun_name):
-            return synthesize_pbe(self, ctx, type, fun_name, metadata, deadline, start, ui, validate)
+            return synthesize_pbe(self, ctx, type, fun_name, metadata, deadline, start, ui, validate, archive)
 
         builders, atoms = self._collect(ctx, self._inst_types(type), fun_name)
         goal_key = base_key(type)
@@ -262,7 +267,9 @@ class AFTASynthesizer(Synthesizer):
             ())``) -- the coarsest abstraction the CEGAR loop starts from. Opaque
             outputs (no observable value) get a per-term singleton state so they
             are never merged unsoundly, and are always treated as candidates."""
-            if not value_ok:
+            # Refinement predicates do not describe runtime example/property
+            # checks. Keep distinct candidates until those checks validate them.
+            if metadata.get(fun_name, {}).get("goals") or not value_ok:
                 return ("opaque", str(term))  # validated individually, never merged
             truths: list[Truth] = []
             for atom in active:
@@ -320,6 +327,8 @@ class AFTASynthesizer(Synthesizer):
                 states: dict[Signature, tuple[Term, bool, Any]] = {}
                 concrete: set[Any] = set()
                 for t in goal_terms:
+                    if time.time() >= deadline:
+                        return None
                     if str(t) in tried:
                         continue
                     ok, val = obs_value(t)
@@ -344,7 +353,10 @@ class AFTASynthesizer(Synthesizer):
                         return None
                     if _safe(validate, term):
                         solve_abstract, solve_concrete = len(states), len(concrete)
-                        return term
+                        if archive.consider(term):
+                            return term
+                        tried.add(str(term))
+                        continue
                     tried.add(str(term))
                     # Spurious acceptance: the abstraction was too coarse. Add
                     # one goal conjunct this candidate violates to the predicate
@@ -385,6 +397,11 @@ class AFTASynthesizer(Synthesizer):
             ui.progress(sum(len(v) for v in bank.values()), len(tried), time.time() - start)
 
         depth = deepen(bank, deadline, self.rounds, lambda: solution is not None, step)
+
+        if archive.optimizing:
+            selected = archive.result()
+            if selected is not None:
+                return selected
 
         if solution is not None:
             ui.register(solution, [0.0], time.time() - start, True)

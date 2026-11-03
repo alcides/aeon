@@ -175,15 +175,19 @@ def test_real_coefficient_template():
 def test_failed_validation_never_reaches_objectives(monkeypatch):
     from aeon.synthesis.modules import polynomial
 
-    monkeypatch.setattr(polynomial, "solve_polynomial", lambda *args: object())
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        polynomial, "CertificateProblem", lambda *args: SimpleNamespace(candidates=lambda: iter([object()]))
+    )
 
     def must_not_run(candidate):
         raise AssertionError("Invalid candidate reached fitness")
 
     joint = Name("joint", 0)
-    with pytest.raises(SynthesisNotSuccessful, match="failed validation"):
+    with pytest.raises(SynthesisNotSuccessful, match="no validated assignment"):
         PolynomialSynthesizer().synthesize_joint(
-            (), lambda c: False, must_not_run, joint, {joint: {"solver_problem": None, "goals": [1]}}
+            (), lambda c: False, must_not_run, joint, {joint: {"solver_problem": None, "goals": []}}
         )
 
 

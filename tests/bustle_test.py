@@ -286,13 +286,17 @@ def test_missing_examples_and_bad_checkpoint_fail_clearly(tmp_path):
         _solve("@example(f 1 = 2)\ndef f (x:Int) : Int := ?hole;", BustleSynthesizer(tmp_path / "missing.json"))
 
 
-def test_extra_objectives_are_not_silently_ignored():
-    with pytest.raises(SynthesisNotSuccessful, match="additional optimization"):
-        _solve("""
-            @example(f 1 = 2)
-            @minimize_int(f 0)
-            def f (x:Int) : Int := ?hole;
-        """)
+def test_extra_objectives_are_ranked():
+    backend = BustleSynthesizer(guided=False, max_weight=2)
+    _solve(
+        """
+        @example(f 1 = 2)
+        @minimize_int(f 0)
+        def f (x:Int) : Int := ?hole;
+    """,
+        backend,
+    )
+    assert backend.pareto_front
 
 
 def test_cli_exposes_and_executes_bustle():

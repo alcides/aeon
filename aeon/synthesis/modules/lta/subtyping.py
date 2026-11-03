@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from aeon.core.types import Type
 from aeon.typechecking.context import TypingContext
-from aeon.verification.horn import solve
+from aeon.typechecking.entailment import entailment
 from aeon.verification.sub import sub
 
 
@@ -19,7 +19,10 @@ def is_subtype(ctx: TypingContext, t1: Type, t2: Type) -> bool:
     """Return True iff `t1 <: t2` under `ctx`."""
     try:
         constraint = sub(ctx, t1, t2)
-        return solve(constraint, typing_ctx=ctx)
+        # Subtyping refinements may mention surrounding parameters (v = x).
+        # Use the same context entailment as the ordinary checker so those
+        # parameters and their preconditions are available to the solver.
+        return entailment(ctx, constraint)
     except Exception:
         return False
 

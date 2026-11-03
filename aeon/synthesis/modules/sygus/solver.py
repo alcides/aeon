@@ -141,12 +141,21 @@ def _liquid_to_cvc5(t: Any, env: dict[Name, Any], slv: Any, kinds: Any, is_real:
 
 
 def solve_with_cvc5(problem: SygusProblem, timeout_ms: int) -> Term | None:
-    """Solve a ``SygusProblem`` with cvc5 and return an Aeon-core term, or None."""
+    candidates = _enumerate_cvc5(problem, timeout_ms)
+    try:
+        return next(candidates, None)
+    finally:
+        candidates.close()
+
+
+def _enumerate_cvc5(problem: SygusProblem, timeout_ms: int):
+    """Yield successive translations of cvc5's incremental SyGuS solutions."""
     cvc5 = _import_cvc5()
     Kind = cvc5.Kind
 
     slv = cvc5.Solver()
     slv.setOption("sygus", "true")
+    slv.setOption("incremental", "true")
     slv.setOption("tlimit", str(max(1, timeout_ms)))
     try:
         slv.setLogic(problem.logic)
@@ -194,15 +203,12 @@ def solve_with_cvc5(problem: SygusProblem, timeout_ms: int) -> Term | None:
         constraint = slv.mkTerm(Kind.IMPLIES, antecedent, post)
     slv.addSygusConstraint(constraint)
 
-    try:
-        result = slv.checkSynth()
-    except Exception:
-        return None
-    if not result.hasSolution():
-        return None
-
-    solution = slv.getSynthSolution(f)
-    return _cvc5_solution_to_term(solution, problem, Kind)
+    result = slv.checkSynth()
+    while result.hasSolution():
+        solution = _cvc5_solution_to_term(slv.getSynthSolution(f), problem, Kind)
+        if solution is not None:
+            yield solution
+        result = slv.checkSynthNext()
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +297,19 @@ def _cvc5_term_to_core(node: Any, varmap: dict[Any, Name], problem: SygusProblem
 
 
 def _solve_joint_cvc5(problem, timeout_ms):
-    """Declare every unknown before adding shared constraints and checking once."""
+    from aeon.synthesis.api import SynthesisNotSuccessful
+
+    candidates = _enumerate_joint_cvc5(problem, timeout_ms)
+    try:
+        return next(candidates)
+    except StopIteration as exc:
+        raise SynthesisNotSuccessful("Joint SyGuS: no solution") from exc
+    finally:
+        candidates.close()
+
+
+def _enumerate_joint_cvc5(problem, timeout_ms):
+    """Declare all unknowns together and enumerate complete assignments."""
     from aeon.core.liquid import LiquidLiteralBool
     from aeon.core.substitutions import substitution
     from aeon.synthesis.api import SynthesisNotSuccessful
@@ -302,6 +320,7 @@ def _solve_joint_cvc5(problem, timeout_ms):
     cvc5 = _import_cvc5()
     slv = cvc5.Solver()
     slv.setOption("sygus", "true")
+    slv.setOption("incremental", "true")
     slv.setOption("tlimit", str(max(1, timeout_ms)))
     slv.setLogic("ALL")
     sorts = {t_int: slv.getIntegerSort(), t_bool: slv.getBooleanSort(), t_float: slv.getRealSort()}
@@ -329,20 +348,20 @@ def _solve_joint_cvc5(problem, timeout_ms):
         conclusion = _liquid_to_cvc5(clause.conclusion, env, slv, cvc5.Kind, False)
         slv.addSygusConstraint(slv.mkTerm(cvc5.Kind.IMPLIES, premise, conclusion))
     result = slv.checkSynth()
-    if not result.hasSolution():
-        raise SynthesisNotSuccessful(f"Joint SyGuS: {result}")
-    solutions = slv.getSynthSolutions(list(functions.values()))
-    terms = []
-    for hole, description, solution in zip(problem.holes, descriptions, solutions):
-        body = _cvc5_solution_to_term(solution, description, cvc5.Kind)
-        if body is None:
-            raise SynthesisNotSuccessful("Joint SyGuS cannot translate every solution")
-        if hole.dummy:
-            body = substitution(body, Literal(0, t_int), description.params[0].aeon_name)
-        terms.append(hole.wrap(body))
-    if len(terms) != len(problem.holes):
-        raise SynthesisNotSuccessful("Joint SyGuS returned an incomplete assignment")
-    return JointCandidate(tuple(terms))
+    while result.hasSolution():
+        solutions = slv.getSynthSolutions(list(functions.values()))
+        terms = []
+        for hole, description, solution in zip(problem.holes, descriptions, solutions):
+            body = _cvc5_solution_to_term(solution, description, cvc5.Kind)
+            if body is None:
+                raise SynthesisNotSuccessful("Joint SyGuS cannot translate every solution")
+            if hole.dummy:
+                body = substitution(body, Literal(0, t_int), description.params[0].aeon_name)
+            terms.append(hole.wrap(body))
+        if len(terms) != len(problem.holes):
+            raise SynthesisNotSuccessful("Joint SyGuS returned an incomplete assignment")
+        yield JointCandidate(tuple(terms))
+        result = slv.checkSynthNext()
 
 
 def _clear_type_hashes(value):
@@ -360,41 +379,53 @@ def _clear_type_hashes(value):
             _clear_type_hashes(item)
 
 
-def _joint_worker(problem, timeout_ms, connection):
+def _candidate_worker(problem, timeout_ms, connection, joint):
     try:
         _clear_type_hashes(problem)
-        result = _solve_joint_cvc5(problem, timeout_ms)
-        _clear_type_hashes(result)
-        connection.send((True, result))
+        candidates = _enumerate_joint_cvc5(problem, timeout_ms) if joint else _enumerate_cvc5(problem, timeout_ms)
+        for result in candidates:
+            _clear_type_hashes(result)
+            connection.send(("candidate", result))
+            # Request/response backpressure: do not accumulate unscored models.
+            if not connection.recv():
+                break
+        connection.send(("done", None))
+    except (BrokenPipeError, EOFError):
+        pass
     except Exception as exc:
-        connection.send((False, str(exc)))
+        connection.send(("error", str(exc)))
     finally:
         connection.close()
 
 
-def solve_joint_cvc5(problem, timeout_ms):
-    """Bound native cvc5 execution even when its internal time limit is ignored."""
+def enumerate_cvc5(problem, timeout_ms, *, joint=False):
+    """Enumerate distinct SyGuS solutions in a process with a hard deadline."""
     import multiprocessing
     import time
     from aeon.synthesis.api import SynthesisNotSuccessful
 
     started = time.monotonic()
     context = multiprocessing.get_context("spawn")
-    reader, writer = context.Pipe(duplex=False)
-    process = context.Process(target=_joint_worker, args=(problem, timeout_ms, writer))
+    reader, writer = context.Pipe()
+    process = context.Process(target=_candidate_worker, args=(problem, timeout_ms, writer, joint))
     process.start()
     writer.close()
     try:
-        remaining = max(0, timeout_ms / 1000 - (time.monotonic() - started))
-        if not reader.poll(remaining):
-            raise SynthesisNotSuccessful("Joint SyGuS: time budget exhausted")
-        try:
-            success, value = reader.recv()
-        except EOFError as exc:
-            raise SynthesisNotSuccessful("Joint SyGuS: solver process exited without a result") from exc
-        if not success:
-            raise SynthesisNotSuccessful(value)
-        return value
+        while True:
+            remaining = max(0, timeout_ms / 1000 - (time.monotonic() - started))
+            if not reader.poll(remaining):
+                return
+            try:
+                status, value = reader.recv()
+            except EOFError as exc:
+                raise SynthesisNotSuccessful("SyGuS: solver process exited without a result") from exc
+            if status == "done":
+                return
+            if status == "error":
+                raise SynthesisNotSuccessful(value)
+            _clear_type_hashes(value)
+            yield value
+            reader.send(True)
     finally:
         reader.close()
         if process.is_alive():
@@ -404,3 +435,15 @@ def solve_joint_cvc5(problem, timeout_ms):
             process.kill()
             process.join()
         process.close()
+
+
+def solve_joint_cvc5(problem, timeout_ms):
+    from aeon.synthesis.api import SynthesisNotSuccessful
+
+    candidates = enumerate_cvc5(problem, timeout_ms, joint=True)
+    try:
+        return next(candidates)
+    except StopIteration as exc:
+        raise SynthesisNotSuccessful("Joint SyGuS: no solution within budget") from exc
+    finally:
+        candidates.close()

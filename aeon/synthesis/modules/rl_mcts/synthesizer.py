@@ -11,6 +11,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Type, refined_to_unrefined_type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.modules.native_search import expansions_for_hole, initial_partial, make_skip
 from aeon.synthesis.modules.rl_mcts.features import Syntax, syntax
 from aeon.synthesis.modules.rl_mcts.learning import LearnedGuidance
@@ -42,6 +43,9 @@ def grammar_successors(
 
 
 class RLMCTSSynthesizer(Synthesizer):
+    supports_optimization = False
+    supports_candidate_enumeration = True
+
     def __init__(
         self, seed: int = 0, guidance: Guidance | None = None, config: SearchConfig = SearchConfig(), max_depth: int = 8
     ):
@@ -68,12 +72,7 @@ class RLMCTSSynthesizer(Synthesizer):
     ) -> Term:
         self.last_result = None
         self.last_spec = None
-        # The paper is a satisfiability solver, not a numerical optimizer.
-        # Reject goals explicitly instead of returning an arbitrary "optimum".
-        if metadata.get(fun_name, {}).get("goals"):
-            raise SynthesisNotSuccessful(
-                "rl_mcts solves refinement specifications; optimization goals are not supported"
-            )
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
         clear_tdsyn_caches()
         names: dict[Name, str] = {}
         self.last_spec = syntax((type, ctx.vars()), names)
@@ -99,6 +98,9 @@ class RLMCTSSynthesizer(Synthesizer):
             ui.progress(assessed, assessed, elapsed)
             return valid
 
+        def record_solution(partial: PartialAST) -> None:
+            archive.consider(partial.term)
+
         guidance = self.guidance
         model_path = os.environ.get("AEON_RL_MCTS_MODEL")
         if guidance is None and model_path:
@@ -114,7 +116,12 @@ class RLMCTSSynthesizer(Synthesizer):
             config=self.config,
             budget=budget,
             seed=self.seed,
+            on_solution=record_solution if archive.optimizing else None,
         )
+        if archive.optimizing:
+            selected = archive.result()
+            if selected is not None:
+                return selected
         if self.last_result.solution is not None:
             return self.last_result.solution.state.term
         raise SynthesisNotSuccessful(f"rl_mcts: {self.last_result.reason}; {assessed} complete candidates checked")
