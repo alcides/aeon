@@ -12,11 +12,13 @@ from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 from aeon.synthesis.modules.lta import LTASynthesizer
 from aeon.synthesis.modules.synquid.synthesizer import SynquidSynthesizer
 from aeon.synthesis.modules.llm.ids import (
+    DEFAULT_LLM_SYNTHESIZER_ID,
     LLM_OLLAMA_MODELS,
     LLM_OPENAI_SYNTHESIZER_ID,
     LLM_TYPE_CONSTRAINED_ID,
     is_llm_synthesizer,
     llm_synthesizer_label,
+    llm_synthesizer_menu_ids,
 )
 from aeon.synthesis.modules.smt_synthesizer import SMTSynthesizer
 from aeon.synthesis.modules.structure_guided import StructureGuidedSynthesizer
@@ -173,6 +175,15 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     LLM_TYPE_CONSTRAINED_ID: SynthesizerFamily.LLM_ASSISTED,
 }
 
+# Keep aliases accepted by the CLI without duplicating algorithms in IDE menus.
+SYNTHESIZER_ALIASES: dict[str, str] = {
+    "tdsyn": "tdsyn_enumerative",
+    "ortools_int": "ortools",
+    "cpsat": "ortools",
+    "xfta": "symetric",
+    "llm": DEFAULT_LLM_SYNTHESIZER_ID,
+}
+
 _BUILTIN_SYNTHESIZER_IDS = frozenset(
     {
         "random_search",
@@ -258,6 +269,16 @@ def sort_synthesizer_ids(ids: list[str]) -> list[str]:
         return (family_rank.get(synthesizer_family(module), len(family_rank)), synthesizer_label(module).casefold())
 
     return sorted(ids, key=key)
+
+
+def synthesizer_menu_ids() -> list[str]:
+    """All registered algorithms, grouped for tooling, with one entry per backend/model.
+
+    Optional dependencies are checked when a backend is selected, not while
+    listing it. Adding a backend to the factory registry also exposes it in IDEs.
+    """
+    ids = (_BUILTIN_SYNTHESIZER_IDS | set(llm_synthesizer_menu_ids())) - SYNTHESIZER_ALIASES.keys()
+    return sort_synthesizer_ids(sorted(ids))
 
 
 def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:

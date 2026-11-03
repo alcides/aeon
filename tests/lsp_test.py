@@ -357,6 +357,54 @@ def test_code_action_commands_have_correct_arguments():
 # ---------------------------------------------------------------------------
 
 
+def test_real_server_exposes_all_algorithms_in_code_actions_and_infoview():
+    import asyncio
+    from types import SimpleNamespace
+
+    from lsprotocol.types import (
+        TEXT_DOCUMENT_CODE_ACTION,
+        CodeActionContext,
+        CodeActionParams,
+        TextDocumentIdentifier,
+        TextDocumentItem,
+    )
+    from pygls.workspace import Workspace
+
+    from aeon.lsp import aeon_adapter
+    from aeon.lsp.server import INFOVIEW_REQUEST
+    from aeon.synthesis.modules.synthesizerfactory import synthesizer_menu_ids
+
+    uri = "file:///algorithm_menu.ae"
+    source = "def synth : Int := ?hole;"
+    column = source.index("?") + 1
+    ls = AeonLanguageServer(make_driver())
+    ls.protocol._workspace = Workspace(None)
+    ls.workspace.put_text_document(TextDocumentItem(uri=uri, language_id="aeon", version=1, text=source))
+    aeon_adapter.clear_cache(uri)
+    try:
+        actions = asyncio.run(
+            ls.protocol.fm.features[TEXT_DOCUMENT_CODE_ACTION](
+                CodeActionParams(
+                    text_document=TextDocumentIdentifier(uri),
+                    range=make_range(0, column, 0, column),
+                    context=CodeActionContext(diagnostics=[]),
+                )
+            )
+        )
+        info = asyncio.run(
+            ls.protocol.fm.features[INFOVIEW_REQUEST](
+                SimpleNamespace(textDocument=SimpleNamespace(uri=uri), position=Position(0, column))
+            )
+        )
+        expected = synthesizer_menu_ids()
+        assert [a.command.arguments[2] for a in actions] == expected
+        assert [s["id"] for s in info["synthesizers"]] == expected
+        assert {"ortools", "contata", "decision_tree", "llm_type_constrained"} <= set(expected)
+        assert all(s["label"] and s["family"] for s in info["synthesizers"])
+    finally:
+        aeon_adapter.clear_cache(uri)
+
+
 @pytest.mark.parametrize("synthesizer", SYNTHESIZERS)
 def test_run_synthesis_each_synthesizer(synthesizer, monkeypatch):
     source = "def synth : Int := ?hole;"
