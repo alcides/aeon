@@ -4,7 +4,7 @@ This audit follows [How to express intent in aeon](https://wiki.alcidesfonseca.c
 (November 3, 2026): types, liquid refinements, documentation, examples, CSV data,
 optimization, properties, and resource use. It also covers `@minimize_size`.
 The table includes every registered backend family on `master`, including
-AMaze, bounded Boolean synthesis, ReGuS, DP-GP, and constrained LLM decoding.
+AMaze, bounded Boolean synthesis, ReGuS, and constrained LLM decoding.
 Aliases with the same implementation share a row.
 
 All complete candidates must satisfy their types and refinements. A backend's
@@ -69,7 +69,6 @@ same fitness infrastructure, subject to the stated search limits.
 | `boolean_bounded` | Logical examples; exact-fit Bool CSV check | Logical Boolean obligations + check | External Pareto over finite CNF selectors | Yes | First-order Boolean functions and declared CNF bound. |
 | `amaze` | Fitness; typed Int/Bool CSV | Fitness | Pareto | Yes | Learned Int/Bool grammar. |
 | `regus` | Fitness; CSV does not fit controller signature | Fitness | Pareto | Yes | `ControlProgram` and the `@cluster` execution-observation protocol. |
-| `dp_gp` | Exact examples and typed CSV checks | Check | Unsupported additional numeric goals | Unsupported | Reference-preserving transformation with two bounded Int inputs; one output transformation. |
 | All regular `llm*` IDs | Fitness and prompt hints | Fitness and prompt hints | Pareto among generated terms | Yes | Provider/model generation quality; ordinary compiler validation. |
 | `llm_type_constrained` | Fitness and prompt hints | Fitness and prompt hints | Pareto among decoded terms | Yes | Monomorphic scalar types/arrows; one hole, no ADTs/recursion/linear types. |
 
@@ -86,7 +85,7 @@ Regular LLM IDs are `llm`, `llm_openai`, `llm_qwen2.5-coder-32b`,
 `specifications.py` installs timed acceptance checks for satisfaction backends;
 `program_specifications.py` shares whole-program substitution, completeness,
 type/bounded-contract checks, fixed property corpora and objective evaluation
-across CP-SAT, DP-GP, noisy search, and final program-backend acceptance.
+across CP-SAT, noisy search, and final program-backend acceptance.
 
 `example_adapters.py` merges typed CSV and derived observations without
 modifying source metadata. A functional property such as `f x = reference x`
@@ -145,5 +144,3 @@ success rate or model-quality claim is made.
 * Expand existing grammars (constructor CSV schemas, classification trees, richer
   recurrence alternatives, and joint Contata optimization) separately from the
   specification adapters.
-* Let DP-GP enumerate multiple reference-equivalent transformations before claiming
-  support for numerical or resource optimization.

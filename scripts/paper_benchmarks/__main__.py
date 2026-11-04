@@ -160,7 +160,7 @@ def fetch_sources(root, selected):
 
 def generate(sources, output, selected):
     corpus = Corpus(sources, output)
-    manifest = output / "manifest.json"
+    manifest = output / "paper-manifest.json"
     previous = json.loads(manifest.read_text()) if manifest.exists() else []
     for suite, generator in GENERATORS.items():
         if suite in selected:
@@ -181,7 +181,7 @@ def generate(sources, output, selected):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sources", type=Path, required=True, help="Directory containing the pinned upstream sources")
-    parser.add_argument("--output", type=Path, default=ROOT / "examples/papers")
+    parser.add_argument("--output", type=Path, default=ROOT / "examples/benchmarks")
     parser.add_argument(
         "--suite",
         action="append",

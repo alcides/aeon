@@ -6,7 +6,7 @@ Mechanical half of the linear-``Array`` migration: a parameter declared
 once need a ``copy`` and are left for a human to fix.
 
     uv run python scripts/mark_linear_params.py --dry-run aeon/libraries
-    uv run python scripts/mark_linear_params.py examples/PSB2
+    uv run python scripts/mark_linear_params.py examples/benchmarks/psb2
 """
 
 from __future__ import annotations

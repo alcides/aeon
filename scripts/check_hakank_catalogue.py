@@ -65,7 +65,7 @@ def check_catalogue(catalogue, output, identifiers, timeout, workers, limit):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--catalogue", type=Path, default=Path("examples/synthesis/hakank/catalogue.json"))
+    parser.add_argument("--catalogue", type=Path, default=Path("examples/benchmarks/hakank/catalogue.json"))
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--ids", default="")
     parser.add_argument("--timeout", type=float, default=60)

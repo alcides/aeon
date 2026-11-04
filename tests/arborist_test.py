@@ -238,7 +238,7 @@ def int_list(*values, prefix="IntList"):
 
 
 def test_paper_list_fold_synthesizes_and_preserves_both_paper_programs():
-    source = (ROOT / "examples/synthesis/arborist/list_fold.ae").read_text()
+    source = (ROOT / "examples/benchmarks/arborist/list_fold.ae").read_text()
     fun, _, _ = solve(source)
     assert fun(int_list(1, 2, 4)) == 7
 
@@ -308,7 +308,7 @@ def test_list_sum_synthesizes_and_generalizes_to_unseen_lists():
 
 
 def test_list_fold_order_is_left_to_right():
-    source = (ROOT / "examples/synthesis/arborist/list_fold.ae").read_text().replace("= 7)", "= 124)")
+    source = (ROOT / "examples/benchmarks/arborist/list_fold.ae").read_text().replace("= 7)", "= 124)")
     source = source.replace(
         "def fold_example",
         "@example(fold_example (.cons 4 (.cons 2 (.cons 1 .nil))) = 421)\ndef fold_example",

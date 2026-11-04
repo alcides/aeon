@@ -11,7 +11,7 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 
 @pytest.mark.parametrize("task", ["mnist", "cifar10", "smoke"])
 def test_denser_tasks_compile_without_aeonpath(task, tmp_path, monkeypatch):
-    source = Path(__file__).resolve().parents[1] / "examples/synthesis/denser" / f"{task}.ae"
+    source = Path(__file__).resolve().parents[1] / "examples/benchmarks/denser" / f"{task}.ae"
     monkeypatch.delenv("AEONPATH", raising=False)
     monkeypatch.chdir(tmp_path)
     assert resolve_module_source("Denser") is not None

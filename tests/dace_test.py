@@ -19,7 +19,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _manifest() -> dict:
-    manifest_path = os.path.join(REPO, "examples/synthesis/dace/reconstructed_manifest.json")
+    manifest_path = os.path.join(REPO, "examples/benchmarks/dace/reconstructed_manifest.json")
     with open(manifest_path, encoding="utf-8") as manifest_file:
         return json.load(manifest_file)
 
@@ -99,7 +99,7 @@ def _run(args: list[str]) -> str:
     ],
 )
 def test_table_pipeline_runs(example: str, expected: str):
-    out = _run([f"examples/synthesis/dace/{example}.ae"])
+    out = _run([f"examples/benchmarks/dace/{example}.ae"])
     assert expected in out.split(), out[-1500:]
 
 
@@ -114,7 +114,7 @@ def test_table_pipeline_runs(example: str, expected: str):
     ],
 )
 def test_fta_completes_cell(example: str, value: str):
-    out = _run(["--no-main", "-s", "fta", "--budget", "10", f"examples/synthesis/dace/synth/{example}.ae"])
+    out = _run(["--no-main", "-s", "fta", "--budget", "10", f"examples/benchmarks/dace/synth/{example}.ae"])
     assert f"?hole: {value}" in out, out[-1500:]
 
 
@@ -136,7 +136,7 @@ def test_fta_completes_cell(example: str, value: str):
     ],
 )
 def test_fta_pbe_completion(example: str, token: str):
-    out = _run(["--no-main", "-s", "fta", "--budget", "60", f"examples/synthesis/dace/pbe/{example}.ae"])
+    out = _run(["--no-main", "-s", "fta", "--budget", "60", f"examples/benchmarks/dace/pbe/{example}.ae"])
     assert "no spec-consistent program" not in out, out[-1500:]
     assert "?hole:" in out, out[-1500:]
     assert token in out, out[-1500:]

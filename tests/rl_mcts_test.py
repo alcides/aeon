@@ -192,7 +192,7 @@ def test_aeon_expansion_restores_textual_leftmost_hole_order(monkeypatch):
 
 
 def test_actual_cli_example_runs_with_registered_backend():
-    source = Path(__file__).resolve().parents[1] / "examples/synthesis/rl_mcts.ae"
+    source = Path(__file__).resolve().parents[1] / "examples/benchmarks/rlmcts/rl_mcts.ae"
     result = subprocess.run(
         [sys.executable, "-m", "aeon", "-s", "rl_mcts", "--budget", "10", str(source)],
         capture_output=True,

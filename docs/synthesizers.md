@@ -29,15 +29,15 @@ Population size is chosen from a timing probe of the first ten random individual
 
 Best suited for problems with a rich fitness landscape and sufficient budget.
 
----
-
-### `dp_gp` — Dynamic-Programming Transformations
-
-Uses native GP to synthesize pruning, compact solution representations and
-updates, memoization keys, and compact search states for an explicit
-`@dp_gp(reference, bound1, bound2)` finite additive generator. Emits executable
-Aeon code and checks equivalence exhaustively on the declared input domain.
-See [the source interface, assurance limits and examples](dp-gp.md).
+With two or more objective components, parent tournaments and elitism use
+**Pareto ranks** computed once per generation. Rank 0 contains all valid
+non-dominated individuals; removing them exposes rank 1, and so on. Tournaments
+prefer the lowest rank among their contestants, and elitism keeps individuals
+from the lowest ranks first. Equal-rank ties, including a front that crosses
+the elite cutoff, are broken randomly using the run's seed. Neither selection
+step prioritizes the first objective. Mixed minimize/maximize directions are
+respected, and invalid or unevaluated individuals rank below valid ones.
+Single-objective problems retain scalar fitness selection.
 
 ---
 
@@ -79,7 +79,7 @@ are 100,000 nodes and eight recursive grammar expansions. These finite limits
 make search incomplete; timeout is not evidence that no solution exists.
 
 ```bash
-python -m aeon -s rl_mcts --budget 10 examples/synthesis/rl_mcts.ae
+python -m aeon -s rl_mcts --budget 10 examples/benchmarks/rlmcts/rl_mcts.ae
 ```
 
 Learned guidance is optional and requires `pip install 'AeonLang[synthesis-rl]'`.
@@ -116,9 +116,9 @@ or published dataset.
 
 ```bash
 python -m aeon.synthesis.modules.rl_mcts generate \
-  examples/synthesis/rl_mcts_training.smt2 --output /tmp/aeon-rl-data
+  examples/benchmarks/rlmcts/rl_mcts_training.smt2 --output /tmp/aeon-rl-data
 python -m aeon.synthesis.modules.rl_mcts train \
-  examples/synthesis/rl_mcts_training.smt2 --output /tmp/aeon-smt-model \
+  examples/benchmarks/rlmcts/rl_mcts_training.smt2 --output /tmp/aeon-smt-model \
   --iterations 2 --limit 2 --budget 10
 ```
 
@@ -438,7 +438,7 @@ distinguishes `bounded_unsat`, `timeout`, `resource_limit`, `unknown`, and
 unbounded allocation; the Python API can configure these limits. The independent
 normalizer limits each definition to 10,000 visited syntax nodes. Shared compiler
 preparation, search, extraction, final validation and optional fitness evaluation
-run in the same killable worker used by `noisy` and `dp_gp`, under one wall-clock
+run in the same killable worker used by `noisy`, under one wall-clock
 budget. Z3 calls also receive the remaining budget as their timeout. At the
 deadline the parent terminates the worker, escalating to kill if necessary, and
 reports `timeout` without accepting or publishing a candidate. Worker cleanup
@@ -481,7 +481,7 @@ Supports one to three scalar or registered ADT inputs, scalar or ADT results, fi
 
 Adapts the lifted interpretation algorithm from [Li et al., POPL 2024](https://arxiv.org/abs/2311.03705), Section 3 and Appendix A. A bounded typed grammar is stored as a packed tree language. Interpreting the enclosing Aeon sketch discovers reachable local bindings; specializing the grammar under each binding context constructs observational classes bottom-up while retaining all their alternatives. A subsequent call specializes the surviving language, allowing classes to split and ensuring that every fold iteration uses the same candidate body.
 
-Select it with `python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/list_fold.ae`. It accepts literal Int/Bool or closed registered-constructor inputs, Int/Bool outputs, and one Int/Bool expression hole inside a supplied pure functional sketch. Supported surrounding Core forms include lambdas, applications, local bindings, conditionals, recursive functions, and compiler-generated constructors/eliminators (`match`). The supplied fold combinators are interpreted from their Aeon definitions; their accumulator contexts depend on candidate outputs. Generated expressions use lexical scalar variables, small constants, arithmetic, comparisons, Boolean operations, and conditionals. `list_fold.ae` preserves the paper's ambiguous `[1,2,4] → 7` example; `list_sum.ae` adds distinguishing examples.
+Select it with `python -m aeon --no-main --budget 10 -s arborist examples/benchmarks/arborist/list_fold.ae`. It accepts literal Int/Bool or closed registered-constructor inputs, Int/Bool outputs, and one Int/Bool expression hole inside a supplied pure functional sketch. Supported surrounding Core forms include lambdas, applications, local bindings, conditionals, recursive functions, and compiler-generated constructors/eliminators (`match`). The supplied fold combinators are interpreted from their Aeon definitions; their accumulator contexts depend on candidate outputs. Generated expressions use lexical scalar variables, small constants, arithmetic, comparisons, Boolean operations, and conditionals. `list_fold.ae` preserves the paper's ambiguous `[1,2,4] → 7` example; `list_sum.ae` adds distinguishing examples.
 
 The backend uses the program-level synthesis interface to observe the enclosing execution. Every extracted solution passes the usual whole-program type/refinement validator and the examples in Aeon's normal evaluator. Rejection of one example-equivalent representative does not discard its alternatives. Search observes the wall-clock budget, with default limits of three nested grammar operations, 100,000 packed states, one million interpreter steps, and 4096-bit integers. An in-flight compiler check or final runtime check can overrun the budget.
 
@@ -651,7 +651,6 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | Synthesizer     | Strategy         | Best for |
 | --------------- | ---------------- | -------- |
 | `gp`            | Native linear-genome GP | Complex expressions, multi-objective problems |
-| `dp_gp`         | GP components for structured DP transformations | Bounded additive reference generators |
 | `random_search` | Native random walks over the core grammar | Baselines, small search spaces |
 | `enumerative`   | Native BFS over the core grammar | Small holes, tight type constraints |
 | `rl_mcts`       | Policy/value-guided Monte-Carlo grammar search | Refinement-only synthesis, learned search experiments |
@@ -675,7 +674,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 
 ## Benchmarks
 
-The [Hakank common CP starter suite](../examples/synthesis/hakank/README.md)
+The [Hakank common CP starter suite](../examples/benchmarks/hakank/README.md)
 contains 25 standalone, finite constraint and optimization models drawn from
 the archived catalogue. Run these with `-s ortools`; decisions remain numeric
 holes, with constraints expressed through comparisons, Boolean combinations,

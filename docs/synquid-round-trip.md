@@ -128,8 +128,8 @@ python -m pytest tests/synquid*test.py tests/smt*test.py tests/termination*test.
 python scripts/bench_synquid_round_trip.py
 python scripts/run_core_tests.py
 pre-commit run --all-files
-python -m aeon --budget 15 -s synquid --no-main examples/synthesis/synquid/List-Null.ae
-python -m aeon --budget 25 -s synquid --no-main examples/synthesis/synquid/List-Append.ae
+python -m aeon --budget 15 -s synquid --no-main examples/benchmarks/synquid/List-Null.ae
+python -m aeon --budget 25 -s synquid --no-main examples/benchmarks/synquid/List-Append.ae
 ```
 
 The counter script fixes a finite grammar with one prefix and eight nonnegative

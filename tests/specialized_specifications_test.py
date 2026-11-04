@@ -1,16 +1,13 @@
 """Specification combinations in bounded Boolean, grammar, and LLM search."""
 
 import pytest
-from pathlib import Path
 
 from aeon.core.terms import Literal
 from aeon.core.types import t_int
 from aeon.synthesis.decorators import Example, Goal
-from aeon.synthesis.api import SynthesisNotSuccessful, UnsupportedSynthesisGoal
+from aeon.synthesis.api import SynthesisNotSuccessful
 from aeon.synthesis.modules.amaze.synthesizer import AmazeSynthesizer
 from aeon.synthesis.modules.boolean_bounded import BooleanBoundedSynthesizer
-from aeon.synthesis.modules.dp_gp import DPSynthesizer
-from aeon.synthesis.modules.dp_gp.model import Config as DPConfig
 from aeon.synthesis.modules.llm.specifications import specification_prompt
 from aeon.synthesis.modules.type_constrained import TypeConstrainedSynthesizer
 from aeon.utils.name import Name
@@ -157,31 +154,6 @@ def test_native_search_exposes_and_resets_archive(backend_name):
     assert next(iter(result.values())) in [term for _, term in backend.pareto_front]
     solve_source("def f:Int := ?body;", backend, budget=0.3)
     assert backend.pareto_front == []
-
-
-@pytest.mark.parametrize("valid", [True, False])
-def test_dp_reference_accepts_examples_and_checks_additional_properties(valid):
-    source = (Path(__file__).parents[1] / "examples/synthesis/dp_gp/knapsack.ae").read_text()
-    source = source.replace(
-        "@dp_gp(reference, 4, 5)",
-        '@example(optimized 0 0 = 0)\n@csv_data("0,0,0\\n1,0,1")\n@dp_gp(reference, 4, 5)',
-    )
-    comparison = ">=" if valid else "<"
-    source += f"\n@property(2) def law(n:{{v:Int | v >= 0 && v <= 4}}):Bool := optimized n 0 {comparison} 0;"
-    driver = parse(source)
-    backend = DPSynthesizer(config=DPConfig(proposals=160))
-    if valid:
-        assert all(value is not None for value in solve(driver, backend, budget=30).values())
-    else:
-        with pytest.raises(SynthesisNotSuccessful, match="additional specifications"):
-            solve(driver, backend, budget=30)
-
-
-def test_dp_does_not_claim_to_optimize_a_single_reference_transform():
-    source = (Path(__file__).parents[1] / "examples/synthesis/dp_gp/knapsack.ae").read_text()
-    source = source.replace("@dp_gp(reference, 4, 5)", "@minimize_int(optimized 0 0)\n@dp_gp(reference, 4, 5)")
-    with pytest.raises(UnsupportedSynthesisGoal, match="cannot optimize"):
-        solve(parse(source), DPSynthesizer(), budget=30)
 
 
 def test_regus_combines_control_objective_size_examples_and_properties():

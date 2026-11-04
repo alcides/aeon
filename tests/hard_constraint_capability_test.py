@@ -41,7 +41,7 @@ def test_hakank_cli_reports_controlled_unsupported_goal(backend):
             backend,
             "--budget",
             "1",
-            "examples/synthesis/hakank/all_different_except_0.ae",
+            "examples/benchmarks/hakank/all_different_except_0.ae",
         ],
         capture_output=True,
         text=True,

@@ -53,7 +53,7 @@ def _num_literal(value: int | float, base: TypeConstructor) -> Term:
     """A possibly-negative numeric literal.
 
     Aeon has no negative-literal syntax, so negatives are emitted as ``0 - n``
-    (mirroring ``examples/synthesis/quadratic.ae``).
+    (mirroring ``examples/synthesis/puzzle/quadratic.ae``).
     """
     if base == t_float:
         value = float(value)

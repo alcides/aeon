@@ -226,7 +226,7 @@ def test_type_directed_search_scores_size(backend):
     assert list(result.values()) == [ONE]
 
 
-@pytest.mark.parametrize("backend", ["backward_lit", "forward_close", "dp_gp"])
+@pytest.mark.parametrize("backend", ["backward_lit", "forward_close"])
 def test_backends_without_size_optimization_reject_goal(backend):
     driver = parse("@minimize_size def f:Int := ?h;")
     with pytest.raises(UnsupportedSynthesisGoal, match="@minimize_size"):

@@ -788,7 +788,7 @@ execute the candidate.
 
 Backends that rank or enumerate candidates support this objective; see the
 [specification matrix](synthesis-specifications.md) for their limits. Fixed tactic
-steps/scripts and DP-GP reject size optimization because they do not generate
+steps/scripts reject size optimization because they do not generate
 ranked alternatives. Search minimizes size among the valid candidates it finds
 within its budget; it does not prove global minimality.
 

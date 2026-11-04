@@ -190,7 +190,7 @@ def test_polymorphic_theorem(tmp_path):
 def test_standalone_induction_example(tmp_path):
     from pathlib import Path
 
-    source = (Path(__file__).resolve().parents[1] / "examples/proofs/Induction.ae").read_text()
+    source = (Path(__file__).resolve().parents[1] / "examples/benchmarks/equational_reasoning/Induction.ae").read_text()
     driver, errors = compile_source(tmp_path, source)
     assert not errors, errors
     assert not driver.has_synth()
@@ -200,7 +200,7 @@ def test_induction_example_can_be_exported_as_a_library(tmp_path):
     from pathlib import Path
     from aeon.compilation.compile import compile_program
 
-    source = (Path(__file__).resolve().parents[1] / "examples/proofs/Induction.ae").read_text()
+    source = (Path(__file__).resolve().parents[1] / "examples/benchmarks/equational_reasoning/Induction.ae").read_text()
     unit, errors = compile_program(source, filename=str(tmp_path / "ProofLibrary.ae"), is_main=False, use_cache=False)
     assert not errors, errors
     assert "append_nil" in unit.exports

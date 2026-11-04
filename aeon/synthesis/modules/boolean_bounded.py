@@ -157,7 +157,7 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         self.pareto_front = []
 
     def run_bounded(self, operation, budget, ui):
-        """Use the noisy/DP worker to contain even synchronous compiler calls.
+        """Use the noisy worker to contain even synchronous compiler calls.
 
         The entrypoint supplies preparation through final acceptance as one
         operation. Direct adapter callers get the same containment for search,

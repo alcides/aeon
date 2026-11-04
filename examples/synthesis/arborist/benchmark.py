@@ -14,9 +14,14 @@ def main() -> None:
     logger.remove()
     print("example,compressed,transitions,merges,contexts,interpreter_steps,validated")
     for name in ("local", "fold", "list_fold", "list_sum"):
+        source = (
+            Path(__file__).resolve().parents[2] / "benchmarks/arborist/list_fold.ae"
+            if name == "list_fold"
+            else Path(__file__).with_name(f"{name}.ae")
+        )
         for compress in (True, False):
             driver = AeonDriver(AeonConfig("arborist", SilentSynthesisUI(), 10, no_main=True))
-            errors = list(driver.parse(aeon_code=Path(__file__).with_name(f"{name}.ae").read_text()))
+            errors = list(driver.parse(aeon_code=source.read_text()))
             if errors:
                 raise RuntimeError(errors)
             driver.has_synth()
