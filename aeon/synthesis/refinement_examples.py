@@ -15,7 +15,7 @@ from typing import Any
 
 import z3
 
-from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.liquid import LiquidLiteralBool, LiquidLiteralUnit
 from aeon.core.substitutions import substitute_vartype, substitution_in_type
 from aeon.core.terms import Abstraction, Annotation, Application, Hole, Let, Literal, Rec, Term, TypeApplication, Var
 from aeon.core.types import (
@@ -28,6 +28,7 @@ from aeon.core.types import (
     t_float,
     t_int,
     t_string,
+    t_unit,
 )
 from aeon.synthesis.api import SynthesisNotSuccessful, UnsupportedSynthesisGoal
 from aeon.typechecking.context import TypingContext
@@ -74,7 +75,7 @@ def _domain(
     base = _base(ty)
     order = get_constructor_order(base.name.name)
     if order is None:
-        if base not in (t_int, t_float, t_bool, t_string):
+        if base not in (t_int, t_float, t_bool, t_string, t_unit):
             raise UnsupportedSynthesisGoal(f"Cannot sample opaque type {base}")
         return z3.And(*conditions)
     if depth <= 0:
@@ -102,6 +103,8 @@ def _decode(
     value: Any, ty: Type, model: z3.ModelRef, constructors: dict[str, tuple[Name, Type]], depth: int = 4
 ) -> Any:
     base = _base(ty)
+    if base == t_unit:
+        return None
     if base == t_int:
         return value.as_long()
     if base == t_bool:
@@ -136,7 +139,7 @@ def _decode(
 
 def _value_term(value: Any, ty: Type, constructors: dict[str, tuple[Name, Type]]) -> Term:
     base = _base(ty)
-    expected = {t_int: int, t_float: float, t_bool: bool, t_string: str}
+    expected = {t_int: int, t_float: float, t_bool: bool, t_string: str, t_unit: type(None)}
     if base in expected:
         if type(value) is not expected[base]:
             raise ValueError(f"Example {value!r} does not have type {base}")
@@ -163,6 +166,8 @@ def _value_term(value: Any, ty: Type, constructors: dict[str, tuple[Name, Type]]
 def _encode(value: Any, ty: Type, constructors: dict[str, tuple[Name, Type]]) -> Any:
     """Encode the decoded value, including any Float rounding, back into SMT."""
     base = _base(ty)
+    if base == t_unit:
+        return translate_liq(LiquidLiteralUnit(), {})
     scalar = {t_int: z3.IntVal, t_float: z3.RealVal, t_bool: z3.BoolVal, t_string: z3.StringVal}
     if base in scalar:
         return scalar[base](value)
@@ -235,6 +240,8 @@ def derive_refinement_examples(
         relation = z3.And(*(translate(clause) for clause in clauses))
         solver.add(relation)
         env = dict(base_functions)
+        # Refinements may reference the prelude constant as well as Unit literals.
+        env["unit"] = translate_liq(LiquidLiteralUnit(), {})
         for clause in clauses:
             env.update(mk_funs(clause.functions, mk_sorts(clause.sorts)))
         env.update(constructors_for_env())

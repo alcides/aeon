@@ -47,6 +47,99 @@ def test_refinement_examples_cover_dependent_numeric_inputs():
         assert not d.metadata  # No source decorators or metadata mutation.
 
 
+@pytest.mark.parametrize("parameter", ["Unit", "{u:Unit | u = unit}"])
+def test_unit_input_has_one_checked_example(parameter):
+    d = driver(f"def f (u:{parameter}) : {{r:Int | r = 7}} := ?h;")
+    with d.session.activate():
+        data = samples(d)
+        assert data["io_examples"] == [([None], 7)]
+        assert data["refinement_examples_unique"]
+        assert data["refinement_examples_complete"]
+        assert "training_data" not in data
+        assert data["refinement_example_matches"]((7,))
+        assert not data["refinement_example_matches"]((8,))
+
+
+def test_unit_output_preserves_singleton_identity():
+    d = driver("def f (u:Unit) : {r:Unit | r = u} := ?h;")
+    with d.session.activate():
+        data = samples(d)
+        assert data["io_examples"] == [([None], None)]
+        assert data["refinement_examples_unique"]
+        assert data["refinement_examples_complete"]
+        assert data["refinement_example_matches"]((None,))
+        for wrong in (True, False, 0, 1, (), "unit"):
+            assert not data["refinement_example_matches"]((wrong,))
+
+
+def test_unit_input_keeps_nonunique_outputs_relational():
+    d = driver("def f (u:Unit) : {r:Int | r >= 0} := ?h;")
+    with d.session.activate():
+        data = samples(d)
+        assert len(data["refinement_examples"]) == 1
+        assert data["refinement_examples"][0][0] == [None]
+        assert data["refinement_examples_complete"]
+        assert not data["refinement_examples_unique"]
+        assert "io_examples" not in data
+        assert data["refinement_example_matches"]((0,))
+        assert data["refinement_example_matches"]((7,))
+        assert not data["refinement_example_matches"]((-1,))
+
+
+def test_unit_with_dependent_numeric_inputs():
+    d = driver("""def f (u:Unit) (x:{x:Int | 0 <= x && x <= 2}) :
+        {r:Int | u = unit && r = x + 1} := ?h;""")
+    with d.session.activate():
+        data = samples(d)
+        assert sorted(data["io_examples"], key=lambda row: row[0][1]) == [([None, x], x + 1) for x in range(3)]
+        assert data["refinement_examples_complete"]
+        assert data["refinement_examples_unique"]
+
+
+def test_unit_fields_roundtrip_inside_constructor_examples():
+    d = driver("""inductive Wrapped
+        | wrap (u:Unit) : Wrapped
+        def f (x:Wrapped) : {r:Wrapped | r = x} := ?h;""")
+    with d.session.activate():
+        data = samples(d)
+        wrapped = ("Wrapped_wrap", None)
+        assert data["constructor_io_examples"] == [([wrapped], wrapped)]
+        assert data["refinement_examples_unique"]
+        assert data["refinement_examples_complete"]
+        assert data["refinement_example_matches"]((wrapped,))
+        assert not data["refinement_example_matches"]((("Wrapped_wrap", True),))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def f (u:{u:Unit | u != unit}) : {r:Int | r = 0} := ?h;",
+        "def f (u:Unit) : {r:Unit | r != u} := ?h;",
+    ],
+)
+def test_unit_refinements_cannot_invent_another_inhabitant(source):
+    from aeon.synthesis.api import SynthesisNotSuccessful
+
+    d = driver(source)
+    with d.session.activate(), pytest.raises(SynthesisNotSuccessful, match="No checked refinement examples"):
+        samples(d)
+
+
+def test_synthesis_accepts_prelude_unit_in_refinement():
+    d = driver("""def f (x:{x:Int | 0 <= x && x <= 2}) :
+        {r:Int | unit = unit && r = x + 1} := ?h;""")
+    with d.session.activate():
+        d.synth()
+        f = evaluate(set_program_tail(d.core, Var(d.incomplete_functions[0][0])), d.evaluation_ctx)
+        assert [f(x) for x in range(3)] == [1, 2, 3]
+
+
+def test_sampling_respects_shadowed_unit_binding():
+    d = driver("def f (unit:{x:Int | 0 <= x && x <= 2}) : {r:Int | r = unit + 1} := ?h;")
+    with d.session.activate():
+        assert sorted(samples(d)["training_data"]) == [[x, x + 1] for x in range(3)]
+
+
 def test_decision_tree_synthesizes_from_refinement_without_examples():
     d = driver("""def f (x:{x:Int | 0 <= x && x <= 3}) :
         {r:Int | (x < 2 && r = 0) || (x >= 2 && r = 1)} := ?h;""")
