@@ -192,7 +192,7 @@ def make_bundled_fitness_evaluator(
     prefix_ctx = (
         ectx if not needs_runtime else None if dynamic_prefix else prebind_prefix(prefix_prog, ectx, fun_name)[0]
     )
-    expr_functions = {g.function for g in goals if g.kind in ("expression", "example", "csv")}
+    expr_functions = {g.function for g in goals if g.kind in ("expression", "example", "csv", "constraint")}
 
     def fitness(prog: Term) -> list[float]:
         require_complete_program(prog)
@@ -209,7 +209,7 @@ def make_bundled_fitness_evaluator(
             elif goal.kind == "property":
                 prop = next(properties)
                 scores.extend(as_objective_vector(prop(prog), goal.length))
-            elif goal.kind in ("expression", "example", "csv"):
+            elif goal.kind in ("expression", "example", "csv", "constraint"):
                 if goal.function in expr_values:
                     raw = expr_values[goal.function]
                 else:

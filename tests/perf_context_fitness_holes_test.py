@@ -1,8 +1,11 @@
 """Unit tests for context extension, fitness suffix reuse, and hole pruning."""
 
+from aeon.backend.evaluator import EvaluationContext
+from aeon.core.substitutions import substitution
 from aeon.core.terms import Abstraction, Application, Hole, Let, Literal, Rec, Var
 from aeon.core.types import t_bool, t_int
-from aeon.synthesis.fitness_eval import extract_suffix, memoize_fitness
+from aeon.synthesis.decorators import Goal
+from aeon.synthesis.fitness_eval import extract_suffix, make_bundled_fitness_evaluator, memoize_fitness
 from aeon.synthesis.identification import term_has_holes
 from aeon.typechecking.context import TypeConstructorBinder, TypingContext, VariableBinder
 from aeon.utils.name import Name
@@ -48,6 +51,32 @@ def test_memoize_fitness_lru_evicts_oldest():
     assert memo(c) == 3  # evicts b
     assert memo(b) == 2  # miss after eviction
     assert calls == [1, 2, 3, 2]
+
+
+def test_hard_constraint_and_objective_share_one_candidate_evaluation():
+    f, hole, constraint, score, observe = (Name(name, 0) for name in ("f", "h", "constraint", "score", "observe"))
+    calls = []
+
+    def check(value):
+        calls.append(value)
+        return 0
+
+    program = Rec(
+        f,
+        t_int,
+        Hole(hole),
+        Rec(constraint, t_int, Application(Var(observe), Var(f)), Rec(score, t_int, Var(f), Literal(0, t_int))),
+    )
+    evaluate = make_bundled_fitness_evaluator(
+        [Goal(True, 1, score), Goal(True, 1, constraint, "constraint")],
+        EvaluationContext({observe: check}),
+        f,
+        program,
+    )
+    assert evaluate(substitution(program, Literal(2, t_int), hole)) == [2.0, 0.0]
+    assert calls == [2]
+    assert evaluate(substitution(program, Literal(3, t_int), hole)) == [3.0, 0.0]
+    assert calls == [2, 3]
 
 
 def test_term_has_holes_ignores_refinement_free_trees():

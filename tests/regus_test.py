@@ -1,6 +1,7 @@
 """ReGuS structure search, executable semantics, and backend-neutral goals."""
 
 from dataclasses import replace
+from functools import partial
 import math
 from pathlib import Path
 
@@ -110,9 +111,13 @@ def test_real_search_obeys_goals_defined_by_the_problem(desired):
     assert backend.stats.backpropagations > 0
 
 
-def test_same_problem_runs_with_gp_without_translating_the_goal():
+def test_same_problem_runs_with_gp_without_translating_the_goal(monkeypatch):
     driver = parse(TOY.replace("DESIRED", "0"))
-    solve(driver, GeneticProgrammingSynthesizer(seed=0), budget=30)
+    backend = GeneticProgrammingSynthesizer(seed=0)
+    # Exercise the real seeded grammar and objective with a fixed probe. A
+    # wall-clock search can expire before the first valid genome on CI workers.
+    monkeypatch.setattr(backend, "_search", partial(backend._search, max_assessments=10, population_size=10))
+    solve(driver, backend, budget=120)
     assert call(driver, "complete") is True
     assert math.isfinite(call(driver, "score"))
 
