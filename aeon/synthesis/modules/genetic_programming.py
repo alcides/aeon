@@ -349,28 +349,6 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
     def __init__(self, seed: int = 0):
         self.seed = seed
 
-    def search_components(self, initial, decode, validate, evaluate, budget, max_assessments=1000):
-        """Reuse native evolution for a typed component grammar and one loss.
-
-        Each invocation owns a fresh population/archive. Callers doing CEGIS
-        restart this service after changing obligations, so no stale fitness
-        survives a dataset revision. The ordinary GP entry points are unchanged.
-        """
-        name = Name("component", -1)
-        return self._search(
-            initial,
-            lambda _: True,
-            validate,
-            evaluate,
-            name,
-            {name: {"goals": [Goal(True, 1, name)]}},
-            budget,
-            SynthesisUI(),
-            decode=decode,
-            max_assessments=max_assessments,
-            population_size=32,
-        )
-
     def synthesize(
         self,
         ctx: TypingContext,
