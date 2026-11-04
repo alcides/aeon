@@ -1,6 +1,9 @@
 """Search rules of PLDI'16 §3.7, beyond isolated pruning examples."""
 
 from time import monotonic
+from pathlib import Path
+import subprocess
+import sys
 import pytest
 from aeon.compilation.session import CompilationSession
 
@@ -110,7 +113,7 @@ def test_unanchored_argument_shape_can_come_from_a_nested_application():
     assert any("consume" in str(t) and "box" in str(t) and check_type(ctx, t, t_int) for t in terms)
 
 
-def test_fix_synthesizes_a_decreasing_recursive_function():
+def _check_decreasing_recursive_function():
     source = """
     inductive Nat
     | zero : {v:Nat | size v = 0}
@@ -130,6 +133,27 @@ def test_fix_synthesizes_a_decreasing_recursive_function():
     assert isinstance(term, Rec)
     assert mem["synquid_stats"].recursive_functions >= 1
     assert check_type(root, substitution(program, term, hole), top)
+
+
+def test_fix_synthesizes_a_decreasing_recursive_function():
+    # Compilation sessions isolate Aeon's state, but Z3's default context is
+    # process-wide. Keep this end-to-end search independent of thousands of
+    # earlier solver tests, retaining the same search and proof assertions.
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from aeon.compilation.session import CompilationSession\n"
+            "from tests.synquid_paper_test import _check_decreasing_recursive_function\n"
+            "with CompilationSession().activate():\n"
+            "    _check_decreasing_recursive_function()\n",
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        timeout=150,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_non_executable_guard_is_synthesized_from_its_refinement():

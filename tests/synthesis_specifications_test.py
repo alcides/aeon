@@ -7,6 +7,7 @@ from aeon.core.types import t_float, t_int
 from aeon.synthesis.api import ProgramSynthesizer, Synthesizer, SynthesisNotSuccessful, UnsupportedSynthesisGoal
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.identification import incomplete_functions_and_holes
+from aeon.synthesis.modules.afta import AFTASynthesizer
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from tests.driver import check_and_return_core
@@ -161,8 +162,11 @@ def test_afta_pbe_search_does_not_bypass_validation(monkeypatch):
         return False
 
     monkeypatch.setattr("aeon.synthesis.entrypoint.make_validator", lambda *args: reject)
+    # The example is satisfied by a literal or parameter already in the leaf
+    # bank. Check their rejection without racing an expanding grammar against
+    # a sub-second deadline on loaded CI workers.
     with pytest.raises(SynthesisNotSuccessful, match="no program consistent"):
-        solve("@example(f 0 = 0) def f (x:Int) : Int := ?h;", make_synthesizer("afta"), budget=0.1)
+        solve("@example(f 0 = 0) def f (x:Int) : Int := ?h;", AFTASynthesizer(rounds=0), budget=10)
     assert checked
 
 
