@@ -52,52 +52,9 @@ from pygls.lsp.server import LanguageServer
 
 from aeon.facade.driver import AeonDriver
 
-from aeon.synthesis.modules.synthesizerfactory import is_known_synthesizer, sort_synthesizer_ids
-from aeon.synthesis.modules.llm import llm_synthesizer_menu_ids
+from aeon.synthesis.modules.synthesizerfactory import is_known_synthesizer, synthesizer_menu_ids
 
-SYNTHESIZERS = sort_synthesizer_ids(
-    [
-        "tdsyn_enumerative",
-        "tdsyn_random",
-        "tdsyn_backward",
-        "backward_abs",
-        "backward_lit",
-        "backward_close",
-        "backward_app",
-        "backward_if",
-        "forward_close",
-        "forward_let_app",
-        "forward_let_if",
-        "forward_let_tapp",
-        "forward_let_abs",
-        "forward_let_tabs",
-        "tactics",
-        "gp",
-        "dp_gp",
-        "enumerative",
-        "random_search",
-        "rl_mcts",
-        "amaze",
-        "regus",
-        "synquid",
-        "smt",
-        "boolean_bounded",
-        "sygus",
-        "structure_guided",
-        "polynomial",
-        "decision_tree",
-        "noisy",
-        "bustle",
-        "bustle_baseline",
-        *llm_synthesizer_menu_ids(),
-        "fta",
-        "afta",
-        "arborist",
-        "cata",
-        "lta",
-        "symetric",
-    ]
-)
+SYNTHESIZERS = synthesizer_menu_ids()
 SYNTHESIZE_COMMAND = "aeon.synthesize"
 
 # Custom (non-standard) request backing the editor's Lean-style info view

@@ -52,6 +52,15 @@ definitions are not reported at unrelated positions in the current document.
 
 ## Custom requests
 
+Synthesis code actions and the `aeon/infoView` Synthesis tab expose every
+registered synthesis algorithm, grouped by family. The list comes from
+`synthesizer_menu_ids()` in the compiler's synthesizer factory, including
+CP-SAT (`ortools`), Contata, and each LLM backend/model. CLI aliases such as
+`tdsyn`, `cpsat`, and `llm` remain accepted but do not create duplicate menu
+entries. Optional backend dependencies are required only when running that
+backend. The VS Code extension's settings list can be refreshed from this
+registry using its `scripts/sync-synthesizers.py` development script.
+
 `aeon/verification` accepts `{"textDocument": {"uri": "file:///path/example.ae"}}`
 and returns `uri`, `obligations`, `runtimeVerification`, and `diagnostics`.
 Each obligation contains `status`, a source-facing `obligation` string,
