@@ -43,8 +43,8 @@ same fitness infrastructure, subject to the stated search limits.
 
 | Synthesizer IDs | Examples and CSV | Properties | Objectives | Size / resources | Meaningful limits |
 | --- | --- | --- | --- | --- | --- |
-| `tdsyn`, `tdsyn_enumerative`, `tdsyn_random` | Fitness | Fitness | Pareto | Yes | Type-directed grammar and budget. |
-| `tdsyn_backward`, `backward_*`, `forward_*` | Check complete results | Check complete results | Unsupported | Unsupported | Interactive single expansion steps may leave subgoals. |
+| `tdsyn`, `tdsyn_enumerative`, `tdsyn_random`, `tdsyn_backward` | Fitness | Fitness | Pareto | Yes | Type-directed grammar and budget. |
+| `backward_*`, `forward_*` | Check complete results | Check complete results | Unsupported | Unsupported | Interactive single expansion steps may leave subgoals. |
 | `synquid` | Fitness | Fitness | Pareto | Yes | Refinement-directed grammar; zero is not assumed optimal for arbitrary goals. |
 | `tactics` | Fitness | Fitness | Pareto | Yes | Complete tactic walks; fixed explicit `by` scripts only validate specifications. |
 | `enumerative` | Fitness | Fitness | Pareto | Yes | Native term grammar. |

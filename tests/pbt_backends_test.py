@@ -13,7 +13,7 @@ from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
-BACKENDS = ("enumerative", "random_search", "tdsyn", "tdsyn_enumerative", "tdsyn_random")
+BACKENDS = ("enumerative", "random_search", "tdsyn", "tdsyn_enumerative", "tdsyn_random", "tdsyn_backward")
 
 
 @pytest.fixture(scope="module")

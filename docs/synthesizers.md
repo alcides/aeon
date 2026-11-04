@@ -565,11 +565,21 @@ Same expansion rules as `tdsyn`, but instead of a BFS worklist it performs indep
 
 ---
 
-### `tdsyn_backward` — Backward Step (Combined)
+### `tdsyn_backward` — Type-Directed Synthesis (Backward BFS)
 
-Demonstrative single-step backend: applies the **backward** action exactly once to the hole. Candidates are derived from the hole's expected type (literals, variables and function applications whose result type matches, abstractions, if-then-else). Returns the first complete candidate that typechecks, or otherwise the first partial expansion with fresh `?<fun>_goal_<i>` subgoal holes, so the step can be applied again. No search is performed — use `tdsyn` for actual synthesis.
+Runs the same bounded search, SMT completion, validation and Pareto selection as
+`tdsyn`, using backward expansions at every open hole. These introduce literals,
+variables, applications, abstractions and conditionals. Search continues until
+it finds a complete term or exhausts its budget; it never returns partial subgoals.
 
-This is the union of the granular `backward_*` steps; use those to apply one backward construction at a time.
+Examples, both CSV decorators, properties, min/max, multiple objectives, expression
+size and CPU/energy goals have the same semantics as `tdsyn`. Examples and
+properties supply fitness, while refinements remain hard checks. With objectives,
+search retains the explored Pareto front and returns a seeded member. Without
+objectives it returns the first valid complete term. `@doc` remains documentation,
+just as with `tdsyn`.
+
+The granular `backward_*` commands apply individual constructions once.
 
 ---
 
@@ -654,7 +664,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 | `llm`           | LLM generation   | Problems that are easy to describe in natural language |
 | `tdsyn` / `tdsyn_enumerative` | Type-directed BFS with SMT leaves | Tightly-typed holes where leaves reduce to arithmetic |
 | `tdsyn_random` | Type-directed random walks with SMT leaves | Wider, shallower term spaces than `tdsyn` |
-| `tdsyn_backward` | Single combined backward step (no search) | Demonstrating how the backward action decomposes a goal |
+| `tdsyn_backward` | Backward-only type-directed BFS | Complete synthesis with the same specification support as `tdsyn` |
 | `backward_abs` / `backward_lit` / `backward_close` / `backward_app` / `backward_if` | Single backward step (no search) | Applying one backward construction at a time |
 | `forward_close` | Single forward step (no search) | Closing a goal with a variable already in scope |
 | `forward_let_app` / `forward_let_if` / `forward_let_tapp` / `forward_let_abs` / `forward_let_tabs` | Single forward step (no search) | Demonstrating how forward reasoning grows the scope with `let` bindings |

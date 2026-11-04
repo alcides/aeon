@@ -15,6 +15,7 @@ from tests.synthesis_specifications_test import solve
     "backend",
     [
         "tdsyn",
+        "tdsyn_backward",
         "tdsyn_random",
         "synquid",
         "tactics",

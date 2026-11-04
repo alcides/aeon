@@ -219,7 +219,7 @@ def test_real_search_prefers_smaller_valid_expression(monkeypatch, backend):
     assert list(result.values()) == [ONE]
 
 
-@pytest.mark.parametrize("backend", ["tdsyn_enumerative", "tdsyn_random"])
+@pytest.mark.parametrize("backend", ["tdsyn_enumerative", "tdsyn_random", "tdsyn_backward"])
 def test_type_directed_search_scores_size(backend):
     driver = parse("@minimize_size def f:{v:Int | v = 1} := ?h;")
     result = solve(driver, make_synthesizer(backend), budget=0.5)
