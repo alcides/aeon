@@ -7,7 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
-OUT = ROOT / "examples/synthesis/dace/reconstructed"
+OUT = ROOT / "examples/benchmarks/dace/reconstructed"
 
 # Paper benchmark groups (Section 6): 46 data-imputation tasks, 32 spreadsheet
 # computation tasks, and 6 relational data-completion tasks.
@@ -43,12 +43,12 @@ CATEGORIES: dict[int, tuple[int, str, str]] = {
 # category; the reconstructed files cover the remaining slots, so reconstructed
 # counts are *derived* as paper total minus published count.
 PUBLISHED: list[tuple[str, int, str]] = [
-    ("examples/synthesis/dace/pbe/locf.ae", 1, "Example 2.1: previous non-missing value plus a constant"),
-    ("examples/synthesis/dace/pbe/prev_sameid.ae", 3, "Example 2.2: previous value with the same id (relational)"),
-    ("examples/synthesis/dace/pbe/turns.ae", 9, "Example 2.3: up to value 1, then down to first non-zero"),
-    ("examples/synthesis/dace/pbe/group_count.ae", 5, "Example 2.4: COUNT of the row's group (relational)"),
-    ("examples/synthesis/dace/pbe/fallback.ae", 4, "Example 2.5: previous non-missing else next (conditional)"),
-    ("examples/synthesis/dace/pbe/delta.ae", 13, "Fig. 1: difference between two cells (MINUS)"),
+    ("examples/benchmarks/dace/pbe/locf.ae", 1, "Example 2.1: previous non-missing value plus a constant"),
+    ("examples/benchmarks/dace/pbe/prev_sameid.ae", 3, "Example 2.2: previous value with the same id (relational)"),
+    ("examples/benchmarks/dace/pbe/turns.ae", 9, "Example 2.3: up to value 1, then down to first non-zero"),
+    ("examples/benchmarks/dace/pbe/group_count.ae", 5, "Example 2.4: COUNT of the row's group (relational)"),
+    ("examples/benchmarks/dace/pbe/fallback.ae", 4, "Example 2.5: previous non-missing else next (conditional)"),
+    ("examples/benchmarks/dace/pbe/delta.ae", 13, "Fig. 1: difference between two cells (MINUS)"),
 ]
 
 VALUES = "[-999999, 3, 5, -999999, 9, 12, -999999]"
@@ -210,7 +210,7 @@ def render(category: int, index: int, description: str) -> str:
 # The original Stack Overflow input was not published with the paper. This
 # runnable fixture reconstructs the category/operator shape from Fig. 19.
 # It is not a claim about the original spreadsheet.
-# Run: python -m aeon --no-main -s fta --budget 30 examples/synthesis/dace/reconstructed/c{category:02d}_{index:02d}.ae
+# Run: python -m aeon --no-main -s fta --budget 30 examples/benchmarks/dace/reconstructed/c{category:02d}_{index:02d}.ae
 
 import Dace ({imports})
 
@@ -247,7 +247,7 @@ def main() -> None:
         count = total - published_per_category.get(category, 0)
         for index in range(1, count + 1):
             name = f"c{category:02d}_{index:02d}.ae"
-            path = f"examples/synthesis/dace/reconstructed/{name}"
+            path = f"examples/benchmarks/dace/reconstructed/{name}"
             (OUT / name).write_text(render(category, index, description), encoding="utf-8")
             rows.append(
                 {
@@ -284,7 +284,7 @@ def main() -> None:
             "as not-expressible and is not counted as a successful reconstruction."
         ),
     }
-    (ROOT / "examples/synthesis/dace/reconstructed_manifest.json").write_text(
+    (ROOT / "examples/benchmarks/dace/reconstructed_manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
 

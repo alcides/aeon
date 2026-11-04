@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
-DATA_ROOT = Path(__file__).resolve().parents[2] / "examples/papers/asac/data"
+DATA_ROOT = Path(__file__).resolve().parents[2] / "examples/benchmarks/asac/data"
 
 
 @lru_cache(maxsize=4)

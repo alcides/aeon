@@ -47,7 +47,9 @@ def deposit : {d:Int | d > 0 && d * 21900 >= 10000000} := ?hole;
 
 Run with `uv run python -m aeon --budget 10 -s gp file.ae` to synthesize the minimum annual deposit that reaches a $10,000 goal in 20 years at 1% interest.
 
-More examples — including image processing, machine learning, and probabilistic programming — live in the [`examples/`](examples/) directory.
+More examples — including image processing, machine learning, and probabilistic programming — live in the [`examples/`](examples/) directory. Paper-based suites are indexed under
+[`examples/benchmarks/`](examples/benchmarks/README.md); the
+[non-benchmark inventory](examples/ORGANIZATION.md) records the other example groups and remaining organization decisions.
 
 [Control-policy examples](examples/synthesis/control/README.md) include CartPole,
 pendulum swing-up, thermostat, and cruise control, with simulations and fitness

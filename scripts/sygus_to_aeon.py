@@ -219,7 +219,7 @@ def to_aeon(bench: Benchmark) -> str:
     lines = [header, ""]
     lines.append("# Auto-generated from a SyGuS PBE-Strings benchmark (BLAZE/SYNGAR suite,")
     lines.append("# Wang, Dillig & Singh, POPL'18). Solve with:")
-    lines.append("#   uv run python -m aeon --no-main -s afta examples/synthesis/afta/sygus/<file>.ae")
+    lines.append("#   uv run python -m aeon --no-main -s afta examples/benchmarks/syngar/strings/<file>.ae")
     lines.append("")
     for inputs, output in bench.examples:
         call = bench.fname + "".join(f" {a}" for a in inputs)

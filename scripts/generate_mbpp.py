@@ -4,7 +4,7 @@
 MBPP (Mostly Basic Programming Problems, Google Research) ships ~1000 short
 Python problems, each with a prompt, a canonical solution and a handful of
 ``assert`` test cases. This script turns the sanitized subset into individual
-``.ae`` files under ``examples/MBPP/``, one per problem.
+``.ae`` files under ``examples/benchmarks/mbpp/``, one per problem.
 
 Each generated file is fully self-contained:
   * the prompt is kept as a comment,
@@ -813,7 +813,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--out",
-        default="examples/MBPP",
+        default="examples/benchmarks/mbpp",
         help="Directory to write the generated .ae files into.",
     )
     args = parser.parse_args()

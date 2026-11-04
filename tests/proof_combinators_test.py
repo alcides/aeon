@@ -9,7 +9,7 @@ from aeon.errors import LiquidTypeCheckingFailedRelation
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
-ROOT = Path(__file__).resolve().parents[1] / "examples" / "proofs"
+ROOT = Path(__file__).resolve().parents[1] / "examples/benchmarks/equational_reasoning"
 
 
 def compile_source(tmp_path, source, *, no_main=True):

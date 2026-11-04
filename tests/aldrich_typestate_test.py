@@ -19,7 +19,7 @@ from aeon.facade.exit_codes import ExitCode
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.utils.location import FileLocation
 
-ROOT = Path(__file__).resolve().parents[1] / "examples" / "typestate"
+ROOT = Path(__file__).resolve().parents[1] / "examples/benchmarks/typestate"
 MANIFEST = json.loads((ROOT / "manifest.json").read_text())
 CASES = MANIFEST["cases"]
 ERRORS = {
@@ -107,7 +107,7 @@ def test_bugs_are_rejected_statically_for_the_expected_reason(suite, case):
 def test_documented_cli_examples(suite, file, code):
     result = subprocess.run(
         [sys.executable, "-m", "aeon", "--no-main", str(suite / file)],
-        cwd=ROOT.parents[1],
+        cwd=ROOT.parents[2],
         capture_output=True,
         text=True,
         timeout=30,

@@ -78,7 +78,7 @@ class PSB2ReferenceTests(unittest.TestCase):
         cls.functions = {}
         for file, name in (("dice_game.ae", "dice_game"), ("square_digit.ae", "square_digit_unsafe")):
             driver = AeonDriver(AeonConfig("random_search", SilentSynthesisUI(), 0, no_main=True))
-            errors = list(driver.parse(str(SOURCE / "examples/PSB2" / file)))
+            errors = list(driver.parse(str(SOURCE / "examples/benchmarks/psb2" / file)))
             if errors:
                 raise AssertionError(errors)
             # Export the reference directly; do not synthesize or fetch datasets.

@@ -22,7 +22,7 @@ from aeon.synthesis.benchmarks.absynthe import (
 )
 
 
-SUITE = Path(__file__).parent.parent / "examples" / "synthesis" / "absynthe"
+SUITE = Path(__file__).parent.parent / "examples/benchmarks/absynthe"
 MANIFEST = SUITE / "artifact.json"
 
 

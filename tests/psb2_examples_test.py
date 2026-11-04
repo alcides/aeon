@@ -15,7 +15,7 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 # Registers the custom "TIME" log level that the driver's RecordTime uses.
 setup_logger()
 
-PSB2_DIR = Path(__file__).parent.parent / "examples" / "PSB2"
+PSB2_DIR = Path(__file__).parent.parent / "examples/benchmarks/psb2"
 PSB2_FILES = sorted(p for p in PSB2_DIR.rglob("*.ae") if "solved" not in p.parts)
 
 

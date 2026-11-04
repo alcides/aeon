@@ -9,7 +9,7 @@ from scripts.generate_hakank_examples import Model, models as core_models
 from scripts.generate_hakank_manual import models as manual_models
 
 
-ROOT = Path(__file__).resolve().parents[1] / "examples/synthesis/hakank"
+ROOT = Path(__file__).resolve().parents[1] / "examples/benchmarks/hakank"
 
 
 def models():

@@ -15,7 +15,7 @@ import pytest
 from aeon.benchmarks import paper_io
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
-from scripts.paper_benchmarks.__main__ import extract_archive
+from scripts.paper_benchmarks.__main__ import GENERATORS, ML_SUITES, extract_archive
 from scripts.paper_benchmarks.common import sexprs
 from scripts.paper_benchmarks.invariants import expression
 from scripts.paper_benchmarks.memoization import Problem, evaluate, states
@@ -23,8 +23,8 @@ from scripts.paper_benchmarks.ml import translate
 from scripts.paper_benchmarks.para import Interpreter, definitions
 
 ROOT = Path(__file__).resolve().parents[1]
-CORPUS = ROOT / "examples/papers"
-MANIFEST = json.loads((CORPUS / "manifest.json").read_text())
+CORPUS = ROOT / "examples/benchmarks"
+MANIFEST = json.loads((CORPUS / "paper-manifest.json").read_text())
 
 
 def compile_source(source):
@@ -39,7 +39,8 @@ def compile_source(source):
 def test_manifest_is_complete_and_checksums_match():
     paths = [row["path"] for row in MANIFEST]
     assert len(paths) == len(set(paths))
-    assert set(paths) == {p.relative_to(CORPUS).as_posix() for p in CORPUS.rglob("*.ae")}
+    suites = set(GENERATORS) | ML_SUITES
+    assert set(paths) == {p.relative_to(CORPUS).as_posix() for suite in suites for p in (CORPUS / suite).rglob("*.ae")}
     counts = Counter(row["suite"].split("/")[0] for row in MANIFEST)
     assert counts == {
         "l2": 44,

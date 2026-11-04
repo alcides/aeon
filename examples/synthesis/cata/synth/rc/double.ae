@@ -1,6 +1,0 @@
-# CATA RC — relational refinement ``v = x + x`` (enumerate-and-typecheck).
-#
-#   uv run python -m aeon --no-main -s cata --budget 20 \
-#     examples/synthesis/cata/synth/rc/double.ae
-
-def double (x: Int) : {v:Int | v = x + x} := ?hole;

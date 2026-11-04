@@ -35,7 +35,7 @@ from aeon.typechecking.context import ReflectedBinder, UninterpretedBinder, Vari
 from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_sterm
 
-TASK_DIR = Path(__file__).resolve().parents[2] / "examples" / "synthesis" / "denser"
+TASK_DIR = Path(__file__).resolve().parents[2] / "examples/benchmarks/denser"
 SOURCE_COMMIT = "8b4206d60a79e8da51f726a309fa1f4c924a4a90"
 CONSTRUCTORS = {"input", "conv", "pool", "flatten", "dense", "softmax", "sgd", "adam", "rmsprop"}
 ARITIES = {"input": 1, "conv": 8, "pool": 6, "flatten": 1, "dense": 4, "softmax": 1, "sgd": 7, "adam": 7, "rmsprop": 6}

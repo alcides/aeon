@@ -1,4 +1,4 @@
-"""Validation for the inverse-CSG benchmark suite (examples/synthesis/csg/).
+"""Validation for the inverse-CSG benchmark suite (examples/benchmarks/symetric/).
 
 Reproduces the benchmark of Feser, Dillig & Solar-Lezama, "Metric Program
 Synthesis for Inverse CSG" (arXiv:2206.06164). These tests check that:
@@ -21,7 +21,7 @@ import sys
 import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSG = os.path.join(REPO, "examples", "synthesis", "csg")
+CSG = os.path.join(REPO, "examples", "benchmarks", "symetric")
 sys.path.insert(0, CSG)
 
 import csg_metric  # noqa: E402
@@ -92,7 +92,15 @@ def test_jaccard_discriminates():
 def test_native_metric_end_to_end():
     """Run one benchmark through Aeon synthesis to exercise the FFI metric."""
     proc = subprocess.run(
-        [sys.executable, "-m", "aeon", "--no-main", "--budget", "1", "examples/synthesis/csg/csg_tiny_two_circle.ae"],
+        [
+            sys.executable,
+            "-m",
+            "aeon",
+            "--no-main",
+            "--budget",
+            "1",
+            "examples/benchmarks/symetric/csg_tiny_two_circle.ae",
+        ],
         cwd=REPO,
         capture_output=True,
         text=True,

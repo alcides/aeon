@@ -32,7 +32,7 @@ class Example:
 
 def discover(root: Path = ROOT) -> list[Example]:
     expectations: dict[str, tuple[int, ...]] = {}
-    for directory in ("typestate", "liquidhaskell"):
+    for directory in ("benchmarks/typestate", "liquidhaskell"):
         manifest = root / "examples" / directory / "manifest.json"
         if not manifest.exists():
             continue
@@ -49,7 +49,7 @@ def discover(root: Path = ROOT) -> list[Example]:
                 }
                 expectations[f"examples/{directory}/{case['file']}"] = codes[case["error"]]
     for name in ("false_step", "false_goal", "circular_contract", "nonterminating"):
-        expectations[f"examples/proofs/negative/{name}.ae"] = (13,)
+        expectations[f"examples/benchmarks/equational_reasoning/negative/{name}.ae"] = (13,)
     expectations["examples/bugs/error.ae"] = (5,)
     expectations["examples/probabilistic/normal_below_7_bad.ae"] = (13,)
     # These open proof specifications intentionally cannot verify before the
@@ -81,7 +81,7 @@ def discover(root: Path = ROOT) -> list[Example]:
         reference = references.get(path.stem) if relative.startswith("examples/synthesis/monotonicity/") else None
         # The complete paper develops several mutually dependent proofs;
         # retain the same finite ten-minute ceiling used for large examples.
-        minimum_timeout = 600 if relative == "examples/proofs/Paper.ae" else 0
+        minimum_timeout = 600 if relative == "examples/benchmarks/equational_reasoning/Paper.ae" else 0
         examples.append(Example(relative, mode, expectations.get(relative, (0,)), reference, minimum_timeout))
     missing = expectations.keys() - {example.path for example in examples}
     if missing:

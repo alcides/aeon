@@ -1,6 +1,6 @@
 # DENSER neural architecture synthesis
 
-The [DENSER benchmark](../examples/synthesis/denser/README.md) defines the
+The [DENSER benchmark](../examples/benchmarks/denser/README.md) defines the
 Genetics_ANN CNN grammar as a refined Aeon ADT. MNIST and CIFAR-10 tasks leave
 an architecture hole and maximize real held-out validation accuracy; an
 additional Pareto objective minimizes trainable parameter count.

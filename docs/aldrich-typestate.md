@@ -1,9 +1,9 @@
 # Typestate case studies from Jonathan Aldrich's papers
 
-The [example suite](https://github.com/alcides/aeon/tree/master/examples/typestate)
+The [example suite](https://github.com/alcides/aeon/tree/master/examples/benchmarks/typestate)
 contains 19 rejected clients and 8 corrected controls adapted from the Plaid,
 Plural, and Obsidian papers. Its
-[README](https://github.com/alcides/aeon/blob/master/examples/typestate/README.md)
+[README](https://github.com/alcides/aeon/blob/master/examples/benchmarks/typestate/README.md)
 links the primary papers and maps cases to specific listings and figures.
 
 Aeon detects wrong-state operations and incorrect final states through checked

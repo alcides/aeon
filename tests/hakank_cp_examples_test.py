@@ -17,7 +17,7 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 from scripts.generate_hakank_examples import models
 
 ROOT = Path(__file__).resolve().parents[1]
-SUITE = ROOT / "examples/synthesis/hakank"
+SUITE = ROOT / "examples/benchmarks/hakank"
 MANIFEST = json.loads((SUITE / "manifest.json").read_text())
 ENTRIES = {entry["name"]: entry for entry in MANIFEST["models"]}
 

@@ -187,4 +187,4 @@ class Corpus:
 
     def save(self):
         self.output.mkdir(parents=True, exist_ok=True)
-        (self.output / "manifest.json").write_text(json.dumps(self.entries, indent=2, sort_keys=True) + "\n")
+        (self.output / "paper-manifest.json").write_text(json.dumps(self.entries, indent=2, sort_keys=True) + "\n")

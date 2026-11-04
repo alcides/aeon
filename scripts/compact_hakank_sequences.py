@@ -35,7 +35,7 @@ def compact(source: str) -> str:
 
 
 if __name__ == "__main__":
-    for path in Path("examples/synthesis/hakank/catalogue").glob("*.ae"):
+    for path in Path("examples/benchmarks/hakank/catalogue").glob("*.ae"):
         source = path.read_text()
         updated = compact(source)
         if updated != source:
