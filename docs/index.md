@@ -786,10 +786,11 @@ application and two variables). A synthesized lambda counts, whereas an
 existing lambda around the hole does not. This is a static score and does not
 execute the candidate.
 
-Supported backends are `enumerative`, `random_search`, `gp`,
-`tdsyn_enumerative` (the default), and `tdsyn_random`. Other backends report an
-unsupported-goal error. Search minimizes size among the valid candidates it
-finds within its budget; it does not prove global minimality.
+Backends that rank or enumerate candidates support this objective; see the
+[specification matrix](synthesis-specifications.md) for their limits. Fixed tactic
+steps/scripts reject size optimization because they do not generate
+ranked alternatives. Search minimizes size among the valid candidates it finds
+within its budget; it does not prove global minimality.
 
 The decorator composes with numeric, CPU-time, energy, example and property
 objectives. These form a Pareto trade-off: size is another objective, rather
@@ -801,7 +802,7 @@ reach zero. Refinement types remain hard validity requirements.
 These add extra minimization objectives alongside numeric ones (for example `@minimize_int`). The synthesizer measures how expensive it is to **evaluate** the given expression for each candidate; the expression’s *value* is ignored, so its static type is unconstrained.
 
 - `@minimize_cputime(expr)` — fitness is CPU time in seconds for evaluating `expr` (`time.process_time()` around the evaluation).
-- `@minimize_energy(expr)` — fitness is energy in joules for evaluating `expr`. Uses Intel RAPL via the optional `pyRAPL` package when available; otherwise a CPU-time proxy (`cpu_time ×` a fixed watt estimate) so cheaper candidates still score better.
+- `@minimize_energy(expr)` — fitness is energy in joules for evaluating `expr`. Uses readable Linux powercap RAPL counters when available; otherwise a CPU-time proxy (`cpu_time ×` a fixed watt estimate) so cheaper candidates still score better.
 
 See `examples/synthesis/cputime_energy.ae` for a program that combines correctness and resource objectives.
 
@@ -809,6 +810,12 @@ See `examples/synthesis/cputime_energy.ae` for a program that combines correctne
 
 - `@csv_data("1.0,2.0,3.0\n4.0,5.0,12.0")` — provide inline CSV training data (last column is expected output)
 - `@csv_file("data.csv")` — load training data from a CSV file
+
+Cells follow the declared parameter and result types: `Int`, `Float`, `Bool`,
+and `String`. Numeric results use squared-error loss; Boolean/string results
+use mismatch counts. Both decorators also expose exact input/output rows to
+example-driven synthesizers. See the [support matrix](synthesis-specifications.md)
+for exact-fit versus regression behavior and property-to-example conversion.
 
 ### Worked examples (`@example`)
 

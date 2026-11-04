@@ -797,6 +797,10 @@ def liquefy(rep: Term) -> LiquidTerm | None:
             return LiquidLiteralString(val, loc=loc)
         case Literal(_, TypeConstructor(Name("Unit", 0)), loc):
             return LiquidLiteralUnit(loc=loc)
+        case Literal(_, TypeConstructor(Name("Array", _))):
+            # Native arrays have no scalar SMT literal representation. Their
+            # element and length evidence is supplied by the type checker.
+            return None
         case Application(_, _):
             return liquefy_app(rep)
         case TypeAbstraction(_, _, body):

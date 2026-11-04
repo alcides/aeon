@@ -59,6 +59,13 @@ class InvalidIndividualException(SynthesisError):
 
 
 class Synthesizer(ABC):
+    # False means the entrypoint converts test/error goals into acceptance
+    # checks. Arbitrary objectives need a candidate enumeration adapter.
+    supports_optimization: bool = True
+    # Satisfaction backends can rank an ongoing stream of feasible candidates
+    # without using numerical objectives to guide their search.
+    supports_candidate_enumeration: bool = False
+    pareto_front: list[tuple[list[float], Term]]
     # The entrypoint derives checked samples from refinements when this backend
     # needs examples and the user has supplied no explicit training corpus.
     requires_examples: bool = False
@@ -103,6 +110,10 @@ class ProgramSynthesizer(ABC):
     from every hole name to its synthesised term. ``synthesize_holes``
     dispatches to this entry point when the chosen synthesizer is one.
     """
+
+    supports_optimization: bool = True
+    supports_candidate_enumeration: bool = False
+    pareto_front: list[tuple[list[float], Term]]
 
     def synthesize_program(
         self,

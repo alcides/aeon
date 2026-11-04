@@ -96,8 +96,10 @@ hidden units and a portable JSON checkpoint instead of the reference repository'
 PyTorch checkpoint. Training uses a smaller synthetic search corpus.
 
 No generated recursion, higher-order components, Float values, opaque pipeline/model
-objects, additional optimization objectives, or relational/non-literal example
-assertions are supported. Adding ADT support does not add fitness optimization. Aeon's numeric CSV decorators currently produce
+objects, or relational/non-literal example assertions are supported. Numerical
+objectives keep enumerating validated candidates into a Pareto archive. In this
+mode syntactic subterms are retained because equal example outputs need not
+imply equal objective scores. Aeon's numeric CSV decorators currently produce
 Float examples and fall outside this DSL. This backend synthesizes scalar/ADT
 functions from examples; it does not directly solve the `examples/ml/amltk_*`
 opaque-model optimization benchmarks.

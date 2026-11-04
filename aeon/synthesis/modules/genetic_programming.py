@@ -545,5 +545,6 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
             return None
         if not state.pareto_front:
             return None
+        self.pareto_front = state.pareto_front
         ui.register_front(state.pareto_front, monotonic() - started)
         return pick_pareto_member(state.pareto_front, self.seed)

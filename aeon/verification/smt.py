@@ -1188,10 +1188,14 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
     # sort — otherwise constructor inequalities rely on ``Distinct``, which we
     # skip for exact-data-cons inductives (ADT theory already makes the *real*
     # constructors distinct).
-    ctor = lookup_constructor(strip_binder_id(name))
-    if ctor is not None and not callable(ctor):
-        # Nullary Z3 constructors are constants (not FuncDecls).
-        return ctor
+    if isinstance(base, TypeConstructor):
+        expected = get_sort(base)
+        ctor = lookup_constructor(strip_binder_id(name), str(expected))
+        if ctor is not None and not callable(ctor) and ctor.sort() == expected:
+            # Nullary Z3 constructors are constants (not FuncDecls). A local
+            # binding can shadow one with a different type, such as the Unit
+            # bindings used to exclude constructors from synthesis grammars.
+            return ctor
     match base:
         case Top():
             return Int(name)

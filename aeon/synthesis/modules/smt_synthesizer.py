@@ -367,19 +367,20 @@ class SMTSynthesizer(ConstraintSynthesizer):
     for constructor functions and recursively synthesizes their arguments.
     """
 
+    supports_candidate_enumeration = True
+
     def __init__(self, max_depth: int = 5) -> None:
         self.max_depth = max_depth
 
     def synthesize_joint(self, holes, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI()):
-        """Find a feasible assignment in one shared solver query, then score it."""
-        from aeon.synthesis.solver_z3 import solve_joint_z3
+        from aeon.synthesis.candidate_archive import CandidateArchive
+        from aeon.synthesis.solver_z3 import enumerate_joint_z3
 
-        started = time.monotonic()
-        candidate = solve_joint_z3(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)))
-        if not validate(candidate):
-            raise SynthesisNotSuccessful("Joint Z3: complete assignment failed validation")
-        scores = evaluate(candidate) if metadata[fun_name].get("goals") else []
-        ui.register(candidate, scores, time.monotonic() - started, True)
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
+        candidates = enumerate_joint_z3(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)))
+        candidate = archive.search(candidates, validate)
+        if candidate is None:
+            raise SynthesisNotSuccessful("Joint Z3: no validated assignment within budget")
         return candidate
 
     def synthesize(
@@ -419,6 +420,7 @@ class SMTSynthesizer(ConstraintSynthesizer):
         has_io_examples = bool(io_examples and io_params)
         rng = random.Random(42)
         front: list[ParetoEntry] = []
+        self.pareto_front = front
         start_time = time.time()
         deadline = start_time + budget
         attempt = 0
@@ -471,7 +473,7 @@ class SMTSynthesizer(ConstraintSynthesizer):
 
             # @example I/O constraints are already discharged in Z3 — return the
             # first type-valid candidate without a multiprocessing fitness round-trip.
-            if has_io_examples:
+            if has_io_examples and all(goal.kind == "example" for goal in current_meta.get("goals", [])):
                 ui.register(concrete_term, [], time.time() - start_time, True)
                 return concrete_term
 
@@ -488,6 +490,7 @@ class SMTSynthesizer(ConstraintSynthesizer):
 
             elapsed = time.time() - start_time
             front, is_best = update_pareto_front(front, score, concrete_term, minimize)
+            self.pareto_front = front
             if is_best:
                 ui.register_front(front, elapsed)
             ui.register(concrete_term, score, elapsed, is_best)

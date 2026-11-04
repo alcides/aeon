@@ -32,6 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fractions import Fraction
 from math import ceil, floor
+from time import monotonic
 from typing import Any, Optional, Union
 
 from aeon.backend.evaluator import EvaluationContext
@@ -63,8 +64,10 @@ from aeon.core.terms import (
 from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, top
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import ProgramSynthesizer, UnsupportedSynthesisGoal
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.identification import get_holes_info, iterate_top_level, term_has_holes
+from aeon.synthesis.program_specifications import ProgramSpecifications
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -229,6 +232,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
     """
 
     supports_hard_constraints = True
+    supports_size_objective = True
+    supports_candidate_enumeration = True
 
     def __init__(self, bound: int = DEFAULT_BOUND, scale: int = DEFAULT_SCALE, seed: int = 0):
         self.bound = bound
@@ -245,6 +250,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
     ) -> dict[Name, Optional[Term]]:
+        started = monotonic()
+        self.pareto_front = []
         try:
             from ortools.sat.python import cp_model
         except ImportError as e:  # pragma: no cover - optional dependency
@@ -263,7 +270,10 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._hole_value: dict[Name, _Value] = {}
         # hole -> (kind, [cp vars]) for decoding the solution.
         self._hole_meta: dict[Name, tuple[str, list[Any]]] = {}
+        self._hole_types: dict[Name, Type] = {}
         for hole in all_holes:
+            hole_type = holes_info[hole][0]
+            self._hole_types[hole] = hole_type.type if isinstance(hole_type, RefinedType) else hole_type
             try:
                 self._declare_hole(hole, holes_info[hole][0])
             except _Unsupported as e:
@@ -281,25 +291,44 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._constructor_heads, self._recursor_heads = self._inductive_heads(term)
 
         goals: list[Goal] = [g for d in metadata.values() for g in d.get("goals", [])]
-        if not goals:
-            raise UnsupportedSynthesisGoal("CPSatHole requires at least one @minimize/@maximize objective.")
+        # Keep the exact symbolic optimizer for one scalar objective. Runtime
+        # metrics and independent objectives instead rank a stream of feasible
+        # assignments through the same evaluator as grammar-based backends.
+        numeric_goals = [goal for goal in goals if goal.kind not in {"example", "constraint"}]
+        runtime = (
+            len(numeric_goals) > 1
+            or any(goal.kind in {"size", "cputime", "energy", "property"} or goal.length != 1 for goal in goals)
+            or any("property" in entry for entry in metadata.values())
+        )
+        base_model = self._model.clone()
 
         # Scalarise to a single minimisation objective: orient each goal to
         # minimisation (negate maximise) and align scales before summing.
         oriented: list[_Num] = []
         for goal in goals:
+            if goal.kind in {"size", "cputime", "energy", "property"} or goal.length != 1:
+                continue
             body = self._def_bodies.get(goal.function)
             if body is None:
                 raise UnsupportedSynthesisGoal(f"CPSatHole could not find objective function {goal.function.pretty()}.")
             try:
                 value = self._translate(body, {}, frozenset())
-            except _Unsupported as e:
-                raise UnsupportedSynthesisGoal(
-                    f"CPSatHole cannot translate the objective ({e}). Use a grammar-based synthesizer (e.g. -s gp)."
-                ) from e
+            except _NumericRangeUnsupported as e:
+                raise UnsupportedSynthesisGoal(f"CPSatHole cannot translate the objective ({e}).") from e
+            except _Unsupported:
+                # A failed translation may have emitted partial constraints.
+                # Restart with only the original hole/refinement model; the
+                # shared runtime checks enforce every source-level constraint.
+                self._model = base_model
+                runtime = True
+                oriented = []
+                break
             if not isinstance(value, _Num):
-                raise UnsupportedSynthesisGoal("CPSatHole objective must be a number, not an array.")
-            if goal.kind == "constraint":
+                self._model = base_model
+                runtime = True
+                oriented = []
+                break
+            if goal.kind in ("constraint", "example"):
                 self._model.add(value.expr == 0)
                 continue
             oriented.append(value if goal.minimize else _Num(-value.expr, value.scale, -value.hi, -value.lo))
@@ -313,6 +342,11 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         except _Unsupported as exc:
             raise UnsupportedSynthesisGoal(f"CPSatHole cannot scalarize objectives ({exc}).") from exc
 
+        if runtime:
+            return self._runtime_search(
+                ctx, ectx, term, targets, metadata, max(0.0, budget - (monotonic() - started)), ui
+            )
+
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = float(budget)
         solver.parameters.random_seed = self.seed
@@ -324,8 +358,60 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return {hole: None for hole in all_holes}
 
         mapping: dict[Name, Optional[Term]] = {h: self._decode(solver, h) for h in all_holes}
-        ui.end(None, None)
-        return mapping
+        with ProgramSpecifications(
+            ctx, ectx, term, targets, metadata, budget_eval=max(0.01, min(1.0, budget))
+        ) as specifications:
+            candidate = specifications.candidate(mapping)
+            if not specifications.validate(candidate):
+                ui.end(None, None)
+                return specifications.mapping(None)
+            if specifications.goals:
+                scores = specifications.evaluate(candidate)
+                self.pareto_front = [(scores, candidate)]
+                ui.register_front(self.pareto_front, monotonic() - started)
+            ui.end(candidate, None)
+            return mapping
+
+    def _runtime_search(self, ctx, ectx, term, targets, metadata, budget, ui):
+        """Block complete hole assignments, never auxiliary solver witnesses."""
+        from ortools.sat.python import cp_model
+
+        started = monotonic()
+        deadline = started + budget
+        with ProgramSpecifications(
+            ctx, ectx, term, targets, metadata, budget_eval=max(0.01, min(1.0, budget))
+        ) as specifications:
+            archive = CandidateArchive(
+                self,
+                specifications.name,
+                specifications.metadata,
+                specifications.evaluate,
+                max(0.0, deadline - monotonic()),
+                ui,
+            )
+            # CSV is a regression objective here, even though satisfaction
+            # adapters deliberately require an exact CSV fit.
+            archive.optimizing = bool(specifications.goals)
+            solver = cp_model.CpSolver()
+            solver.parameters.random_seed = self.seed
+            variables = [variable for _, values in self._hole_meta.values() for variable in values]
+            ui.start(ctx, ectx, "+".join(hole.name for hole in specifications.holes), top, budget)
+            while not archive.expired:
+                solver.parameters.max_time_in_seconds = max(0.001, deadline - monotonic())
+                status = solver.solve(self._model)
+                if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                    break
+                candidate = specifications.candidate(
+                    {hole: self._decode(solver, hole) for hole in specifications.holes}
+                )
+                if specifications.validate(candidate) and archive.consider(candidate):
+                    break
+                if not variables:
+                    break
+                self._model.add_forbidden_assignments(variables, [[solver.value(variable) for variable in variables]])
+            result = archive.result()
+            ui.end(result, None)
+            return specifications.mapping(result)
 
     # -- hole declaration -------------------------------------------------
 
@@ -377,7 +463,9 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return Literal(solver.value(vars_[0]) / self.scale, type=t_float)
         if kind == "bool":
             return Literal(bool(solver.value(vars_[0])), type=t_bool)
-        arrty = TypeConstructor(Name("Array", 0), [t_int if kind == "array_int" else t_float])
+        # Keep the imported Array constructor's identity, not an unbound
+        # lookalike named Array with an unrelated compiler-generated ID.
+        arrty = self._hole_types[hole]
         if kind == "array_int":
             return Literal([int(solver.value(v)) for v in vars_], type=arrty)
         return Literal([solver.value(v) / self.scale for v in vars_], type=arrty)

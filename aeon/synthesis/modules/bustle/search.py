@@ -75,6 +75,7 @@ def enumerate_values(
     batch_size: int = 128,
     stats: SearchStats | None = None,
     valid: Callable[[object, str], bool] = valid_scalar,
+    merge_observations: bool = True,
 ) -> Value | None:
     """Store each semantic value once, then expand by *adjusted* child weights.
 
@@ -121,7 +122,7 @@ def enumerate_values(
         if accept(value):
             stats.stopped = "solution"
             return True
-        observation = (value.key, tuple(identity(v) for v in value.outputs))
+        observation = (value.key, tuple(identity(v) for v in value.outputs) if merge_observations else str(value.term))
         if observation in seen:
             stats.duplicates += 1
             return False

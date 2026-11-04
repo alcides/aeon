@@ -128,6 +128,7 @@ class TacticRandomSynthesizer(Synthesizer):
                 continue
 
             front, is_best = update_pareto_front(front, score, state.term, minimize)
+            self.pareto_front = front
             if is_best:
                 ui.register_front(front, elapsed)
             ui.register(state.term, score, elapsed, is_best)

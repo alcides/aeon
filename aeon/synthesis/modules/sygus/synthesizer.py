@@ -23,7 +23,8 @@ from aeon.core.types import Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import SynthesisNotSuccessful
 from aeon.synthesis.solver_problem import ConstraintSynthesizer
-from aeon.synthesis.modules.sygus.solver import CVC5Unavailable, solve_with_cvc5
+from aeon.synthesis.candidate_archive import CandidateArchive
+from aeon.synthesis.modules.sygus.solver import CVC5Unavailable, enumerate_cvc5
 from aeon.synthesis.modules.sygus.translation import build_sygus_problem, problem_to_sl
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -33,16 +34,15 @@ from aeon.utils.name import Name
 class SygusSynthesizer(ConstraintSynthesizer):
     """Synthesize base-type holes (Int/Bool/Float) by reduction to SyGuS, solved by cvc5."""
 
-    def synthesize_joint(self, holes, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI()):
-        """Find a feasible assignment in one shared solver query, then score it."""
-        from aeon.synthesis.modules.sygus.solver import solve_joint_cvc5
+    supports_optimization = False
+    supports_candidate_enumeration = True
 
-        started = time.monotonic()
-        candidate = solve_joint_cvc5(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)))
-        if not validate(candidate):
-            raise SynthesisNotSuccessful("Joint CVC5: complete assignment failed validation")
-        scores = evaluate(candidate) if metadata[fun_name].get("goals") else []
-        ui.register(candidate, scores, time.monotonic() - started, True)
+    def synthesize_joint(self, holes, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI()):
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
+        candidates = enumerate_cvc5(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)), joint=True)
+        candidate = archive.search(candidates, validate)
+        if candidate is None:
+            raise SynthesisNotSuccessful("Joint CVC5: no validated assignment within budget")
         return candidate
 
     def synthesize(
@@ -57,7 +57,7 @@ class SygusSynthesizer(ConstraintSynthesizer):
         ui: SynthesisUI = SynthesisUI(),
         output_value: Callable[[Term], object] | None = None,
     ) -> Term:
-        start = time.time()
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
 
         problem = build_sygus_problem(ctx, type, fun_name=fun_name.name)
         if problem is None:
@@ -68,23 +68,11 @@ class SygusSynthesizer(ConstraintSynthesizer):
 
         logger.log("SYNTHESIZER", f"SyGuS problem:\n{problem_to_sl(problem)}")
 
-        timeout_ms = max(1000, int(budget * 1000))
+        timeout_ms = max(1, int((archive.deadline - time.monotonic()) * 1000))
         try:
-            candidate = solve_with_cvc5(problem, timeout_ms)
+            candidate = archive.search(enumerate_cvc5(problem, timeout_ms), validate)
         except CVC5Unavailable as exc:
             raise SynthesisNotSuccessful(str(exc)) from exc
-
         if candidate is None:
-            raise SynthesisNotSuccessful("SygusSynthesizer: cvc5 found no candidate within budget")
-
-        try:
-            ok = validate(candidate)
-        except Exception:
-            ok = False
-        if not ok:
-            raise SynthesisNotSuccessful(
-                f"SygusSynthesizer: candidate {candidate} did not type-check against {type}",
-            )
-
-        ui.register(candidate, [], time.time() - start, True)
+            raise SynthesisNotSuccessful("SygusSynthesizer: no validated candidate within budget")
         return candidate

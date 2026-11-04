@@ -65,7 +65,9 @@ from aeon.synthesis.modules.tdsyn.helpers import base_type_of, get_return_type
 
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.resource_meters import measure_cputime, measure_energy
-from aeon.synthesis.refinement_examples import derive_refinement_examples
+from aeon.synthesis.example_adapters import adapt_example_metadata
+from aeon.synthesis.program_specifications import ProgramSpecifications
+from aeon.synthesis.specifications import CHECKABLE_GOALS, checked_validator, require_checkable
 
 
 def make_program(whole_program: Term, hole_name: Name) -> Callable[[Term], Term]:
@@ -357,17 +359,6 @@ def _synthesize_one(
     # count and orientation without mutating metadata shared by other targets.
     synthesis_metadata = metadata
     entry = metadata.get(fun_name, {})
-    if synthesizer.requires_examples and not any(
-        entry.get(key)
-        for key in ("training_data", "io_examples", "constructor_io_examples", "examples", "tactic_scripts")
-    ):
-        started = time.monotonic()
-        generated = derive_refinement_examples(
-            ctx, prog, fun_name, hole_name=hole_name, budget=min(2.0, max(0.0, budget / 5))
-        )
-        synthesis_metadata = dict(metadata)
-        synthesis_metadata[fun_name] = dict(entry) | generated
-        budget = max(0.0, budget - (time.monotonic() - started))
     property_evaluators: PropertyEvaluators = []
     corpora = property_corpora_for_target(
         ctx,
@@ -378,6 +369,21 @@ def _synthesize_one(
         constructor_names=constructor_names,
         evaluation_ctx=ectx,
     )
+    started = time.monotonic()
+    entry = adapt_example_metadata(
+        ctx,
+        _ectx_for_workers(ectx),
+        prog,
+        fun_name,
+        entry,
+        corpora,
+        hole_name=hole_name,
+        budget=min(2.0, max(0.0, budget / 5)),
+        requires_examples=synthesizer.requires_examples,
+    )
+    budget = max(0.0, budget - (time.monotonic() - started))
+    synthesis_metadata = dict(metadata)
+    synthesis_metadata[fun_name] = entry
     if corpora:
         synthesis_metadata = dict(synthesis_metadata)
         entry = dict(synthesis_metadata.get(fun_name, {}))
@@ -388,6 +394,24 @@ def _synthesize_one(
         property_evaluators = [
             make_property_fitness(corpus, _ectx_for_workers(ectx), target=fun_name) for corpus in corpora
         ]
+
+    # Give language-model generators the definitions behind objective/property
+    # names as hints. These remain subject to the same runtime validation.
+    from aeon.sugar.lifting import lift
+    from aeon.utils.pprint import pretty_print_sterm
+
+    goal_names = {
+        goal.function
+        for goal in synthesis_metadata[fun_name].get("goals", [])
+        if goal.kind not in {"size", "csv", "example"}
+    }
+    sources = []
+    binding = prog
+    while isinstance(binding, (Let, Rec)):
+        if binding.var_name in goal_names:
+            sources.append(f"{binding.var_name.name} := {pretty_print_sterm(lift(binding.var_value))}")
+        binding = binding.body
+    synthesis_metadata[fun_name]["specification_sources"] = sources
 
     evaluators = make_evaluators(ectx, fun_name, synthesis_metadata, property_evaluators, hole_program=prog)
     fitness_goals: list[Goal] = synthesis_metadata.get(fun_name, {}).get("goals", [])
@@ -425,9 +449,21 @@ def _synthesize_one(
         replace,
         bundled_fitness=bundled_fitness,
     )
-    pool = EvaluationPool(
-        replace, syn_impl.computations(primitives), budget_eval=syn_impl.evaluation_timeout(budget_eval)
-    )
+    computations = syn_impl.computations(primitives)
+    check_specs = bool(fitness_goals) and not syn_impl.supports_optimization
+    if check_specs:
+        require_checkable(fitness_goals, syn_impl)
+        checks = [g for g in fitness_goals if g.kind in CHECKABLE_GOALS]
+        check_specs = bool(checks)
+        if check_specs:
+            computations["specification"] = make_bundled_fitness_evaluator(
+                checks, _ectx_for_workers(ectx), fun_name, prog, property_evaluators if corpora else None
+            )
+    if syn_impl.supports_candidate_enumeration:
+        computations["fitness"] = bundled_fitness
+    pool = EvaluationPool(replace, computations, budget_eval=syn_impl.evaluation_timeout(budget_eval))
+    if check_specs:
+        validator = checked_validator(validator, pool)
     evaluator, output_evaluator = _pool_backed(pool)
 
     from aeon.synthesis.bounded_cnf import bounds
@@ -501,6 +537,10 @@ def _synthesize_one(
         )
         if bounded and not validator(t):
             raise SynthesisNotSuccessful("returned candidate violates @bounded_cnf or its type")
+        # Interactive one-step tactics may intentionally leave subgoals. Every
+        # complete result must pass the same oracle even if a backend skipped it.
+        if check_specs and t is not None and not term_has_holes(t) and not validator(t):
+            t = None
     except Exception as e:
         ui.end(None, None)
         raise e
@@ -576,7 +616,7 @@ def _synthesize_joint(
             raise InvalidIndividualException()
         return result
 
-    def validate(candidate: Term) -> bool:
+    def validate_types(candidate: Term) -> bool:
         try:
             completed = replace(candidate)
         except InvalidIndividualException:
@@ -616,6 +656,7 @@ def _synthesize_joint(
     from aeon.synthesis.solver_problem import ConstraintSynthesizer, build_solver_problem
 
     if isinstance(synthesizer, ConstraintSynthesizer):
+        require_checkable(goals, synthesizer)
         synthesizer.check_source(prog, holes, metadata)
         try:
             synthesis_metadata[joint_name]["solver_problem"] = build_solver_problem(
@@ -632,16 +673,33 @@ def _synthesize_joint(
     workers_ctx = _ectx_for_workers(ectx)
     properties = [make_property_fitness(corpus, workers_ctx, target=anchor) for corpus in corpora]
     fitness = make_bundled_fitness_evaluator(goals, workers_ctx, anchor, prog, properties)
+    computations = {"fitness": fitness}
+    validate: Callable[[Term], bool] = validate_types
+    check_specs = bool(goals) and not getattr(
+        synthesizer, "supports_joint_optimization", synthesizer.supports_optimization
+    )
+    checks = [g for g in goals if g.kind in CHECKABLE_GOALS]
+    if check_specs and checks:
+        computations["specification"] = make_bundled_fitness_evaluator(checks, workers_ctx, anchor, prog, properties)
     pool = None
     if isolated:
-        # The whole operation already runs in a killable daemon worker. Execute
-        # fitness there too: nested pools cannot start from daemon processes and
-        # could otherwise outlive the synthesis deadline.
+        # The complete search already runs in a killable worker; avoid nested pools.
         def evaluator(candidate):
             return fitness(replace(candidate))
 
+        if check_specs and checks:
+
+            def validate(candidate):
+                if not validate_types(candidate):
+                    return False
+                try:
+                    return all(score == 0 for score in computations["specification"](replace(candidate)))
+                except Exception:
+                    return False
     else:
-        pool = EvaluationPool(replace, {"fitness": fitness}, budget_eval=budget_eval)
+        pool = EvaluationPool(replace, computations, budget_eval=budget_eval)
+        if check_specs and checks:
+            validate = checked_validator(validate_types, pool)
         evaluator, _ = _pool_backed(pool)
     if bounded:
         raw_evaluator = evaluator
@@ -739,10 +797,13 @@ def synthesize_holes(
     the ``@property`` runner used as a relational/k-safety acceptance oracle."""
 
     size_objectives = any(goal.kind == "size" for entry in metadata.values() for goal in entry.get("goals", []))
-    if size_objectives and not getattr(synthesizer, "supports_size_objective", False):
+    if size_objectives and not (
+        synthesizer.supports_optimization
+        or synthesizer.supports_candidate_enumeration
+        or getattr(synthesizer, "supports_size_objective", False)
+    ):
         raise UnsupportedSynthesisGoal(
-            "@minimize_size needs a synthesizer that optimizes expression size "
-            "(use enumerative, random_search, gp, tdsyn_enumerative or tdsyn_random)"
+            "@minimize_size needs a synthesizer that ranks candidates or enumerates alternatives"
         )
     if size_objectives and any(
         entry.get("tactic_scripts") and any(goal.kind == "size" for goal in entry.get("goals", []))
@@ -774,10 +835,34 @@ def synthesize_holes(
         if len({h for _, hs in targets for h in hs}) > 1 and not isinstance(synthesizer, JointSynthesizer):
             raise UnsupportedSynthesisGoal("multiple @bounded_cnf holes require a joint synthesizer")
 
+    synthesizer.pareto_front = []
+
     # Program-level synthesizers (e.g. joint Float-hole optimisation) fill every
     # hole at once rather than one function at a time.
     if isinstance(synthesizer, ProgramSynthesizer):
-        return synthesizer.synthesize_program(ctx, ectx, term, targets, metadata, budget, ui)
+        if not synthesizer.supports_optimization:
+            require_checkable([g for entry in metadata.values() for g in entry.get("goals", [])], synthesizer)
+        program_mapping = synthesizer.synthesize_program(ctx, ectx, term, targets, metadata, budget, ui)
+        if not program_mapping or any(value is None for value in program_mapping.values()):
+            return program_mapping
+        hard_kinds = frozenset({"example", "constraint"})
+        if not synthesizer.supports_optimization:
+            hard_kinds |= {"csv"}
+        with ProgramSpecifications(
+            ctx,
+            ectx,
+            term,
+            targets,
+            metadata,
+            hard_kinds=hard_kinds,
+            budget_eval=budget_eval or max(budget / 1000, 1),
+            constructor_names=constructor_names,
+        ) as specifications:
+            try:
+                valid = specifications.validate(specifications.candidate(program_mapping))
+            except InvalidIndividualException:
+                valid = False
+        return program_mapping if valid else {hole: None for _, holes in targets for hole in holes}
 
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)
@@ -810,12 +895,15 @@ def synthesize_holes(
     if (
         len({hole for _, holes in targets for hole in holes}) > 1
         and singles
-        and any(entry.get("goals", []) for entry in metadata.values())
+        and any(entry.get("goals", []) or "property" in entry for entry in metadata.values())
     ):
         raise UnsupportedSynthesisGoal(
-            "This backend cannot evaluate objectives over multiple open holes; "
+            "This backend cannot evaluate objectives or properties over multiple open holes; "
             "use a joint backend (random_search, gp, smt or sygus)."
         )
+
+    if not synthesizer.supports_optimization:
+        require_checkable([g for entry in metadata.values() for g in entry.get("goals", [])], synthesizer)
 
     program_holes = get_holes_info(ctx, term, top, targets, refined_types=True)
 
@@ -823,6 +911,18 @@ def synthesize_holes(
     open_targets = {fun_name for fun_name, _ in targets}
 
     singles, mutual_groups = _partition_targets(term, targets)
+
+    if (
+        mutual_groups
+        and getattr(synthesizer, "supports_candidate_enumeration", False)
+        and any(
+            goal.kind not in CHECKABLE_GOALS
+            for group in mutual_groups
+            for function, _ in group
+            for goal in metadata.get(function, {}).get("goals", [])
+        )
+    ):
+        raise UnsupportedSynthesisGoal("Pareto enumeration of mutually recursive groups requires a joint backend")
 
     for fun_name, holes_names in singles:
         if len(holes_names) > 1:

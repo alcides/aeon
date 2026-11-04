@@ -35,8 +35,9 @@ def input_candidates(
 ) -> Iterator[Term | None]:
     """Construct a bounded stream without restarting search for each input.
 
-    Directional, one-step variants initiate their named action, then use TDSyn
-    to finish any resulting subgoals. Partial expressions are never inputs.
+    Backward search uses backward expansions throughout. Individual one-step
+    variants initiate their named action, then use TDSyn to finish subgoals.
+    Partial expressions are never inputs.
     ``random_search`` is handled by TypeSampler's existing bounded walks.
     """
     if backend == "enumerative":
@@ -51,12 +52,13 @@ def input_candidates(
             max_worklist=4096,
         )
         return
-    if backend in ("tdsyn", "tdsyn_enumerative", "tdsyn_random"):
+    if backend in ("tdsyn", "tdsyn_enumerative", "tdsyn_random", "tdsyn_backward"):
         mode = "random" if backend == "tdsyn_random" else "enumerative"
-        yield from TDSynSynthesizer(mode, seed).iter_input_candidates(ctx, target, skip, max_depth)
+        direction = "backward" if backend == "tdsyn_backward" else "both"
+        yield from TDSynSynthesizer(mode, seed, direction=direction).iter_input_candidates(ctx, target, skip, max_depth)
         return
 
-    action = "backward" if backend == "tdsyn_backward" else backend
+    action = backend
     if action not in ONE_STEP_ACTIONS:
         raise ValueError(f"Unsupported PBT input synthesizer: {backend}")
     if action == "backward_abs":

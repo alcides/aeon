@@ -34,6 +34,8 @@ class Stats:
 
 
 class AmazeSynthesizer(Synthesizer):
+    supports_size_objective = True
+
     def __init__(self, profile_path=None, *, seed=0, max_cost=9, max_candidates=100_000):
         self.profile_path = Path(profile_path or os.environ.get("AEON_AMAZE_PROFILE", str(DEFAULT_PROFILE)))
         self.seed = seed
@@ -109,15 +111,18 @@ class AmazeSynthesizer(Synthesizer):
                 max(0, deadline - monotonic()),
                 ui or SynthesisUI(),
                 self.seed,
+                backend=self,
             )
             self.stats.stop = (
                 "solved"
                 if result is not None
-                else "budget"
-                if monotonic() >= deadline
-                else "candidate_limit"
-                if self.stats.candidates >= self.max_candidates
-                else "cost_limit"
+                else (
+                    "budget"
+                    if monotonic() >= deadline
+                    else "candidate_limit"
+                    if self.stats.candidates >= self.max_candidates
+                    else "cost_limit"
+                )
             )
             if result is None:
                 raise SynthesisNotSuccessful(f"amaze: {self.stats.stop} after {self.stats.candidates} candidates")

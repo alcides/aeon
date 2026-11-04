@@ -6,8 +6,8 @@ from collections.abc import Iterator
 import pytest
 from z3 import DatatypeSortRef
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
-from aeon.core.types import TypeConstructor, t_int
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidLiteralUnit, LiquidVar
+from aeon.core.types import TypeConstructor, t_int, t_unit
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.utils.name import Name
@@ -83,6 +83,25 @@ def test_list_nil_equals_itself_valid(list_int):
         ),
     )
     assert smt_valid(constraint)
+
+
+@pytest.mark.parametrize("base,value", [(t_unit, LiquidLiteralUnit()), (t_int, LiquidLiteralInt(7))])
+def test_shadowed_constructor_uses_declared_sort(list_int, base, value):
+    get_sort(list_int)
+    # Synthesis excludes constructors by shadowing them with Unit bindings.
+    # A local binding must not resolve to the same-named datatype constant.
+    shadow = Name("List_nil", 9509)
+
+    def obligation(result):
+        return Implication(
+            shadow,
+            base,
+            LiquidApp(Name("==", 0), [LiquidVar(shadow), value]),
+            LiquidConstraint(LiquidApp(Name("==", 0), [LiquidLiteralInt(1), LiquidLiteralInt(result)])),
+        )
+
+    assert smt_valid(obligation(1))
+    assert not smt_valid(obligation(2))
 
 
 def test_list_cons_nil_roundtrip_typechecks():

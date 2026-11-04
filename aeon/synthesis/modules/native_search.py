@@ -14,7 +14,7 @@ from time import monotonic
 from aeon.core.terms import Abstraction, Term
 from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import InvalidIndividualException, TimeoutInEvaluationException
+from aeon.synthesis.api import InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
 from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn
@@ -176,6 +176,7 @@ def drive_candidates(
     budget: float,
     ui: SynthesisUI,
     seed: int,
+    backend: Synthesizer | None = None,
 ) -> Term | None:
     """Validate / evaluate yielded terms, keep a Pareto archive, pick one.
 
@@ -188,6 +189,8 @@ def drive_candidates(
     started = monotonic()
     assessed = 0
     pareto_front: list[ParetoEntry] = []
+    if backend is not None:
+        backend.pareto_front = pareto_front
     clear_tdsyn_caches()
     elapsed = 0.0
 
@@ -212,6 +215,8 @@ def drive_candidates(
                 if len(values) != len(minimize):
                     raise ValueError(f"Expected {len(minimize)} objective values, got {len(values)}")
                 pareto_front, is_best = update_pareto_front(pareto_front, values, candidate, minimize)
+                if backend is not None:
+                    backend.pareto_front = pareto_front
                 score = values
 
         elapsed = monotonic() - started

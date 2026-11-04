@@ -104,6 +104,7 @@ def search(
     config: SearchConfig = SearchConfig(),
     budget: float = 60,
     seed: int = 0,
+    on_solution: Callable[[S], None] | None = None,
 ) -> SearchResult[S]:
     guidance = guidance or DefaultGuidance()
     rng = random.Random(seed)
@@ -134,10 +135,13 @@ def search(
             if not node.exhausted:
                 if node.holes == 0:
                     if verify(node.state):
-                        # Record the successful terminal visit for policy labels.
-                        for visited in path:
-                            visited.visits += 1
-                        return SearchResult(root, node, nodes, "solved")
+                        if on_solution is None:
+                            # Record the successful terminal visit for policy labels.
+                            for visited in path:
+                                visited.visits += 1
+                            return SearchResult(root, node, nodes, "solved")
+                        on_solution(node.state)
+                        reward = 1.0
                     node.exhausted = True
                 else:
                     successors = expand(node.state)
@@ -165,5 +169,6 @@ def search(
         available = [c for c in active.children if not c.exhausted]
         if not available:
             return SearchResult(root, None, nodes, "exhausted")
-        active = best(available, lambda c: float(c.visits))
+        # Enumeration keeps the other branches reachable after a solution.
+        active = root if on_solution is not None else best(available, lambda c: float(c.visits))
     return SearchResult(root, None, nodes, "big-step limit")

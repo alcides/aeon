@@ -76,6 +76,7 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.modules.bottom_up import (
     Component,
     application,
@@ -110,6 +111,9 @@ class CATASynthesizer(Synthesizer):
     whose transitions include recursive self-calls and conditionals over
     monomorphised components, and accept states by SMT constraint discharge
     (the liquid typechecker)."""
+
+    supports_optimization = False
+    supports_candidate_enumeration = True
 
     def computations(self, primitives: Any) -> dict[str, Any]:
         # Relational specs are universally quantified over the parameters, so
@@ -230,6 +234,7 @@ class CATASynthesizer(Synthesizer):
         output_value: Callable[[Term], object] | None = None,
     ) -> Term:
         start = time.time()
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
         deadline = start + budget
         rnd = random.Random(self.seed)
         ui.register(None, None, 0, True)
@@ -263,6 +268,8 @@ class CATASynthesizer(Synthesizer):
             nonlocal best, validated_count, uses_recursion, uses_conditional
             validated_count += 1
             if _safe(validate, wrap(term)):
+                if not archive.consider(wrap(term)):
+                    return
                 if best is None or _term_size(term) < _term_size(best):
                     best = term
                     uses_recursion = _mentions(term, fun_name)
@@ -273,6 +280,8 @@ class CATASynthesizer(Synthesizer):
             b = bank.setdefault(key, [])
             s = seen.setdefault(key, set())
             for t in terms:
+                if time.time() >= deadline:
+                    break
                 k = str(t)
                 if k in s:
                     continue
@@ -309,6 +318,11 @@ class CATASynthesizer(Synthesizer):
             ui.progress(sum(len(v) for v in bank.values()), validated_count, time.time() - start)
 
         depth = deepen(bank, deadline, self.rounds, lambda: best is not None, step)
+
+        if archive.optimizing:
+            selected = archive.result()
+            if selected is not None:
+                return selected
 
         if best is not None:
             shape = []

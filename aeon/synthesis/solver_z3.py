@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import z3
+from time import monotonic
 
 from aeon.core.terms import If, Literal, Term, Var
 from aeon.core.types import t_bool, t_float, t_int
@@ -92,7 +93,37 @@ def _decode(node, variables, model, expanding=frozenset()):
     return value
 
 
+def _close_model_expression(node, inputs, model, expanding=frozenset()):
+    """Expand model helpers without assigning values to formal input variables."""
+    if node in inputs or not z3.is_app(node):
+        return node
+    function = node.decl()
+    if function.kind() == z3.Z3_OP_UNINTERPRETED:
+        if not node.num_args():
+            return model.eval(node, model_completion=True)
+        if function in expanding:
+            raise ValueError("Recursive Z3 interpretation")
+        return _close_model_expression(
+            _interpret(model, function, node.children()), inputs, model, expanding | {function}
+        )
+    if not node.num_args():
+        return node
+    return function(*[_close_model_expression(child, inputs, model, expanding) for child in node.children()])
+
+
 def solve_joint_z3(problem: SolverProblem, timeout_ms: int) -> JointCandidate:
+    candidates = enumerate_joint_z3(problem, timeout_ms)
+    try:
+        return next(candidates)
+    except StopIteration as exc:
+        raise SynthesisNotSuccessful("Joint SMT: no model within budget") from exc
+    finally:
+        candidates.close()
+
+
+def enumerate_joint_z3(problem: SolverProblem, timeout_ms: int):
+    """Block each emitted function interpretation, rather than solver internals."""
+    deadline = monotonic() + max(0, timeout_ms) / 1000
     solver = z3.Solver()
     solver.set(timeout=max(1, timeout_ms))
     functions = {
@@ -107,18 +138,25 @@ def solve_joint_z3(problem: SolverProblem, timeout_ms: int) -> JointCandidate:
         env.update({str(name): variable for (name, _), variable in zip(clause.variables, variables)})
         implication = z3.Implies(translate_liq(clause.premise, env), translate_liq(clause.conclusion, env))
         solver.add(z3.ForAll(variables, implication) if variables else implication)
-    result = solver.check()
-    if result != z3.sat:
-        detail = "unsatisfiable" if result == z3.unsat else f"unknown ({solver.reason_unknown()})"
-        raise SynthesisNotSuccessful(f"Joint SMT: {detail}")
-    model = solver.model()
-    terms: list[Term] = []
-    try:
-        for hole in problem.holes:
-            inputs = [z3.Const(str(name), _sort(base)) for name, base in hole.params]
-            expression = _interpret(model, functions[hole.symbol], inputs or [z3.IntVal(0)])
-            body = _decode(expression, dict(zip(inputs, [name for name, _ in hole.params])), model)
-            terms.append(hole.wrap(body))
-    except (ValueError, KeyError, z3.Z3Exception) as exc:
-        raise SynthesisNotSuccessful(f"Joint SMT cannot translate its complete model: {exc}") from exc
-    return JointCandidate(tuple(terms))
+    while monotonic() < deadline:
+        solver.set(timeout=max(1, int((deadline - monotonic()) * 1000)))
+        result = solver.check()
+        if result != z3.sat:
+            return
+        model = solver.model()
+        terms: list[Term] = []
+        differences = []
+        try:
+            for hole in problem.holes:
+                inputs = [z3.Const(str(name), _sort(base)) for name, base in hole.params]
+                arguments = inputs or [z3.IntVal(0)]
+                function = functions[hole.symbol]
+                expression = _close_model_expression(_interpret(model, function, arguments), set(inputs), model)
+                body = _decode(expression, dict(zip(inputs, [name for name, _ in hole.params])), model)
+                terms.append(hole.wrap(body))
+                different = function(*arguments) != expression
+                differences.append(z3.Exists(inputs, different) if inputs else different)
+        except (ValueError, KeyError, z3.Z3Exception) as exc:
+            raise SynthesisNotSuccessful(f"Joint SMT cannot translate its complete model: {exc}") from exc
+        yield JointCandidate(tuple(terms))
+        solver.add(z3.Or(*differences))

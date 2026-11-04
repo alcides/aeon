@@ -381,12 +381,19 @@ def test_direct_aeon_training_callback_and_learned_search(tmp_path):
     assert held_out.solution is not None
 
 
-def test_optimization_goals_are_explicitly_unsupported():
+def test_optimization_collects_solutions():
     f = Name("f", 0)
-    with pytest.raises(SynthesisNotSuccessful, match="optimization"):
-        RLMCTSSynthesizer().synthesize(
-            TypingContext(), t_int, lambda _: True, lambda _: [1.0], f, {f: {"goals": [Goal(True, 1, f)]}}
-        )
+    backend = RLMCTSSynthesizer()
+    result = backend.synthesize(
+        TypingContext(),
+        t_int,
+        lambda _: True,
+        lambda _: [1.0],
+        f,
+        {f: {"goals": [Goal(True, 1, f)]}},
+        budget=1,
+    )
+    assert backend.pareto_front == [([1.0], result)]
 
 
 def test_invalid_aeon_candidates_never_escape_acceptance_gate():

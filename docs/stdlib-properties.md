@@ -38,10 +38,10 @@ Properties with identical input domains and sampling settings can share checked
 inputs within one run, provided those inputs respect each property's function
 exclusions.
 
-Directional variants (`tdsyn_backward`, `backward_*`, and `forward_*`) are also
-available: they apply their named initial step and then use TDSyn to finish its
-subgoals. They never supply partial programs as inputs. Some steps do not apply
-to some types (for example, `backward_abs` cannot generate an `Int`); exhaustion
+`tdsyn_backward` uses the same resumable input search as `tdsyn`, with backward
+expansions throughout. The individual `backward_*` and `forward_*` variants apply
+their named initial step and then use TDSyn to finish its subgoals. They never
+supply partial programs as inputs. Some steps do not apply to some types (for example, `backward_abs` cannot generate an `Int`); exhaustion
 or an inapplicable backend reports generation failure rather than silently
 switching to a different backend. Candidate streams have expansion and worklist
 bounds as well as a depth limit.

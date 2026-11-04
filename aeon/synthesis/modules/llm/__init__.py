@@ -25,6 +25,7 @@ from aeon.synthesis.modules.llm.ids import (
     llm_synthesizer_label as llm_synthesizer_label,
     llm_synthesizer_menu_ids as llm_synthesizer_menu_ids,
 )
+from aeon.synthesis.modules.llm.specifications import specification_prompt
 from aeon.synthesis.pareto import (
     ParetoEntry,
     dominates,
@@ -68,6 +69,8 @@ def is_better(a: list[float], b: list[float] | None, minimize: list[bool]) -> bo
 
 
 class LLMSynthesizer(Synthesizer):
+    supports_size_objective = True
+
     def __init__(
         self,
         model: str = LLM_OLLAMA_MODELS[DEFAULT_LLM_SYNTHESIZER_ID],
@@ -112,10 +115,11 @@ class LLMSynthesizer(Synthesizer):
         )
         core_term: Term = Hole(Name("sorry", -1))
         front: list[ParetoEntry] = []
+        self.pareto_front = front
 
         goals: list[Goal] = current_metadata.get("goals", [])
         minimize_list = minimize_flags_from_goals(goals)
-        description = current_metadata.get("doc", "Any program")
+        description = specification_prompt(metadata, fun_name)
 
         start_time = monotonic_ns()
         temperature = 0.0
@@ -140,6 +144,7 @@ class LLMSynthesizer(Synthesizer):
                             return core_tterm
                         time = get_elapsed_time(start_time)
                         front, is_best = update_pareto_front(front, quality, core_tterm, minimize_list)
+                        self.pareto_front = front
                         if is_best:
                             ui.register_front(front, time)
                             core_term = core_tterm

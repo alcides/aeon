@@ -17,6 +17,7 @@ from aeon.decorators.api import Metadata
 from aeon.errors import AeonError
 from aeon.synthesis.api import InvalidIndividualException, SynthesisNotSuccessful, Synthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.identification import get_holes, term_has_holes
+from aeon.synthesis.modules.llm.specifications import specification_prompt
 from aeon.synthesis.modules.type_constrained.prefix import Limits, PrefixEngine
 from aeon.synthesis.modules.type_constrained.sampling import (
     DecodingExhausted,
@@ -63,6 +64,8 @@ def check_program_scope(term: Term, metadata: Metadata) -> None:
 
 
 class TypeConstrainedSynthesizer(Synthesizer):
+    supports_size_objective = True
+
     def __init__(self, seed: int = 0, adapter_factory: Callable[[], TokenAdapter] | None = None):
         self.seed = seed
         self.adapter_factory = adapter_factory
@@ -121,17 +124,16 @@ class TypeConstrainedSynthesizer(Synthesizer):
         adapter = self._adapter()
         check_deadline(deadline, lambda: False)
         variables = ", ".join(f"{name}: {ty}" for name, (_, ty) in scope.bindings.items())
-        examples = "\n".join(example.text for example in current.get("examples", []))
         prompt = (
             "Complete one Aeon expression, then EOS. No markdown or explanation. "
             "Syntax: f x, fun x => body, if condition then a else b, let x := value in body. "
             "Use = for equality. Parenthesize compound arguments.\n"
             f"Required type (including refinements): {type}\nIn-scope components: {variables}\n"
-            f"Examples from the source program:\n{examples}\n"
-            f"Task: {current.get('doc', 'Satisfy the type and examples.')}\nExpression:\n"
+            f"Task specifications:\n{specification_prompt(metadata, fun_name)}\nExpression:\n"
         )
         minimize = minimize_flags_from_goals(current.get("goals", []))
         front: list[ParetoEntry] = []
+        self.pareto_front = front
         for _ in range(attempts):
             try:
                 check_deadline(deadline, lambda: False)
@@ -161,6 +163,7 @@ class TypeConstrainedSynthesizer(Synthesizer):
                 if not quality:
                     return candidate
                 front, improved = update_pareto_front(front, quality, candidate, minimize)
+                self.pareto_front = front
                 ui.register(candidate, quality, monotonic() - started, improved)
                 if improved:
                     ui.register_front(front, monotonic() - started)

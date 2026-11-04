@@ -24,6 +24,7 @@ from aeon.core.types import (
     t_int,
 )
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful, UnsupportedSynthesisGoal
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.modules.structure_guided.search import Config, Example, Expr, Node, Search, Solution, Stats
 from aeon.synthesis.modules.sygus.solver import _apply_op, _num_literal
 from aeon.synthesis.modules.symetric.synthesizer import base_key
@@ -222,6 +223,9 @@ def core_candidate(ctx, input_shape: Schema, output_shape: Schema, function: Nam
 
 
 class StructureGuidedSynthesizer(Synthesizer):
+    supports_optimization = False
+    supports_candidate_enumeration = True
+
     def __init__(self, config: Config | None = None):
         self.config = config or Config.from_env()
         self.stats = Stats()
@@ -233,6 +237,7 @@ class StructureGuidedSynthesizer(Synthesizer):
         self, ctx, type, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI(), output_value=None
     ):
         started = time.monotonic()
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
         self.stats = Stats()
         entry = metadata.get(fun_name, {})
         rows = entry.get("constructor_io_examples", [])
@@ -241,10 +246,6 @@ class StructureGuidedSynthesizer(Synthesizer):
             raise UnsupportedSynthesisGoal("structure_guided: needs unary constructor-literal @example I/O pairs")
         if not entry.get("recursion"):
             raise UnsupportedSynthesisGoal("structure_guided: recursive search requires @allow_recursion")
-        if len(entry.get("goals", [])) > len(entry.get("examples", [])) or len(rows) != len(entry.get("examples", [])):
-            raise UnsupportedSynthesisGoal(
-                "structure_guided: supports I/O examples, not additional objectives or relational goals"
-            )
         parameter = parameters[0]
         input_type = ctx.type_of(parameter)
         signature = ctx.type_of(fun_name)
@@ -264,27 +265,30 @@ class StructureGuidedSynthesizer(Synthesizer):
             )
         search = Search(tuple(examples), input_shape.arity, self.config, budget - (time.monotonic() - started))
         self.stats = search.stats
-        for solution in search.solutions():
-            search.tick()
-            candidate = core_candidate(ctx, input_shape, output_shape, fun_name, parameter, solution)
+
+        def candidates():
+            for solution in search.solutions():
+                search.tick()
+                yield core_candidate(ctx, input_shape, output_shape, fun_name, parameter, solution)
+
+        def accepts(candidate):
             if not validate(candidate):
                 self.stats.validation_rejections += 1
-                continue
-            # Tie the recursive knot to THIS candidate, rather than the dummy
-            # implementation in the per-hole probe's prefix environment.
+                return False
+            # Tie the recursive knot to this candidate's implementation.
             tied = Rec(fun_name, signature, Abstraction(parameter, candidate), apply(Var(fun_name), Var(parameter)))
             try:
-                consistent = True
                 for arguments, expected in rows:
                     search.tick()
                     if entry["pbe_probe"](tied, list(arguments)) != expected:
-                        consistent = False
-                        break
+                        self.stats.runtime_rejections += 1
+                        return False
             except (TypeError, ValueError, KeyError, RecursionError):
-                consistent = False
-            if not consistent:
                 self.stats.runtime_rejections += 1
-                continue
-            ui.register(candidate, [0.0] * len(rows), time.monotonic() - started, True)
-            return candidate
+                return False
+            return True
+
+        selected = archive.search(candidates(), accepts)
+        if selected is not None:
+            return selected
         raise SynthesisNotSuccessful("structure_guided: no validated program within the configured grammar")

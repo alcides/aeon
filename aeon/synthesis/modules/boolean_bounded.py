@@ -1,8 +1,8 @@
 """Finite Boolean CNF synthesis with shared compiler VCs and SAT-based CEGIS.
 
 Selector bits are the only candidate unknowns. Counterexamples constrain the
-whole relation, never arbitrarily chosen output labels. This is a feasibility
-solver: it neither widens K nor claims an optimum for secondary objectives.
+whole relation, never arbitrarily chosen output labels. Feasible selector models
+can also be enumerated and ranked by the shared runtime Pareto archive.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from aeon.core.terms import Application, Let, Literal, Rec, Term, Var
 from aeon.core.types import AbstractionType, Type, t_bool
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import SynthesisNotSuccessful, TimeoutInEvaluationException, UnsupportedSynthesisGoal
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.bounded_cnf import CNFResourceLimit, base, bounds, normalize
 from aeon.synthesis.joint import HoleSpec, JointCandidate
 from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeout
@@ -40,6 +41,7 @@ class BooleanReport:
     iterations: int = 0
     counterexamples: int = 0
     selectors: int = 0
+    rejected_candidates: int = 0
     elapsed: float = 0.0
 
 
@@ -48,9 +50,13 @@ class _WorkerUI(SynthesisUI):
 
     def __init__(self):
         self.solutions = []
+        self.fronts = []
 
     def register(self, solution, quality, elapsed_time, is_best):
         self.solutions.append((solution, quality, elapsed_time, is_best))
+
+    def register_front(self, front, elapsed_time):
+        self.fronts.append((front, elapsed_time))
 
 
 def _boolean_signature(ty: Type) -> None:
@@ -139,6 +145,8 @@ class _Template:
 class BooleanBoundedSynthesizer(ConstraintSynthesizer):
     requires_joint_obligations = True
     lexical_inputs_only = True
+    supports_candidate_enumeration = True
+    supports_size_objective = True
 
     def __init__(self, seed: int = 0, *, max_selectors: int = 100_000, max_nodes: int = 100_000):
         self.seed = seed
@@ -146,6 +154,7 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         self.max_nodes = max_nodes
         self.report = BooleanReport()
         self._in_worker = False
+        self.pareto_front = []
 
     def run_bounded(self, operation, budget, ui):
         """Use the noisy worker to contain even synchronous compiler calls.
@@ -158,24 +167,27 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         started = monotonic()
         deadline = started + max(0.0, budget)
         self.report = BooleanReport()
+        self.pareto_front = []
 
         def work(_):
             self._in_worker = True
             worker_ui = _WorkerUI()
             try:
                 result = operation(max(0.0, deadline - monotonic()), worker_ui)
-                return result, None, self.report, worker_ui.solutions
+                return result, None, self.report, worker_ui.solutions, worker_ui.fronts, self.pareto_front
             except BoundedBooleanFailure as exc:
-                return None, (exc.category, exc.message), self.report, []
+                return None, (exc.category, exc.message), self.report, [], [], []
             except UnsupportedSynthesisGoal as exc:
-                return None, ("unsupported", str(exc)), self.report, []
+                return None, ("unsupported", str(exc)), self.report, [], [], []
 
         worker = None
         try:
             if monotonic() >= deadline:
                 raise WorkerTimeout()
             worker = Worker({"synthesize": work})
-            result, failure, self.report, solutions = worker.call("synthesize", None, deadline - monotonic())
+            result, failure, self.report, solutions, fronts, self.pareto_front = worker.call(
+                "synthesize", None, deadline - monotonic()
+            )
             if monotonic() >= deadline:
                 raise WorkerTimeout()
             if failure is not None:
@@ -186,6 +198,8 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
                 raise BoundedBooleanFailure(category, message)
             for solution, quality, elapsed, is_best in solutions:
                 ui.register(solution, quality, elapsed, is_best)
+            for front, elapsed in fronts:
+                ui.register_front(front, elapsed)
             return result
         except WorkerTimeout as exc:
             self.report.status = "timeout"
@@ -271,8 +285,11 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
                 ui,
             )
         start = monotonic()
-        deadline = start + max(0.0, budget)
+        # Leave time to send the incumbent through the bounded worker pipe.
+        search_budget = max(0.0, budget - min(0.05, budget * 0.05))
+        deadline = start + search_budget
         self.report = BooleanReport()
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, search_budget, ui)
 
         def remaining():
             value = deadline - monotonic()
@@ -373,6 +390,10 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
             while True:
                 self.report.iterations += 1
                 if check(candidate_solver) == z3.unsat:
+                    incumbent = archive.result()
+                    if isinstance(incumbent, JointCandidate):
+                        self.report.status = "solved"
+                        return incumbent
                     raise BoundedBooleanFailure(
                         "bounded_unsat", "no solution within the stated CNF bounds and supported grammar"
                     )
@@ -387,15 +408,25 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
                     candidate = JointCandidate(tuple(t.extract(model) for t in templates.values()))
                     remaining()
                     if not validate(candidate):
+                        if any(goal.kind == "csv" for goal in entry.get("goals", [])):
+                            # CSV observations are exact runtime checks for
+                            # this satisfaction backend. They are not among
+                            # the compiler's symbolic Boolean obligations, so
+                            # their rejection requests the next selector model.
+                            self.report.rejected_candidates += 1
+                            candidate_solver.add(z3.Or([selector != value for selector, value in frozen]))
+                            continue
                         raise BoundedBooleanFailure(
                             "validation_error", "solver candidate failed full Aeon/CNF validation"
                         )
                     remaining()
-                    fitness = evaluate(candidate) if entry.get("goals") else []
-                    remaining()
-                    self.report.status = "solved"
-                    ui.register(candidate, fitness, monotonic() - start, True)
-                    return candidate
+                    if archive.consider(candidate):
+                        self.report.status = "solved"
+                        return candidate
+                    # Exclude the actual program selectors, not the verifier's
+                    # counterexample inputs, so the next model is a new CNF.
+                    candidate_solver.add(z3.Or([selector != value for selector, value in frozen]))
+                    continue
                 counterexample = verifier.model()
                 index = next(
                     i
@@ -408,6 +439,11 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
                 candidate_solver.add(instance)
                 self.report.counterexamples += 1
         except BoundedBooleanFailure as exc:
+            if exc.category == "timeout":
+                incumbent = archive.result()
+                if isinstance(incumbent, JointCandidate):
+                    self.report.status = "budget"
+                    return incumbent
             self.report.status = exc.category
             raise
         except TimeoutInEvaluationException as exc:

@@ -1,11 +1,16 @@
 # Noisy-example synthesis
 
-`-s noisy` opts into treating extracted scalar `@example` I/O pairs as soft
+`-s noisy` opts into treating scalar `@example` and typed CSV I/O pairs as soft
 observations. Types, refinements, ownership, and termination checks stay hard.
 Every candidate is validated before its outputs are observed. The backend
-minimizes one scalar objective, rather than a Pareto objective per example:
+combines observations into one regularized-risk objective:
 
 `J(D,p) = mismatched_rows / total_rows + lambda * executable_complexity(p)`.
+
+Additional min/max, size, CPU-time and energy decorators form a Pareto front
+with this risk as its first axis. Properties and `@require` are hard acceptance
+checks. Only fully scored, valid candidates enter the archive; source examples
+and CSV observations remain soft even when these specifications are combined.
 
 ```bash
 python -m aeon --no-main --budget 5 -s noisy examples/synthesis/noisy/identity.ae
@@ -42,8 +47,9 @@ excluded. Binder IDs and locations do not affect cost. Expansion is bounded at
 10,000 nodes and depth 200. Local let bodies are counted at their binding, so
 local variables are ordinary one-node references.
 
-Final ranking uses full-data score, then full-data error, complexity, and a stable
-structural candidate key. Validation and observation caches are per run; their
+Without additional objectives, final ranking uses full-data score, then full-data
+error, complexity, and a stable structural candidate key. With extra objectives,
+it returns a seeded Pareto member and exposes the complete explored front. Validation and observation caches are per run; their
 keys retain type instantiations and binding identity. No partially scored
 candidate can displace a fully scored incumbent.
 
@@ -105,11 +111,11 @@ The terminal prints a concise residual/error/complexity/score summary.
 expected values, samples, discrepancies, exact/heuristic status, seed, work
 counters, elapsed time, and stop reason. The report is an immutable value.
 
-The initial scope is one open scalar body hole with scalar literal I/O equality
-examples, including lexical let captures. Opaque/relational examples, ADT data,
-coupled open holes, full-function holes, recursion goals, extra optimization
-goals, and universal properties are explicit capability errors. Other backends
-and the ordinary example test runner retain their behavior; metadata is unchanged.
+The scope is one open scalar body hole with scalar literal I/O equality
+examples or typed CSV, including lexical let captures. Opaque/relational examples,
+ADT data, coupled open holes, full-function holes and recursion goals are explicit
+capability errors. `@property` uses a fixed sampled corpus; it does not prove
+universal correctness. The ordinary example test runner retains its behavior.
 
 ## Reproduction
 

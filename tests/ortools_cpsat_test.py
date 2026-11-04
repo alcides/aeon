@@ -292,13 +292,12 @@ def test_mixed_int_and_float_goals_scalarised():
     assert _values(_solve(_parse(src))) == {"hx": 0, "hy": 0.5}
 
 
-def test_missing_objective_rejected():
+def test_missing_objective_uses_type_satisfaction():
     src = """
     def x : {v:Int | v >= 0 && v <= 5} := ?hx;
     def f : Int := x * x;
     """
-    with pytest.raises(SynthesisError, match="objective"):
-        _solve(_parse(src))
+    assert 0 <= _values(_solve(_parse(src)))["hx"] <= 5
 
 
 def test_non_numeric_hole_rejected():
@@ -381,16 +380,16 @@ def test_pure_recursive_adt_constraint_helpers_keep_holes_symbolic():
     assert _values(_solve(_parse(source))) == {"hx": 0, "hy": 3}
 
 
-def test_unsupported_objective_rejected():
-    # Integer division is outside the translatable fragment.
+def test_runtime_objective_outside_symbolic_fragment():
+    # Integer division falls back to runtime scoring of feasible assignments.
     src = """
     def x : {v:Int | v >= 1 && v <= 9} := ?hx;
     def y : {v:Int | v >= 1 && v <= 9} := ?hy;
     @minimize_int( (x / y) + 1 )
     def f : Int := (x / y) + 1;
     """
-    with pytest.raises(SynthesisError, match="objective"):
-        _solve(_parse(src))
+    result = _values(_solve(_parse(src)))
+    assert result["hx"] // result["hy"] == 0
 
 
 def test_fractional_coefficients_are_not_rounded_to_hole_grid():

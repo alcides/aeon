@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from aeon.core.terms import Term
+from aeon.core.terms import Literal, Term
 from aeon.core.types import (
     AbstractionType,
     RefinedType,
@@ -37,8 +37,14 @@ from aeon.core.types import (
     Type,
     TypePolymorphism,
     TypeVar,
+    refined_to_unrefined_type,
+    t_bool,
+    t_float,
+    t_int,
+    t_string,
 )
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.typeinfer import synth
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
@@ -259,13 +265,22 @@ def e_var(lta: LTA, ctx: TypeContextLTA, name: Name, ty: Type) -> State:
 
 
 def e_const(lta: LTA, ctx: TypeContextLTA, value: object, ty: Type) -> State:
-    """E-const: introduce an expression state for a constant `c : τ`."""
-    q_tau = wf_type(lta, ctx, ty)
-    q_c = State(label=f"e-const:{value}", aeon_type=ty)
+    """E-const retains the literal's singleton refinement for goal subtyping.
+
+    Recording only ``Int`` discards the evidence that ``0`` satisfies
+    ``{v:Int | v = 0}``. Reuse Aeon's ordinary literal inference; the emitted
+    literal itself keeps its base type, as required by the Core AST.
+    """
+    literal_type = refined_to_unrefined_type(ty)
+    inferred = ty
+    if literal_type in (t_int, t_bool, t_float, t_string):
+        _, inferred = synth(TypingContext(), Literal(value, literal_type))
+    q_tau = wf_type(lta, ctx, inferred)
+    q_c = State(label=f"e-const:{value}", aeon_type=inferred)
     lta.add_state(q_c)
     lta.add_transition(
         Transition(
-            symbol=Symbol(KIND_CONST, payload=(value, ty), arity=1),
+            symbol=Symbol(KIND_CONST, payload=(value, literal_type), arity=1),
             incoming=(q_tau,),
             target=q_c,
         )

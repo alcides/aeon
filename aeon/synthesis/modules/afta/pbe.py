@@ -35,7 +35,9 @@ from loguru import logger
 from aeon.core.terms import Literal, Term
 from aeon.core.types import Type, t_int
 from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.modules.fta.synthesizer import _freeze, _term_size
+from aeon.synthesis.modules.bottom_up import safe
 from aeon.synthesis.modules.symetric.synthesizer import base_key
 from aeon.typechecking.context import TypingContext
 
@@ -65,6 +67,7 @@ def synthesize_pbe(
     start: float,
     ui,
     validate: Callable[[Term], bool],
+    archive: CandidateArchive,
 ) -> Term:
     """Bottom-up PBE synthesis with predicate-abstraction CEGAR over the example
     output vectors. ``synth`` is the owning AFTASynthesizer (for ``_collect`` /
@@ -73,8 +76,9 @@ def synthesize_pbe(
     # Observational merging keeps the bank small, so we can afford to enumerate
     # transitions exhaustively (rather than sampling under a tight cap) -- this
     # is what makes the CFTA find e.g. ``slice name 0 3`` deterministically.
-    synth.combo_cap = max(synth.combo_cap, 200000)
-    synth.max_bank = max(synth.max_bank, 100000)
+    if not archive.optimizing:
+        synth.combo_cap = max(synth.combo_cap, 200000)
+        synth.max_bank = max(synth.max_bank, 100000)
     entry = metadata.get(fun_name, {})
     io_examples: list[tuple[list, Any]] = entry["io_examples"]
     probe: Callable[[Term, list], Any] = entry["pbe_probe"]
@@ -142,6 +146,8 @@ def synthesize_pbe(
         s = seen.setdefault(key, set())
         reps = obs_rep.setdefault(key, {})
         for t in terms:
+            if time.time() >= deadline:
+                break
             k = str(t)
             if k in s:
                 continue
@@ -149,6 +155,12 @@ def synthesize_pbe(
             vec = outputs(t)
             if vec is None:
                 continue  # not runnable on the examples -- not a usable state
+            if archive.optimizing:
+                # Runtime objectives may distinguish equal example vectors.
+                b.append(t)
+                if key == goal_key:
+                    goal_terms.append(t)
+                continue
             prev = reps.get(vec)
             if prev is not None:
                 # Observationally equivalent to an existing term; keep smaller.
@@ -216,7 +228,7 @@ def synthesize_pbe(
                     continue
                 if not abstractly_accepting(vec):
                     continue
-                sig = signature(vec)
+                sig = (str(t),) if archive.optimizing else signature(vec)
                 cur = states.get(sig)
                 if cur is None or _term_size(t) < _term_size(cur):
                     states[sig] = t
@@ -225,14 +237,17 @@ def synthesize_pbe(
             for term in candidates:
                 if time.time() >= deadline:
                     return None
-                # Acceptance is example-consistency: the candidate reproduces
-                # every I/O pair. We do NOT additionally require universal
-                # refinement well-typedness -- a PBE program (e.g. one slicing
-                # ``name`` at a fixed index) need only be correct on the given
-                # inputs, exactly as in BLAZE. ``validate`` is left as an
-                # optional soft check, never a gate.
+                # Matching observations does not discharge refinement contracts
+                # or additional properties. Keep the shared acceptance oracle.
                 if solves(term):
-                    return term
+                    if safe(validate, term):
+                        if archive.consider(term):
+                            return term
+                        tried.add(str(term))
+                        continue
+                    tried.add(str(term))
+                    refined = True  # Try another representative on the next pass.
+                    continue
                 tried.add(str(term))
                 # Spurious abstract acceptance: refine on a predicate this
                 # candidate violates (an example it gets wrong), coarsest first.
@@ -269,6 +284,10 @@ def synthesize_pbe(
         if sum(len(v) for v in bank.values()) == before:
             break
 
+    if archive.optimizing:
+        selected = archive.result()
+        if selected is not None:
+            return selected
     if solution is not None:
         ui.register(solution, [0.0], time.time() - start, True)
         logger.log(

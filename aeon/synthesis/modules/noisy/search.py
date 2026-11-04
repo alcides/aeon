@@ -3,6 +3,7 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
 import random
+from math import isfinite
 from time import monotonic
 
 from aeon.synthesis.api import InvalidIndividualException, SynthesisNotSuccessful
@@ -10,6 +11,7 @@ from aeon.synthesis.modules.noisy.model import Report, Residual, risk, same_valu
 from aeon.synthesis.modules.noisy.sampling import select_sample
 from aeon.synthesis.modules.noisy.structure import identity, complexity
 from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeout
+from aeon.synthesis.pareto import pick_pareto_member, update_pareto_front
 
 
 @dataclass
@@ -67,7 +69,23 @@ class EnumerationGenerator:
         return [record for _, record in ranked[:2]]
 
 
-def run_search(dataset, config, seed, stream, validate, probe, inputs, definitions, ui, budget, domain_check=None):
+def run_search(
+    dataset,
+    config,
+    seed,
+    stream,
+    validate,
+    probe,
+    inputs,
+    definitions,
+    ui,
+    budget,
+    domain_check=None,
+    *,
+    objectives=None,
+    objective_directions=(),
+    on_front=None,
+):
     started = monotonic()
     deadline = started + max(0, budget)
     rng = random.Random(seed)
@@ -79,6 +97,7 @@ def run_search(dataset, config, seed, stream, validate, probe, inputs, definitio
     rounds = []
     validated = invalid = fully_scored = row_evaluations = 0
     stop_reason = "round_limit"
+    front = []
 
     def observe(argument):
         term, indices = argument
@@ -90,6 +109,7 @@ def run_search(dataset, config, seed, stream, validate, probe, inputs, definitio
             "validate": validate,
             "observe": observe,
             "domain": lambda _: domain_check() if domain_check else True,
+            "objectives": objectives or (lambda _: []),
         }
     )
 
@@ -102,18 +122,42 @@ def run_search(dataset, config, seed, stream, validate, probe, inputs, definitio
     generator = EnumerationGenerator(lambda: call("next", None), config)
 
     def complete(record):
-        nonlocal incumbent, incumbent_rank, fully_scored
+        nonlocal incumbent, incumbent_rank, fully_scored, invalid, front
         if monotonic() >= deadline:
             raise WorkerTimeout()
         if record.complete or len(record.losses) != count:
             return
-        record.complete = True
-        fully_scored += 1
         error = risk(record.losses, range(count))
         rank = (error + config.regularization * record.size, error, record.size, record.key)
+        if objectives is not None:
+            try:
+                extra = call("objectives", record.term)
+                if len(extra) != len(objective_directions) or not all(isfinite(value) for value in extra):
+                    raise InvalidIndividualException()
+                front, changed = update_pareto_front(front, [rank[0], *extra], record, [True, *objective_directions])
+                exposed = [(scores, item.term) for scores, item in front]
+                if on_front is not None:
+                    on_front(exposed)
+                if changed:
+                    ui.register_front(exposed, monotonic() - started)
+                ui.register(record.term, [rank[0], *extra], monotonic() - started, changed)
+            except (WorkerError, InvalidIndividualException):
+                # A candidate with complete row losses but invalid additional
+                # metrics is still not a fully scored candidate.
+                invalid += 1
+                cache[record.key] = None
+                return
+        record.complete = True
+        fully_scored += 1
         if incumbent_rank is None or rank < incumbent_rank:
             incumbent, incumbent_rank = record, rank
-            ui.register(record.term, [rank[0]], monotonic() - started, True)
+            if objectives is None:
+                front = [([rank[0]], record)]
+                exposed = [([rank[0]], record.term)]
+                if on_front is not None:
+                    on_front(exposed)
+                ui.register_front(exposed, monotonic() - started)
+                ui.register(record.term, [rank[0]], monotonic() - started, True)
         history[record.key] = tuple(record.losses[i] for i in range(count))
         while len(history) > config.history_size:
             oldest = next(key for key in history if incumbent is None or key != incumbent.key)
@@ -164,7 +208,7 @@ def run_search(dataset, config, seed, stream, validate, probe, inputs, definitio
                 cache[key] = None
                 raise
         complete(record)
-        return record
+        return record if cache.get(key) is not None else None
 
     try:
         if not call("domain", None):
@@ -194,6 +238,10 @@ def run_search(dataset, config, seed, stream, validate, probe, inputs, definitio
         stop_reason = "worker_error"
     finally:
         worker.close()
+    if objectives is not None and front:
+        incumbent = pick_pareto_member(front, seed)
+        error = risk(incumbent.losses, range(count))
+        incumbent_rank = (error + config.regularization * incumbent.size, error, incumbent.size, incumbent.key)
     if incumbent is None:
         raise SynthesisNotSuccessful(f"noisy: no validated, fully scored candidate ({stop_reason})")
     assert incumbent_rank is not None

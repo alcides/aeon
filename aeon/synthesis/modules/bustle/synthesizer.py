@@ -25,6 +25,7 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.modules.bustle.model import GuidanceModel
 from aeon.synthesis.modules.bustle.search import Operation, SearchStats, Value, enumerate_values
 from aeon.synthesis.modules.bustle.signatures import MAX_INPUTS, Scalar
@@ -60,6 +61,9 @@ def extract_constants(columns: Sequence[Sequence[Scalar]], outputs: Sequence[Sca
 
 class BustleSynthesizer(Synthesizer):
     requires_examples = True
+
+    supports_optimization = False
+    supports_candidate_enumeration = True
 
     def __init__(
         self,
@@ -152,21 +156,12 @@ class BustleSynthesizer(Synthesizer):
 
         entry = metadata.get(fun_name, {})
         rows = entry.get("constructor_io_examples") or entry.get("io_examples") or entry.get("refinement_examples", [])
-        derived = bool(entry.get("refinement_examples"))
         params = entry.get("io_params", [])
         probe = entry.get("pbe_probe")
         if not rows or not callable(probe):
             raise SynthesisNotSuccessful(f"bustle: {fun_name.name} needs literal @example I/O pairs")
         if not 1 <= len(params) <= MAX_INPUTS:
             raise SynthesisNotSuccessful(f"bustle: supports 1–{MAX_INPUTS} scalar/ADT value parameters")
-        if (
-            len(entry.get("goals", [])) > len(entry.get("examples", []))
-            or (not derived and len(rows) != len(entry.get("examples", [])))
-            or entry.get("property")
-        ):
-            raise SynthesisNotSuccessful(
-                "bustle: supports literal I/O goals, not additional optimization or relational examples"
-            )
         var_types = dict(ctx.vars())
         param_keys = [base_key(var_types[p]) for p in params]
         if any(key not in supported for key in param_keys):
@@ -248,6 +243,8 @@ class BustleSynthesizer(Synthesizer):
                 )
             )
 
+        archive = CandidateArchive(self, fun_name, metadata, evaluate, max(0.0, start + budget - time.monotonic()), ui)
+
         def accept(value: Value) -> bool:
             if value.key != goal:
                 return False
@@ -255,9 +252,10 @@ class BustleSynthesizer(Synthesizer):
             if not (matches(value.outputs) if callable(matches) else value.outputs == expected):
                 return False
             try:
-                return validate(value.term)
+                valid_candidate = validate(value.term)
             except Exception:
                 return False
+            return valid_candidate and archive.consider(value.term)
 
         self.stats = SearchStats()
         result = enumerate_values(
@@ -272,8 +270,13 @@ class BustleSynthesizer(Synthesizer):
             max_values=self.max_values,
             stats=self.stats,
             valid=valid,
+            merge_observations=not archive.optimizing,
         )
         ui.progress(self.stats.generated, self.stats.unique, time.monotonic() - start)
+        if archive.optimizing:
+            selected = archive.result()
+            if selected is not None:
+                return selected
         if result is None:
             raise SynthesisNotSuccessful(
                 f"bustle: {self.stats.stopped}; no example-consistent, well-typed body after {self.stats.generated} expressions (weight {self.stats.final_weight})"

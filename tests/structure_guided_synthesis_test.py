@@ -248,10 +248,9 @@ def test_candidate_must_pass_validation_and_actual_example_execution(monkeypatch
         """,
             backend,
         )
-    if valid_but_wrong:
-        assert backend.stats.runtime_rejections > 0
-    else:
-        assert backend.stats.validation_rejections > 0 and backend.stats.runtime_rejections == 0
+    # The shared validator now catches both type errors and failed examples
+    # before this backend's additional runtime recheck.
+    assert backend.stats.validation_rejections > 0 and backend.stats.runtime_rejections == 0
     monkeypatch.setattr(module, "core_candidate", original)
 
 

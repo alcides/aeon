@@ -153,12 +153,31 @@ def test_default_energy_meter_picks_powercap_or_proxy():
     assert meter.available()
 
 
-@_SKIP_ENERGY
-def test_powercap_meter_availability_matches_filesystem():
-    import glob
+@pytest.mark.parametrize("error", [PermissionError, FileNotFoundError, ValueError])
+def test_unreadable_powercap_counters_select_proxy(monkeypatch, error):
+    monkeypatch.setattr(PowercapMeter, "_files", lambda self: ["counter"])
 
-    expected = bool(glob.glob(PowercapMeter.PATTERN))
-    assert PowercapMeter().available() is expected
+    def unreadable(path):
+        raise error("counter unavailable")
+
+    monkeypatch.setattr(PowercapMeter, "_read", staticmethod(unreadable))
+    default_energy_meter.cache_clear()
+    try:
+        assert not PowercapMeter().available()
+        assert isinstance(default_energy_meter(), CPUTimeProxyMeter)
+        assert measure_energy(lambda: None) >= 0
+    finally:
+        default_energy_meter.cache_clear()
+
+
+def test_readable_powercap_counters_remain_preferred(monkeypatch):
+    monkeypatch.setattr(PowercapMeter, "_files", lambda self: ["counter"])
+    monkeypatch.setattr(PowercapMeter, "_read", staticmethod(lambda path: 123))
+    default_energy_meter.cache_clear()
+    try:
+        assert isinstance(default_energy_meter(), PowercapMeter)
+    finally:
+        default_energy_meter.cache_clear()
 
 
 def test_cputime_synthesis_smoke():

@@ -29,7 +29,6 @@ from aeon.synthesis.modules.lta.constraints import (
 from aeon.synthesis.modules.lta.construction import (
     TypeContextLTA,
     e_app,
-    e_const,
     e_tapp,
     e_var,
     q_goal,
@@ -190,7 +189,9 @@ def test_similarity_merges_subtypes():
     loose_ty = parse_type(r"{v:Int | v > 0}")
     ctx = TypingContext([VariableBinder(name, strict_ty)])
     e_var(lta, tctx, name, strict_ty)
-    e_const(lta, tctx, 7, loose_ty)
+    # Constants now retain their singleton type (7), which is incomparable
+    # with v > 100. Use an actually looser variable state for this reduction.
+    e_var(lta, tctx, Name("loose", 0), loose_ty)
     eq = similarity(lta, ctx)
     # strict <: loose should yield at least one pair
     assert any(True for _ in eq)
@@ -237,6 +238,43 @@ def test_lta_synthesizer_picks_existing_var():
 def test_factory_returns_lta():
     s = make_synthesizer("lta")
     assert isinstance(s, LTASynthesizer)
+
+
+def test_lta_preserves_literal_evidence_with_combined_specifications():
+    from aeon.core.terms import Literal
+    from tests.synthesis_specifications_test import solve
+
+    source = r"""
+        @doc("Return zero.")
+        @example(f 0 = 0)
+        @csv_data("0,0\n1,0")
+        @minimize_int(f 0)
+        @maximize_int(f 1)
+        @minimize_size
+        def f (x:Int) : {v:Int | v = 0} := ?h;
+        @property(3) def p (x:Int) : Bool := f x = 0;
+    """
+    backend = LTASynthesizer(max_depth=1)
+    result = solve(source, backend, budget=2)
+    assert list(result.values()) == [Literal(0, t_int)]
+    assert backend.pareto_front
+
+
+def test_lta_preserves_variable_identity_for_dependent_result():
+    from tests.synthesis_specifications_test import solve
+
+    result = solve("def f (x:Int) : {v:Int | v = x} := ?h;", LTASynthesizer(max_depth=1), budget=2)
+    assert len(result) == 1
+    assert isinstance(next(iter(result.values())), Var)
+
+
+def test_lta_refined_candidates_still_obey_runtime_checks():
+    import pytest
+    from aeon.synthesis.api import SynthesisNotSuccessful
+    from tests.synthesis_specifications_test import solve
+
+    with pytest.raises(SynthesisNotSuccessful):
+        solve("@example(f 0 = 1) def f (x:Int) : {v:Int | v = 0} := ?h;", LTASynthesizer(max_depth=1), budget=2)
 
 
 # --- Polymorphism (Paper §3.2 footnote 5) ---------------------------------

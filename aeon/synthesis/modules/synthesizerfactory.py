@@ -70,7 +70,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "tdsyn": "Type-directed synthesis (BFS)",
     "tdsyn_enumerative": "Type-directed synthesis (BFS)",
     "tdsyn_random": "Type-directed synthesis (Random Walk)",
-    "tdsyn_backward": "Backward step (combined)",
+    "tdsyn_backward": "Type-directed synthesis (Backward BFS)",
     "backward_abs": "Backward step (abstraction)",
     "backward_lit": "Backward step (literal)",
     "backward_close": "Backward step (close with a variable)",
@@ -332,7 +332,7 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "tdsyn_random":
             return TDSynSynthesizer(mode="random", seed=seed)
         case "tdsyn_backward":
-            return TDSynOneStepSynthesizer(action="backward")
+            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="backward")
         case (
             "backward_abs"
             | "backward_lit"

@@ -30,6 +30,9 @@ constant only serves to pin a recursive call's result in the spec (e.g.
 
 from __future__ import annotations
 
+from time import monotonic
+from collections.abc import Iterator
+
 import itertools
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
@@ -166,7 +169,9 @@ def _enumerate_bodies(
     cond_head: int = 16,
     rec_head: int = 64,
     rec_keep: int = 64,
-) -> list[Term]:
+    deadline: float = float("inf"),
+    merge_observations: bool = True,
+) -> Iterator[Term]:
     """Bottom-up enumeration of the version space: grow the per-type bank one
     transition deeper each round (operators and members' calls), then form
     conditionals of the **base/recursive-case shape** ``if cond then a else b``
@@ -179,13 +184,15 @@ def _enumerate_bodies(
     behaviour); a symbolic term (one that calls a function under synthesis) is
     merged syntactically. Each type's bank keeps its ``max_bank`` smallest terms
     *plus every recursive-shaped term*, so a branch like ``odd (x-1)`` is never
-    crowded out. Returns goal-typed terms ordered by size."""
+    crowded out. Yields each round's goal-typed terms ordered by size."""
     arg_type = members[0].arg_type
     member_names = {m.name for m in members}
     bank = _atoms(arg_type)
     seen: dict[str, set] = {ty: set() for ty in _TYPES}
 
     def key_of(ty: str, term: Term):
+        if not merge_observations:
+            return ("s", str(term))
         vec = _value_vector(term, ty, inputs)
         return ("v", vec) if vec is not None else ("s", str(term))
 
@@ -249,6 +256,16 @@ def _enumerate_bodies(
         kept.extend(extra[:rec_keep])
         return kept
 
+    emitted: set[str] = set()
+
+    def candidates():
+        for term in sorted(bank.get(goal_type, []) + results[goal_type], key=_size):
+            key = str(term)
+            if key not in emitted:
+                emitted.add(key)
+                yield term
+
+    yield from candidates()
     for _round in range(max_size):
         snap = {ty: cap(ts) for ty, ts in bank.items()}
         for name, arg_tys, ret in _OPS + calls:
@@ -256,6 +273,8 @@ def _enumerate_bodies(
             if any(not p for p in pools):
                 continue
             for combo in itertools.product(*pools):
+                if monotonic() >= deadline:
+                    return
                 term: Term = _op(name)
                 for a in combo:
                     term = Application(term, a)
@@ -278,15 +297,14 @@ def _enumerate_bodies(
             for c in conds:
                 for base in bases:
                     for rec in recs:
+                        if monotonic() >= deadline:
+                            return
                         if base is not rec:
                             add_result(ret, If(c, base, rec))
                             add_result(ret, If(c, rec, base))
         for ty in bank:
             bank[ty] = cap(bank[ty])
-
-    # Goal candidates: the simple (non-conditional) sub-programs of the goal type
-    # plus every conditional formed, smallest first (MinTree order).
-    return sorted(bank.get(goal_type, []) + results[goal_type], key=_size)
+        yield from candidates()
 
 
 def _size(t: Term) -> int:
@@ -668,6 +686,9 @@ def synthesize_group(
     examples: list[Example],
     max_size: int = 4,
     on_candidate: Optional[Callable[[str, Term], None]] = None,
+    accept_candidate: Optional[Callable[[str, Term], bool]] = None,
+    deadline: float = float("inf"),
+    merge_observations: bool = True,
 ) -> Optional[ContataResult]:
     """Synthesize every member of a (mutually-recursive) group from a ground
     relational/example spec, via the CATA version space.
@@ -711,9 +732,13 @@ def synthesize_group(
 
     bodies: dict[str, Term] = {}
     for m in members:
-        goal_bodies = _enumerate_bodies(members, m.ret_type, max_size, inputs)
+        goal_bodies = _enumerate_bodies(
+            members, m.ret_type, max_size, inputs, deadline=deadline, merge_observations=merge_observations
+        )
         chosen: Optional[Term] = None
-        for body in goal_bodies:  # smallest first => MinTree
+        for body in goal_bodies:  # each depth's smallest candidates first
+            if monotonic() >= deadline:
+                break
             mexs = by_member.get(m.name, [])
             if not mexs:
                 continue
@@ -729,12 +754,16 @@ def synthesize_group(
                         ok = False
                         break
                 if ok:
+                    if accept_candidate is not None and not accept_candidate(m.name, body):
+                        continue
                     chosen = body
                     if on_candidate is not None:
                         on_candidate(m.name, body)
                     break
                 continue
             solver = z3.Solver()
+            if deadline != float("inf"):
+                solver.set(timeout=max(1, int((deadline - monotonic()) * 1000)))
             for s in spec:
                 solver.add(s)
             try:
@@ -743,6 +772,8 @@ def synthesize_group(
             except ValueError:
                 continue  # body uses an unsupported shape; skip
             if solver.check() == z3.sat:
+                if accept_candidate is not None and not accept_candidate(m.name, body):
+                    continue
                 chosen = body
                 if on_candidate is not None:
                     on_candidate(m.name, body)

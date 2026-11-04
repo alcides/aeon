@@ -1,17 +1,17 @@
 """One-step tactic backends of the type-directed synthesizer.
 
-`tdsyn_backward`, the `backward_*` and the `forward_*` backends are
+The `backward_*` and the `forward_*` backends are
 demonstrative: they apply their action exactly once to the hole and return the
 result — a complete candidate when one validates, otherwise a partial term
 with fresh `?<fun>_goal_<i>` subgoal holes — instead of searching.
-`tdsyn_backward` decomposes the goal type with all backward constructions
-combined; the granular `backward_*` steps each apply one of them (abstraction,
+The granular `backward_*` steps each apply one construction (abstraction,
 literal, close with a variable, application, if-then-else). `forward_close`
 closes the goal with a variable of the goal's type; the `forward_let_*` steps
 introduce a `let v := <value> in ?goal` binding, one per term former
 (application, if-then-else, type application, abstraction, type abstraction).
 `tdsyn` / `tdsyn_enumerative` / `tdsyn_random` remain the search backends that
-combine the full backward and forward actions.
+combine the full backward and forward actions. `tdsyn_backward` shares that
+search engine and objective support, using backward expansions throughout.
 """
 
 from __future__ import annotations
@@ -53,7 +53,6 @@ from aeon.utils.name import Name
 from aeon.utils.pprint import pretty_print_sterm
 
 ONE_STEP_IDS = [
-    "tdsyn_backward",
     "backward_abs",
     "backward_lit",
     "backward_close",
@@ -83,7 +82,6 @@ def test_one_step_backends_are_known(backend):
 def test_one_step_backends_have_distinct_labels():
     labels = [synthesizer_label(backend) for backend in ONE_STEP_IDS]
     assert len(set(labels)) == len(labels)
-    assert synthesizer_label("tdsyn_backward") == "Backward step (combined)"
     assert synthesizer_label("backward_abs") == "Backward step (abstraction)"
     assert synthesizer_label("backward_lit") == "Backward step (literal)"
     assert synthesizer_label("backward_close") == "Backward step (close with a variable)"
@@ -121,14 +119,20 @@ def test_tdsyn_forward_id_removed():
 def test_make_synthesizer_one_step(backend):
     synth = make_synthesizer(backend)
     assert isinstance(synth, TDSynOneStepSynthesizer)
-    expected_action = "backward" if backend == "tdsyn_backward" else backend
-    assert synth.action == expected_action
+    assert synth.action == backend
     assert synth.action in ONE_STEP_ACTIONS
 
 
-@pytest.mark.parametrize("backend", ["tdsyn", "tdsyn_enumerative", "tdsyn_random"])
-def test_combined_backends_are_search_synthesizers(backend):
-    assert isinstance(make_synthesizer(backend), TDSynSynthesizer)
+@pytest.mark.parametrize("backend", ["tdsyn", "tdsyn_enumerative", "tdsyn_random", "tdsyn_backward"])
+def test_type_directed_search_backends(backend, monkeypatch):
+    monkeypatch.setenv("AEON_SEED", "42")
+    synth = make_synthesizer(backend)
+    assert isinstance(synth, TDSynSynthesizer)
+    assert synth.direction == ("backward" if backend == "tdsyn_backward" else "both")
+    assert synth.seed == 42
+    assert synthesizer_family(backend) == SynthesizerFamily.TYPE_DIRECTED
+    if backend != "tdsyn":  # The LSP lists the explicit enumerative alias.
+        assert backend in SYNTHESIZERS
 
 
 # ---------------------------------------------------------------------------
@@ -442,8 +446,8 @@ def test_one_step_invokes_only_its_action(action, monkeypatch):
     assert calls == [action]
 
 
-def test_search_expansion_still_runs_both_actions(monkeypatch):
-    # Regression: the combined search synthesizer keeps using both full actions.
+@pytest.mark.parametrize("direction,expected", [("both", ["backward", "forward"]), ("backward", ["backward"])])
+def test_search_expansion_respects_direction(direction, expected, monkeypatch):
     calls: list[str] = []
 
     def fake_backward(hole, skip):
@@ -458,5 +462,5 @@ def test_search_expansion_still_runs_both_actions(monkeypatch):
     monkeypatch.setattr(tdsyn_module, "forward_candidates", fake_forward)
     hole_term, typed_hole = fresh_hole(t_int, TypingContext())
     partial = PartialAST(term=hole_term, holes=[typed_hole], depth=0)
-    TDSynSynthesizer()._expand_hole(partial, typed_hole, lambda name: False)
-    assert calls == ["backward", "forward"]
+    TDSynSynthesizer(direction=direction)._expand_hole(partial, typed_hole, lambda name: False)
+    assert calls == expected

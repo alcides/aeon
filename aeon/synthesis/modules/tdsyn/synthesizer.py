@@ -86,16 +86,19 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
 class TDSynSynthesizer(Synthesizer):
     """Type-directed synthesizer using backward and forward actions with SMT-based subtyping.
 
-    Supports both enumerative (BFS) and random exploration modes.
+    Supports enumerative (BFS) and random exploration, with both directions
+    or backward-only expansion. All variants share validation and objectives.
     Loops until the time budget is exhausted, restarting with shuffled expansion
     order on each iteration to explore different term structures.
     """
 
     supports_size_objective = True
 
-    def __init__(self, mode: str = "enumerative", seed: int = 0):
+    def __init__(self, mode: str = "enumerative", seed: int = 0, *, direction: str = "both"):
         assert mode in ("enumerative", "random")
+        assert direction in ("both", "backward")
         self.mode = mode
+        self.direction = direction
         self.seed = seed
         self._rng = random.Random(seed)
         self._iteration = 0
@@ -172,6 +175,7 @@ class TDSynSynthesizer(Synthesizer):
                     return front, term
                 score = evaluate(term)
                 front, is_best = update_pareto_front(front, score, term, self._minimize)
+                self.pareto_front = front
                 elapsed = _get_elapsed_time(start_time)
                 if is_best:
                     ui.register_front(front, elapsed)
@@ -220,10 +224,13 @@ class TDSynSynthesizer(Synthesizer):
         skip: Callable[[Name], bool],
         max_depth: int = MAX_DEPTH,
     ) -> list[PartialAST]:
-        """Expand a single hole using backward and forward actions."""
+        """Expand a hole using the selected directions and the shared worklist."""
         results: list[PartialAST] = []
+        actions = [backward_candidates]
+        if self.direction == "both":
+            actions.append(forward_candidates)
 
-        for action_fn in [backward_candidates, forward_candidates]:
+        for action_fn in actions:
             try:
                 candidates = action_fn(hole, skip)
             except Exception as e:
@@ -397,7 +404,7 @@ class TDSynSynthesizer(Synthesizer):
                 # Pick a random hole
                 hole = rng.choice(partial.holes)
 
-                # Get all candidates from both actions
+                # Get all candidates from the selected directions
                 all_candidates: list[PartialAST] = self._expand_hole(partial, hole, skip)
 
                 if not all_candidates:
@@ -462,6 +469,8 @@ class TDSynOneStepSynthesizer(Synthesizer):
     applied again. Deliberately performs no search — ``tdsyn`` is the backend
     that actually synthesizes a complete, valid term.
     """
+
+    supports_optimization = False
 
     def __init__(self, action: str):
         assert action in ONE_STEP_ACTIONS

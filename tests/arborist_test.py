@@ -210,9 +210,10 @@ def test_unit_shadow_bindings_are_administrative():
     assert f(8) == 10
 
 
-def test_rejects_additional_objectives_multiple_holes_and_opaque_values():
-    with pytest.raises(UnsupportedSynthesisGoal, match="optimization"):
-        solve("@minimize_int(f 0)\n@example(f 0 = 1)\ndef f (x:Int) : Int := ?body;")
+def test_objectives_are_ranked_and_unsupported_sketches_rejected():
+    f, backend, _ = solve("@minimize_int(f 0)\n@example(f 0 = 1)\ndef f (x:Int) : Int := ?body;", budget=1)
+    assert f(0) == 1
+    assert len(backend.pareto_front) == 1
     with pytest.raises(UnsupportedSynthesisGoal, match="one expression hole"):
         solve("@example(f 0 = 1)\ndef f (x:Int) : Int := (?a : Int) + (?b : Int);")
     with pytest.raises(UnsupportedSynthesisGoal, match="Int or Bool"):
