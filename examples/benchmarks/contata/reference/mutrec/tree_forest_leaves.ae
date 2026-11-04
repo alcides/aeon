@@ -1,0 +1,59 @@
+# Contata benchmark: mutrec/tree_forest_leaves.mls  (category MR)
+#
+# Original: mutually-recursive datatypes tree/forest, and mutually-recursive
+#     synth count_leaves_tree   : [tree]  -> nat calling [count_leaves_forest]
+#     synth count_leaves_forest : [forest] -> nat calling [count_leaves_tree, count_leaves_forest]
+# count_leaves_tree(Empty)=0, count_leaves_tree(Node a f)=count_leaves_forest f;
+# count_leaves_forest(Leaf)=1, count_leaves_forest(Tree t f)=clt t + clf f. Spec:
+#     test forall f. count_leaves_forest f == count_leaves_tree (Node 0 f)
+#     test forall f. count_leaves_forest f == count_leaves_forest (Tree Empty f)
+#
+# aeon: genuine mutual `inductive` types + a true `mutual ... end` group. nat ↦ Int.
+#
+# Verification. The mutual functions span TWO datatype sorts (Tree, Forest).
+# The Contata io examples are pinned as `@example` assertions and both
+# relational properties as `@property` tests (the runner generates `Forest`
+# values), so the whole spec is checked with `--test`:
+#
+#   uv run python -m aeon --test examples/benchmarks/contata/reference/mutrec/tree_forest_leaves.ae
+#
+# `main` keeps a self-contained smoke check for a plain run:
+#
+#   uv run python -m aeon examples/benchmarks/contata/reference/mutrec/tree_forest_leaves.ae   # -> True
+
+inductive Tree
+| empty : Tree
+| node (v: Int) (children: Forest) : Tree
+
+inductive Forest
+| leaf : Forest
+| tcons (t: Tree) (rest: Forest) : Forest
+
+# --- reference solution: a true mutual-recursion group ---
+mutual
+  def leavesTree (t: Tree) : Int :=
+    match t with | .empty => 0 | .node v f => leavesForest f
+  def leavesForest (f: Forest) : Int :=
+    match f with | .leaf => 1 | .tcons t rest => leavesTree t + leavesForest rest
+end
+
+def f1 : Forest := .tcons (.node 0 .leaf) (.tcons (.node 1 .leaf) .leaf)
+
+# Contata's io examples.
+@example(leavesTree .empty = 0)
+@example(leavesForest .leaf = 1)
+@example(leavesForest f1 = 3)
+# Contata's two relational properties, checked over generated forests.
+@property(40)
+def prop_node_keeps (f: Forest) : Bool := leavesForest f = leavesTree (.node 0 f)
+
+@property(40)
+def prop_empty_keeps (f: Forest) : Bool := leavesForest f = leavesForest (.tcons .empty f)
+
+def main (z: Int) : Unit :=
+    print (
+        (leavesTree .empty = 0) &&
+        (leavesForest .leaf = 1) &&
+        (leavesForest f1 = 3) &&
+        prop_node_keeps .leaf && prop_node_keeps f1 &&
+        prop_empty_keeps .leaf && prop_empty_keeps f1)

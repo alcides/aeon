@@ -33,13 +33,13 @@ def test_recursive_discovery_and_shards_cover_every_example_once(count):
     assert set.union(*shards) == paths
     assert sum(map(len, shards)) == len(paths)
     assert all(shards)
-    assert any("synthesis/srbench/" in path for path in paths)
-    assert any("MBPP/" in path for path in paths)
+    assert any("benchmarks/srbench/" in path for path in paths)
+    assert any("benchmarks/mbpp/" in path for path in paths)
 
 
 def test_synthesis_examples_only_typecheck_even_with_example_annotations():
     for example in discover():
-        if example.path.startswith("examples/synthesis/"):
+        if example.path.startswith(("examples/synthesis/", "examples/benchmarks/")):
             assert example.mode == "check"
             assert "--check" in command_for(example)
             assert "--test" not in command_for(example)
@@ -75,7 +75,7 @@ def test_negative_examples_reject_only_compiler_diagnostics():
     examples = {example.path: example for example in negatives}
     assert examples["examples/machine_learning/restrictions/00_linear_type_invalid.ae"].expected_codes == (12,)
     assert examples["examples/machine_learning/restrictions/08_train_test_roles_invalid.ae"].expected_codes == (5,)
-    assert examples["examples/typestate/negative/coin_duplicate.ae"].expected_codes == (12,)
+    assert examples["examples/benchmarks/typestate/negative/coin_duplicate.ae"].expected_codes == (12,)
 
 
 def test_suite_local_import_paths_preserve_existing_aeonpath(monkeypatch):
@@ -173,6 +173,6 @@ def test_check_cli_does_not_synthesize_or_evaluate(tmp_path: Path, source, expec
 def test_proof_suite_expectations():
     examples = {example.path: example for example in discover()}
     for name in ("false_step", "false_goal", "circular_contract", "nonterminating"):
-        assert examples[f"examples/proofs/negative/{name}.ae"].expected_codes == (13,)
-    assert examples["examples/proofs/Paper.ae"].expected_codes == (0,)
-    assert examples["examples/proofs/Paper.ae"].minimum_timeout == 600
+        assert examples[f"examples/benchmarks/equational_reasoning/negative/{name}.ae"].expected_codes == (13,)
+    assert examples["examples/benchmarks/equational_reasoning/Paper.ae"].expected_codes == (0,)
+    assert examples["examples/benchmarks/equational_reasoning/Paper.ae"].minimum_timeout == 600

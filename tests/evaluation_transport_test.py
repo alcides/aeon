@@ -36,8 +36,8 @@ def test_unserializable_feature_preserves_fitness_and_worker():
     "case",
     [
         "examples/synthesis/cata/mutual_pbe.ae",
-        "examples/synthesis/cata/synth/mr/even_odd.ae",
-        "examples/synthesis/cata/synth/mr/even_odd2.ae",
+        "examples/benchmarks/contata/synth/mr/even_odd.ae",
+        "examples/benchmarks/contata/synth/mr/even_odd2.ae",
         "examples/talk/05_mutual_examples.ae",
     ],
 )

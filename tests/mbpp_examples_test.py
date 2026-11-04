@@ -1,6 +1,6 @@
 """Validates that every generated MBPP benchmark file parses and typechecks.
 
-The files under ``examples/MBPP/`` are produced by ``scripts/generate_mbpp.py``
+The files under ``examples/benchmarks/mbpp/`` are produced by ``scripts/generate_mbpp.py``
 from the sanitized MBPP dataset. Each is a self-contained synthesis benchmark:
 a ``native`` fitness function with the problem's assertions embedded, and a
 ``?hole`` synthesis target. This test only runs the parse/elaborate/typecheck
@@ -22,7 +22,7 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 # Registers the custom "TIME" log level that the driver's RecordTime uses.
 setup_logger()
 
-MBPP_DIR = Path(__file__).parent.parent / "examples" / "MBPP"
+MBPP_DIR = Path(__file__).parent.parent / "examples/benchmarks/mbpp"
 MBPP_FILES = sorted(MBPP_DIR.glob("mbpp_*.ae"))
 
 

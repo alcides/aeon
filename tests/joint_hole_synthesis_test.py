@@ -198,7 +198,7 @@ def test_pade_native_fitness_receives_all_three_coefficients(backend, monkeypatc
     from aeon.synthesis.modules import genetic_programming as gp, random_search
     from aeon.synthesis.uis.api import SynthesisUI
 
-    path = Path(__file__).resolve().parents[1] / "examples/synthesis/autonumerics/exp2_pade.ae"
+    path = Path(__file__).resolve().parents[1] / "examples/benchmarks/autonumerics/exp2_pade.ae"
     driver = parse(path.read_text())
     values = (1.5625291599338442, -0.2910765369491663, -1.4427239805682266)
     if backend is RandomSearchSynthesizer:

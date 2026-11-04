@@ -11,7 +11,7 @@ from aeon.benchmarks.bounded_boolean.verilog import Circuit, Expr, VerilogError,
 
 REVISION = "12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4"
 REPOSITORY = "https://github.com/rrlcs/bnsynth"
-ROOT = Path(__file__).resolve().parents[3] / "examples/synthesis/boolean_bounded/bnsynth"
+ROOT = Path(__file__).resolve().parents[3] / "examples/benchmarks/bnsynth"
 SOURCE = Path("benchmarks/custom_and_lut")
 PAPER_SCHEDULE = ((1, 60), (5, 120), (20, 120), (50, 180), (500, 300), (1000, 600))
 

@@ -68,7 +68,7 @@ bash run_examples.sh --jobs 2
 bash run_examples.sh --list
 bash run_examples.sh --shard 0 --shards 16 --timeout-per-mib 120 --max-timeout 600
 bash run_examples.sh --failures-from example-results/results.json
-uv run python -m aeon --check examples/synthesis/dace/pbe/col_offset.ae
+uv run python -m aeon --check examples/benchmarks/dace/pbe/col_offset.ae
 ```
 
 Example checking is not a claim that benchmark holes are solvable, that opaque

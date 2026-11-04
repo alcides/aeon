@@ -9,7 +9,7 @@ from scripts.generate_hakank_examples import share_decision_accesses
 
 
 if __name__ == "__main__":
-    for path in Path("examples/synthesis/hakank/catalogue").glob("*.ae"):
+    for path in Path("examples/benchmarks/hakank/catalogue").glob("*.ae"):
         source = path.read_text()
         updated = share_decision_accesses(source)
         if updated != source:

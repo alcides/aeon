@@ -119,8 +119,8 @@ def main():
     parser.add_argument("--upstream", required=True, type=Path)
     parser.add_argument("--minizinc", required=True, type=Path)
     parser.add_argument("--cache", required=True, type=Path)
-    parser.add_argument("--catalogue", type=Path, default=Path("examples/synthesis/hakank/catalogue.json"))
-    parser.add_argument("--instances", type=Path, default=Path("examples/synthesis/hakank/prepared_instances.json"))
+    parser.add_argument("--catalogue", type=Path, default=Path("examples/benchmarks/hakank/catalogue.json"))
+    parser.add_argument("--instances", type=Path, default=Path("examples/benchmarks/hakank/prepared_instances.json"))
     parser.add_argument("--timeout", type=float, default=30)
     parser.add_argument(
         "--capture-python", type=Path, help="Interpreter with pinned optional CPMpy authoring dependencies"

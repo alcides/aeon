@@ -12,7 +12,7 @@ from aeon.synthesis.refinement_examples import derive_refinement_examples
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.backend.evaluator import eval as evaluate
 
-EXAMPLE = Path(__file__).resolve().parents[1] / "examples/synthesis/nand_full_adder.ae"
+EXAMPLE = Path(__file__).resolve().parents[1] / "examples/synthesis/puzzle/nand_full_adder.ae"
 NINE_NANDS = """let g1 := nand a b in
 let g2 := nand a g1 in
 let g3 := nand b g1 in

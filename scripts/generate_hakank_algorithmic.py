@@ -7,7 +7,7 @@ from pathlib import Path
 from scripts.generate_hakank_examples import Model
 
 
-ROOT = Path(__file__).resolve().parents[1] / "examples/synthesis/hakank"
+ROOT = Path(__file__).resolve().parents[1] / "examples/benchmarks/hakank"
 
 
 def models():

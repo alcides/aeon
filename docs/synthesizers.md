@@ -85,7 +85,7 @@ are 100,000 nodes and eight recursive grammar expansions. These finite limits
 make search incomplete; timeout is not evidence that no solution exists.
 
 ```bash
-python -m aeon -s rl_mcts --budget 10 examples/synthesis/rl_mcts.ae
+python -m aeon -s rl_mcts --budget 10 examples/benchmarks/rlmcts/rl_mcts.ae
 ```
 
 Learned guidance is optional and requires `pip install 'AeonLang[synthesis-rl]'`.
@@ -122,9 +122,9 @@ or published dataset.
 
 ```bash
 python -m aeon.synthesis.modules.rl_mcts generate \
-  examples/synthesis/rl_mcts_training.smt2 --output /tmp/aeon-rl-data
+  examples/benchmarks/rlmcts/rl_mcts_training.smt2 --output /tmp/aeon-rl-data
 python -m aeon.synthesis.modules.rl_mcts train \
-  examples/synthesis/rl_mcts_training.smt2 --output /tmp/aeon-smt-model \
+  examples/benchmarks/rlmcts/rl_mcts_training.smt2 --output /tmp/aeon-smt-model \
   --iterations 2 --limit 2 --budget 10
 ```
 
@@ -482,7 +482,7 @@ Supports one to three scalar or registered ADT inputs, scalar or ADT results, fi
 
 Adapts the lifted interpretation algorithm from [Li et al., POPL 2024](https://arxiv.org/abs/2311.03705), Section 3 and Appendix A. A bounded typed grammar is stored as a packed tree language. Interpreting the enclosing Aeon sketch discovers reachable local bindings; specializing the grammar under each binding context constructs observational classes bottom-up while retaining all their alternatives. A subsequent call specializes the surviving language, allowing classes to split and ensuring that every fold iteration uses the same candidate body.
 
-Select it with `python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/list_fold.ae`. It accepts literal Int/Bool or closed registered-constructor inputs, Int/Bool outputs, and one Int/Bool expression hole inside a supplied pure functional sketch. Supported surrounding Core forms include lambdas, applications, local bindings, conditionals, recursive functions, and compiler-generated constructors/eliminators (`match`). The supplied fold combinators are interpreted from their Aeon definitions; their accumulator contexts depend on candidate outputs. Generated expressions use lexical scalar variables, small constants, arithmetic, comparisons, Boolean operations, and conditionals. `list_fold.ae` preserves the paper's ambiguous `[1,2,4] → 7` example; `list_sum.ae` adds distinguishing examples.
+Select it with `python -m aeon --no-main --budget 10 -s arborist examples/benchmarks/arborist/list_fold.ae`. It accepts literal Int/Bool or closed registered-constructor inputs, Int/Bool outputs, and one Int/Bool expression hole inside a supplied pure functional sketch. Supported surrounding Core forms include lambdas, applications, local bindings, conditionals, recursive functions, and compiler-generated constructors/eliminators (`match`). The supplied fold combinators are interpreted from their Aeon definitions; their accumulator contexts depend on candidate outputs. Generated expressions use lexical scalar variables, small constants, arithmetic, comparisons, Boolean operations, and conditionals. `list_fold.ae` preserves the paper's ambiguous `[1,2,4] → 7` example; `list_sum.ae` adds distinguishing examples.
 
 The backend uses the program-level synthesis interface to observe the enclosing execution. Every extracted solution passes the usual whole-program type/refinement validator and the examples in Aeon's normal evaluator. Rejection of one example-equivalent representative does not discard its alternatives. Search observes the wall-clock budget, with default limits of three nested grammar operations, 100,000 packed states, one million interpreter steps, and 4096-bit integers. An in-flight compiler check or final runtime check can overrun the budget.
 
@@ -662,7 +662,7 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 
 ## Benchmarks
 
-The [Hakank common CP starter suite](../examples/synthesis/hakank/README.md)
+The [Hakank common CP starter suite](../examples/benchmarks/hakank/README.md)
 contains 25 standalone, finite constraint and optimization models drawn from
 the archived catalogue. Run these with `-s ortools`; decisions remain numeric
 holes, with constraints expressed through comparisons, Boolean combinations,

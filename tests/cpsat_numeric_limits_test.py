@@ -51,7 +51,7 @@ def test_reported_hakank_numeric_failures_are_controlled(case):
             "ortools",
             "--budget",
             "1",
-            f"examples/synthesis/hakank/catalogue/{case}.ae",
+            f"examples/benchmarks/hakank/catalogue/{case}.ae",
         ],
         capture_output=True,
         text=True,

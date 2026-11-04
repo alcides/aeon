@@ -3,7 +3,7 @@
 ```bash
 python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/local.ae
 python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/fold.ae
-python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/list_fold.ae
+python -m aeon --no-main --budget 10 -s arborist examples/benchmarks/arborist/list_fold.ae
 python -m aeon --no-main --budget 10 -s arborist examples/synthesis/arborist/list_sum.ae
 python examples/synthesis/arborist/benchmark.py
 ```
@@ -14,7 +14,7 @@ The implementation follows the functional-language construction in Section 3 and
 
 ## The paper's list fold
 
-[`list_fold.ae`](list_fold.ae) translates Example 3.1 using an inductive linked list and an ordinary recursive left fold. Its sole specification is the original `[1, 2, 4] → 7`. The fold starts at `0` and visits the elements in order. The hole is the scalar callback body:
+[`list_fold.ae`](../../benchmarks/arborist/list_fold.ae) translates Example 3.1 using an inductive linked list and an ordinary recursive left fold. Its sole specification is the original `[1, 2, 4] → 7`. The fold starts at `0` and visits the elements in order. The hole is the scalar callback body:
 
 ```aeon
 @example(fold_example (.cons 1 (.cons 2 (.cons 4 .nil))) = 7)

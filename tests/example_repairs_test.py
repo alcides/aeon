@@ -133,7 +133,7 @@ def main (_:Int) : Int :=
 @pytest.mark.parametrize("task,length", [("coin_sum", 200), ("cut_vector", 200), ("leaders", 50)])
 def test_psb2_goal_counts_training_cases_not_output_arity(task, length):
     d = driver()
-    assert not d.parse(filename=str(ROOT / f"examples/PSB2/annotations/multi_objective/{task}.ae"))
+    assert not d.parse(filename=str(ROOT / f"examples/benchmarks/psb2/annotations/multi_objective/{task}.ae"))
     goals = [g for entry in d.metadata.values() for g in entry.get("goals", [])]
     assert len(goals) == 1 and goals[0].length == length
 
