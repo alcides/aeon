@@ -1,4 +1,0 @@
-import DPFrontier;
-inductive DPLookup
-| absent : DPLookup
-| present(values:DPFrontier):DPLookup

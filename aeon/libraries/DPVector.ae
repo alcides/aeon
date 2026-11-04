@@ -1,3 +1,0 @@
-inductive DPVector
-| vnil : DPVector
-| cell(head:Int)(tail:DPVector):DPVector
