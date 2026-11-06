@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from aeon.core.liquid import LiquidApp
+from aeon.core.liquid import LiquidApp, LiquidPredicate
 from aeon.core.types import LiquidHornApplication, RefinementPolymorphism, TypeConstructor, TypePolymorphism
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralUnit
@@ -63,7 +63,14 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
         case RefinementPolymorphism(rname, sort, body, loc):
             return RefinementPolymorphism(rname, rec(sort), rec(body), loc=loc)
         case TypeConstructor(cname, args, loc):
-            return TypeConstructor(cname, [rec(arg) for arg in args], loc=loc)
+            from aeon.core.predicates import map_predicate_types
+
+            return TypeConstructor(
+                cname,
+                [rec(arg) for arg in args],
+                loc=loc,
+                refinements=[map_predicate_types(p, rec) for p in t.refinements],
+            )
         case _:
             assert False, f"type {t} ({type(t)}) not allows in substitution."
 
@@ -149,25 +156,24 @@ def _peel_abstractions(term: Term, n: int) -> tuple[list[Name], Term] | None:
 def instantiate_refinement_in_liquid(
     t: LiquidTerm,
     pred_name: Name,
-    refinement: Abstraction,
+    refinement: Abstraction | LiquidPredicate,
 ) -> LiquidTerm:
     """Replaces LiquidApp(pred_name, [args...]) with the inlined refinement body.
     Implements tutorial fig 8.6 generalized to multiple arguments:
     κ(x1, ..., xn)[ρ := φ] = p[y1 := x1, ..., yn := xn] if ρ = κ:·, φ = λy1...yn. p"""
     match t:
         case LiquidApp(aname, args, loc):
-            if aname == pred_name and len(args) >= 1 and all(isinstance(a, LiquidVar) for a in args):
+            if aname == pred_name and len(args) >= 1:
+                if isinstance(refinement, LiquidPredicate):
+                    return refinement.apply([instantiate_refinement_in_liquid(a, pred_name, refinement) for a in args])
                 peeled = _peel_abstractions(refinement, len(args))
                 if peeled is not None:
                     params, body = peeled
-                    body_subst = body
-                    for param, arg in zip(params, args):
-                        assert isinstance(arg, LiquidVar)
-                        body_subst = substitution(body_subst, Var(arg.name, loc=arg.loc), param)
-                    body_subst = inline_lets(body_subst)
-                    liq = liquefy(body_subst)
+                    liq = liquefy(inline_lets(body))
                     if liq is not None:
-                        return liq
+                        return LiquidPredicate(tuple(params), liq).apply(
+                            [instantiate_refinement_in_liquid(a, pred_name, refinement) for a in args]
+                        )
             return LiquidApp(
                 aname,
                 [instantiate_refinement_in_liquid(a, pred_name, refinement) for a in args],
@@ -196,11 +202,10 @@ def instantiate_refinement_in_liquid(
 def instantiate_refinement_in_type(
     t: Type,
     pred_name: Name,
-    refinement: Abstraction,
+    refinement: Abstraction | LiquidPredicate,
 ) -> Type:
     """Inlines the refinement predicate in the type.
-    Implements s[ρ := φ] from tutorial fig 8.6.
-    TODO: support refinement as Var ( id[Int]{myPred} ) — currently requires Abstraction."""
+    Implements s[ρ := φ] from tutorial fig 8.6."""
     match t:
         case Top() | TypeVar(_):
             return t
@@ -232,8 +237,13 @@ def instantiate_refinement_in_type(
                 loc=loc,
             )
         case TypeConstructor(name, args, loc):
+            from aeon.core.predicates import instantiate_predicate
+
             return TypeConstructor(
-                name, [instantiate_refinement_in_type(arg, pred_name, refinement) for arg in args], loc=loc
+                name,
+                [instantiate_refinement_in_type(arg, pred_name, refinement) for arg in args],
+                loc=loc,
+                refinements=[instantiate_predicate(p, pred_name, refinement) for p in t.refinements],
             )
         case ExistentialType(binders, body, loc):
             return ExistentialType(
@@ -326,8 +336,13 @@ def instantiate_refinement_with_horn_in_type(
         case TypeVar(_):
             return t
         case TypeConstructor(name, args, loc):
+            from aeon.core.predicates import instantiate_predicate_horn
+
             return TypeConstructor(
-                name, [instantiate_refinement_with_horn_in_type(a, pred_name, sort, horn_name) for a in args], loc=loc
+                name,
+                [instantiate_refinement_with_horn_in_type(a, pred_name, sort, horn_name) for a in args],
+                loc=loc,
+                refinements=[instantiate_predicate_horn(p, pred_name, sort, horn_name) for p in t.refinements],
             )
         case AbstractionType(aname, atype, rtype, loc):
             return AbstractionType(
@@ -475,7 +490,12 @@ def substitution_liquid_in_type(t: Type, rep: LiquidTerm, name: Name) -> Type:
                 loc=loc,
             )
         case TypeConstructor(cname, args, loc):
-            return TypeConstructor(cname, [substitution_liquid_in_type(arg, rep, name) for arg in args], loc=loc)
+            return TypeConstructor(
+                cname,
+                [substitution_liquid_in_type(arg, rep, name) for arg in args],
+                loc=loc,
+                refinements=[p.substitute(rep, name) for p in t.refinements],
+            )
         case ExistentialType(binders, body, loc):
             # If `name` is shadowed by a binder, stop the substitution from
             # entering the body — but still recurse into binder types preceding
@@ -601,7 +621,13 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
         case TypePolymorphism(tvname, kind, body, loc):
             return TypePolymorphism(tvname, kind, substitution_in_type(body, rep, name), loc=loc)
         case TypeConstructor(cname, args, loc):
-            return TypeConstructor(cname, [substitution_in_type(arg, rep, name) for arg in args], loc=loc)
+            liquid = liquefy(rep)
+            return TypeConstructor(
+                cname,
+                [substitution_in_type(arg, rep, name) for arg in args],
+                loc=loc,
+                refinements=[p.substitute(liquid, name) if liquid is not None else p for p in t.refinements],
+            )
         case ExistentialType(binders, body, loc):
             new_binders: list[tuple[Name, Type]] = []
             shadowed = False

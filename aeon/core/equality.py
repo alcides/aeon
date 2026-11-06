@@ -96,7 +96,18 @@ def core_type_equality(type1: Type, type2: Type, rename_left: dict[Name, Name] |
         case AbstractionType(aname, a1, a2), AbstractionType(bname, b1, b2):
             return core_type_equality(a1, b1, rename_left) and core_type_equality(a2, b2, rename_left | {aname: bname})
         case TypeConstructor(aname, a1), TypeConstructor(bname, b1):
-            return aname == bname and all(core_type_equality(a, b, rename_left) for a, b in zip(a1, b1))
+            return (
+                aname == bname
+                and len(a1) == len(b1)
+                and all(core_type_equality(a, b, rename_left) for a, b in zip(a1, b1))
+                and len(type1.refinements) == len(type2.refinements)
+                and all(
+                    len(p.parameters) == len(q.parameters)
+                    and p.implicit == q.implicit
+                    and core_liquid_equality(p.body, q.body, rename_left | dict(zip(p.parameters, q.parameters)))
+                    for p, q in zip(type1.refinements, type2.refinements)
+                )
+            )
         case TypePolymorphism(aname, akind, abody), TypePolymorphism(bname, bkind, bbody):
             return akind == bkind and core_type_equality(abody, bbody, rename_left | {aname: bname})
         case RefinementPolymorphism(aname, asort, abody), RefinementPolymorphism(bname, bsort, bbody):
@@ -136,7 +147,16 @@ def canonicalize_type(
         case TypeVar(name):
             return TypeVar(rename.get(name, name))
         case TypeConstructor(name, args):
-            return TypeConstructor(name, [canonicalize_type(a, rename, counter) for a in args])
+            from aeon.core.liquid import LiquidPredicate
+
+            predicates = []
+            for predicate in ty.refinements:
+                parameters = tuple(fresh() for _ in predicate.parameters)
+                local = rename | dict(zip(predicate.parameters, parameters))
+                predicates.append(
+                    LiquidPredicate(parameters, _rename_liquid_parallel(predicate.body, local), predicate.implicit)
+                )
+            return TypeConstructor(name, [canonicalize_type(a, rename, counter) for a in args], refinements=predicates)
         case AbstractionType(var_name, var_type, return_type):
             c_var_type = canonicalize_type(var_type, rename, counter)
             fresh_name = fresh()

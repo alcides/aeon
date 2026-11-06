@@ -249,7 +249,9 @@ def type_infer_liquid(
                         # polymorphic operand (for example list equality).
                         return resolve_type(base)
                     case TypeConstructor(name, args):
-                        return TypeConstructor(name, [resolve_type(arg) for arg in args], loc=ty.loc)
+                        return TypeConstructor(
+                            name, [resolve_type(arg) for arg in args], loc=ty.loc, refinements=ty.refinements
+                        )
                     case TypeVar(tv):
                         if tv in equalities:
                             return resolve_type(equalities[tv])
@@ -306,12 +308,22 @@ def type_infer_liquid(
                                     )
                         else:
                             assert isinstance(resolved, (TypeConstructor, TypeVar))
+
+                            def occurs(ty):
+                                if isinstance(ty, TypeVar):
+                                    return ty.name == name
+                                return isinstance(ty, TypeConstructor) and any(occurs(a) for a in ty.args)
+
                             # Skip a self-referential binding ``a := a``: it is
                             # vacuous and would make ``resolve_type`` loop. This
                             # arises when a function reuses a type variable across
                             # argument positions, e.g. an n-ary abstract-refinement
                             # relation ``r : a -> a -> Bool``.
                             if not (isinstance(resolved, TypeVar) and resolved.name == name):
+                                if occurs(resolved):
+                                    raise LiquidTypeCheckException(
+                                        f"Recursive sort equation {name} = {resolved} in {liq}"
+                                    )
                                 equalities[name] = resolved
                     case (TypeConstructor(t, a_args), TypeConstructor(e, e_args)) if t == e and len(a_args) == len(
                         e_args

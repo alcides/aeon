@@ -6,7 +6,7 @@ from aeon.core.substitutions import (
     instantiate_refinement_in_type,
     instantiate_refinement_with_horn_in_type,
 )
-from aeon.core.terms import Abstraction, Application, TypeApplication, RefinementApplication, Literal, Hole, Var, Let
+from aeon.core.terms import Abstraction, Application, TypeApplication, RefinementApplication, Hole, Var, Let
 from aeon.core.types import (
     AbstractionType,
     TypePolymorphism,
@@ -14,10 +14,6 @@ from aeon.core.types import (
     TypeConstructor,
     RefinedType,
     ExistentialType,
-    t_bool,
-    t_int,
-    t_float,
-    t_string,
 )
 from aeon.synthesis.modules.synquid.constraints import fresh_name
 from aeon.synthesis.modules.synquid.round_trip import erase
@@ -25,7 +21,7 @@ from aeon.synthesis.modules.synquid.solver import Status
 from aeon.typechecking.branch_evidence import (
     match_branch_evidence,
     match_refinement_obligation,
-    unconstrained_predicate,
+    stored_match_predicate,
 )
 from aeon.typechecking.typeinfer import check, synth
 from aeon.typechecking.well_formed import wellformed
@@ -35,43 +31,13 @@ from aeon.verification.constructor_registry import get_constructor_groups
 
 def _predicate_term(predicate, assignment):
     """Close a solved logical predicate as the recursor's explicit argument."""
-    from aeon.core.liquid import (
-        LiquidApp,
-        LiquidVar,
-        LiquidLiteralBool,
-        LiquidLiteralInt,
-        LiquidLiteralFloat,
-        LiquidLiteralString,
-    )
-    from aeon.core.terms import If
+    from aeon.core.liquid import LiquidPredicate
+    from aeon.core.predicates import predicate_to_term
     from aeon.verification.horn import apply_liquid
 
-    def term(liquid):
-        if isinstance(liquid, LiquidVar):
-            return Var(liquid.name)
-        for cls, ty in (
-            (LiquidLiteralBool, t_bool),
-            (LiquidLiteralInt, t_int),
-            (LiquidLiteralFloat, t_float),
-            (LiquidLiteralString, t_string),
-        ):
-            if isinstance(liquid, cls):
-                return Literal(liquid.value, ty)
-        if isinstance(liquid, LiquidApp):
-            args = [term(a) for a in liquid.args]
-            if liquid.fun.name == "ite" and len(args) == 3:
-                return If(*args)
-            result = Var(liquid.fun)
-            for arg in args:
-                result = Application(result, arg)
-            return result
-        raise NotImplementedError("Unresolved match predicate")
-
-    result = term(apply_liquid(assignment, predicate))
-    for arg, _ in reversed(predicate.argtypes):
-        assert isinstance(arg, LiquidVar)
-        result = Abstraction(arg.name, result)
-    return result
+    if not isinstance(predicate, LiquidPredicate):
+        predicate = LiquidPredicate(tuple(arg.name for arg, _ in predicate.argtypes), predicate)
+    return predicate_to_term(LiquidPredicate(predicate.parameters, apply_liquid(assignment, predicate.body)))
 
 
 def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=None):
@@ -157,6 +123,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
             # Fig. 4 MATCH: constructor fields use the scrutinee's precise
             # arguments. Erasure is only for enumerating compatible shapes.
             args = iter(precise.args)
+            predicate_index = 0
             while isinstance(inst, (TypePolymorphism, RefinementPolymorphism)):
                 if isinstance(inst, TypePolymorphism):
                     arg = next(args, None)
@@ -167,13 +134,19 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                     safe_inst = type_substitution(safe_inst.body, safe_inst.name, arg)
                     inst = type_substitution(inst.body, inst.name, arg)
                 else:
-                    predicate = child.refinement_parameter(inst.sort)
-                    spine.append(("R", predicate))
                     assert isinstance(safe_inst, RefinementPolymorphism)
-                    safe_inst = instantiate_refinement_in_type(
-                        safe_inst.body, safe_inst.name, unconstrained_predicate(safe_inst.sort)
-                    )
-                    inst = instantiate_refinement_with_horn_in_type(inst.body, inst.name, inst.sort, predicate.name)
+                    retained = stored_match_predicate(actual, predicate_index, safe_inst.sort)
+                    safe_inst = instantiate_refinement_in_type(safe_inst.body, safe_inst.name, retained)
+                    if predicate_index < len(precise.refinements):
+                        # An invariant datatype parameter is already known;
+                        # matching needs no search for a replacement relation.
+                        spine.append(("S", retained))
+                        inst = instantiate_refinement_in_type(inst.body, inst.name, retained)
+                    else:
+                        predicate = child.refinement_parameter(inst.sort)
+                        spine.append(("R", predicate))
+                        inst = instantiate_refinement_with_horn_in_type(inst.body, inst.name, inst.sort, predicate.name)
+                    predicate_index += 1
             if not isinstance(inst, AbstractionType):
                 continue
             child.subtype(actual, inst.var_type)

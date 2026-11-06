@@ -114,7 +114,12 @@ def bind_stype(ty: SType, subs: RenamingSubstitions) -> SType:
             return STypeVar(apply_subs_name(subs, name))
         case STypeConstructor(name, args):
             nargs = [bind_stype(aty, subs) for aty in args]
-            return STypeConstructor(apply_subs_name(subs, name), nargs)
+            return STypeConstructor(
+                apply_subs_name(subs, name),
+                nargs,
+                loc=ty.loc,
+                refinements=[bind_sterm(p, subs) for p in ty.refinements],
+            )
         case SAbstractionType(aname, atype, rtype):
             nname, nsubs = check_name(aname, subs)
 
@@ -204,12 +209,22 @@ def bind_sterm(t: STerm, subs: RenamingSubstitions) -> STerm:
             return SLet(name, bind_sterm(body, subs), bind_sterm(cont, nsubs), loc=loc, multiplicity=t.multiplicity)
         case SRec(name, ty, body, cont, decreasing_by, loc=loc):
             name, subs = check_name(name, subs)
-            nd = tuple(bind_sterm(m, subs) for m in decreasing_by)
+            nbody = bind_sterm(body, subs)
+            metric_scope = list(subs)
+            inner = nbody
+            while isinstance(inner, (SAbstraction, STypeAbstraction, SRefinementAbstraction)):
+                metric_scope.append(
+                    (inner.var_name.name, inner.var_name)
+                    if isinstance(inner, SAbstraction)
+                    else (inner.name.name, inner.name)
+                )
+                inner = inner.body
+            nd = tuple(bind_sterm(m, metric_scope) for m in decreasing_by)
             ncomp = tuple((apply_subs_name(subs, cn), bind_stype(ct, subs)) for (cn, ct) in t.companions)
             return SRec(
                 name,
                 bind_stype(ty, subs),
-                bind_sterm(body, subs),
+                nbody,
                 bind_sterm(cont, subs),
                 decreasing_by=nd,
                 loc=loc,
@@ -249,8 +264,15 @@ def _bind_definition(
         ty = bind_stype(ty, nsubs)
         args.append((nname, ty))
     ntype = bind_stype(df.type, nsubs)
-    decreasing = [bind_sterm(m, nsubs) for m in df.decreasing_by]
     body = bind_sterm(df.body, nsubs)
+    metric_scope = list(nsubs)
+    inner = body
+    while isinstance(inner, (SAbstraction, STypeAbstraction, SRefinementAbstraction)):
+        metric_scope.append(
+            (inner.var_name.name, inner.var_name) if isinstance(inner, SAbstraction) else (inner.name.name, inner.name)
+        )
+        inner = inner.body
+    decreasing = [bind_sterm(m, metric_scope) for m in df.decreasing_by]
     decorators = []
     for dec in df.decorators:
         dargs = [bind_sterm(da, nsubs) for da in dec.macro_args]
