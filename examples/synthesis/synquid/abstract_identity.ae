@@ -1,0 +1,7 @@
+# Minimal predicate-polymorphic synthesis example, not PLDI 2016 Example 3.
+# The implementation must preserve an arbitrary predicate p on an arbitrary a.
+# Run: python -m aeon --budget 15 -s synquid examples/synthesis/synquid/abstract_identity.ae
+
+def preserve : forall a:B, forall <p:a -> Bool>, (x:a<p>) -> a<p> := ?body;
+
+def main (u:Int) : Int := preserve{Int}{|fun n => n > 0|} 42;
