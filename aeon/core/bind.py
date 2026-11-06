@@ -38,6 +38,7 @@ from aeon.core.types import (
     TypeVar,
 )
 from aeon.typechecking.context import (
+    RefinementBinder,
     TypeBinder,
     TypeConstructorBinder,
     TypingContext,
@@ -100,6 +101,9 @@ def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingConte
     for entry in ctx.entries:
         e: TypingContextEntry
         match entry:
+            case RefinementBinder(name, sort):
+                name, subs = check_name(name, subs)
+                e = RefinementBinder(name, bind_type(sort, subs))
             case VariableBinder(name, ty):
                 name, subs = check_name(name, subs)
                 e = VariableBinder(name, bind_type(ty, subs))

@@ -68,7 +68,7 @@ from aeon.errors import (
     LiquidTypeCheckingFailedRelation,
     UnreachablePatternError,
 )
-from aeon.typechecking.context import TypingContext, UninterpretedBinder
+from aeon.typechecking.context import RefinementBinder, TypingContext, UninterpretedBinder, VariableBinder
 from aeon.typechecking.branch_evidence import (
     match_branch_evidence,
     match_refinement_obligation,
@@ -946,7 +946,13 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             assert isinstance(refinement, Abstraction)
             # ``rp.sort`` is the full (possibly n-ary) predicate type.
             pred_type = rp.sort
-            c_ref = check(ctx, refinement, pred_type)
+            # Predicate arguments are erased. They may refer to logical
+            # parameters, whereas executable expressions must not call them.
+            predicate_ctx = replace(
+                ctx,
+                entries=[VariableBinder(e.name, e.type) if isinstance(e, RefinementBinder) else e for e in ctx.entries],
+            )
+            c_ref = check(predicate_ctx, refinement, pred_type)
             nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
             return (conjoin(c, c_ref), _selfify_application_type(ctx, t, nty))
 
@@ -956,7 +962,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # RefinementPolymorphism and gate the constraint behind the UF declaration.
             # ``psort`` is the full (possibly n-ary) predicate type.
             fk_type = as_predicate_type(psort)
-            ctx_ext = ctx.with_var(pname, fk_type)
+            ctx_ext = ctx.with_refinement(pname, fk_type)
             (c_body, body_ty) = synth(ctx_ext, inner)
             return (
                 UninterpretedFunctionDeclaration(pname, fk_type, c_body),
@@ -1411,7 +1417,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             c_sort = sub(ctx, psort, rsort, t.loc)
             # ``rsort`` is the full (possibly n-ary) predicate type.
             fk_type = as_predicate_type(rsort)
-            ctx_ext = ctx.with_var(pname, fk_type)
+            ctx_ext = ctx.with_refinement(pname, fk_type)
             body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
             inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
             c_body = check(ctx_ext, inner_sub, body_open)
@@ -1430,7 +1436,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             fk_name = Name("_f" + name.name, fresh_counter.fresh())
             fk_type = as_predicate_type(sort)
             # Γ' = Γ; fκ : sort
-            ctx_ext = ctx.with_var(fk_name, fk_type)
+            ctx_ext = ctx.with_refinement(fk_name, fk_type)
             # s[ρ := fκ] — substitute κ → fk in the body type
             body_sub = substitution_liquid_in_type(body, LiquidVar(fk_name), name)
             # e[ρ := fκ] — substitute κ in types embedded in the term

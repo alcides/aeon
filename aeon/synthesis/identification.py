@@ -1,4 +1,10 @@
-from aeon.core.substitutions import substitute_vartype, substitution_in_type
+from aeon.core.liquid import LiquidVar
+from aeon.core.substitutions import (
+    substitute_vartype,
+    substitution_in_type,
+    substitution_liquid_in_term,
+    substitution_liquid_in_type,
+)
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -21,6 +27,7 @@ from aeon.core.types import (
     RefinementPolymorphism,
     TypePolymorphism,
     TypeVar,
+    as_predicate_type,
     refined_to_unrefined_type,
 )
 from aeon.core.types import Type, t_bool
@@ -177,11 +184,17 @@ def get_holes_info(
                     )
                 case _:
                     assert False, "TypeAbstraction does not have the TypePolymorphism type."
-        case RefinementAbstraction(name=_, sort=_, body=body):
-            # The refinement parameter is solved by Horn inference, not GP
-            # synthesis. Walk under the binder with the inner type.
-            inner_ty = ty.body if isinstance(ty, RefinementPolymorphism) else ty
-            return _child_holes(ctx, body, inner_ty, targets, refined_types)
+        case RefinementAbstraction(name=pname, sort=psort, body=body):
+            # A universally quantified predicate stays arbitrary inside its
+            # body. Only omitted predicate arguments at call sites are inferred.
+            # Mirror Chk-RAbs, including alpha-renaming embedded annotations.
+            inner_ty = ty
+            if isinstance(ty, RefinementPolymorphism):
+                psort = ty.sort
+                inner_ty = substitution_liquid_in_type(ty.body, LiquidVar(pname), ty.name)
+                body = substitution_liquid_in_term(body, LiquidVar(pname), ty.name)
+            inner_ctx = ctx.with_refinement(pname, as_predicate_type(psort))
+            return _child_holes(inner_ctx, body, inner_ty, targets, refined_types)
         case RefinementApplication(body=body, refinement=_):
             # Implicit refinement application — synthesis ignores the
             # refinement (Horn solves it) and recurses into the function.
