@@ -189,12 +189,11 @@ def substitute_holes_map(term: Term, mapping: dict[Name, Term]) -> Term:
             )
         case Annotation(expr, ty, loc):
             return Annotation(substitute_holes_map(expr, mapping), ty, loc)
-        case Let(var_name, var_value, body, loc):
-            return Let(
-                var_name,
-                substitute_holes_map(var_value, mapping),
-                substitute_holes_map(body, mapping),
-                loc,
+        case Let() as binding:
+            return replace(
+                binding,
+                var_value=substitute_holes_map(binding.var_value, mapping),
+                body=substitute_holes_map(binding.body, mapping),
             )
         case Rec() as rec:
             return replace(

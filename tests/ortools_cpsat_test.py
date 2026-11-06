@@ -49,6 +49,8 @@ def _solve(driver: AeonDriver, budget: float = 8.0) -> dict:
 
 
 def _values(mapping: dict) -> dict:
+    missing = [name.name for name, term in mapping.items() if term is None]
+    assert not missing, f"OR-Tools returned no complete solution; unresolved holes: {missing}"
     return {name.name: term.value for name, term in mapping.items()}
 
 

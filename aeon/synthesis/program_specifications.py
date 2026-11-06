@@ -10,7 +10,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from aeon.backend.evaluator import EvaluationContext
-from aeon.core.substitutions import substitution
 from aeon.core.terms import Term
 from aeon.core.types import top
 from aeon.decorators.api import Metadata
@@ -21,6 +20,7 @@ from aeon.synthesis.evaluation_pool import EvaluationPool, OK, TIMEOUT
 from aeon.synthesis.fitness_eval import make_bundled_fitness_evaluator, without_main_placeholder
 from aeon.synthesis.identification import get_holes, term_has_holes
 from aeon.synthesis.joint import JointCandidate
+from aeon.synthesis.modules.tdsyn.worklist import substitute_holes_map
 from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_targets
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
@@ -98,10 +98,40 @@ class ProgramSpecifications:
 
         self._fitness = evaluator(self.goals)
         self._checks = evaluator(self.checks)
+        # Fitness already includes most hard constraints. Reuse their exact
+        # vector positions in the same worker task instead of interpreting the
+        # whole candidate twice within one evaluation timeout.
+        goal_indices = {}
+        offset = 0
+        for goal in self.goals:
+            goal_indices[goal] = range(offset, offset + goal.length)
+            offset += goal.length
+        check_indices = (
+            [index for goal in self.checks for index in goal_indices[goal]]
+            if all(goal in goal_indices for goal in self.checks)
+            else None
+        )
+        cached_program: Term | None = None
+        cached_scores: list[float] = []
+
+        def fitness(program):
+            nonlocal cached_program, cached_scores
+            cached_program = None
+            cached_scores = self._fitness(program)
+            cached_program = program
+            return cached_scores
+
+        def checks(program):
+            if program is cached_program and check_indices is not None:
+                return [cached_scores[index] for index in check_indices]
+            # Omitted objectives and a failed fitness computation must not
+            # suppress independent hard-constraint evaluation.
+            return self._checks(program)
+
         self.pool = (
             EvaluationPool(
                 self.replace,
-                {"fitness": self._fitness, "specification": self._checks},
+                {"fitness": fitness, "specification": checks},
                 budget_eval=budget_eval,
             )
             if pooled
@@ -133,11 +163,10 @@ class ProgramSpecifications:
     def replace(self, candidate: Term) -> Term:
         if not isinstance(candidate, JointCandidate) or len(candidate.terms) != len(self.holes):
             raise InvalidIndividualException("candidate has the wrong hole count")
-        program = self.program
-        for hole, value in zip(self.holes, candidate.terms):
+        for value in candidate.terms:
             if term_has_holes(value):
                 raise InvalidIndividualException("candidate contains an unresolved hole")
-            program = substitution(program, value, hole)
+        program = substitute_holes_map(self.program, dict(zip(self.holes, candidate.terms)))
         if term_has_holes(program):
             raise InvalidIndividualException("candidate leaves an unresolved hole")
         return program
