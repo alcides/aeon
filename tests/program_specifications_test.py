@@ -88,8 +88,8 @@ def test_failed_fitness_does_not_hide_independent_constraint_result(monkeypatch)
 def test_bulk_replacement_preserves_linear_binders_and_fills_every_hole():
     with specifications(
         """
-        def first : Int := let 1 x := ?a in x;
-        def second : Int := let 1 y := ?b in y;
+        def first : Int := let 1 x : Int := ?a in x;
+        def second : Int := let 1 y : Int := ?b in y;
     """,
         pooled=False,
     ) as specs:
