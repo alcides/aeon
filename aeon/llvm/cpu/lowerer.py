@@ -104,8 +104,6 @@ BUILTIN_FUNCTION_TYPES: Dict[str, LLVMFunctionType] = {
     "cos": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "exp": LLVMFunctionType([LLVMDouble], LLVMDouble),
     "log": LLVMFunctionType([LLVMDouble], LLVMDouble),
-    "new": LLVMFunctionType([], _generic_ptr),
-    "append": LLVMFunctionType([_generic_ptr, LLVMInt], _generic_ptr),
     "get": LLVMFunctionType([_generic_ptr, LLVMInt], LLVMInt),
     "set": LLVMFunctionType([_generic_ptr, LLVMInt, LLVMInt], _generic_ptr),
     "map": LLVMFunctionType([LLVMPointerType(_func_i_i), _generic_ptr, LLVMInt], _generic_ptr),
@@ -198,7 +196,6 @@ POLYMORPHIC_FUNCTIONS: set[str] = {
     "set",
     "buf_get",
     "buf_set",
-    "new",
     "map",
     "reduce",
     "imap",
@@ -669,8 +666,6 @@ class CPULLVMLowerer(LLVMLowerer):
             ty = BUILTIN_FUNCTION_TYPES[builtin_key]
             if expected and isinstance(expected, LLVMFunctionType) and len(expected.arg_types) == len(ty.arg_types):
                 ty = expected
-            elif expected and name.name == "new" and isinstance(expected, LLVMPointerType):
-                ty = LLVMFunctionType([], expected)
             return LLVMVar(ty, name)
 
         if name in env:

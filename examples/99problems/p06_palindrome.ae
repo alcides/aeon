@@ -6,7 +6,7 @@ open Array
 def Array.isPalindrome (1 l: (Array Int)) : Bool := native "l == l[::-1]"
 
 def main (args:Int) : Unit :=
-    let 1 pal := (((Array.new{Int} unit).append 1).append 2).append 1;
-    let 1 notpal := (((Array.new{Int} unit).append 1).append 2).append 3;
+    let 1 pal := Array.mk_concat (Array.mk_2{Int} 1 2) (Array.mk_1{Int} 1);
+    let 1 notpal := Array.mk_concat (Array.mk_2{Int} 1 2) (Array.mk_1{Int} 3);
     _ := print pal.isPalindrome;
     print notpal.isPalindrome

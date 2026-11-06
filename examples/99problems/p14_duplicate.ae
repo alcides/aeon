@@ -7,5 +7,5 @@ def duplicate (1 l: (Array Int)) : {r:(Array Int) | Array.size r = 2 * Array.siz
     native "[x for x in l for _ in range(2)]"
 
 def main (args:Int) : Unit :=
-    let 1 a: (Array Int)  := (((Array.new{Int} unit).append 1).append 2).append 3;
+    let 1 a: (Array Int)  := Array.mk_concat (Array.mk_2{Int} 1 2) (Array.mk_1{Int} 3);
     print (duplicate a)

@@ -180,7 +180,7 @@ Following Lean, `[1, 2, 3]` is a `List` literal and `#[1, 2, 3]` an `Array`
 literal (`import List` / `import Array` to bring the types into scope). They
 desugar to the library constructors — `[1, 2, 3]` to
 `List.cons 1 (List.cons 2 (List.cons 3 List.nil))` and `#[1, 2, 3]` to
-`Array.append (Array.append (Array.append Array.new 1) 2) 3` — and element types
+`Array.mk_concat (Array.mk_2 1 2) (Array.mk_1 3)` — and element types
 are inferred. An empty literal (`[]` / `#[]`) is fine where the element type is
 known (e.g. from an annotation: `let e : (List Int) := []`).
 

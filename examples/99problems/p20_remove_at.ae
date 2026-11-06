@@ -9,5 +9,5 @@ def remove_at (1 l: (Array Int)) (k: {x:Int | x >= 0 && x < Array.size l}) :
 
 def main (args:Int) : Unit :=
     let 1 a: {x:(Array Int) | Array.size x = 5} :=
-        (((((Array.new{Int} unit).append 10).append 20).append 30).append 40).append 50;
+        Array.mk_concat (Array.mk_4{Int} 10 20 30 40) (Array.mk_1{Int} 50);
     print (remove_at a 2)

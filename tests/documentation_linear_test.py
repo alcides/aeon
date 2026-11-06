@@ -75,5 +75,5 @@ def test_array_module_marks_array_linear():
     doc = extract_documentation("aeon/libraries/Array.ae")
     array = next(t for t in doc.types if t.name == "Array")
     assert array.is_linear is True
-    append = next(f for f in doc.functions if f.name == "append")
-    assert append.args[0][2] == "1 "
+    concat = next(f for f in doc.functions if f.name == "mk_concat")
+    assert [arg[2] for arg in concat.args] == ["1 ", "1 "]

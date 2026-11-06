@@ -6,10 +6,10 @@ open Array
 def flatten (1 l: (Array (Array Int))) : (Array Int) := native "[x for sub in l for x in sub]"
 
 def main (args:Int) : Unit :=
-    let 1 a: (Array Int)  := ((Array.new{Int} unit).append 1).append 2;
-    let 1 b: (Array Int)  := (Array.new{Int} unit).append 3;
-    let 1 c: (Array Int)  := ((Array.new{Int} unit).append 4).append 5;
-    let 1 n1: (Array (Array Int))  := (Array.new{(Array Int)} unit).append a;
-    let 1 n2: (Array (Array Int))  := n1.append b;
-    let 1 nested: (Array (Array Int))  := n2.append c;
+    let 1 a: (Array Int)  := Array.mk_2{Int} 1 2;
+    let 1 b: (Array Int)  := Array.mk_1{Int} 3;
+    let 1 c: (Array Int)  := Array.mk_2{Int} 4 5;
+    let 1 n1: (Array (Array Int))  := Array.mk_1{(Array Int)} a;
+    let 1 n2: (Array (Array Int))  := Array.mk_concat n1 (Array.mk_1 b);
+    let 1 nested: (Array (Array Int))  := Array.mk_concat n2 (Array.mk_1 c);
     print (flatten nested)

@@ -14,7 +14,7 @@ is a Python `list`; refinements use the abstract `Array.size` measure. Since 4.9
 Bind arrays at multiplicity **1**:
 
 ```aeon
-let 1 xs := Array.append (Array.append (Array.new{Int} unit) 1) 2 in
+let 1 xs := Array.mk_2 1 2 in
 Array.sum xs
 ```
 
@@ -24,25 +24,57 @@ triggers `LinearUnusedError`.
 
 | Pattern | API |
 |---------|-----|
-| Transform (consume → new array) | `append`, `cons`, `set`, `reversed`, `map`, `filter` |
+| Transform (consume → new array) | `mk_concat`, `set`, `reversed`, `map`, `filter` |
 | Terminal read (consume array) | `length`, `get`, `head`, `sum`, `reduce`, `empty` |
 | Read and keep array | `get_at` + `got_value` / `got_array`; `len_of` + `len_value` / `len_array` |
 | Split into two independent arrays | `copy` → `fst_array` / `snd_array` |
 
-`Array.new unit` creates a **fresh** empty buffer (applied action, not a memoised
-value). Literal syntax `#[]` / `#[1, 2, 3]` desugars to `new` / `append` chains.
+## Constructors
+
+| Constructor | Result |
+|-------------|--------|
+| `mk_empty unit` | Fresh empty array; size 0 |
+| `mk_repeat n v` | `n` copies of `v`; requires `n >= 0` |
+| `mk_1`, `mk_2`, `mk_4`, `mk_8`, `mk_16`, `mk_32` | Exactly that many separately supplied elements, in argument order |
+| `mk_concat xs ys` | Elements of `xs` followed by `ys`; size `size xs + size ys` |
+
+Every constructor carries an exact size refinement. The fixed-arity constructors
+and `mk_concat` preserve the element predicate and consume their inputs once.
+`mk_repeat` takes an unrestricted value, with result type
+`{xs:(Array {x:a | x = v}) | size xs = n}`; it cannot duplicate a linear handle.
+Different arguments need not have different values.
+
+```aeon
+let 1 prefix := Array.mk_repeat 3 7 in
+let 1 suffix := Array.mk_2 8 9 in
+let 1 xs := Array.mk_concat prefix suffix in
+Array.sum xs  # 38
+```
+
+`mk_empty unit` is an applied action, so each evaluation creates a fresh buffer.
+An empty literal `#[]` expands to that call. Nonempty literals use the largest
+power-of-two chunks up to 32 elements, combined in a balanced `mk_concat` tree.
+For example, `#[1, 2, 3]` expands to
+`Array.mk_concat (Array.mk_2 1 2) (Array.mk_1 3)`.
+Literals support arbitrary lengths and evaluate their elements left to right.
+
+The old constructor names `new`, `append`, and `cons` have been removed.
+To append one element use `mk_concat xs (mk_1 x)`; to prepend one use
+`mk_concat (mk_1 x) xs`. The Boolean query `empty xs` tests whether an array
+is empty.
 
 ---
 
-## Refinement parameter `p`
+## Element refinements
 
 ```aeon
 linear type Array a forall <p : a -> Bool>
 ```
 
-Every element is known to satisfy predicate `p`. Operations that insert elements
-require `(1 x: {v:a | p v})`; reads return `{v:a | p v}`. The measure `size`
-threads through transforms so length proofs compose.
+The type declares an abstract element predicate. Constructors express their
+shared predicate as `a<p>` (shorthand for `{v:a | p v}`), so their result can be
+used wherever an array with that element refinement is required. The measure
+`size` threads through transforms so length proofs compose.
 
 ---
 

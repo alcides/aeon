@@ -506,21 +506,34 @@ class TreeToSugar(Transformer):
 
     @v_args(meta=True)
     def array_literal(self, meta, args):
-        # ``#[e1, ..., en]`` => ``Array.append (... (Array.append (Array.new unit) e1)) en``
-        # (left fold, so element order is preserved). ``Array.new`` is applied
-        # to ``unit`` because an array is unique: a nullary value would be
-        # memoised and every literal would alias one buffer.
+        # Build power-of-two chunks (up to 32 elements), then concatenate them
+        # in a balanced tree. Evaluation remains left-to-right, and large
+        # literals do not create a deeply nested chain of applications.
         loc = self._loc(meta)
         items = args[0] if args else []
-        result: STerm = SApplication(
-            SQualifiedVar("Array", Name("new"), loc=loc),
-            SLiteral(None, st_unit, loc=loc),
-            loc=loc,
-        )
-        for e in items:
-            app = SQualifiedVar("Array", Name("append"), loc=loc)
-            result = SApplication(SApplication(app, result, loc=loc), e, loc=loc)
-        return result
+
+        def call(name: str, *values: STerm) -> STerm:
+            term: STerm = SQualifiedVar("Array", Name(name), loc=loc)
+            for value in values:
+                term = SApplication(term, value, loc=loc)
+            return term
+
+        if not items:
+            # Applied action: each evaluation allocates its own empty array.
+            return call("mk_empty", SLiteral(None, st_unit, loc=loc))
+
+        chunks: list[STerm] = []
+        offset = 0
+        while offset < len(items):
+            arity = min(32, 1 << ((len(items) - offset).bit_length() - 1))
+            chunks.append(call(f"mk_{arity}", *items[offset : offset + arity]))
+            offset += arity
+        while len(chunks) > 1:
+            chunks = [
+                call("mk_concat", chunks[i], chunks[i + 1]) if i + 1 < len(chunks) else chunks[i]
+                for i in range(0, len(chunks), 2)
+            ]
+        return chunks[0]
 
     @v_args(meta=True)
     def refinement_application_e(self, meta, args):

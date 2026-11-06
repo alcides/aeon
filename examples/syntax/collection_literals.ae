@@ -1,7 +1,7 @@
 # Lean-style collection literals.
 #
 #   [1, 2, 3]    a List  (desugars to List.cons 1 (List.cons 2 (List.cons 3 List.nil)))
-#   #[1, 2, 3]   an Array (desugars to Array.append (Array.append (Array.append (Array.new unit) 1) 2) 3)
+#   #[1, 2, 3]   an Array (desugars to Array.mk_concat (Array.mk_2 1 2) (Array.mk_1 3))
 #
 # Element types are inferred. `[` is always a list literal; type application uses
 # braces — `f{Int}` instantiates `f` at `Int`. `#[` opens an array — never a comment.
