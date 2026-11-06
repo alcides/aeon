@@ -162,7 +162,9 @@ def expand_typeclasses(p: Program) -> Program:
                     return STypeConstructor(name, [])
                 return ty
             case STypeConstructor(name, args):
-                return STypeConstructor(name, [_concretize_head(a, bound) for a in args], loc=ty.loc)
+                return STypeConstructor(
+                    name, [_concretize_head(a, bound) for a in args], loc=ty.loc, refinements=ty.refinements
+                )
             case _:
                 return ty
 

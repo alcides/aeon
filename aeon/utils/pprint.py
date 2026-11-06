@@ -447,9 +447,6 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
 
         case STypeConstructor(name=name, args=args):
             pretty_name = text(name.pretty())
-            if not args:
-                return pretty_name
-
             pretty_args = [
                 pretty_stype_with_parens(arg, ParenthesisContext(Precedence.TYPE_CONSTRUCTOR, Side.RIGHT))
                 for arg in args
@@ -458,7 +455,10 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
             pretty_args_doc = insert_between(text(" "), pretty_args)
             # Applied constructors are always parenthesized in the grammar,
             # including at the root and inside another constructor.
-            return parens(group(concat([pretty_name, text(" "), pretty_args_doc])))
+            base = parens(group(concat([pretty_name, text(" "), pretty_args_doc]))) if args else pretty_name
+            if stype.refinements:
+                return concat([base, *[concat([text("{|"), sterm_pretty(p), text("|}")]) for p in stype.refinements]])
+            return base
 
         case _:
             return text(str(stype))

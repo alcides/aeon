@@ -10,20 +10,20 @@ from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
 from aeon.core.types import TypeVar
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.liquid import typecheck_liquid
+from aeon.typechecking.liquid import typecheck_liquid, LiquidTypeCheckException
 
 
 def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
     match t:
         case Top():
             return True  # wf_no_refinement
-        case RefinedType(_, TypeConstructor(), LiquidLiteralBool()):
+        case RefinedType(_, TypeConstructor() as inner, LiquidLiteralBool()):
             # A literal predicate has Bool sort independently of value scope.
             # Avoid copying thousands of unrelated bindings to check `true`.
-            return True
+            return wf_inner(ctx, inner, k)
         case RefinedType(name, TypeConstructor(_, _) as ty, refinement):
             inferred_type = typecheck_liquid(ctx, refinement, (name, ty))
-            return inferred_type == t_bool
+            return wf_inner(ctx, ty, k) and inferred_type == t_bool
         case TypeVar(tvname):
             return tvname in [v[0] for v in ctx.typevars()]
         case RefinedType(name, TypeVar(tvname), LiquidLiteralBool(True)):
@@ -43,6 +43,26 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
             # ``d1 -> ... -> Bool``; bind the refinement parameter at it directly.
             return k == Kind.STAR and wellformed(ctx, sort) and wellformed(ctx.with_refinement(name, sort), body)
         case TypeConstructor(name, args):
+            if t.refinements:
+                from aeon.core.substitutions import predicate_domains
+                from aeon.core.liquid import LiquidVar
+                from aeon.utils.name import Name, fresh_counter
+
+                sorts = ctx.datatype_predicate_sorts(t)
+                if len(sorts) != len(t.refinements):
+                    return False
+                for predicate, sort in zip(t.refinements, sorts):
+                    local = ctx
+                    parameters = []
+                    for domain in predicate_domains(sort):
+                        parameter = Name("relation_arg", fresh_counter.fresh())
+                        local = local.with_var(parameter, domain)
+                        parameters.append(LiquidVar(parameter))
+                    try:
+                        if typecheck_liquid(local, predicate.apply(parameters)) != t_bool:
+                            return False
+                    except (AssertionError, ValueError, KeyError, LiquidTypeCheckException):
+                        return False
             if not args:
                 return ctx.get_type_constructor(name) is not None
             else:
@@ -68,8 +88,11 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
 
 
 def wellformed(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
-    match k:
-        case Kind.STAR:
-            return wf_inner(ctx, t, Kind.STAR) or wf_inner(ctx, t, Kind.BASE)
-        case _:
-            return wf_inner(ctx, t, Kind.BASE)
+    try:
+        match k:
+            case Kind.STAR:
+                return wf_inner(ctx, t, Kind.STAR) or wf_inner(ctx, t, Kind.BASE)
+            case _:
+                return wf_inner(ctx, t, Kind.BASE)
+    except LiquidTypeCheckException:
+        return False

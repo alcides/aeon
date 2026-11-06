@@ -352,7 +352,7 @@ def _specialize_type(ty: Type, mapping: dict[str, TypeConstructor]) -> Type:
             # b → Dataset}`` becomes ``Pair Dataset Dataset``.
             sargs = [_specialize_type(a, mapping) for a in args]
             assert all(isinstance(s, (TypeConstructor, TypeVar, RefinedType)) for s in sargs)
-            return TypeConstructor(name, sargs, loc=ty.loc)
+            return TypeConstructor(name, sargs, loc=ty.loc, refinements=ty.refinements)
         case AbstractionType(vname, vty, body, loc):
             svty = _specialize_type(vty, mapping)
             sbody = _specialize_type(body, mapping)
@@ -1131,7 +1131,7 @@ def unrefine_type(base: Type):
         case TypePolymorphism(name, kind, body):
             return TypePolymorphism(name, kind, unrefine_type(body))
         case TypeConstructor(name, args):
-            return TypeConstructor(name, [unrefine_type(a) for a in args])
+            return TypeConstructor(name, [unrefine_type(a) for a in args], refinements=base.refinements)
 
         case _:
             return base

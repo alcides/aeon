@@ -1,0 +1,10 @@
+# Run: python -m aeon --budget 30 -s synquid examples/synthesis/synquid/relational_swap.ae
+# Swapping the fields reverses an arbitrary binary relation.
+inductive Duo a forall <r:a -> a -> Bool>
+| mk (first:a) (second:{v:a | r first v}) : (Duo a){|r|}
+
+def swap : forall a:B, forall <r:a -> a -> Bool>,
+    (d:(Duo a){|r|}) -> (Duo a){|fun x => fun y => r y x|} := ?body;
+
+def main (u:Int) : (Duo Int){|fun x => fun y => x > y|} :=
+    swap{Int}{|fun x => fun y => x < y|} (Duo.mk 1 2);

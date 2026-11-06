@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar, LiquidPredicate
 from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Abstraction, Literal, Term, Var
 from aeon.core.types import (
@@ -17,6 +17,8 @@ from aeon.core.types import (
     RefinementPolymorphism,
     Type,
     TypePolymorphism,
+    TypeConstructor,
+    ExistentialType,
     t_bool,
     extract_parts,
 )
@@ -30,9 +32,9 @@ from aeon.verification.vcs import Constraint, LiquidConstraint, conjoin
 def unconstrained_predicate(sort: Type) -> Abstraction:
     """Forget an erased predicate only in the evidence used to justify it.
 
-    Aeon's datatype representation stores refined type arguments, but has no
-    separate slots for abstract relations. Such a relation must be proved from
-    constructor/scrutinee facts before a match can assume it in its fields.
+    A legacy datatype may omit relation arguments from its constructor results.
+    Such a relation must follow from constructor/scrutinee facts before a match
+    can assume it in its fields.
     """
     parameters = []
     while isinstance(sort, AbstractionType):
@@ -43,6 +45,20 @@ def unconstrained_predicate(sort: Type) -> Abstraction:
         result = Abstraction(parameter, result)
     assert isinstance(result, Abstraction)
     return result
+
+
+def stored_match_predicate(actual: Type, index: int, sort: Type) -> LiquidPredicate:
+    """Recover a retained datatype relation, or use the legacy erased evidence."""
+    from aeon.core.predicates import predicate_from_term
+    from aeon.core.substitutions import predicate_domains
+
+    while isinstance(actual, (RefinedType, ExistentialType)):
+        actual = actual.type if isinstance(actual, RefinedType) else actual.body
+    if not isinstance(actual, TypeConstructor) or index >= len(actual.refinements):
+        return predicate_from_term(unconstrained_predicate(sort))
+    parameters = tuple(Name("relation_arg", fresh_counter.fresh()) for _ in predicate_domains(sort))
+    body = actual.refinements[index].apply([LiquidVar(n) for n in parameters])
+    return LiquidPredicate(parameters, body)
 
 
 @dataclass(frozen=True)

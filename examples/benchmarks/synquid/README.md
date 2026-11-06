@@ -55,8 +55,7 @@ are being closed in order (see *Aligning further*). Current state:
      file. See *Aligning further*.
    * **`List-Reverse`** preserves only length. The original's abstract relation
      that specifies reversed element order is absent, so the identity function
-     satisfies the port. See the [runnable predicate-polymorphism example and
-     datatype limitation](../../../docs/synquid-round-trip.md#abstract-refinements-runnable-example-and-paper-limitation).
+     satisfies the port. See the [runnable relational examples](../../../docs/synquid-round-trip.md#abstract-refinements-runnable-examples).
 
 Datatypes with a standard-library equivalent use it directly (`List` via
 `open List`, `Maybe` via `open Maybe`); only datatypes with **no** stdlib
@@ -93,14 +92,11 @@ BinHeap (5), AVL (6), RBT (3), AddressBook (2), Evaluator (1), UniqueList (3).
 In order of planned work:
 
 3. **Polymorphism — done** (above).
-1. **N-ary abstract refinements over inductive datatypes** — the biggest lever.
-   Synquid's BST order, heap order, and `IncList` bounds are datatypes
-   parameterised by a relation, e.g. `data T a <r :: a -> a -> Bool>` (and, in
-   general, *n*-ary relations, not only binary). Aeon already has unary
-   abstract refinements on `List` (`forall <p : a -> Bool>`); generalising them
-   to **n-ary** relations and to user trees lets BST/BinHeap/AVL/RBT and the
-   sorted-list families carry their real invariants (and go polymorphic)
-   instead of tracking only node-count.
+1. **Translate the remaining datatype relations.** Aeon now retains n-ary
+   predicate arguments, for example `(RList a){|r|}`. The
+   [relational examples](../../../docs/synquid-round-trip.md#abstract-refinements-runnable-examples)
+   exercise polymorphic relation reversal. The BST/BinHeap/AVL/RBT benchmark
+   contracts still need to be translated and their synthesis performance tested.
 2. **A `Set`/`elems` measure** for lists and trees, so `Elem`, `Delete`, `Nub`,
    `Compress`, `UniqueList-*`, and the sort benchmarks can state
    *element-set preservation* (and uniqueness) rather than only a length bound.

@@ -62,7 +62,9 @@ def merge_requirements(left: Type, right: Type) -> Type:
         n, lb, lp = extract_parts(left)
         rn, rb, rp = extract_parts(right)
         if isinstance(lb, TypeConstructor) and isinstance(rb, TypeConstructor):
-            lb = TypeConstructor(lb.name, [merge_requirements(a, b) for a, b in zip(lb.args, rb.args)])
+            lb = TypeConstructor(
+                lb.name, [merge_requirements(a, b) for a, b in zip(lb.args, rb.args)], refinements=lb.refinements
+            )
         return RefinedType(n, lb, mk_liquid_and(lp, substitution_in_liquid(rp, LiquidVar(n), rn)))
     return left
 

@@ -185,7 +185,7 @@ def resolve_qualified_names_in_stype(
             return SRefinementPolymorphism(name, rec_ty(sort), rec_ty(body), loc=loc)
         case STypeConstructor(name, args, loc):
             new_args = [rec_ty(a) for a in args]
-            return STypeConstructor(name, new_args, loc=loc)
+            return STypeConstructor(name, new_args, loc=loc, refinements=[rec_term(p) for p in ty.refinements])
         case _:
             return ty
 

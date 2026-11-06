@@ -1,0 +1,31 @@
+# Checked PLDI 2016 relational-list reversal, with explicit instantiations.
+# Run: python -m aeon examples/synthesis/synquid/relational_reverse.ae
+
+inductive RList a forall <r:a -> a -> Bool>
+| nil : {xs:(RList a){|r|} | size xs = 0}
+| cons (head:a) (tail:{xs:(RList {v:a | r head v}){|r|} | size xs >= 0}) : {xs:(RList a){|r|} | size xs = size tail + 1}
++ size (xs:(RList a)) : Int
+
+def snoc : forall a:B, forall <r:a -> a -> Bool>,
+    (x:a) -> (xs:(RList {v:a | r v x}){|r|}) -> {ys:(RList a){|r|} | RList.size ys = RList.size xs + 1} decreasing_by [RList.size xs] :=
+    Λ a:B => Λ <r:a -> a -> Bool> => fun x => fun xs =>
+    match xs with
+    | nil => RList.cons{a}{|r|} x (RList.nil{{v:a | r x v}}{|r|})
+    | cons head tail => RList.cons{a}{|r|} head (snoc{{v:a | r head v}}{|r|} x tail);
+
+def reverse : forall a:B, forall <r:a -> a -> Bool>,
+    (xs:(RList a){|r|}) -> {ys:(RList a){|fun x => fun y => r y x|} | RList.size ys = RList.size xs} decreasing_by [RList.size xs] :=
+    Λ a:B => Λ <r:a -> a -> Bool> => fun xs =>
+    match xs with
+    | nil => RList.nil{a}{|fun u => fun v => r v u|}
+    | cons head tail => snoc{a}{|fun u => fun v => r v u|} head (reverse{{v:a | r head v}}{|r|} tail);
+
+# The constructor type arguments retain the facts about preceding elements.
+def input : (RList Int){|fun x => fun y => x < y|} :=
+    RList.cons{Int}{|fun x => fun y => x < y|} 1
+        (RList.cons{{v:Int | v > 1}}{|fun x => fun y => x < y|} 2
+            (RList.cons{{v:Int | v > 2}}{|fun x => fun y => x < y|} 3
+                (RList.nil{{v:Int | v > 3}}{|fun x => fun y => x < y|})));
+
+def main (u:Int) : (RList Int){|fun x => fun y => x > y|} :=
+    reverse{Int}{|fun x => fun y => x < y|} input;

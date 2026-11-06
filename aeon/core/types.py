@@ -9,6 +9,7 @@ from aeon.core.liquid import LiquidHole
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidPredicate
 from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import fresh_counter, Name
@@ -161,18 +162,25 @@ class TypeConstructor(Type):
     name: Name
     args: list[Type] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    refinements: list[LiquidPredicate] = field(default_factory=list)
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)
-        return f"{self.name} {args}"
+        predicates = "".join("{|" + str(p) + "|}" for p in self.refinements)
+        return f"{self.name} {args}{predicates}"
 
     def __eq__(self, other):
-        return type(other) is TypeConstructor and other.name == self.name and self.args == other.args
+        return (
+            type(other) is TypeConstructor
+            and other.name == self.name
+            and self.args == other.args
+            and self.refinements == other.refinements
+        )
 
     def __hash__(self) -> int:
         h = getattr(self, "_hash", None)
         if h is None:
-            h = hash(self.name) + sum(hash(a) for a in self.args)
+            h = hash(self.name) + sum(hash(a) for a in self.args) + hash(tuple(self.refinements))
             object.__setattr__(self, "_hash", h)
         return h
 
@@ -299,7 +307,9 @@ def extract_parts(t: Type) -> tuple[Name, TypeConstructor | TypeVar, LiquidTerm]
 def is_bare(t: Type) -> bool:
     """Returns whether the type is bare."""
     match t:
-        case TypeConstructor(_, _) | Top() | TypeVar():
+        case TypeConstructor(_, args):
+            return all(p.implicit for p in t.refinements) and all(is_bare(a) for a in args)
+        case Top() | TypeVar():
             return True
         case RefinedType(_, _, ref):
             return ref == LiquidHole() or isinstance(ref, LiquidHornApplication)
@@ -322,7 +332,12 @@ def type_free_term_vars(t: Type) -> list[Name]:
     from aeon.prelude.prelude import ALL_OPS
 
     if isinstance(t, TypeConstructor):
-        return []
+        return [v for arg in t.args for v in type_free_term_vars(arg)] + [
+            v
+            for p in t.refinements
+            for v in liquid_free_vars(p.body)
+            if v not in p.parameters and v not in ALL_OPS and not p.implicit
+        ]
     elif isinstance(t, TypeVar):
         return []
     elif isinstance(t, AbstractionType):
@@ -335,6 +350,8 @@ def type_free_term_vars(t: Type) -> list[Name]:
         return [x for x in ifv + rfv if x != t.name]
     elif isinstance(t, TypePolymorphism):
         return type_free_term_vars(t.body)
+    elif isinstance(t, RefinementPolymorphism):
+        return [v for v in type_free_term_vars(t.sort) + type_free_term_vars(t.body) if v != t.name]
     elif isinstance(t, ExistentialType):
         binder_names = {bn for bn, _ in t.binders}
         bfv: list[Name] = []
