@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import random
+from itertools import count
+from heapq import heappop, heappush
 from collections import deque
 from collections.abc import Iterator
 from time import monotonic_ns
@@ -28,7 +30,8 @@ from aeon.synthesis.modules.tdsyn.actions import (
     forward_let_tabs_candidates,
     forward_let_tapp_candidates,
 )
-from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn
+from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn, is_constructor_term
+from aeon.synthesis.modules.tdsyn.constraints import deadline
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
 from aeon.synthesis.modules.tdsyn.worklist import (
     Child,
@@ -38,14 +41,13 @@ from aeon.synthesis.modules.tdsyn.worklist import (
     fresh_hole,
     substitute_hole,
     substitute_holes_map,
+    term_at,
 )
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
-
-MAX_DEPTH = 5
 
 _loc = SynthesizedLocation("tdsyn")
 
@@ -132,24 +134,28 @@ class TDSynSynthesizer(Synthesizer):
 
         initial_partial = PartialAST(term=initial_term, holes=initial_holes, depth=0)
 
-        # Loop: restart search when worklist/walk is exhausted, until budget runs out
-        while _get_elapsed_time(start_time) < budget:
-            if self.mode == "enumerative":
-                front, early = self._enumerative_search(
-                    initial_partial, skip, validate, evaluate, start_time, budget, ui, front
-                )
-            else:
-                front, early = self._random_search(
-                    initial_partial, skip, validate, evaluate, start_time, budget, ui, front
-                )
-            # If no goals, return the first valid term found
-            if early is not None:
-                return early
+        token = deadline.set(start_time * 1e-9 + budget)
+        try:
+            # Loop: restart search when worklist/walk is exhausted, until budget runs out
+            while _get_elapsed_time(start_time) < budget:
+                if self.mode == "enumerative":
+                    front, early = self._enumerative_search(
+                        initial_partial, skip, validate, evaluate, start_time, budget, ui, front
+                    )
+                else:
+                    front, early = self._random_search(
+                        initial_partial, skip, validate, evaluate, start_time, budget, ui, front
+                    )
+                # If no goals, return the first valid term found
+                if early is not None:
+                    return early
 
-        if front:
-            ui.register_front(front, _get_elapsed_time(start_time))
-            return pick_pareto_member(front, self.seed)
-        raise SynthesisNotSuccessful("TDSynSynthesizer: no valid candidate found within budget")
+            if front:
+                ui.register_front(front, _get_elapsed_time(start_time))
+                return pick_pareto_member(front, self.seed)
+            raise SynthesisNotSuccessful("TDSynSynthesizer: no valid candidate found within budget")
+        finally:
+            deadline.reset(token)
 
     def _try_complete(
         self,
@@ -222,7 +228,7 @@ class TDSynSynthesizer(Synthesizer):
         partial: PartialAST,
         hole: TypedHole,
         skip: Callable[[Name], bool],
-        max_depth: int = MAX_DEPTH,
+        max_depth: int | None = None,
     ) -> list[PartialAST]:
         """Expand a hole using the selected directions and the shared worklist."""
         results: list[PartialAST] = []
@@ -239,7 +245,7 @@ class TDSynSynthesizer(Synthesizer):
 
             for replacement, new_holes in candidates:
                 new_depth = partial.depth + (1 if new_holes else 0)
-                if new_depth <= max_depth:
+                if max_depth is None or new_depth <= max_depth:
                     results.append(expand_at_hole(partial, hole, replacement, new_holes, new_depth))
 
         # Shuffle on non-first iterations to explore different orderings
@@ -253,7 +259,7 @@ class TDSynSynthesizer(Synthesizer):
         ctx: TypingContext,
         target: Type,
         skip: Callable[[Name], bool],
-        max_depth: int = MAX_DEPTH,
+        max_depth: int,
         max_expansions: int = 4096,
         max_worklist: int = 4096,
         initial: PartialAST | None = None,
@@ -326,15 +332,33 @@ class TDSynSynthesizer(Synthesizer):
         ui: SynthesisUI,
         front: list[ParetoEntry],
     ) -> tuple[list[ParetoEntry], Term | None]:
-        """BFS-based enumerative search."""
-        self._iteration += 1
-        worklist: deque[PartialAST] = deque([initial])
+        """Fair BFS with a constructor lane for refinement-guided data building.
 
-        while worklist:
+        Alternate ordinary BFS with constructor continuations. This reaches
+        deep data without enumerating every unrelated shallow function first,
+        while keeping those other expressions in the search. Neither lane has
+        a depth or candidate-count cutoff.
+        """
+        self._iteration += 1
+        tickets = count()
+        worklist = deque([(next(tickets), initial, True)])
+        constructors: list[tuple[int, int, PartialAST]] = []
+        visited: set[int] = set()
+        guided_turn = False
+
+        while worklist or constructors:
             if _get_elapsed_time(start_time) > budget:
                 break
 
-            partial = worklist.popleft()
+            if constructors and (guided_turn or not worklist):
+                _, ticket, partial = heappop(constructors)
+                constructive = True
+            else:
+                ticket, partial, constructive = worklist.popleft()
+            guided_turn = not guided_turn
+            if ticket in visited:
+                continue
+            visited.add(ticket)
 
             if partial.is_complete():
                 front, early = self._try_complete(partial, validate, evaluate, start_time, ui, front)
@@ -343,12 +367,12 @@ class TDSynSynthesizer(Synthesizer):
                 continue
 
             # Try SMT completion if all holes are leaf-solvable
-            front, early, smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
+            front, early, _ = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
             if early is not None:
                 return front, early
 
-            # Pick the first unfilled hole
-            hole = partial.holes[0]
+            # Leave scalar payloads for joint SMT completion.
+            hole = next((h for h in partial.holes if not all_leaf_holes([h])), partial.holes[0])
             expanded = self._expand_hole(partial, hole, skip)
 
             for new_partial in expanded:
@@ -360,13 +384,14 @@ class TDSynSynthesizer(Synthesizer):
                         return front, early
                 else:
                     # Try SMT on newly expanded partials too
-                    front, early, smt_ok = self._try_smt_complete(
-                        new_partial, validate, evaluate, start_time, ui, front
-                    )
+                    front, early, _ = self._try_smt_complete(new_partial, validate, evaluate, start_time, ui, front)
                     if early is not None:
                         return front, early
-                    if not smt_ok:
-                        worklist.append(new_partial)
+                    follows_constructors = constructive and is_constructor_term(term_at(new_partial.term, hole.path))
+                    ticket = next(tickets)
+                    worklist.append((ticket, new_partial, follows_constructors))
+                    if follows_constructors:
+                        heappush(constructors, (-new_partial.depth, ticket, new_partial))
 
         return front, None
 
@@ -388,21 +413,22 @@ class TDSynSynthesizer(Synthesizer):
             # Start fresh from initial each time for random search
             partial = PartialAST(term=initial.term, holes=list(initial.holes), depth=initial.depth)
 
-            # Randomly expand holes until complete or stuck
-            attempts = 0
-            while not partial.is_complete() and attempts < MAX_DEPTH * 2:
+            # Probabilistic restarts have no maximum walk length. Every finite
+            # constructor depth remains reachable, while bad walks do not
+            # monopolize the entire budget.
+            steps = 0
+            while not partial.is_complete():
                 if _get_elapsed_time(start_time) > budget:
                     break
 
                 # Try SMT completion first
-                front, early, smt_ok = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
+                front, early, _ = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
                 if early is not None:
                     return front, early
-                if smt_ok:
-                    break
 
                 # Pick a random hole
-                hole = rng.choice(partial.holes)
+                structural = [h for h in partial.holes if not all_leaf_holes([h])]
+                hole = rng.choice(structural or partial.holes)
 
                 # Get all candidates from the selected directions
                 all_candidates: list[PartialAST] = self._expand_hole(partial, hole, skip)
@@ -410,8 +436,23 @@ class TDSynSynthesizer(Synthesizer):
                 if not all_candidates:
                     break
 
-                partial = rng.choice(all_candidates)
-                attempts += 1
+                # Check completions before walking deeper (in particular nil
+                # at the required tail length). Rejected SMT proposals do not
+                # suppress ordinary expansions of their holes.
+                for candidate in all_candidates:
+                    if _get_elapsed_time(start_time) >= budget:
+                        break
+                    front, early = self._try_complete(candidate, validate, evaluate, start_time, ui, front)
+                    if early is None:
+                        front, early, _ = self._try_smt_complete(candidate, validate, evaluate, start_time, ui, front)
+                    if early is not None:
+                        return front, early
+                if steps and rng.random() < 1 / (steps + 2):
+                    break
+                constructors = [p for p in all_candidates if is_constructor_term(term_at(p.term, hole.path))]
+                choices = constructors if constructors and rng.random() < 0.9 else all_candidates
+                partial = rng.choice(choices)
+                steps += 1
 
             if partial.is_complete():
                 front, early = self._try_complete(partial, validate, evaluate, start_time, ui, front)

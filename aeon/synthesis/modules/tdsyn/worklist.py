@@ -59,6 +59,7 @@ class TypedHole:
     context: TypingContext
     constraints: list[LiquidTerm] = field(default_factory=list)
     path: Path = ()
+    bindings: dict[Name, Type] = field(default_factory=dict)
 
 
 @dataclass
@@ -121,6 +122,24 @@ def locate_holes(term: Term, prefix: Path = ()) -> dict[Name, Path]:
             return {}
         case _:
             return {}
+
+
+def term_at(term: Term, path: Path) -> Term:
+    """Read the subtree at a hole's zipper path."""
+    attributes = {
+        Child.FUN: "fun",
+        Child.ARG: "arg",
+        Child.BODY: "body",
+        Child.COND: "cond",
+        Child.THEN: "then",
+        Child.OTHERWISE: "otherwise",
+        Child.EXPR: "expr",
+        Child.VALUE: "var_value",
+        Child.REFINEMENT: "refinement",
+    }
+    for step in path:
+        term = getattr(term, attributes[step])
+    return term
 
 
 def substitute_at(term: Term, path: Path, replacement: Term) -> Term:
@@ -238,5 +257,18 @@ def expand_at_hole(
     for h in new_holes:
         rel = relative.get(h.name, ())
         placed.append(replace(h, path=hole.path + rel))
+    from aeon.synthesis.modules.tdsyn.constraints import obligations
+
+    bindings, predicates = obligations(hole, replacement, new_holes)
     remaining = [h for h in partial.holes if h.name != hole.name]
-    return PartialAST(new_term, remaining + placed, depth, list(partial.constraints))
+    # Choices made for one argument constrain its siblings too. Copy the state
+    # so exploring another candidate cannot mutate this branch's obligations.
+    updated = [
+        replace(
+            h,
+            bindings={**h.bindings, **bindings},
+            constraints=list(dict.fromkeys([*h.constraints, *predicates])),
+        )
+        for h in remaining + placed
+    ]
+    return PartialAST(new_term, updated, depth, list(partial.constraints))
