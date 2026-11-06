@@ -27,7 +27,7 @@ def parallel_lengths (1 xs: {a: (Array Int) | Array.size a >= 2}) : Int :=
     ForkJoin.joined_fst j + ForkJoin.joined_snd j;
 
 def main (_: Int) : Unit :=
-    let 1 xs0 := ((Array.new{Int} unit).append 10).append 20 in
-    let 1 xs1 := Array.append xs0 30 in
-    let 1 xs2 := Array.append xs1 40 in
+    let 1 xs0 := Array.mk_2{Int} 10 20 in
+    let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 30) in
+    let 1 xs2 := Array.mk_concat xs1 (Array.mk_1 40) in
     print (parallel_lengths xs2);

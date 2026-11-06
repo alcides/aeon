@@ -10,5 +10,5 @@ def slice (1 l: (Array Int))
 
 def main (args:Int) : Unit :=
     let 1 a: {x:(Array Int) | Array.size x = 7} :=
-        (((((((Array.new{Int} unit).append 1).append 2).append 3).append 4).append 5).append 6).append 7;
+        Array.mk_concat (Array.mk_concat (Array.mk_4{Int} 1 2 3 4) (Array.mk_2{Int} 5 6)) (Array.mk_1{Int} 7);
     print (slice a 3 5)

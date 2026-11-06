@@ -9,5 +9,5 @@ def encode (1 l: (Array Int)) : (Array (Array Int)) :=
     native "[[len(list(g)), k] for k, g in itertools.groupby(l)]"
 
 def main (args:Int) : Unit :=
-    let 1 a: (Array Int)  := ((((((Array.new{Int} unit).append 1).append 1).append 1).append 2).append 3).append 3;
+    let 1 a: (Array Int)  := Array.mk_concat (Array.mk_4{Int} 1 1 1 2) (Array.mk_2{Int} 3 3);
     print (encode a)

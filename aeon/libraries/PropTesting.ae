@@ -24,13 +24,11 @@ def countTrues (1 l:(Array Bool)) : Int :=
     native "sum(1 for x in l if x)"
 
 
-def repeat (v:a) (n:Int) : (Array a) := native "[v for _ in range(n)]"
-
 def ratio (a:Int) (b:Int) : Float := native "a/b"
 
 def forAllInts (func:(a: Int) -> Bool) : Float :=
     n := 1000;
-    let 1 vs := repeat random n in
+    let 1 vs := Array.mk_repeat n random in
     let 1 rds := vs.map generateInt in
     let 1 rs := rds.map func in
     positive := (countTrues rs);
@@ -39,7 +37,7 @@ def forAllInts (func:(a: Int) -> Bool) : Float :=
 
 def forAllFloats (func:(a: Float) -> Bool) : Float :=
     n := 1000;
-    let 1 vs := repeat random n in
+    let 1 vs := Array.mk_repeat n random in
     let 1 rds := vs.map generateFloat in
     let 1 rs := rds.map func in
     positive := (countTrues rs);
@@ -48,7 +46,7 @@ def forAllFloats (func:(a: Float) -> Bool) : Float :=
 
 def forAllLists (func:(1 a: (Array Int)) -> Bool) : Float :=
     n := 1000;
-    let 1 vs := repeat random n in
+    let 1 vs := Array.mk_repeat n random in
     let 1 rds := vs.map generateList in
     let 1 rs := rds.map func in
     positive := (countTrues rs);

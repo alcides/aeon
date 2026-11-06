@@ -339,8 +339,8 @@ non_dot_simple : "(" expression ")"                          -> same
         | OPSECTION                                          -> var_op
         | HOLE                                               -> hole
         // Lean-style collection literals. ``[1, 2, 3]`` desugars to
-        // ``List.cons``/``List.nil`` and ``#[1, 2, 3]`` to ``Array.new``/
-        // ``Array.append`` (element types are inferred). ``[`` is unambiguously a
+        // ``List.cons``/``List.nil`` and ``#[1, 2, 3]`` to ``Array.mk_N``/
+        // ``Array.mk_concat`` (or ``Array.mk_empty unit``; element types are inferred). ``[`` is unambiguously a
         // list literal — type application uses ``{t}`` (e.g. ``List.nil{Int}``).
         | "[" list_items "]"                                 -> list_literal
         | "#[" list_items "]"                                -> array_literal

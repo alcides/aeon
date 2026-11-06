@@ -37,8 +37,8 @@ def test_array_linear_chain_ok():
 open Array
 
 def build (n: Int) : Int :=
-    let 1 a0 := append (new unit) 1 in
-    let 1 a1 := append a0 2 in
+    let 1 a0 := Array.mk_1 1 in
+    let 1 a1 := Array.mk_concat a0 (Array.mk_1 2) in
     let 1 a2 := set a1 0 n in
     sum a2;
 
@@ -54,7 +54,7 @@ def test_array_unused_errors():
 open Array
 
 def leak (args: Int) : Int :=
-    let 1 a := append (new unit) 1 in
+    let 1 a := Array.mk_1 1 in
     0;
 
 def main (args: Int) : Unit := print "ok";
@@ -70,9 +70,9 @@ def test_array_used_twice_errors():
 open Array
 
 def twice (args: Int) : Int :=
-    let 1 a := append (new unit) 1 in
-    let 1 b := append a 2 in
-    let 1 c := append a 3 in
+    let 1 a := Array.mk_1 1 in
+    let 1 b := Array.mk_concat a (Array.mk_1 2) in
+    let 1 c := Array.mk_concat a (Array.mk_1 3) in
     sum b;
 
 def main (args: Int) : Unit := print "ok";
@@ -88,7 +88,7 @@ def test_array_omega_binder_rejected():
 open Array
 
 def leak (args: Int) : Int :=
-    let a := append (new unit) 1 in
+    let a := Array.mk_1 1 in
     sum a;
 
 def main (args: Int) : Unit := print "ok";
@@ -104,7 +104,7 @@ def test_array_copy_splits_reference_ok():
 open Array
 
 def fork (n: Int) : Int :=
-    let 1 a := append (append (new unit) n) 7 in
+    let 1 a := Array.mk_2 n 7 in
     let p := copy a in
     let 1 left := fst_array p in
     let 1 right := snd_array p in

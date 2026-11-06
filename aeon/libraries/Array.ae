@@ -6,7 +6,7 @@
 #    that every element of the array satisfies.
 #
 # The underlying storage is a Python list, so operations are O(1) for
-# indexed access and O(n) for prepend.
+# indexed access and O(n + m) for concatenation.
 #
 # ── Linear (QTT) discipline ──────────────────────────────────────────────
 #
@@ -24,7 +24,7 @@
 #
 # Operations come in two flavours:
 #
-#   * **Transformers** (``append``, ``cons``, ``set``, ``reversed``, ``map``,
+#   * **Transformers** (``mk_concat``, ``set``, ``reversed``, ``map``,
 #     ``filter``) consume the array and return a fresh one — bind the result
 #     to the next ``let 1`` and keep going.
 #
@@ -81,12 +81,55 @@ def length (1 arr: (Array a)) : {n:Int | n = size arr} :=
     native "len(arr)"
 
 
-# Empty array — a fresh, uniquely-owned buffer.
-#
-# _: applied action; each ``new unit`` yields a distinct buffer (not memoised).
-# returns: array with ``size = 0``.
-def new (_: Unit) : {arr:(Array a) | size arr = 0} :=
-    native "[]"
+# A Unit argument makes each empty array a fresh allocation.
+def mk_empty (_:Unit) : {xs:(Array a<p>) | size xs = 0} :=
+    native "[]";
+
+# The repeated value is unrestricted: linear resources cannot be duplicated.
+def mk_repeat (n:{n:Int | n >= 0}) (v:a) :
+    {xs:(Array {x:a | x = v}) | size xs = n} :=
+    native "[v] * n";
+
+# Fixed-arity constructors preserve argument order and the element predicate.
+def mk_1 (1 x0:a<p>)
+    : {xs:(Array a<p>) | size xs = 1} :=
+    native "[x0]";
+
+def mk_2 (1 x0:a<p>) (1 x1:a<p>)
+    : {xs:(Array a<p>) | size xs = 2} :=
+    native "[x0, x1]";
+
+def mk_4 (1 x0:a<p>) (1 x1:a<p>) (1 x2:a<p>) (1 x3:a<p>)
+    : {xs:(Array a<p>) | size xs = 4} :=
+    native "[x0, x1, x2, x3]";
+
+def mk_8 (1 x0:a<p>) (1 x1:a<p>) (1 x2:a<p>) (1 x3:a<p>)
+        (1 x4:a<p>) (1 x5:a<p>) (1 x6:a<p>) (1 x7:a<p>)
+    : {xs:(Array a<p>) | size xs = 8} :=
+    native "[x0, x1, x2, x3, x4, x5, x6, x7]";
+
+def mk_16 (1 x0:a<p>) (1 x1:a<p>) (1 x2:a<p>) (1 x3:a<p>)
+        (1 x4:a<p>) (1 x5:a<p>) (1 x6:a<p>) (1 x7:a<p>)
+        (1 x8:a<p>) (1 x9:a<p>) (1 x10:a<p>) (1 x11:a<p>)
+        (1 x12:a<p>) (1 x13:a<p>) (1 x14:a<p>) (1 x15:a<p>)
+    : {xs:(Array a<p>) | size xs = 16} :=
+    native "[x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15]";
+
+def mk_32 (1 x0:a<p>) (1 x1:a<p>) (1 x2:a<p>) (1 x3:a<p>)
+        (1 x4:a<p>) (1 x5:a<p>) (1 x6:a<p>) (1 x7:a<p>)
+        (1 x8:a<p>) (1 x9:a<p>) (1 x10:a<p>) (1 x11:a<p>)
+        (1 x12:a<p>) (1 x13:a<p>) (1 x14:a<p>) (1 x15:a<p>)
+        (1 x16:a<p>) (1 x17:a<p>) (1 x18:a<p>) (1 x19:a<p>)
+        (1 x20:a<p>) (1 x21:a<p>) (1 x22:a<p>) (1 x23:a<p>)
+        (1 x24:a<p>) (1 x25:a<p>) (1 x26:a<p>) (1 x27:a<p>)
+        (1 x28:a<p>) (1 x29:a<p>) (1 x30:a<p>) (1 x31:a<p>)
+    : {xs:(Array a<p>) | size xs = 32} :=
+    native "[x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31]";
+
+# Consume both inputs; preserve their order, element predicate, and total size.
+def mk_concat (1 xs:(Array a<p>)) (1 ys:(Array a<p>)) :
+    {zs:(Array a<p>) | size zs = size xs + size ys} :=
+    native "xs + ys";
 
 
 # True when the array is empty. Consumes it.
@@ -151,20 +194,6 @@ def len_value (l: (ArrayLen a<p>)) : {n:Int | n = held_size l} :=
 # The array ``len_of`` measured, with its length intact.
 def len_array (l: (ArrayLen a<p>)) : {r: (Array a<p>) | size r = held_size l} :=
     native "l[1]"
-
-
-# Append an element to the back.
-# arr: consumed linear array.
-# x: element satisfying refinement ``p``.
-# returns: array one element longer.
-def append (1 arr: (Array a)) (1 x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
-    native "arr + [x]"
-
-
-# Prepend an element to the front; the value must satisfy the refinement ``p``.
-# Consumes the array linearly and returns a fresh one, one element longer.
-def cons (1 arr: (Array a)) (1 x: {v:a | p v}) : {r:(Array a) | size r = size arr + 1} :=
-    native "[x] + arr"
 
 
 # Indexed read; the result is known to satisfy ``p``. Consumes the array —

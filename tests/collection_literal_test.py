@@ -3,8 +3,8 @@
 ``[`` is unambiguously a list literal: type application uses ``{t}`` (e.g.
 ``List.nil{Int}``), so the two never collide. ``#[…]`` is an array literal (the
 COMMENT lexer carves out ``#[`` so it is not read as a comment). Literals desugar
-to ``List.cons``/``List.nil`` and ``Array.new``/``Array.append``; element types
-are inferred by elaboration.
+to ``List.cons``/``List.nil`` and ``Array.mk_N``/``Array.mk_concat``
+(``Array.mk_empty`` for an empty array); element types are inferred by elaboration.
 """
 
 from __future__ import annotations

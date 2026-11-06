@@ -40,17 +40,15 @@ def _linearity_errors(source: str):
 
 
 def _int_array(values: tuple[int, ...]) -> str:
-    expression = "Array.new{Int} unit"
-    for value in values:
-        expression = f"Array.append ({expression}) {value}"
-    return expression
+    if not values:
+        return "Array.mk_empty{Int} unit"
+    return "#[" + ", ".join(str(value) for value in values) + "]"
 
 
 def _float_array(values: tuple[float, ...]) -> str:
-    expression = "Array.new{Float} unit"
-    for value in values:
-        expression = f"Array.append ({expression}) ({value} : Float)"
-    return expression
+    if not values:
+        return "Array.mk_empty{Float} unit"
+    return "#[" + ", ".join(f"({value} : Float)" for value in values) + "]"
 
 
 # ---------------------------------------------------------------------------
@@ -428,7 +426,7 @@ def test_empty_upload_is_rejected():
         IMPORTS
         + """
 def invalid (d: Device) : Unit :=
-    let 1 buffer := upload_i32 d (Array.new{Int} unit) in
+    let 1 buffer := upload_i32 d (Array.mk_empty{Int} unit) in
     free buffer;
 """
         + MAIN

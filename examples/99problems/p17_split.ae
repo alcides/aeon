@@ -8,5 +8,5 @@ def split (1 l: (Array Int)) (n: {k:Int | k >= 0 && k <= Array.size l}) : (Array
 
 def main (args:Int) : Unit :=
     let 1 a: {x:(Array Int) | Array.size x = 5} :=
-        (((((Array.new{Int} unit).append 1).append 2).append 3).append 4).append 5;
+        Array.mk_concat (Array.mk_4{Int} 1 2 3 4) (Array.mk_1{Int} 5);
     print (split a 2)

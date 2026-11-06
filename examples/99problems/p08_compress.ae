@@ -7,5 +7,5 @@ def Array.compress (1 l: (Array Int)) : {r:(Array Int) | Array.size r <= Array.s
     native "[x for i, x in enumerate(l) if i == 0 or x != l[i-1]]"
 
 def main (args:Int) : Unit :=
-    let 1 a: (Array Int)  := (((((Array.new{Int} unit).append 1).append 1).append 2).append 3).append 3;
+    let 1 a: (Array Int)  := Array.mk_concat (Array.mk_4{Int} 1 1 2 3) (Array.mk_1{Int} 3);
     print a.compress
