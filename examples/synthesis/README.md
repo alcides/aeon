@@ -1,8 +1,8 @@
 # Local synthesis examples
 
-This overview covers 111 `.ae` programs and three legacy `.aef` files, excluding
+This overview covers 112 `.ae` programs and three legacy `.aef` files, excluding
 the DP-GP examples being removed in a separate PR. The
-`.ae` count includes 98 programs with explicit holes and 13 completed reference/property
+`.ae` count includes 99 programs with explicit holes and 13 completed reference/property
 examples used alongside synthesis. ARC, Fandango, and RL-MCTS examples live in
 [benchmarks/arc/](../benchmarks/arc/), [benchmarks/fandango/](../benchmarks/fandango/),
 and [benchmarks/rlmcts/](../benchmarks/rlmcts/).
@@ -14,6 +14,7 @@ and [benchmarks/rlmcts/](../benchmarks/rlmcts/).
 | [control/](control/README.md) | 8 | CartPole, pendulum, thermostat, and cruise-control policies, plus the reference runner |
 | [puzzle/](puzzle/README.md) | 19 | Constraint, arithmetic, scheduling, and circuit-synthesis problems |
 | [leveldesign/](leveldesign/README.md) | 4 | Super Mario levels, dungeons, pizza assignments, and page layouts |
+| [lists/](lists/README.md) | 1 | Synthesize a list of length ten; includes a cross-backend runner and measured results |
 
 The top level contains 12 small language/backend examples and the three legacy
 `.aef` files. Karel, neuroevolution, and other existing domain/backend directories

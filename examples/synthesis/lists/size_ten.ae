@@ -1,0 +1,4 @@
+# Synthesize any integer list with exactly ten elements.
+open List
+
+def ten : {xs:(List Int) | List.size xs = 10} := ?body;
