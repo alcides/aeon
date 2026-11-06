@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from typing import Callable
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
-from aeon.core.substitutions import substitution_in_liquid
+from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction, Application, If, Literal, Rec, Term, TypeAbstraction, Var
 from aeon.core.types import (
     AbstractionType,
     Kind,
-    RefinedType,
     Type,
     TypeConstructor,
     TypePolymorphism,
@@ -19,10 +17,10 @@ from aeon.core.types import (
     t_int,
     t_string,
 )
+from aeon.synthesis.modules.tdsyn.constraints import candidate_feasible, obligations
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
     bases_match,
-    get_param_types,
     get_return_type,
     is_subtype,
     monomorphize,
@@ -50,96 +48,35 @@ def get_applicable_functions(
     return [(term, ty) for term, ty in lib.functions]
 
 
-def _extract_refinement(ty: Type) -> tuple[Name, LiquidTerm] | None:
-    """Extract (binder_name, refinement) from a refined type, or None."""
-    match ty:
-        case RefinedType(binder, _, refinement):
-            if refinement != LiquidLiteralBool(True):
-                return (binder, refinement)
-        case _:
-            pass
-    return None
-
-
-def _build_liquid_app(fun_name: Name, hole_names: list[Name]) -> LiquidTerm:
-    """Build a liquid application term: f(h1, h2, ..., hn) for constraint propagation."""
-    if len(hole_names) == 0:
-        return LiquidVar(fun_name)
-    return LiquidApp(fun_name, [LiquidVar(h) for h in hole_names])
-
-
-def _propagate_constraints(
-    hole: TypedHole,
-    fun_name: Name,
-    new_holes: list[TypedHole],
-) -> None:
-    """Propagate refinement constraints from parent hole to parameter holes.
-
-    If the parent hole expects {x:T | R(x)} and we're applying f(h1, h2, ...),
-    the constraint R(f(h1, h2, ...)) is added to all parameter holes.
-    """
-    ref_info = _extract_refinement(hole.expected_type)
-    if ref_info is None:
-        # Also propagate any existing constraints from parent hole
-        if hole.constraints:
-            for h in new_holes:
-                h.constraints.extend(hole.constraints)
-        return
-
-    binder, refinement = ref_info
-    # Build liquid expression: f(h1, h2, ...)
-    hole_names = [h.name for h in new_holes]
-    liquid_expr = _build_liquid_app(fun_name, hole_names)
-
-    # Substitute: R(x) becomes R(f(h1, h2, ...))
-    propagated = substitution_in_liquid(refinement, liquid_expr, binder)
-
-    # Attach constraint to all parameter holes
-    for h in new_holes:
-        h.constraints.append(propagated)
-        # Also propagate parent's accumulated constraints
-        h.constraints.extend(hole.constraints)
-
-
-def _get_operator_name(f_term: Term) -> Name | None:
-    """Extract the function name from a term (Var or TypeApplication(Var, ...))."""
-    match f_term:
-        case Var(name, _):
-            return name
-        case _:
-            # For TypeApplication(Var(name), type), walk down
-            t = f_term
-            from aeon.core.terms import TypeApplication as TA
-
-            while isinstance(t, TA):
-                t = t.body
-            if isinstance(t, Var):
-                return t.name
-            return None
-
-
 def _build_application(
     f_term: Term,
-    param_types: list[tuple[Name, Type]],
+    f_type: Type,
     hole: TypedHole,
 ) -> tuple[Term, list[TypedHole]]:
-    """Build a curried application f(h1)(h2)...(hn) with fresh holes for each parameter.
-
-    Propagates refinement constraints from the parent hole to parameter holes.
-    """
-    new_holes: list[TypedHole] = []
+    """Freshen dependent arguments and carry the result contract down to them."""
+    children: list[TypedHole] = []
     result = f_term
-    for _, param_type in param_types:
-        hole_term, typed_hole = fresh_hole(param_type, hole.context)
+    while isinstance(f_type, AbstractionType):
+        hole_term, child = fresh_hole(f_type.var_type, hole.context)
         result = Application(result, hole_term, _loc)
-        new_holes.append(typed_hole)
+        children.append(child)
+        f_type = substitution_in_type(f_type.type, Var(child.name), f_type.var_name)
 
-    # Propagate constraints
-    fun_name = _get_operator_name(f_term)
-    if fun_name is not None:
-        _propagate_constraints(hole, fun_name, new_holes)
+    # symbolic_term/obligations use core liquefaction, which unwraps both type
+    # and refinement applications (and preserves already supplied arguments).
+    bindings, predicates = obligations(hole, result, children, f_type)
+    for child in children:
+        child.bindings = dict(bindings)
+        child.constraints = list(predicates)
+    return result, children
 
-    return result, new_holes
+
+def _compatible_result(ctx: TypingContext, actual: Type, goal: Type) -> bool:
+    # Check the full shape, including datatype parameters, before existential
+    # feasibility. The dependent outer predicate is checked with its witnesses.
+    return bases_match(actual, goal) and is_subtype(
+        ctx, refined_to_unrefined_type(actual), refined_to_unrefined_type(goal)
+    )
 
 
 def backward_abs_candidates(
@@ -184,7 +121,7 @@ def backward_lit_candidates(
                     candidates.append((Literal(sval, t_string, _loc), []))
             case _:
                 pass
-    return candidates
+    return [(term, children) for term, children in candidates if candidate_feasible(hole, term, children)]
 
 
 def backward_close_candidates(
@@ -214,10 +151,10 @@ def backward_app_candidates(
     candidates: list[tuple[Term, list[TypedHole]]] = []
     for f_term, f_type in get_component_library(hole.context, skip).functions_returning(T):
         ret_type = get_return_type(f_type)
-        if bases_match(ret_type, T) and is_subtype(hole.context, ret_type, T):
-            params = get_param_types(f_type)
-            app_term, new_holes = _build_application(f_term, params, hole)
-            candidates.append((app_term, new_holes))
+        if _compatible_result(hole.context, ret_type, T):
+            app_term, new_holes = _build_application(f_term, f_type, hole)
+            if candidate_feasible(hole, app_term, new_holes):
+                candidates.append((app_term, new_holes))
     return candidates
 
 
@@ -290,17 +227,17 @@ def _forward_applications(
                 continue
 
             applied = Application(f_term, Var(v_name, _loc), _loc)
-            remaining_type = f_type.type
+            remaining_type = substitution_in_type(f_type.type, Var(v_name), f_type.var_name)
 
             if isinstance(remaining_type, AbstractionType):
-                remaining_params = get_param_types(remaining_type)
                 final_ret = get_return_type(remaining_type)
-                if not bases_match(final_ret, T) or not is_subtype(ctx, final_ret, T):
+                if not _compatible_result(ctx, final_ret, T):
                     continue
-                result, new_holes = _build_application(applied, remaining_params, hole)
-                results.append((result, new_holes, final_ret))
+                result, new_holes = _build_application(applied, remaining_type, hole)
+                if candidate_feasible(hole, result, new_holes):
+                    results.append((result, new_holes, final_ret))
             else:
-                if bases_match(remaining_type, T) and is_subtype(ctx, remaining_type, T):
+                if _compatible_result(ctx, remaining_type, T) and candidate_feasible(hole, applied, [], remaining_type):
                     results.append((applied, [], remaining_type))
 
     return results
@@ -356,7 +293,7 @@ def forward_close_candidates(
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
     for term, var_type in get_component_library(ctx, skip).values_matching(T):
-        if bases_match(var_type, T) and is_subtype(ctx, var_type, T):
+        if _compatible_result(ctx, var_type, T) and candidate_feasible(hole, term, [], var_type):
             candidates.append((term, []))
     return candidates
 

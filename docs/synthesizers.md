@@ -555,19 +555,23 @@ contract](design/type-constrained-decoding.md) for limitations and configuration
 
 Top-down, type-directed synthesizer that grows a partial AST by applying **backward** and **forward** actions to each open hole. Subtyping queries are discharged by an SMT solver, and when every remaining hole is a base-type leaf the synthesizer asks z3 to solve them all in one shot.
 
-Search is breadth-first over partial ASTs (capped by a depth bound). When the worklist is exhausted, the search restarts with a shuffled expansion order so that subsequent iterations explore different term shapes until the budget runs out. If no optimization goals are present, the first valid term is returned; otherwise the best-scoring term across iterations wins.
+Full synthesis is limited by the time budget, with no fixed depth or expansion-count cap. Breadth-first exploration alternates with constructor continuations so that deep data can be built while other expressions remain in the search. Structural holes are expanded before scalar payloads, which SMT can complete jointly. If no optimization goals are present, the first valid term is returned; otherwise candidates contribute to the shared Pareto front.
+
+Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
+
+Property-test input generation has a separate, explicitly bounded sampling API; its caller-supplied limits do not limit full synthesis.
 
 ---
 
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)
 
-Same expansion rules as `tdsyn`, but instead of a BFS worklist it performs independent random walks from the initial hole. Each walk repeatedly picks a random open hole and a random candidate expansion, falling back to SMT completion when only base-type leaves remain. Lighter than the BFS mode, useful when the term space is wide and shallow.
+Same expansion rules as `tdsyn`, using random walks with a preference for constructor expansions. Walks prioritize structural holes and check available completions before growing deeper. Probabilistic restarts avoid spending the whole budget on one unproductive walk; there is no maximum walk length. SMT solves the remaining scalar leaves jointly.
 
 ---
 
 ### `tdsyn_backward` — Type-Directed Synthesis (Backward BFS)
 
-Runs the same bounded search, SMT completion, validation and Pareto selection as
+Runs the same time-budgeted search, SMT completion, validation and Pareto selection as
 `tdsyn`, using backward expansions at every open hole. These introduce literals,
 variables, applications, abstractions and conditionals. Search continues until
 it finds a complete term or exhausts its budget; it never returns partial subgoals.
