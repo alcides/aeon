@@ -41,6 +41,7 @@ from aeon.core.terms import TypeAbstraction
 from aeon.core.terms import TypeApplication
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, Kind, is_bare
+from aeon.core.types import as_predicate_type
 from aeon.core.types import ExistentialType, with_binders
 from aeon.core.types import TypeConstructor
 from aeon.core.types import RefinedType
@@ -598,19 +599,6 @@ def renamed_refined_type(ty: RefinedType) -> RefinedType:
     return RefinedType(new_name, ty.type, refinement)
 
 
-def _as_predicate_type(sort: Type) -> AbstractionType:
-    """The full predicate type of an abstract-refinement sort.
-
-    Refinement sorts now carry the full (possibly n-ary) predicate type
-    ``d1 -> ... -> Bool``. Legacy callers (and a few unit tests that build core
-    nodes directly) may still pass a bare domain ``d``, which is wrapped as
-    ``d -> Bool`` so downstream code always sees an ``AbstractionType``.
-    """
-    if isinstance(sort, AbstractionType):
-        return sort
-    return AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
-
-
 _argument_inference: ContextVar[tuple[TypingContext, Term, list[tuple[Constraint, Type]]] | None] = ContextVar(
     "argument_inference", default=None
 )
@@ -959,7 +947,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # Introduce fκ : psort -> bool, synth the body, wrap the resulting type with
             # RefinementPolymorphism and gate the constraint behind the UF declaration.
             # ``psort`` is the full (possibly n-ary) predicate type.
-            fk_type = _as_predicate_type(psort)
+            fk_type = as_predicate_type(psort)
             ctx_ext = ctx.with_var(pname, fk_type)
             (c_body, body_ty) = synth(ctx_ext, inner)
             return (
@@ -1259,6 +1247,10 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
     except AssertionError:
         raise CoreWellformnessError(ty)
     match t, ty:
+        case Hole(), _:
+            # Open programs are checked before synthesis. This permission is
+            # specific to holes, not to arbitrary values with forall types.
+            return ctrue
         case Abstraction(name, body), AbstractionType(var_name, var_type, ret):
             ret = substitution_in_type(ret, Var(name), var_name)
             c = check(ctx.with_var(name, var_type), body, ret)
@@ -1410,7 +1402,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
         case RefinementAbstraction(pname, psort, inner), RefinementPolymorphism(rname, rsort, rbody):
             c_sort = sub(ctx, psort, rsort, t.loc)
             # ``rsort`` is the full (possibly n-ary) predicate type.
-            fk_type = _as_predicate_type(rsort)
+            fk_type = as_predicate_type(rsort)
             ctx_ext = ctx.with_var(pname, fk_type)
             body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
             inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
@@ -1419,10 +1411,16 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
 
         # per tutorial fig 8.4 Chk-RAbs
         case _, RefinementPolymorphism(name, sort, body):
+            if isinstance(t, (Var, Application, Annotation, TypeApplication, RefinementApplication)):
+                inferred_c, inferred_ty = synth(ctx, t)
+                if isinstance(inferred_ty, RefinementPolymorphism):
+                    # An alias or application can already carry the quantifier.
+                    # Compare both schemas before considering implicit RAbs.
+                    return conjoin(inferred_c, sub(ctx, inferred_ty, ty, t.loc))
             # ρ = κ : sort; φ = λx.fκ(x). ``sort`` is the full (possibly n-ary)
             # predicate type ``d1 -> ... -> Bool``.
             fk_name = Name("_f" + name.name, fresh_counter.fresh())
-            fk_type = _as_predicate_type(sort)
+            fk_type = as_predicate_type(sort)
             # Γ' = Γ; fκ : sort
             ctx_ext = ctx.with_var(fk_name, fk_type)
             # s[ρ := fκ] — substitute κ → fk in the body type

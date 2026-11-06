@@ -233,6 +233,17 @@ t_string = TypeConstructor(Name("String", 0), [])
 t_set = TypeConstructor(Name("Set", 0), [])
 t_tensor = TypeConstructor(Name("Tensor", 0), [])
 
+
+def as_predicate_type(sort: Type) -> AbstractionType:
+    """Normalize a refinement sort to its full, possibly n-ary predicate type.
+
+    Legacy core callers can still pass a bare domain instead of ``d -> Bool``.
+    """
+    if isinstance(sort, AbstractionType):
+        return sort
+    return AbstractionType(Name("_", fresh_counter.fresh()), sort, t_bool)
+
+
 builtin_core_types = [t_unit, t_bool, t_int, t_float, t_string, t_set, t_tensor]
 
 top = Top()

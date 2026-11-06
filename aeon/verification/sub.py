@@ -7,6 +7,7 @@ from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.substitutions import substitution_in_type
+from aeon.core.substitutions import substitute_vartype, substitution_liquid_in_type
 from aeon.core.terms import Var
 from aeon.core.types import AbstractionType, RefinementPolymorphism, TypeConstructor, TypeVar
 from aeon.core.types import ExistentialType
@@ -14,6 +15,7 @@ from aeon.core.types import RefinedType
 from aeon.core.types import Top
 from aeon.core.types import Type
 from aeon.core.types import TypePolymorphism
+from aeon.core.types import as_predicate_type
 from aeon.core.types import t_unit
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import Location
@@ -293,10 +295,37 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             rconstraint = Implication(new_name, lowert, r1_, LiquidConstraint(r2_, loc=loc), loc=loc)
 
             return conjoin(args_c, rconstraint)
-        case TypePolymorphism(_, _, _), _:
-            return ctrue
-        case RefinementPolymorphism(_, _, _), _:
-            return ctrue
+        case TypePolymorphism(a, ka, body_a), TypePolymorphism(b, kb, body_b):
+            if ka != kb:
+                return cfalse
+            # Open both binders with the same fresh rigid type variable. Merely
+            # being polymorphic does not establish the result refinement.
+            name = Name("sub_type", fresh_counter.fresh())
+            return sub(
+                ctx.with_typevar(name, ka),
+                substitute_vartype(body_a, TypeVar(name), a),
+                substitute_vartype(body_b, TypeVar(name), b),
+                loc,
+            )
+        case RefinementPolymorphism(a, sort_a, body_a), RefinementPolymorphism(b, sort_b, body_b):
+            # Predicate parameters are invariant in their sort. Their bodies
+            # must be related for an arbitrary predicate of that sort.
+            predicate_a, predicate_b = as_predicate_type(sort_a), as_predicate_type(sort_b)
+            sorts = conjoin(sub(ctx, predicate_a, predicate_b, loc), sub(ctx, predicate_b, predicate_a, loc))
+            if sorts == cfalse:
+                return cfalse
+            name = Name("sub_predicate", fresh_counter.fresh())
+            body = sub(
+                ctx.with_var(name, predicate_a),
+                substitution_liquid_in_type(body_a, LiquidVar(name), a),
+                substitution_liquid_in_type(body_b, LiquidVar(name), b),
+                loc,
+            )
+            return conjoin(sorts, UninterpretedFunctionDeclaration(name, predicate_a, body))
+        case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _), _:
+            # Core instantiation is explicit (TypeApplication or
+            # RefinementApplication). A bare schema cannot fill a concrete hole.
+            return cfalse
         case AbstractionType(a1, t1, rt1), AbstractionType(a2, t2, rt2):
             new_name_a: Name = Name(a1.name + a2.name, fresh_counter.fresh())
 
