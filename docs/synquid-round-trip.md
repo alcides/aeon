@@ -57,6 +57,39 @@ vacuously correct. `true` remains a valid inferred result when no stronger
 predicate is needed. These changes preserve the MATCH rule's available evidence;
 they do not add the missing datatype invariants to the 64 benchmark ports.
 
+## Abstract refinements: runnable example and paper limitation
+
+[abstract_identity.ae](../examples/synthesis/synquid/abstract_identity.ae) exercises
+both type and predicate polymorphism through the ordinary synthesis driver:
+
+```aeon
+def preserve : forall a:B, forall <p:a -> Bool>, (x:a<p>) -> a<p> := ?body;
+
+def main (u:Int) : Int := preserve{Int}{|fun n => n > 0|} 42;
+```
+
+```bash
+python -m aeon --budget 15 -s synquid examples/synthesis/synquid/abstract_identity.ae
+```
+
+Synquid synthesizes the polymorphic identity: after introducing `a`, `p`, and
+`x`, the body is `x`. It passes whole-program refinement validation, and evaluating
+the synthesized program returns `42`. The CLI command displays the synthesized
+program; it does not execute it. The implementation is checked for an arbitrary
+predicate `p`, independently of the concrete positive-integer call in `main`.
+
+This is a small demonstration of supported predicate polymorphism, **not** the
+paper's list-reversal example. In PLDI 2016 §2, Example 3, a list carries a binary
+relation between its elements, and reversal changes that relation from `r(x, y)`
+to `r(y, x)` while preserving length. Aeon can declare n-ary predicate binders,
+but its datatype types cannot retain a separate relation argument. Faithfully
+expressing and synthesizing that example needs datatype predicate arguments
+preserved through construction, matching, instantiation, and subtyping.
+
+In particular, [List-Reverse.ae](../examples/benchmarks/synquid/List-Reverse.ae)
+currently specifies only length preservation. Returning the input unchanged
+satisfies that port; solving it does not demonstrate the paper's reversal result.
+
 ## Incremental constraints
 
 `ConstraintState` owns the typing/path context, precise contextual witnesses,
