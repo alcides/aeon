@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import IntEnum, Enum, auto
 from functools import reduce
+import json
+import math
 from typing import Callable, List, Tuple
 
 from aeon.core.types import Kind
@@ -63,6 +65,7 @@ class Operation(Enum):
     INFIX_MULTIPLICATIVE = auto()
     INFIX_ADDITIVE = auto()
     INFIX_RELATIONAL = auto()
+    INFIX_EQUALITY = auto()
     INFIX_AND = auto()
     INFIX_OR = auto()
     POLYMORPHISM = auto()
@@ -93,12 +96,13 @@ class Precedence(IntEnum):
     TYPE_CONSTRUCTOR = 7
     INFIX_OR = 8
     INFIX_AND = 9
-    INFIX_RELATIONAL = 10
-    INFIX_ADDITIVE = 11
-    INFIX_MULTIPLICATIVE = 12
-    APPLICATION = 13
-    TYPE_APPLICATION = 14
-    LITERAL = 15
+    INFIX_EQUALITY = 10
+    INFIX_RELATIONAL = 11
+    INFIX_ADDITIVE = 12
+    INFIX_MULTIPLICATIVE = 13
+    APPLICATION = 14
+    TYPE_APPLICATION = 15
+    LITERAL = 16
 
 
 class Associativity(Enum):
@@ -125,8 +129,9 @@ OPERATION_INFO = {
     Operation.INFIX_MULTIPLICATIVE: OperationInfo(Precedence.INFIX_MULTIPLICATIVE, Associativity.LEFT),
     Operation.INFIX_ADDITIVE: OperationInfo(Precedence.INFIX_ADDITIVE, Associativity.LEFT),
     Operation.INFIX_RELATIONAL: OperationInfo(Precedence.INFIX_RELATIONAL, Associativity.NONE),
-    Operation.INFIX_AND: OperationInfo(Precedence.INFIX_AND, Associativity.LEFT),
-    Operation.INFIX_OR: OperationInfo(Precedence.INFIX_OR, Associativity.LEFT),
+    Operation.INFIX_EQUALITY: OperationInfo(Precedence.INFIX_EQUALITY, Associativity.NONE),
+    Operation.INFIX_AND: OperationInfo(Precedence.INFIX_AND, Associativity.RIGHT),
+    Operation.INFIX_OR: OperationInfo(Precedence.INFIX_OR, Associativity.RIGHT),
     Operation.APPLICATION: OperationInfo(Precedence.APPLICATION, Associativity.LEFT),
     Operation.TYPE_APPLICATION: OperationInfo(Precedence.TYPE_APPLICATION, Associativity.LEFT),
     Operation.LITERAL: OperationInfo(Precedence.LITERAL, Associativity.NONE),
@@ -144,7 +149,8 @@ def get_operation_associativity(operation: Operation) -> Associativity:
 
 INFIX_MULTIPLICATIVE = {"*", "/", "%", "*.", "/.", "%."}
 INFIX_ADDITIVE = {"+", "-", "+.", "-."}
-INFIX_RELATIONAL = {"<", "<=", ">", ">=", "==", "!="}
+INFIX_RELATIONAL = {"<", "<=", ">", ">="}
+INFIX_EQUALITY = {"==", "!="}
 
 # Surface spelling of internal operator names that differ from how they are
 # stored as functions. Following Lean, the pretty-printer emits the Unicode
@@ -154,7 +160,7 @@ INFIX_DISPLAY = {"==": "=", "!=": "≠", "<=": "≤", ">=": "≥"}
 INFIX_AND = {"&&"}
 INFIX_OR = {"||"}
 
-AEON_INFIX_OPERATORS = INFIX_MULTIPLICATIVE | INFIX_ADDITIVE | INFIX_RELATIONAL | INFIX_AND | INFIX_OR
+AEON_INFIX_OPERATORS = INFIX_MULTIPLICATIVE | INFIX_ADDITIVE | INFIX_RELATIONAL | INFIX_EQUALITY | INFIX_AND | INFIX_OR
 
 
 def get_sterm_operation(sterm: STerm) -> Operation:
@@ -172,7 +178,7 @@ def get_sterm_operation(sterm: STerm) -> Operation:
         case SApplication():
             return Operation.APPLICATION
         case SAnnotation():
-            return Operation.ANNOTATION
+            return Operation.LITERAL
         case SRec():
             return Operation.LET
         case STypeAbstraction():
@@ -181,9 +187,15 @@ def get_sterm_operation(sterm: STerm) -> Operation:
             return Operation.POLYMORPHISM
         case STypeApplication():
             return Operation.TYPE_APPLICATION
-        case SLiteral(value=value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value < 0:
+        case SLiteral(value=value) if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and (value < 0 or (isinstance(value, float) and math.copysign(1, value) < 0))
+        ):
             return Operation.NEGATIVE_LITERAL
-        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole() | SBy():
+        case SBy():
+            return Operation.LET
+        case SLiteral() | SVar() | SHole() | SImplicitRefinementHole():
             return Operation.LITERAL
         case _:
             return Operation.LITERAL
@@ -197,6 +209,8 @@ def get_infix_op(op_name: Name) -> Operation:
         return Operation.INFIX_ADDITIVE
     elif op in INFIX_RELATIONAL:
         return Operation.INFIX_RELATIONAL
+    elif op in INFIX_EQUALITY:
+        return Operation.INFIX_EQUALITY
     elif op in INFIX_AND:
         return Operation.INFIX_AND
     elif op in INFIX_OR:
@@ -216,7 +230,7 @@ def get_stype_operation(stype: SType) -> Operation:
         case STypePolymorphism():
             return Operation.POLYMORPHISM
         case STypeConstructor():
-            return Operation.TYPE_CONSTRUCTOR
+            return Operation.LITERAL
         case _:
             return Operation.LITERAL
 
@@ -251,7 +265,7 @@ def needs_parens_aux(
         return False
 
     if child_associativity == Associativity.NONE:
-        return False
+        return child_side != Side.NONE
     if child_associativity == Associativity.LEFT and child_side == Side.RIGHT:
         return True
     if child_associativity == Associativity.RIGHT and child_side == Side.LEFT:
@@ -298,6 +312,13 @@ def pretty_binder_annotation(
     aligned = align_refined_binder(param_type, param_name)
     match aligned:
         case SRefinedType(type=ref_type, refinement=refinement):
+            refinement_doc = pretty_sterm_with_parens(
+                refinement, ParenthesisContext(Precedence.REFINED_TYPE, Side.RIGHT), depth=1
+            )
+            # Before ``:=``, a bare identifier would start a shorthand let
+            # inside the predicate rather than finish the binder annotation.
+            if isinstance(refinement, SVar):
+                refinement_doc = parens(refinement_doc)
             return concat(
                 [
                     mult_doc,
@@ -305,7 +326,7 @@ def pretty_binder_annotation(
                     text(" : "),
                     stype_pretty(ref_type),
                     text(" | "),
-                    sterm_pretty(refinement, ParenthesisContext(Precedence.REFINED_TYPE, Side.RIGHT), depth=1),
+                    refinement_doc,
                 ]
             )
         case _:
@@ -435,7 +456,9 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
             ]
 
             pretty_args_doc = insert_between(text(" "), pretty_args)
-            return group(concat([pretty_name, text(" "), pretty_args_doc]))
+            # Applied constructors are always parenthesized in the grammar,
+            # including at the root and inside another constructor.
+            return parens(group(concat([pretty_name, text(" "), pretty_args_doc])))
 
         case _:
             return text(str(stype))
@@ -447,8 +470,10 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
 
     match sterm:
         case SLiteral(value=value, type=_type):
-            if _type == STypeConstructor(Name("String", 0)):
-                return text(f'"{value}"')
+            if isinstance(value, str):
+                return text(json.dumps(value, ensure_ascii=False))
+            if isinstance(value, bool):
+                return text(str(value).lower())
             return text(str(value))
 
         case SVar(name=name):
@@ -470,12 +495,19 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
 
         case SBy(steps=steps):
             inner = text("; ".join(steps))
+            if len(steps) > 1:
+                inner = parens(inner)
             return group(concat([text("by "), inner]))
 
         case SAnnotation(expr=expr, type=_type):
             expr_doc = pretty_sterm_with_parens(expr, ParenthesisContext(Precedence.ANNOTATION, Side.LEFT), depth + 1)
+            # A bare ``x : T`` starts a shorthand recursive binding, while
+            # a lambda's body would consume the annotation. Group either
+            # expression to make the annotation's scope unambiguous.
+            if isinstance(expr, (SVar, SAbstraction)):
+                expr_doc = parens(expr_doc)
             type_doc = stype_pretty(_type, ParenthesisContext(Precedence.ANNOTATION, Side.RIGHT))
-            return group(concat([expr_doc, text(" :"), nest(DEFAULT_TAB_SIZE, concat([line(), type_doc]))]))
+            return parens(group(concat([expr_doc, text(" :"), nest(DEFAULT_TAB_SIZE, concat([line(), type_doc]))])))
 
         case SIf(cond=cond, then=then, otherwise=otherwise):
             pretty_cond = pretty_sterm_with_parens(cond, ParenthesisContext(Precedence.IF, Side.NONE), depth + 1)
@@ -552,7 +584,9 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                     )
                 )
             else:
-                binding = concat([pretty_var_name, text(" := "), pretty_var_value])
+                mult = sterm.multiplicity
+                mult_doc = nil() if mult is MOmega else text(f"{mult} ")
+                binding = concat([mult_doc, pretty_var_name, text(" := "), pretty_var_value])
                 return group(concat([text("let "), binding, text(" in"), line(), pretty_body]))
 
         case SRec(var_name=var_name, var_type=var_type, var_value=var_value, body=body, decreasing_by=_):  # refazer rec
@@ -565,7 +599,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
             if depth != 0:
                 pretty_binding = concat(
                     [
-                        pretty_binder_annotation(var_name, var_type),
+                        pretty_binder_annotation(var_name, var_type, sterm.multiplicity),
                         text(" := "),
                         pretty_var_value,
                     ]
