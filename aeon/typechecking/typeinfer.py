@@ -655,6 +655,14 @@ def _synth_array_literal(ctx: TypingContext, literal: Literal, ty: TypeConstruct
     return constraint, ty
 
 
+def _synth_condition(ctx: TypingContext, condition: Term) -> tuple[Constraint, Type]:
+    # An open guard has a known Boolean type. Do not infer the hole's generic
+    # placeholder schema and treat it as an implicit polymorphic cast.
+    if isinstance(condition, Hole):
+        return ctrue, t_bool
+    return synth(ctx, condition)
+
+
 def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
     match t:
         case Literal(_, TypeConstructor(Name("Unit", _))):
@@ -961,7 +969,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             liq_cond = liquefy(cond)
             # Synth the cond so its return refinement is propagated into
             # the branches' hypotheses (see check-mode for details).
-            (c_synth_cond, t_cond) = synth(ctx, cond)
+            (c_synth_cond, t_cond) = _synth_condition(ctx, cond)
             ex_binders: tuple[tuple[Name, Type], ...] = ()
             if isinstance(t_cond, ExistentialType):
                 ex_binders = t_cond.binders
@@ -1343,7 +1351,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             # ``r(liq_cond)`` to both branches' hypotheses, alongside
             # the truth/falsity fact. Existential binders are opened
             # into the branch context (mirroring how ``Let`` does it).
-            (c_synth, t_cond) = synth(ctx, cond)
+            (c_synth, t_cond) = _synth_condition(ctx, cond)
             ex_binders: tuple[tuple[Name, Type], ...] = ()
             if isinstance(t_cond, ExistentialType):
                 ex_binders = t_cond.binders

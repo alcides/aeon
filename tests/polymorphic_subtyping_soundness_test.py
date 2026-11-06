@@ -3,7 +3,7 @@
 import pytest
 
 from aeon.core.parser import parse_type
-from aeon.core.terms import Abstraction, Annotation, Hole, Literal, RefinementApplication, TypeApplication, Var
+from aeon.core.terms import Abstraction, Annotation, Hole, If, Let, Literal, RefinementApplication, TypeApplication, Var
 from aeon.core.types import Kind, RefinementPolymorphism, TypePolymorphism, t_bool, t_int
 from aeon.elaboration.context import build_typing_context
 from aeon.prelude.prelude import typing_vars
@@ -101,3 +101,16 @@ def test_legacy_predicate_domain_matches_full_sort():
 
 def test_open_holes_still_check_against_refinements():
     assert check_type(context(), Hole(Name("body")), parse_type("{v:Int | v > 0}"))
+
+
+@pytest.mark.parametrize("infer", [False, True])
+@pytest.mark.parametrize("hole", [False, True])
+def test_boolean_guard_holes_are_distinct_from_polymorphic_values(infer, hole):
+    name = Name("condition")
+    ctx = context().with_var(name, parse_type("forall a:B, Bool"))
+    condition = Hole(name) if hole else Var(name)
+    term = If(condition, Literal(1, t_int), Literal(2, t_int))
+    if infer:
+        result = Name("result")
+        term = Let(result, term, Var(result))
+    assert check_type(ctx, term, t_int) is hole
