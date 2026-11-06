@@ -550,7 +550,7 @@ def substitution_liquid_in_term(t: Term, rep: LiquidTerm, name: Name) -> Term:
             return RefinementAbstraction(
                 pname,
                 substitution_liquid_in_type(sort, rep, name),
-                substitution_liquid_in_term(body, rep, name),
+                body if pname == name else substitution_liquid_in_term(body, rep, name),
                 loc=loc,
             )
         case TypeApplication(body, ty, loc):
@@ -600,6 +600,13 @@ def substitution_in_type(t: Type, rep: Term, name: Name) -> Type:
                 return RefinedType(vname, nity, substitution_in_liquid(ref, replacement, name), loc=loc)
         case TypePolymorphism(tvname, kind, body, loc):
             return TypePolymorphism(tvname, kind, substitution_in_type(body, rep, name), loc=loc)
+        case RefinementPolymorphism(rname, sort, body, loc):
+            return RefinementPolymorphism(
+                rname,
+                substitution_in_type(sort, rep, name),
+                body if rname == name else substitution_in_type(body, rep, name),
+                loc=loc,
+            )
         case TypeConstructor(cname, args, loc):
             return TypeConstructor(cname, [substitution_in_type(arg, rep, name) for arg in args], loc=loc)
         case ExistentialType(binders, body, loc):

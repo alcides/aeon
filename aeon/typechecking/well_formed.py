@@ -41,7 +41,7 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
         case RefinementPolymorphism(name, sort, body):
             # ``sort`` is the full (possibly n-ary) predicate type
             # ``d1 -> ... -> Bool``; bind the refinement parameter at it directly.
-            return k == Kind.STAR and wellformed(ctx, sort) and wellformed(ctx.with_var(name, sort), body)
+            return k == Kind.STAR and wellformed(ctx, sort) and wellformed(ctx.with_refinement(name, sort), body)
         case TypeConstructor(name, args):
             if not args:
                 return ctx.get_type_constructor(name) is not None
