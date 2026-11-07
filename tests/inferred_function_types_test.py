@@ -4,11 +4,21 @@ import pytest
 
 from aeon.core.multiplicity import M1, MOmega
 from aeon.elaboration import _resolve_uvars, unify_single
+from aeon.sugar.parser import parse_type
 from aeon.errors import UnificationFailedError
 from aeon.sugar.ast_helpers import st_int
 from aeon.sugar.program import SVar
 from aeon.sugar.stypes import SAbstractionType, SRefinedType
 from aeon.utils.name import Name
+
+
+def test_inferred_datatype_relations_compare_bound_names_and_predicates():
+    left = parse_type("(Duo Int){|fun x => fun y => x < y|}")
+    renamed = parse_type("(Duo Int){|fun a => fun b => a < b|}")
+    different = parse_type("(Duo Int){|fun x => fun y => x > y|}")
+    assert unify_single("relations", [left, renamed]) == left
+    with pytest.raises(UnificationFailedError):
+        unify_single("relations", [left, different])
 
 
 def test_independent_function_binders_unify():

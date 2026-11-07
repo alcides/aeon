@@ -45,7 +45,11 @@ from aeon.sugar.stypes import (
     get_type_vars,
 )
 from aeon.sugar.instance_registry import lookup_instance
-from aeon.sugar.substitutions import substitute_refinement_param_in_stype, substitution_sterm_in_stype
+from aeon.sugar.substitutions import (
+    substitute_refinement_param_in_stype,
+    substitution_sterm_in_stype,
+)
+from aeon.sugar.equality import term_equality
 from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
 
@@ -391,6 +395,8 @@ def _same_inferred_type(left: SType, right: SType) -> bool:
     type. Rename dependent occurrences as well; multiplicities still matter.
     """
     match left, right:
+        case SRefinedType(ln, lt, lp), SRefinedType(rn, rt, rp):
+            return _same_inferred_type(lt, rt) and term_equality(lp, rp, {ln: rn})
         case SRefinedType(_, inner, _), _:
             return _same_inferred_type(inner, right)
         case _, SRefinedType(_, inner, _):
@@ -407,7 +413,13 @@ def _same_inferred_type(left: SType, right: SType) -> bool:
                 )
             )
         case STypeConstructor(ln, la), STypeConstructor(rn, ra):
-            return ln == rn and len(la) == len(ra) and all(_same_inferred_type(a, b) for a, b in zip(la, ra))
+            return (
+                ln == rn
+                and len(la) == len(ra)
+                and len(left.refinements) == len(right.refinements)
+                and all(term_equality(p, q) for p, q in zip(left.refinements, right.refinements))
+                and all(_same_inferred_type(a, b) for a, b in zip(la, ra))
+            )
         case _:
             return left == right
 

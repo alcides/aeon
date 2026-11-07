@@ -1126,6 +1126,13 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
     handlers = value_args[1:]
     scrut_inner = scrut.expr if isinstance(scrut, Annotation) else scrut
     if not isinstance(scrut_inner, Var):
+        # Ordinary computed matches use the standard eliminator rule. Only
+        # predicate-parameterized datatypes need a shared relation witness.
+        parameter_type = rec_type
+        while isinstance(parameter_type, TypePolymorphism):
+            parameter_type = parameter_type.body
+        if not isinstance(parameter_type, RefinementPolymorphism):
+            return None
         # Retain a computed scrutinee's predicate arguments under one witness.
         # All branches must use the same inferred relation and existential facts.
         scrut_c, actual = synth(ctx, scrut)
