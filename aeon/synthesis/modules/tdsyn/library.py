@@ -26,6 +26,7 @@ from aeon.synthesis.modules.tdsyn.helpers import (
 )
 from aeon.typechecking.context import (
     ReflectedBinder,
+    RefinementBinder,
     TypingContext,
     UninterpretedBinder,
     VariableBinder,
@@ -67,7 +68,9 @@ def visible_vars(ctx: TypingContext) -> list[tuple[Name, Type]]:
     """
     latest: dict[str, tuple[Name, Type]] = {}
     for e in ctx.entries:
-        if isinstance(e, _VALUE_BINDERS):
+        if isinstance(e, RefinementBinder):
+            latest.pop(e.name.name, None)
+        elif isinstance(e, _VALUE_BINDERS):
             latest[e.name.name] = (e.name, e.type)
     return list(latest.values())
 

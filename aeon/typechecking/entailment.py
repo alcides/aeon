@@ -13,6 +13,7 @@ from aeon.typechecking.context import TypeConstructorBinder
 from aeon.typechecking.context import TypeBinder
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.context import ReflectedBinder
+from aeon.typechecking.context import RefinementBinder
 from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
@@ -29,6 +30,9 @@ from aeon.core.liquid_ops import ops
 def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
     for entry in ctx.entries[::-1]:
         match entry:
+            case RefinementBinder(name, sort):
+                assert isinstance(sort, AbstractionType)
+                c = UninterpretedFunctionDeclaration(name, sort, c)
             case VariableBinder(name, AbstractionType(vname, vtype, rtype)):
                 if name in ops:
                     pass

@@ -169,8 +169,8 @@ def function_terms(ctx, level, goal, skip, mem, state):
             body_ctx = body_ctx.with_typevar(inner.name, inner.kind)
             branch.context = branch.context.with_typevar(inner.name, inner.kind)
         else:
-            body_ctx = body_ctx.with_var(inner.name, inner.sort)
-            branch.context = branch.context.with_var(inner.name, inner.sort)
+            body_ctx = body_ctx.with_refinement(inner.name, inner.sort)
+            branch.context = branch.context.with_refinement(inner.name, inner.sort)
         inner = inner.body
     params = []
     while isinstance(inner, AbstractionType):
