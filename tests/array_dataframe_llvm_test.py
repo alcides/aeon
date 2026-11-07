@@ -37,11 +37,11 @@ def sum_n (1 arr:(Array Int)) (n:Int) : Int :=
     reduce_n_int add 0 arr n;
 
 def main (i:Int) : Int :=
-    let 1 a0 := new{Int} unit in
-    let 1 a1 := append{Int} a0 1 in
-    let 1 a2 := append{Int} a1 2 in
-    let 1 a3 := append{Int} a2 3 in
-    let 1 a4 := append{Int} a3 4 in
+    let 1 a0 := Array.mk_empty{Int} unit in
+    let 1 a1 := Array.mk_concat a0 (Array.mk_1 1) in
+    let 1 a2 := Array.mk_concat a1 (Array.mk_1 2) in
+    let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
+    let 1 a4 := Array.mk_concat a3 (Array.mk_1 4) in
     sum_n a4 4;
 """
     assert _run(source) == 10
@@ -60,10 +60,10 @@ def vec_inc (1 arr:(Array Int)) (n:Int) : {r:(Array Int) | size r = n} :=
     map_n_int inc arr n;
 
 def main (i:Int) : Int :=
-    let 1 a0 := new{Int} unit in
-    let 1 a1 := append{Int} a0 1 in
-    let 1 a2 := append{Int} a1 2 in
-    let 1 a3 := append{Int} a2 3 in
+    let 1 a0 := Array.mk_empty{Int} unit in
+    let 1 a1 := Array.mk_concat a0 (Array.mk_1 1) in
+    let 1 a2 := Array.mk_concat a1 (Array.mk_1 2) in
+    let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
     let 1 r := vec_inc a3 3 in
     get{Int} r 2;
 """
@@ -82,12 +82,12 @@ def gt10(x:Int) : Bool := x > 10;
 def c (1 arr:(Array Int)) (n:Int) : Int := count_n_int gt10 arr n;
 
 def main (i:Int) : Int :=
-    let 1 a0 := new{Int} unit in
-    let 1 a1 := append{Int} a0 5 in
-    let 1 a2 := append{Int} a1 15 in
-    let 1 a3 := append{Int} a2 8 in
-    let 1 a4 := append{Int} a3 25 in
-    let 1 a5 := append{Int} a4 3 in
+    let 1 a0 := Array.mk_empty{Int} unit in
+    let 1 a1 := Array.mk_concat a0 (Array.mk_1 5) in
+    let 1 a2 := Array.mk_concat a1 (Array.mk_1 15) in
+    let 1 a3 := Array.mk_concat a2 (Array.mk_1 8) in
+    let 1 a4 := Array.mk_concat a3 (Array.mk_1 25) in
+    let 1 a5 := Array.mk_concat a4 (Array.mk_1 3) in
     c a5 5;
 """
     assert _run(source) == 2
@@ -107,9 +107,9 @@ def vec_inc (1 arr:(Array Int)) (n:Int) : {r:(Array Int) | size r = n} :=
     map_n_int inc arr n;
 
 def main (i:Int) : Int :=
-    let 1 a0 := new{Int} unit in
-    let 1 a1 := append{Int} a0 10 in
-    let 1 a2 := append{Int} a1 20 in
+    let 1 a0 := Array.mk_empty{Int} unit in
+    let 1 a1 := Array.mk_concat a0 (Array.mk_1 10) in
+    let 1 a2 := Array.mk_concat a1 (Array.mk_1 20) in
     let 1 r := vec_inc a2 2 in
     get{Int} r 0;
 """

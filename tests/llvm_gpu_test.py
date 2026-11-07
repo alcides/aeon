@@ -18,9 +18,9 @@ def test_gpu_array_map_fallback():
             map_n_int mul2 v n;
 
         def main (args:Int) : Int :=
-            let 1 v0 := new{Int} unit in
-            let 1 v2 := append{Int} v0 10 in
-            let 1 v3 := append{Int} v2 20 in
+            let 1 v0 := Array.mk_empty{Int} unit in
+            let 1 v2 := Array.mk_concat v0 (Array.mk_1 10) in
+            let 1 v3 := Array.mk_concat v2 (Array.mk_1 20) in
             let 1 res := multiply_by_two v3 2 in
             get{Int} res 0;
     """

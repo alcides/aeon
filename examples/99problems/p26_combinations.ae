@@ -10,5 +10,5 @@ def combinations (k: {n:Int | n >= 0}) (1 l: {x:(Array Int) | Array.size x >= k}
 
 def main (args:Int) : Unit :=
     let 1 a: {x:(Array Int) | Array.size x = 5} :=
-        (((((Array.new{Int} unit).append 1).append 2).append 3).append 4).append 5;
+        Array.mk_concat (Array.mk_4{Int} 1 2 3 4) (Array.mk_1{Int} 5);
     print (combinations 3 a)

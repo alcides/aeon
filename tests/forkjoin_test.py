@@ -187,7 +187,7 @@ def test_halves_rejects_singleton_array():
         IMPORTS
         + """
 def bad (u: Unit) : Int :=
-    let 1 xs := (Array.new{Int} unit).append 1 in
+    let 1 xs := Array.mk_1{Int} 1 in
     let h := halves xs in
     let 1 left := half_left h in
     Array.length left;
@@ -204,8 +204,8 @@ def test_halves_and_par_map_typecheck():
         + """
 def sq (x: Int) : Int := x * x;
 def ok (u: Unit) : Int :=
-    let 1 xs0 := ((Array.new{Int} unit).append 1).append 2 in
-    let 1 xs1 := Array.append xs0 3 in
+    let 1 xs0 := Array.mk_2{Int} 1 2 in
+    let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
     let h := halves xs1 in
     let 1 left := half_left h in
     let 1 right := half_right h in
@@ -233,8 +233,8 @@ def inc (x: Int) : Int := x + 1;
 
 def main (_: Int) : Int :=
     let j := parallel2 2 left right in
-    let 1 xs0 := ((Array.new{Int} unit).append 1).append 2 in
-    let 1 xs1 := Array.append xs0 3 in
+    let 1 xs0 := Array.mk_2{Int} 1 2 in
+    let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
     let 1 ys := par_map 2 inc xs1 in
     joined_fst j + joined_snd j + Array.length ys;
 """

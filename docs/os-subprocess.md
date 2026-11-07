@@ -109,19 +109,19 @@ def run (argv: {a: (Array String) | Array.size a >= 1}) : CompletedProcess :=
 ```
 
 An `Array String` is a Python `list[str]` at runtime, so it flows directly into
-`subprocess.run`. The non-empty refinement is discharged for free by `append`'s
+`subprocess.run`. The non-empty refinement is discharged for free by `mk_2`'s
 `Array.size` postconditions:
 
 ```aeon
 def echoArgs : {a: (Array String) | Array.size a >= 1} :=
-    Array.append (Array.append (Array.new{String}) "echo") "hello"
+    Array.mk_2 "echo" "hello"
 ```
 
 An empty argv — which would raise `IndexError` inside `subprocess` — is a type
 error:
 
 ```aeon
-def bad : CompletedProcess := Subprocess.run (Array.new{String})
+def bad : CompletedProcess := Subprocess.run (Array.mk_empty{String} unit)
 ```
 
 ```

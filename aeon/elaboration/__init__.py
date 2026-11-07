@@ -358,6 +358,13 @@ def _resolve_uvars(ty: SType) -> SType:
         case STypeConstructor(name, args, loc=loc):
             return STypeConstructor(name, [_resolve_uvars(a) for a in args], loc=loc)
         case SRefinedType(name, inner, ref, loc=loc):
+            # A predicate inferred at a call site can become part of another
+            # call's inferred type argument (e.g. an array of arrays). Keep it
+            # as a Horn template; an implicit refinement *term* cannot be
+            # lowered as a logical predicate. Core freshening solves the new
+            # template against the actual arguments and the expected result.
+            if isinstance(ref, SApplication) and isinstance(ref.fun, SImplicitRefinementHole):
+                ref = SApplication(SHole(ref.fun.name, loc=ref.fun.loc), ref.arg, loc=ref.loc)
             return SRefinedType(name, _resolve_uvars(inner), ref, loc=loc)
         case SAbstractionType(vname, vty, rty, loc=loc):
             return SAbstractionType(
@@ -401,10 +408,41 @@ def _same_inferred_type(left: SType, right: SType) -> bool:
             return left == right
 
 
+def _merge_inferred_refinements(left: SType, right: SType) -> SType | None:
+    """Join matching shapes whose only differences are inferred predicates.
+
+    Concrete specifications remain intact. Distinct element types still fail
+    unification; the core checker verifies the inferred refinement constraints.
+    """
+    if _same_inferred_type(left, right):
+        return left
+    match left:
+        case SRefinedType(name, inner, SApplication(SHole(), SVar(binder)), loc=loc) if name == binder:
+            merged = _merge_inferred_refinements(inner, base(right))
+            if merged is None:
+                return None
+            if isinstance(right, SRefinedType):
+                return SRefinedType(right.name, merged, right.refinement, loc=right.loc)
+            return SRefinedType(name, merged, left.refinement, loc=loc)
+    match right:
+        case SRefinedType(name, _, SApplication(SHole(), SVar(binder))) if name == binder:
+            return _merge_inferred_refinements(right, left)
+    match left, right:
+        case STypeConstructor(ln, la, loc=loc), STypeConstructor(rn, ra) if ln == rn and len(la) == len(ra):
+            args: list[SType] = []
+            for l_arg, r_arg in zip(la, ra):
+                arg = _merge_inferred_refinements(l_arg, r_arg)
+                if arg is None:
+                    return None
+                args.append(arg)
+            return STypeConstructor(ln, args, loc=loc)
+    return None
+
+
 def unify_single(origin: str, xs: list[SType]) -> SType:
     """Collapse a union/intersection of inferred types into a single type.
 
-    All members must already agree (up to unification-variable resolution); if
+    All members must agree up to unification variables and inferred predicates; if
     two members resolve to incompatible types the collapse is impossible, so we
     raise a ``UnificationFailedError`` naming where the conflict came from (the
     ``origin`` describes the union/intersection being collapsed) and the two
@@ -418,8 +456,10 @@ def unify_single(origin: str, xs: list[SType]) -> SType:
             fst_r = resolved[0]
             fst_original = other[0]
             for snd, snd_r in zip(other[1:], resolved[1:]):
-                if not _same_inferred_type(snd_r, fst_r):
+                merged = _merge_inferred_refinements(fst_r, snd_r)
+                if merged is None:
                     raise UnificationFailedError(origin, fst_original, snd)
+                fst_r = merged
             return fst_r
 
 

@@ -17,7 +17,7 @@ open Cuda
 #              +-- download_buffer_i32 --> Buffer Int  (live allocation)
 #
 def read_once (d: Device) : Int :=
-    let 1 ready := upload_i32 d (Array.append (Array.append (Array.new{Int} unit) 4) 5) in
+    let 1 ready := upload_i32 d (Array.mk_2{Int} 4 5) in
     let 1 downloaded := download_i32 ready in
     let pair := unpack_i32_download downloaded in
     let 1 values := download_values_i32 pair in
@@ -31,7 +31,7 @@ def read_once (d: Device) : Int :=
 # The preserved buffer can be downloaded again to obtain another host snapshot.
 #
 def read_twice (d: Device) : Int :=
-    let 1 ready0 := upload_i32 d (Array.append (Array.append (Array.new{Int} unit) 1) 2) in
+    let 1 ready0 := upload_i32 d (Array.mk_2{Int} 1 2) in
     let 1 downloaded0 := download_i32 ready0 in
     let pair0 := unpack_i32_download downloaded0 in
     let 1 values0 := download_values_i32 pair0 in
@@ -53,12 +53,12 @@ def download_compute_download (u: Unit) : Int :=
     let d := default_device u in
     let stream := default_stream d in
     let launch := launch_1d d 3 1 in
-    let 1 ready0 := upload_i32 d (Array.append (Array.append (Array.append (Array.new{Int} unit) 1) 2) 3) in
+    let 1 ready0 := upload_i32 d (Array.mk_concat (Array.mk_2{Int} 1 2) (Array.mk_1{Int} 3)) in
     let 1 downloaded0 := download_i32 ready0 in
     let pair0 := unpack_i32_download downloaded0 in
     let 1 snapshot0 := download_values_i32 pair0 in
     let 1 left := download_buffer_i32 pair0 in
-    let 1 right := upload_i32 d (Array.append (Array.append (Array.append (Array.new{Int} unit) 10) 20) 30) in
+    let 1 right := upload_i32 d (Array.mk_concat (Array.mk_2{Int} 10 20) (Array.mk_1{Int} 30)) in
     let 1 pending := add_i32 launch stream left right in
     let 1 ready1 := synchronize pending in
     let 1 downloaded1 := download_i32 ready1 in
@@ -73,7 +73,7 @@ def download_compute_download (u: Unit) : Int :=
 # -- 4. float64 variant ----------------------------------------------------
 
 def read_float64 (d: Device) : Float :=
-    let 1 ready := upload_float64 d (Array.append (Array.append (Array.new{Float} unit) (1.5 : Float)) (2.5 : Float)) in
+    let 1 ready := upload_float64 d (Array.mk_2{Float} ((1.5 : Float)) ((2.5 : Float))) in
     let 1 downloaded := download_float64 ready in
     let pair := unpack_float64_download downloaded in
     let 1 values := download_values_float64 pair in

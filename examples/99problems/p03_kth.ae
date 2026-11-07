@@ -6,5 +6,5 @@ open Array
 def kth (1 l: (Array a)) (k: {n:Int | n >= 0 && n < Array.size l}) : a := native "l[k]"
 
 def main (args:Int) : Unit :=
-    let 1 xs := ((((Array.new{Int} unit).append 10).append 20).append 30).append 40;
+    let 1 xs := Array.mk_4{Int} 10 20 30 40;
     print (kth xs 2);

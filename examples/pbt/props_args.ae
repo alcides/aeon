@@ -33,10 +33,10 @@ def argvOutFile (_: Unit) : (Array String) := native "['--out', 'file.txt']"
 def argvNum99 (_: Unit) : (Array String) := native "['--num', '99']"
 def argvModeSlow (_: Unit) : (Array String) := native "['--mode', 'slow']"
 
-# Built by chaining .append so its size (2 > 0) is provable — addChoice requires
+# Built with mk_2 so its size (2 > 0) is provable — addChoice requires
 # a statically non-empty list of options.
 def choicesModes (_: Unit) : {l : (Array String) | Array.size l > 0} :=
-    ((Array.new{String} unit).append "fast").append "slow"
+    Array.mk_2{String} "fast" "slow"
 
 def singleton (x : String) : (Array String) := native "[x]"
 

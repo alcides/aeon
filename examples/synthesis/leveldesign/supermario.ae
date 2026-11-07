@@ -202,8 +202,9 @@ def column_value (level: Level) (x: Int) : Int :=
 
 # Build the sampled-column vector for the last n columns, recursing down on n.
 def scene_cols (level: Level) (n: Int) : (Array Int) :=
-    if n <= 0 then (Array.new unit)
-    else Array.cons (scene_cols level (n - 1)) (column_value level ((scene_width - n) * scene_step));
+    if n <= 0 then (Array.mk_empty unit)
+    else let 1 tail := scene_cols level (n - 1) in
+        Array.mk_concat (Array.mk_1 (column_value level ((scene_width - n) * scene_step))) tail;
 
 # The level drawn as a 1D column-occupancy vector (length scene_width).
 def scene (level: Level) : (Array Int) := scene_cols level scene_width;
