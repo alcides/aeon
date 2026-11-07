@@ -1,8 +1,11 @@
-# List-Reverse: reverse, preserving length.
+# List-Reverse: structural/size port; only length preservation is specified.
 #
 # Synquid benchmark List-Reverse (pldi16).
 #
 # Element type left polymorphic (forall a), matching the Synquid original.
+# The original also reverses an abstract relation between list elements.
+# Aeon does not yet retain that relation as a datatype argument: returning xs
+# satisfies this weaker specification and does not demonstrate list reversal.
 
 open List
 

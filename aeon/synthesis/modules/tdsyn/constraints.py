@@ -1,0 +1,110 @@
+"""Existential feasibility of unfinished terms; final validation remains universal."""
+
+from __future__ import annotations
+
+from contextvars import ContextVar
+from time import monotonic
+
+import z3
+
+from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
+from aeon.core.liquid_ops import mk_liquid_and
+from aeon.core.substitutions import liquefy, substitution_in_liquid
+from aeon.core.terms import Term, Var
+from aeon.core.types import RefinedType, Type
+from aeon.synthesis.modules.tdsyn.worklist import TypedHole, substitute_holes_map
+from aeon.typechecking.context import TypingContext
+from aeon.typechecking.entailment import entailment_context
+from aeon.utils.name import Name
+from aeon.verification.smt import flatten, translate
+from aeon.verification.sub import implication_constraint
+from aeon.verification.vcs import Constraint, LiquidConstraint
+
+# Shared by candidate pruning and literal completion. A query cannot outlive
+# the synthesis budget; callers outside full synthesis retain a short query cap.
+deadline: ContextVar[float] = ContextVar("tdsyn_deadline", default=float("inf"))
+
+
+def configure_solver(solver: z3.Solver) -> bool:
+    remaining = deadline.get() - monotonic()
+    if remaining <= 0:
+        return False
+    solver.set(timeout=max(1, min(500, int(remaining * 1000))) if remaining != float("inf") else 500)
+    return True
+
+
+def has_refinement(ty: Type) -> bool:
+    return isinstance(ty, RefinedType) and ty.refinement != LiquidLiteralBool(True)
+
+
+def predicate_at(ty: Type, value: LiquidTerm) -> LiquidTerm:
+    if isinstance(ty, RefinedType):
+        return substitution_in_liquid(ty.refinement, value, ty.name)
+    return LiquidLiteralBool(True)
+
+
+def symbolic_term(term: Term, holes: list[TypedHole]) -> LiquidTerm | None:
+    """Value holes are existential constants, not liquid predicate unknowns."""
+    return liquefy(substitute_holes_map(term, {h.name: Var(h.name) for h in holes}))
+
+
+def obligations(
+    hole: TypedHole, replacement: Term, children: list[TypedHole], actual_type: Type | None = None
+) -> tuple[dict[Name, Type], list[LiquidTerm]]:
+    bindings = dict(hole.bindings)
+    bindings[hole.name] = hole.expected_type
+    predicates = list(hole.constraints)
+    for child in children:
+        bindings.update(child.bindings)
+        bindings[child.name] = child.expected_type
+        predicates.extend(child.constraints)
+    # Unrefined generation needs no result relation. Keep the witness types
+    # for dependent siblings, but avoid turning ordinary PBT sampling into an
+    # SMT query for every constructor and every unconstrained scalar.
+    if not predicates and not any(has_refinement(ty) for ty in bindings.values()):
+        return bindings, []
+    value = LiquidVar(hole.name)
+    if actual_type is not None:
+        predicates.append(predicate_at(actual_type, value))
+    expression = symbolic_term(replacement, children)
+    if expression is not None:
+        predicates.append(LiquidApp(Name("==", 0), [value, expression]))
+    return bindings, list(dict.fromkeys(p for p in predicates if p != LiquidLiteralBool(True)))
+
+
+def existential_formula(ctx: TypingContext, bindings: dict[Name, Type], predicates: list[LiquidTerm]):
+    """Encode Γ ∧ ∃ witnesses. contracts ∧ predicates using verification's SMT translation.
+
+    ``translate`` produces a counterexample formula (premise ∧ ¬conclusion).
+    Negating our predicate as its conclusion therefore asks for a witness,
+    rather than requiring the predicate to hold for every possible argument.
+    """
+    predicate: LiquidTerm = LiquidLiteralBool(True)
+    for part in predicates:
+        predicate = mk_liquid_and(predicate, part)
+    constraint: Constraint = LiquidConstraint(LiquidApp(Name("!", 0), [predicate]))
+    for name, ty in reversed(list(bindings.items())):
+        constraint = implication_constraint(name, ty, constraint)
+    constraint = entailment_context(ctx, constraint)
+    return z3.And(*[translate(clause) for clause in flatten(constraint)])
+
+
+def feasible(ctx: TypingContext, bindings: dict[Name, Type], predicates: list[LiquidTerm]) -> bool:
+    """Prune only UNSAT. Unsupported theories and UNKNOWN retain the candidate."""
+    if not predicates and not any(has_refinement(ty) for ty in bindings.values()):
+        return True
+    solver = z3.Solver()
+    if not configure_solver(solver):
+        return True
+    try:
+        solver.add(existential_formula(ctx, bindings, predicates))
+        return solver.check() != z3.unsat
+    except (AssertionError, KeyError, TypeError, ValueError, NotImplementedError, z3.Z3Exception):
+        return True
+
+
+def candidate_feasible(
+    hole: TypedHole, replacement: Term, children: list[TypedHole], actual_type: Type | None = None
+) -> bool:
+    bindings, predicates = obligations(hole, replacement, children, actual_type)
+    return feasible(hole.context, bindings, predicates)

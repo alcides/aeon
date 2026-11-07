@@ -149,7 +149,9 @@ base_functions: dict[str, Any] = {
     "-": lambda x, y: x - y,
     "*": lambda x, y: x * y,
     "/": lambda x, y: x / y,
-    "%": lambda x, y: x % y,
+    # Runtime follows Python: a nonzero remainder has the divisor's sign.
+    # Z3 mod instead always returns a nonnegative remainder.
+    "%": lambda x, y: If(y < 0, -((-x) % (-y)), x % y),
     "-->": lambda x, y: Implies(x, y),
     "ite": lambda c, t, e: If(c, t, e),
     # String.len -> Z3's native string-length, so refinements over string length
