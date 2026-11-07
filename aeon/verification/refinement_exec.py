@@ -481,6 +481,7 @@ def execute_refinements_in_stype(
                 name,
                 [execute_refinements_in_stype(a, program_sterm, dependency_units) for a in args],
                 loc=loc,
+                refinements=ty.refinements,
             )
         case _:
             return ty

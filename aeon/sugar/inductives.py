@@ -358,7 +358,31 @@ def expand_inductive_decls(p: Program) -> Program:
                 foralls.append((return_generic_name, Kind.BASE))
 
                 # Target Type (First argument)
-                target_type = STypeConstructor(name, [STypeVar(a) for a in args])
+                indexed = False
+                for constructor in constructors:
+                    result = constructor.type
+                    if isinstance(result, SRefinedType):
+                        result = result.type
+                    indexed |= isinstance(result, STypeConstructor) and bool(result.refinements)
+                if indexed:
+                    expected_predicates = [SVar(n) for n, _ in dtype_rfs]
+                    from aeon.sugar.equality import term_equality
+
+                    for constructor in constructors:
+                        result = constructor.type
+                        if isinstance(result, SRefinedType):
+                            result = result.type
+                        if (
+                            not isinstance(result, STypeConstructor)
+                            or len(result.refinements) != len(expected_predicates)
+                            or not all(term_equality(p, q) for p, q in zip(result.refinements, expected_predicates))
+                        ):
+                            raise ValueError(
+                                "Constructor results must retain the datatype's declared predicate parameters in order"
+                            )
+                target_type = STypeConstructor(
+                    name, [STypeVar(a) for a in args], refinements=[SVar(n) for n, _ in dtype_rfs] if indexed else []
+                )
                 rec_args.append((Name("this", -1), target_type))
 
                 # Prepare arguments for each constructor. Constructor

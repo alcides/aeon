@@ -67,6 +67,8 @@ def _collect_from_type(ty: Type, sink: set[LiquidTerm]) -> None:
         case TypeConstructor(_, args):
             for arg_ty in args:
                 _collect_from_type(arg_ty, sink)
+            for predicate in ty.refinements:
+                sink.update(_atoms_from_predicate(predicate.body))
         case TypeVar():
             pass
         case _:

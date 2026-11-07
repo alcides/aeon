@@ -12,7 +12,14 @@ from aeon.errors import CoreTypeCheckingError
 from aeon.sugar.lowering import liquefy, type_to_core, LiquefactionException
 from aeon.sugar.program import STerm, SRec, SAbstraction, STypeAbstraction, SRefinementAbstraction, SVar
 from aeon.sugar.substitutions import substitution_sterm_in_stype
-from aeon.sugar.stypes import SType, SAbstractionType, SRefinedType, STypePolymorphism, SRefinementPolymorphism
+from aeon.sugar.stypes import (
+    SType,
+    SAbstractionType,
+    SRefinedType,
+    STypePolymorphism,
+    SRefinementPolymorphism,
+    STypeConstructor,
+)
 from aeon.typechecking.entailment import entailment
 from aeon.typechecking.context import TypingContext, VariableBinder, TypeBinder, TypeConstructorBinder
 from aeon.verification.sub import lower_constraint_type_keep_refinements
@@ -176,19 +183,46 @@ def check_refinement_calls(term: STerm, ctx, *, source_path=None):
         elif isinstance(ty, SRefinedType):
             check_type(ty.type, local)
             surface_calls(ty.refinement, local.with_var(ty.name, type_to_core(ty.type)))
+        elif isinstance(ty, STypeConstructor):
+            from aeon.core.substitutions import predicate_domains
+            from aeon.core.liquid import LiquidVar
+            from aeon.utils.name import fresh_counter
+
+            for argument in ty.args:
+                check_type(argument, local)
+            core = type_to_core(ty)
+            for predicate, sort in zip(core.refinements, local.datatype_predicate_sorts(core)):
+                scoped = local
+                parameters = []
+                for domain in predicate_domains(sort):
+                    parameter = Name("relation_arg", fresh_counter.fresh())
+                    scoped = scoped.with_var(parameter, domain)
+                    parameters.append(LiquidVar(parameter))
+                try:
+                    body = predicate.apply(parameters)
+                except ValueError:
+                    continue  # The ordinary well-formedness pass reports arity errors.
+                calls(body, scoped)
 
     needed = {}
 
     def needs_check(node):
+        if isinstance(node, (list, tuple)):
+            return any(needs_check(item) for item in node)
         key = id(node)
         if key not in needed:
-            needed[key] = isinstance(node, SRefinedType) or (
-                isinstance(node, (STerm, SType))
-                and is_dataclass(node)
-                and any(
-                    needs_check(getattr(node, f.name))
-                    for f in fields(node)
-                    if isinstance(getattr(node, f.name), (STerm, SType))
+            needed[key] = (
+                isinstance(node, SRefinedType)
+                or isinstance(node, STypeConstructor)
+                and bool(node.refinements)
+                or (
+                    isinstance(node, (STerm, SType))
+                    and is_dataclass(node)
+                    and any(
+                        needs_check(getattr(node, f.name))
+                        for f in fields(node)
+                        if isinstance(getattr(node, f.name), (STerm, SType, list, tuple))
+                    )
                 )
             )
         return needed[key]
@@ -253,7 +287,10 @@ def check_refinement_calls(term: STerm, ctx, *, source_path=None):
             visit(node.body, local.with_typevar(node.name, node.kind), body_type)
             return
         if isinstance(node, SRefinementAbstraction) and isinstance(expected, SRefinementPolymorphism):
-            visit(node.body, local.with_var(node.name, type_to_core(node.sort)), expected.body)
+            from aeon.sugar.substitutions import substitute_refinement_param_in_stype
+
+            body_type = substitute_refinement_param_in_stype(expected.body, expected.name, node.name)
+            visit(node.body, local.with_var(node.name, type_to_core(node.sort)), body_type)
             return
         if isinstance(node, SRec):
             # Some computational predicates are not liquid until evaluated.

@@ -453,7 +453,7 @@ def inline_refinement_library_predicates(definitions: list[Definition]) -> list[
                     name, ty(domain), ty(codomain), loc=loc, multiplicity=t.multiplicity, is_instance=t.is_instance
                 )
             case STypeConstructor(name, args, loc):
-                return STypeConstructor(name, [ty(arg) for arg in args], loc=loc)
+                return STypeConstructor(name, [ty(arg) for arg in args], loc=loc, refinements=t.refinements)
             case STypePolymorphism(name, kind, body, loc):
                 return STypePolymorphism(name, kind, ty(body), loc=loc)
             case SRefinementPolymorphism(name, sort, body, loc):
@@ -910,7 +910,7 @@ def _expand_bare_parametric_type_ctors_in_stype(
         case STypeVar(_):
             return ty
         case STypeConstructor(name, args, loc):
-            return STypeConstructor(name, [rec(a) for a in args], loc=loc)
+            return STypeConstructor(name, [rec(a) for a in args], loc=loc, refinements=ty.refinements)
         case SAbstractionType(vname, vty, rty, loc):
             return SAbstractionType(vname, rec(vty), rec(rty), loc=loc, multiplicity=ty.multiplicity)
         case SRefinedType(name, ity, ref, loc):
@@ -1836,7 +1836,7 @@ def canonicalize_imported_type_constructors(
         match ty:
             case STypeConstructor(name, args):
                 mapped = canonical.get(name.name, name)
-                return STypeConstructor(mapped, [rec(a) for a in args])
+                return STypeConstructor(mapped, [rec(a) for a in args], refinements=ty.refinements)
             case SAbstractionType(var_name, var_type, return_type):
                 return SAbstractionType(
                     var_name,
@@ -1936,6 +1936,7 @@ def canonicalize_sconstructor_in_stype(ty: SType, canonical: dict[str, Name]) ->
             return STypeConstructor(
                 mapped,
                 [canonicalize_sconstructor_in_stype(a, canonical) for a in args],
+                refinements=ty.refinements,
             )
         case SAbstractionType(var_name, var_type, return_type):
             return SAbstractionType(

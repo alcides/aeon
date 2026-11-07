@@ -41,7 +41,13 @@ def type_equality(a: SType, b: SType, rename_left: dict[Name, Name] | None = Non
         case SAbstractionType(aname, a1, a2), SAbstractionType(bname, b1, b2):
             return type_equality(a1, b1, rename_left) and type_equality(a2, b2, rename_left | {aname: bname})
         case STypeConstructor(aname, a1), STypeConstructor(bname, b1):
-            return aname == bname and all([type_equality(a, b, rename_left) for a, b in zip(a1, b1)])
+            return (
+                aname == bname
+                and len(a1) == len(b1)
+                and all(type_equality(x, y, rename_left) for x, y in zip(a1, b1))
+                and len(a.refinements) == len(b.refinements)
+                and all(term_equality(p, q, rename_left) for p, q in zip(a.refinements, b.refinements))
+            )
         case STypePolymorphism(aname, akind, abody), STypePolymorphism(bname, bkind, bbody):
             return akind == bkind and type_equality(abody, bbody, rename_left | {aname: bname})
         case SRefinementPolymorphism(aname, asort, abody), SRefinementPolymorphism(bname, bsort, bbody):

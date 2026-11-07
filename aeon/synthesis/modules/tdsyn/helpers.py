@@ -7,6 +7,7 @@ from aeon.core.instantiation import type_substitution
 from aeon.core.substitutions import instantiate_refinement_in_type
 from aeon.core.terms import (
     Abstraction,
+    Application,
     ImplicitRefinementHole,
     Literal,
     RefinementApplication,
@@ -224,3 +225,12 @@ def make_skip_fn(fun_name: Name, metadata: Metadata) -> Callable[[Name], bool]:
         return should_skip(name, fun_name, metadata, is_recursion_allowed)
 
     return skip
+
+
+def is_constructor_term(term: Term) -> bool:
+    """Recognize a registered constructor through applications and instantiation."""
+    from aeon.verification.constructor_registry import get_constructor_groups
+
+    while isinstance(term, (Application, TypeApplication, RefinementApplication)):
+        term = term.fun if isinstance(term, Application) else term.body
+    return isinstance(term, Var) and any(term.name.name in names for names in get_constructor_groups().values())

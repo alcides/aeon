@@ -90,7 +90,27 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         case RefinementPolymorphism(name, sort, body):
             return RefinementPolymorphism(name, fresh(context, sort), fresh(context, body))
         case TypeConstructor(name, args):
-            return TypeConstructor(name, [fresh(context, c) for c in args])
+            from aeon.core.liquid import LiquidPredicate
+            from aeon.core.substitutions import predicate_domains
+
+            result = TypeConstructor(name, [fresh(context, c) for c in args])
+            sorts = context.datatype_predicate_sorts(result)
+            predicates = []
+            for index, predicate in enumerate(ty.refinements):
+                if predicate.implicit:
+                    if index >= len(sorts):
+                        raise ValueError("Unknown datatype predicate parameter")
+                    domains = [liquid_admissible(d) for d in predicate_domains(sorts[index])]
+                    if any(d is None for d in domains):
+                        raise ValueError("Higher-order datatype predicate domain")
+                    parameters = tuple(Name("predicate_arg", fresh_counter.fresh()) for _ in domains)
+                    predicate_body = LiquidHornApplication(
+                        Name("datatype_predicate", fresh_counter.fresh()),
+                        [(LiquidVar(n), d) for n, d in zip(parameters, domains)],
+                    )
+                    predicate = LiquidPredicate(parameters, predicate_body)
+                predicates.append(predicate)
+            return TypeConstructor(name, result.args, loc=ty.loc, refinements=predicates)
         case ExistentialType(binders, body):
             ext_ctx = context
             new_binders: list[tuple[Name, Type]] = []
@@ -368,6 +388,12 @@ def build_measure_atoms(
     atoms: list[LiquidTerm] = []
     seen: set[LiquidTerm] = set()
     for fname, ftype in measures.items():
+        # Boolean measures are already direct qualifier candidates below.
+        # Nesting every predicate application inside every arithmetic or
+        # equality operator multiplies the vocabulary without adding the
+        # relation needed for abstract-refinement instantiation.
+        if ftype[-1] == t_bool:
+            continue
         arity = len(ftype) - 1
         if arity == 0:
             continue
@@ -420,12 +446,32 @@ def build_initial_assignment(
     qualifier_atoms: frozenset[LiquidTerm] | None = None,
 ) -> Assignment:
     atoms = frozenset() if qualifier_atoms is None else qualifier_atoms
-    holes = obtain_holes_constraint(c)
+
+    def scoped_holes(constraint, context):
+        if isinstance(constraint, LiquidConstraint):
+            for hole in obtain_holes(constraint.expr):
+                yield hole, context
+        elif isinstance(constraint, Conjunction):
+            yield from scoped_holes(constraint.c1, context)
+            yield from scoped_holes(constraint.c2, context)
+        elif isinstance(constraint, Implication):
+            for hole in obtain_holes(constraint.pred):
+                yield hole, context
+            yield from scoped_holes(constraint.seq, context)
+        elif isinstance(constraint, (UninterpretedFunctionDeclaration, ReflectedFunctionDeclaration)):
+            # Abstract predicates are locally quantified in the VC, rather
+            # than in the program's outer typing context. Include them in
+            # this hole's qualifier vocabulary without leaking across scopes.
+            signature = lower_abstraction_type(constraint.type)
+            if signature and signature[-1] == t_bool and constraint.name not in liquid_prelude:
+                context = (context or TypingContext()).with_uninterpreted(constraint.name, constraint.type)
+            yield from scoped_holes(constraint.seq, context)
+
     assign: dict[Name, list[LiquidTerm]] = {}
-    for h in holes:
+    for h, local_context in scoped_holes(c, typing_ctx):
         if h.name not in assign:
-            prelude = list(build_possible_assignment(h, typing_ctx))
-            extra = build_qualifier_candidates(typing_ctx, h, atoms)
+            prelude = list(build_possible_assignment(h, local_context))
+            extra = build_qualifier_candidates(local_context, h, atoms)
             prelude_set = set(prelude)
             assign[h.name] = prelude + [c for c in extra if c not in prelude_set]
     return assign

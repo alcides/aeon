@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from aeon.utils.location import Location, SynthesizedLocation
 from aeon.utils.name import Name
@@ -8,6 +9,55 @@ from aeon.utils.name import Name
 
 class LiquidTerm(ABC):
     loc: Location
+
+
+@dataclass(frozen=True)
+class LiquidPredicate:
+    """A datatype predicate argument: a curried lambda or a predicate name.
+
+    Parameter sorts come from the datatype declaration, just as for a term
+    lambda checked against a function type. These arguments are erased at runtime.
+    """
+
+    parameters: tuple[Name, ...]
+    body: LiquidTerm
+    implicit: bool = False
+
+    def __str__(self):
+        return "".join(f"fun {p} => " for p in self.parameters) + str(self.body)
+
+    def apply(self, arguments: Sequence[LiquidTerm]) -> LiquidTerm:
+        from aeon.core.substitutions import substitution_in_liquid
+        from aeon.utils.name import fresh_counter
+
+        if not self.parameters and isinstance(self.body, LiquidVar):
+            return LiquidApp(self.body.name, list(arguments))
+        if len(arguments) != len(self.parameters):
+            raise ValueError("Datatype predicate argument has the wrong arity")
+        # Simultaneous substitution: actual arguments may use a formal's name.
+        fresh = [Name("predicate_arg", fresh_counter.fresh()) for _ in arguments]
+        body = self.body
+        for parameter, witness in zip(self.parameters, fresh):
+            body = substitution_in_liquid(body, LiquidVar(witness), parameter)
+        for witness, argument in zip(fresh, arguments):
+            body = substitution_in_liquid(body, argument, witness)
+        return body
+
+    def substitute(self, replacement: LiquidTerm, name: Name) -> LiquidPredicate:
+        from aeon.core.substitutions import substitution_in_liquid
+        from aeon.utils.name import fresh_counter
+
+        if name in self.parameters:
+            return self
+        body = self.body
+        parameters = list(self.parameters)
+        free = liquid_free_vars(replacement)
+        for index, parameter in enumerate(parameters):
+            if parameter in free:
+                fresh = Name(parameter.name, fresh_counter.fresh())
+                body = substitution_in_liquid(body, LiquidVar(fresh), parameter)
+                parameters[index] = fresh
+        return LiquidPredicate(tuple(parameters), substitution_in_liquid(body, replacement, name), self.implicit)
 
 
 def ensure_liqterm(a: LiquidTerm | Name) -> LiquidTerm:

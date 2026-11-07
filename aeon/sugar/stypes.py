@@ -88,13 +88,15 @@ class STypeConstructor(SType):
     name: Name
     args: list[SType] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+    refinements: list["STerm"] = field(default_factory=list)
 
     def __str__(self):
         args = ", ".join(str(a) for a in self.args)
-        return f"{self.name} {args}"
+        predicates = "".join("{|" + str(p) + "|}" for p in self.refinements)
+        return f"{self.name} {args}{predicates}"
 
     def __hash__(self):
-        return hash(self.name) + sum(hash(c) for c in self.args)
+        return hash(self.name) + sum(hash(c) for c in self.args) + hash(tuple(self.refinements))
 
 
 builtin_types = ["Top", "Bool", "Int", "Float", "String", "Unit", "Set", "Tensor"]
