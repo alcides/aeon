@@ -17,6 +17,8 @@ CORE_TESTS = [
     "tests/smt_test.py",
     "tests/smt_datatype_test.py",
     "tests/recursion_soundness_test.py",
+    "tests/polymorphic_subtyping_soundness_test.py",
+    "tests/synthesis_list_refinement_soundness_test.py",
     "tests/theorem_syntax_test.py",
     "tests/precondition_diagnostics_test.py",
     "tests/refined_match_test.py",
