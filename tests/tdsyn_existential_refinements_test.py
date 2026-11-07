@@ -88,3 +88,25 @@ def test_stochastic_expansion_defers_pruning_but_keeps_argument_contracts():
     assert all(not solve_literals(p.holes) for p in applications)
     # Deferring a random walk's pruning must not change subsequent TDSyn search.
     assert not backward_app_candidates(hole, lambda _: False)
+
+
+@pytest.mark.parametrize("argument", [0, 1])
+def test_stochastic_forward_application_still_requires_final_precondition_check(argument):
+    from aeon.synthesis.modules.tdsyn.constraints import eager_pruning
+    from aeon.typechecking.typeinfer import check_type
+    from aeon.utils.ctx_helpers import built_std_context
+
+    x, f = Name("x", 100), Name("f", 101)
+    ctx = (
+        built_std_context()
+        .with_var(x, parse_type(f"{{v:Int | v == {argument}}}"))
+        .with_var(f, parse_type("(n:{v:Int | v > 0}) -> Int"))
+    )
+    _, hole = fresh_hole(t_int, ctx)
+    token = eager_pruning.set(False)
+    try:
+        [(term, children)] = forward_candidates(hole, lambda name: name not in {x, f})
+    finally:
+        eager_pruning.reset(token)
+    assert not children and term == Application(Var(f), Var(x))
+    assert check_type(ctx, term, t_int) == (argument > 0)

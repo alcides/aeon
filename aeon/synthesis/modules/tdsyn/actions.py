@@ -17,7 +17,7 @@ from aeon.core.types import (
     t_int,
     t_string,
 )
-from aeon.synthesis.modules.tdsyn.constraints import candidate_feasible, obligations
+from aeon.synthesis.modules.tdsyn.constraints import candidate_feasible, eager_pruning, obligations
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
     bases_match,
@@ -223,7 +223,11 @@ def _forward_applications(
 
             if not bases_match(v_type, first_param_type):
                 continue
-            if not is_subtype(ctx, v_type, first_param_type):
+            # Random walks also defer the refinement query for an already
+            # supplied argument. Their final validator checks the complete
+            # application; exhaustively proving every unchosen f(v) is costly.
+            compatible = is_subtype if eager_pruning.get() else _compatible_result
+            if not compatible(ctx, v_type, first_param_type):
                 continue
 
             applied = Application(f_term, Var(v_name, _loc), _loc)
