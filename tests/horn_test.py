@@ -324,3 +324,53 @@ def test_simplify_constraint_fixpoint_reduces_trivial_boolean_structure():
     s = simplify_constraint_fixpoint(c)
     assert isinstance(s, LiquidConstraint)
     assert s.expr == LiquidLiteralBool(True)
+
+
+@pytest.mark.parametrize("reflected", [False, True])
+def test_runtime_boolean_functions_do_not_expand_qualifier_vocabulary(reflected):
+    from aeon.verification.vcs import ReflectedFunctionDeclaration, UninterpretedFunctionDeclaration
+
+    function, parameter, unknown = Name("runtime_predicate"), Name("x"), Name("k")
+    signature = AbstractionType(parameter, t_int, t_bool)
+    goal = LiquidConstraint(LiquidHornApplication(unknown, [(LiquidVar(parameter), t_int)]))
+    declaration = (
+        ReflectedFunctionDeclaration(function, signature, (parameter,), LiquidLiteralBool(True), goal)
+        if reflected
+        else UninterpretedFunctionDeclaration(function, signature, goal)
+    )
+    assert build_initial_assignment(declaration) == build_initial_assignment(goal)
+
+
+def test_abstract_predicate_qualifiers_respect_constraint_scope():
+    from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
+
+    predicate, parameter, inside, outside = (Name(name) for name in ("p", "x", "inside", "outside"))
+    signature = AbstractionType(parameter, t_int, t_bool)
+    inner = LiquidConstraint(LiquidHornApplication(inside, [(LiquidVar(parameter), t_int)]))
+    outer = LiquidConstraint(LiquidHornApplication(outside, [(LiquidVar(parameter), t_int)]))
+    declaration = UninterpretedFunctionDeclaration(predicate, signature, inner, is_refinement=True)
+    assignment = build_initial_assignment(Conjunction(declaration, outer))
+    assert any(predicate in _liquid_function_names(candidate) for candidate in assignment[inside])
+    assert not any(predicate in _liquid_function_names(candidate) for candidate in assignment[outside])
+
+    # Logical predicates carried by synthesis contexts have the same vocabulary.
+    ctx = TypingContext().with_refinement(predicate, signature)
+    assert build_initial_assignment(inner, ctx)[inside] == assignment[inside]
+
+
+def test_constraint_rewriting_preserves_abstract_predicate_qualifiers():
+    from aeon.verification.helpers import substitution_in_constraint
+    from aeon.verification.horn import split
+    from aeon.verification.smt import rename_constraint
+    from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
+
+    predicate, parameter, renamed, unknown = (Name(name) for name in ("p", "x", "y", "k"))
+    signature = AbstractionType(parameter, t_int, t_bool)
+    goal = LiquidConstraint(LiquidHornApplication(unknown, [(LiquidVar(parameter), t_int)]))
+    declaration = UninterpretedFunctionDeclaration(predicate, signature, Conjunction(goal, goal), is_refinement=True)
+    rewritten = simplify_constraint_fixpoint(declaration)
+    rewritten = substitution_in_constraint(rewritten, LiquidVar(renamed), parameter)
+    rewritten = rename_constraint(rewritten, renamed, parameter)
+    for part in split(rewritten):
+        assignment = build_initial_assignment(part)
+        assert any(predicate in _liquid_function_names(candidate) for candidate in assignment[unknown])

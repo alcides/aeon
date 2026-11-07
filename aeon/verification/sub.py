@@ -365,7 +365,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
                 substitution_liquid_in_type(body_b, LiquidVar(name), b),
                 loc,
             )
-            return conjoin(sorts, UninterpretedFunctionDeclaration(name, predicate_a, body))
+            return conjoin(sorts, UninterpretedFunctionDeclaration(name, predicate_a, body, is_refinement=True))
         case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _), _:
             # Core instantiation is explicit (TypeApplication or
             # RefinementApplication). A bare schema cannot fill a concrete hole.

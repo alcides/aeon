@@ -969,7 +969,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             ctx_ext = ctx.with_refinement(pname, fk_type)
             (c_body, body_ty) = synth(ctx_ext, inner)
             return (
-                UninterpretedFunctionDeclaration(pname, fk_type, c_body),
+                UninterpretedFunctionDeclaration(pname, fk_type, c_body, is_refinement=True),
                 RefinementPolymorphism(pname, psort, body_ty),
             )
 
@@ -1469,7 +1469,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
             inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
             c_body = check(ctx_ext, inner_sub, body_open)
-            return conjoin(c_sort, UninterpretedFunctionDeclaration(pname, fk_type, c_body))
+            return conjoin(c_sort, UninterpretedFunctionDeclaration(pname, fk_type, c_body, is_refinement=True))
 
         # per tutorial fig 8.4 Chk-RAbs
         case _, RefinementPolymorphism(name, sort, body):
@@ -1491,7 +1491,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             term_sub = substitution_liquid_in_term(t, LiquidVar(fk_name), name)
             c = check(ctx_ext, term_sub, body_sub)
             # Return (fκ :: sort → bool) ⇒ c
-            return UninterpretedFunctionDeclaration(fk_name, fk_type, c)
+            return UninterpretedFunctionDeclaration(fk_name, fk_type, c, is_refinement=True)
 
         case _ if (rec_c := _try_check_recursor(ctx, t, ty)) is not None:
             # Fully-applied inductive eliminator (lowered ``match``): check each

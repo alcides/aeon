@@ -32,7 +32,7 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
         match entry:
             case RefinementBinder(name, sort):
                 assert isinstance(sort, AbstractionType)
-                c = UninterpretedFunctionDeclaration(name, sort, c)
+                c = UninterpretedFunctionDeclaration(name, sort, c, is_refinement=True)
             case VariableBinder(name, AbstractionType(vname, vtype, rtype)):
                 if name in ops:
                     pass

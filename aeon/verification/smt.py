@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import reduce
 from typing import Any, Callable, TypeVar as TypingTypeVar
 from collections.abc import MutableMapping
@@ -713,7 +713,7 @@ def _rename_constraint_node(
             nseq = visit(seq)
             renamed_type = substitution_in_type(absty, Var(new_name), old_name)
             assert isinstance(renamed_type, AbstractionType)
-            return UninterpretedFunctionDeclaration(name, renamed_type, nseq)
+            return replace(c, type=renamed_type, seq=nseq)
         case ReflectedFunctionDeclaration(name, absty, params, body, seq):
             nbody = substitution_in_liquid(body, LiquidVar(new_name), old_name)
             nparams = tuple(new_name if p == old_name else p for p in params)

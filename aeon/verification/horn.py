@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from functools import reduce
 from itertools import product
 from typing import Any, Generator
@@ -27,7 +28,7 @@ from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.liquid_ops import liquid_prelude
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import UninterpretedBinder
+from aeon.typechecking.context import RefinementBinder, UninterpretedBinder
 from aeon.typechecking.liquid import (
     LiquidTypeCheckException,
     LiquidTypeCheckingContext,
@@ -357,7 +358,7 @@ def context_measures(typing_ctx: TypingContext | None) -> dict[Name, list[TypeCo
     constructors (``def feats : (ds:Dataset) -> Int = uninterpreted``, the
     auto-generated inductive projections ``Pair_mk_fst``, …). They are
     lowered to the liquid signature shape so they can be applied to a hole's
-    argument slots. Only ``UninterpretedBinder`` entries are taken — plain
+    argument slots. Abstract ``RefinementBinder`` predicates are included too; plain
     first-order program functions are deliberately excluded to keep the
     candidate space bounded.
     """
@@ -365,7 +366,7 @@ def context_measures(typing_ctx: TypingContext | None) -> dict[Name, list[TypeCo
         return {}
     measures: dict[Name, list[TypeConstructor | TypeVar]] = {}
     for entry in typing_ctx.entries:
-        if isinstance(entry, UninterpretedBinder):
+        if isinstance(entry, (UninterpretedBinder, RefinementBinder)):
             lowered = lower_abstraction_type(entry.type)
             if len(lowered) >= 2:
                 measures[entry.name] = lowered
@@ -502,9 +503,8 @@ def build_initial_assignment(
             # Abstract predicates are locally quantified in the VC, rather
             # than in the program's outer typing context. Include them in
             # this hole's qualifier vocabulary without leaking across scopes.
-            signature = lower_abstraction_type(constraint.type)
-            if signature and signature[-1] == t_bool and constraint.name not in liquid_prelude:
-                context = (context or TypingContext()).with_uninterpreted(constraint.name, constraint.type)
+            if isinstance(constraint, UninterpretedFunctionDeclaration) and constraint.is_refinement:
+                context = (context or TypingContext()).with_refinement(constraint.name, constraint.type)
             yield from scoped_holes(constraint.seq, context)
 
     assign: dict[Name, list[LiquidTerm]] = {}
@@ -532,8 +532,8 @@ def split(c: Constraint) -> list[Constraint]:
             return split(c1) + split(c2)
         case Implication(name, base, pre, post):
             return [Implication(name, base, pre, cp) for cp in split(post)]
-        case UninterpretedFunctionDeclaration(name, type, seq):
-            return [UninterpretedFunctionDeclaration(name, type, c) for c in split(seq)]
+        case UninterpretedFunctionDeclaration(seq=seq):
+            return [replace(c, seq=part) for part in split(seq)]
         case ReflectedFunctionDeclaration(name, type, params, body, seq):
             return [ReflectedFunctionDeclaration(name, type, params, body, c) for c in split(seq)]
         case _:
@@ -603,8 +603,8 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
                 apply_liquid(assign, pre),
                 apply_constraint(assign, post),
             )
-        case UninterpretedFunctionDeclaration(name, base, post):
-            return UninterpretedFunctionDeclaration(name, base, apply_constraint(assign, post))
+        case UninterpretedFunctionDeclaration(seq=post):
+            return replace(c, seq=apply_constraint(assign, post))
         case ReflectedFunctionDeclaration(name, base, params, body, post):
             return ReflectedFunctionDeclaration(
                 name, base, params, apply_liquid(assign, body), apply_constraint(assign, post)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from functools import reduce
 from typing import Callable, Generator
 
@@ -215,9 +216,9 @@ def substitution_in_constraint_with_loc(c: Constraint, rep: LiquidTerm, name: Na
                 return c
             nseq = substitution_in_constraint_with_loc(seq, rep, name)
             return Implication(impl_name, base, substitution_in_liquid_with_loc(pred, rep, name), nseq, loc=c.loc)
-        case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
+        case UninterpretedFunctionDeclaration(seq=seq):
             nseq = substitution_in_constraint_with_loc(seq, rep, name)
-            return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
+            return replace(c, seq=nseq)
         case ReflectedFunctionDeclaration(rfd_name, rfd_type, params, body, seq):
             nbody = substitution_in_liquid_with_loc(body, rep, name)
             nseq = substitution_in_constraint_with_loc(seq, rep, name)
@@ -265,8 +266,8 @@ def substitute_liquid_term_in_constraint(c: Constraint, old: LiquidTerm, new: Li
                 substitute_liquid_term_in_constraint(seq, old, new),
                 loc=c.loc,
             )
-        case UninterpretedFunctionDeclaration(uname, utype, seq):
-            return UninterpretedFunctionDeclaration(uname, utype, substitute_liquid_term_in_constraint(seq, old, new))
+        case UninterpretedFunctionDeclaration(seq=seq):
+            return replace(c, seq=substitute_liquid_term_in_constraint(seq, old, new))
         case ReflectedFunctionDeclaration(rname, rtype, params, body, seq):
             return ReflectedFunctionDeclaration(
                 rname,
@@ -532,9 +533,9 @@ def substitution_in_constraint(c: Constraint, rep: LiquidTerm, name: Name) -> Co
             else:
                 nseq = substitution_in_constraint(seq, rep, name)
                 return Implication(impl_name, base, substitution_in_liquid(pred, rep, name), nseq, loc=c.loc)
-        case UninterpretedFunctionDeclaration(ufd_name, ufd_type, seq):
+        case UninterpretedFunctionDeclaration(seq=seq):
             nseq = substitution_in_constraint(seq, rep, name)
-            return UninterpretedFunctionDeclaration(ufd_name, ufd_type, nseq)
+            return replace(c, seq=nseq)
         case ReflectedFunctionDeclaration(rfd_name, rfd_type, params, body, seq):
             nbody = substitution_in_liquid(body, rep, name)
             nseq = substitution_in_constraint(seq, rep, name)
@@ -682,9 +683,9 @@ def simplify_constraint(c: Constraint) -> Constraint:
                 return cont
 
             return Implication(iname, base, s, cont, loc=iloc)
-        case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
+        case UninterpretedFunctionDeclaration(seq=useq):
             cont = simplify_constraint(useq)
-            return UninterpretedFunctionDeclaration(uname, utype, cont)
+            return replace(c, seq=cont)
         case ReflectedFunctionDeclaration(name=rname, type=rtype, params=rparams, body=rbody, seq=rseq):
             cont = simplify_constraint(rseq)
             return ReflectedFunctionDeclaration(rname, rtype, rparams, simplify_expr(rbody), cont)
@@ -735,9 +736,9 @@ def conjunctive_normal_form(c: Constraint) -> Generator[Constraint, None, None]:
         case Implication(name=iname, base=base, pred=pred, seq=seq, loc=iloc):
             for inner in conjunctive_normal_form(seq):
                 yield Implication(iname, base, pred, inner, loc=iloc)
-        case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
+        case UninterpretedFunctionDeclaration(seq=useq):
             for inner in conjunctive_normal_form(useq):
-                yield UninterpretedFunctionDeclaration(uname, utype, inner)
+                yield replace(c, seq=inner)
         case ReflectedFunctionDeclaration(name=rname, type=rtype, params=rparams, body=rbody, seq=rseq):
             for inner in conjunctive_normal_form(rseq):
                 yield ReflectedFunctionDeclaration(rname, rtype, rparams, rbody, inner)
@@ -761,8 +762,8 @@ def split_or_in_conclusion(c: Constraint) -> list[Constraint]:
             return [LiquidConstraint(part.expr, loc=loc) for part in split_or_disjuncts(expr)]
         case Implication(name=iname, base=base, pred=pred, seq=seq, loc=iloc):
             return [Implication(iname, base, pred, s, loc=iloc) for s in split_or_in_conclusion(seq)]
-        case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
-            return [UninterpretedFunctionDeclaration(uname, utype, s) for s in split_or_in_conclusion(useq)]
+        case UninterpretedFunctionDeclaration(seq=useq):
+            return [replace(c, seq=s) for s in split_or_in_conclusion(useq)]
         case ReflectedFunctionDeclaration(name=rname, type=rtype, params=rparams, body=rbody, seq=rseq):
             return [ReflectedFunctionDeclaration(rname, rtype, rparams, rbody, s) for s in split_or_in_conclusion(rseq)]
         case _:
@@ -785,8 +786,8 @@ def split_and_in_conclusion(c: Constraint) -> list[Constraint]:
             return [LiquidConstraint(conj, loc=loc) for conj in conjuncts]
         case Implication(name=iname, base=base, pred=pred, seq=seq, loc=iloc):
             return [Implication(iname, base, pred, s, loc=iloc) for s in split_and_in_conclusion(seq)]
-        case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
-            return [UninterpretedFunctionDeclaration(uname, utype, s) for s in split_and_in_conclusion(useq)]
+        case UninterpretedFunctionDeclaration(seq=useq):
+            return [replace(c, seq=s) for s in split_and_in_conclusion(useq)]
         case ReflectedFunctionDeclaration(name=rname, type=rtype, params=rparams, body=rbody, seq=rseq):
             return [
                 ReflectedFunctionDeclaration(rname, rtype, rparams, rbody, s) for s in split_and_in_conclusion(rseq)
@@ -920,8 +921,8 @@ def _should_keep_precondition(
 def remove_inert_preconditions(c: Constraint) -> Constraint:
     """Drop implication preconditions that do not affect the displayed goal."""
     match c:
-        case UninterpretedFunctionDeclaration(name=uname, type=utype, seq=useq):
-            return UninterpretedFunctionDeclaration(uname, utype, remove_inert_preconditions(useq))
+        case UninterpretedFunctionDeclaration(seq=useq):
+            return replace(c, seq=remove_inert_preconditions(useq))
         case ReflectedFunctionDeclaration(name=rname, type=rtype, params=rparams, body=rbody, seq=rseq):
             return ReflectedFunctionDeclaration(rname, rtype, rparams, rbody, remove_inert_preconditions(rseq))
         case _:

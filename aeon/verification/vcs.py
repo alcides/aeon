@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from contextlib import contextmanager, ExitStack
 from typing import Generator
 
@@ -54,6 +54,8 @@ class UninterpretedFunctionDeclaration(Constraint):
     name: Name
     type: AbstractionType
     seq: Constraint
+    # Abstract predicates contribute qualifiers; ordinary program functions do not.
+    is_refinement: bool = field(default=False, compare=False, kw_only=True)
 
     def __repr__(self):
         return f"fun {self.name}:{self.type} => {self.seq}"
