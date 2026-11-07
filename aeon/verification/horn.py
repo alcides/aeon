@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
+from itertools import product
 from typing import Any, Generator
 
 from aeon.core.types import builtin_core_types
@@ -371,6 +372,46 @@ def context_measures(typing_ctx: TypingContext | None) -> dict[Name, list[TypeCo
     return measures
 
 
+def typed_qualifier_args(
+    ctx: LiquidTypeCheckingContext,
+    hole: LiquidHornApplication,
+    domains: list[TypeConstructor | TypeVar],
+    extra_atoms: list[LiquidTerm] | None = None,
+) -> Generator[list[LiquidTerm], None, None]:
+    """Discard incompatible argument sorts before forming the Cartesian product.
+
+    Polymorphic slots remain permissive: the full liquid check still unifies
+    shared type variables and verifies operator-specific restrictions.
+    """
+
+    def compatible(actual: Type, expected: Type) -> bool:
+        if isinstance(actual, RefinedType):
+            return compatible(actual.type, expected)
+        if isinstance(expected, RefinedType):
+            return compatible(actual, expected.type)
+        if isinstance(actual, TypeVar) or isinstance(expected, TypeVar):
+            return True
+        if isinstance(actual, TypeConstructor) and isinstance(expected, TypeConstructor):
+            if actual.name.name in {"Int", "Float"} and expected.name.name in {"Int", "Float"}:
+                return True
+            return (
+                actual.name == expected.name
+                and len(actual.args) == len(expected.args)
+                and all(compatible(a, b) for a, b in zip(actual.args, expected.args))
+            )
+        return True
+
+    typed_atoms = []
+    for (atom,) in get_possible_args(hole.argtypes, 1, extra_atoms):
+        try:
+            typed_atoms.append((atom, type_infer_liquid(ctx, atom)))
+        except LiquidTypeCheckException:
+            continue
+    pools = [[atom for atom, actual in typed_atoms if compatible(actual, domain)] for domain in domains]
+    for arguments in product(*reversed(pools)):
+        yield list(reversed(arguments))
+
+
 def build_measure_atoms(
     ctx: LiquidTypeCheckingContext,
     hole: LiquidHornApplication,
@@ -397,7 +438,7 @@ def build_measure_atoms(
         arity = len(ftype) - 1
         if arity == 0:
             continue
-        for args in get_possible_args(hole.argtypes, arity):
+        for args in typed_qualifier_args(ctx, hole, ftype[:-1]):
             if not any(isinstance(a, LiquidVar) for a in args):
                 continue
             app = LiquidApp(fname, list(args))
@@ -429,8 +470,7 @@ def build_possible_assignment(
 
     for fname in gen_functions:
         ftype = gen_functions[fname]
-        arity = len(ftype) - 1
-        for args in get_possible_args(hole.argtypes, arity, measure_atoms):
+        for args in typed_qualifier_args(ctx, hole, ftype[:-1], measure_atoms):
             # At least one hole variable (directly or via a measure application) must be used.
             if not any(isinstance(a, LiquidVar) or a in measure_atom_set for a in args):
                 continue
