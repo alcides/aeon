@@ -35,6 +35,17 @@ class VariableBinder(TypingContextEntry):
 
 
 @dataclass(unsafe_hash=True)
+class RefinementBinder(TypingContextEntry):
+    """A scoped logical predicate, erased at runtime and unavailable to synthesis."""
+
+    name: Name
+    type: Type
+
+    def __repr__(self):
+        return f"refinement {self.name} : {self.type}"
+
+
+@dataclass(unsafe_hash=True)
 class UninterpretedBinder(TypingContextEntry):
     name: Name
     # ``type`` is an ``AbstractionType`` for plain uninterpreted predicates
@@ -305,6 +316,14 @@ class TypingContext:
             _ensure_builtins=False,
         )
 
+    def with_refinement(self, name: Name, sort: Type) -> TypingContext:
+        """Introduce an arbitrary predicate without adding an executable component."""
+        return TypingContext(
+            _ContextSnapshot.extend_scope(self.entries, RefinementBinder(name, sort), self._constructor_entries()),
+            trusted_names=self.trusted_names,
+            _ensure_builtins=False,
+        )
+
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
             match e:
@@ -364,7 +383,9 @@ class TypingContext:
         """
         latest: dict[str, tuple[Name, Type]] = {}
         for e in self.entries:
-            if isinstance(e, VariableBinder):
+            if isinstance(e, RefinementBinder):
+                latest.pop(e.name.name, None)
+            elif isinstance(e, VariableBinder):
                 latest[e.name.name] = (e.name, e.type)
         return list(latest.values())
 
