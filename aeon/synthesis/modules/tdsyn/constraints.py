@@ -23,6 +23,9 @@ from aeon.verification.vcs import Constraint, LiquidConstraint
 # Shared by candidate pruning and literal completion. A query cannot outlive
 # the synthesis budget; callers outside full synthesis retain a short query cap.
 deadline: ContextVar[float] = ContextVar("tdsyn_deadline", default=float("inf"))
+# Stochastic walks validate only selected terms. Eager SMT pruning of every
+# unchosen production can spend their entire budget before the first sample.
+eager_pruning: ContextVar[bool] = ContextVar("tdsyn_eager_pruning", default=True)
 
 
 def configure_solver(solver: z3.Solver) -> bool:
@@ -106,5 +109,7 @@ def feasible(ctx: TypingContext, bindings: dict[Name, Type], predicates: list[Li
 def candidate_feasible(
     hole: TypedHole, replacement: Term, children: list[TypedHole], actual_type: Type | None = None
 ) -> bool:
+    if not eager_pruning.get():
+        return True
     bindings, predicates = obligations(hole, replacement, children, actual_type)
     return feasible(hole.context, bindings, predicates)

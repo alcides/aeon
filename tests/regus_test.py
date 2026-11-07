@@ -18,6 +18,7 @@ from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.fitness_eval import set_program_tail
 from aeon.synthesis.identification import incomplete_functions_and_holes, iterate_top_level, term_has_holes
 from aeon.synthesis.modules.genetic_programming import GeneticProgrammingSynthesizer
+from aeon.synthesis.modules import genetic_programming as gp
 from aeon.synthesis.modules.regus import ReGuSSynthesizer
 from aeon.synthesis.modules.regus.model import Episode, Event, Observation, Plan, decode, repairs
 from aeon.synthesis.modules.regus.search import Config, Stats, code_successors, search, sketch_successors, utility
@@ -114,10 +115,12 @@ def test_real_search_obeys_goals_defined_by_the_problem(desired):
 def test_same_problem_runs_with_gp_without_translating_the_goal(monkeypatch):
     driver = parse(TOY.replace("DESIRED", "0"))
     backend = GeneticProgrammingSynthesizer(seed=0)
-    # Exercise the real seeded grammar and objective with a fixed probe. A
-    # wall-clock search can expire before the first valid genome on CI workers.
-    monkeypatch.setattr(backend, "_search", partial(backend._search, max_assessments=10, population_size=10))
-    solve(driver, backend, budget=120)
+    # A terminal-production genome exercises real decoding, validation and the
+    # controller objective without depending on ten random trees happening to
+    # close. Grammar additions may change that distribution substantially.
+    monkeypatch.setattr(gp, "_random_genome", lambda _rng, _length: [0])
+    monkeypatch.setattr(backend, "_search", partial(backend._search, max_assessments=1, population_size=1))
+    solve(driver, backend, budget=10)
     assert call(driver, "complete") is True
     assert math.isfinite(call(driver, "score"))
 

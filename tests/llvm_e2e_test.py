@@ -1,4 +1,5 @@
 import sys
+import pytest
 
 from loguru import logger
 from aeon.facade.driver import AeonDriver, AeonConfig
@@ -34,6 +35,17 @@ def test_e2e_sum_floats():
     """
     res = compile_and_run(source)
     assert res == -38.0
+
+
+@pytest.mark.parametrize("operator", ["/", "%"])
+@pytest.mark.parametrize("left,right", [(-7, 3), (7, -3), (-7, -3), (7, 8)])
+def test_integer_division_and_modulo_round_down(operator, left, right):
+    source = f"""
+    @llvm
+    def calculate(x:Int)(y:{{v:Int | v != 0}}):Int := x {operator} y;
+    def main(u:Int):Int := calculate ({left}) ({right});
+    """
+    assert compile_and_run(source) == (left // right if operator == "/" else left % right)
 
 
 def test_e2e_recursive():

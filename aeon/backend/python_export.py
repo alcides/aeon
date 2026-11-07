@@ -155,6 +155,12 @@ def _gen_application(t: Application) -> str:
         # ``$`` is application.
         if op == "$" and len(args) == 2:
             return f"({gen(args[0])})({gen(args[1])})"
+        if op == "/" and len(args) == 2:
+            # Bind each operand once, preserving evaluation order and effects.
+            return (
+                "(lambda x, y: x // y if isinstance(x, int) and isinstance(y, int) else x / y)"
+                f"({gen(args[0])}, {gen(args[1])})"
+            )
         if op in BINARY_OPERATORS and len(args) == 2:
             return f"({gen(args[0])} {BINARY_OPERATORS[op]} {gen(args[1])})"
 

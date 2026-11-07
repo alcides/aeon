@@ -75,3 +75,16 @@ def test_unknown_feasibility_keeps_candidate_for_final_validation(monkeypatch):
 def test_literal_completion_does_not_drop_untranslatable_refinements():
     _, hole = fresh_hole(parse_type("{v:Int | missing v}"), TypingContext())
     assert solve_literals([hole]) == []
+
+
+def test_stochastic_expansion_defers_pruning_but_keeps_argument_contracts():
+    from aeon.synthesis.modules.native_search import expansions_for_hole
+
+    partial, _ = application_problem("(x:{v:Int | v > 10}) -> {v:Int | v == x + 1}", "{v:Int | v == 10}")
+    hole = partial.holes[0]
+    proposals = expansions_for_hole(partial, hole, lambda _: False, prune=False)
+    applications = [p for p in proposals if isinstance(p.term, Application)]
+    assert applications
+    assert all(not solve_literals(p.holes) for p in applications)
+    # Deferring a random walk's pruning must not change subsequent TDSyn search.
+    assert not backward_app_candidates(hole, lambda _: False)
