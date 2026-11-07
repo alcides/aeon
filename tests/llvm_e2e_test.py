@@ -74,11 +74,11 @@ def test_e2e_llvm_array_sum():
     def sum_matrix(1 m:(Array Int)) (s:Int) : Int := reduce_n_int add 0 m s;
 
     def main (i:Int) : Int :=
-        let 1 a0 := new{Int} unit in
-        let 1 a1 := append{Int} a0 1 in
-        let 1 a2 := append{Int} a1 2 in
-        let 1 a3 := append{Int} a2 3 in
-        let 1 a4 := append{Int} a3 4 in
+        let 1 a0 := Array.mk_empty{Int} unit in
+        let 1 a1 := Array.mk_concat a0 (Array.mk_1 1) in
+        let 1 a2 := Array.mk_concat a1 (Array.mk_1 2) in
+        let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
+        let 1 a4 := Array.mk_concat a3 (Array.mk_1 4) in
         sum_matrix a4 4;
     """
     res = compile_and_run(source)
@@ -98,12 +98,12 @@ def test_e2e_llvm_array_map():
         map_n_int inc v s;
 
     def main (i:Int) : Int :=
-        let 1 a0 := new{Int} unit in
-        let 1 a1 := append{Int} a0 1 in
-        let 1 a2 := append{Int} a1 2 in
-        let 1 a3 := append{Int} a2 3 in
-        let 1 a4 := append{Int} a3 4 in
-        let 1 a5 := append{Int} a4 5 in
+        let 1 a0 := Array.mk_empty{Int} unit in
+        let 1 a1 := Array.mk_concat a0 (Array.mk_1 1) in
+        let 1 a2 := Array.mk_concat a1 (Array.mk_1 2) in
+        let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
+        let 1 a4 := Array.mk_concat a3 (Array.mk_1 4) in
+        let 1 a5 := Array.mk_concat a4 (Array.mk_1 5) in
         let 1 v2 := vec_inc a5 5 in
         get{Int} v2 2;
     """
@@ -124,12 +124,12 @@ def test_e2e_llvm_array_count():
         count_n_int gt10 v s;
 
     def main (i:Int) : Int :=
-        let 1 a0 := new{Int} unit in
-        let 1 a1 := append{Int} a0 5 in
-        let 1 a2 := append{Int} a1 15 in
-        let 1 a3 := append{Int} a2 8 in
-        let 1 a4 := append{Int} a3 25 in
-        let 1 a5 := append{Int} a4 3 in
+        let 1 a0 := Array.mk_empty{Int} unit in
+        let 1 a1 := Array.mk_concat a0 (Array.mk_1 5) in
+        let 1 a2 := Array.mk_concat a1 (Array.mk_1 15) in
+        let 1 a3 := Array.mk_concat a2 (Array.mk_1 8) in
+        let 1 a4 := Array.mk_concat a3 (Array.mk_1 25) in
+        let 1 a5 := Array.mk_concat a4 (Array.mk_1 3) in
         count_gt_10 a5 5;
     """
     res = compile_and_run(source)
@@ -149,11 +149,11 @@ def test_e2e_llvm_array_filter():
         filter_n_int even m s;
 
     def main (i:Int) : Int :=
-        let 1 a0 := new{Int} unit in
-        let 1 a1 := append{Int} a0 1 in
-        let 1 a2 := append{Int} a1 2 in
-        let 1 a3 := append{Int} a2 3 in
-        let 1 a4 := append{Int} a3 4 in
+        let 1 a0 := Array.mk_empty{Int} unit in
+        let 1 a1 := Array.mk_concat a0 (Array.mk_1 1) in
+        let 1 a2 := Array.mk_concat a1 (Array.mk_1 2) in
+        let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
+        let 1 a4 := Array.mk_concat a3 (Array.mk_1 4) in
         let 1 filtered := filter_even a4 4 in
         sum filtered;
     """
@@ -174,14 +174,14 @@ def test_e2e_llvm_array_zip_with():
         zipWith_n_int add2 v1 v2 s;
 
     def main (i:Int) : Int :=
-        let 1 a0 := new{Int} unit in
-        let 1 a1 := append{Int} a0 1 in
-        let 1 a2 := append{Int} a1 2 in
-        let 1 a3 := append{Int} a2 3 in
-        let 1 b0 := new{Int} unit in
-        let 1 b1 := append{Int} b0 10 in
-        let 1 b2 := append{Int} b1 20 in
-        let 1 b3 := append{Int} b2 30 in
+        let 1 a0 := Array.mk_empty{Int} unit in
+        let 1 a1 := Array.mk_concat a0 (Array.mk_1 1) in
+        let 1 a2 := Array.mk_concat a1 (Array.mk_1 2) in
+        let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
+        let 1 b0 := Array.mk_empty{Int} unit in
+        let 1 b1 := Array.mk_concat b0 (Array.mk_1 10) in
+        let 1 b2 := Array.mk_concat b1 (Array.mk_1 20) in
+        let 1 b3 := Array.mk_concat b2 (Array.mk_1 30) in
         let 1 v3 := vec_add a3 b3 3 in
         get{Int} v3 1;
     """

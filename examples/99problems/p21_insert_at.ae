@@ -9,5 +9,5 @@ def insert_at (x: Int) (1 l: (Array Int)) (k: {n:Int | n >= 0 && n <= Array.size
 
 def main (args:Int) : Unit :=
     let 1 a: {x:(Array Int) | Array.size x = 4} :=
-        ((((Array.new{Int} unit).append 1).append 2).append 4).append 5;
+        Array.mk_4{Int} 1 2 4 5;
     print (insert_at 3 a 2)

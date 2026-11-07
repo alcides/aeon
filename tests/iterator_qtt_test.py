@@ -43,7 +43,7 @@ def test_iterator_lifecycle_typechecks():
 open Array
 open Iterator
 def sum_two (u: Unit) : Int :=
-    let 1 xs := Array.append (Array.append (Array.new{Int} u) 3) 4 in
+    let 1 xs := Array.mk_2{Int} 3 4 in
     let 1 it0 := from_array xs in
     let p0 := has_next it0 in
     let 1 it1 := ready_iterator p0 in
@@ -71,7 +71,7 @@ def test_iterator_next_without_has_next_is_rejected():
 open Array
 open Iterator
 def bad (u: Unit) : Int :=
-    let 1 xs := Array.append (Array.new{Int} u) 1 in
+    let 1 xs := Array.mk_1{Int} 1 in
     let 1 it0 := from_array xs in
     let s0 := next it0 in
     let v := next_value s0 in
@@ -92,7 +92,7 @@ def test_iterator_leak_is_rejected():
 open Array
 open Iterator
 def leak (u: Unit) : Unit :=
-    let 1 xs := Array.new{Int} u in
+    let 1 xs := Array.mk_empty{Int} u in
     let 1 it := from_array xs in
     print "ignored";
 """

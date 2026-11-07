@@ -7,5 +7,5 @@ def replicate (1 l: (Array Int)) (n: {k:Int | k >= 0}) : {r:(Array Int) | Array.
     native "[x for x in l for _ in range(n)]"
 
 def main (args:Int) : Unit :=
-    let 1 a: (Array Int)  := ((Array.new{Int} unit).append 1).append 2;
+    let 1 a: (Array Int)  := Array.mk_2{Int} 1 2;
     print (replicate a 3)

@@ -139,8 +139,8 @@ def work (u: Unit) : Int := 6 * 7;
 def inc (x: Int) : Int := x + 1;
 
 def main (_: Int) : Unit :=
-    let 1 xs0 := ((Array.new{Int} unit).append 1).append 2 in
-    let 1 xs1 := Array.append xs0 3 in
+    let 1 xs0 := Array.mk_2 1 2 in
+    let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
     let 1 ys := ForkJoin.par_map 2 inc xs1 in
     let j := ForkJoin.parallel2 2 work work in
     print (ForkJoin.joined_fst j + ForkJoin.joined_snd j);

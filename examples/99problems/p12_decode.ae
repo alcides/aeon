@@ -7,10 +7,10 @@ def decode (1 l: (Array (Array Int))) : (Array Int) :=
     native "[pair[1] for pair in l for _ in range(pair[0])]"
 
 def main (args:Int) : Unit :=
-    let 1 p1: (Array Int)  := ((Array.new{Int} unit).append 3).append 1;
-    let 1 p2: (Array Int)  := ((Array.new{Int} unit).append 1).append 2;
-    let 1 p3: (Array Int)  := ((Array.new{Int} unit).append 2).append 3;
-    let 1 enc1: (Array (Array Int))  := (Array.new{(Array Int)} unit).append p1;
-    let 1 enc2: (Array (Array Int))  := enc1.append p2;
-    let 1 enc: (Array (Array Int))  := enc2.append p3;
+    let 1 p1: (Array Int)  := Array.mk_2{Int} 3 1;
+    let 1 p2: (Array Int)  := Array.mk_2{Int} 1 2;
+    let 1 p3: (Array Int)  := Array.mk_2{Int} 2 3;
+    let 1 enc1: (Array (Array Int))  := Array.mk_1{(Array Int)} p1;
+    let 1 enc2: (Array (Array Int))  := Array.mk_concat enc1 (Array.mk_1 p2);
+    let 1 enc: (Array (Array Int))  := Array.mk_concat enc2 (Array.mk_1 p3);
     print (decode enc)

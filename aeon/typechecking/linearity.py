@@ -696,6 +696,18 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 visit(fun, walker)
                 fun_ty = _peel_existential(walker.term_type(fun))
                 if isinstance(fun_ty, AbstractionType):
+                    # Fresh linear values have no local binder whose tally
+                    # could reveal duplication. Enforce the parameter's
+                    # discipline here too (e.g. mk_repeat 2 (mk_1 7)).
+                    if not isinstance(arg, Var):
+                        _check_linear_type_binder(
+                            fun_ty.var_name,
+                            walker.term_type(arg),
+                            fun_ty.multiplicity,
+                            node,
+                            linear_types,
+                            errors,
+                        )
                     visit(arg, walker, fun_ty.var_type)
                 else:
                     visit(arg, walker)

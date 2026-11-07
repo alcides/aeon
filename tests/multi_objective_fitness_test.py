@@ -146,7 +146,7 @@ def test_multi_minimize_float_evaluates_to_flat_objective_vector():
         def to_float (x: Int) : Float := native "float(x)";
         def times2 (x: Float) : Float := x * 2.0;
         @multi_minimize_float(
-            append (append (new{Float} unit) (to_float (synth 0))) (times2 (to_float (synth 0))),
+            Array.mk_2{Float} (to_float (synth 0)) (times2 (to_float (synth 0))),
             2
         )
         def synth (i:Int) : Int := (?hole: Int)

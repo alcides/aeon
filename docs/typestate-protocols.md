@@ -157,7 +157,7 @@ open Array
 open Iterator
 
 def sum_two (u: Unit) : Int :=
-    let 1 xs := Array.append (Array.append (Array.new{Int} u) 3) 4 in
+    let 1 xs := Array.mk_2 3 4 in
     let 1 it0 := from_array xs in
     let p0 := has_next it0 in
     let 1 it1 := ready_iterator p0 in
