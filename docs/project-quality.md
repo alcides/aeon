@@ -152,11 +152,23 @@ of deterministic synthesized candidates. Arithmetic backend comparisons use
 bounded integer expressions in the shared backend subset, not floating-point,
 overflow, native, or GPU behavior. Failed examples are shrunk by Hypothesis.
 
+`tests/roundtrip_test.py` constructs bounded surface ASTs directly and checks
+AST → pretty-print → parse equality, ignoring source locations and resolved
+name IDs while retaining annotations and literal types. It covers literals
+(including escaped strings and finite floats), operators, applications,
+conditionals, binders, holes, tactic blocks, and recursive/refined/polymorphic
+types at several line widths. The trees are syntactically valid; they need not
+be closed or typecheck. Elaborator-only nodes and intentionally elided type
+applications are excluded. The raw document printer preserves the tree; the
+public term printer additionally simplifies it, so its property checks output
+stability instead. Both the core and nightly gates include these tests.
+
 Run the same fast gate locally:
 
 ```bash
 HYPOTHESIS_PROFILE=ci uv run --extra tests python scripts/run_core_tests.py -q
 HYPOTHESIS_PROFILE=nightly uv run --extra tests pytest tests/core_properties_test.py -q
+HYPOTHESIS_PROFILE=nightly uv run --extra tests pytest tests/roundtrip_test.py -q
 ```
 
 The CI profile uses 40 deterministic examples per property and no wall-clock
