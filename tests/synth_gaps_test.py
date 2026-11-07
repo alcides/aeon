@@ -8,6 +8,8 @@ Covers:
 
 from __future__ import annotations
 
+import pytest
+
 from aeon.core.terms import (
     If,
     Literal,
@@ -21,6 +23,7 @@ from aeon.core.types import (
     t_bool,
     t_int,
 )
+from aeon.errors import CoreVariableNotInContext
 from aeon.sugar.parser import parse_type
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import synth
@@ -121,24 +124,15 @@ def test_synth_refinement_abstraction_wraps_with_polymorphism():
     assert ty.body.type == t_int
 
 
-def test_synth_refinement_abstraction_introduces_fresh_uf_in_context():
-    """The bound predicate name becomes an uninterpreted function (sort → Bool) inside
-    the body. Synth-ing a body that references `p` must succeed."""
+def test_synth_refinement_abstraction_rejects_runtime_predicate_reference():
+    """Abstract predicates are logical bindings, never executable function values."""
     ctx = TypingContext()
     p = Name("p")
-    # Λρ:(Int -> Bool). p   — the sort is the full predicate type; Var(p) reads the UF symbol.
     pred_sort = AbstractionType(Name("_"), t_int, t_bool)
     body = Var(p)
     term = RefinementAbstraction(p, pred_sort, body)
-    (constraint, ty) = synth(ctx, term)
-    assert isinstance(ty, RefinementPolymorphism)
-    # Body type is the UF type `(_:Int) -> Bool`, lifted through Var-selfification.
-    body_ty = ty.body
-    # Var-synth wraps with selfification if the type is base/refined; here it's
-    # AbstractionType, which is returned as-is.
-    assert isinstance(body_ty, AbstractionType)
-    assert body_ty.var_type == t_int
-    assert body_ty.type == t_bool
+    with pytest.raises(CoreVariableNotInContext):
+        synth(ctx, term)
 
 
 def test_synth_refinement_abstraction_constraint_is_valid():
