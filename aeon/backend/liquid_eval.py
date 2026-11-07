@@ -73,8 +73,7 @@ def eval_liquid(
             b = eval_liquid(term.args[1], env, uninterpreted=uninterpreted, runtime=runtime)
             if not isinstance(a, int) or not isinstance(b, int) or b == 0:
                 raise UnevaluableLiquid("non-integral or zero division")
-            q = int(a / b)
-            return q if head == "/" else a - b * q
+            return a // b if head == "/" else a % b
         fn = _BINOPS.get(head)
         if fn is not None and len(term.args) == 2:
             return fn(
