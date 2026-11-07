@@ -235,6 +235,12 @@ class ConstraintState:
             assert isinstance(variable, TypeVar)
             if variable.name in self.unresolved(shape):
                 raise ValueError("Infinite type in synthesis unification")
+            # A BASE variable can carry a value predicate (including inside an
+            # Array element). Assigning an arrow here would later substitute a
+            # function beneath that refinement and trip the core invariant.
+            # STAR variables remain available for higher-order instantiation.
+            if self.context.kind_of(variable) == Kind.BASE and self.context.kind_of(shape) != Kind.BASE:
+                raise ValueError("Cannot instantiate a base type variable with a function type")
             from aeon.typechecking.qualifiers import extract_qualifier_atoms
 
             self.type_assignments[variable.name] = self.fresh_type(
