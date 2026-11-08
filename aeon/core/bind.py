@@ -90,7 +90,16 @@ def bind_lq(liq: LiquidTerm, subs: RenamingSubstitions) -> LiquidTerm:
             nfun = apply_subs_name(subs, fun)
             return LiquidApp(nfun, [bind_lq(a, subs) for a in args], loc=loc)
         case LiquidHornApplication(name, argtyps, loc):
-            return LiquidHornApplication(apply_subs_name(subs, name), argtyps, loc=loc)
+            arguments = []
+            for argument, sort in argtyps:
+                bound_sort = bind_type(sort, subs)
+                assert isinstance(bound_sort, (TypeConstructor, TypeVar))
+                arguments.append((bind_lq(argument, subs), bound_sort))
+            return LiquidHornApplication(
+                apply_subs_name(subs, name),
+                arguments,
+                loc=loc,
+            )
         case _:
             assert False, f"Constructed {liq} ({type(liq)}) not supported."
 
@@ -120,9 +129,10 @@ def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingConte
             case TypeBinder(name, k):
                 name, subs = check_name(name, subs)
                 e = TypeBinder(name, k)
-            case TypeConstructorBinder(name, args, _, linear):
+            case TypeConstructorBinder(name, args, rforalls, linear):
                 name, subs = check_name(name, subs)
-                e = TypeConstructorBinder(name, args, linear=linear)
+                local = subs + [(a.name, a) for a in args]
+                e = TypeConstructorBinder(name, args, [(n, bind_type(s, local)) for n, s in rforalls], linear=linear)
             case _:
                 assert False, f"Unique not supported for {ctx} ({type(ctx)})"
         entries.append(e)
@@ -136,8 +146,20 @@ def bind_type(ty: Type, subs: RenamingSubstitions) -> Type:
         case TypeVar(name, loc):
             return TypeVar(apply_subs_name(subs, name), loc=loc)
         case TypeConstructor(name, args, loc):
+            from aeon.core.liquid import LiquidPredicate
+
             nargs = [bind_type(aty, subs) for aty in args]
-            return TypeConstructor(apply_subs_name(subs, name), nargs, loc=loc)
+            predicates = []
+            for predicate in ty.refinements:
+                local = subs
+                parameters = []
+                for parameter in predicate.parameters:
+                    new, local = check_name(parameter, local)
+                    parameters.append(new)
+                predicates.append(
+                    LiquidPredicate(tuple(parameters), bind_lq(predicate.body, local), predicate.implicit)
+                )
+            return TypeConstructor(apply_subs_name(subs, name), nargs, loc=loc, refinements=predicates)
 
         case AbstractionType(aname, atype, rtype, loc):
             nname, nsubs = check_name(aname, subs)
@@ -199,12 +221,19 @@ def bind_term(t: Term, subs: RenamingSubstitions) -> Term:
             return Let(name, bind_term(body, subs), bind_term(cont, nsubs), loc, multiplicity=t.multiplicity)
         case Rec(name, ty, body, cont, decreasing_by, loc):
             name, subs = check_name(name, subs)
+            nbody = bind_term(body, subs)
+            metric_scope = list(subs)
+            inner = nbody
+            while isinstance(inner, (Abstraction, TypeAbstraction, RefinementAbstraction)):
+                parameter = inner.var_name if isinstance(inner, Abstraction) else inner.name
+                metric_scope.append((parameter.name, parameter))
+                inner = inner.body
             return Rec(
                 name,
                 bind_type(ty, subs),
-                bind_term(body, subs),
+                nbody,
                 bind_term(cont, subs),
-                decreasing_by=tuple(bind_term(m, subs) for m in decreasing_by),
+                decreasing_by=tuple(bind_term(m, metric_scope) for m in decreasing_by),
                 loc=loc,
                 multiplicity=t.multiplicity,
                 mutual_group_id=t.mutual_group_id,

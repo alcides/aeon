@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from contextlib import contextmanager, ExitStack
 from typing import Generator
 
@@ -54,6 +54,8 @@ class UninterpretedFunctionDeclaration(Constraint):
     name: Name
     type: AbstractionType
     seq: Constraint
+    # Abstract predicates contribute qualifiers; ordinary program functions do not.
+    is_refinement: bool = field(default=False, compare=False, kw_only=True)
 
     def __repr__(self):
         return f"fun {self.name}:{self.type} => {self.seq}"
@@ -171,10 +173,15 @@ def _alpha_type(ty: Type, env: dict[tuple[str, int], int], counter: list[int]) -
             ref_s = _alpha_liquid(ty.refinement, env, counter)
             return f"{{{var_s}:{base_s} | {ref_s}}}"
     elif isinstance(ty, TypeConstructor):
+        predicates = ""
+        for predicate in ty.refinements:
+            with ExitStack() as scope:
+                parameters = [scope.enter_context(_alpha_scope(n, env, counter)) for n in predicate.parameters]
+                predicates += "{|" + ",".join(parameters) + ":" + _alpha_liquid(predicate.body, env, counter) + "|}"
         if ty.args:
             args_s = " ".join(_alpha_type(a, env, counter) for a in ty.args)
-            return f"{ty.name} {args_s}"
-        return str(ty.name)
+            return f"{ty.name} {args_s}{predicates}"
+        return str(ty.name) + predicates
     elif isinstance(ty, TypeVar):
         return _alpha_name(ty.name, env, counter)
     elif isinstance(ty, Top):

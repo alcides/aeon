@@ -4,11 +4,21 @@ import pytest
 
 from aeon.core.multiplicity import M1, MOmega
 from aeon.elaboration import _resolve_uvars, unify_single
+from aeon.sugar.parser import parse_type
 from aeon.errors import UnificationFailedError
 from aeon.sugar.ast_helpers import st_int
-from aeon.sugar.program import SVar
-from aeon.sugar.stypes import SAbstractionType, SRefinedType
+from aeon.sugar.program import SApplication, SHole, SVar
+from aeon.sugar.stypes import SAbstractionType, SRefinedType, STypeConstructor
 from aeon.utils.name import Name
+
+
+def test_inferred_datatype_relations_compare_bound_names_and_predicates():
+    left = parse_type("(Duo Int){|fun x => fun y => x < y|}")
+    renamed = parse_type("(Duo Int){|fun a => fun b => a < b|}")
+    different = parse_type("(Duo Int){|fun x => fun y => x > y|}")
+    assert unify_single("relations", [left, renamed]) == left
+    with pytest.raises(UnificationFailedError):
+        unify_single("relations", [left, different])
 
 
 def test_independent_function_binders_unify():
@@ -33,3 +43,31 @@ def test_resolution_preserves_function_attributes(multiplicity, instance):
     assert _resolve_uvars(typ) == typ
     with pytest.raises(UnificationFailedError):
         unify_single("benchmark", [typ, SAbstractionType(Name("y", 102), st_int, st_int)])
+
+
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize("relation", ["fun x => fun y => x > y", None])
+def test_inferred_datatype_relations_cannot_be_changed_or_erased(nested, relation):
+    left = parse_type("(Duo Int){|fun x => fun y => x < y|}")
+    right = parse_type(f"(Duo Int){{|{relation}|}}" if relation else "(Duo Int)")
+    if nested:
+        left = STypeConstructor(Name("List"), [left])
+        right = STypeConstructor(Name("List"), [right])
+    with pytest.raises(UnificationFailedError):
+        unify_single("relations", [left, right])
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_merging_inferred_elements_preserves_datatype_predicates(reverse):
+    left = parse_type("(Duo Int){|fun x => fun y => x < y|}")
+    right = parse_type("(Duo Int){|fun a => fun b => a < b|}")
+    binder = Name("value", 101)
+    inferred = SRefinedType(binder, st_int, SApplication(SHole(Name("inferred", 102)), SVar(binder)))
+    concrete = parse_type("{v:Int | v > 0}")
+    left = STypeConstructor(left.name, [inferred], refinements=left.refinements)
+    right = STypeConstructor(right.name, [concrete], refinements=right.refinements)
+    types = [right, left] if reverse else [left, right]
+    result = unify_single("relations", types)
+    assert isinstance(result, STypeConstructor)
+    assert result.args == [concrete]
+    assert result.refinements == types[0].refinements

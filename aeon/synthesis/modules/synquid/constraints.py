@@ -57,7 +57,13 @@ def map_refinements(ty: Type, assignment: Assignment) -> Type:
         assert isinstance(base, (TypeConstructor, TypeVar))
         return RefinedType(ty.name, base, apply_liquid(assignment, ty.refinement))
     if isinstance(ty, TypeConstructor):
-        return TypeConstructor(ty.name, [map_refinements(a, assignment) for a in ty.args])
+        from aeon.core.liquid import LiquidPredicate
+
+        return TypeConstructor(
+            ty.name,
+            [map_refinements(a, assignment) for a in ty.args],
+            refinements=[LiquidPredicate(p.parameters, apply_liquid(assignment, p.body)) for p in ty.refinements],
+        )
     if isinstance(ty, AbstractionType):
         return AbstractionType(
             ty.var_name,
@@ -180,7 +186,7 @@ class ConstraintState:
             shape = shape.type
         if isinstance(shape, TypeConstructor):
             base: TypeConstructor | TypeVar = TypeConstructor(
-                shape.name, [self.fresh_type(a, qualifiers) for a in shape.args]
+                shape.name, [self.fresh_type(a, qualifiers) for a in shape.args], refinements=shape.refinements
             )
         elif isinstance(shape, TypeVar):
             if shape.name in self.type_unknowns:
@@ -393,7 +399,7 @@ class ConstraintState:
         if isinstance(ty, TypeConstructor):
             if not ty.args and ty.name in self.type_unknowns:
                 return self.resolve(TypeVar(ty.name))
-            return TypeConstructor(ty.name, [self.resolve_sort(a) for a in ty.args])
+            return TypeConstructor(ty.name, [self.resolve_sort(a) for a in ty.args], refinements=ty.refinements)
         if isinstance(ty, AbstractionType):
             return AbstractionType(
                 ty.var_name, self.resolve_sort(ty.var_type), self.resolve_sort(ty.type), multiplicity=ty.multiplicity

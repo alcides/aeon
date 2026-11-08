@@ -222,6 +222,14 @@ class TreeToSugar(Transformer):
     def constructor_t(self, args):
         return STypeConstructor(Name(args[0]), args[1:])
 
+    def datatype_refinement_t(self, args):
+        ty, predicate = args
+        if isinstance(ty, STypeVar):
+            ty = STypeConstructor(ty.name, loc=ty.loc)
+        if not isinstance(ty, STypeConstructor):
+            raise ValueError("Predicate arguments require a datatype")
+        return STypeConstructor(ty.name, ty.args, loc=ty.loc, refinements=[*ty.refinements, predicate])
+
     # Expressions
     @v_args(meta=True)
     def annotation(self, meta, args):
@@ -838,13 +846,19 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def def_cons(self, meta, args):
         is_private = bool(args.pop(0)) if args and isinstance(args[0], bool) else False
-        if len(args) == 3:
-            return Definition(Name(args[0]), [], [], args[1], args[2], loc=self._loc(meta), is_private=is_private)
-        else:
-            decorators = args[0]
-            return Definition(
-                Name(args[1]), [], [], args[2], args[3], decorators, loc=self._loc(meta), is_private=is_private
-            )
+        decorators = [] if len(args) == 4 else args.pop(0)
+        name, ty, decreasing, body = args
+        return Definition(
+            Name(name),
+            [],
+            [],
+            ty,
+            body,
+            decorators,
+            decreasing_by=decreasing or [],
+            loc=self._loc(meta),
+            is_private=is_private,
+        )
 
     @v_args(meta=True)
     def def_fun_eq(self, meta, args):

@@ -72,7 +72,7 @@ from aeon.typechecking.context import RefinementBinder, TypingContext, Uninterpr
 from aeon.typechecking.branch_evidence import (
     match_branch_evidence,
     match_refinement_obligation,
-    unconstrained_predicate,
+    stored_match_predicate,
 )
 from aeon.typechecking.entailment import entailment, entailment_context
 from aeon.typechecking.termination import termination_metric_constraints
@@ -184,7 +184,9 @@ def _erase_return_refinement(ty: Type) -> Type:
     if isinstance(ty, AbstractionType):
         return replace(ty, type=_erase_return_refinement(ty.type))
     if isinstance(ty, RefinedType):
-        return ty.type
+        return _erase_return_refinement(ty.type)
+    if isinstance(ty, TypeConstructor):
+        return replace(ty, args=[_erase_return_refinement(a) for a in ty.args], refinements=[])
     return ty
 
 
@@ -943,7 +945,9 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 horn_name = Name("kappa", fresh_counter.fresh())
                 nty = instantiate_refinement_with_horn_in_type(rp.body, rp.name, rp.sort, horn_name)
                 return (c, _selfify_application_type(ctx, t, nty))
-            assert isinstance(refinement, Abstraction)
+            from aeon.core.predicates import predicate_from_term
+
+            assert isinstance(refinement, (Abstraction, Var))
             # ``rp.sort`` is the full (possibly n-ary) predicate type.
             pred_type = rp.sort
             # Predicate arguments are erased. They may refer to logical
@@ -953,7 +957,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 entries=[VariableBinder(e.name, e.type) if isinstance(e, RefinementBinder) else e for e in ctx.entries],
             )
             c_ref = check(predicate_ctx, refinement, pred_type)
-            nty = instantiate_refinement_in_type(rp.body, rp.name, refinement)
+            nty = instantiate_refinement_in_type(rp.body, rp.name, predicate_from_term(refinement))
             return (conjoin(c, c_ref), _selfify_application_type(ctx, t, nty))
 
         case RefinementAbstraction(pname, psort, inner):
@@ -965,7 +969,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             ctx_ext = ctx.with_refinement(pname, fk_type)
             (c_body, body_ty) = synth(ctx_ext, inner)
             return (
-                UninterpretedFunctionDeclaration(pname, fk_type, c_body),
+                UninterpretedFunctionDeclaration(pname, fk_type, c_body, is_refinement=True),
                 RefinementPolymorphism(pname, psort, body_ty),
             )
 
@@ -1122,7 +1126,33 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
     handlers = value_args[1:]
     scrut_inner = scrut.expr if isinstance(scrut, Annotation) else scrut
     if not isinstance(scrut_inner, Var):
-        return None
+        # Ordinary computed matches use the standard eliminator rule. Only
+        # predicate-parameterized datatypes need a shared relation witness.
+        parameter_type = rec_type
+        while isinstance(parameter_type, TypePolymorphism):
+            parameter_type = parameter_type.body
+        if not isinstance(parameter_type, RefinementPolymorphism):
+            return None
+        # Retain a computed scrutinee's predicate arguments under one witness.
+        # All branches must use the same inferred relation and existential facts.
+        scrut_c, actual = synth(ctx, scrut)
+        local = ctx
+        witnesses = actual.binders if isinstance(actual, ExistentialType) else ()
+        if isinstance(actual, ExistentialType):
+            actual = actual.body
+        for binder, bound in witnesses:
+            local = local.with_var(binder, bound)
+        witness = Name("match_scrutinee", fresh_counter.fresh())
+        application = Application(cur, Var(witness))
+        for handler in handlers:
+            application = Application(application, handler)
+        checked = _try_check_recursor(local.with_var(witness, actual), application, ty)
+        if checked is None:
+            return None
+        checked = implication_constraint(witness, actual, checked)
+        for binder, bound in reversed(witnesses):
+            checked = implication_constraint(binder, bound, checked)
+        return conjoin(scrut_c, checked)
 
     # The motive is the type-variable returned after peeling binders and arrows.
     peeled: Type = rec_type
@@ -1140,20 +1170,38 @@ def _try_check_recursor(ctx: TypingContext, t: Term, ty: Type) -> Constraint | N
     inst: Type = rec_type
     safe_inst: Type = rec_type
     has_refinements = False
+    predicate_index = 0
+    type_index = 0
+    scrutinee_type = ctx.type_of(scrut_inner.name)
+    while isinstance(scrutinee_type, (RefinedType, ExistentialType)):
+        scrutinee_type = scrutinee_type.type if isinstance(scrutinee_type, RefinedType) else scrutinee_type.body
     for kind, val in spine:
         if isinstance(inst, TypePolymorphism) and kind == "T":
             assert isinstance(val, Type)
-            repl = ty if inst.name == ret_var else fresh(ctx, val)
+            if inst.name == ret_var:
+                repl = ty
+            elif isinstance(scrutinee_type, TypeConstructor) and type_index < len(scrutinee_type.args):
+                repl = scrutinee_type.args[type_index]
+                type_index += 1
+            else:
+                repl = fresh(ctx, val)
             inst = type_substitution(inst.body, inst.name, repl)
             assert isinstance(safe_inst, TypePolymorphism)
             safe_inst = type_substitution(safe_inst.body, safe_inst.name, repl)
         elif isinstance(inst, RefinementPolymorphism) and kind == "R":
             has_refinements = True
             assert isinstance(safe_inst, RefinementPolymorphism)
-            safe_inst = instantiate_refinement_in_type(
-                safe_inst.body, safe_inst.name, unconstrained_predicate(safe_inst.sort)
-            )
-            if isinstance(val, ImplicitRefinementHole):
+            actual = ctx.type_of(scrut_inner.name)
+            stored = stored_match_predicate(actual, predicate_index, safe_inst.sort)
+            safe_inst = instantiate_refinement_in_type(safe_inst.body, safe_inst.name, stored)
+            while isinstance(actual, (RefinedType, ExistentialType)):
+                actual = actual.type if isinstance(actual, RefinedType) else actual.body
+            retained = isinstance(actual, TypeConstructor) and predicate_index < len(actual.refinements)
+            predicate_index += 1
+            if isinstance(val, ImplicitRefinementHole) and retained:
+                # An invariant predicate argument is fixed by the scrutinee.
+                inst = instantiate_refinement_in_type(inst.body, inst.name, stored)
+            elif isinstance(val, ImplicitRefinementHole):
                 # Infer the same predicate across every case. The obligations
                 # below bound it by facts from the scrutinee, preventing a
                 # false/unsupported invariant from making the match vacuous.
@@ -1421,7 +1469,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             body_open = substitution_liquid_in_type(rbody, LiquidVar(pname), rname)
             inner_sub = substitution_liquid_in_term(inner, LiquidVar(pname), rname)
             c_body = check(ctx_ext, inner_sub, body_open)
-            return conjoin(c_sort, UninterpretedFunctionDeclaration(pname, fk_type, c_body))
+            return conjoin(c_sort, UninterpretedFunctionDeclaration(pname, fk_type, c_body, is_refinement=True))
 
         # per tutorial fig 8.4 Chk-RAbs
         case _, RefinementPolymorphism(name, sort, body):
@@ -1443,7 +1491,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             term_sub = substitution_liquid_in_term(t, LiquidVar(fk_name), name)
             c = check(ctx_ext, term_sub, body_sub)
             # Return (fκ :: sort → bool) ⇒ c
-            return UninterpretedFunctionDeclaration(fk_name, fk_type, c)
+            return UninterpretedFunctionDeclaration(fk_name, fk_type, c, is_refinement=True)
 
         case _ if (rec_c := _try_check_recursor(ctx, t, ty)) is not None:
             # Fully-applied inductive eliminator (lowered ``match``): check each

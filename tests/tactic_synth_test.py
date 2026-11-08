@@ -36,7 +36,7 @@ def _prelude_ctx() -> TypingContext:
 
 
 def test_fits_int_refines_to_int():
-    ctx = TypingContext()
+    ctx = _prelude_ctx()
     subt = parse_type(r"{k:Int | k > 0}")
     assert fits(ctx, subt, t_int)
 
@@ -93,7 +93,7 @@ def test_assumption_fails_when_only_forward_subtyping():
 def test_apply_question_uses_subtyping():
     y = Name("y", 0)
     yty = parse_type(r"{v:Int | v > 0}")
-    ctx = TypingContext([VariableBinder(y, yty)])
+    ctx = _prelude_ctx().with_var(y, yty)
     h = Name("h", 0)
     term = Annotation(Hole(h), t_int, loc=_loc)
     st = TacticState(ctx, term, t_int)

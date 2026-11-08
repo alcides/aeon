@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from functools import reduce
+from itertools import product
 from typing import Any, Generator
 
 from aeon.core.types import builtin_core_types
@@ -26,7 +28,7 @@ from aeon.core.types import RefinementPolymorphism
 from aeon.core.types import TypeVar
 from aeon.core.liquid_ops import liquid_prelude
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.context import UninterpretedBinder
+from aeon.typechecking.context import RefinementBinder, UninterpretedBinder
 from aeon.typechecking.liquid import (
     LiquidTypeCheckException,
     LiquidTypeCheckingContext,
@@ -90,7 +92,27 @@ def fresh(context: TypingContext, ty: Type) -> Type:
         case RefinementPolymorphism(name, sort, body):
             return RefinementPolymorphism(name, fresh(context, sort), fresh(context, body))
         case TypeConstructor(name, args):
-            return TypeConstructor(name, [fresh(context, c) for c in args])
+            from aeon.core.liquid import LiquidPredicate
+            from aeon.core.substitutions import predicate_domains
+
+            result = TypeConstructor(name, [fresh(context, c) for c in args])
+            sorts = context.datatype_predicate_sorts(result)
+            predicates = []
+            for index, predicate in enumerate(ty.refinements):
+                if predicate.implicit:
+                    if index >= len(sorts):
+                        raise ValueError("Unknown datatype predicate parameter")
+                    domains = [liquid_admissible(d) for d in predicate_domains(sorts[index])]
+                    if any(d is None for d in domains):
+                        raise ValueError("Higher-order datatype predicate domain")
+                    parameters = tuple(Name("predicate_arg", fresh_counter.fresh()) for _ in domains)
+                    predicate_body = LiquidHornApplication(
+                        Name("datatype_predicate", fresh_counter.fresh()),
+                        [(LiquidVar(n), d) for n, d in zip(parameters, domains)],
+                    )
+                    predicate = LiquidPredicate(parameters, predicate_body)
+                predicates.append(predicate)
+            return TypeConstructor(name, result.args, loc=ty.loc, refinements=predicates)
         case ExistentialType(binders, body):
             ext_ctx = context
             new_binders: list[tuple[Name, Type]] = []
@@ -336,7 +358,7 @@ def context_measures(typing_ctx: TypingContext | None) -> dict[Name, list[TypeCo
     constructors (``def feats : (ds:Dataset) -> Int = uninterpreted``, the
     auto-generated inductive projections ``Pair_mk_fst``, …). They are
     lowered to the liquid signature shape so they can be applied to a hole's
-    argument slots. Only ``UninterpretedBinder`` entries are taken — plain
+    argument slots. Abstract ``RefinementBinder`` predicates are included too; plain
     first-order program functions are deliberately excluded to keep the
     candidate space bounded.
     """
@@ -344,11 +366,51 @@ def context_measures(typing_ctx: TypingContext | None) -> dict[Name, list[TypeCo
         return {}
     measures: dict[Name, list[TypeConstructor | TypeVar]] = {}
     for entry in typing_ctx.entries:
-        if isinstance(entry, UninterpretedBinder):
+        if isinstance(entry, (UninterpretedBinder, RefinementBinder)):
             lowered = lower_abstraction_type(entry.type)
             if len(lowered) >= 2:
                 measures[entry.name] = lowered
     return measures
+
+
+def typed_qualifier_args(
+    ctx: LiquidTypeCheckingContext,
+    hole: LiquidHornApplication,
+    domains: list[TypeConstructor | TypeVar],
+    extra_atoms: list[LiquidTerm] | None = None,
+) -> Generator[list[LiquidTerm], None, None]:
+    """Discard incompatible argument sorts before forming the Cartesian product.
+
+    Polymorphic slots remain permissive: the full liquid check still unifies
+    shared type variables and verifies operator-specific restrictions.
+    """
+
+    def compatible(actual: Type, expected: Type) -> bool:
+        if isinstance(actual, RefinedType):
+            return compatible(actual.type, expected)
+        if isinstance(expected, RefinedType):
+            return compatible(actual, expected.type)
+        if isinstance(actual, TypeVar) or isinstance(expected, TypeVar):
+            return True
+        if isinstance(actual, TypeConstructor) and isinstance(expected, TypeConstructor):
+            if actual.name.name in {"Int", "Float"} and expected.name.name in {"Int", "Float"}:
+                return True
+            return (
+                actual.name == expected.name
+                and len(actual.args) == len(expected.args)
+                and all(compatible(a, b) for a, b in zip(actual.args, expected.args))
+            )
+        return True
+
+    typed_atoms = []
+    for (atom,) in get_possible_args(hole.argtypes, 1, extra_atoms):
+        try:
+            typed_atoms.append((atom, type_infer_liquid(ctx, atom)))
+        except LiquidTypeCheckException:
+            continue
+    pools = [[atom for atom, actual in typed_atoms if compatible(actual, domain)] for domain in domains]
+    for arguments in product(*reversed(pools)):
+        yield list(reversed(arguments))
 
 
 def build_measure_atoms(
@@ -368,10 +430,16 @@ def build_measure_atoms(
     atoms: list[LiquidTerm] = []
     seen: set[LiquidTerm] = set()
     for fname, ftype in measures.items():
+        # Boolean measures are already direct qualifier candidates below.
+        # Nesting every predicate application inside every arithmetic or
+        # equality operator multiplies the vocabulary without adding the
+        # relation needed for abstract-refinement instantiation.
+        if ftype[-1] == t_bool:
+            continue
         arity = len(ftype) - 1
         if arity == 0:
             continue
-        for args in get_possible_args(hole.argtypes, arity):
+        for args in typed_qualifier_args(ctx, hole, ftype[:-1]):
             if not any(isinstance(a, LiquidVar) for a in args):
                 continue
             app = LiquidApp(fname, list(args))
@@ -403,8 +471,7 @@ def build_possible_assignment(
 
     for fname in gen_functions:
         ftype = gen_functions[fname]
-        arity = len(ftype) - 1
-        for args in get_possible_args(hole.argtypes, arity, measure_atoms):
+        for args in typed_qualifier_args(ctx, hole, ftype[:-1], measure_atoms):
             # At least one hole variable (directly or via a measure application) must be used.
             if not any(isinstance(a, LiquidVar) or a in measure_atom_set for a in args):
                 continue
@@ -420,12 +487,31 @@ def build_initial_assignment(
     qualifier_atoms: frozenset[LiquidTerm] | None = None,
 ) -> Assignment:
     atoms = frozenset() if qualifier_atoms is None else qualifier_atoms
-    holes = obtain_holes_constraint(c)
+
+    def scoped_holes(constraint, context):
+        if isinstance(constraint, LiquidConstraint):
+            for hole in obtain_holes(constraint.expr):
+                yield hole, context
+        elif isinstance(constraint, Conjunction):
+            yield from scoped_holes(constraint.c1, context)
+            yield from scoped_holes(constraint.c2, context)
+        elif isinstance(constraint, Implication):
+            for hole in obtain_holes(constraint.pred):
+                yield hole, context
+            yield from scoped_holes(constraint.seq, context)
+        elif isinstance(constraint, (UninterpretedFunctionDeclaration, ReflectedFunctionDeclaration)):
+            # Abstract predicates are locally quantified in the VC, rather
+            # than in the program's outer typing context. Include them in
+            # this hole's qualifier vocabulary without leaking across scopes.
+            if isinstance(constraint, UninterpretedFunctionDeclaration) and constraint.is_refinement:
+                context = (context or TypingContext()).with_refinement(constraint.name, constraint.type)
+            yield from scoped_holes(constraint.seq, context)
+
     assign: dict[Name, list[LiquidTerm]] = {}
-    for h in holes:
+    for h, local_context in scoped_holes(c, typing_ctx):
         if h.name not in assign:
-            prelude = list(build_possible_assignment(h, typing_ctx))
-            extra = build_qualifier_candidates(typing_ctx, h, atoms)
+            prelude = list(build_possible_assignment(h, local_context))
+            extra = build_qualifier_candidates(local_context, h, atoms)
             prelude_set = set(prelude)
             assign[h.name] = prelude + [c for c in extra if c not in prelude_set]
     return assign
@@ -446,8 +532,8 @@ def split(c: Constraint) -> list[Constraint]:
             return split(c1) + split(c2)
         case Implication(name, base, pre, post):
             return [Implication(name, base, pre, cp) for cp in split(post)]
-        case UninterpretedFunctionDeclaration(name, type, seq):
-            return [UninterpretedFunctionDeclaration(name, type, c) for c in split(seq)]
+        case UninterpretedFunctionDeclaration(seq=seq):
+            return [replace(c, seq=part) for part in split(seq)]
         case ReflectedFunctionDeclaration(name, type, params, body, seq):
             return [ReflectedFunctionDeclaration(name, type, params, body, c) for c in split(seq)]
         case _:
@@ -517,8 +603,8 @@ def apply_constraint(assign: Assignment, c: Constraint) -> Constraint:
                 apply_liquid(assign, pre),
                 apply_constraint(assign, post),
             )
-        case UninterpretedFunctionDeclaration(name, base, post):
-            return UninterpretedFunctionDeclaration(name, base, apply_constraint(assign, post))
+        case UninterpretedFunctionDeclaration(seq=post):
+            return replace(c, seq=apply_constraint(assign, post))
         case ReflectedFunctionDeclaration(name, base, params, body, post):
             return ReflectedFunctionDeclaration(
                 name, base, params, apply_liquid(assign, body), apply_constraint(assign, post)

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import substitution_in_liquid
 from aeon.core.types import AbstractionType, TypeConstructor, Type, TypeVar, t_bool, t_unit
@@ -85,7 +87,7 @@ def canonicalize_constraint(c: Constraint, stack: list[Name] = None) -> Constrai
             nseq = canonicalize_constraint(nseq, stack + [new_name])
             nty = canonicalize_type(ft)
             assert isinstance(nty, AbstractionType), f"Expected AbstractionType, got {nty}."
-            return UninterpretedFunctionDeclaration(new_name, nty, nseq)
+            return replace(c, name=new_name, type=nty, seq=nseq)
         case ReflectedFunctionDeclaration(name, ft, params, body, seq):
             new_name = Name(name.name, fresh_counter.fresh())
             if new_name != name:

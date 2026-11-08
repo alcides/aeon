@@ -47,6 +47,11 @@ def vocabulary(ctx, goal):
         elif isinstance(ty, TypeConstructor):
             for arg in ty.args:
                 collect(arg)
+            from aeon.core.substitutions import predicate_domains
+
+            for predicate, sort in zip(ty.refinements, ctx.datatype_predicate_sorts(ty)):
+                for parameter, domain in zip(predicate.parameters, predicate_domains(sort)):
+                    sorts[parameter] = base(domain)
 
     for n, ty in ctx.vars():
         sorts[n] = base(ty)

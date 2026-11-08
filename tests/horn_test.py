@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import pytest
+
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
 from aeon.core.types import AbstractionType
 from aeon.core.types import LiquidHornApplication
 from aeon.core.types import RefinedType
 from aeon.core.types import TypeConstructor
 from aeon.core.types import TypeVar
-from aeon.core.types import t_int
+from aeon.core.types import t_int, t_float
 from aeon.typechecking.context import TypingContext, UninterpretedBinder
 from aeon.typechecking.entailment import entailment
 from aeon.utils.ctx_helpers import build_context
@@ -97,6 +99,45 @@ def test_possible_args2():
     # Two variables and four distinct literals; repeated literal copies do
     # not add qualifiers and should not inflate the Cartesian product.
     assert len(args) == 36
+
+
+@pytest.mark.parametrize(
+    "domains",
+    [
+        [t_int, t_float],
+        [TypeVar(Name("a")), TypeVar(Name("a"))],
+        [TypeConstructor(Name("List"), [TypeVar(Name("a"))]), TypeVar(Name("a"))],
+    ],
+)
+def test_sort_filter_preserves_all_well_typed_qualifiers(domains):
+    from aeon.typechecking.liquid import check_liquid, lower_abstraction_type
+    from aeon.verification.horn import liquid_typechecking_ctx_for_hole, typed_qualifier_args
+
+    function = Name("predicate", 100)
+    function_type = AbstractionType(Name("left"), domains[0], AbstractionType(Name("right"), domains[1], t_bool))
+    hole = LiquidHornApplication(
+        Name("hole", 101),
+        [
+            (LiquidVar(Name("xs", 102)), TypeConstructor(Name("List"), [t_int])),
+            (LiquidVar(Name("x", 103)), t_int),
+        ],
+    )
+    ctx = liquid_typechecking_ctx_for_hole(TypingContext().with_uninterpreted(function, function_type), hole)
+    domains = lower_abstraction_type(function_type)[:-1]
+
+    def valid(arguments):
+        return {app for args in arguments if check_liquid(ctx, app := LiquidApp(function, list(args)), t_bool)}
+
+    assert valid(typed_qualifier_args(ctx, hole, domains)) == valid(get_possible_args(hole.argtypes, len(domains)))
+
+
+def test_unavailable_sort_avoids_high_arity_qualifier_product():
+    from aeon.core.types import t_string
+    from aeon.verification.horn import liquid_typechecking_ctx_for_hole, typed_qualifier_args
+
+    hole = LiquidHornApplication(Name("hole", 101), [(LiquidVar(Name("x", 102)), t_int)])
+    ctx = liquid_typechecking_ctx_for_hole(None, hole)
+    assert list(typed_qualifier_args(ctx, hole, [t_string] * 12)) == []
 
 
 def test_base_assignment_helper():
@@ -283,3 +324,53 @@ def test_simplify_constraint_fixpoint_reduces_trivial_boolean_structure():
     s = simplify_constraint_fixpoint(c)
     assert isinstance(s, LiquidConstraint)
     assert s.expr == LiquidLiteralBool(True)
+
+
+@pytest.mark.parametrize("reflected", [False, True])
+def test_runtime_boolean_functions_do_not_expand_qualifier_vocabulary(reflected):
+    from aeon.verification.vcs import ReflectedFunctionDeclaration, UninterpretedFunctionDeclaration
+
+    function, parameter, unknown = Name("runtime_predicate"), Name("x"), Name("k")
+    signature = AbstractionType(parameter, t_int, t_bool)
+    goal = LiquidConstraint(LiquidHornApplication(unknown, [(LiquidVar(parameter), t_int)]))
+    declaration = (
+        ReflectedFunctionDeclaration(function, signature, (parameter,), LiquidLiteralBool(True), goal)
+        if reflected
+        else UninterpretedFunctionDeclaration(function, signature, goal)
+    )
+    assert build_initial_assignment(declaration) == build_initial_assignment(goal)
+
+
+def test_abstract_predicate_qualifiers_respect_constraint_scope():
+    from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
+
+    predicate, parameter, inside, outside = (Name(name) for name in ("p", "x", "inside", "outside"))
+    signature = AbstractionType(parameter, t_int, t_bool)
+    inner = LiquidConstraint(LiquidHornApplication(inside, [(LiquidVar(parameter), t_int)]))
+    outer = LiquidConstraint(LiquidHornApplication(outside, [(LiquidVar(parameter), t_int)]))
+    declaration = UninterpretedFunctionDeclaration(predicate, signature, inner, is_refinement=True)
+    assignment = build_initial_assignment(Conjunction(declaration, outer))
+    assert any(predicate in _liquid_function_names(candidate) for candidate in assignment[inside])
+    assert not any(predicate in _liquid_function_names(candidate) for candidate in assignment[outside])
+
+    # Logical predicates carried by synthesis contexts have the same vocabulary.
+    ctx = TypingContext().with_refinement(predicate, signature)
+    assert build_initial_assignment(inner, ctx)[inside] == assignment[inside]
+
+
+def test_constraint_rewriting_preserves_abstract_predicate_qualifiers():
+    from aeon.verification.helpers import substitution_in_constraint
+    from aeon.verification.horn import split
+    from aeon.verification.smt import rename_constraint
+    from aeon.verification.vcs import Conjunction, UninterpretedFunctionDeclaration
+
+    predicate, parameter, renamed, unknown = (Name(name) for name in ("p", "x", "y", "k"))
+    signature = AbstractionType(parameter, t_int, t_bool)
+    goal = LiquidConstraint(LiquidHornApplication(unknown, [(LiquidVar(parameter), t_int)]))
+    declaration = UninterpretedFunctionDeclaration(predicate, signature, Conjunction(goal, goal), is_refinement=True)
+    rewritten = simplify_constraint_fixpoint(declaration)
+    rewritten = substitution_in_constraint(rewritten, LiquidVar(renamed), parameter)
+    rewritten = rename_constraint(rewritten, renamed, parameter)
+    for part in split(rewritten):
+        assignment = build_initial_assignment(part)
+        assert any(predicate in _liquid_function_names(candidate) for candidate in assignment[unknown])

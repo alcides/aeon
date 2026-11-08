@@ -44,7 +44,14 @@ def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
         case RefinementPolymorphism(rname, sort, body, loc):
             return RefinementPolymorphism(rname, rec(sort), rec(body), loc=loc)
         case TypeConstructor(name, args, loc):
-            return TypeConstructor(name, [rec(arg) for arg in args], loc=loc)
+            from aeon.core.predicates import map_predicate_types
+
+            return TypeConstructor(
+                name,
+                [rec(arg) for arg in args],
+                loc=loc,
+                refinements=[map_predicate_types(p, rec) for p in t.refinements],
+            )
         case _:
             assert False, f"Not considered: {t} ({type(t)})"
 
@@ -56,8 +63,12 @@ def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
         return type_variable_instantiation(x, alpha, beta)
 
     match t:
-        case TypeConstructor():
-            return t
+        case TypeConstructor(name, args, loc):
+            from aeon.core.predicates import map_predicate_types
+
+            return TypeConstructor(
+                name, [rec(a) for a in args], loc=loc, refinements=[map_predicate_types(p, rec) for p in t.refinements]
+            )
         case TypeVar(name) if name == alpha:
             return beta
         case TypeVar():

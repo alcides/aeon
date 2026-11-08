@@ -128,7 +128,9 @@ def lower_constraint_type_keep_refinements(ttype: Type) -> Type:
             assert isinstance(inner, (TypeConstructor, TypeVar))
             return RefinedType(name, inner, ref)
         case TypeConstructor(name, args):
-            return TypeConstructor(name, [lower_constraint_type_keep_refinements(a) for a in args])
+            return TypeConstructor(
+                name, [lower_constraint_type_keep_refinements(a) for a in args], refinements=ttype.refinements
+            )
         case _:
             assert False, f"Unsupport type in constraint {ttype} ({type(ttype)})"
 
@@ -247,6 +249,48 @@ def base_subtype_constraint(
             c: Constraint = ctrue
             for a1, a2 in zip(args1, args2):
                 c = conjoin(c, sub(ctx, a1, a2, loc))
+            if ty2.refinements:
+                # Forgetting a relation is safe; reconstructing one from an
+                # erased datatype is not. Predicate parameters are invariant
+                # until variance has been established from constructor fields.
+                from aeon.core.substitutions import predicate_domains
+                from aeon.typechecking.liquid import typecheck_liquid, LiquidTypeCheckException
+                from aeon.core.types import t_bool
+
+                sorts = ctx.datatype_predicate_sorts(ty1)
+                if len(ty1.refinements) != len(ty2.refinements) or len(sorts) != len(ty1.refinements):
+                    return cfalse
+                for left, right, sort in zip(ty1.refinements, ty2.refinements, sorts):
+                    bindings = [
+                        (Name("relation_arg", fresh_counter.fresh()), domain) for domain in predicate_domains(sort)
+                    ]
+                    arguments = [LiquidVar(n) for n, _ in bindings]
+                    try:
+                        lp, rp = left.apply(arguments), right.apply(arguments)
+                        local = ctx
+                        for parameter, domain in bindings:
+                            local = local.with_var(parameter, domain)
+                        if typecheck_liquid(local, lp) != t_bool or typecheck_liquid(local, rp) != t_bool:
+                            return cfalse
+                    except (ValueError, LiquidTypeCheckException, AssertionError):
+                        return cfalse
+                    relation = conjoin(
+                        Implication(
+                            Name("relation", fresh_counter.fresh()),
+                            TypeConstructor(Name("Bool", 0)),
+                            lp,
+                            LiquidConstraint(rp),
+                        ),
+                        Implication(
+                            Name("relation", fresh_counter.fresh()),
+                            TypeConstructor(Name("Bool", 0)),
+                            rp,
+                            LiquidConstraint(lp),
+                        ),
+                    )
+                    for parameter, domain in reversed(bindings):
+                        relation = implication_constraint(parameter, domain, relation, loc)
+                    c = conjoin(c, relation)
             return c
         case _:
             return ctrue if ty1 == ty2 else None
@@ -321,7 +365,7 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
                 substitution_liquid_in_type(body_b, LiquidVar(name), b),
                 loc,
             )
-            return conjoin(sorts, UninterpretedFunctionDeclaration(name, predicate_a, body))
+            return conjoin(sorts, UninterpretedFunctionDeclaration(name, predicate_a, body, is_refinement=True))
         case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _), _:
             # Core instantiation is explicit (TypeApplication or
             # RefinementApplication). A bare schema cannot fill a concrete hole.

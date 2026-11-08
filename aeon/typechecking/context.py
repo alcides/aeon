@@ -324,6 +324,14 @@ class TypingContext:
             _ensure_builtins=False,
         )
 
+    def with_uninterpreted(self, name: Name, type: Type) -> TypingContext:
+        """Bind a logical symbol without making it an executable component."""
+        return TypingContext(
+            _ContextSnapshot.extend_scope(self.entries, UninterpretedBinder(name, type), self._constructor_entries()),
+            trusted_names=self.trusted_names,
+            _ensure_builtins=False,
+        )
+
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
             match e:
@@ -406,6 +414,20 @@ class TypingContext:
             if entry.name == name:
                 return entry.args
         return None
+
+    def datatype_predicate_sorts(self, ty: TypeConstructor) -> list[Type]:
+        """Instantiate the declared predicate sorts at a datatype's type arguments."""
+        from aeon.core.instantiation import type_substitution
+
+        for entry in reversed(self._constructor_entries()):
+            if entry.name == ty.name:
+                result = []
+                for _, sort in entry.rforalls:
+                    for formal, actual in zip(entry.args, ty.args):
+                        sort = type_substitution(sort, formal, actual)
+                    result.append(sort)
+                return result
+        return []
 
     def __hash__(self):
         return sum(hash(e) for e in self.entries)

@@ -83,7 +83,7 @@ def substitute_svartype_in_stype_by_name(ty: SType, beta: SType, alpha_name: str
         case SRefinementPolymorphism(name, sort, body):
             return SRefinementPolymorphism(name, rec(sort), rec(body))
         case STypeConstructor(name, args):
-            return STypeConstructor(name, [rec(a) for a in args])
+            return STypeConstructor(name, [rec(a) for a in args], refinements=ty.refinements)
         case _:
             assert False, f"Unknown node in substitute {ty}"
 
@@ -195,7 +195,7 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
         case SRefinementPolymorphism(name, sort, body):
             return SRefinementPolymorphism(name, rec(sort), rec(body))
         case STypeConstructor(name, args):
-            return STypeConstructor(name, [rec(a) for a in args])
+            return STypeConstructor(name, [rec(a) for a in args], refinements=ty.refinements)
         case _:
             assert False, f"Unknown node in substitute {ty}"
 
@@ -225,7 +225,11 @@ def substitution_sterm_in_stype(ty: SType, beta: STerm, alpha: Name) -> SType:
             else:
                 return SRefinementPolymorphism(name, rec(sort), rec(body))
         case STypeConstructor(name, args):
-            return STypeConstructor(name, [rec(a) for a in args])
+            return STypeConstructor(
+                name,
+                [rec(a) for a in args],
+                refinements=[substitution_sterm_in_sterm(p, beta, alpha) for p in ty.refinements],
+            )
         case _:
             # Changed from assert False to handle UnificationVar from elaboration
             return ty
@@ -356,7 +360,11 @@ def substitute_refinement_param_in_stype(ty: SType, old: Name, new: Name) -> STy
                 return ty
             return SRefinementPolymorphism(rname, rec(sort), rec(body))
         case STypeConstructor(name, args):
-            return STypeConstructor(name, [rec(a) for a in args])
+            return STypeConstructor(
+                name,
+                [rec(a) for a in args],
+                refinements=[substitution_sterm_in_sterm(p, SVar(new), old) for p in ty.refinements],
+            )
         case _:
             return ty
 

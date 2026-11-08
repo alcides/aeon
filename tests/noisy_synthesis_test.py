@@ -233,8 +233,12 @@ def source(precise=False):
 def test_real_compiler_search_heldout_execution_and_example_failures(precise):
     driver = parse(source(precise))
     before = repr(driver.metadata)
-    engine = NoisySynthesizer(config=Config(candidates_per_round=8))
-    completed = fill(driver, solve(driver, engine, budget=5))
+    # One expansion covers the scalar literals and the input variable. Exhaust
+    # that finite grammar so this compiler/ranking test does not depend on how
+    # much search fits into a one-second RPC window on a busy CI worker.
+    engine = NoisySynthesizer(config=Config(candidates_per_round=8, max_expansions=1, call_timeout=10))
+    completed = fill(driver, solve(driver, engine, budget=30))
+    assert engine.last_report.stop_reason == "full_sample"
     assert engine.last_report.empirical_error == 0.25
     assert repr(driver.metadata) == before
     name = next(r.var_name for r in iterate_top_level(completed) if r.var_name.name == "f")

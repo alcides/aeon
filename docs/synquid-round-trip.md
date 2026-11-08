@@ -48,47 +48,69 @@ unknowns, constrained together across all handlers and emitted as explicit
 predicate arguments after solving. The verifier also infers omitted match
 predicates instead of fixing them to `true`.
 
-Aeon's datatype representation has no separate slots for abstract relations.
-Consequently, a predicate absent from the scrutinee's representation must be
-justified from its actual refined fields and constructor equations before a
-handler can assume it. This obligation applies to explicit predicates too:
-choosing `false` or an unsupported stronger invariant cannot make a branch
-vacuously correct. `true` remains a valid inferred result when no stronger
-predicate is needed. These changes preserve the MATCH rule's available evidence;
-they do not add the missing datatype invariants to the 64 benchmark ports.
+Datatype predicate arguments are retained separately from element types. For
+example, `(Duo a){|r|}` stores the binary relation `r`; matching that value
+instantiates its constructor fields with the stored relation. Erasing a relation
+is allowed, but an erased value cannot be strengthened back to an indexed one.
+Explicit relation arguments are invariant: subtyping proves pointwise equivalence
+on the element domain. Variance inference for predicate parameters is not implemented.
 
-## Abstract refinements: runnable example and paper limitation
+Legacy datatypes whose constructor results omit predicate arguments keep their
+previous behavior. An absent predicate must follow from the actual fields and
+constructor equations before matching can assume it. In particular, an explicit
+`false` predicate cannot make a branch vacuously correct.
+
+## Abstract refinements: runnable examples
 
 [abstract_identity.ae](../examples/synthesis/synquid/abstract_identity.ae) exercises
-both type and predicate polymorphism through the ordinary synthesis driver:
+unary predicate polymorphism. The new
+[relational_swap.ae](../examples/synthesis/synquid/relational_swap.ae) synthesizes a
+transformation of an arbitrary binary relation:
 
 ```aeon
-def preserve : forall a:B, forall <p:a -> Bool>, (x:a<p>) -> a<p> := ?body;
+inductive Duo a forall <r:a -> a -> Bool>
+| mk (first:a) (second:{v:a | r first v}) : (Duo a){|r|}
 
-def main (u:Int) : Int := preserve{Int}{|fun n => n > 0|} 42;
+def swap : forall a:B, forall <r:a -> a -> Bool>,
+    (d:(Duo a){|r|}) -> (Duo a){|fun x => fun y => r y x|} := ?body;
 ```
 
 ```bash
-python -m aeon --budget 15 -s synquid examples/synthesis/synquid/abstract_identity.ae
+python -m aeon --budget 30 -s synquid examples/synthesis/synquid/relational_swap.ae
 ```
 
-Synquid synthesizes the polymorphic identity: after introducing `a`, `p`, and
-`x`, the body is `x`. It passes whole-program refinement validation, and evaluating
-the synthesized program returns `42`. The CLI command displays the synthesized
-program; it does not execute it. The implementation is checked for an arbitrary
-predicate `p`, independently of the concrete positive-integer call in `main`.
+Synquid synthesizes a match that constructs `Duo.mk second first`. The result
+passes whole-program validation for arbitrary `a` and `r`. Its concrete `main`
+returns `(2, 1)` from `(1, 2)`; the CLI displays the synthesized program, while the
+regression test also evaluates it. Returning the input does not satisfy this
+specification.
 
-This is a small demonstration of supported predicate polymorphism, **not** the
-paper's list-reversal example. In PLDI 2016 §2, Example 3, a list carries a binary
-relation between its elements, and reversal changes that relation from `r(x, y)`
-to `r(y, x)` while preserving length. Aeon can declare n-ary predicate binders,
-but its datatype types cannot retain a separate relation argument. Faithfully
-expressing and synthesizing that example needs datatype predicate arguments
-preserved through construction, matching, instantiation, and subtyping.
+The checked [relational_reverse.ae](../examples/synthesis/synquid/relational_reverse.ae)
+implements the relational list from PLDI 2016 §2, Example 3. Each constructor
+result retains `r`, and the tail has type `(RList {v:a | r head v}){|r|}`. Its
+`snoc` helper and `reverse` implementation are checked polymorphically, including
+termination, length preservation, and reversal of the relation:
 
-In particular, [List-Reverse.ae](../examples/benchmarks/synquid/List-Reverse.ae)
-currently specifies only length preservation. Returning the input unchanged
-satisfies that port; solving it does not demonstrate the paper's reversal result.
+```aeon
+forall a:B, forall <r:a -> a -> Bool>,
+(xs:(RList a){|r|}) ->
+{ys:(RList a){|fun x => fun y => r y x|} | RList.size ys = RList.size xs}
+```
+
+Running that file evaluates the reversal of `[1, 2, 3]` to `[3, 2, 1]`. It includes
+explicit refined type arguments on recursive calls and constructors: ordinary
+elaboration does not infer all of these nested element refinements. This is a
+checked implementation, not a claim that the entire recursive body is synthesized
+within a short budget. The existing
+[List-Reverse.ae](../examples/benchmarks/synquid/List-Reverse.ae) benchmark remains
+the older length-only port.
+
+Multiple predicate arguments use repeated brackets, for example
+`Triple{|r|}{|s|}`. Predicates may have more than two arguments, provided every
+domain is a first-order logical sort and the result is `Bool`. Constructor
+results must retain all declared predicates in declaration order. Implicit
+predicate inference uses the existing finite qualifier vocabulary; supply an
+explicit lambda when the desired relation is outside that vocabulary.
 
 ## Incremental constraints
 

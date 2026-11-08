@@ -106,7 +106,7 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
         case SRefinementPolymorphism(name, sort, body, loc):
             return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
         case STypeConstructor(name, args, loc):
-            return STypeConstructor(name, [rec(a) for a in args], loc=loc)
+            return STypeConstructor(name, [rec(a) for a in args], loc=loc, refinements=ty.refinements)
         case _:
             return ty
 
@@ -147,6 +147,6 @@ def type_variable_instantiation(ty: SType, alpha: Name, beta: SType) -> SType:
         case SRefinementPolymorphism(name, sort, body, loc):
             return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
         case STypeConstructor(name, args, loc):
-            return STypeConstructor(name, [rec(a) for a in args], loc=loc)
+            return STypeConstructor(name, [rec(a) for a in args], loc=loc, refinements=ty.refinements)
         case _:
             assert False

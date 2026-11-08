@@ -96,7 +96,19 @@ def lift_type(ty: Type) -> SType:
         case TypeVar(name, loc):
             return STypeVar(name, loc=loc)
         case TypeConstructor(name, args, loc):
-            return STypeConstructor(name, [lift_type(arg) for arg in args], loc=loc)
+            from aeon.core.predicates import predicate_to_term
+            from aeon.verification.horn import contains_horn
+
+            # As for an outer refinement hole below, lifting an intermediate
+            # inferred type exposes only facts already known to the caller.
+            predicates = [] if any(contains_horn(p.body) for p in ty.refinements) else ty.refinements
+
+            return STypeConstructor(
+                name,
+                [lift_type(arg) for arg in args],
+                loc=loc,
+                refinements=[lift(predicate_to_term(p)) for p in predicates],
+            )
         case AbstractionType(name, atype, rtype, loc):
             return SAbstractionType(name, lift_type(atype), lift_type(rtype), loc=loc, multiplicity=ty.multiplicity)
         case RefinedType(name, typ, ref, loc):

@@ -60,7 +60,7 @@ measure_rule : "+" ID args ":" type                        -> def_ind_cons
 // of the given (possibly dependent, refined) type without a proof. The type's
 // refinements are assumed; the body is never checked. Like Lean, axioms are
 // noncomputable (applying one yields an opaque proof token).
-def : visibility soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
+def : visibility soft_constraint "def" def_name ":" type decreasing_by_opt ":=" expression ";"? -> def_cons
     | visibility soft_constraint "def" def_name  args ":" type decreasing_by_opt ":=" expression ";"?     -> def_fun_eq
     | visibility "axiom" def_name ":" type ";"?                                         -> axiom_decl
     | visibility "theorem" def_name args ":" expression decreasing_by_opt ":=" expression ";"? -> theorem_decl
@@ -79,7 +79,7 @@ def : visibility soft_constraint "def" def_name ":" type ":=" expression ";"?   
 // like a top-level ``def``. Note this makes ``end`` a reserved keyword (it can
 // no longer be used as an identifier anywhere), matching Lean.
 mutual_block : "mutual" mutual_def+ "end"                                    -> mutual_block
-mutual_def : soft_constraint "def" def_name ":" type ":=" expression ";"?                  -> def_cons
+mutual_def : soft_constraint "def" def_name ":" type decreasing_by_opt ":=" expression ";"? -> def_cons
            | soft_constraint "def" def_name args ":" type decreasing_by_opt ":=" expression ";"?  -> def_fun_eq
 
 visibility : "private" -> private_visibility
@@ -152,6 +152,7 @@ type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO 
      | type_name                                           -> simple_t
      | "(" type_name type+ ")"                            -> constructor_t
      | "(" type ")"                                        -> same
+     | type _REFOPEN expression _REFCLOSE                   -> datatype_refinement_t
 
 
 // The sort of an abstract refinement parameter: an n-ary predicate

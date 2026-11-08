@@ -45,7 +45,11 @@ from aeon.sugar.stypes import (
     get_type_vars,
 )
 from aeon.sugar.instance_registry import lookup_instance
-from aeon.sugar.substitutions import substitute_refinement_param_in_stype, substitution_sterm_in_stype
+from aeon.sugar.substitutions import (
+    substitute_refinement_param_in_stype,
+    substitution_sterm_in_stype,
+)
+from aeon.sugar.equality import term_equality
 from aeon.utils.name import Name, fresh_counter
 from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
 
@@ -356,7 +360,7 @@ def _resolve_uvars(ty: SType) -> SType:
                     return resolved
             return ty
         case STypeConstructor(name, args, loc=loc):
-            return STypeConstructor(name, [_resolve_uvars(a) for a in args], loc=loc)
+            return STypeConstructor(name, [_resolve_uvars(a) for a in args], loc=loc, refinements=ty.refinements)
         case SRefinedType(name, inner, ref, loc=loc):
             # A predicate inferred at a call site can become part of another
             # call's inferred type argument (e.g. an array of arrays). Keep it
@@ -391,6 +395,12 @@ def _same_inferred_type(left: SType, right: SType) -> bool:
     type. Rename dependent occurrences as well; multiplicities still matter.
     """
     match left, right:
+        case SRefinedType(ln, lt, lp), SRefinedType(rn, rt, rp):
+            return _same_inferred_type(lt, rt) and term_equality(lp, rp, {ln: rn})
+        case SRefinedType(_, inner, _), _:
+            return _same_inferred_type(inner, right)
+        case _, SRefinedType(_, inner, _):
+            return _same_inferred_type(left, inner)
         case SAbstractionType(ln, la, lr), SAbstractionType(rn, ra, rr):
             common = SVar(Name("_inferred_binder", fresh_counter.fresh()))
             return (
@@ -403,7 +413,13 @@ def _same_inferred_type(left: SType, right: SType) -> bool:
                 )
             )
         case STypeConstructor(ln, la), STypeConstructor(rn, ra):
-            return ln == rn and len(la) == len(ra) and all(_same_inferred_type(a, b) for a, b in zip(la, ra))
+            return (
+                ln == rn
+                and len(la) == len(ra)
+                and len(left.refinements) == len(right.refinements)
+                and all(term_equality(p, q) for p, q in zip(left.refinements, right.refinements))
+                and all(_same_inferred_type(a, b) for a, b in zip(la, ra))
+            )
         case _:
             return left == right
 
@@ -429,13 +445,19 @@ def _merge_inferred_refinements(left: SType, right: SType) -> SType | None:
             return _merge_inferred_refinements(right, left)
     match left, right:
         case STypeConstructor(ln, la, loc=loc), STypeConstructor(rn, ra) if ln == rn and len(la) == len(ra):
+            # Only element refinement holes may be merged. Explicit datatype
+            # predicates remain invariant, including when nested inside args.
+            if len(left.refinements) != len(right.refinements) or not all(
+                term_equality(p, q) for p, q in zip(left.refinements, right.refinements)
+            ):
+                return None
             args: list[SType] = []
             for l_arg, r_arg in zip(la, ra):
                 arg = _merge_inferred_refinements(l_arg, r_arg)
                 if arg is None:
                     return None
                 args.append(arg)
-            return STypeConstructor(ln, args, loc=loc)
+            return STypeConstructor(ln, args, loc=loc, refinements=left.refinements)
     return None
 
 
@@ -496,7 +518,9 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
                 loc=loc,
             )
         case STypeConstructor(name, args, loc):
-            return STypeConstructor(name, [remove_unions_and_intersections(ctx, arg) for arg in args], loc=loc)
+            return STypeConstructor(
+                name, [remove_unions_and_intersections(ctx, arg) for arg in args], loc=loc, refinements=ty.refinements
+            )
         case SRefinedType(name, ity, ref, loc):
             innert = remove_unions_and_intersections(ctx, ity)
             if has_refinement_method(ref):
@@ -758,10 +782,10 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
         case (SRefinementAbstraction(pname, sort, body, loc=loc), SRefinementPolymorphism(rname, rsort, tbody)):
             unify(ctx, sort, rsort)
             nty = substitute_refinement_param_in_stype(tbody, rname, pname)
-            nbody = elaborate_check(ctx, body, nty)
+            nbody = elaborate_check(ctx.with_var(pname, sort), body, nty)
             return SRefinementAbstraction(pname, sort, nbody, loc=loc)
         case (SAbstraction(_, _, loc=loc), SRefinementPolymorphism(rname, rsort, tbody)):
-            nbody = elaborate_check(ctx, t, tbody)
+            nbody = elaborate_check(ctx.with_var(rname, rsort), t, tbody)
             return SRefinementAbstraction(rname, rsort, nbody, loc=loc)
         case (SAnonConstructor(cname, loc=loc), _):
             # Resolve anonymous constructor (.cons) using expected type
@@ -877,7 +901,9 @@ def replace_unification_variables(
             case SRefinementPolymorphism(name, sort, body, loc=loc):
                 return SRefinementPolymorphism(name, go(ctx, sort, polarity), go(ctx, body, polarity), loc=loc)
             case STypeConstructor(name, args, loc=loc):
-                return STypeConstructor(name, [go(ctx, arg, polarity) for arg in args], loc=loc)
+                return STypeConstructor(
+                    name, [go(ctx, arg, polarity) for arg in args], loc=loc, refinements=ty.refinements
+                )
 
             case UnificationVar(_, _, _):
                 return Union(list(extract_direction(ty)))

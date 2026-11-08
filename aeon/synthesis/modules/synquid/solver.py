@@ -8,7 +8,7 @@ An incomplete enumeration is UNKNOWN, never evidence of incompatibility.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Callable
 from time import monotonic
@@ -322,7 +322,7 @@ def _freeze_head(c: Constraint, assignment: Assignment) -> Constraint:
     if isinstance(c, Implication):
         return Implication(c.name, c.base, c.pred, _freeze_head(c.seq, assignment))
     if isinstance(c, UninterpretedFunctionDeclaration):
-        return UninterpretedFunctionDeclaration(c.name, c.type, _freeze_head(c.seq, assignment))
+        return replace(c, seq=_freeze_head(c.seq, assignment))
     if isinstance(c, ReflectedFunctionDeclaration):
         return ReflectedFunctionDeclaration(c.name, c.type, c.params, c.body, _freeze_head(c.seq, assignment))
     raise NotImplementedError(type(c))
