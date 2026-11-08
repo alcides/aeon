@@ -1,8 +1,5 @@
-# List-Split: split into two lists covering the input.
-#
-# Synquid benchmark List-Split (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# List-Split — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-Split.sq for the missing contracts.
 
 open List
 

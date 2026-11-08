@@ -1,8 +1,5 @@
-# List-Nub: remove duplicates; no longer than input.
-#
-# Synquid benchmark List-Nub (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Set-of-elements preservation omitted; only the length bound.
+# List-Nub — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-Nub.sq for the missing contracts.
 
 open List
 

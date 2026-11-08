@@ -1,8 +1,5 @@
-# List-Partition: split around a pivot; halves cover the input.
-#
-# Synquid benchmark List-Partition (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. The <=/> pivot predicate needs an order on `a` (arrives with #1); only the length partition for now.
+# List-Partition — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-Partition.sq for the missing contracts.
 
 open List
 

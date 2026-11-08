@@ -1,12 +1,13 @@
-# Tree-Count: number of nodes.
-#
-# Synquid benchmark Tree-Count (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# Tree-Count — Synquid PLDI16, pinned source in upstream/Tree-Count.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
 inductive Tree a
-| leaf : {t:(Tree a) | tsize t = 0}
-| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t = tsize left + tsize right + 1}
-+ tsize (t: (Tree a)) : Int
+| empty : {t:(Tree a) | size t = 0}
+| node (x:a) (l:(Tree a)) (r:(Tree a)) : {t:(Tree a) | size t = size l + size r + 1}
++ size (t:(Tree a)) : {v:Int | v >= 0}
 
-def count (t: (Tree a)) : {r:Int | r = tsize t} := ?hole;
+def zero : {v:Int | v = 0} := 0;
+def one : {v:Int | v = 1} := 1;
+def plus (x:Int) (y:Int) : {v:Int | v = x + y} := x + y;
+
+def countNodes (t:(Tree a)) : {v:Int | v = Tree.size t} decreasing_by [Tree.size t] := ?hole;

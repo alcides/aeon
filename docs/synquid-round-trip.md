@@ -101,9 +101,13 @@ Running that file evaluates the reversal of `[1, 2, 3]` to `[3, 2, 1]`. It inclu
 explicit refined type arguments on recursive calls and constructors: ordinary
 elaboration does not infer all of these nested element refinements. This is a
 checked implementation, not a claim that the entire recursive body is synthesized
-within a short budget. The existing
-[List-Reverse.ae](../examples/benchmarks/synquid/List-Reverse.ae) benchmark remains
-the older length-only port.
+within a short budget. The
+[List-Reverse.ae](../examples/benchmarks/synquid/List-Reverse.ae) benchmark now
+uses that relation and rejects the identity function. Both versions still omit
+the upstream element-set preservation clause. The
+[benchmark audit](../examples/benchmarks/synquid/README.md) records this gap and
+compares all 64 ports against pinned original sources. It also restores the
+indexed predicate in `List-Ith` and the dependent relation in `List-Foldr`.
 
 Multiple predicate arguments use repeated brackets, for example
 `Triple{|r|}{|s|}`. Predicates may have more than two arguments, provided every
@@ -210,6 +214,8 @@ non-decreasing monomorphic and explicitly type-applied polymorphic calls fail it
 The SMT regressions also check that polymorphic datatype measure specializations
 use their actual carrier sort and reject an incorrect result.
 
-The unchanged `List-Null` and `List-Append` benchmark specifications were also
-run. Their bounded outcomes are reported in the PR; these measurements do not
-replace the focused rule tests or establish original-suite coverage.
+The then-current `List-Null` and `List-Append` benchmark specifications were also
+run during the round-trip implementation. The subsequent
+[benchmark audit](../examples/benchmarks/synquid/README.md) replaces their broad
+standard-library imports with the original local datatype/component setup.
+Results from the older grammar should not be compared as if it were unchanged.

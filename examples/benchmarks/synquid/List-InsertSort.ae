@@ -1,8 +1,5 @@
-# List-InsertSort: length preserved.
-#
-# Synquid benchmark List-InsertSort (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Sortedness needs an order on `a` (arrives with #1); length preservation only for now.
+# List-InsertSort — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-InsertSort.sq for the missing contracts.
 
 open List
 

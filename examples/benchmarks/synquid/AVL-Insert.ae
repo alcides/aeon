@@ -1,8 +1,5 @@
-# AVL-Insert: insert into an AVL tree.
-#
-# Synquid benchmark AVL-Insert (pldi16).
-#
-# Element type polymorphic. AVL BALANCE invariant (and BST order) NOT encoded (needs #1); node-count and height only. Structural/size port.
+# AVL-Insert — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/AVL-Insert.sq for the missing contracts.
 
 inductive Avl a
 | aleaf : {t:(Avl a) | asz t = 0 && ah t = 0}

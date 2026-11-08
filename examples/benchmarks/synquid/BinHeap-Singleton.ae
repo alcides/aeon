@@ -1,8 +1,5 @@
-# BinHeap-Singleton: a one-element heap.
-#
-# Synquid benchmark BinHeap-Singleton (pldi16).
-#
-# Element type polymorphic. Heap ORDER invariant (parent <= children) NOT encoded (needs #1); only node-count. Structural/size port.
+# BinHeap-Singleton — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BinHeap-Singleton.sq for the missing contracts.
 
 inductive Heap a
 | hleaf : {h:(Heap a) | hsz h = 0}

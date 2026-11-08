@@ -1,9 +1,20 @@
-# List-Concat (Cons): prepend x; |result| == |xs|+1.
-#
-# Synquid benchmark List-Concat (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# List-Concat — Synquid PLDI16, pinned source in upstream/List-Concat.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def concatC (x: a) (xs: (List a)) : {l:(List a) | List.size l = List.size xs + 1} := ?hole;
+inductive ListOfLists a
+| nil2 : {xss:(ListOfLists a) | len2 xss = 0 && sumLen xss = 0}
+| cons2 (x:(List a)) (xs:(ListOfLists a)) : {xss:(ListOfLists a) | len2 xss = 1 + len2 xs && sumLen xss = sumLen xs + List.len x}
++ len2 (xss:(ListOfLists a)) : {v:Int | v >= 0}
++ sumLen (xss:(ListOfLists a)) : {v:Int | v >= 0}
+
+def append (xs:(List a)) (ys:(List a)) : {v:(List a) | List.len v = List.len xs + List.len ys}
+    decreasing_by [List.len xs] :=
+    match xs with | nil => ys | cons x tail => List.cons x (append tail ys);
+
+def concat (xss:(ListOfLists a)) : {v:(List a) | List.len v = ListOfLists.sumLen xss}
+    decreasing_by [ListOfLists.len2 xss] := ?hole;

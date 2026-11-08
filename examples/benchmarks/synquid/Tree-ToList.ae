@@ -1,14 +1,18 @@
-# Tree-ToList: flatten a tree; |list| == #nodes.
-#
-# Synquid benchmark Tree-ToList (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# Tree-ToList — Synquid PLDI16, pinned source in upstream/Tree-ToList.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
 inductive Tree a
-| leaf : {t:(Tree a) | tsize t = 0}
-| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t = tsize left + tsize right + 1}
-+ tsize (t: (Tree a)) : Int
+| empty : {t:(Tree a) | size t = 0}
+| node (x:a) (l:(Tree a)) (r:(Tree a)) : {t:(Tree a) | size t = size l + size r + 1}
++ size (t:(Tree a)) : {v:Int | v >= 0}
 
-def toList (t: (Tree a)) : {l:(List a) | List.size l = tsize t} := ?hole;
+def append (xs:(List a)) (ys:(List a)) : {v:(List a) | List.len v = List.len xs + List.len ys}
+    decreasing_by [List.len xs] :=
+    match xs with | nil => ys | cons x tail => List.cons x (append tail ys);
+
+def toList (t:(Tree a)) : {v:(List a) | List.len v = Tree.size t} decreasing_by [Tree.size t] := ?hole;

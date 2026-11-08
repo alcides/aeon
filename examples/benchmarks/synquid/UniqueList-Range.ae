@@ -1,9 +1,17 @@
-# UniqueList-Range: the distinct integers in [lo, hi).
-#
-# Synquid benchmark UniqueList-Range (pldi16).
-#
-# Monomorphic Int: it enumerates an integer range. Uniqueness not encoded.
+# UniqueList-Range — Synquid PLDI16, pinned source in upstream/UniqueList-Range.sq
+# Original pairwise inequality, bounds, size and argument order; unused elems omitted.
 
-open List
+inductive PList a forall <p:a -> a -> Bool>
+| nil : {xs:(PList a){|p|} | len xs = 0}
+| cons (x:a) (xs:(PList {v:a | p x v}){|p|}) : {ys:(PList a){|p|} | len ys = 1 + len xs}
++ len (xs:(PList a)) : {v:Int | v >= 0}
 
-def range (lo: Int) (hi: {v:Int | v >= lo}) : {l:(List Int) | List.size l = hi - lo} := ?hole;
+def zero : {v:Int | v = 0} := 0;
+def inc (x:Int) : {v:Int | v = x + 1} := x + 1;
+def dec (x:Int) : {v:Int | v = x - 1} := x - 1;
+def leq (x:Int) (y:Int) : {v:Bool | v = (x <= y)} := x <= y;
+def neq (x:Int) (y:Int) : {v:Bool | v = (x != y)} := x != y;
+
+# Upstream's upper bound is inclusive, and the arguments are size then lo.
+def range (size:{v:Int | v >= 0}) (lo:Int) : {xs:(PList {v:Int | lo <= v && v <= lo + size}){|fun x => fun y => x != y|} | PList.len xs = size}
+    decreasing_by [size] := ?hole;

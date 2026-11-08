@@ -206,3 +206,44 @@ def test_polymorphic_measure_specialization_uses_matching_datatype_sort(list_int
 
     assert smt_valid(obligation(1))
     assert not smt_valid(obligation(2))
+
+
+@pytest.mark.parametrize("measure", ["size", "cardinality"])
+def test_structural_measure_requires_matching_constructor_equations(measure):
+    from z3 import simplify
+
+    from aeon.verification.smt_datatypes import lookup_measure
+
+    program = f"""
+    inductive Counter
+    | zero : {{v:Counter | {measure} v = 0}}
+    | next (tail:Counter) : {{v:Counter | 1 + {measure} tail = {measure} v}}
+    + {measure} (v:Counter) : Int
+    """
+    driver = AeonDriver(AeonConfig("smt", SilentSynthesisUI(), 0, no_main=True))
+    assert not list(driver.parse(aeon_code=program))
+    with driver.session.activate():
+        get_sort(TypeConstructor(Name("Counter", 0)))
+        size = lookup_measure(f"Counter_{measure}")
+        assert size is not None
+        zero, next_ = lookup_constructor("Counter_zero"), lookup_constructor("Counter_next")
+        assert simplify(size(next_(next_(zero)))).as_long() == 2
+
+
+@pytest.mark.parametrize("leaf,increment", [(1, 1), (0, 2)])
+def test_size_name_does_not_override_custom_equations(leaf, increment):
+    from aeon.verification.smt_datatypes import lookup_measure
+
+    program = f"""
+    inductive Counter
+    | zero : {{v:Counter | size v = {leaf}}}
+    | next (tail:Counter) : {{v:Counter | size v = {increment} + size tail}}
+    + size (v:Counter) : Int
+    """
+    driver = AeonDriver(AeonConfig("smt", SilentSynthesisUI(), 0, no_main=True))
+    assert not list(driver.parse(aeon_code=program))
+    with driver.session.activate():
+        get_sort(TypeConstructor(Name("Counter", 0)))
+        assert lookup_measure("Counter_size") is None
+    # Contradicting the user's equations used to make arbitrary claims valid.
+    assert list(driver.parse(aeon_code=program + "def invalid (u:Int):{v:Int | false} := 0;"))

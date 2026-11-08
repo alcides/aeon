@@ -1,0 +1,182 @@
+{
+  "backend": "synquid",
+  "budget_seconds": 5,
+  "process_timeout_seconds": 20,
+  "trials": 1,
+  "results": [
+    {
+      "id": "AddressBook-Make",
+      "sha256": "ad80a60e273cdc861a276304da6091181dbd450520b1d1bf255e82174e302afc",
+      "status": "no-solution",
+      "elapsed_seconds": 5.109,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "AddressBook-Merge",
+      "sha256": "e4172e24f576e3a71bee7107c5b5d56d47715cc2fd1b67cece6a4a37b2d45279",
+      "status": "no-solution",
+      "elapsed_seconds": 5.097,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "Evaluator",
+      "sha256": "48e96b7a74145ea6db93f53224c986ab0a1cefccf48fc142f14c07134c585038",
+      "status": "no-solution",
+      "elapsed_seconds": 5.127,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Append",
+      "sha256": "6aa1bd4f962b8486a1a6bf6ebc6c180f5526d29c24710bdf5235032e32e1eb12",
+      "status": "no-solution",
+      "elapsed_seconds": 5.06,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Concat",
+      "sha256": "5263a2bcce1e1f6af1eacad865cb136793c78e8fa2eb7e8580ea224a833188bc",
+      "status": "no-solution",
+      "elapsed_seconds": 5.089,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Drop",
+      "sha256": "2e36f5cfaddf1feb5cdb69a9a255f8bd8947e28bd10e1f8433adfbe2869bc683",
+      "status": "no-solution",
+      "elapsed_seconds": 5.094,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Fold-Append",
+      "sha256": "eeac737979cf1b999942f5f75b9c073208611dd9bec895bf8f06b4498186a555",
+      "status": "no-solution",
+      "elapsed_seconds": 5.097,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Fold-Length",
+      "sha256": "c24d68ee437c411bf94f144553b618cae1667045292712135e04225ef41d8f79",
+      "status": "no-solution",
+      "elapsed_seconds": 5.127,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Foldr",
+      "sha256": "df6d03d94a727052f4a9097ddcaad46263109bdeb6118076ddedf13ae021052c",
+      "status": "no-solution",
+      "elapsed_seconds": 5.092,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Ith",
+      "sha256": "e6019e1107c02d4c71fa0ae9f4209c9ae1485a756a278e0b9d64e4d787d96b52",
+      "status": "no-solution",
+      "elapsed_seconds": 5.086,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Map",
+      "sha256": "597e7021f26051894808be2e5130766b07dd3bf6ac1e837a19249a5b34db00b6",
+      "status": "no-solution",
+      "elapsed_seconds": 5.06,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Null",
+      "sha256": "f50060c5f8af2cedb829356632e49b0a1ccb733cc3139db76cc9a4cffac8f5ab",
+      "status": "solved",
+      "solution": "Synthesized holes:\n?hole: (\n    (\u039ba : B \u21a6 (fun xs \u21a6 List_rec xs true (fun _ \u21a6 fun _ \u21a6 false))) :\n        forall a : B, (xs : (List a)) \u2192 {v : Bool | v = (List_len xs = 0)}\n)\nxs",
+      "elapsed_seconds": 0.221,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Product",
+      "sha256": "a97f06e78a033a4b79811ef4f1788245360593648be92962e3d6b76f5b681330",
+      "status": "no-solution",
+      "elapsed_seconds": 5.102,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Replicate",
+      "sha256": "6e6639c2cb111e9212aa375de85619d5fb03ff5f1a448f9946d24ab8a34d2ced",
+      "status": "no-solution",
+      "elapsed_seconds": 5.073,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Reverse",
+      "sha256": "59f24704b3f82fc2daa925ccf79f685d5ae4fe3999d419cb7d513a37b0c982e3",
+      "status": "no-solution",
+      "elapsed_seconds": 5.462,
+      "fidelity": "partial"
+    },
+    {
+      "id": "List-Snoc",
+      "sha256": "2cd4dff1fe5725c21d56bb81c7b37bc1ba5a1928c9bbac22fe7eba0eb1c486f4",
+      "status": "no-solution",
+      "elapsed_seconds": 5.097,
+      "fidelity": "partial"
+    },
+    {
+      "id": "List-Stutter",
+      "sha256": "616bcdcafca2f2909e1e7cc376a1cb46d5fafed6c01e705f686dbbd7873a21e8",
+      "status": "no-solution",
+      "elapsed_seconds": 5.057,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Take",
+      "sha256": "6385a1a90d0dfed62503e8ae8ea37754cf0384df2b7a4c5cfd01e2e6bf42b58b",
+      "status": "no-solution",
+      "elapsed_seconds": 5.075,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-Zip",
+      "sha256": "b1c75a1d2ac33de39af85cbf5a9a0862f17838008ba84f6f76caf564cdfeba9f",
+      "status": "no-solution",
+      "elapsed_seconds": 5.068,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "List-ZipWith",
+      "sha256": "6e0fb92d3616b0024afcce4180ebf342776714cbdb87402af3c726d64fbb0a25",
+      "status": "no-solution",
+      "elapsed_seconds": 5.063,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "Tree-BalancedReplicate",
+      "sha256": "3c70df42ddd15ee0594b5ec426c440a3c0d26f829f2b0fb5ac4b13575269bce6",
+      "status": "no-solution",
+      "elapsed_seconds": 5.081,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "Tree-Count",
+      "sha256": "d15b06a365a1853671924cc1d83f23b72c78aa3189992941ad71b51c5d744d28",
+      "status": "no-solution",
+      "elapsed_seconds": 5.069,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "Tree-ToList",
+      "sha256": "00780f8c77771ac8a77da75f387e61e439459df300ab5af836604ef7c046fd59",
+      "status": "no-solution",
+      "elapsed_seconds": 5.088,
+      "fidelity": "contract-faithful"
+    },
+    {
+      "id": "UniqueList-Range",
+      "sha256": "a15aca6d6c849712ead851581735090fded0769be82e67b94ddc298f42821f2c",
+      "status": "no-solution",
+      "elapsed_seconds": 5.143,
+      "fidelity": "contract-faithful"
+    }
+  ],
+  "date": "2026-11-08",
+  "python": "3.13.15",
+  "z3": "5.3.3",
+  "base_commit": "80ce18114803b7ae1567b587e18c0962a5fbf347",
+  "note": "One sequential smoke attempt per revised file; not a performance comparison. Elapsed time includes compilation and final whole-program validation. Other local validation ran concurrently. CLI reproduction: python -m aeon --no-main --budget 5 -s synquid <aeon_file>."
+}

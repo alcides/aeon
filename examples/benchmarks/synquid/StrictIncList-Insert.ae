@@ -1,8 +1,5 @@
-# StrictIncList-Insert: insert keeping strictly increasing order.
-#
-# Synquid benchmark StrictIncList-Insert (pldi16).
-#
-# Element type kept Int: the type carries a STRICT order invariant (scons requires hd < min of the tail). Becomes `forall a` with #1. Length grows by 0 or 1 (x may already be present).
+# StrictIncList-Insert — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/StrictIncList-Insert.sq for the missing contracts.
 
 inductive SList
 | snil : {l:SList | slen l = 0}

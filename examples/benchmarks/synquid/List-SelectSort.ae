@@ -1,8 +1,5 @@
-# List-SelectSort: length preserved.
-#
-# Synquid benchmark List-SelectSort (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Sortedness needs an order on `a` (arrives with #1); length preservation only for now.
+# List-SelectSort — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-SelectSort.sq for the missing contracts.
 
 open List
 

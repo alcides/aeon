@@ -1,12 +1,21 @@
-# List-Reverse: structural/size port; only length preservation is specified.
-#
-# Synquid benchmark List-Reverse (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
-# The original also reverses an abstract relation between list elements.
-# Aeon does not yet retain that relation as a datatype argument: returning xs
-# satisfies this weaker specification and does not demonstrate list reversal.
+# List-Reverse — Synquid PLDI16, pinned source in upstream/List-Reverse.sq
+# Partial: original relation reversal and length; elems preservation still omitted.
 
-open List
+inductive List a forall <p:a -> a -> Bool>
+| nil : {xs:(List a){|p|} | len xs = 0}
+| cons (x:a) (xs:(List {v:a | p x v}){|p|}) : {ys:(List a){|p|} | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def reverse (xs: (List a)) : {l:(List a) | List.size l = List.size xs} := ?hole;
+def snoc : forall a:B, forall <p:a -> a -> Bool>,
+    (x:a) -> (xs:(List {v:a | p v x}){|p|}) ->
+    {ys:(List a){|p|} | List.len ys = List.len xs + 1}
+    decreasing_by [List.len xs] :=
+    Λ a:B => Λ <p:a -> a -> Bool> => fun x => fun xs =>
+    match xs with
+    | nil => List.cons{a}{|p|} x (List.nil{{v:a | p x v}}{|p|})
+    | cons head tail => List.cons{a}{|p|} head (snoc{{v:a | p head v}}{|p|} x tail);
+
+def reverse : forall a:B, forall <p:a -> a -> Bool>,
+    (xs:(List a){|p|}) -> {ys:(List a){|fun x => fun y => p y x|} | List.len ys = List.len xs}
+    decreasing_by [List.len xs] :=
+    Λ a:B => Λ <p:a -> a -> Bool> => fun xs => ?hole;

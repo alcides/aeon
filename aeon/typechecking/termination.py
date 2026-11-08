@@ -23,6 +23,7 @@ from aeon.core.types import (
     AbstractionType,
     ExistentialType,
     RefinedType,
+    as_predicate_type,
     Type,
     TypePolymorphism,
     RefinementPolymorphism,
@@ -302,7 +303,7 @@ def _inner_ctx_and_expect_ty(nrctx: TypingContext, var_type: Type, formals: list
         if isinstance(cur_ty, TypePolymorphism):
             ctx = ctx.with_typevar(cur_ty.name, cur_ty.kind)
         else:
-            ctx = ctx.with_var(cur_ty.name, cur_ty.sort)
+            ctx = ctx.with_refinement(cur_ty.name, cur_ty.sort)
         cur_ty = cur_ty.body
     for nm in formals:
         assert isinstance(cur_ty, AbstractionType)
@@ -563,11 +564,21 @@ def termination_metric_constraints(rec: Rec, typing_ctx: TypingContext | None = 
     # returning a type variable has no first-order SMT declaration from which
     # the translator could otherwise recover these formals.
     parameters = []
+    predicates = []
     while isinstance(schema, (TypePolymorphism, RefinementPolymorphism)):
+        if isinstance(schema, RefinementPolymorphism):
+            predicates.append((schema.name, schema.sort))
         schema = schema.body
     while isinstance(schema, AbstractionType):
         parameters.append((schema.var_name, schema.var_type))
         schema = schema.type
     for name, ty in reversed(parameters):
         acc = implication_constraint(name, ty, acc)
+    # Entry and branch refinements can mention the abstract predicates bound
+    # by the function (e.g. foldr's seed : {b | p nil b}). They are scoped by
+    # RAbs in the body-checking VC, but termination has its own VC.
+    from aeon.verification.vcs import UninterpretedFunctionDeclaration
+
+    for name, sort in reversed(predicates):
+        acc = UninterpretedFunctionDeclaration(name, as_predicate_type(sort), acc, is_refinement=True)
     return acc

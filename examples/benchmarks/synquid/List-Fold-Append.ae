@@ -1,9 +1,17 @@
-# List-Fold-Append: append expressed as a fold; sizes add.
-#
-# Synquid benchmark List-Fold-Append (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# List-Fold-Append — Synquid PLDI16, pinned source in upstream/List-Fold-Append.sq
+# Original dependent fold component and append contract; unused elems measure omitted.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def appendF (xs: (List a)) (ys: (List a)) : {l:(List a) | List.size l = List.size xs + List.size ys} := ?hole;
+def foldr : forall a:B, forall b:B, forall <p:(List a) -> b -> Bool>,
+    (f:(xs:(List a)) -> (x:a) -> (acc:{v:b | p xs v}) -> {v:b | p (List.cons x xs) v}) ->
+    (seed:{v:b | p (List.nil{a}) v}) -> (ys:(List a)) -> {v:b | p ys v}
+    decreasing_by [List.len ys] :=
+    Λ a:B => Λ b:B => Λ <p:(List a) -> b -> Bool> => fun f => fun seed => fun ys =>
+    match ys with | nil => seed | cons x xs => f xs x (foldr{a}{b}{|p|} f seed xs);
+
+def append (xs:(List a)) (ys:(List a)) : {v:(List a) | List.len v = List.len xs + List.len ys}
+    decreasing_by [List.len xs] := ?hole;
