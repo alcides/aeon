@@ -6,8 +6,8 @@ from collections.abc import Iterator
 import pytest
 from z3 import DatatypeSortRef
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidLiteralInt, LiquidLiteralUnit, LiquidVar
-from aeon.core.types import TypeConstructor, t_bool, t_int, t_unit
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidLiteralUnit, LiquidVar
+from aeon.core.types import TypeConstructor, t_int, t_unit
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.utils.name import Name
@@ -67,21 +67,6 @@ def test_list_cons_app_in_liquid_translation(list_int):
     )
     z3t = translate_liq(term, env)
     assert z3t is not None
-
-
-@pytest.mark.parametrize("head", [LiquidLiteralBool(False), LiquidLiteralBool(True), LiquidVar(Name("flag", 9500))])
-def test_polymorphic_constructor_under_measure_uses_payload_sort(list_int, head):
-    from z3 import Bool, simplify
-
-    get_sort(list_int)
-    bool_sort = get_sort(TypeConstructor(list_int.name, [t_bool]))
-    flag = str(Name("flag", 9500))
-    env = {**constructors_for_env(), flag: Bool(flag)}
-    cons = LiquidApp(Name("List_cons", 0), [head, LiquidVar(Name("List_nil", 0))])
-    assert translate_liq(cons, env).sort() == bool_sort
-    size = translate_liq(LiquidApp(Name("List_size", 0), [cons]), env)
-    assert simplify(size == 1)
-    assert not simplify(size == 2)
 
 
 def test_list_nil_equals_itself_valid(list_int):

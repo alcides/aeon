@@ -1308,36 +1308,6 @@ def _translate_at_sort(t: LiquidTerm, expected: SortRef, variables: dict[str, An
     return translate_liq(t, variables, memo)
 
 
-def _payload_sort(t: LiquidTerm, variables: dict[str, Any]) -> Any | None:
-    """Recover a payload sort without guessing a constructor instantiation."""
-    from z3 import is_func_decl
-
-    if isinstance(t, LiquidLiteralBool):
-        return BoolSort()
-    if isinstance(t, LiquidLiteralInt):
-        return IntSort()
-    if isinstance(t, LiquidLiteralFloat):
-        return RealSort()
-    if isinstance(t, LiquidLiteralString):
-        return StringSort()
-    if isinstance(t, LiquidLiteralUnit):
-        return _unit_value.sort()
-    if isinstance(t, LiquidVar):
-        if lookup_constructor(str(t.name)) is not None:
-            return None
-        value = variables.get(str(t.name), variables.get(strip_binder_id(str(t.name))))
-        return value.sort() if callable(getattr(value, "sort", None)) else None
-    if isinstance(t, LiquidApp):
-        name = str(t.fun)
-        if lookup_constructor(name) is not None:
-            hint = _payload_sort(t.args[0], variables) if t.args else None
-            ctor = lookup_constructor(name, first_argument_sort=hint) if hint is not None else None
-            return ctor.range() if is_func_decl(ctor) else None
-        fun = variables.get(name, variables.get(strip_binder_id(name)))
-        return fun.range() if is_func_decl(fun) else None
-    return None
-
-
 def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tuple[LiquidTerm, Any]] | None):
     match t:
         case LiquidLiteralBool(b):
@@ -1406,15 +1376,6 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
             ctor = lookup_constructor(fun_name.name)
             if ctor is None:
                 ctor = lookup_constructor(raw_fun)
-            if ctor is not None and args:
-                # A measure can mention a constructed value without an
-                # expected result sort. Use its payload to distinguish e.g.
-                # List Bool from List (Pair Int Int), rather than defaulting
-                # every occurrence of the polymorphic cons to the same sort.
-                hint = _payload_sort(args[0], variables)
-                preferred = lookup_constructor(raw_fun, first_argument_sort=hint) if hint is not None else None
-                if preferred is not None:
-                    ctor = preferred
             measure = None
             if ctor is None and args and lookup_measure(raw_fun) is not None:
                 argument = translate_liq(args[0], variables, memo)

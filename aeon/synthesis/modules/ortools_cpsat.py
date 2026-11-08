@@ -22,7 +22,8 @@ The objective is the ``@minimize``/``@maximize`` expression over the holes
 (integer/float ``+``, ``-``, ``*``, literals, comparisons, Boolean ``&&``/``||``,
 numeric conditionals, ``Array.get`` with a literal index, ``Array.size``, and
 inlined definitions and structurally recursive algebraic data types). Bool holes
-and hard @require predicates are supported.
+can carry dependent refinements over earlier values, using measure equations
+from datatype constructors. Hard @require predicates are also supported.
 Anything outside this
 fragment raises :class:`UnsupportedSynthesisGoal` pointing at another synthesizer backend.
 """
@@ -42,6 +43,7 @@ from aeon.core.liquid import (
     LiquidLiteralBool,
     LiquidLiteralFloat,
     LiquidLiteralInt,
+    LiquidPredicate,
     LiquidTerm,
     LiquidVar,
 )
@@ -62,7 +64,19 @@ from aeon.core.terms import (
     TypeAbstraction,
     Var,
 )
-from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, top
+from aeon.core.predicates import predicate_to_term
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    RefinementPolymorphism,
+    Type,
+    TypeConstructor,
+    TypePolymorphism,
+    t_bool,
+    t_float,
+    t_int,
+    top,
+)
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import ProgramSynthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.candidate_archive import CandidateArchive
@@ -150,7 +164,12 @@ class _Recursor:
     arguments: tuple[_Value, ...] = ()
 
 
-_Value = Union[_Num, _Vec, _Bool, _Data, _Closure, _Constructor, _Recursor]
+@dataclass
+class _Measure:
+    name: Name
+
+
+_Value = Union[_Num, _Vec, _Bool, _Data, _Closure, _Constructor, _Recursor, _Measure]
 
 
 def _base(ty: object) -> object:
@@ -272,6 +291,9 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         # hole -> (kind, [cp vars]) for decoding the solution.
         self._hole_meta: dict[Name, tuple[str, list[Any]]] = {}
         self._hole_types: dict[Name, Type] = {}
+        self._dependent_booleans: dict[Name, RefinedType] = {}
+        self._checked_dependent_booleans: set[Name] = set()
+        self._symbolic_branch = False
         for hole in all_holes:
             hole_type = holes_info[hole][0]
             self._hole_types[hole] = hole_type.type if isinstance(hole_type, RefinedType) else hole_type
@@ -290,6 +312,9 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._definition_cache: dict[Name, _Value] = {}
         self._application_cache: dict[tuple, tuple[_Closure, _Value, _Value]] = {}
         self._constructor_heads, self._recursor_heads = self._inductive_heads(term)
+        self._measure_equations = self._inductive_measure_equations(term)
+        self._measure_cache: dict[tuple[Name, int], tuple[_Data, _Value]] = {}
+        self._measure_active: set[tuple[Name, int]] = set()
 
         goals: list[Goal] = [g for d in metadata.values() for g in d.get("goals", [])]
         # Keep the exact symbolic optimizer for one scalar objective. Runtime
@@ -333,6 +358,11 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 self._model.add(value.expr == 0)
                 continue
             oriented.append(value if goal.minimize else _Num(-value.expr, value.scale, -value.hi, -value.lo))
+
+        if self._dependent_booleans.keys() - self._checked_dependent_booleans:
+            self._model = base_model
+            runtime = True
+            oriented = []
 
         model = self._model
         try:
@@ -437,7 +467,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             self._hole_value[hole] = _Bool(variable)
             self._hole_meta[hole] = ("bool", [variable])
             if isinstance(ty, RefinedType):
-                self._boolean_refinement(ty.name, variable, ty.refinement)
+                # Relational constructor fields may refer to preceding values
+                # and their measures. Their lexical environment is available
+                # when the objective traverses the containing value.
+                before = model.clone()
+                try:
+                    self._boolean_refinement(ty.name, variable, ty.refinement)
+                except _Unsupported:
+                    self._model = before
+                    self._dependent_booleans[hole] = ty
         elif (elem := _array_elem(ty)) is not None:
             k = _array_length(ty)
             if k is None or k < 0:
@@ -498,7 +536,21 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         if isinstance(t, Hole):
             if t.name in self._hole_value:
-                return self._hole_value[t.name]
+                value = self._hole_value[t.name]
+                if t.name in self._dependent_booleans:
+                    if self._symbolic_branch:
+                        raise _Unsupported("dependent Boolean refinement in a symbolic branch")
+                    ty = self._dependent_booleans[t.name]
+                    try:
+                        predicate = predicate_to_term(LiquidPredicate((), ty.refinement))
+                    except ValueError as exc:
+                        raise _Unsupported("unresolved Boolean refinement") from exc
+                    condition = self._boolean(
+                        self._translate(predicate, {**env, ty.name: value}, visited), "Boolean refinement"
+                    )
+                    self._model.add_bool_or([condition.expr])
+                    self._checked_dependent_booleans.add(t.name)
+                return value
             raise _Unsupported(f"hole '{t.name.pretty()}'")
 
         if isinstance(t, (Let, Rec)):
@@ -518,8 +570,13 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             condition = self._boolean(self._translate(t.cond, env, visited), "if")
             if condition.known is not None:
                 return self._translate(t.then if condition.known else t.otherwise, env, visited)
-            yes_value = self._translate(t.then, env, visited)
-            no_value = self._translate(t.otherwise, env, visited)
+            previous_branch = self._symbolic_branch
+            self._symbolic_branch = True
+            try:
+                yes_value = self._translate(t.then, env, visited)
+                no_value = self._translate(t.otherwise, env, visited)
+            finally:
+                self._symbolic_branch = previous_branch
             if isinstance(yes_value, _Bool) and isinstance(no_value, _Bool):
                 boolean = self._model.new_bool_var("if_bool")
                 self._model.add(boolean == yes_value.expr).only_enforce_if(condition.expr)
@@ -610,6 +667,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if isinstance(t, Var):
             if t.name in env:
                 return env[t.name]
+            if t.name in self._measure_equations:
+                return _Measure(t.name)
             if t.name in self._constructor_heads:
                 return self._constructor_heads[t.name]
             if t.name in self._recursor_heads:
@@ -652,6 +711,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         raise _Unsupported(type(t).__name__)
 
     def _apply(self, function: _Value, argument: _Value, visited: frozenset[Name]) -> _Value:
+        if isinstance(function, _Measure):
+            return self._measure(function.name, argument)
         if isinstance(function, _Closure):
             body = function.body
             if (
@@ -694,6 +755,66 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 branch = self._apply(branch, field, visited)
             return branch
         raise _Unsupported("application of a non-function")
+
+    def _measure(self, name: Name, value: _Value) -> _Value:
+        if not isinstance(value, _Data):
+            raise _Unsupported("measure of a value without a known constructor")
+        key = (name, id(value))
+        if key in self._measure_cache:
+            return self._measure_cache[key][1]
+        equation = self._measure_equations[name].get(value.tag)
+        if equation is None or key in self._measure_active:
+            raise _Unsupported("missing or cyclic constructor measure equation")
+        parameters, body = equation
+        self._measure_active.add(key)
+        try:
+            result = self._translate(body, dict(zip(parameters, value.fields)), frozenset())
+            self._measure_cache[key] = (value, result)
+            return result
+        finally:
+            self._measure_active.remove(key)
+
+    def _inductive_measure_equations(self, term: Term) -> dict[Name, dict[str, tuple[tuple[Name, ...], Term]]]:
+        """Read measure equations from the compiler's checked constructor types."""
+        from aeon.verification.constructor_registry import is_registered_measure
+
+        equations: dict[Name, dict[str, tuple[tuple[Name, ...], Term]]] = {}
+        for binding in iterate_top_level(term):
+            constructor = self._constructor_heads.get(binding.var_name)
+            if not isinstance(constructor, (_Data, _Constructor)) or not isinstance(binding, Rec):
+                continue
+            ty = binding.var_type
+            parameters = []
+            while isinstance(ty, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
+                if isinstance(ty, AbstractionType):
+                    parameters.append(ty.var_name)
+                    ty = ty.type
+                else:
+                    ty = ty.body
+            if not isinstance(ty, RefinedType):
+                continue
+            pending = [ty.refinement]
+            while pending:
+                predicate = pending.pop()
+                if not isinstance(predicate, LiquidApp):
+                    continue
+                if predicate.fun.name == "&&":
+                    pending.extend(predicate.args)
+                elif predicate.fun.name == "==":
+                    for lhs, rhs in (predicate.args, predicate.args[::-1]):
+                        if (
+                            isinstance(lhs, LiquidApp)
+                            and is_registered_measure(lhs.fun.name)
+                            and lhs.args == [LiquidVar(ty.name)]
+                        ):
+                            try:
+                                body = predicate_to_term(LiquidPredicate((), rhs))
+                            except ValueError:
+                                # No interpretation for unresolved logical
+                                # predicates: their use must fall back.
+                                continue
+                            equations.setdefault(lhs.fun, {})[constructor.tag] = (tuple(parameters), body)
+        return equations
 
     @staticmethod
     def _value_key(value: _Value) -> tuple:

@@ -105,6 +105,65 @@ def test_shadowed_to_float_keeps_its_function_body():
     assert _values(_solve(driver)) == {"x": 0}
 
 
+@pytest.mark.parametrize(
+    "capacity,expected", [(0, (False, False)), (5, (False, True)), (6, (True, False)), (11, (True, True))]
+)
+def test_datatype_measure_refinement_constrains_joint_optimum(monkeypatch, capacity, expected):
+    def no_runtime_fallback(*args, **kwargs):
+        pytest.fail("constructor measure equations should constrain the symbolic optimizer")
+
+    monkeypatch.setattr(CPSatHoleSynthesizer, "_runtime_search", no_runtime_fallback)
+    driver = _parse(f"""
+        inductive Choices
+        | empty: {{c:Choices | Choices.weight c = 0}}
+        | add (previous:Choices) (value:Int) (weight:Int)
+            (used:{{b:Bool | Choices.weight previous + (if b then weight else 0) <= {capacity}}}):
+            {{c:Choices | Choices.weight c = Choices.weight previous + (if used then weight else 0)}}
+        + weight (c:Choices): Int
+        def score (c:Choices): Int :=
+            match c with
+            | empty => 0
+            | add previous value weight used => score previous + (if used then value else 0);
+        @maximize(toFloat (score choices))
+        def choices: {{c:Choices | Choices.weight c <= {capacity}}} :=
+            let previous := Choices.empty in
+            let previous := Choices.add previous 7 6 ?a in
+            Choices.add previous 6 5 ?b;
+    """)
+    assert _values(_solve(driver)) == dict(zip(("a", "b"), expected))
+
+
+@pytest.mark.parametrize("conditional", [False, True])
+def test_dependent_boolean_outside_symbolic_path_uses_validated_fallback(monkeypatch, conditional):
+    fallback = CPSatHoleSynthesizer._runtime_search
+    calls = []
+
+    def runtime_search(self, *args, **kwargs):
+        calls.append(True)
+        return fallback(self, *args, **kwargs)
+
+    monkeypatch.setattr(CPSatHoleSynthesizer, "_runtime_search", runtime_search)
+    if conditional:
+        source = """
+            def gated: Bool := ?gate;
+            @maximize(toFloat result)
+            def result:Int := if gated then
+                let b:{v:Bool | if v then 5 < 6 else 5 > 6} := ?flag in
+                if b then 1 else 0
+                else 0;
+        """
+        expected = {"gate": True, "flag": True}
+    else:
+        source = """
+            def unused: {v:Bool | if v then 5 < 6 else 5 > 6} := ?flag;
+            @maximize(0.0)
+            def result:Int := 0;
+        """
+        expected = {"flag": True}
+    assert _values(_solve(_parse(source), budget=2)) == expected
+    assert calls
+
+
 @pytest.mark.parametrize("name", ["ortools", "ortools_int", "cpsat"])
 def test_factory_routing(name):
     assert isinstance(make_synthesizer(name), CPSatHoleSynthesizer)

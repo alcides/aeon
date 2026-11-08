@@ -356,16 +356,12 @@ def try_build_inductive_sort(
         _building.discard(sname)
 
 
-def lookup_constructor(
-    aeon_name: str, preferred_sort: str | None = None, first_argument_sort: Any | None = None
-) -> Any | None:
+def lookup_constructor(aeon_name: str, preferred_sort: str | None = None) -> Any | None:
     """Resolve an Aeon constructor base name to a Z3 constructor symbol.
 
     If several monomorphic instantiations exist (``List_nil`` at ``List_Int``
-    and ``List_Bool``), ``preferred_sort`` selects one. A supplied
-    ``first_argument_sort`` must identify a unique constructor; an ambiguous
-    or missing payload match returns ``None``. With neither hint, prefer an
-    Int instantiation, then the first registered entry. Accepts specialised
+    and ``List_Bool``), ``preferred_sort`` selects one; otherwise the sole
+    entry is returned, or ``None`` if ambiguous / missing. Accepts specialised
     twin names (``List_cons__spec__…``).
     """
     base = constructor_logical_name(aeon_name)
@@ -376,15 +372,6 @@ def lookup_constructor(
         for sname, ctor in entries:
             if sname == preferred_sort:
                 return ctor
-    if first_argument_sort is not None:
-        matches = [
-            ctor
-            for _, ctor in entries
-            if callable(getattr(ctor, "arity", None)) and ctor.arity() > 0 and ctor.domain(0) == first_argument_sort
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        return None
     if len(entries) == 1:
         return entries[0][1]
     # Prefer an Int instantiation when ambiguous (common for Contata / List Int).
