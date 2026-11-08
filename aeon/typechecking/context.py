@@ -373,7 +373,7 @@ class TypingContext:
             case TypeConstructor(name, args):
                 kind = next((kind for n, kind in self.typevars() if n == name), None)
                 if kind is None:
-                    declaration = next((e for e in self._constructor_entries() if e.name == name), None)
+                    declaration = next((e for e in reversed(self._constructor_entries()) if e.name == name), None)
                     if declaration is None:
                         raise ValueError(f"Unknown type constructor '{name}'")
                     kind = constructor_kind(declaration.arg_kinds or (Kind.BASE,) * len(declaration.args))

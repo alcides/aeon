@@ -202,3 +202,15 @@ def test_constructor_variable_overlap_is_rejected():
     """
     )
     assert any(isinstance(e, TypeClassError) and "Overlapping" in str(e) for e in errors)
+
+
+def test_constructor_kinds_follow_context_shadowing():
+    from aeon.core.types import ArrowKind, Kind, TypeConstructor, t_int, t_set
+    from aeon.typechecking.context import TypingContext, TypeConstructorBinder
+    from aeon.typechecking.well_formed import wellformed
+    from aeon.utils.name import Name
+
+    # The generic Set library shadows the nullary built-in Set declaration.
+    ctx = TypingContext([TypeConstructorBinder(t_set.name, [Name("a", 1)])])
+    assert ctx.kind_of(t_set) == ArrowKind(Kind.BASE, Kind.BASE)
+    assert wellformed(ctx, TypeConstructor(t_set.name, [t_int]))
