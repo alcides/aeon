@@ -53,6 +53,10 @@ are being closed in order (see *Aligning further*). Current state:
      uniqueness — are **not** yet encoded; those benchmarks are ported as
      structural (size/height) specs and flagged `Structural/size port` in the
      file. See *Aligning further*.
+   * **`List-Reverse`** preserves only length. The original's abstract relation
+     that specifies reversed element order is absent, so the identity function
+     satisfies the port. See the [runnable predicate-polymorphism example and
+     datatype limitation](../../../docs/synquid-round-trip.md#abstract-refinements-runnable-example-and-paper-limitation).
 
 Datatypes with a standard-library equivalent use it directly (`List` via
 `open List`, `Maybe` via `open Maybe`); only datatypes with **no** stdlib
