@@ -445,13 +445,19 @@ def _merge_inferred_refinements(left: SType, right: SType) -> SType | None:
             return _merge_inferred_refinements(right, left)
     match left, right:
         case STypeConstructor(ln, la, loc=loc), STypeConstructor(rn, ra) if ln == rn and len(la) == len(ra):
+            # Only element refinement holes may be merged. Explicit datatype
+            # predicates remain invariant, including when nested inside args.
+            if len(left.refinements) != len(right.refinements) or not all(
+                term_equality(p, q) for p, q in zip(left.refinements, right.refinements)
+            ):
+                return None
             args: list[SType] = []
             for l_arg, r_arg in zip(la, ra):
                 arg = _merge_inferred_refinements(l_arg, r_arg)
                 if arg is None:
                     return None
                 args.append(arg)
-            return STypeConstructor(ln, args, loc=loc)
+            return STypeConstructor(ln, args, loc=loc, refinements=left.refinements)
     return None
 
 

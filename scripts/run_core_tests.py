@@ -23,6 +23,7 @@ CORE_TESTS = [
     "tests/polymorphic_subtyping_soundness_test.py",
     "tests/synthesis_list_refinement_soundness_test.py",
     "tests/datatype_relations_test.py",
+    "tests/inferred_function_types_test.py",
     "tests/tdsyn_existential_refinements_test.py",
     "tests/theorem_syntax_test.py",
     "tests/precondition_diagnostics_test.py",
