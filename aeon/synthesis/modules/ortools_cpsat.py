@@ -55,6 +55,7 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementAbstraction,
     RefinementApplication,
     Term,
     TypeApplication,
@@ -489,7 +490,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if isinstance(t, Annotation):
             return self._translate(t.expr, env, visited)
 
-        if isinstance(t, (TypeApplication, TypeAbstraction, RefinementApplication)):
+        if isinstance(t, (TypeApplication, TypeAbstraction, RefinementApplication, RefinementAbstraction)):
             return self._translate(t.body, env, visited)
 
         if isinstance(t, Abstraction):
@@ -503,6 +504,11 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if isinstance(t, (Let, Rec)):
             value = self._translate(t.var_value, env, visited)
             return self._translate(t.body, {**env, t.var_name: value}, visited)
+
+        if isinstance(t, Application) and isinstance(t.fun, Var) and t.fun.name == Name("toFloat", 0):
+            # The prelude cast preserves the exact numeric value. A user
+            # binding named toFloat has a different identity and is inlined.
+            return self._num(self._translate(t.arg, env, visited), "toFloat")
 
         if isinstance(t, Application) and _head_name(t.fun) == "!":
             value = self._boolean(self._translate(t.arg, env, visited), "!")
@@ -715,7 +721,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         for binding in iterate_top_level(term):
             body = binding.var_value
             arguments: list[str] = []
-            while isinstance(body, (TypeAbstraction, Abstraction)):
+            while isinstance(body, (TypeAbstraction, RefinementAbstraction, Abstraction)):
                 if isinstance(body, Abstraction):
                     arguments.append(body.var_name.name)
                 body = body.body

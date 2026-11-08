@@ -78,6 +78,33 @@ def test_is_program_synthesizer():
     assert isinstance(CPSatHoleSynthesizer(), ProgramSynthesizer)
 
 
+def test_relational_datatype_is_optimized_symbolically(monkeypatch):
+    def no_runtime_fallback(*args, **kwargs):
+        pytest.fail("relational constructors and matches should translate to CP-SAT")
+
+    monkeypatch.setattr(CPSatHoleSynthesizer, "_runtime_search", no_runtime_fallback)
+    driver = _parse("""
+        inductive Choice forall <r: Bool -> Bool>
+        | mk (used: {b:Bool | r b}) : Choice{|r|}
+        def decision: Bool := ?used;
+        def score (c: Choice{|fun b => true|}): Int :=
+            match c with | mk used => if used then 7 else 0;
+        @maximize(toFloat (score (Choice.mk{|fun b => true|} decision)))
+        def result: Int := 0;
+        def main (u:Int): Bool := decision;
+    """)
+    assert _values(_solve(driver)) == {"used": True}
+
+
+def test_shadowed_to_float_keeps_its_function_body():
+    driver = _parse("""
+        def toFloat (x:Int): Float := if x = 0 then 7.0 else 0.0;
+        @maximize(toFloat result)
+        def result: {x:Int | 0 <= x && x <= 1} := ?x;
+    """)
+    assert _values(_solve(driver)) == {"x": 0}
+
+
 @pytest.mark.parametrize("name", ["ortools", "ortools_int", "cpsat"])
 def test_factory_routing(name):
     assert isinstance(make_synthesizer(name), CPSatHoleSynthesizer)

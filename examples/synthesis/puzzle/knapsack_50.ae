@@ -1,25 +1,101 @@
-# 50 distinct items: item i weighs i and is worth 2*i + 1; capacity 100.
-# Run: python -m aeon -s enumerative --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+# 50 fixed random (value, weight) pairs, generated with seed 20261108.
+# Values are 1..100, weights 1..20, and capacity is 100.
+# Run: python -m aeon -s ortools --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+open Pair
 
-inductive Knapsack forall <fits: Int -> Int -> Bool>
-| empty : {k: Knapsack{|fits|} | weight k = 0 && largest k = 0}
-| take (item: Int | 1 <= item && item <= 50)
-       (rest: {k: Knapsack{|fits|} | largest k < item && fits item (weight k)}) :
-    {k: Knapsack{|fits|} | weight k = item + weight rest && largest k = item}
-+ weight (k: Knapsack) : Int
-+ largest (k: Knapsack) : Int
+inductive List a
+| nil : {xs: (List a) | List.size xs = 0}
+| cons (head:a) (tail: {xs: (List a) | List.size xs >= 0}) :
+    {xs: (List a) | List.size xs = List.size tail + 1}
++ size (xs: (List a)) : Int
 
-# Descending item numbers ensure each of the 50 items is used at most once.
-def value (k: Knapsack{|fun w => fun rest => w + rest <= 100|}) : Int :=
-    match k with
+def pair (value:Int) (weight: {w:Int | w > 0}) : (Pair Int {w:Int | w > 0}) :=
+    Pair.mk{Int}{{w:Int | w > 0}} value weight
+
+def items: {xs: (List (Pair Int {w:Int | w > 0})) | List.size xs = 50} := [
+    pair 42 15, pair 29 10, pair 50 18, pair 2 18, pair 98 14,
+    pair 11 14, pair 90 4, pair 1 12, pair 39 13, pair 60 3,
+    pair 34 12, pair 89 14, pair 1 14, pair 73 11, pair 26 14,
+    pair 51 16, pair 84 6, pair 2 13, pair 89 16, pair 88 4,
+    pair 58 15, pair 92 16, pair 10 18, pair 50 17, pair 11 3,
+    pair 82 12, pair 7 9, pair 64 5, pair 2 9, pair 67 13,
+    pair 14 9, pair 52 7, pair 6 1, pair 66 18, pair 48 4,
+    pair 20 10, pair 64 11, pair 17 17, pair 60 12, pair 15 15,
+    pair 49 1, pair 75 8, pair 70 7, pair 32 16, pair 41 15,
+    pair 47 3, pair 75 7, pair 12 9, pair 60 11, pair 92 15
+];
+
+# A checked selection keeps the weight of every decision in its type.
+inductive Selection forall <fits: Int -> Int -> Bool>
+| empty : {s: Selection{|fits|} | Selection.size s = 0 && Selection.weight s = 0}
+| cons (used: Bool) (item_weight: Int | item_weight > 0)
+       (rest: {s: Selection{|fits|} | fits (if used then item_weight else 0) (Selection.weight s)}) :
+    {s: Selection{|fits|} | Selection.size s = Selection.size rest + 1 &&
+        Selection.weight s = (if used then item_weight else 0) + Selection.weight rest}
++ size (s: Selection) : Int
++ weight (s: Selection) : Int
+
+def selected_weight (s: Selection{|fun w => fun rest => w + rest <= 100|})
+    : {w: Int | w = Selection.weight s && 0 <= w && w <= 100}
+    decreasing_by [Selection.size s] :=
+    match s with
     | empty => 0
-    | take item rest => 2 * item + 1 + value rest
+    | cons used w rest =>
+        let tail_weight: {t:Int | t = Selection.weight rest && 0 <= t && t <= 100} :=
+            selected_weight rest in
+        if used then w + tail_weight else tail_weight
 
-@maximize(toFloat (value solution))
-def solution: {k: Knapsack{|fun w => fun rest => w + rest <= 100|} | Knapsack.weight k <= 100} :=
-    # Specialize the constructors so the search only builds feasible packs.
-    let empty := Knapsack.empty{|fun w => fun rest => w + rest <= 100|} in
-    let take := Knapsack.take{|fun w => fun rest => w + rest <= 100|} in
-    ?items;
+# Clear decisions that exceed capacity, working from the end of the list.
+# Feasible masks are unchanged, so every feasible solution remains searchable.
+def select (xs: (List (Pair Int {w:Int | w > 0})))
+    (mask: (List Bool))
+    : {s: Selection{|fun w => fun rest => w + rest <= 100|} | Selection.size s = List.size xs}
+    decreasing_by [List.size xs] :=
+    match xs with
+    | nil => (Selection.empty{|fun w => fun rest => w + rest <= 100|} :
+            {s: Selection{|fun w => fun rest => w + rest <= 100|} | Selection.size s = List.size xs})
+    | cons item tl =>
+        let (mk v w) := item in
+        let head: (Pair Bool (List Bool)) :=
+            match mask with
+            | nil => .mk false (List.nil{Bool})
+            | cons proposed mt => .mk proposed mt in
+        let (mk proposed mt) := head in
+        let tail: {s: Selection{|fun w => fun rest => w + rest <= 100|} | Selection.size s = List.size tl} :=
+            select tl mt in
+        let used: {t:Int | t = Selection.weight tail && 0 <= t && t <= 100} :=
+            selected_weight tail in
+        let chosen: {b:Bool | b = (proposed && w + used <= 100)} :=
+            proposed && w + used <= 100 in
+        (Selection.cons{|fun w => fun rest => w + rest <= 100|} chosen w tail :
+            {s: Selection{|fun w => fun rest => w + rest <= 100|} | Selection.size s = List.size xs})
 
-def main (u: Int): Int := value solution;
+def booleans (s: Selection{|fun w => fun rest => w + rest <= 100|})
+    : {xs: (List Bool) | List.size xs = Selection.size s && List.size xs >= 0}
+    decreasing_by [Selection.size s] :=
+    match s with
+    | empty => List.nil{Bool}
+    | cons used w rest => List.cons{Bool} used (booleans rest)
+
+def total_value (xs: (List (Pair Int {w:Int | w > 0}))) (mask: (List Bool)) : Int :=
+    match xs with
+    | nil => 0
+    | cons item tl =>
+        let (mk v w) := item in
+        match mask with
+        | nil => 0
+        | cons used rest => (if used then v else 0) + total_value tl rest
+
+@maximize(toFloat (total_value items knapsack))
+# Position i in the returned list says whether items[i] is selected.
+def knapsack: {mask: (List Bool) | List.size mask = 50} :=
+    let proposed: {bs: (List Bool) | List.size bs = 50} := [
+        ?b0, ?b1, ?b2, ?b3, ?b4, ?b5, ?b6, ?b7, ?b8, ?b9,
+        ?b10, ?b11, ?b12, ?b13, ?b14, ?b15, ?b16, ?b17, ?b18, ?b19,
+        ?b20, ?b21, ?b22, ?b23, ?b24, ?b25, ?b26, ?b27, ?b28, ?b29,
+        ?b30, ?b31, ?b32, ?b33, ?b34, ?b35, ?b36, ?b37, ?b38, ?b39,
+        ?b40, ?b41, ?b42, ?b43, ?b44, ?b45, ?b46, ?b47, ?b48, ?b49
+    ] in
+    booleans (select items proposed);
+
+def main (u: Int): (List Bool) := knapsack;
