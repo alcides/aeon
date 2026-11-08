@@ -1,47 +1,30 @@
 # Functional 0-1 knapsack genetic algorithm in pure Aeon.
-# Five items: weights [2, 3, 4, 5, 9], values [3, 4, 5, 8, 10].
-# Capacity is fixed at 10 in Individual's type. Fitness is just total value:
-# creation and variation must preserve feasibility before an individual can
-# enter a population. All values are immutable; hot helpers use @llvm.
+#
+# ``Individual`` and ``Population`` are inductive. Every step builds a new
+# value (no Buffer mutation). Generations use ``map_population`` /
+# ``map_population_state`` to turn the old population into the next.
+# Refinements capture 0-1 genes, ``ilen``/``plen`` measures, positive
+# capacity, and non-negative fitness.
+# Hot helpers use ``@llvm`` (swap to ``@gpu`` for the CUDA backend).
 
 open List
 open Pair
 
-# The relation connects a selected item's weight to the tail's total weight.
-# Constructor refinements define the weight measure; the rest argument must
-# satisfy the relation, so a caller cannot manufacture an overweight genome.
-# Conditional selection keeps the measure in linear integer arithmetic.
-inductive Genome forall <fits: Int -> Int -> Bool>
-| empty_genome : {g: Genome{|fits|} | Genome.size g = 0 && Genome.weight g = 0}
-| gene (bit: Int | 0 <= bit && bit <= 1)
-       (item_weight: Int | item_weight >= 0)
-       (value: Int | value >= 0)
-       (rest: {g: Genome{|fits|} | fits ((if bit = 0 then 0 else item_weight)) (Genome.weight g)}) :
-    {g: Genome{|fits|} | Genome.size g = Genome.size rest + 1 &&
-        Genome.weight g = (if bit = 0 then 0 else item_weight) + Genome.weight rest}
-+ size (g: Genome) : Int
-+ weight (g: Genome) : Int
-
-# This wrapper fixes the relation once for every individual in the GA.
+# An individual is a cons-list of 0/1 genes, ending in ``empty_ind``.
 inductive Individual
-| individual (genes: Genome{|fun selected => fun tail => selected + tail <= 10|}) :
-    {i: Individual | Individual.weight i = Genome.weight genes}
-+ weight (i: Individual) : Int
+| empty_ind : {i: Individual | ilen i = 0}
+| gene (bit: Int | 0 <= bit && bit <= 1) (rest: Individual) :
+    {i: Individual | ilen i = ilen rest + 1}
++ ilen (i: Individual) : Int
 
+# A population is a cons-list of individuals.
 inductive Population
 | empty_pop : {p: Population | plen p = 0}
 | member (ind: Individual) (rest: Population) :
     {p: Population | plen p = plen rest + 1}
 + plen (p: Population) : Int
 
-# Keep an item's weight and value together, including when it is deselected.
-inductive Items
-| no_items : {xs: Items | Items.size xs = 0}
-| item (weight: Int | weight >= 0) (value: Int | value >= 0)
-       (rest: {xs: Items | Items.size xs >= 0}) :
-    {xs: Items | Items.size xs = Items.size rest + 1}
-+ size (xs: Items) : Int
-
+def N_ITEMS : {n: Int | n > 0} := 12
 def POP_SIZE : {p: Int | p > 0} := 10
 def GENERATIONS : {g: Int | g >= 0} := 20
 def SEED : Int := 20260913
@@ -62,6 +45,10 @@ def mod_nonneg (value: Int) (modulus: {m: Int | m > 0}) : Int :=
 @llvm
 def lcg_next (state: Int) : Int :=
     mod_nonneg ((state * 1664525) + 1013904223) 2147483647
+
+@llvm
+def ensure_pos (x: Int) : {v: Int | v > 0} :=
+    if x > 0 then x else 1
 
 # Draw ``value`` in ``[0, bound)``; return ``(Pair new_state value)``.
 @llvm
@@ -89,134 +76,81 @@ def nth_list (xs: (List Int)) (i: Int) : Int :=
 # Individuals: create and evaluate
 # ---------------------------------------------------------------------------
 
-# This executable accessor is proved equal to the logical weight measure.
-# The decreasing measure justifies using its contract in recursive calls.
 @llvm
-def genome_weight (g: Genome{|fun selected => fun tail => selected + tail <= 10|})
-    : {w: Int | w = Genome.weight g && 0 <= w && w <= 10}
-    decreasing_by [Genome.size g] :=
-    match g with
-    | empty_genome => 0
-    | gene bit w v rest =>
-        let tail_weight: {t: Int | t = Genome.weight rest && 0 <= t && t <= 10} :=
-            genome_weight rest in
-        if bit = 0 then tail_weight else w + tail_weight
-
-@llvm
-def individual_weight (ind: Individual)
-    : {w: Int | w = Individual.weight ind && 0 <= w && w <= 10} :=
+def length_ind (ind: Individual) : Int :=
     match ind with
-    | individual genes => genome_weight genes
+    | empty_ind => 0
+    | gene b rest => 1 + (length_ind rest)
 
-# Repair a proposed bit before constructing the gene. Zero keeps the item in
-# place for subsequent crossover/mutation, while contributing no weight.
+# Zip weights/values along the gene spine; accumulate weight and value.
 @llvm
-def prepend_gene
-    (bit: Int | 0 <= bit && bit <= 1) (w: Int | w >= 0) (v: Int | v >= 0)
-    (rest: Genome{|fun selected => fun tail => selected + tail <= 10|})
-    : Genome{|fun selected => fun tail => selected + tail <= 10|} :=
-    let tail_weight: {t: Int | t = Genome.weight rest && 0 <= t && t <= 10} :=
-        genome_weight rest in
-    let selected_weight: {s: Int | s = (if bit = 0 then 0 else w)} :=
-        if bit = 0 then 0 else w in
-    if selected_weight + tail_weight <= 10 then
-        Genome.gene{|fun selected => fun tail => selected + tail <= 10|} bit w v rest
+def accumulate
+    (weights: (List Int)) (values: (List Int)) (ind: Individual)
+    (wsum: Int) (vsum: Int) : (Pair Int Int) :=
+    match ind with
+    | empty_ind => .mk wsum vsum
+    | gene g rest =>
+        match weights with
+        | nil => .mk wsum vsum
+        | cons w wt =>
+            match values with
+            | nil => .mk wsum vsum
+            | cons v vt =>
+                if g = 0 then
+                    accumulate wt vt rest wsum vsum
+                else
+                    accumulate wt vt rest (wsum + w) (vsum + v)
+
+# Fitness: total value if weight fits capacity, else 0 (never negative).
+@llvm
+def evaluate_individual
+    (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
+    (ind: Individual) : {fit: Int | fit >= 0} :=
+    let packed : (Pair Int Int) := accumulate weights values ind 0 0 in
+    match packed with
+    | mk w v =>
+        if w <= capacity then
+            if v < 0 then 0 else v
+        else 0
+
+# Random individual of length ``n`` (gene density ~15%).
+@llvm
+def create_individual (n: {v: Int | v >= 0}) (rng: Int) : (Pair Int Individual) :=
+    if n <= 0 then .mk rng .empty_ind
     else
-        Genome.gene{|fun selected => fun tail => selected + tail <= 10|} 0 w v rest
-
-@llvm
-def empty_individual (u: Int) : Individual :=
-    .individual (Genome.empty_genome{|fun selected => fun tail => selected + tail <= 10|})
-
-@llvm
-def genome_value (g: Genome{|fun selected => fun tail => selected + tail <= 10|})
-    : {v: Int | v >= 0} decreasing_by [Genome.size g] :=
-    match g with
-    | empty_genome => 0
-    | gene bit w v rest =>
-        let tail_value: {t: Int | t >= 0} := genome_value rest in
-        if bit = 0 then tail_value else v + tail_value
-
-# Every Individual already fits the capacity; no overweight fitness penalty.
-@llvm
-def evaluate_individual (ind: Individual) : {fit: Int | fit >= 0} :=
-    match ind with
-    | individual genes => genome_value genes
-
-# Random genome (gene density ~15%), repaired from the tail to the head.
-@llvm
-def create_genome (items: Items) (rng: Int)
-    : (Pair Int Genome{|fun selected => fun tail => selected + tail <= 10|})
-    decreasing_by [Items.size items] :=
-    match items with
-    | no_items =>
-        Pair.mk{Int}{Genome{|fun selected => fun tail => selected + tail <= 10|}} rng
-            (Genome.empty_genome{|fun selected => fun tail => selected + tail <= 10|})
-    | item w v remaining =>
-        let draw: (Pair Int Int) := rnd rng 100 in
+        let draw : (Pair Int Int) := rnd rng 100 in
         match draw with
         | mk rng2 r =>
-            let bit: {b: Int | 0 <= b && b <= 1} := if r < 15 then 1 else 0 in
-            let rest: (Pair Int Genome{|fun selected => fun tail => selected + tail <= 10|}) :=
-                create_genome remaining rng2 in
+            let bit : {b: Int | 0 <= b && b <= 1} := if r < 15 then 1 else 0 in
+            let rest : (Pair Int Individual) := create_individual (n - 1) rng2 in
             match rest with
-            | mk rng3 tl =>
-                Pair.mk{Int}{Genome{|fun selected => fun tail => selected + tail <= 10|}} rng3 (prepend_gene bit w v tl)
-
-@llvm
-def create_individual (items: Items) (rng: Int) : (Pair Int Individual) :=
-    let result: (Pair Int Genome{|fun selected => fun tail => selected + tail <= 10|}) :=
-        create_genome items rng in
-    match result with
-    | mk rng2 genes => .mk rng2 (.individual genes)
+            | mk rng3 tl => .mk rng3 (.gene bit tl)
 
 
 # ---------------------------------------------------------------------------
-# Variation: crossover + mutation of two parents → a feasible child
-# Parents share an item catalog; only selection bits cross over or mutate.
+# Variation: crossover + mutation of two parents → a new child
 # ---------------------------------------------------------------------------
-
-@llvm
-def crossover_genomes
-    (parent_a: Genome{|fun selected => fun tail => selected + tail <= 10|})
-    (parent_b: Genome{|fun selected => fun tail => selected + tail <= 10|})
-    (cut: Int) (j: Int) (rng: Int)
-    : (Pair Int Genome{|fun selected => fun tail => selected + tail <= 10|})
-    decreasing_by [Genome.size parent_a] :=
-    match parent_a with
-    | empty_genome =>
-        Pair.mk{Int}{Genome{|fun selected => fun tail => selected + tail <= 10|}} rng
-            (Genome.empty_genome{|fun selected => fun tail => selected + tail <= 10|})
-    | gene ah w v at =>
-        match parent_b with
-        | empty_genome =>
-            Pair.mk{Int}{Genome{|fun selected => fun tail => selected + tail <= 10|}} rng
-                (Genome.empty_genome{|fun selected => fun tail => selected + tail <= 10|})
-        | gene bh bw bv bt =>
-            let src: {b: Int | 0 <= b && b <= 1} := if j < cut then ah else bh in
-            let draw: (Pair Int Int) := rnd rng 100 in
-            match draw with
-            | mk rng2 m =>
-                let out: {b: Int | 0 <= b && b <= 1} :=
-                    if m = 0 then 1 - src else src in
-                let rest: (Pair Int Genome{|fun selected => fun tail => selected + tail <= 10|}) :=
-                    crossover_genomes at bt cut (j + 1) rng2 in
-                match rest with
-                | mk rng3 tl =>
-                    Pair.mk{Int}{Genome{|fun selected => fun tail => selected + tail <= 10|}} rng3 (prepend_gene out w v tl)
 
 @llvm
 def crossover_mutate
     (parent_a: Individual) (parent_b: Individual) (cut: Int) (j: Int) (rng: Int)
     : (Pair Int Individual) :=
     match parent_a with
-    | individual a =>
+    | empty_ind => .mk rng .empty_ind
+    | gene ah at =>
         match parent_b with
-        | individual b =>
-            let result: (Pair Int Genome{|fun selected => fun tail => selected + tail <= 10|}) :=
-                crossover_genomes a b cut j rng in
-            match result with
-            | mk rng2 genes => .mk rng2 (.individual genes)
+        | empty_ind => .mk rng .empty_ind
+        | gene bh bt =>
+            let src : {b: Int | 0 <= b && b <= 1} := if j < cut then ah else bh in
+            let draw : (Pair Int Int) := rnd rng 100 in
+            match draw with
+            | mk rng2 m =>
+                let out : {b: Int | 0 <= b && b <= 1} :=
+                    if m = 0 then 1 - src else src in
+                let rest : (Pair Int Individual) :=
+                    crossover_mutate at bt cut (j + 1) rng2 in
+                match rest with
+                | mk rng3 tl => .mk rng3 (.gene out tl)
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +166,7 @@ def length_pop (p: Population) : Int :=
 @llvm
 def nth_pop (p: Population) (i: Int) : Individual :=
     match p with
-    | empty_pop => empty_individual 0
+    | empty_pop => .empty_ind
     | member hd tl =>
         if i <= 0 then hd else nth_pop tl (i - 1)
 
@@ -260,17 +194,19 @@ def map_population_state
 
 @llvm
 def fitnesses_of
+    (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (p: Population) : (List Int) :=
     match p with
     | empty_pop => nil
     | member hd tl =>
-        cons (evaluate_individual hd)
-             (fitnesses_of tl)
+        cons (evaluate_individual weights values capacity hd)
+             (fitnesses_of weights values capacity tl)
 
 @llvm
 def best_fitness
+    (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (p: Population) : Int :=
-    maximum_list (fitnesses_of p)
+    maximum_list (fitnesses_of weights values capacity p)
 
 @llvm
 def tournament
@@ -319,63 +255,90 @@ def breed_generation
             | mk s2 kids => .mk s2 (.member child kids)
 
 @llvm
-def init_population (items: Items) (n: {k: Int | k >= 0}) (rng: Int)
+def init_population (n_items: {n: Int | n >= 0}) (n: {k: Int | k >= 0}) (rng: Int)
     : (Pair Int Population) :=
     if n <= 0 then .mk rng .empty_pop
     else
-        let one : (Pair Int Individual) := create_individual items rng in
+        let one : (Pair Int Individual) := create_individual n_items rng in
         match one with
         | mk rng2 ind =>
-            let rest : (Pair Int Population) := init_population items (n - 1) rng2 in
+            let rest : (Pair Int Population) := init_population n_items (n - 1) rng2 in
             match rest with
             | mk rng3 tl => .mk rng3 (.member ind tl)
 
 # One generation: evaluate, then map each slot to a freshly bred child.
 @llvm
 def next_generation
+    (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
     (pop: Population) (rng: Int) : (Pair Int Population) :=
-    let fits : (List Int) := fitnesses_of pop in
+    let fits : (List Int) := fitnesses_of weights values capacity pop in
     breed_generation pop fits pop_size n_items rng pop
 
 @llvm
 def evolve_loop
+    (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
     (generations: Int) (g: Int) (pop: Population) (rng: Int) (best: Int) : Int :=
     if g >= generations then best
     else
-        let fit : Int := best_fitness pop in
+        let fit : Int := best_fitness weights values capacity pop in
         let best2 : Int := if fit > best then fit else best in
         let step : (Pair Int Population) :=
-            next_generation n_items pop_size pop rng in
+            next_generation weights values capacity n_items pop_size pop rng in
         match step with
         | mk rng2 pop2 =>
-            evolve_loop n_items pop_size generations (g + 1) pop2 rng2 best2
+            evolve_loop weights values capacity n_items pop_size generations (g + 1) pop2 rng2 best2
 
 @llvm
 def evolve
-    (items: Items)
+    (weights: (List Int)) (values: (List Int)) (capacity: {c: Int | c > 0})
     (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
     (generations: {g: Int | g >= 0}) (seed: Int) : Int :=
-    let started : (Pair Int Population) := init_population items pop_size seed in
+    let started : (Pair Int Population) := init_population n_items pop_size seed in
     match started with
     | mk rng pop =>
-        evolve_loop n_items pop_size generations 0 pop rng 0
+        evolve_loop weights values capacity n_items pop_size generations 0 pop rng 0
 
 
 # ---------------------------------------------------------------------------
-# Five-item puzzle: optimal feasible value is 15 (weights 2 + 3 + 5 = 10).
+# Problem instance (weights/values) built in Aeon via the same LCG
 # ---------------------------------------------------------------------------
 
 @llvm
-def puzzle_items (u: Int) : Items :=
-    .item 2 3 (.item 3 4 (.item 4 5 (.item 5 8 (.item 9 10 .no_items))))
+def fill_ints (n: {v: Int | v >= 0}) (lo: Int) (hi: {y: Int | y >= lo}) (rng: Int)
+    : (Pair Int (List Int)) :=
+    if n <= 0 then .mk rng nil
+    else
+        let span : {s: Int | s > 0} := ensure_pos ((hi - lo) + 1) in
+        let draw : (Pair Int Int) := rnd rng span in
+        match draw with
+        | mk rng2 r =>
+            let rest : (Pair Int (List Int)) := fill_ints (n - 1) lo hi rng2 in
+            match rest with
+            | mk rng3 tl => .mk rng3 (cons (lo + r) tl)
+
+@llvm
+def sum_ints (xs: (List Int)) : Int :=
+    match xs with
+    | nil => 0
+    | cons hd tl => hd + (sum_ints tl)
 
 # Entire GA stays in LLVM so inductive values never cross the host boundary.
 @llvm
 def run_knapsack
-    (pop_size: {p: Int | p > 0}) (generations: {g: Int | g >= 0}) (seed: Int) : Int :=
-    evolve (puzzle_items 0) 5 pop_size generations seed
+    (n_items: {n: Int | n > 0}) (pop_size: {p: Int | p > 0})
+    (generations: {g: Int | g >= 0}) (seed: Int) : Int :=
+    let w_built : (Pair Int (List Int)) := fill_ints n_items 1 50 seed in
+    match w_built with
+    | mk rng1 weights =>
+        let v_built : (Pair Int (List Int)) := fill_ints n_items 1 100 rng1 in
+        match v_built with
+        | mk rng2 values =>
+            let total : Int := sum_ints weights in
+            let third : Int := total / 3 in
+            let capacity : {c: Int | c > 0} := if third < 1 then 1 else third in
+            evolve weights values capacity n_items pop_size generations rng2
 
 def main (args: Int) : Unit :=
-    print (run_knapsack POP_SIZE GENERATIONS SEED);
+    print (run_knapsack N_ITEMS POP_SIZE GENERATIONS SEED);

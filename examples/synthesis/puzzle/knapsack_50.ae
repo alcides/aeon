@@ -1,0 +1,25 @@
+# 50 distinct items: item i weighs i and is worth 2*i + 1; capacity 100.
+# Run: python -m aeon -s enumerative --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+
+inductive Knapsack forall <fits: Int -> Int -> Bool>
+| empty : {k: Knapsack{|fits|} | weight k = 0 && largest k = 0}
+| take (item: Int | 1 <= item && item <= 50)
+       (rest: {k: Knapsack{|fits|} | largest k < item && fits item (weight k)}) :
+    {k: Knapsack{|fits|} | weight k = item + weight rest && largest k = item}
++ weight (k: Knapsack) : Int
++ largest (k: Knapsack) : Int
+
+# Descending item numbers ensure each of the 50 items is used at most once.
+def value (k: Knapsack{|fun w => fun rest => w + rest <= 100|}) : Int :=
+    match k with
+    | empty => 0
+    | take item rest => 2 * item + 1 + value rest
+
+@maximize(toFloat (value solution))
+def solution: {k: Knapsack{|fun w => fun rest => w + rest <= 100|} | Knapsack.weight k <= 100} :=
+    # Specialize the constructors so the search only builds feasible packs.
+    let empty := Knapsack.empty{|fun w => fun rest => w + rest <= 100|} in
+    let take := Knapsack.take{|fun w => fun rest => w + rest <= 100|} in
+    ?items;
+
+def main (u: Int): Int := value solution;
