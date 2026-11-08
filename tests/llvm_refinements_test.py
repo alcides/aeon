@@ -31,7 +31,7 @@ def optimized(code):
     return str(module)
 
 
-def test_nonnegative_parameter_removes_signed_division_correction():
+def test_nonnegative_parameter_allows_logical_shift_for_floor_division():
     function = lower("fun x => x / 2", "(different:{v:Int | v >= 0}) -> Int")
     plain = CPULLVMIRGenerator(use_refinements=False).generate_ir([function])
     hinted = CPULLVMIRGenerator().generate_ir([function])
@@ -39,7 +39,8 @@ def test_nonnegative_parameter_removes_signed_division_correction():
     assert "range(i32 0, -2147483648)" in hinted
     assert "llvm.assume" not in plain
     assert "lshr i32" in optimized(hinted)
-    assert "sdiv i32" in optimized(plain)
+    # Floor division by two preserves the sign bit without a nonnegative hint.
+    assert "ashr i32" in optimized(plain)
 
 
 def test_dependent_parameter_names_are_mapped_to_actual_lambda_binders():

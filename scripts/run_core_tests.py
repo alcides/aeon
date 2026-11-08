@@ -13,6 +13,7 @@ CORE_TESTS = [
     "tests/compilation_unit_test.py",
     "tests/link_contexts_test.py",
     "tests/backend_test.py",
+    "tests/llvm_refinements_test.py::test_nonnegative_parameter_allows_logical_shift_for_floor_division",
     "tests/substitutions_test.py",
     "tests/type_substitution_capture_test.py",
     "tests/smt_test.py",
