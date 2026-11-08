@@ -1,8 +1,7 @@
-"""Knapsack decisions are synthesized under the relational weight constraint."""
+"""A Boolean-only knapsack mask carries its weight through logical measures."""
 
 from pathlib import Path
 import random
-import re
 import sys
 
 import pytest
@@ -12,8 +11,8 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples/synthesis/puzzle/knapsack_50.ae"
-FITS = "fun w => fun previous => w + previous <= 100"
-KNAPSACK = f"Knapsack{{|{FITS}|}}"
+FITS = "fun w => fun rest => w + rest <= 100"
+MASK = f"Mask{{|{FITS}|}}"
 
 
 @pytest.fixture(autouse=True)
@@ -29,64 +28,92 @@ def _driver(synthesizer="none", budget=0):
 
 
 def _unpack(value):
-    entries = []
-    while value[0] == "Knapsack_add":
-        _, previous, item_value, weight, used = value
-        entries.append(((item_value, weight), used))
-        value = previous
-    assert value == ("Knapsack_empty",)
-    # Each constructor appends a decision to the previous knapsack.
-    return entries[::-1]
+    decisions = []
+    while value[0] == "Mask_cons":
+        # Only a tail and a Boolean: no item data or cached weight in a node.
+        _, value, used = value
+        assert type(used) is bool
+        decisions.append(used)
+    assert value == ("Mask_empty",)
+    return decisions
 
 
 def _items():
-    return [(int(value), int(weight)) for value, weight in re.findall(r"add k (\d+) (\d+) \?b\d+", EXAMPLE.read_text())]
+    rng = random.Random(20261108)
+    return [(rng.randint(1, 100), rng.randint(1, 20)) for _ in range(50)]
 
 
-def _program(items, decisions, size=None):
-    source = EXAMPLE.read_text().split("@maximize", 1)[0]
+def _program(decisions, count=None, weight=None):
+    source = EXAMPLE.read_text()
+    # Keep the real import and datatype, without the unrelated objective/data list.
+    source = (
+        source[: source.index("inductive Item")]
+        + "inductive Mask"
+        + source.split("inductive Mask", 1)[1].split("def total_value", 1)[0]
+    )
+    exact_weight = "" if weight is None else f" && Mask.weight m = {weight}"
     source += f"""
-        def main (u:Int): {{k:{KNAPSACK} | Knapsack.size k = {len(items) if size is None else size} && Knapsack.weight k <= 100}} :=
-            let add := Knapsack.add{{|{FITS}|}} in
-            let k := Knapsack.empty{{|{FITS}|}} in
+        def main (u:Int): {{m:{MASK} | Mask.count m = {len(decisions) if count is None else count}
+            && Mask.weight m <= 100{exact_weight}}} :=
+            let cons := Mask.cons{{|{FITS}|}} in
+            let mask := Mask.empty{{|{FITS}|}} in
     """
-    for (value, weight), used in zip(items, decisions):
-        source += f"let k := add k {value} {weight} {str(used).lower()} in\n"
-    return source + "k;"
+    for used in reversed(decisions):
+        source += f"let mask := cons mask {str(used).lower()} in\n"
+    return source + "mask;"
 
 
 def test_dataset_contains_50_reproducible_random_pairs():
-    rng = random.Random(20261108)
-    assert _items() == [(rng.randint(1, 100), rng.randint(1, 20)) for _ in range(50)]
-
-
-@pytest.mark.parametrize("decisions", [[False, False, False], [True, True, False], [False, True, True]])
-def test_feasible_decisions_are_returned_unchanged(decisions):
-    items = [(7, 60), (100, 30), (8, 50)]
+    source = EXAMPLE.read_text().split("inductive Mask", 1)[0]
     driver = _driver()
-    assert not driver.parse(aeon_code=_program(items, decisions))
-    assert _unpack(driver.run()) == list(zip(items, decisions))
+    assert not driver.parse(aeon_code=source + "def main (u:Int):List := items;")
+    value = driver.run()
+    pairs = []
+    while value[0] == "List_cons":
+        _, item, value = value
+        assert item[0] == "Item_pair"
+        pairs.append(item[1:])
+    assert value == ("List_nil",)
+    assert pairs == _items()
+
+
+@pytest.mark.parametrize("decisions", [[], [True], [True, False], [True, False, False], [True] * 3, [False] * 3])
+def test_boolean_nodes_preserve_decisions_and_prove_their_weight(decisions):
+    # A partial mask is a suffix of the full 50-item mask.
+    items = _items()[50 - len(decisions) :]
+    weight = sum(weight for (_, weight), used in zip(items, decisions) if used)
+    driver = _driver()
+    assert not driver.parse(aeon_code=_program(decisions, weight=weight))
+    assert _unpack(driver.run()) == decisions
 
 
 def test_exact_capacity_is_accepted():
-    items, decisions = [(7, 60), (8, 40)], [True, True]
+    selected = {4, 6, 9, 11, 16, 19, 25, 27, 31, 32, 34, 40, 41, 42, 45, 46}
+    decisions = [i in selected for i in range(50)]
+    assert sum(weight for (_, weight), used in zip(_items(), decisions) if used) == 100
     driver = _driver()
-    assert not driver.parse(aeon_code=_program(items, decisions))
-    assert _unpack(driver.run()) == list(zip(items, decisions))
+    assert not driver.parse(aeon_code=_program(decisions, weight=100))
+    assert _unpack(driver.run()) == decisions
 
 
-@pytest.mark.parametrize("items", [[(7, 101)], [(7, 60), (8, 50)]])
-def test_overweight_decisions_are_rejected_instead_of_repaired(items):
-    errors = _driver().parse(aeon_code=_program(items, [True] * len(items)))
+def test_overweight_decisions_are_rejected():
+    decisions = [True] * 11
+    assert sum(weight for _, weight in _items()[-11:]) > 100
+    errors = _driver().parse(aeon_code=_program(decisions))
     assert errors
     assert all(isinstance(error, LiquidTypeCheckingFailedRelation) for error in errors)
 
 
-def test_length_refinement_rejects_a_missing_decision():
-    assert _driver().parse(aeon_code=_program([(7, 60), (100, 30)], [True, False], size=3))
+def test_logical_weight_cannot_be_forged():
+    # The first of the last three items weighs 9, not 10.
+    assert _driver().parse(aeon_code=_program([True, False, False], weight=10))
 
 
-def test_synthesis_returns_the_50_decisions_with_optimal_value(monkeypatch):
+def test_count_refinement_rejects_a_missing_decision():
+    assert _driver().parse(aeon_code=_program([True, False], count=3))
+
+
+def test_synthesis_returns_50_boolean_nodes_with_optimal_value(monkeypatch):
     pytest.importorskip("ortools")
     from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer
 
@@ -95,13 +122,12 @@ def test_synthesis_returns_the_50_decisions_with_optimal_value(monkeypatch):
 
     monkeypatch.setattr(CPSatHoleSynthesizer, "_runtime_search", no_runtime_fallback)
     driver = _driver("ortools", budget=30)
-    assert not driver.parse(aeon_code=EXAMPLE.read_text())
+    assert not driver.parse(filename=str(EXAMPLE))
     assert driver.has_synth()
     driver.synth()
-    entries = _unpack(driver.run())
-    assert len(entries) == 50
-    assert [item for item, _ in entries] == _items()
-    assert all(type(used) is bool for _, used in entries)
+    decisions = _unpack(driver.run())
+    assert len(decisions) == 50
+    entries = list(zip(_items(), decisions))
     assert sum(weight for (_, weight), used in entries if used) <= 100
     value = sum(value for (value, _), used in entries if used)
     # Independent 0/1 dynamic program, with no Aeon evaluation or CP-SAT.
