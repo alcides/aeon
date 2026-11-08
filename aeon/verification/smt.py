@@ -11,6 +11,7 @@ from z3 import Function
 from z3 import Int
 from z3 import Length
 from z3 import IntVal
+from z3 import is_int
 from z3 import Real
 from z3 import RealVal
 from z3 import StringVal
@@ -148,8 +149,11 @@ base_functions: dict[str, Any] = {
     "+": lambda x, y: x + y,
     "-": lambda x, y: x - y,
     "*": lambda x, y: x * y,
-    "/": lambda x, y: x / y,
-    "%": lambda x, y: x % y,
+    # Integer division rounds down, matching the interpreter and signed modulo.
+    "/": lambda x, y: If(y < 0, (-x) / (-y), x / y) if is_int(x) and is_int(y) else x / y,
+    # Runtime follows Python: a nonzero remainder has the divisor's sign.
+    # Z3 mod instead always returns a nonnegative remainder.
+    "%": lambda x, y: If(y < 0, -((-x) % (-y)), x % y),
     "-->": lambda x, y: Implies(x, y),
     "ite": lambda c, t, e: If(c, t, e),
     # String.len -> Z3's native string-length, so refinements over string length
@@ -1389,7 +1393,7 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                     fun = variables.get(strip_binder_id(str(fun_name)))
                 if fun is None:
                     fun = variables.get(constructor_logical_name(str(fun_name)))
-            assert fun is not None, f"Function {fun_name} not found." + str(variables)
+            assert fun is not None, f"Function {fun_name} not found in SMT context"
             from z3 import is_func_decl
 
             args = [
@@ -1567,10 +1571,11 @@ def translate(
         elif isinstance(term, LiquidVar):
             referenced.add(str(term.name))
     used_functions = {name: ty for name, ty in c.functions.items() if name in referenced}
+    used_variables = {name: ty for name, ty in c.variables.items() if name in referenced}
     # Materialise inductive Datatypes for types mentioned in the VC so
     # constructors are registered before liquid translation (covers VCs that
     # mention ``List_nil`` without listing it under ``functions``).
-    for _name, var_ty in list(c.variables.items()):
+    for _name, var_ty in used_variables.items():
         if isinstance(var_ty, TypeConstructor):
             get_sort(var_ty)
     for _name, fun_ty in list(used_functions.items()):
@@ -1582,7 +1587,7 @@ def translate(
             get_sort(t)
 
     functions = mk_funs(used_functions, sorts)
-    variables = mk_vars(c.variables, sorts)
+    variables = mk_vars(used_variables, sorts)
     # LH exact-data-cons + measures: constructors and RecFunction measures win
     # over uninterpreted Functions of the same name.
     env = variables | functions | constructors_for_env() | measures_for_env()

@@ -56,7 +56,11 @@ prelude = [
     ("+", "forall a:B, (n x:a) -> (n y:a) -> a", lambda x: lambda y: x + y),
     ("-", "forall a:B, (n x:a) -> (n y:a) -> a", lambda x: lambda y: x - y),
     ("*", "forall a:B, (n x:a) -> (n y:a) -> a", lambda x: lambda y: x * y),
-    ("/", "forall a:B, (n x:a) -> (n y:a) -> a", lambda x: lambda y: x / y),
+    (
+        "/",
+        "forall a:B, (n x:a) -> (n y:a) -> a",
+        lambda x: lambda y: x // y if isinstance(x, int) and isinstance(y, int) else x / y,
+    ),
     ("%", "(n x:Int) -> (n y:Int) -> Int", lambda x: lambda y: x % y),
     ("toFloat", "(x:Int) -> Float", lambda x: float(x)),
     ("&&", "(n x:Bool) -> (n y:Bool) -> Bool", lambda x: lambda y: x and y),

@@ -13,12 +13,31 @@ from aeon.synthesis.modules.genetic_programming import (
     mutate,
     one_point_crossover,
 )
-from aeon.synthesis.modules.native_search import initial_partial
+from aeon.synthesis.modules.native_search import initial_partial, sample_one
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
+
+
+def test_terminal_choices_finish_sibling_arguments(monkeypatch):
+    from aeon.core.parser import parse_type
+    from aeon.core.terms import Application, Var
+    from aeon.synthesis.identification import get_holes
+    from aeon.synthesis.modules.tdsyn.worklist import Child, fresh_hole
+
+    function = Name("combine", 100)
+    ctx = TypingContext().with_var(function, parse_type("(x:Int) -> (y:Int) -> Int"))
+    left, left_hole = fresh_hole(t_int, ctx, path=(Child.FUN, Child.ARG))
+    right, right_hole = fresh_hole(t_int, ctx, path=(Child.ARG,))
+    initial = PartialAST(Application(Application(Var(function), left), right), [left_hole, right_hole], 0)
+    monkeypatch.setattr(gp, "BASE_CHOICE_BUDGET", 0)
+    term = map_genome([255], initial, lambda _: False)
+    assert term is not None and not get_holes(term)
+    for seed in range(10):
+        term = sample_one(initial, lambda _: False, random.Random(seed), max_depth=1, prefer_closed=True)
+        assert term is not None and not get_holes(term)
 
 
 def test_factory_uses_native_gp():

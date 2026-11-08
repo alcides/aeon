@@ -113,13 +113,16 @@ def map_genome(
             return completions[codon % len(completions)]
 
         hole = partial.holes[0]
-        options = expansions_for_hole(partial, hole, skip, max_depth=None)
+        options = expansions_for_hole(partial, hole, skip, max_depth=None, prune=False)
         if not options:
             return None
 
         force_terminal = choices_used >= choice_budget or wraps >= max(1, 1 + generation)
         if force_terminal:
-            closed = [opt for opt in options if not opt.holes]
+            # Close this hole even when other argument holes remain. Requiring
+            # the entire partial term to close prevents multi-argument trees
+            # from terminating after the genome's growth budget is exhausted.
+            closed = [opt for opt in options if len(opt.holes) < len(partial.holes)]
             if closed:
                 options = closed
             elif choices_used >= choice_budget * 2:

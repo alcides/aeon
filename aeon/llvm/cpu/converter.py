@@ -478,11 +478,26 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
             case "/" if is_f:
                 return self.builder.fdiv(vals[0], vals[1])
             case "/":
-                return int_binop(self.builder.sdiv)
+                left, right = as_i64(vals[0]), as_i64(vals[1])
+                quotient = self.builder.sdiv(left, right)
+                remainder = self.builder.srem(left, right)
+                zero = ir.Constant(left.type, 0)
+                round_down = self.builder.and_(
+                    self.builder.icmp_signed("!=", remainder, zero),
+                    self.builder.icmp_signed("<", self.builder.xor(left, right), zero),
+                )
+                return self.builder.sub(quotient, self.builder.zext(round_down, left.type))
             case "%" if is_f:
                 return self.builder.frem(vals[0], vals[1])
             case "%":
-                return int_binop(self.builder.srem)
+                left, right = as_i64(vals[0]), as_i64(vals[1])
+                remainder = self.builder.srem(left, right)
+                zero = ir.Constant(left.type, 0)
+                adjust = self.builder.and_(
+                    self.builder.icmp_signed("!=", remainder, zero),
+                    self.builder.icmp_signed("<", self.builder.xor(left, right), zero),
+                )
+                return self.builder.select(adjust, self.builder.add(remainder, right), remainder)
             case "==":
                 if is_f:
                     return self.builder.fcmp_ordered("==", vals[0], vals[1])

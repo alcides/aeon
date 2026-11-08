@@ -17,6 +17,7 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.api import InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
+from aeon.synthesis.modules.tdsyn.constraints import eager_pruning
 from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
 from aeon.synthesis.modules.tdsyn.worklist import (
@@ -100,6 +101,8 @@ def expansions_for_hole(
     hole: TypedHole,
     skip: Callable[[Name], bool],
     max_depth: int | None = None,
+    *,
+    prune: bool = True,
 ) -> list[PartialAST]:
     """Apply every grammar action to ``hole``.
 
@@ -108,12 +111,15 @@ def expansions_for_hole(
     """
     results: list[PartialAST] = []
     for action in (backward_candidates, forward_candidates):
+        token = eager_pruning.set(prune)
         try:
             expansions = action(hole, skip)
         except Exception:
             # An action can be inapplicable to a particular dependent type;
             # the other grammar productions must remain available.
             continue
+        finally:
+            eager_pruning.reset(token)
         for replacement, new_holes in expansions:
             depth = partial.depth + (1 if new_holes else 0)
             if max_depth is not None and depth > max_depth:
@@ -146,11 +152,11 @@ def sample_one(
             return rng.choice(completions)
 
         hole = rng.choice(partial.holes)
-        options = expansions_for_hole(partial, hole, skip, max_depth)
+        options = expansions_for_hole(partial, hole, skip, max_depth, prune=False)
         if not options:
             return None
         if prefer_closed:
-            closed = [opt for opt in options if not opt.holes]
+            closed = [opt for opt in options if len(opt.holes) < len(partial.holes)]
             if closed:
                 options = closed
         partial = rng.choice(options)
