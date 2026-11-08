@@ -106,8 +106,9 @@ def test_synthesizes_identity_under_abstract_predicate(backend):
         budget=3,
         ui=SilentSynthesisUI(),
     )
-    x = next(name for name, _ in local.concrete_vars() if name.name == "x")
-    assert result == Var(x)
+    # Equivalent identities such as x / 1 are also valid synthesis results.
+    assert result is not None
+    assert check_type(local, result, goal)
     assert validate(result)
 
 
