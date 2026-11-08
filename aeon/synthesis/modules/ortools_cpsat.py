@@ -169,7 +169,14 @@ class _Measure:
     name: Name
 
 
-_Value = Union[_Num, _Vec, _Bool, _Data, _Closure, _Constructor, _Recursor, _Measure]
+@dataclass
+class _ArrayConstructor:
+    operation: str
+    arity: int
+    arguments: tuple[_Value, ...] = ()
+
+
+_Value = Union[_Num, _Vec, _Bool, _Data, _Closure, _Constructor, _Recursor, _Measure, _ArrayConstructor]
 
 
 def _base(ty: object) -> object:
@@ -312,6 +319,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._definition_cache: dict[Name, _Value] = {}
         self._application_cache: dict[tuple, tuple[_Closure, _Value, _Value]] = {}
         self._constructor_heads, self._recursor_heads = self._inductive_heads(term)
+        self._array_heads = self._array_constructors(term)
         self._measure_equations = self._inductive_measure_equations(term)
         self._measure_cache: dict[tuple[Name, int], tuple[_Data, _Value]] = {}
         self._measure_active: set[tuple[Name, int]] = set()
@@ -667,6 +675,8 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if isinstance(t, Var):
             if t.name in env:
                 return env[t.name]
+            if t.name in self._array_heads:
+                return self._array_heads[t.name]
             if t.name in self._measure_equations:
                 return _Measure(t.name)
             if t.name in self._constructor_heads:
@@ -711,6 +721,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         raise _Unsupported(type(t).__name__)
 
     def _apply(self, function: _Value, argument: _Value, visited: frozenset[Name]) -> _Value:
+        if isinstance(function, _ArrayConstructor):
+            args = function.arguments + (argument,)
+            if len(args) < function.arity:
+                return _ArrayConstructor(function.operation, function.arity, args)
+            if function.operation == "__array_concat":
+                if not all(isinstance(arg, _Vec) for arg in args):
+                    raise _Unsupported("array concatenation needs arrays")
+                return _Vec([item for arg in args if isinstance(arg, _Vec) for item in arg.items])
+            return _Vec([self._num(arg, "array element") for arg in args])
         if isinstance(function, _Measure):
             return self._measure(function.name, argument)
         if isinstance(function, _Closure):
@@ -755,6 +774,33 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 branch = self._apply(branch, field, visited)
             return branch
         raise _Unsupported("application of a non-function")
+
+    @staticmethod
+    def _array_constructors(term: Term) -> dict[Name, _ArrayConstructor]:
+        from aeon.verification.array_logic import array_logical_body
+
+        result = {}
+        for binding in iterate_top_level(term):
+            if not isinstance(binding, Rec):
+                continue
+            body, ty = binding.var_value, binding.var_type
+            params, types = [], []
+            while isinstance(body, (TypeAbstraction, RefinementAbstraction, Abstraction)):
+                if isinstance(body, Abstraction):
+                    params.append(body.var_name)
+                body = body.body
+            while isinstance(ty, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
+                if isinstance(ty, AbstractionType):
+                    types.append(ty.var_type)
+                    ty = ty.type
+                else:
+                    ty = ty.body
+            if len(params) != len(types):
+                continue
+            logical = array_logical_body(binding.var_name, params, types, ty, body)
+            if isinstance(logical, LiquidApp) and logical.fun.name in {"__array_literal", "__array_concat"}:
+                result[binding.var_name] = _ArrayConstructor(logical.fun.name, len(params))
+        return result
 
     def _measure(self, name: Name, value: _Value) -> _Value:
         if not isinstance(value, _Data):

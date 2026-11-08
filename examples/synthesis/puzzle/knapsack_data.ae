@@ -1,0 +1,19 @@
+# Fixed random item data (seed 20261108), in matching index order.
+# Array is linear, so each call supplies a fresh array for an indexed read.
+import Array;
+
+def values (_:Unit): {a:(Array Int) | Array.size a = 50} := #[
+    42, 29, 50, 2, 98, 11, 90, 1, 39, 60,
+    34, 89, 1, 73, 26, 51, 84, 2, 89, 88,
+    58, 92, 10, 50, 11, 82, 7, 64, 2, 67,
+    14, 52, 6, 66, 48, 20, 64, 17, 60, 15,
+    49, 75, 70, 32, 41, 47, 75, 12, 60, 92
+];
+
+def weights (_:Unit): {a:(Array Int) | Array.size a = 50} := #[
+    15, 10, 18, 18, 14, 14, 4, 12, 13, 3,
+    12, 14, 14, 11, 14, 16, 6, 13, 16, 4,
+    15, 16, 18, 17, 3, 12, 9, 5, 9, 13,
+    9, 7, 1, 18, 4, 10, 11, 17, 12, 15,
+    1, 8, 7, 16, 15, 3, 7, 9, 11, 15
+];

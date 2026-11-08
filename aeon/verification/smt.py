@@ -34,6 +34,7 @@ from z3.z3 import StringSort
 from z3.z3 import SortRef
 from z3.z3types import Z3Exception
 from z3 import Datatype
+from z3 import BoolVal, Concat, SeqSort, Unit, simplify, is_app_of, Z3_OP_SEQ_CONCAT, Z3_OP_SEQ_UNIT
 from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon.core.liquid import LiquidApp
@@ -135,6 +136,47 @@ smt_function_translation: dict[str, list[str]] = {
     "Set_mem": ["smtSetMem"],
     "Set_sub": ["smtSetSub"],
 }
+
+
+def _array_literal(*values: Any) -> Any:
+    elements = [
+        Unit(BoolVal(v) if isinstance(v, bool) else StringVal(v) if isinstance(v, str) else _coerce_numeric(v))
+        for v in values
+    ]
+    return elements[0] if len(elements) == 1 else Concat(*elements)
+
+
+def _array_get(array: Any, index: Any) -> Any:
+    """Keep reads of literal tables in arithmetic, including symbolic indices."""
+    items: list[Any] = []
+
+    def collect(term: Any) -> bool:
+        if is_app_of(term, Z3_OP_SEQ_UNIT):
+            items.append(term.arg(0))
+            return True
+        return is_app_of(term, Z3_OP_SEQ_CONCAT) and all(collect(child) for child in term.children())
+
+    if collect(array) and items:
+        if isinstance(index, int) and 0 <= index < len(items):
+            return items[index]
+
+        def select(lo: int, hi: int) -> Any:
+            if hi - lo == 1:
+                return items[lo]
+            mid = (lo + hi) // 2
+            return If(index < mid, select(lo, mid), select(mid, hi))
+
+        return If(And(index >= 0, index < len(items)), select(0, len(items)), array[index])
+    return simplify(array[index])
+
+
+_array_functions: dict[str, Any] = {
+    "__array_literal": _array_literal,
+    "__array_concat": Concat,
+    "__array_get": _array_get,
+    "__array_size": lambda arr: simplify(Length(arr)),
+}
+
 
 base_functions: dict[str, Any] = {
     "==": lambda x, y: x == y,
@@ -617,7 +659,8 @@ def _contract_well_scoped(t: LiquidTerm, ctx: SMTContext) -> bool:
         return str(t.name) in ctx.variables or any(t.name.name in group for group in get_constructor_groups().values())
     if isinstance(t, LiquidApp):
         is_operator = all(not c.isalnum() and c != "_" for c in t.fun.name)
-        if not (is_operator or str(t.fun) in ctx.functions or t.fun.name in base_functions):
+        internal_array = t.fun.id == 0 and t.fun.name in _array_functions
+        if not (is_operator or str(t.fun) in ctx.functions or t.fun.name in base_functions or internal_array):
             return False
         return all(_contract_well_scoped(a, ctx) for a in t.args)
     return True
@@ -731,6 +774,8 @@ def _trivial_constraint(c: Constraint, memo: dict[int, tuple[Constraint, bool]])
         return cached[1]
     match c:
         case LiquidConstraint(LiquidLiteralBool(True)):
+            result = True
+        case Implication(pred=LiquidLiteralBool(False)):
             result = True
         case Conjunction(left, right):
             result = _trivial_constraint(left, memo) and _trivial_constraint(right, memo)
@@ -1048,6 +1093,11 @@ def get_sort(base: Type) -> SortRef:
             return StringSort()
         case TypeConstructor(Name("Set", _)):
             return SetSort(IntSort())
+        case TypeConstructor(Name("Array", _), [element]):
+            sname = _mangle_sort_name(base)
+            if sname not in sort_cache:
+                sort_cache[sname] = SeqSort(get_sort(lower_constraint_type(element)))
+            return sort_cache[sname]
         case TypeConstructor(name, args):
             sname = _mangle_sort_name(base) if args else str(name)
             from aeon.core.types import TypeVar as _TV
@@ -1387,6 +1437,8 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                 fun = ctor
             elif measure is not None:
                 fun = measure
+            elif fun_name.id == 0 and fun_name.name in _array_functions:
+                fun = _array_functions[fun_name.name]
             else:
                 fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
                 if fun is None:
@@ -1552,6 +1604,8 @@ def translate(
     # P => true is valid independently of P. Avoid materialising every sort
     # and function in a large program for these ubiquitous typing tautologies.
     if isinstance(c.conclusion, LiquidLiteralBool) and c.conclusion.value:
+        return False
+    if isinstance(c.premise, LiquidLiteralBool) and not c.premise.value:
         return False
     sorts = mk_sorts(c.sorts)
     # Uninterpreted declarations have no effect until referenced. A weakening

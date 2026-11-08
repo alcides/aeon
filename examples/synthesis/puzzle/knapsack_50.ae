@@ -1,67 +1,28 @@
-# 50 Boolean decisions, in the same order as items; capacity 100.
+# 50 Boolean decisions, in the same order as the data arrays; capacity 100.
 # The result contains only booleans and links. Weight and count are logical measures.
 # Run from the repository root:
 # python -m aeon -s ortools --budget 30 examples/synthesis/puzzle/knapsack_50.ae
-import examples.synthesis.puzzle.knapsack_weights as Weights;
-
-inductive Item
-| pair (value:Int) (weight:Int) : Item
-
-inductive List
-| nil : List
-| cons (item:Item) (rest:List) : List
-
-# 50 fixed random (value, weight) pairs (seed 20261108).
-# The item data and logical measure share the same weight lookup.
-def items: List := [
-    Item.pair 42 (Weights.weight_at 0), Item.pair 29 (Weights.weight_at 1),
-    Item.pair 50 (Weights.weight_at 2), Item.pair 2 (Weights.weight_at 3),
-    Item.pair 98 (Weights.weight_at 4), Item.pair 11 (Weights.weight_at 5),
-    Item.pair 90 (Weights.weight_at 6), Item.pair 1 (Weights.weight_at 7),
-    Item.pair 39 (Weights.weight_at 8), Item.pair 60 (Weights.weight_at 9),
-    Item.pair 34 (Weights.weight_at 10), Item.pair 89 (Weights.weight_at 11),
-    Item.pair 1 (Weights.weight_at 12), Item.pair 73 (Weights.weight_at 13),
-    Item.pair 26 (Weights.weight_at 14), Item.pair 51 (Weights.weight_at 15),
-    Item.pair 84 (Weights.weight_at 16), Item.pair 2 (Weights.weight_at 17),
-    Item.pair 89 (Weights.weight_at 18), Item.pair 88 (Weights.weight_at 19),
-    Item.pair 58 (Weights.weight_at 20), Item.pair 92 (Weights.weight_at 21),
-    Item.pair 10 (Weights.weight_at 22), Item.pair 50 (Weights.weight_at 23),
-    Item.pair 11 (Weights.weight_at 24), Item.pair 82 (Weights.weight_at 25),
-    Item.pair 7 (Weights.weight_at 26), Item.pair 64 (Weights.weight_at 27),
-    Item.pair 2 (Weights.weight_at 28), Item.pair 67 (Weights.weight_at 29),
-    Item.pair 14 (Weights.weight_at 30), Item.pair 52 (Weights.weight_at 31),
-    Item.pair 6 (Weights.weight_at 32), Item.pair 66 (Weights.weight_at 33),
-    Item.pair 48 (Weights.weight_at 34), Item.pair 20 (Weights.weight_at 35),
-    Item.pair 64 (Weights.weight_at 36), Item.pair 17 (Weights.weight_at 37),
-    Item.pair 60 (Weights.weight_at 38), Item.pair 15 (Weights.weight_at 39),
-    Item.pair 49 (Weights.weight_at 40), Item.pair 75 (Weights.weight_at 41),
-    Item.pair 70 (Weights.weight_at 42), Item.pair 32 (Weights.weight_at 43),
-    Item.pair 41 (Weights.weight_at 44), Item.pair 47 (Weights.weight_at 45),
-    Item.pair 75 (Weights.weight_at 46), Item.pair 12 (Weights.weight_at 47),
-    Item.pair 60 (Weights.weight_at 48), Item.pair 92 (Weights.weight_at 49)
-];
+import Array;
+import examples.synthesis.puzzle.knapsack_data as Data;
 
 # A tail with n decisions covers the final n items, so its new head is item 49 - n.
 inductive Mask forall <fits:Int -> Int -> Bool>
 | empty : {m:Mask{|fits|} | Mask.count m = 0 && Mask.weight m = 0}
 | cons (rest:{m:Mask{|fits|} | 0 <= Mask.count m && Mask.count m < 50})
-       (used:{b:Bool | fits (if b then Weights.weight_at (49 - Mask.count rest) else 0) (Mask.weight rest)}) :
+       (used:{b:Bool | fits (if b then Array.get (Data.weights unit) (49 - Mask.count rest) else 0) (Mask.weight rest)}) :
     {m:Mask{|fits|} | Mask.count m = Mask.count rest + 1 &&
-        Mask.weight m = Mask.weight rest + (if used then Weights.weight_at (49 - Mask.count rest) else 0)}
+        Mask.weight m = Mask.weight rest + (if used then Array.get (Data.weights unit) (49 - Mask.count rest) else 0)}
 + count (m:Mask) : Int
 + weight (m:Mask) : Int
 
-def total_value (items:List) (mask:Mask{|fun w => fun rest => w + rest <= 100|}):Int :=
+def total_value (mask:Mask{|fun w => fun rest => w + rest <= 100|})
+                (i:{n:Int | 0 <= n && n + Mask.count mask <= 50}):Int :=
     match mask with
     | empty => 0
     | cons rest used =>
-        match items with
-        | nil => 0
-        | cons item tail =>
-            let (pair value weight) := item in
-            (if used then value else 0) + total_value tail rest
+        (if used then Array.get (Data.values unit) i else 0) + total_value rest (i + 1)
 
-@maximize(toFloat (total_value items knapsack))
+@maximize(toFloat (total_value knapsack 0))
 def knapsack: {m:Mask{|fun w => fun rest => w + rest <= 100|} |
     Mask.count m = 50 && Mask.weight m <= 100} :=
     let cons := Mask.cons{|fun w => fun rest => w + rest <= 100|} in

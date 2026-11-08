@@ -44,13 +44,7 @@ def _items():
 
 
 def _program(decisions, count=None, weight=None):
-    source = EXAMPLE.read_text()
-    # Keep the real import and datatype, without the unrelated objective/data list.
-    source = (
-        source[: source.index("inductive Item")]
-        + "inductive Mask"
-        + source.split("inductive Mask", 1)[1].split("def total_value", 1)[0]
-    )
+    source = EXAMPLE.read_text().split("def total_value", 1)[0]
     exact_weight = "" if weight is None else f" && Mask.weight m = {weight}"
     source += f"""
         def main (u:Int): {{m:{MASK} | Mask.count m = {len(decisions) if count is None else count}
@@ -63,18 +57,12 @@ def _program(decisions, count=None, weight=None):
     return source + "mask;"
 
 
-def test_dataset_contains_50_reproducible_random_pairs():
+@pytest.mark.parametrize("array,column", [("values", 0), ("weights", 1)])
+def test_arrays_contain_the_50_reproducible_random_pairs(array, column):
     source = EXAMPLE.read_text().split("inductive Mask", 1)[0]
     driver = _driver()
-    assert not driver.parse(aeon_code=source + "def main (u:Int):List := items;")
-    value = driver.run()
-    pairs = []
-    while value[0] == "List_cons":
-        _, item, value = value
-        assert item[0] == "Item_pair"
-        pairs.append(item[1:])
-    assert value == ("List_nil",)
-    assert pairs == _items()
+    assert not driver.parse(aeon_code=source + f"def main (u:Int):(Array Int) := Data.{array} unit;")
+    assert driver.run() == [item[column] for item in _items()]
 
 
 @pytest.mark.parametrize("decisions", [[], [True], [True, False], [True, False, False], [True] * 3, [False] * 3])
