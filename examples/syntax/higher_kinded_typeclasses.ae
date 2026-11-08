@@ -1,0 +1,24 @@
+# Constructor-polymorphic methods and inherited dictionaries.
+inductive Box a
+| box (value:a) : (Box a)
+
+class Functor (f : B -> B) where
+    fmap : forall a:B, forall b:B, (g:(x:a) -> b) -> (xs:(f a)) -> (f b);
+
+class Monad (f : B -> B) extends (Functor f) where
+    pure : forall a:B, (x:a) -> (f a);
+    bind : forall a:B, forall b:B, (xs:(f a)) -> (g:(x:a) -> (f b)) -> (f b);
+
+instance : Functor Box where
+    fmap g xs := match xs with | box x => Box.box (g x);
+
+instance : Monad Box where
+    pure x := Box.box x;
+    bind xs g := match xs with | box x => g x;
+
+# fmap is available through Monad's Functor superclass.
+def increment [Monad f] (xs:(f Int)) : (f Int) := fmap (fun x => x + 1) xs;
+
+def main (args:Int) : Int :=
+    let xs : (Box Int) := bind (pure{Box} 4) (fun x => pure{Box} (x + 2)) in
+    match increment xs with | box x => x;

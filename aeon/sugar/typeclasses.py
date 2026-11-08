@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from aeon.core.types import Kinding
 from aeon.core.types import Kind
 from aeon.errors import TypeClassError
 from aeon.sugar.ast_helpers import st_string, st_unit
-from aeon.sugar.instance_registry import InstanceInfo, register_instance
+from aeon.sugar.instance_registry import (
+    ClassInfo,
+    InstanceInfo,
+    clear_instance_registry,
+    infer_type_variable_kinds,
+    register_class,
+    register_instance,
+)
 from aeon.sugar.program import (
+    ClassDecl,
     ClassMethod,
     Definition,
     InductiveDecl,
@@ -18,9 +27,10 @@ from aeon.sugar.program import (
     SQualifiedVar,
     STerm,
     STypeApplication,
+    STypeAbstraction,
     SVar,
 )
-from aeon.sugar.stypes import SAbstractionType, SType, STypeConstructor, STypeVar, get_type_vars
+from aeon.sugar.stypes import SAbstractionType, SType, STypeConstructor, STypeVar, STypePolymorphism, get_type_vars
 from aeon.utils.name import Name, fresh_counter
 
 
@@ -72,6 +82,8 @@ def expand_typeclasses(p: Program) -> Program:
     is the supplied body (curried over its binders) or the class default when the
     method is omitted. Instance constraints become instance-implicit parameters.
     """
+    # The driver may desugar the complete program more than once in a session.
+    clear_instance_registry()
     if not p.class_decls and not p.instance_decls:
         return p
 
@@ -82,10 +94,42 @@ def expand_typeclasses(p: Program) -> Program:
 
     class_methods: dict[str, list[ClassMethod]] = {}
 
+    classes = {cls.name.name: cls for cls in p.class_decls}
+    if len(classes) != len(p.class_decls):
+        raise TypeClassError("Duplicate class declaration")
+    ordered: list[ClassDecl] = []
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(cls: ClassDecl) -> None:
+        name = cls.name.name
+        if name in visiting:
+            raise TypeClassError(f"Superclass cycle involving '{name}'", cls.loc)
+        if name in visited:
+            return
+        visiting.add(name)
+        for parent in cls.supers:
+            if not isinstance(parent, STypeConstructor) or parent.name.name not in classes:
+                raise TypeClassError(f"Unknown superclass '{parent}'", cls.loc)
+            target = classes[parent.name.name]
+            if len(parent.args) != len(target.type_params):
+                raise TypeClassError(f"Wrong number of arguments for superclass '{target.name.name}'", cls.loc)
+            visit(target)
+        visiting.remove(name)
+        visited.add(name)
+        ordered.append(cls)
+
     for cls in p.class_decls:
+        visit(cls)
+
+    for cls in ordered:
         cname = cls.name
         type_param_names = [n for (n, _) in cls.type_params]
         class_methods[cname.name] = list(cls.methods)
+        if len({m.name.name for m in cls.methods}) != len(cls.methods):
+            raise TypeClassError(f"Duplicate method in class '{cname.name}'", cls.loc)
+        super_fields = [(Name(f"__super_{cname.name}_{i}"), ty) for i, ty in enumerate(cls.supers)]
+        register_class(cname.name, ClassInfo(tuple(cls.type_params), tuple(super_fields)))
 
         ret_type = STypeConstructor(cname, [STypeVar(n) for n in type_param_names])
 
@@ -94,16 +138,18 @@ def expand_typeclasses(p: Program) -> Program:
         # ``SQualifiedVar(<Class>, mk)`` (resolved per-class during desugaring).
         cons = Definition(
             name=Name("mk"),
-            foralls=[],
-            args=[(m.name, m.type) for m in cls.methods],
+            foralls=list(cls.type_params),
+            args=super_fields + [(m.name, m.type) for m in cls.methods],
             type=ret_type,
             body=SLiteral(None, st_unit),
             loc=cls.loc,
+            instance_flags=tuple(True for _ in super_fields) + tuple(False for _ in cls.methods),
         )
         new_inductives.append(
             InductiveDecl(
                 name=cname,
                 args=list(type_param_names),
+                arg_kinds=tuple(k for _, k in cls.type_params),
                 rforalls=[],
                 constructors=[cons],
                 measures=[],
@@ -111,8 +157,20 @@ def expand_typeclasses(p: Program) -> Program:
             )
         )
 
-        foralls: list[tuple[Name, Kind]] = [(n, k) for (n, k) in cls.type_params]
-        for i, m in enumerate(cls.methods):
+        foralls: list[tuple[Name, Kinding]] = [(n, k) for (n, k) in cls.type_params]
+        for i, (projection, super_type) in enumerate(super_fields):
+            dictionary = Name(f"_super_dict{fresh_counter.fresh()}")
+            gen_defs.append(
+                Definition(
+                    name=projection,
+                    foralls=list(foralls),
+                    args=[(dictionary, ret_type)],
+                    type=super_type,
+                    body=SApplication(SVar(Name("native")), SLiteral(f"{dictionary.name}[{i + 1}]", st_string)),
+                    loc=cls.loc,
+                )
+            )
+        for i, m in enumerate(cls.methods, start=len(super_fields)):
             dict_name = Name(f"_d{fresh_counter.fresh()}")
             # Eta-expand the projection: peel the method type's leading arrows
             # into explicit ``args`` so the projection's *return* type is a base
@@ -123,6 +181,10 @@ def expand_typeclasses(p: Program) -> Program:
             # dictionary field to the peeled binders sidesteps that entirely.
             peeled: list[tuple[Name, SType]] = []
             ret_t: SType = m.type
+            method_foralls: list[tuple[Name, Kinding]] = []
+            while isinstance(ret_t, STypePolymorphism):
+                method_foralls.append((ret_t.name, ret_t.kind))
+                ret_t = ret_t.body
             while isinstance(ret_t, SAbstractionType):
                 peeled.append((ret_t.var_name, ret_t.var_type))
                 ret_t = ret_t.type
@@ -130,7 +192,7 @@ def expand_typeclasses(p: Program) -> Program:
             gen_defs.append(
                 Definition(
                     name=m.name,
-                    foralls=list(foralls),
+                    foralls=list(foralls) + method_foralls,
                     args=[(dict_name, ret_type), *peeled],
                     type=ret_t,
                     body=SApplication(
@@ -168,7 +230,12 @@ def expand_typeclasses(p: Program) -> Program:
             case _:
                 return ty
 
-    for inst in p.instance_decls:
+    # Superclass dictionaries must be in scope when constructing subclasses.
+    class_order = {cls.name.name: i for i, cls in enumerate(ordered)}
+    instance_names: set[str] = set()
+    for instance_index, inst in enumerate(
+        sorted(p.instance_decls, key=lambda inst: class_order.get(inst.class_name.name, -1))
+    ):
         methods = class_methods.get(inst.class_name.name)
         if methods is None:
             raise TypeClassError(f"Instance for unknown class '{inst.class_name.name}'")
@@ -181,18 +248,33 @@ def expand_typeclasses(p: Program) -> Program:
             constraint_vars |= {tv.name.name for tv in get_type_vars(c)}
         inst_type_args = [_concretize_head(ta, constraint_vars) for ta in inst.type_args]
 
+        if len(inst_type_args) != len(classes[inst.class_name.name].type_params):
+            raise TypeClassError(f"Wrong number of arguments for instance '{inst.class_name.name}'", inst.loc)
         provided: dict[str, InstanceMethod] = {m.name.name: m for m in inst.methods}
+        if len(provided) != len(inst.methods):
+            raise TypeClassError(f"Duplicate instance method in '{inst.class_name.name}'", inst.loc)
+        extra = provided.keys() - {m.name.name for m in methods}
+        if extra:
+            raise TypeClassError(f"Unknown methods in '{inst.class_name.name}': {', '.join(sorted(extra))}", inst.loc)
 
         impls: list[STerm] = []
         for m in methods:
             im = provided.get(m.name.name)
             if im is not None:
                 binders = [n for (n, _) in im.args]
-                impls.append(_curry_lambda(binders, im.body))
+                implementation = _curry_lambda(binders, im.body)
             elif m.default is not None:
-                impls.append(m.default)
+                implementation = m.default
             else:
                 raise TypeClassError(f"Instance of '{inst.class_name.name}' is missing method '{m.name.name}'")
+            method_type = m.type
+            parameters = []
+            while isinstance(method_type, STypePolymorphism):
+                parameters.append((method_type.name, method_type.kind))
+                method_type = method_type.body
+            for name, kind in reversed(parameters):
+                implementation = STypeAbstraction(name, kind, implementation)
+            impls.append(implementation)
 
         # Instantiate the dictionary constructor at the instance's type
         # arguments (e.g. ``Eq_mk[Int]``) so elaboration can resolve the
@@ -212,8 +294,9 @@ def expand_typeclasses(p: Program) -> Program:
             tyvars |= get_type_vars(ta)
         for c in inst.constraints:
             tyvars |= get_type_vars(c)
-        inst_foralls: list[tuple[Name, Kind]] = [
-            (tv.name, Kind.BASE) for tv in sorted(tyvars, key=lambda t: t.name.name)
+        inferred_kinds = infer_type_variable_kinds([dict_type, *inst.constraints])
+        inst_foralls: list[tuple[Name, Kinding]] = [
+            (tv.name, inferred_kinds.get(tv.name, Kind.BASE)) for tv in sorted(tyvars, key=lambda t: t.name.name)
         ]
 
         constraint_args: list[tuple[Name, SType]] = [(Name(f"_c{fresh_counter.fresh()}"), c) for c in inst.constraints]
@@ -221,7 +304,14 @@ def expand_typeclasses(p: Program) -> Program:
         if inst.name is not None:
             dict_def_name = inst.name
         else:
-            dict_def_name = Name(f"__inst_{inst.class_name.name}_{'_'.join(_mangle_stype(t) for t in inst_type_args)}")
+            # Rendered heads are readable but not injective (e.g. function
+            # types or constructors whose names contain underscores).
+            dict_def_name = Name(
+                f"__inst_{inst.class_name.name}_{'_'.join(_mangle_stype(t) for t in inst_type_args)}_{instance_index}"
+            )
+        if dict_def_name.name in instance_names:
+            raise TypeClassError(f"Duplicate instance name '{dict_def_name.name}'", inst.loc)
+        instance_names.add(dict_def_name.name)
 
         gen_defs.append(
             Definition(
@@ -235,20 +325,16 @@ def expand_typeclasses(p: Program) -> Program:
             )
         )
 
-        if inst_type_args:
-            head = _stype_head_name(inst_type_args[0])
-            if head is not None:
-                register_instance(
-                    inst.class_name.name,
-                    head,
-                    InstanceInfo(
-                        dict_name=dict_def_name,
-                        foralls=tuple(n for (n, _) in inst_foralls),
-                        num_constraints=len(constraint_args),
-                        type_args=tuple(inst_type_args),
-                        constraints=tuple(inst.constraints),
-                    ),
-                )
+        register_instance(
+            inst.class_name.name,
+            InstanceInfo(
+                dict_name=dict_def_name,
+                foralls=tuple(n for (n, _) in inst_foralls),
+                num_constraints=len(constraint_args),
+                type_args=tuple(inst_type_args),
+                constraints=tuple(inst.constraints),
+            ),
+        )
 
     return Program(
         p.imports,

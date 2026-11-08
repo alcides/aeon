@@ -12,7 +12,8 @@ from typing import Iterable, Literal
 from aeon.core.liquid import LiquidTerm
 from aeon.core.multiplicity import Multiplicity
 from aeon.core.terms import Term
-from aeon.core.types import Kind, Type
+from aeon.core.types import Kinding
+from aeon.core.types import Type
 from aeon.sugar.program import ImportAe, STerm
 from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
@@ -104,8 +105,8 @@ class UnificationFailedError(AeonError):
 class UnificationKindError(AeonError):
     term: STerm
     type: SType
-    kind1: Kind
-    kind2: Kind
+    kind1: Kinding
+    kind2: Kinding
 
     def __str__(self) -> str:
         return f"Term {self.term} has type {self.type} with kind {self.kind1}, but kind {self.kind2} is expected."
@@ -373,8 +374,8 @@ class CoreTypeApplicationRequiresBareTypesError(CoreTypeCheckingError):
 class CoreWrongKindInTypeApplicationError(CoreTypeCheckingError):
     term: Term
     type: Type
-    expected_kind: Kind
-    actual_kind: Kind
+    expected_kind: Kinding
+    actual_kind: Kinding
 
     def __str__(self) -> str:
         return f"Type application requires that {self.term} of type {self.type} has kind {self.expected_kind}, but {self.actual_kind} was found."

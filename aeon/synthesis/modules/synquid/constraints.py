@@ -8,6 +8,7 @@ from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
 from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Var
+from aeon.core.types import Kinding
 from aeon.core.types import (
     AbstractionType,
     ExistentialType,
@@ -212,7 +213,7 @@ class ConstraintState:
     def subtype(self, actual: Type, expected: Type) -> None:
         self.type_obligations += ((self.context, actual, expected),)
 
-    def fresh_variable(self, kind: Kind = Kind.BASE) -> TypeVar:
+    def fresh_variable(self, kind: Kinding = Kind.BASE) -> TypeVar:
         variable = TypeVar(fresh_name("type"))
         self.type_unknowns |= {variable.name}
         self.context = self.context.with_typevar(variable.name, kind)

@@ -10012,412 +10012,412 @@
     "eligible": 9,
     "files": {
       "Args.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Args.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Args.ae",
         "sha256": "b274848cfd2fa2c51054f3716aee97473700bf0d840cae75bb222b3cfd87fa71"
       },
       "Array.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Array.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Array.ae",
         "sha256": "2fa5ea239e27abfb3f81d2c60e384fc5152fc9c8c3d7d6027ffb599d60f7521b"
       },
       "ArrayKernels.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ArrayKernels.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ArrayKernels.ae",
         "sha256": "48d870df448f0082c25dba4b885a50780f2ce927ff46112305ee722cff6ee50e"
       },
       "BinaryTree.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/BinaryTree.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/BinaryTree.ae",
         "sha256": "3770d5c7f706ecccb9a61bd6b8da3189c24d77e3f0b4c042b841fb088cadc466"
       },
       "Buffer.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Buffer.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Buffer.ae",
         "sha256": "1f8d69a5836b293765a0e8e324f9bd51afbae82c99ff7ec0b08e9291ebdfeb1b"
       },
       "Bytes.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Bytes.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Bytes.ae",
         "sha256": "f1a75332a6b5ee7d9fcb8658ef91b06b2b6e8950f9c3d8d2768843468816bf2b"
       },
       "Certify.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Certify.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Certify.ae",
         "sha256": "ca46bc53fe036e69e588f4ff2774fead5c7228bc919fc7c7c4f5cff6b857fbdd"
       },
       "Color.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Color.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Color.ae",
         "sha256": "e809ff52dbd61e5e72a7d7fbc1e6217574f29df53cd64649febea9a5fbd45239"
       },
       "Contest.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Contest.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Contest.ae",
         "sha256": "83dca5b7ff8f4f3d9d598e94d3e232eb4f1ad3a55a5222b55a0b9ebf9ac21faa"
       },
       "Control.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Control.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Control.ae",
         "sha256": "c3950fca0c175aae555d2ca35672b5e05b060f99e3c483f960eb820adacb0626"
       },
       "ControlCartPole.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlCartPole.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlCartPole.ae",
         "sha256": "7eff88e0ed340d7888c6b01bc1b31eedc6ac336668776add04b1a8cb34e64cb1"
       },
       "ControlCruise.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlCruise.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlCruise.ae",
         "sha256": "918d035ec611912ab6449ac82cefa12b01f5e8bc1e41a5214995034fa061129c"
       },
       "ControlObservation.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlObservation.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlObservation.ae",
         "sha256": "ee798404ec83181414c7ecba66b633ca1ab43d53853e9a00d1e98a746cfaa55d"
       },
       "ControlPendulum.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlPendulum.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlPendulum.ae",
         "sha256": "2d6a13b7b3523c1ec53c88c1c4f3b7fad86da41151340387683d1423a4ad9bab"
       },
       "ControlProgram.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlProgram.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlProgram.ae",
         "sha256": "12b25486f043bf4ad84d750134ba2c25c3f5928550568e5e315bd3a26c35f461"
       },
       "ControlReport.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlReport.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlReport.ae",
         "sha256": "1d03bd6efb3d6c3f9c6d74e148a46311418ec0234cc5f1f7b69704310d739a48"
       },
       "ControlRun.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlRun.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlRun.ae",
         "sha256": "456d58e8f61225f307dda74ac412a1e1a2e347f68ea8cf3c5a4e38d5e36c5525"
       },
       "ControlTask.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlTask.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlTask.ae",
         "sha256": "8ee19e3a459fd7cbaa69d46f667c1d201c9563215fbb062542b5c933c85ad5fa"
       },
       "ControlThermostat.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlThermostat.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlThermostat.ae",
         "sha256": "af19ad8807c773d2a3245c31651ca24b26d24de38ca0c53c87d89ecd73658a76"
       },
       "ControlTrace.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ControlTrace.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ControlTrace.ae",
         "sha256": "b2a4a8365c3be7706710172b8826c14b80048e10605e49ac22bd811703cc2171"
       },
       "Cuda.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Cuda.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Cuda.ae",
         "sha256": "a57e0a00107976bdeb52568483c9cc2d4edb7cf6a57eeb9cc5a47ea7036c3a44"
       },
       "Dace.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Dace.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Dace.ae",
         "sha256": "95c4c81689a8455298235d9162cee56298b8d94ee6a411f1df29c4cbd4f14144"
       },
       "DataFrame.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/DataFrame.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/DataFrame.ae",
         "sha256": "ccd2cfc594cb556e45898b3bf17bcc29398f995ae873f2c5165ec8517d6c9501"
       },
       "Database.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Database.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Database.ae",
         "sha256": "72223badd23a188e1beac6839d7070035478c370c48ef2b843b8ededd3d90531"
       },
       "DecisionTree.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/DecisionTree.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/DecisionTree.ae",
         "sha256": "d0233c8653550d71656372575dfe279171f9c93f56557868e8bbf643ac440135"
       },
       "Denser.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Denser.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Denser.ae",
         "sha256": "606dc81e4e02513cb5291b09facb63ee4595cac42139cdbe35c3b880e0eaee36"
       },
       "Deque.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Deque.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Deque.ae",
         "sha256": "f46417065c74334bed5a34fb74f600419a3fefdb80943290a4157a5a3ea8c5cd"
       },
       "Distributions.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Distributions.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Distributions.ae",
         "sha256": "9d296a4191f8dd6829227db3a67cb9da84288685e860316ae3e4e74c20eebc85"
       },
       "Downloader.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Downloader.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Downloader.ae",
         "sha256": "da9eefc9ed80d357d111f39a2b30d0297d7d4482cfdc11f757e41ebc4d84d348"
       },
       "Either.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Either.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Either.ae",
         "sha256": "3eb14d5d040803364d2fd90b88bf22d9fe6efc4e4d9cb367819a4195f2752106"
       },
       "Email.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Email.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Email.ae",
         "sha256": "59a9b717d136e41275b3ad1b0a93cb943b9914433a9651f20bf19f874c5aed18"
       },
       "ForkJoin.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ForkJoin.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ForkJoin.ae",
         "sha256": "75387fbde375ca9dbf345b08b930362cbaed61fc24aa297c747a5db36c9de600"
       },
       "Functional.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Functional.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Functional.ae",
         "sha256": "f5616d75742fcb1652582ecc1f578e18b7154e74d72e91a243a78015d0c7188e"
       },
       "Gpu.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Gpu.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Gpu.ae",
         "sha256": "6608f20272e2ef51391549d3327587e30c3b0c69c2634cbc3a1725abc476bbd4"
       },
       "Http.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Http.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Http.ae",
         "sha256": "ad54765a0c407f1c4dc8d5df532cedb5f76a0e4d5aa4442480e66c0896485297"
       },
       "Image.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Image.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Image.ae",
         "sha256": "0cd77c3754ef856a99d0f2604c1ad4085aca636e666548d62765d4366a7aa468"
       },
       "Iterator.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Iterator.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Iterator.ae",
         "sha256": "f8c18707ba7821404810359ff081656d101895700c5a2b5a035e149f266119a1"
       },
       "Json.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Json.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Json.ae",
         "sha256": "4bbc45746993ec399cd3faa89cb535ae4c2ce3811ad6ad7f11c4b8bc97f9bb6e"
       },
       "Karel.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Karel.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Karel.ae",
         "sha256": "a5c7ae3f87198775faf92b2cf296e1a0f3180d6aa807696d988d0daf804a2bfc"
       },
       "LeafTree.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LeafTree.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LeafTree.ae",
         "sha256": "90065ce36a78e46299bf862825f73fb389c5d8d4d6922bddb81ae84eedc4a0f8"
       },
       "Learning.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Learning.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Learning.ae",
         "sha256": "17b1752a352984df1315ba361cbf94aad955d612df7528d195e3734141c47bce"
       },
       "LearningCore.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningCore.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningCore.ae",
         "sha256": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218"
       },
       "LearningDiscriminant.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningDiscriminant.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningDiscriminant.ae",
         "sha256": "d90c11d722dcba1513baf7445e6a0e58e9131b9a8d47592ce2c3713632a7d046"
       },
       "LearningDummy.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningDummy.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningDummy.ae",
         "sha256": "8b193b5ea3110cf6a7e2431c0574c60b23787ab32154abdc42cec355d94712f3"
       },
       "LearningEnsembles.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningEnsembles.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningEnsembles.ae",
         "sha256": "70d6b2c81e8ded47354ca7b689c8f01b83b2208b29fde7d851ed2eb3d907d809"
       },
       "LearningGaussianProcess.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningGaussianProcess.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningGaussianProcess.ae",
         "sha256": "44af9ac559a7dc5c7cc4fe2c318031880102e4e92b0c5e2d0f230e969a0ef033"
       },
       "LearningKernel.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningKernel.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningKernel.ae",
         "sha256": "da09e5e7cdbcd5dbe16ebaf31b15a7ff98f8ecca0ed49bfff837f61ad1e33fd9"
       },
       "LearningLinear.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningLinear.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningLinear.ae",
         "sha256": "ba178967548994d93dcf2ce0e7a0c76c2e10fdc2e8307c0a036212cdd9db9a46"
       },
       "LearningLines.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningLines.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningLines.ae",
         "sha256": "df852b83b3084a649ba81bfec0532bba522f4c0691f0b14766e4065e90792240"
       },
       "LearningNaiveBayes.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningNaiveBayes.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningNaiveBayes.ae",
         "sha256": "580da443235bf7993d7f0f13a7e7b218ee5c40912de80b2712935e798c3cdd08"
       },
       "LearningNeighbors.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningNeighbors.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningNeighbors.ae",
         "sha256": "33a0c609011a75dc82d88a65e699fd29cad0a32c2271c4175eda6d55a8e4dab1"
       },
       "LearningNeural.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningNeural.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningNeural.ae",
         "sha256": "e52b03d80ed1b9dd86b5afe1f079b34e30648021b5b9097f3787756b2bcb1d41"
       },
       "LearningSVM.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningSVM.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningSVM.ae",
         "sha256": "443d4dad23b538f026fc7424cdaa4c17e4ca052903fffe70af3c6843f719d438"
       },
       "LearningTrees.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LearningTrees.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LearningTrees.ae",
         "sha256": "3c97e658855c97f622bdd5cbff5854bd29953abbe2e7cd2d9bb1855f70599e50"
       },
       "List.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/List.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/List.ae",
         "sha256": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee"
       },
       "Lock.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Lock.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Lock.ae",
         "sha256": "e212b9454b87a22adbfd11ca028b77ae02badd6e611a94e8e0a80223d7652cff"
       },
       "LoopKernels.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/LoopKernels.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/LoopKernels.ae",
         "sha256": "1c58b832599277322bf2554b3c3dc83b9951f6e187a4cb9fc4d0de32daff0ae3"
       },
       "ML.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ML.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ML.ae",
         "sha256": "9b8b63e99ee2908ee96bf5efa895e984325632b325aa3bb141b0a2e99fd6bf30"
       },
       "MLCore.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/MLCore.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/MLCore.ae",
         "sha256": "90205f0ab4e361f2f68526b3c39d4757a1ce5ef54021dc66e31f0bcc6ceb636e"
       },
       "Map.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Map.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Map.ae",
         "sha256": "07f778a1ca986e415791ac34ff64a6509f65c2efca489b59b6e2bf4291841212"
       },
       "Math.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Math.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Math.ae",
         "sha256": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01"
       },
       "Matrix.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Matrix.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Matrix.ae",
         "sha256": "fc5d15e22c5c1243fd0ddb8117d8d396b7a0b782e5369aa586a661ad43b8a8f0"
       },
       "Maybe.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Maybe.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Maybe.ae",
         "sha256": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
       },
       "Memoization.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Memoization.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Memoization.ae",
         "sha256": "023a5e4ca22e853e66b2e55ef47b628fd55855566464cf91995eddeeda90d4b5"
       },
       "Models.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Models.ae",
-        "sha256": "3127ec33e4f19e15936405b3df2d6d56c0421e1e0a723d097261bdc36800f7b2"
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Models.ae",
+        "sha256": "7ca3827c51880ea4f7570a8c0f5c0e70412fbdf61515d0fce4d8ef8a1d08dede"
       },
       "NDArray.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/NDArray.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/NDArray.ae",
         "sha256": "bdbb31a0cc226f2ba649a9d17863a5fff96860561d7f150f7efbb88cf6004146"
       },
       "NN.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/NN.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/NN.ae",
         "sha256": "559c15e70780607d8e9caa5ef4ac1bf1a1941588ac38c5038370663c33865a49"
       },
       "Num.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Num.ae",
-        "sha256": "fd3cd8e136b40c3789bdd7d5e26ba32312936db5014e65b5fe7bc9064a0d91d6"
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Num.ae",
+        "sha256": "0c3e2df97bf556f4080560e317ce8d9f367cda3e0bbb6c8a61d98571c1030935"
       },
       "OS.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/OS.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/OS.ae",
         "sha256": "f780a366cc1668a606de88c1f1f0e3df9fdc03a170fb5c82a1134a0be8fe4b30"
       },
       "Order.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Order.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Order.ae",
         "sha256": "1db9c2aae0c41a1d0bdc711b9a8f9fdaaf754a14188e98ec5614ac972f9e1b36"
       },
       "Ordering.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Ordering.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Ordering.ae",
         "sha256": "e3c21f196b5d192fa48db10ffed198c3e8193ea5deda5d257d4cb3c81eaf5433"
       },
       "PSB2.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/PSB2.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/PSB2.ae",
         "sha256": "81c568bf1b35790180536c09807d1e8547b49b93dd044ffdedf9be15bbea2f8e"
       },
       "PSB2Fitness.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/PSB2Fitness.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/PSB2Fitness.ae",
         "sha256": "9857d012ef31688db3fcf1330aa717d37e5b342d646e283ffba1ae24c95f4a42"
       },
       "Pair.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Pair.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Pair.ae",
         "sha256": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de"
       },
       "Path.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Path.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Path.ae",
         "sha256": "6794a3d659898da52d4800a57926bee7d529b99c13e047b64042621187200263"
       },
       "Plot.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Plot.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Plot.ae",
         "sha256": "ea6c3e3cd2857149b58d6c42612353132f251dbbc8552f71898b89dcf372f721"
       },
       "ProofCombinators.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ProofCombinators.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ProofCombinators.ae",
         "sha256": "11ec2e6a716c08eb6a305e07f7e39755f1e062ca48ba4fdb77da47aa2533e1c8"
       },
       "PropTesting.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/PropTesting.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/PropTesting.ae",
         "sha256": "ee597ea10480e5850d53796bf44ac97be92d97d8a52d96639a860602209e98c6"
       },
       "Random.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Random.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Random.ae",
         "sha256": "8b010ad65ba35ab4cc48ddca687522274b42ce47dc91b6a1e9fd9d6af7048517"
       },
       "RandomKernels.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/RandomKernels.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/RandomKernels.ae",
         "sha256": "206329212e088420796316a40215e1995ff346f5bf96cc660e3131197aaff9db"
       },
       "ReadOnly.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/ReadOnly.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/ReadOnly.ae",
         "sha256": "114ea372622a5e591da367feb6a55d21b5d0ab9df0750b3253f687820e8b1687"
       },
       "Reader.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Reader.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Reader.ae",
         "sha256": "b746a2b65016087dbf5cd9f5d3575883e9e4f7c2464514a1991d37bbaa2533c0"
       },
       "Refinement.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Refinement.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Refinement.ae",
         "sha256": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84"
       },
       "Relax.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Relax.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Relax.ae",
         "sha256": "055ec0b0a65293bc62b3fe68bdf2e38606692b950af456c2bdb4b79bcfaee6dd"
       },
       "RoseTree.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/RoseTree.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/RoseTree.ae",
         "sha256": "8f975bd9cf4735816fb558502c5c83b8ea5e58982d80221fec8c36d450ed5853"
       },
       "SMTArithmetic.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/SMTArithmetic.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/SMTArithmetic.ae",
         "sha256": "039fbfb946c8fdd016b6e533b5cf6c008aaf00c5a7dab956cbc07524fc99b8fe"
       },
       "Seq.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Seq.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Seq.ae",
         "sha256": "38098c61c3849fbc6ec67b7cec71325acafc3de389f234918745ab2ab478bcc4"
       },
       "Set.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Set.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Set.ae",
         "sha256": "d9720d7ae912c24bc3d15639329f6a70e54c12da62c8c65571ab058a40cea829"
       },
       "Socket.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Socket.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Socket.ae",
         "sha256": "9216ddf0d62cd10118eab109c5eca14d812ffdabb8894527c17ece692bb06172"
       },
       "Stack.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Stack.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Stack.ae",
         "sha256": "4ee7ed5c070d5a2df1106a32b1e7c824e672d75f5789c8cbbd6f08764e6d0001"
       },
       "Statistics.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Statistics.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Statistics.ae",
         "sha256": "86a22439cfb5963402560d0ecfedbbcf331a160e6f8e2e4532f4c1ccadcfb584"
       },
       "String.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/String.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/String.ae",
         "sha256": "bd93ae3313eac24126ff856051a66519e4bc135a8d11e611e119be2ceeadce8a"
       },
       "Subprocess.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Subprocess.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Subprocess.ae",
         "sha256": "8df65e9685ecddd3997f841a1b5f3d708eaa86084ffc1c6c171cefe70187e7d5"
       },
       "Sys.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Sys.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Sys.ae",
         "sha256": "8d77739eb081a49f0340e989a59a54e545bae65c045527de19107c661277bfbc"
       },
       "Table.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Table.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Table.ae",
         "sha256": "7018e374bde8b1e4dcc7d783227e53324f6527f4b36c64e946cea6a276b3d0b9"
       },
       "Tensor.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Tensor.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Tensor.ae",
         "sha256": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474"
       },
       "Testing.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Testing.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Testing.ae",
         "sha256": "0322061cad54957594149d150fcffd517402504de3242da02a2f0460ec441bf1"
       },
       "Tuple.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Tuple.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Tuple.ae",
         "sha256": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "Vec.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Vec.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Vec.ae",
         "sha256": "8db9f375c2e51775e32f6d4c81f2aaf8080582ea22b757ccb6b2cbf0cad06203"
       },
       "Writer.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/Writer.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/Writer.ae",
         "sha256": "1e7893e486e38d535da76daf4cb1b8179c348bdea3c77a9723359695ceabd9dc"
       },
       "unsafeList.ae": {
-        "canonical_path": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries/unsafeList.ae",
+        "canonical_path": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries/unsafeList.ae",
         "sha256": "0938c5f7676f2d793dc80801b9b6f910c4f758242f84e5637996daa87d6cfe3b"
       }
     },
     "parse_errors": {},
-    "root": "/tmp/aeon-open-pr-fixes-20261107/pr-671/aeon/libraries",
+    "root": "/tmp/aeon-typeclass-fixes-20261108/aeon/libraries",
     "skipped": 1367,
     "split_counts": {
       "held_out": 2,
@@ -13209,7 +13209,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.0028115608729422092,
+        "elapsed": 0.003281119279563427,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13245,7 +13245,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.00428224029019475,
+        "elapsed": 0.004522404167801142,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13284,7 +13284,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.0030900570563971996,
+        "elapsed": 0.0032247528433799744,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13322,7 +13322,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.004130654036998749,
+        "elapsed": 0.007513013668358326,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13357,7 +13357,7 @@
         "verification_unknown": 0
       }
     ],
-    "runtime_model_log_mse": 0.9656344664131742
+    "runtime_model_log_mse": 0.6754877961881179
   },
   "known_solutions": {
     "Refinement.ae:bounded": [
@@ -13593,7 +13593,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009579807985574007,
+      "elapsed": 0.010973461903631687,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13628,7 +13628,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.8588472921401262,
+      "elapsed": 0.8444722108542919,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13642,7 +13642,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.7389645162038505,
+      "elapsed": 0.7239790009334683,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13657,7 +13657,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.008742665871977806,
+      "elapsed": 0.00948135182261467,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13692,7 +13692,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.6897057588212192,
+      "elapsed": 0.6987723498605192,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 85665,
@@ -13707,7 +13707,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.008886258117854595,
+      "elapsed": 0.00922436686232686,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13745,7 +13745,7 @@
       "candidates": 11221,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.4771617208607495,
+      "elapsed": 0.474876896943897,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13811,7 +13811,7 @@
       "candidates": 11246,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.4100514389574528,
+      "elapsed": 0.4046508828178048,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13877,7 +13877,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.00966580118983984,
+      "elapsed": 0.009280853904783726,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13914,7 +13914,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.6890859068371356,
+      "elapsed": 0.6884685731492937,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13982,7 +13982,7 @@
     }
   ],
   "model_loss": "log-cost ridge regression; one-sided squared loss for measured censored lower bounds",
-  "offline_seconds": 6.280749413184822,
+  "offline_seconds": 6.233668562956154,
   "primitive_signatures": {
     "!": [
       [
@@ -14106,9 +14106,9 @@
     ]
   },
   "runtime_model": {
-    "intercept": -7.387556480971997,
+    "intercept": -7.291471004266385,
     "ridge": 1.0,
-    "slope": 0.6201017702288357,
+    "slope": 0.6103603236278767,
     "target": "elapsed"
   },
   "schema": 1,
@@ -14141,7 +14141,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.008886258117854595,
+          "elapsed": 0.00922436686232686,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14179,7 +14179,7 @@
           "candidates": 11221,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.4771617208607495,
+          "elapsed": 0.474876896943897,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14245,7 +14245,7 @@
           "candidates": 11246,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.4100514389574528,
+          "elapsed": 0.4046508828178048,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14311,7 +14311,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.00966580118983984,
+          "elapsed": 0.009280853904783726,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14348,7 +14348,7 @@
         {
           "candidates": 20000,
           "censored": true,
-          "elapsed": 0.6890859068371356,
+          "elapsed": 0.6884685731492937,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14368,7 +14368,7 @@
           "candidates": 34,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.014307990204542875,
+          "elapsed": 0.003018361981958151,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14406,7 +14406,7 @@
           "candidates": 5657,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.28695941902697086,
+          "elapsed": 0.283662477042526,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14481,7 +14481,7 @@
       "candidates": 34,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.01087563531473279,
+      "elapsed": 0.009578905999660492,
       "phase": "validation_baseline",
       "productions": [],
       "rank_bound": 80,
@@ -14516,7 +14516,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 1.1562715410254896,
+      "elapsed": 1.1426061689853668,
       "phase": "validation_baseline",
       "productions": [],
       "reference_rank_bound": 278130,

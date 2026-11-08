@@ -315,6 +315,9 @@ Before SMT solving, Aeon also simplifies generated verification constraints (boo
 
 ## Types
 
+See [Typeclasses](typeclasses.md) for automatic instance selection, superclass
+constraints, constructor-polymorphic methods, and checked method contracts.
+
 Types in Aeon can be very expressive. In refined types, `where` can be used interchangeably with `|`:
 
 ```

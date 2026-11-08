@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from contextvars import ContextVar
 from itertools import combinations
-from aeon.core.types import Kind
-from aeon.elaboration.context import ElaborationTypingContext
-from aeon.elaboration.instantiation import type_substitution
+from aeon.core.types import Kind, ArrowKind, Kinding
+from aeon.elaboration.context import ElaborationTypingContext, ElabTypeVarBinder
+from aeon.elaboration.instantiation import type_substitution, AppliedType, apply_constructor
 from aeon.errors import (
     AeonError,
     InstanceResolutionError,
@@ -44,7 +44,7 @@ from aeon.sugar.stypes import (
     SRefinementPolymorphism,
     get_type_vars,
 )
-from aeon.sugar.instance_registry import lookup_instance
+from aeon.sugar.instance_registry import lookup_class, lookup_instances
 from aeon.sugar.substitutions import (
     substitute_refinement_param_in_stype,
     substitution_sterm_in_stype,
@@ -188,6 +188,7 @@ class UnificationVar(SType):
     name: Name
     lower: list[SType] = field(default_factory=list)
     upper: list[SType] = field(default_factory=list)
+    kind: Kinding | None = None
 
     def constrain_upper(self, ty):
         bty = base(ty)
@@ -271,6 +272,22 @@ def elaborate_foralls(e: STerm) -> STerm:
 
 def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
     match (sub, sup):
+        case (AppliedType(sh, sa), AppliedType(th, ta)) if len(sa) == len(ta):
+            unify(ctx, sh, th)
+            for a, b in zip(sa, ta):
+                unify(ctx, a, b)
+            return []
+        case (AppliedType(head, args), STypeConstructor(name, actual)) if len(actual) >= len(args):
+            split = len(actual) - len(args)
+            constructor: SType = STypeConstructor(name, actual[:split])
+            if split == 0 and any(isinstance(e, ElabTypeVarBinder) and e.name == name for e in ctx.entries):
+                constructor = STypeVar(name)
+            unify(ctx, head, constructor)
+            for a, b in zip(args, actual[split:]):
+                unify(ctx, a, b)
+            return []
+        case (STypeConstructor(), AppliedType()):
+            return unify(ctx, sup, sub)
         case (_, STypeConstructor(Name("Top", 0))):
             return []
         case (STypeConstructor(subn, subargs), STypeConstructor(supn, supargs)):
@@ -293,16 +310,28 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             # cycles diverge through the cross-iteration below.
             if any(u is sup for u in sub.upper):
                 return []
+            existing_bounds = list(sub.lower + sub.upper)
             sub.upper.append(sup)
             _invalidate_direction_memo(sub)
+            if isinstance(sub.kind, ArrowKind):
+                for bound in existing_bounds:
+                    if bound is not sup and not isinstance(bound, UnificationVar):
+                        unify(ctx, bound, sup)
+                        unify(ctx, sup, bound)
             for l in sub.lower:
                 unify(ctx, l, sup)
             return []
         case (_, UnificationVar(_, _, _)):
             if any(s is sub for s in sup.lower):
                 return []
+            existing_bounds = list(sup.lower + sup.upper)
             sup.lower.append(sub)
             _invalidate_direction_memo(sup)
+            if isinstance(sup.kind, ArrowKind):
+                for bound in existing_bounds:
+                    if bound is not sub and not isinstance(bound, UnificationVar):
+                        unify(ctx, bound, sub)
+                        unify(ctx, sub, bound)
             for u in sup.upper:
                 unify(ctx, sub, u)
             return []
@@ -359,6 +388,8 @@ def _resolve_uvars(ty: SType) -> SType:
                 if not isinstance(resolved, UnificationVar):
                     return resolved
             return ty
+        case AppliedType(head, args, loc):
+            return apply_constructor(_resolve_uvars(head), [_resolve_uvars(a) for a in args], loc)
         case STypeConstructor(name, args, loc=loc):
             return STypeConstructor(name, [_resolve_uvars(a) for a in args], loc=loc, refinements=ty.refinements)
         case SRefinedType(name, inner, ref, loc=loc):
@@ -517,6 +548,10 @@ def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) ->
                 body=remove_unions_and_intersections(ctx, body),
                 loc=loc,
             )
+        case AppliedType(head, args, loc):
+            return apply_constructor(
+                remove_unions_and_intersections(ctx, head), [remove_unions_and_intersections(ctx, a) for a in args], loc
+            )
         case STypeConstructor(name, args, loc):
             return STypeConstructor(
                 name, [remove_unions_and_intersections(ctx, arg) for arg in args], loc=loc, refinements=ty.refinements
@@ -620,7 +655,7 @@ def wrap_unification(ctx: ElaborationTypingContext, t: STerm, us: list[SType]) -
 
 def ensure_not_polymorphism(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> tuple[STerm, SType]:
     while isinstance(ty, STypePolymorphism):
-        u = UnificationVar(ctx.fresh_typevar())
+        u = UnificationVar(ctx.fresh_typevar(), kind=ty.kind)
         ty = type_substitution(ty.body, ty.name, u)
         t = STypeApplication(t, u)
     return t, ty
@@ -653,7 +688,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             (inner, innert) = elaborate_synth(ctx, body)
             assert isinstance(innert, STypePolymorphism)
 
-            u = UnificationVar(ctx.fresh_typevar())
+            u = UnificationVar(ctx.fresh_typevar(), kind=innert.kind)
             u.upper.append(ty)
             u.lower.append(ty)
             _invalidate_direction_memo(u)
@@ -713,7 +748,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
         case SApplication(fun, arg):
             (nfun, nfun_type) = elaborate_synth(ctx, fun)
             while isinstance(nfun_type, STypePolymorphism):
-                u = UnificationVar(ctx.fresh_typevar())
+                u = UnificationVar(ctx.fresh_typevar(), kind=nfun_type.kind)
                 nfun = STypeApplication(nfun, u)
                 nfun_type = type_substitution(nfun_type.body, nfun_type.name, u)
             while isinstance(nfun_type, SRefinementPolymorphism):
@@ -741,6 +776,10 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
 
 
 def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
+    if isinstance(t, STypeAbstraction) and isinstance(ty, UnificationVar):
+        resolved_type = _resolve_uvars(ty)
+        if isinstance(resolved_type, STypePolymorphism):
+            return elaborate_check(ctx, t, resolved_type)
     match (t, ty):
         case (SAbstraction(name, body, loc=loc), SAbstractionType(aname, aty, rty)):
             nctx = ctx.with_var(name, aty)
@@ -818,7 +857,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
 
 def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, ty: SType) -> tuple[STerm, SType]:
     while isinstance(s, STypePolymorphism) and not isinstance(ty, STypePolymorphism):
-        u = UnificationVar(ctx.fresh_typevar())
+        u = UnificationVar(ctx.fresh_typevar(), kind=s.kind)
         c = STypeApplication(c, u)
         s = type_substitution(s.body, s.name, u)
     while isinstance(s, SRefinementPolymorphism) and not isinstance(ty, SRefinementPolymorphism):
@@ -900,6 +939,8 @@ def replace_unification_variables(
                 return STypePolymorphism(name, kind, go(ctx, body, polarity), loc=loc)
             case SRefinementPolymorphism(name, sort, body, loc=loc):
                 return SRefinementPolymorphism(name, go(ctx, sort, polarity), go(ctx, body, polarity), loc=loc)
+            case AppliedType(head, args, loc):
+                return AppliedType(go(ctx, head, polarity), [go(ctx, a, polarity) for a in args], loc)
             case STypeConstructor(name, args, loc=loc):
                 return STypeConstructor(
                     name, [go(ctx, arg, polarity) for arg in args], loc=loc, refinements=ty.refinements
@@ -1121,7 +1162,9 @@ def _elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> ST
                     # also bind BASE parameters. Looking only at a bare SVar
                     # introduced spurious Horn predicates for Pair/recursors.
                     _, body_type = elaborate_synth(ctx, body)
-                    if isinstance(body_type, STypePolymorphism) and body_type.kind is Kind.BASE:
+                    if isinstance(body_type, STypePolymorphism) and (
+                        body_type.kind is Kind.BASE or isinstance(body_type.kind, ArrowKind)
+                    ):
                         should_be_refined = False
                     match nt:
                         case STypeConstructor(_) | STypeVar(_) | STypeConstructor(_, _):
@@ -1176,7 +1219,7 @@ def _match_instance_type(pattern: SType, actual: SType, foralls: set[Name], subs
         case STypeVar(name) if name in foralls:
             prev = subst.get(name)
             if prev is not None:
-                return _extract_base_type_name(prev) == _extract_base_type_name(actual)
+                return _class_types_match(prev, actual)
             subst[name] = actual
             return True
         case STypeVar(name):
@@ -1184,9 +1227,23 @@ def _match_instance_type(pattern: SType, actual: SType, foralls: set[Name], subs
         case STypeConstructor(pname, pargs):
             if not isinstance(actual, STypeConstructor):
                 return False
+            if pname in foralls:
+                if len(actual.args) < len(pargs):
+                    return False
+                split = len(actual.args) - len(pargs)
+                head = STypeConstructor(actual.name, actual.args[:split])
+                return _match_instance_type(STypeVar(pname), head, foralls, subst) and all(
+                    _match_instance_type(p, a, foralls, subst) for p, a in zip(pargs, actual.args[split:])
+                )
             if pname.name != actual.name.name or len(pargs) != len(actual.args):
                 return False
             return all(_match_instance_type(p, a, foralls, subst) for p, a in zip(pargs, actual.args))
+        case SAbstractionType(_, domain, codomain):
+            return (
+                isinstance(actual, SAbstractionType)
+                and _match_instance_type(domain, actual.var_type, foralls, subst)
+                and _match_instance_type(codomain, actual.type, foralls, subst)
+            )
         case _:
             return False
 
@@ -1225,7 +1282,7 @@ def _collect_given_instances(var_type: SType, var_value: STerm) -> list[tuple[Na
 
 def _class_types_match(requested: SType, given: SType) -> bool:
     """Two class-constraint types refer to the same instance when their class
-    constructor and (head-level) type arguments coincide. Refinements are
+    constructor and complete type arguments coincide. Refinements are
     transparent."""
     if isinstance(requested, SRefinedType):
         return _class_types_match(requested.type, given)
@@ -1238,6 +1295,12 @@ def _class_types_match(requested: SType, given: SType) -> bool:
             return all(_class_types_match(r, g) for r, g in zip(ra, ga))
         case (STypeVar(rn), STypeVar(gn)):
             return rn == gn
+        case (SAbstractionType(_, rd, rc), SAbstractionType(_, gd, gc)):
+            return (
+                requested.multiplicity == given.multiplicity
+                and _class_types_match(rd, gd)
+                and _class_types_match(rc, gc)
+            )
         case _:
             return requested == given
 
@@ -1275,65 +1338,83 @@ def _class_types_compatible_with_unresolved_vars(requested: SType, given: SType)
             return requested == given
 
 
-def _resolve_instance_hole(ctx: ElaborationTypingContext, class_type: SType, loc) -> STerm:
-    """Replace a resolved instance-class type (e.g. ``Eq Int``) with a reference
-    to the generated instance dictionary. ``class_type`` must have its unification
-    variables already resolved to concrete head constructors.
+def _given_instance_terms(ctx: ElaborationTypingContext) -> list[tuple[STerm, SType]]:
+    """Expose superclass evidence from lexical dictionaries, transitively."""
+    direct: list[tuple[STerm, SType]] = [(SVar(n), ty) for n, ty in reversed(ctx.instances)]
+    result = list(direct)
 
-    Constrained / polymorphic instances (e.g. ``instance [Eq a] : Eq (Box a)``)
-    are resolved by unifying the requested type against the instance's declared
-    pattern, applying the recovered type arguments, and recursively resolving
-    each constraint to a nested dictionary."""
-    # A lexically-available given constraint (e.g. the ``[Eq a]`` parameter of a
-    # constrained instance) takes priority over the global registry.
-    for inst_name, inst_class in ctx.instances:
-        if _class_types_match(class_type, inst_class):
-            return SVar(inst_name, loc=loc)
-    # See ``_class_types_compatible_with_unresolved_vars``.  Never let an
-    # unresolved type choose arbitrarily between two lexical dictionaries.
-    compatible = [
-        inst_name
-        for inst_name, inst_class in ctx.instances
-        if _class_types_compatible_with_unresolved_vars(class_type, inst_class)
-    ]
+    def parents(term: STerm, ty: SType, seen: frozenset[str]) -> None:
+        if not isinstance(ty, STypeConstructor) or ty.name.name in seen:
+            return
+        info = lookup_class(ty.name.name)
+        if info is None:
+            return
+        for projection, parent in info.supers:
+            projected: STerm = SVar(projection)
+            for (formal, _), actual in zip(info.parameters, ty.args):
+                projected = STypeApplication(projected, actual)
+                parent = type_substitution(parent, formal, actual)
+            projected = SApplication(projected, term)
+            result.append((projected, parent))
+            parents(projected, parent, seen | {ty.name.name})
+
+    for term, ty in direct:
+        parents(term, ty, frozenset())
+    return result
+
+
+def _instance_type_size(ty: SType) -> int:
+    if isinstance(ty, SRefinedType):
+        return _instance_type_size(ty.type)
+    if isinstance(ty, STypeConstructor):
+        return 1 + sum(_instance_type_size(a) for a in ty.args)
+    if isinstance(ty, SAbstractionType):
+        return 1 + _instance_type_size(ty.var_type) + _instance_type_size(ty.type)
+    return 1
+
+
+def _resolve_instance_hole(
+    ctx: ElaborationTypingContext, class_type: SType, loc, trail: tuple[tuple[Name, int], ...] = ()
+) -> STerm:
+    from aeon.errors import TypeClassError
+
+    given = _given_instance_terms(ctx)
+    for given_term, given_type in given:
+        if _class_types_match(class_type, given_type):
+            return given_term
+    compatible = [(term, ty) for term, ty in given if _class_types_compatible_with_unresolved_vars(class_type, ty)]
     if len(compatible) == 1:
-        return SVar(compatible[0], loc=loc)
+        return compatible[0][0]
     match class_type:
-        case STypeConstructor(class_name, args) if args:
-            head = _extract_base_type_name(args[0])
-            if head is None:
-                raise InstanceResolutionError(class_name.name, None, loc)
-            info = lookup_instance(class_name.name, head)
-            if info is None:
+        case STypeConstructor(class_name, args):
+            candidates = []
+            for info in lookup_instances(class_name.name):
+                subst: dict[Name, SType] = {}
+                if len(info.type_args) == len(args) and all(
+                    _match_instance_type(pat, actual, set(info.foralls), subst)
+                    for pat, actual in zip(info.type_args, args)
+                ):
+                    candidates.append((info, subst))
+            if len(candidates) > 1:
+                raise TypeClassError(f"Ambiguous instance for '{class_type}'", loc)
+            if not candidates:
+                head = _extract_base_type_name(args[0]) if args else None
                 raise InstanceResolutionError(class_name.name, head, loc)
-            # Monomorphic instances resolve directly to their dictionary variable.
-            if not info.foralls and not info.num_constraints:
-                return SVar(info.dict_name, loc=loc)
-            # Polymorphic / constrained: unify the requested type arguments
-            # against the instance's declared pattern to recover the ``forall``
-            # bindings.
-            foralls = set(info.foralls)
-            subst: dict[Name, SType] = {}
-            if len(info.type_args) != len(args):
-                raise InstanceResolutionError(class_name.name, head, loc)
-            for pat, actual in zip(info.type_args, args):
-                if not _match_instance_type(pat, actual, foralls, subst):
-                    raise InstanceResolutionError(class_name.name, head, loc)
+            info, subst = candidates[0]
+            size = _instance_type_size(class_type)
+            if any(name == info.dict_name and size >= old_size for name, old_size in trail):
+                raise TypeClassError(f"Non-terminating instance resolution for '{class_type}'", loc)
             term: STerm = SVar(info.dict_name, loc=loc)
-            # One type application per ``forall`` binder, in declaration order.
             for fa in info.foralls:
                 ty_arg = subst.get(fa)
                 if ty_arg is None:
-                    raise InstanceResolutionError(class_name.name, head, loc)
+                    raise TypeClassError(f"Unresolved instance parameter '{fa}' for '{class_type}'", loc)
                 term = STypeApplication(term, ty_arg, loc=loc)
-            # Resolve each constraint (after substitution) to a nested dictionary
-            # and supply it as an instance-implicit argument.
-            for c in info.constraints:
-                c_inst = c
+            for constraint in info.constraints:
                 for name, ty in subst.items():
-                    c_inst = type_substitution(c_inst, name, ty)
-                c_dict = _resolve_instance_hole(ctx, c_inst, loc)
-                term = SApplication(term, c_dict, loc=loc)
+                    constraint = type_substitution(constraint, name, ty)
+                dictionary = _resolve_instance_hole(ctx, constraint, loc, (*trail, (info.dict_name, size)))
+                term = SApplication(term, dictionary, loc=loc)
             return term
         case _:
             raise InstanceResolutionError(str(class_type), None, loc)

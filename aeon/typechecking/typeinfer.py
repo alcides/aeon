@@ -9,6 +9,7 @@ import aeon.logger.logger  # noqa: F401  — registers custom levels (SYNTH_TYPE
 
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidTerm, liquid_free_vars
+from aeon.core.types import Kinding, kind_compatible
 from aeon.core.types import LiquidHornApplication, RefinementPolymorphism
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidLiteralFloat
@@ -407,9 +408,9 @@ def _selfify_application_type(ctx: TypingContext, t: Term, ty: Type) -> Type:
             return ty
 
 
-def is_compatible(a: Kind, b: Kind):
+def is_compatible(a: Kinding, b: Kinding):
     """Returns whether kind a is a subkind of kind b"""
-    return (a == b) or b == Kind.STAR
+    return kind_compatible(a, b)
 
 
 def argument_is_typevar(ty: Type):
@@ -760,10 +761,10 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                         # A bare Hole has no synthesisable type (synth defaults
                         # it to a polymorphic type variable), which is not an SMT
                         # base type and would leave the `_y` binder undeclared in
-                        # the solver. But the hole was just `check`ed against the
-                        # domain type `atype`, so that is its type here — use it
-                        # so a hole in argument position needs no annotation.
-                        if isinstance(arg, Hole):
+                        # the solver. Holes and polymorphic abstractions were
+                        # just checked against `atype`; reuse that type because
+                        # these terms require an expected type to be checked.
+                        if isinstance(arg, (Hole, TypeAbstraction, RefinementAbstraction)):
                             ty_arg = atype
                         elif inferred:
                             _, ty_arg = inferred[0]
@@ -915,7 +916,10 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 raise CoreTypeApplicationRequiresBareTypesError(t, ty)
             (c, tabs) = synth(ctx, body)
             nty = fresh(ctx, ty)
-            k = ctx.kind_of(nty)
+            try:
+                k = ctx.kind_of(nty)
+            except ValueError as error:
+                raise CoreWellformnessError(nty) from error
             if isinstance(nty, RefinedType) and isinstance(nty.refinement, LiquidHornApplication):
                 nty = nty.type
                 k = ctx.kind_of(nty)
@@ -1451,7 +1455,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
             return if_constraint
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
-            if var_kind == Kind.BASE and kind != var_kind:
+            if kind != var_kind:
                 raise CoreWrongKindInTypeApplicationError(
                     term=t,
                     type=ty,

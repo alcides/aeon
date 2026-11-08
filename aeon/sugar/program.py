@@ -5,7 +5,7 @@ from dataclasses import field
 
 from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.utils.name import Name
-from aeon.core.types import Kind
+from aeon.core.types import Kinding
 from aeon.sugar.stypes import SType, STypeConstructor
 
 from aeon.utils.location import Location, SynthesizedLocation
@@ -299,7 +299,7 @@ class SMatch(STerm):
 @dataclass(frozen=True)
 class STypeAbstraction(STerm):
     name: Name
-    kind: Kind
+    kind: Kinding
     body: STerm
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
@@ -397,6 +397,8 @@ class TypeDecl(Node):
     linear: bool = False
     """Declared as ``linear type``: binders of this type must be at multiplicity 1."""
 
+    arg_kinds: tuple[Kinding, ...] = field(default_factory=tuple)
+
     def __str__(self):
         args = " ".join(str(arg) for arg in self.args)
         rfs = " ".join(f"forall <{n}:{s} -> Bool>" for (n, s) in self.rforalls)
@@ -418,6 +420,8 @@ class InductiveDecl(Node):
     constructors: list[Definition] = field(default_factory=list)
     measures: list[Definition] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
+
+    arg_kinds: tuple[Kinding, ...] = field(default_factory=tuple)
 
     def __post_init__(self):
         assert isinstance(self.name, Name)
@@ -455,7 +459,7 @@ class Decorator(Node):
 @dataclass
 class Definition(Node):
     name: Name
-    foralls: list[tuple[Name, Kind]]
+    foralls: list[tuple[Name, Kinding]]
     args: list[tuple[Name, SType]]
     type: SType
     body: STerm
@@ -541,7 +545,7 @@ class ClassDecl(Node):
     """
 
     name: Name
-    type_params: list[tuple[Name, Kind]] = field(default_factory=list)
+    type_params: list[tuple[Name, Kinding]] = field(default_factory=list)
     supers: list[SType] = field(default_factory=list)
     methods: list[ClassMethod] = field(default_factory=list)
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))

@@ -67,10 +67,7 @@ All three are pure additions to resolution/ordering; the full suite passes.
   mismatch is a runtime error. `Models` is a dispatch/reuse surface; drop to
   `NN.predict` / `Learning.accuracy` directly when you need the static
   guarantee.
-* **No polymorphic-over-constraint dispatch.** A function written generically
-  as `def f [Classifier m] (model: m) … := classify model …` does not resolve
-  the method from the `[Classifier m]` dictionary (it reports "no instance
-  for `<unknown>`"). Dispatch works on concrete model types
-  (`classify net …`, `classify tree …`), which is what the example uses.
-  Making the class dictionary drive method resolution inside a constrained
-  generic is a separate typeclass-elaboration improvement.
+* Generic functions can receive `[Classifier m]` or `[Regressor m]` and call
+  methods through that dictionary. Superclass constraints are also available
+  transitively. See [typeclasses](../../docs/typeclasses.md) for dispatch,
+  higher-kinded parameters, and checked method contracts.

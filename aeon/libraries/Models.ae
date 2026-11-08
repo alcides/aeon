@@ -14,9 +14,8 @@
 # (fitted scikit-learn estimators) — and each opts into the matching class.
 # The shared feature representation is a ``Tensor.Vector`` (one sample).
 #
-# Scope note: typeclass methods are dictionary projections, *opaque to the
-# SMT backend* (the same caveat ``Num`` documents). So the dimension
-# invariants ``Tensor`` / ``NN`` and the shape/metric refinements
+# Scope note: these generic method signatures do not specify dimension
+# refinements. Consequently, the dimension invariants ``Tensor`` / ``NN`` and the shape/metric refinements
 # ``Learning`` verify on their concrete operations are not carried as laws
 # through these generic methods — a width mismatch surfaces at runtime, not
 # compile time. Use the classes for type-directed dispatch and reuse; drop
