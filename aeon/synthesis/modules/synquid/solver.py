@@ -15,6 +15,7 @@ from time import monotonic
 
 import z3
 
+from aeon.compilation.session import CompilationSession, current_session
 from aeon.core.liquid import LiquidTerm, LiquidApp, LiquidVar, LiquidLiteralBool
 from aeon.core.types import LiquidHornApplication, Top, TypeConstructor, TypeVar, builtin_core_types, t_bool
 from aeon.core.liquid_ops import liquid_prelude
@@ -32,7 +33,8 @@ from aeon.verification.horn import (
     obtain_holes,
     split,
 )
-from aeon.verification.smt import flatten, translate
+from aeon.verification.smt import CanonicConstraint, flatten, translate
+from aeon.verification.state import VerificationState
 from aeon.verification.vcs import (
     Constraint,
     Conjunction,
@@ -40,6 +42,7 @@ from aeon.verification.vcs import (
     LiquidConstraint,
     ReflectedFunctionDeclaration,
     UninterpretedFunctionDeclaration,
+    alpha_key,
 )
 
 
@@ -104,11 +107,65 @@ def _well_sorted(c: Constraint, ctx: LiquidTypeCheckingContext) -> bool:
 
 
 @dataclass
+class CachedQuery:
+    clauses: tuple[CanonicConstraint, ...]
+    selectors: dict[int, z3.BoolRef] = field(default_factory=dict)
+
+
+@dataclass
+class SMTQueryState:
+    """One bounded solver shared by a search and its constraint-state forks.
+
+    A selector guards each counterexample formula. Checking just that selector
+    isolates an obligation from previously visited branches, while retaining
+    translations and solver state for the constraints revisited by each fork.
+    Answers are never cached: UNKNOWN can be retried with a different budget.
+    """
+
+    solver: z3.Solver | None = field(default=None, repr=False)
+    queries: dict[str, CachedQuery] = field(default_factory=dict, repr=False)
+    clause_count: int = 0
+    session: CompilationSession | None = field(default=None, repr=False)
+    generation: int = -1
+
+    def reset(self) -> None:
+        if self.solver is not None:
+            self.solver.reset()
+        self.queries.clear()
+        self.clause_count = 0
+
+    def prepare(self, constraint: Constraint) -> tuple[z3.Solver, CachedQuery]:
+        session = current_session()
+        generation = session.state(VerificationState).generation
+        if self.session is not session or self.generation != generation:
+            self.reset()
+            self.session, self.generation = session, generation
+        if self.solver is None:
+            self.solver = z3.Solver()
+        key = alpha_key(constraint)
+        cached = self.queries.get(key)
+        if cached is not None:
+            return self.solver, cached
+        entry = CachedQuery(tuple(flatten(constraint)))
+        limit = session.options.cache_limit
+        if len(entry.clauses) > limit:
+            # An unusually large query need not evict all useful small ones or
+            # leave unbounded assertions in the shared solver.
+            return z3.Solver(), entry
+        if len(self.queries) >= limit or self.clause_count + len(entry.clauses) > limit:
+            self.reset()
+        self.queries[key] = entry
+        self.clause_count += len(entry.clauses)
+        return self.solver, entry
+
+
+@dataclass
 class SMTQuery:
     timeout_ms: int = 0
     stats: SearchStats = field(default_factory=SearchStats)
     deadline: float = float("inf")
     liquid_context: LiquidTypeCheckingContext | None = None
+    state: SMTQueryState = field(default_factory=SMTQueryState, repr=False)
 
     def valid(self, constraint: Constraint) -> Status:
         """Only SAT counterexamples disprove a VC. Unknown is not False."""
@@ -120,20 +177,25 @@ class SMTQuery:
                 self.liquid_context or LiquidTypeCheckingContext(builtin_core_types, {}, dict(liquid_prelude)),
             ):
                 return Status.UNSUPPORTED
-            solver = z3.Solver()
-            self.configure(solver)
-            for clause in flatten(constraint):
-                solver.push()
-                try:
-                    solver.add(translate(clause))
-                    self.stats.solver_queries += 1
-                    answer = solver.check()
-                    if answer == z3.sat:
-                        return Status.INVALID
-                    if answer == z3.unknown:
-                        return Status.UNKNOWN
-                finally:
-                    solver.pop()
+            solver, cached = self.state.prepare(constraint)
+            for index, clause in enumerate(cached.clauses):
+                if monotonic() >= self.deadline:
+                    return Status.UNKNOWN
+                selector = cached.selectors.get(index)
+                if selector is None:
+                    formula = translate(clause)
+                    selector = z3.FreshBool("synquid_query")
+                    solver.add(z3.Implies(selector, formula))
+                    cached.selectors[index] = selector
+                if monotonic() >= self.deadline:
+                    return Status.UNKNOWN
+                self.configure(solver)
+                self.stats.solver_queries += 1
+                answer = solver.check(selector)
+                if answer == z3.sat:
+                    return Status.INVALID
+                if answer == z3.unknown:
+                    return Status.UNKNOWN
             return Status.VALID
         except (
             LiquidTypeCheckException,

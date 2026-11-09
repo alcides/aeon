@@ -32,7 +32,7 @@ from aeon.core.types import (
 from aeon.synthesis.modules.synquid.decompose import uncurry as uncurry
 from aeon.synthesis.modules.synquid.constraints import ConstraintState, negate, fresh_name
 from aeon.synthesis.modules.synquid.round_trip import ApplicationState, erase, match_result
-from aeon.synthesis.modules.synquid.solver import SearchStats, Status
+from aeon.synthesis.modules.synquid.solver import SearchStats, SMTQueryState, Status
 from aeon.synthesis.modules.synquid.abduction import abduce, branch_environment
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
@@ -286,12 +286,13 @@ def synthes_memory(
 ):
     # A context/level/type key cannot distinguish liquid assignments or pending
     # result obligations. Disable term memoization until state equivalence is
-    # established; mem carries per-search instrumentation and the deadline only.
+    # established; mem carries instrumentation, the deadline, and SMT state.
     if state is None:
         state = ConstraintState(
             ctx,
             stats=mem.setdefault("synquid_stats", SearchStats()),
             deadline=mem.get("synquid_deadline", float("inf")),
+            solver_state=mem.setdefault("synquid_solver_state", SMTQueryState()),
         )
     if monotonic() >= mem.get("synquid_deadline", float("inf")):
         return

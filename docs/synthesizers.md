@@ -17,6 +17,13 @@ See the [specification support matrix](synthesis-specifications.md) for each
 backend's handling of examples, both CSV decorators, optimization, properties,
 refinement conversions, and planned improvements.
 
+The shared candidate validators name intermediate constructor values in a
+temporary copy before typechecking. This keeps deep dependent-measure proofs
+compact for expression and whole-program backends, including GP, random search,
+enumerative search, Synquid, and CP-SAT. Bindings stay inside their original
+lambda or branch. Returned programs, runtime evaluation, expression-size scores,
+and resource objectives use the original candidate.
+
 ---
 
 ## Available Synthesizers
@@ -277,6 +284,13 @@ This backend implements round-trip checking, incremental shape/refinement constr
 **Conditionals.** Search proposes a branch under an unknown path predicate, derives its verification conditions, and strengthens the predicate from `true` using MUSFIX-style minimal-subset enumeration. It retains incomparable solutions, removes semantically stronger guards, realizes a Boolean expression, and builds the other branch under the guard's negation. The bounded qualifier-conjunction enumerator remains a fallback when abduction cannot handle the obligation or its vocabulary is insufficient.
 
 **Validation and observability.** Every accepted candidate still passes the supplied whole-program validator, including termination checks. With no fitness goals, the first valid candidate is returned. `SynquidSynthesizer.stats` records generated arguments, partial rejections, full validations, abduction proposals/guards, fallback guards, solver queries, and explicit solver outcomes. `modular.py` continues to expose the compatibility decomposition API and `ModularVC`.
+
+Validity queries reuse a bounded SMT solver and translated constraints across
+search forks and application-depth levels. Each obligation has its own
+assumption selector, so assertions from other branches cannot change its result.
+Queries are rechecked with the current deadline; unknown results are never
+treated as proofs. Compilation-session changes and datatype resets invalidate
+the cache. MUSFIX keeps its separate tracked-assumption solvers.
 
 ---
 

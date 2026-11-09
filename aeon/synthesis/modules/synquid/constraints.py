@@ -26,6 +26,7 @@ from aeon.synthesis.modules.synquid.solver import (
     Predicate,
     SearchStats,
     SMTQuery,
+    SMTQueryState,
     Status,
     weakest_assignments,
 )
@@ -103,6 +104,7 @@ class ConstraintState:
     match_depth: int = 0
     matched: frozenset[Name] = frozenset()
     type_obligations: tuple[tuple[TypingContext, Type, Type], ...] = ()
+    solver_state: SMTQueryState = field(default_factory=SMTQueryState, repr=False, compare=False)
 
     def fork(self, context: TypingContext | None = None) -> ConstraintState:
         return replace(
@@ -117,7 +119,13 @@ class ConstraintState:
     def query(self) -> SMTQuery:
         from aeon.typechecking.liquid import lower_context
 
-        return SMTQuery(self.timeout_ms, self.stats, self.deadline, lower_context(self.resolve_context(self.context)))
+        return SMTQuery(
+            self.timeout_ms,
+            self.stats,
+            self.deadline,
+            lower_context(self.resolve_context(self.context)),
+            self.solver_state,
+        )
 
     def lift(self, constraint: Constraint) -> Constraint:
         return entailment_context(self.context, constraint)

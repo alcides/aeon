@@ -99,12 +99,17 @@ def make_validator(
     ctx: TypingContext, replace: Callable[[Term], Term], metadata: Metadata | None = None
 ) -> Callable[[Term], bool]:
     def validate(candidate: Term) -> bool:
+        from aeon.synthesis.constructors import prepare_candidate
+
         prog = without_main_placeholder(replace(candidate))
         if metadata is not None:
             from aeon.synthesis.bounded_cnf import check_program
 
             if not check_program(prog, metadata):
                 return False
+        prepared = prepare_candidate(candidate)
+        if prepared is not candidate:
+            prog = without_main_placeholder(replace(prepared))
         return check_type(ctx, prog, Top())
 
     return validate
@@ -650,11 +655,16 @@ def _synthesize_joint(
         return result
 
     def validate_types(candidate: Term) -> bool:
+        from aeon.synthesis.constructors import prepare_candidate
+
         try:
             completed = replace(candidate)
         except InvalidIndividualException:
             return False
-        return check_program(completed, metadata) and check_type(ctx, completed, top)
+        if not check_program(completed, metadata):
+            return False
+        prepared = prepare_candidate(candidate)
+        return check_type(ctx, replace(prepared) if prepared is not candidate else completed, top)
 
     goals: list[Goal] = []
     for entry in metadata.values():
