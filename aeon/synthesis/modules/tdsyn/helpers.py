@@ -3,13 +3,14 @@ from __future__ import annotations
 import weakref
 from typing import Callable
 
+from aeon.core.equality import core_type_equality
 from aeon.core.instantiation import type_substitution
+from aeon.core.liquid import LiquidApp, LiquidPredicate, LiquidVar
 from aeon.core.substitutions import instantiate_refinement_in_type
 from aeon.core.terms import (
     Abstraction,
     Application,
     ImplicitRefinementHole,
-    Literal,
     RefinementApplication,
     Term,
     TypeApplication,
@@ -30,6 +31,8 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
+from aeon.synthesis.grammar.poly import predicate_argument
+from aeon.typechecking.branch_evidence import stored_match_predicate, unconstrained_predicate
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.utils.location import SynthesizedLocation
@@ -37,13 +40,6 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.verification.sub import sub
 
 _loc = SynthesizedLocation("tdsyn")
-
-
-def _trivial_true_predicate() -> Abstraction:
-    """``λy. true`` — used only to weaken the *candidate type* while the term
-    still carries an ``ImplicitRefinementHole`` for Horn inference."""
-    y = Name("_pred_y", fresh_counter.fresh())
-    return Abstraction(y, Literal(True, t_bool, _loc), _loc)
 
 
 # Subtype results are stable for a given TypingContext object identity. Keyed
@@ -175,17 +171,43 @@ def _mono_types_for(name: Name, ctx: TypingContext) -> list[TypeConstructor]:
     return _collect_concrete_types(ctx)
 
 
-def monomorphize(name: Name, ty: Type, ctx: TypingContext) -> list[tuple[Term, Type]]:
+def monomorphize(name: Name, ty: Type, ctx: TypingContext, goal: Type | None = None) -> list[tuple[Term, Type]]:
     """Generate all monomorphic instantiations of a (possibly polymorphic) type.
 
     Returns list of (term, monomorphic_type) pairs.
     For non-polymorphic types, returns [(Var(name), ty)].
     For polymorphic types, instantiates type variables with concrete types from context.
-    Abstract refinement quantifiers (``forall <p>``) are opened with an
-    ``ImplicitRefinementHole``, matching elaboration: Horn inference fills in
-    ``p`` when the finished term is typechecked.
+    Retained result relations are instantiated from ``goal`` when available.
+    Other abstract predicates remain implicit for final Horn inference, with
+    an arity-correct unconstrained approximation used during search.
     """
-    return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx))
+    return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx), goal)
+
+
+def _result_predicate(body: Type, name: Name, sort: Type, goal: Type | None) -> LiquidPredicate | None:
+    """Match a retained predicate variable to the corresponding goal argument.
+
+    Match by the predicate's identity in the result, not quantifier position:
+    helpers can reorder relation parameters. Compound relation expressions
+    are left to inference rather than treating them as bare parameters.
+    """
+    if goal is None:
+        return None
+    while isinstance(body, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
+        body = body.type if isinstance(body, AbstractionType) else body.body
+    result, target = base_type_of(body), base_type_of(goal)
+    if (
+        result is None
+        or target is None
+        or not core_type_equality(TypeConstructor(result.name, result.args), TypeConstructor(target.name, target.args))
+    ):
+        return None
+    for index, predicate in enumerate(result.refinements):
+        direct = not predicate.parameters and predicate.body == LiquidVar(name)
+        eta = predicate.body == LiquidApp(name, [LiquidVar(p) for p in predicate.parameters])
+        if (direct or eta) and index < len(target.refinements):
+            return stored_match_predicate(target, index, sort)
+    return None
 
 
 def _monomorphize_term(
@@ -193,6 +215,7 @@ def _monomorphize_term(
     ty: Type,
     ctx: TypingContext,
     concrete_types: list[TypeConstructor],
+    goal: Type | None = None,
 ) -> list[tuple[Term, Type]]:
     """Continue monomorphizing an already partially applied term."""
     match ty:
@@ -201,17 +224,19 @@ def _monomorphize_term(
             for concrete_type in concrete_types:
                 substituted = type_substitution(body, var_name, concrete_type)
                 applied: Term = TypeApplication(base_term, concrete_type, _loc)
-                results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types))
+                results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types, goal))
             return results
-        case RefinementPolymorphism(pred_name, _sort, body):
-            # Match elaboration: open ``forall <p>`` with an implicit hole on the
-            # *term* so Horn inference can instantiate ``p`` at typecheck time.
-            # The candidate type used for search is weakened with ``λy. true``
-            # (same approximation as LTA) so argument holes stay SMT-friendly.
-            hole = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
-            applied = RefinementApplication(base_term, hole, _loc)
-            substituted = instantiate_refinement_in_type(body, pred_name, _trivial_true_predicate())
-            return _monomorphize_term(applied, substituted, ctx, concrete_types)
+        case RefinementPolymorphism(pred_name, sort, body):
+            predicate = _result_predicate(body, pred_name, sort, goal)
+            if predicate is None:
+                argument: Term = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
+                replacement: Abstraction | LiquidPredicate = unconstrained_predicate(sort)
+            else:
+                argument = predicate_argument(ctx, predicate, sort)
+                replacement = predicate
+            applied = RefinementApplication(base_term, argument, _loc)
+            substituted = instantiate_refinement_in_type(body, pred_name, replacement)
+            return _monomorphize_term(applied, substituted, ctx, concrete_types, goal)
         case _:
             return [(base_term, ty)]
 

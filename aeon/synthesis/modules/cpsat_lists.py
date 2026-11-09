@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 from aeon.core.equality import core_type_equality
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidTerm, LiquidVar
-from aeon.core.predicates import predicate_to_term
 from aeon.core.substitutions import instantiate_refinement_in_type, substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Annotation, Application, Hole, Let, Rec, RefinementApplication, Term, TypeApplication, Var
 from aeon.core.types import (
@@ -22,6 +21,7 @@ from aeon.core.types import (
     TypePolymorphism,
 )
 from aeon.synthesis.api import UnsupportedSynthesisGoal
+from aeon.synthesis.grammar.poly import predicate_argument
 from aeon.typechecking.branch_evidence import stored_match_predicate
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name, fresh_counter
@@ -74,15 +74,7 @@ def _instantiate(binding: Rec, actual: TypeConstructor, ctx: TypingContext) -> _
             type_index += 1
         else:
             predicate = stored_match_predicate(actual, relation_index, ty.sort)
-            # Logical predicates erase operator type applications. Reinsert
-            # them through ordinary elaboration before checking the candidate.
-            from aeon.elaboration import elaborate
-            from aeon.elaboration.context import ElaborationTypingContext, ElabVariableBinder
-            from aeon.sugar.lifting import lift, lift_type
-            from aeon.sugar.lowering import lower_to_core
-
-            context = ElaborationTypingContext([ElabVariableBinder(n, lift_type(t)) for n, t in ctx.vars()])
-            argument = lower_to_core(elaborate(context, lift(predicate_to_term(predicate)), lift_type(ty.sort)))
+            argument = predicate_argument(ctx, predicate, ty.sort)
             head = RefinementApplication(head, argument)
             ty = instantiate_refinement_in_type(ty.body, ty.name, predicate)
             relation_index += 1

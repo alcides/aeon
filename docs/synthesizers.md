@@ -561,6 +561,13 @@ Unchosen application arguments are existential witnesses during feasibility chec
 
 Property-test input generation has a separate, explicitly bounded sampling API; its caller-supplied limits do not limit full synthesis.
 
+Constructor relations retained in the result type are instantiated from the
+hole's goal, including predicates with several arguments. For example, a goal
+`Mask{|fun w => fun rest => w + rest <= 100|}` supplies that relation to `Mask.cons`
+and its argument holes. Predicates left for Horn inference keep their declared
+arity. The final validator still checks every completed candidate against the
+original specification.
+
 ---
 
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)

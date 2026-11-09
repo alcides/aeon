@@ -101,6 +101,35 @@ def test_count_refinement_rejects_a_missing_decision():
     assert _driver().parse(aeon_code=_program([True, False], count=3))
 
 
+def test_tdsyn_can_expand_the_relational_knapsack_constructor():
+    from aeon.core.terms import Application, RefinementApplication, TypeApplication, Var
+    from aeon.core.types import top
+    from aeon.synthesis.identification import get_holes_info
+    from aeon.synthesis.modules.native_search import initial_partial
+    from aeon.synthesis.modules.tdsyn.actions import backward_app_candidates
+    from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
+
+    driver = _driver()
+    assert not driver.parse(filename=str(EXAMPLE))
+    assert driver.has_synth()
+    function, [hole] = driver.incomplete_functions[0]
+    with driver.session.activate():
+        goal, ctx = get_holes_info(
+            driver.typing_ctx, driver.core, top, driver.incomplete_functions, refined_types=True
+        )[hole]
+        partial = initial_partial(ctx, goal)
+        candidates = backward_app_candidates(partial.holes[0], make_skip_fn(function, driver.metadata))
+        heads = []
+        for term, children in candidates:
+            while isinstance(term, (Application, TypeApplication, RefinementApplication)):
+                term = term.fun if isinstance(term, Application) else term.body
+            if isinstance(term, Var):
+                heads.append(term.name.name)
+                if term.name.name == "Mask_cons":
+                    assert len(children) == 2
+        assert "Mask_cons" in heads
+
+
 def test_synthesis_returns_50_boolean_nodes_with_optimal_value(monkeypatch):
     pytest.importorskip("ortools")
     from aeon.synthesis.modules.ortools_cpsat import CPSatHoleSynthesizer

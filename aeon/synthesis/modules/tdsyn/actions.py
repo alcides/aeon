@@ -149,7 +149,7 @@ def backward_app_candidates(
     """
     T = hole.expected_type
     candidates: list[tuple[Term, list[TypedHole]]] = []
-    for f_term, f_type in get_component_library(hole.context, skip).functions_returning(T):
+    for f_term, f_type in get_component_library(hole.context, skip, T).functions_returning(T):
         ret_type = get_return_type(f_type)
         if _compatible_result(hole.context, ret_type, T):
             app_term, new_holes = _build_application(f_term, f_type, hole)
@@ -215,7 +215,7 @@ def _forward_applications(
     T = hole.expected_type
     ctx = hole.context
     results: list[tuple[Term, list[TypedHole], Type]] = []
-    library = get_component_library(ctx, skip)
+    library = get_component_library(ctx, skip, T)
 
     for v_name, v_type in iter_concrete_vars(ctx, skip):
         for f_term, f_type in library.functions_accepting(v_type):
@@ -296,7 +296,7 @@ def forward_close_candidates(
     T = hole.expected_type
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
-    for term, var_type in get_component_library(ctx, skip).values_matching(T):
+    for term, var_type in get_component_library(ctx, skip, T).values_matching(T):
         if _compatible_result(ctx, var_type, T) and candidate_feasible(hole, term, [], var_type):
             candidates.append((term, []))
     return candidates
