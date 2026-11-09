@@ -191,7 +191,7 @@ def monomorphize(name: Name, ty: Type, ctx: TypingContext, goal: Type | None = N
     return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx), goal)
 
 
-def _result_predicate(body: Type, name: Name, sort: Type, goal: Type | None) -> LiquidPredicate | None:
+def result_predicate(body: Type, name: Name, sort: Type, goal: Type | None) -> LiquidPredicate | None:
     """Match a retained predicate variable to the corresponding goal argument.
 
     Match by the predicate's identity in the result, not quantifier position:
@@ -234,7 +234,7 @@ def _monomorphize_term(
                 results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types, goal))
             return results
         case RefinementPolymorphism(pred_name, sort, body):
-            predicate = _result_predicate(body, pred_name, sort, goal)
+            predicate = result_predicate(body, pred_name, sort, goal)
             if predicate is None:
                 argument: Term = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
                 replacement: Abstraction | LiquidPredicate = unconstrained_predicate(sort)

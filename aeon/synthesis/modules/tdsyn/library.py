@@ -41,7 +41,7 @@ _loc = SynthesizedLocation("tdsyn")
 # (e.g. higher-order parameters). Always consulted alongside a concrete key.
 _OTHER = "*"
 
-_VALUE_BINDERS = (VariableBinder, UninterpretedBinder, ReflectedBinder)
+_VALUE_BINDERS = (VariableBinder, ReflectedBinder)
 
 FunEntry = tuple[Term, AbstractionType]
 ValueEntry = tuple[Term, Type]
@@ -67,8 +67,15 @@ def visible_vars(ctx: TypingContext) -> list[tuple[Name, Type]]:
     to hide fitness helpers, ADT projectors, recursors, …) is a no-op for the
     type-directed grammar.
     """
-    scope = GrammarScope.from_context(ctx)
-    return [(term.name, typ) for ref in scope.visible_levels() for term, typ in [ref.lower(scope)]]
+    latest: dict[str, tuple[Name, Type]] = {}
+    for e in ctx.entries:
+        if isinstance(e, (RefinementBinder, UninterpretedBinder)):
+            # Logical predicates and SMT projections have no executable value.
+            # They still shadow an earlier runtime binding of the same name.
+            latest.pop(e.name.name, None)
+        elif isinstance(e, _VALUE_BINDERS):
+            latest[e.name.name] = (e.name, e.type)
+    return list(latest.values())
 
 
 @dataclass(frozen=True)

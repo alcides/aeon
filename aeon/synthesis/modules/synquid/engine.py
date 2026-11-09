@@ -214,7 +214,10 @@ def _materialize_term(term, assignment, state):
             _materialize_term(term.body, assignment, state), state.materialize(term.type, assignment)
         )
     if isinstance(term, RefinementApplication):
-        return RefinementApplication(_materialize_term(term.body, assignment, state), term.refinement)
+        argument = term.refinement
+        if isinstance(argument, ImplicitRefinementHole) and argument.name in state.predicates:
+            argument = state.materialize_predicate(argument.name, assignment)
+        return RefinementApplication(_materialize_term(term.body, assignment, state), argument)
     if isinstance(term, Application):
         return Application(
             _materialize_term(term.fun, assignment, state), _materialize_term(term.arg, assignment, state)
@@ -412,9 +415,18 @@ def _eliminations(
                 inner = type_substitution(inner.body, tv, instance)
                 head = TypeApplication(head, instance)
             else:
-                predicate = branch_state.refinement_parameter(inner.sort)
-                inner = instantiate_refinement_with_horn_in_type(inner.body, inner.name, inner.sort, predicate.name)
-                head = RefinementApplication(head, ImplicitRefinementHole(fresh_name("implicit")))
+                from aeon.core.substitutions import instantiate_refinement_in_type
+                from aeon.synthesis.grammar.poly import predicate_argument
+                from aeon.synthesis.modules.tdsyn.helpers import result_predicate
+
+                retained = result_predicate(inner.body, inner.name, inner.sort, ret_t)
+                if retained is not None:
+                    head = RefinementApplication(head, predicate_argument(ctx, retained, inner.sort))
+                    inner = instantiate_refinement_in_type(inner.body, inner.name, retained)
+                else:
+                    predicate = branch_state.refinement_parameter(inner.sort)
+                    inner = instantiate_refinement_with_horn_in_type(inner.body, inner.name, inner.sort, predicate.name)
+                    head = RefinementApplication(head, ImplicitRefinementHole(predicate.name))
         application = ApplicationState.start(branch_state, inner, ret_t)
         yield from _application_terms(ctx, level, head, application, skip, mem)
 

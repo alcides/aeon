@@ -35,6 +35,13 @@ results and remaining limitations across ten backends.
 
 Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
 
+For a fixed-size Boolean list, checked constructor measure equations determine
+the spine before decoding. Each codon controls one Boolean preference; SMT
+repairs choices that would violate the field or result refinements. This avoids
+spending generations guessing a length already fixed by the type. Evolution
+and `@maximize` still choose among feasible masks. SMT-only functions and field
+projections are excluded from the executable grammar.
+
 Population size is chosen from a timing probe of the first ten random individuals so that initial evaluation uses at most 10% of the wall-clock budget. Crossover rate and mutation rate are sampled randomly each run; tournament size, novelty rate and related operator knobs are re-sampled every generation. Elitism keeps the best 5% of the population. Fitness comes from the synthesis decorators (`@minimize_*`, `@maximize_*`, `@property`, …). When objectives are present the shared Pareto driver returns a random non-dominated candidate; otherwise the first well-typed term wins. No GeneticEngine dependency.
 
 Best suited for problems with a rich fitness landscape and sufficient budget.
@@ -279,6 +286,12 @@ this backend does not jointly solve coupled holes.
 ### `synquid` — Type-Directed Synthesis
 
 This backend implements round-trip checking, incremental shape/refinement constraints, MUSFIX condition abduction, polymorphic function and fixpoint introduction, and datatype match synthesis. See [the implementation and validation notes](synquid-round-trip.md) for supported fragments, bounds, and differences from PLDI 2016 Synquid.
+
+Fixed-size Boolean lists use the same constructor-measure analysis as CP-SAT
+and GP, followed by enumeration of feasible scalar assignments. The result's
+retained relations instantiate constructors directly; inferred predicates are
+materialized from the solved assignment rather than replaced with fresh
+inference holes. Every candidate still undergoes normal whole-program validation.
 
 **Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, `synquid_max_candidates`, and `synquid_typecheck_candidate_first`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Term memoization is disabled because `(context, level, goal)` does not identify the pending constraint state.
 

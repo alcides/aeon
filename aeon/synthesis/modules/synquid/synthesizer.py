@@ -87,13 +87,21 @@ class SynquidSynthesizer(Synthesizer):
         n_candidates = 0
         search_type = type
 
+        from aeon.synthesis.fixed_data import FixedBooleanList
+
+        fixed_data = FixedBooleanList.build(ctx, type, skip, mem["synquid_deadline"])
+
         def close_candidate(term):
             return term
 
         # Surface declarations already contain TABS/ABS around a scalar hole.
         # Reconstruct the complete schema for FIX, then apply the verified local
         # function to those existing parameters. The outer program is untouched.
-        if not is_recursion_allowed and not isinstance(type, (TypePolymorphism, AbstractionType)):
+        if (
+            fixed_data is None
+            and not is_recursion_allowed
+            and not isinstance(type, (TypePolymorphism, AbstractionType))
+        ):
             from aeon.synthesis.modules.synquid.functions import enclosing_function
 
             prepared = enclosing_function(ctx, fun_name, type)
@@ -145,6 +153,16 @@ class SynquidSynthesizer(Synthesizer):
             if get_elapsed_time(start_time) > budget:
                 done = False
             return False
+
+        if fixed_data is not None:
+            for result in fixed_data.candidates():
+                if max_candidates is not None and n_candidates >= max_candidates:
+                    return finish()
+                n_candidates += 1
+                if consider(result):
+                    return result
+                if not done:
+                    return finish()
 
         if search_mode == "paper":
             from itertools import islice

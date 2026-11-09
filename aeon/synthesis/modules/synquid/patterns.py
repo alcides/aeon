@@ -29,15 +29,18 @@ from aeon.errors import AeonError
 from aeon.verification.constructor_registry import get_constructor_groups
 
 
-def _predicate_term(predicate, assignment):
+def _predicate_term(predicate, assignment, context, sort):
     """Close a solved logical predicate as the recursor's explicit argument."""
     from aeon.core.liquid import LiquidPredicate
-    from aeon.core.predicates import predicate_to_term
-    from aeon.verification.horn import apply_liquid
+    from aeon.synthesis.grammar.poly import predicate_argument
+    from aeon.verification.horn import apply_liquid, obtain_holes
 
     if not isinstance(predicate, LiquidPredicate):
         predicate = LiquidPredicate(tuple(arg.name for arg, _ in predicate.argtypes), predicate)
-    return predicate_to_term(LiquidPredicate(predicate.parameters, apply_liquid(assignment, predicate.body)))
+    body = apply_liquid(assignment, predicate.body)
+    if obtain_holes(body):
+        return None
+    return predicate_argument(context, LiquidPredicate(predicate.parameters, body), sort)
 
 
 def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=None):
@@ -129,7 +132,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                     arg = next(args, None)
                     # The final type parameter is the result motive.
                     arg = erase(goal) if arg is None else arg
-                    spine.append(("T", arg))
+                    spine.append(("T", arg, None))
                     assert isinstance(safe_inst, TypePolymorphism)
                     safe_inst = type_substitution(safe_inst.body, safe_inst.name, arg)
                     inst = type_substitution(inst.body, inst.name, arg)
@@ -140,11 +143,11 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                     if predicate_index < len(precise.refinements):
                         # An invariant datatype parameter is already known;
                         # matching needs no search for a replacement relation.
-                        spine.append(("S", retained))
+                        spine.append(("S", retained, inst.sort))
                         inst = instantiate_refinement_in_type(inst.body, inst.name, retained)
                     else:
                         predicate = child.refinement_parameter(inst.sort)
-                        spine.append(("R", predicate))
+                        spine.append(("R", predicate, inst.sort))
                         inst = instantiate_refinement_with_horn_in_type(inst.body, inst.name, inst.sort, predicate.name)
                     predicate_index += 1
             if not isinstance(inst, AbstractionType):
@@ -166,7 +169,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                 skeleton = Hole(fresh_name("case"))
                 for n in reversed(fields):
                     skeleton = Abstraction(n, skeleton)
-                if any(kind == "R" for kind, _ in spine):
+                if any(kind == "R" for kind, _, _ in spine):
                     child.add(
                         match_refinement_obligation(
                             child.context, skeleton, safe_rest.var_type, case_type, datatype.name.name, case_name, scrut
@@ -187,18 +190,24 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                         return
                     for assignment in partial.assignments:
                         term = Var(rec_name)
-                        for kind, arg in spine:
-                            term = (
-                                TypeApplication(term, partial.materialize(arg, assignment))
-                                if kind == "T"
-                                else RefinementApplication(term, _predicate_term(arg, assignment))
-                            )
-                        term = Application(term, scrut)
-                        for body in bodies:
-                            term = Application(term, _materialize_term(body, assignment, partial))
-                        if _local_check(body_ctx, term, goal, partial):
-                            state.stats.matches += 1
-                            yield term if scrut is scrutinee else Let(scrut.name, scrutinee, term)
+                        for kind, arg, sort in spine:
+                            if kind == "T":
+                                term = TypeApplication(term, partial.materialize(arg, assignment))
+                            else:
+                                predicate = _predicate_term(
+                                    arg, assignment, partial.resolve_context(body_ctx), partial.resolve(sort)
+                                )
+                                if predicate is None:
+                                    partial.stats.record(Status.UNSUPPORTED)
+                                    break
+                                term = RefinementApplication(term, predicate)
+                        else:
+                            term = Application(term, scrut)
+                            for body in bodies:
+                                term = Application(term, _materialize_term(body, assignment, partial))
+                            if _local_check(body_ctx, term, goal, partial):
+                                state.stats.matches += 1
+                                yield term if scrut is scrutinee else Let(scrut.name, scrutinee, term)
                     return
                 case_name, fields, evidence = cases[index]
                 if evidence is None:

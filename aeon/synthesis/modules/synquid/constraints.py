@@ -451,3 +451,16 @@ class ConstraintState:
     def materialize(self, ty: Type, assignment: Assignment | None = None) -> Type:
         ty = self.resolve(ty)
         return map_refinements(ty, assignment if assignment is not None else self.assignments[0])
+
+    def materialize_predicate(self, name: Name, assignment: Assignment):
+        """Emit the predicate we solved, rather than asking inference for a new one."""
+        from aeon.core.liquid import LiquidPredicate
+        from aeon.synthesis.grammar.poly import predicate_argument
+
+        occurrence = self.resolve_liquid(self.predicates[name].occurrence)
+        parameters = tuple(arg.name for arg, _ in occurrence.argtypes)
+        sort: Type = t_bool
+        for arg, domain in reversed(occurrence.argtypes):
+            sort = AbstractionType(arg.name, domain, sort)
+        predicate = LiquidPredicate(parameters, apply_liquid(assignment, occurrence))
+        return predicate_argument(self.resolve_context(self.context), predicate, sort)

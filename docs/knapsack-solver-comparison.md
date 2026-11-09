@@ -1,8 +1,8 @@
 # 50-item knapsack solver comparison
 
-Run on 2026-11-09 at `b3e7eae74ebfcf2db393377aff64e5839a6dfc72`,
+Initial run on 2026-11-09 at `b3e7eae74ebfcf2db393377aff64e5839a6dfc72`,
 after merging #680 and #684. The example is unchanged:
-[`knapsack_50.ae`](../examples/synthesis/puzzle/knapsack_50.ae) returns a
+[`knapsack_50.ae`](https://github.com/alcides/aeon/blob/master/examples/synthesis/puzzle/knapsack_50.ae) returns a
 50-node Boolean `Mask`, with count and weight tracked logically. Capacity is
 100 and `@maximize` scores the selected values.
 
@@ -50,14 +50,45 @@ Both crashes were reproduced with the same runner, seeds, and limits on the
 merged master (`1e032a14cce6d04fe9c0c13d42c28ecbf5e8cc34`), before these two
 optimizations: GP failed with the identical missing `fits` function assertion
 after 54.4 seconds and Synquid with the identical predicate error after 13.2
-seconds. They remain pre-existing bugs, rather than regressions from this
-change.
+seconds. These failures preceded the performance changes. The follow-up below
+fixes their generation paths.
 
 The constructor-sharing change reduces repeated proof expansion when a
 backend reaches validation. It does not change the backend's grammar, depth
 limits, or search strategy. Incremental Synquid queries reuse validity
 obligations, but do not provide a specialized generator for a 50-node mask.
 These optimizations therefore do not make every backend solve this example.
+
+## GP and Synquid generation fixes
+
+A second run on the same day, with the same example, seeds, limits, and
+independent result checks, produced valid masks from both backends:
+
+| Backend | First valid candidate, seconds | Synthesis seconds | Total seconds | Weight | Value |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `gp` | 32.5 | 62.3 | 69.3 | 99 | 538 |
+| `synquid` | 32.3 | 61.5 | 68.4 | 100 | 459 |
+
+Both results contain exactly 50 Booleans. They are feasible, not optimal; the
+optimum remains 1077. Final validation still slightly overruns the search
+budget. The changes address three generation problems:
+
+- GP's component library admitted SMT-only projections, including
+  `Mask_cons_used`. These are logical functions without executable values and
+  now stay out of the grammar while still shadowing older bindings.
+- Synquid replaced solved abstract predicates with unrelated implicit holes.
+  It now retains goal relations and emits the predicate assignment it solved,
+  with operator instantiations elaborated for Core checking. A match requiring
+  an unresolved predicate is skipped rather than crashing the entire search.
+- Both solvers searched for the list spine even though the type fixes its
+  length. They now share the existing CP-SAT constructor-schema analysis to
+  unroll fixed-size Boolean lists. GP evolves each Boolean preference, with
+  feasibility checks repairing invalid choices. Synquid enumerates feasible
+  assignments. Neither delegates its objective search to CP-SAT.
+
+Field refinements, tail preconditions, and the final result predicate all
+remain in the generation constraints. Unknown SMT answers produce no model,
+and every proposed term still passes normal validation before acceptance.
 
 ## Reproduce
 

@@ -20,7 +20,7 @@ from aeon.core.terms import (
     ImplicitRefinementHole,
 )
 from aeon.core.types import Type, TypePolymorphism, RefinementPolymorphism, AbstractionType, t_int, t_bool, t_string
-from aeon.synthesis.modules.synquid.constraints import ConstraintState, fresh_name
+from aeon.synthesis.modules.synquid.constraints import ConstraintState
 from aeon.synthesis.modules.synquid.round_trip import ApplicationState
 from aeon.synthesis.modules.synquid.solver import Status
 from aeon.typechecking.typeinfer import synth
@@ -63,7 +63,7 @@ def infer_terms(ctx, level, skip, mem, state):
                 typ = type_substitution(typ.body, typ.name, instance)
             else:
                 predicate = child.refinement_parameter(typ.sort)
-                head = RefinementApplication(head, ImplicitRefinementHole(fresh_name("implicit")))
+                head = RefinementApplication(head, ImplicitRefinementHole(predicate.name))
                 typ = instantiate_refinement_with_horn_in_type(typ.body, typ.name, typ.sort, predicate.name)
         if not isinstance(typ, AbstractionType):
             if isinstance(head, Var):
