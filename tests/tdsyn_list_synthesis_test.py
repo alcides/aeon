@@ -18,8 +18,9 @@ from aeon.utils.name import Name
     ]
     + [("tdsyn_enumerative", 12, 42)],
 )
-def test_synthesize_exact_list_length(backend, length, first):
-    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), 20))
+@pytest.mark.parametrize("expansion", ["eager", "lazy"])
+def test_synthesize_exact_list_length(backend, length, first, expansion):
+    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), 20, tdsyn_expansion=expansion))
     refinement = f"List.size xs = {length}"
     if first is not None:
         refinement += f" && List.first xs = {first}"

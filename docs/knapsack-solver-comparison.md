@@ -116,3 +116,29 @@ per-backend logs, JSON results, successful Boolean decisions, and an aggregate
 earlier invocation is cleared before each backend starts. To compare an older
 checkout, run this script by its absolute path with that checkout as the
 working directory.
+
+Compare TDSyn expansion strategies with separate output directories:
+
+```bash
+python scripts/bench_knapsack_solvers.py --backends tdsyn_backward tdsyn_enumerative \
+  --budget 30 --tdsyn-expansion eager --output /tmp/knapsack-eager
+python scripts/bench_knapsack_solvers.py --backends tdsyn_backward tdsyn_enumerative \
+  --budget 30 --tdsyn-expansion lazy --output /tmp/knapsack-lazy
+```
+
+The result JSON records `tdsyn_expansion`. Lazy expansion changes when alternatives
+are checked and their visitation order; it retains the same final validation.
+
+A smoke check of `tdsyn_enumerative` with seed 0 and a 30-second synthesis budget
+produced the following results. These single runs overlapped regression jobs
+and are not a controlled speedup measurement.
+
+| Expansion | Outcome | Total seconds | Weight | Value |
+| --- | --- | ---: | ---: | ---: |
+| `eager` | No solution within budget | 37.2 | — | — |
+| `lazy` | Feasible solution | 49.2 | 98 | 615 |
+
+The lazy result's 50 Boolean decisions, weight, and value were independently
+checked by the runner. Its first validated solution arrived after 42.0 seconds
+of synthesis: final validation still overruns the search deadline. This result
+is feasible, not optimal.

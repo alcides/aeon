@@ -79,6 +79,12 @@ def _parse_common_arguments(parser: ArgumentParser):
     )
     parser.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
     parser.add_argument(
+        "--tdsyn-expansion",
+        choices=("eager", "lazy"),
+        default="eager",
+        help="TDSyn expansion strategy: prepare all alternatives or generate them on demand (default: eager).",
+    )
+    parser.add_argument(
         "-l",
         "--log",
         nargs="+",
@@ -392,6 +398,7 @@ def main() -> None:
         synthesizer=args.synthesizer,
         synthesis_ui=select_synthesis_ui(verbose=getattr(args, "verbose_synthesis", False)),
         synthesis_budget=args.budget,
+        tdsyn_expansion=args.tdsyn_expansion,
         timings=args.timings,
         # ``--export`` forces ``no_main`` (no synthesis hole in main), but
         # property evaluation splices the call into the program's main slot, so

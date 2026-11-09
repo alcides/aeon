@@ -33,6 +33,7 @@ p.add_argument("--budget", type=int, default=60)
 p.add_argument("--wall-limit", type=int, default=180)
 p.add_argument("--output", required=True)
 p.add_argument("--backends", nargs="+", choices=BACKENDS, default=BACKENDS)
+p.add_argument("--tdsyn-expansion", choices=("eager", "lazy"), default="eager")
 a = p.parse_args()
 if a.budget <= 0 or a.wall_limit <= 5:
     p.error("budget must be positive and wall-limit must exceed 5 seconds")
@@ -55,7 +56,7 @@ if a.child:
     from aeon.synthesis.api import UnsupportedSynthesisGoal, SynthesisNotSuccessful
 
     started = time.monotonic()
-    result = {"backend": a.child, "budget_seconds": a.budget}
+    result = {"backend": a.child, "budget_seconds": a.budget, "tdsyn_expansion": a.tdsyn_expansion}
 
     class UI(SilentSynthesisUI):
         synthesis_start: float | None = None
@@ -78,7 +79,7 @@ if a.child:
 
     ui = UI()
     try:
-        driver = AeonDriver(AeonConfig(a.child, ui, a.budget, strict_decidable=True))
+        driver = AeonDriver(AeonConfig(a.child, ui, a.budget, strict_decidable=True, tdsyn_expansion=a.tdsyn_expansion))
         errors = list(driver.parse(filename=example))
         if errors:
             raise RuntimeError(str(errors))
@@ -125,6 +126,7 @@ else:
         "wall_limit_seconds": a.wall_limit,
         "seed": 0,
         "python_hash_seed": 0,
+        "tdsyn_expansion": a.tdsyn_expansion,
         "results": [],
     }
     for backend in a.backends:
@@ -140,6 +142,8 @@ else:
             backend,
             "--budget",
             str(a.budget),
+            "--tdsyn-expansion",
+            a.tdsyn_expansion,
             "--wall-limit",
             str(a.wall_limit),
             "--output",

@@ -594,6 +594,23 @@ Top-down, type-directed synthesizer that grows a partial AST by applying **backw
 
 Full synthesis is limited by the time budget, with no fixed depth or expansion-count cap. Breadth-first exploration alternates with constructor continuations so that deep data can be built while other expressions remain in the search. Structural holes are expanded before scalar payloads, which SMT can complete jointly. If no optimization goals are present, the first valid term is returned; otherwise candidates contribute to the shared Pareto front.
 
+Use `--tdsyn-expansion eager|lazy` to compare expansion strategies across
+`tdsyn`, `tdsyn_enumerative`, `tdsyn_backward`, and `tdsyn_random`. The default
+is `eager`, which prepares and checks every alternative before continuing.
+`lazy` constructs and checks alternatives on demand. BFS keeps resumable
+expansions in its ordinary queue, allowing constructor children to progress
+through the guided queue while postponed siblings still receive FIFO turns.
+Both modes use the same productions, feasibility checks, final validation,
+and objective evaluation. Their visitation order can differ.
+
+```bash
+python -m aeon -s tdsyn_backward --tdsyn-expansion eager --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+python -m aeon -s tdsyn_backward --tdsyn-expansion lazy --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+```
+
+Python callers can use `AeonConfig(..., tdsyn_expansion="lazy")` or
+`TDSynSynthesizer(..., expansion="lazy")`.
+
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
 
 Property-test input generation has a separate, explicitly bounded sampling API; its caller-supplied limits do not limit full synthesis.
@@ -629,6 +646,12 @@ cleared between compilation sessions.
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)
 
 Same expansion rules as `tdsyn`, using random walks with a preference for constructor expansions. Walks prioritize structural holes and check available completions before growing deeper. Probabilistic restarts avoid spending the whole budget on one unproductive walk; there is no maximum walk length. SMT solves the remaining scalar leaves jointly.
+
+With lazy expansion, random walks shuffle production descriptions before
+checking them and take the first usable child. They try constructor productions
+first on 90% of steps, falling back to ordinary productions when necessary.
+This avoids checking all siblings, but changes the sampling distribution from
+eager random search; the flag is not a promise of identical seeded candidates.
 
 ---
 

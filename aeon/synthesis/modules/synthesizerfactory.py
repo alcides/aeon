@@ -277,7 +277,7 @@ def synthesizer_menu_ids() -> list[str]:
     return sort_synthesizer_ids(sorted(ids))
 
 
-def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
+def make_synthesizer(module: str, *, tdsyn_expansion: str = "eager") -> Synthesizer | ProgramSynthesizer:
     validate_synthesizer(module)
     # The random seed for stochastic backends is taken from the AEON_SEED
     # environment variable (default 0), so experiments can vary it across runs
@@ -328,11 +328,11 @@ def make_synthesizer(module: str) -> Synthesizer | ProgramSynthesizer:
         case "polynomial":
             return PolynomialSynthesizer()
         case "tdsyn" | "tdsyn_enumerative":
-            return TDSynSynthesizer(mode="enumerative", seed=seed)
+            return TDSynSynthesizer(mode="enumerative", seed=seed, expansion=tdsyn_expansion)
         case "tdsyn_random":
-            return TDSynSynthesizer(mode="random", seed=seed)
+            return TDSynSynthesizer(mode="random", seed=seed, expansion=tdsyn_expansion)
         case "tdsyn_backward":
-            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="backward")
+            return TDSynSynthesizer(mode="enumerative", seed=seed, direction="backward", expansion=tdsyn_expansion)
         case (
             "backward_abs"
             | "backward_lit"

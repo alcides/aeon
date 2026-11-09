@@ -5,6 +5,7 @@ from itertools import count
 from heapq import heappop, heappush
 from collections import deque
 from collections.abc import Iterator
+from dataclasses import dataclass
 from time import monotonic_ns
 from typing import Callable
 
@@ -29,6 +30,8 @@ from aeon.synthesis.modules.tdsyn.actions import (
     forward_let_if_candidates,
     forward_let_tabs_candidates,
     forward_let_tapp_candidates,
+    iter_backward_candidates,
+    iter_forward_candidates,
 )
 from aeon.synthesis.modules.tdsyn.helpers import (
     bind_constructor_arguments,
@@ -56,6 +59,13 @@ from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
 _loc = SynthesizedLocation("tdsyn")
+
+
+@dataclass
+class PendingExpansion:
+    partial: PartialAST
+    hole: TypedHole
+    children: Iterator[PartialAST]
 
 
 def _get_elapsed_time(start_time: int) -> float:
@@ -101,11 +111,14 @@ class TDSynSynthesizer(Synthesizer):
 
     supports_size_objective = True
 
-    def __init__(self, mode: str = "enumerative", seed: int = 0, *, direction: str = "both"):
+    def __init__(self, mode: str = "enumerative", seed: int = 0, *, direction: str = "both", expansion: str = "eager"):
         assert mode in ("enumerative", "random")
         assert direction in ("both", "backward")
+        if expansion not in ("eager", "lazy"):
+            raise ValueError(f"Unknown TDSyn expansion mode: {expansion}")
         self.mode = mode
         self.direction = direction
+        self.expansion = expansion
         self.seed = seed
         self._rng = random.Random(seed)
         self._iteration = 0
@@ -261,6 +274,44 @@ class TDSynSynthesizer(Synthesizer):
 
         return results
 
+    def _iter_expansions(
+        self,
+        partial: PartialAST,
+        hole: TypedHole,
+        skip: Callable[[Name], bool],
+        max_depth: int | None = None,
+        *,
+        rng: random.Random | None = None,
+        constructors_only: bool = False,
+    ) -> Iterator[PartialAST]:
+        """Construct and check one production at a time, on consumer demand."""
+        actions = [iter_backward_candidates(hole, skip, rng, constructors_only=constructors_only)]
+        if self.direction == "both" and not constructors_only:
+            actions.append(iter_forward_candidates(hole, skip, rng))
+        for candidates in actions:
+            try:
+                while monotonic_ns() * 1e-9 < deadline.get():
+                    candidate = next(candidates, None)
+                    if candidate is None:
+                        break
+                    replacement, new_holes = candidate
+                    new_depth = partial.depth + (1 if new_holes else 0)
+                    if max_depth is None or new_depth <= max_depth:
+                        yield expand_at_hole(partial, hole, replacement, new_holes, new_depth)
+            except Exception as error:
+                logger.debug(f"tdsyn: lazy action failed: {error}")
+
+    def _walk_expansions(self, partial, hole, skip, rng, max_depth=None):
+        """Try randomized constructor productions first on most lazy walks.
+
+        Randomize production descriptions before their feasibility checks.
+        The consumer stops at the first usable child, without scanning all
+        siblings as the eager random walk does.
+        """
+        if rng.random() < 0.9:
+            yield from self._iter_expansions(partial, hole, skip, max_depth, rng=rng, constructors_only=True)
+        yield from self._iter_expansions(partial, hole, skip, max_depth, rng=rng)
+
     def iter_input_candidates(
         self,
         ctx: TypingContext,
@@ -297,10 +348,16 @@ class TDSynSynthesizer(Synthesizer):
                         partial = PartialAST(self._rng.choice(solved), [], partial.depth)
                         break
                     hole = self._rng.choice(partial.holes)
-                    options = self._expand_hole(partial, hole, skip, max_depth)
-                    if not options:
-                        break
-                    partial = self._rng.choice(options)
+                    if self.expansion == "lazy":
+                        selected = next(self._walk_expansions(partial, hole, skip, self._rng, max_depth), None)
+                        if selected is None:
+                            break
+                        partial = selected
+                    else:
+                        options = self._expand_hole(partial, hole, skip, max_depth)
+                        if not options:
+                            break
+                        partial = self._rng.choice(options)
                 yield partial.term if partial.is_complete() else None
             return
 
@@ -317,7 +374,12 @@ class TDSynSynthesizer(Synthesizer):
                     yield candidate
             if partial.is_complete():
                 continue
-            for expanded in self._expand_hole(partial, partial.holes[0], skip, max_depth):
+            expansions = (
+                self._iter_expansions(partial, partial.holes[0], skip, max_depth)
+                if self.expansion == "lazy"
+                else iter(self._expand_hole(partial, partial.holes[0], skip, max_depth))
+            )
+            for expanded in expansions:
                 complete = [expanded.term] if expanded.is_complete() else completions(expanded)
                 for candidate in complete:
                     if candidate not in seen:
@@ -348,43 +410,57 @@ class TDSynSynthesizer(Synthesizer):
         """
         self._iteration += 1
         tickets = count()
-        worklist = deque([(next(tickets), initial, True)])
+        worklist: deque[tuple[int, PartialAST | PendingExpansion, bool]] = deque([(next(tickets), initial, True)])
         constructors: list[tuple[int, int, PartialAST]] = []
         visited: set[int] = set()
         guided_turn = False
+        work: PartialAST | PendingExpansion
 
         while worklist or constructors:
             if _get_elapsed_time(start_time) > budget:
                 break
 
             if constructors and (guided_turn or not worklist):
-                _, ticket, partial = heappop(constructors)
+                _, ticket, work = heappop(constructors)
                 constructive = True
             else:
-                ticket, partial, constructive = worklist.popleft()
+                ticket, work, constructive = worklist.popleft()
             guided_turn = not guided_turn
             if ticket in visited:
                 continue
             visited.add(ticket)
 
-            if partial.is_complete():
-                front, early = self._try_complete(partial, validate, evaluate, start_time, ui, front)
+            if isinstance(work, PendingExpansion):
+                partial, hole, expanded = work.partial, work.hole, work.children
+            else:
+                partial = work
+                if partial.is_complete():
+                    front, early = self._try_complete(partial, validate, evaluate, start_time, ui, front)
+                    if early is not None:
+                        return front, early
+                    continue
+
+                # Try SMT completion if all holes are leaf-solvable.
+                front, early, _ = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
                 if early is not None:
                     return front, early
-                continue
 
-            # Try SMT completion if all holes are leaf-solvable
-            front, early, _ = self._try_smt_complete(partial, validate, evaluate, start_time, ui, front)
-            if early is not None:
-                return front, early
-
-            # Leave scalar payloads for joint SMT completion.
-            hole = next((h for h in partial.holes if not all_leaf_holes([h])), partial.holes[0])
-            expanded = self._expand_hole(partial, hole, skip)
+                # Leave scalar payloads for joint SMT completion.
+                hole = next((h for h in partial.holes if not all_leaf_holes([h])), partial.holes[0])
+                expanded = (
+                    self._iter_expansions(partial, hole, skip)
+                    if self.expansion == "lazy"
+                    else iter(self._expand_hole(partial, hole, skip))
+                )
 
             for new_partial in expanded:
                 if _get_elapsed_time(start_time) > budget:
                     break
+                if self.expansion == "lazy":
+                    # Resume siblings through the ordinary queue. A constructor
+                    # child can progress immediately through the guided lane;
+                    # postponed alternatives still receive fair FIFO turns.
+                    worklist.append((next(tickets), PendingExpansion(partial, hole, expanded), constructive))
                 if new_partial.is_complete():
                     front, early = self._try_complete(new_partial, validate, evaluate, start_time, ui, front)
                     if early is not None:
@@ -399,6 +475,8 @@ class TDSynSynthesizer(Synthesizer):
                     worklist.append((ticket, new_partial, follows_constructors))
                     if follows_constructors:
                         heappush(constructors, (-new_partial.depth, ticket, new_partial))
+                if self.expansion == "lazy":
+                    break
 
         return front, None
 
@@ -437,7 +515,30 @@ class TDSynSynthesizer(Synthesizer):
                 structural = [h for h in partial.holes if not all_leaf_holes([h])]
                 hole = rng.choice(structural or partial.holes)
 
-                # Get all candidates from the selected directions
+                if self.expansion == "lazy":
+                    selected = None
+                    for candidate in self._walk_expansions(partial, hole, skip, rng):
+                        if _get_elapsed_time(start_time) >= budget:
+                            break
+                        front, early = self._try_complete(candidate, validate, evaluate, start_time, ui, front)
+                        if early is None:
+                            front, early, _ = self._try_smt_complete(
+                                candidate, validate, evaluate, start_time, ui, front
+                            )
+                        if early is not None:
+                            return front, early
+                        selected = candidate
+                        break
+                    # A complete (possibly rejected) proposal ends this walk.
+                    # Do not enumerate its siblings or grow another expression
+                    # inside the same failed structure before restarting.
+                    if selected is None or selected.is_complete() or (steps and rng.random() < 1 / (steps + 2)):
+                        break
+                    partial = selected
+                    steps += 1
+                    continue
+
+                # Get all candidates from the selected directions.
                 all_candidates: list[PartialAST] = self._expand_hole(partial, hole, skip)
 
                 if not all_candidates:
