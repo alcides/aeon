@@ -523,9 +523,35 @@ def _synthesize_one(
         synthesis_metadata = dict(synthesis_metadata)
         synthesis_metadata[fun_name] = dict(synthesis_metadata.get(fun_name, {})) | {"pbe_probe": _pbe_probe}
 
+    from aeon.synthesis.typeclasses import prepare_typeclass_components
+
+    prepared_at = time.monotonic()
+    components = prepare_typeclass_components(tyctx, ty, exclude=frozenset({fun_name}), deadline=prepared_at + budget)
+    budget = max(0.0, budget - (time.monotonic() - prepared_at))
+    if components.definitions:
+        original_validator, original_evaluator, original_output = validator, evaluator, output_evaluator
+
+        def validator(candidate):
+            return original_validator(components.expand(candidate))
+
+        def evaluator(candidate):
+            return original_evaluator(components.expand(candidate))
+
+        if original_output is not None:
+
+            def output_evaluator(candidate):
+                return original_output(components.expand(candidate))
+
+        probe = synthesis_metadata.get(fun_name, {}).get("pbe_probe")
+        if probe is not None:
+            synthesis_metadata = dict(synthesis_metadata)
+            synthesis_metadata[fun_name] = dict(synthesis_metadata[fun_name]) | {
+                "pbe_probe": lambda term, values: probe(components.expand(term), values)
+            }
+
     try:
         t = syn_impl.synthesize(
-            ctx=tyctx,
+            ctx=components.context,
             type=ty,
             validate=validator,
             evaluate=evaluator,
@@ -539,8 +565,10 @@ def _synthesize_one(
             raise SynthesisNotSuccessful("returned candidate violates @bounded_cnf or its type")
         # Interactive one-step tactics may intentionally leave subgoals. Every
         # complete result must pass the same oracle even if a backend skipped it.
-        if check_specs and t is not None and not term_has_holes(t) and not validator(t):
+        if (check_specs or components.definitions) and t is not None and not term_has_holes(t) and not validator(t):
             t = None
+        if t is not None:
+            t = components.expand(t)
     except Exception as e:
         ui.end(None, None)
         raise e
@@ -604,11 +632,16 @@ def _synthesize_joint(
     if set(names) != set(get_holes(prog)):
         raise UnsupportedSynthesisGoal("Joint search requires every program hole in the target list")
 
+    from aeon.synthesis.typeclasses import TypeclassComponents, prepare_typeclass_components
+
+    components: dict[Name, TypeclassComponents] = {}
+
     def replace(candidate: Term) -> Term:
         if not isinstance(candidate, JointCandidate) or len(candidate.terms) != len(names):
             raise InvalidIndividualException()
         result = prog
         for name, value in zip(names, candidate.terms):
+            value = components[name].expand(value)
             if term_has_holes(value):
                 raise InvalidIndividualException()
             result = substitution(result, value, name)
@@ -643,12 +676,22 @@ def _synthesize_joint(
     joint_name = Name("$joint", 0)
     synthesis_metadata = dict(metadata)
     synthesis_metadata[joint_name] = {"goals": goals}
+    prepared_at = monotonic()
+    for name in names:
+        components[name] = prepare_typeclass_components(
+            without_excluded_names(shadow_fitness_helpers(info[name][1], synthesis_metadata)),
+            info[name][0],
+            exclude=frozenset(open_targets),
+            owner=owners[name],
+            deadline=prepared_at + budget,
+        )
+    budget = max(0.0, budget - (monotonic() - prepared_at))
     holes = tuple(
         HoleSpec(
             name,
             owners[name],
             info[name][0],
-            without_excluded_names(shadow_fitness_helpers(info[name][1], synthesis_metadata)),
+            components[name].context,
         )
         for name in names
     )
@@ -736,7 +779,7 @@ def _synthesize_joint(
         ui.end(result, None)
     if result is None:
         return {name: None for name in names}
-    return dict(zip(names, result.terms))
+    return {name: components[name].expand(value) for name, value in zip(names, result.terms)}
 
 
 def _mutual_group_ids(term: Term) -> dict[Name, Optional[int]]:

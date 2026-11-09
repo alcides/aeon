@@ -398,6 +398,7 @@ class TypeDecl(Node):
     """Declared as ``linear type``: binders of this type must be at multiplicity 1."""
 
     arg_kinds: tuple[Kinding, ...] = field(default_factory=tuple)
+    is_typeclass: bool = False
 
     def __str__(self):
         args = " ".join(str(arg) for arg in self.args)
@@ -422,6 +423,7 @@ class InductiveDecl(Node):
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
     arg_kinds: tuple[Kinding, ...] = field(default_factory=tuple)
+    is_typeclass: bool = False
 
     def __post_init__(self):
         assert isinstance(self.name, Name)

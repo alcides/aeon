@@ -1,0 +1,9 @@
+# The result type b is abstract: use the supplied Convert dictionary.
+class Convert (a:B) (b:B) where
+    convert : (x:a) -> b;
+
+instance : Convert Int Bool where
+    convert x := x > 0;
+
+def applyConvert [Convert a b] (x:a) : b := ?body;
+def main (args:Int) : Bool := applyConvert 5;

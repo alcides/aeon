@@ -150,6 +150,7 @@ def expand_typeclasses(p: Program) -> Program:
                 name=cname,
                 args=list(type_param_names),
                 arg_kinds=tuple(k for _, k in cls.type_params),
+                is_typeclass=True,
                 rforalls=[],
                 constructors=[cons],
                 measures=[],

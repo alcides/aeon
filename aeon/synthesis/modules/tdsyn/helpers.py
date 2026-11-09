@@ -25,6 +25,7 @@ from aeon.core.types import (
     Type,
     TypeConstructor,
     TypePolymorphism,
+    TypeVar,
     refined_to_unrefined_type,
     t_bool,
     t_float,
@@ -123,6 +124,9 @@ def get_param_types(ty: Type) -> list[tuple[Name, Type]]:
 
 def bases_match(t1: Type, t2: Type) -> bool:
     """Fast structural pre-check: do the base type constructors match?"""
+    left, right = refined_to_unrefined_type(t1), refined_to_unrefined_type(t2)
+    if isinstance(left, TypeVar) or isinstance(right, TypeVar):
+        return left == right
     b1 = base_type_of(t1)
     b2 = base_type_of(t2)
     if b1 is None or b2 is None:

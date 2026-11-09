@@ -138,6 +138,7 @@ def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingConte
                     [(n, bind_type(s, local)) for n, s in rforalls],
                     linear=linear,
                     arg_kinds=entry.arg_kinds,
+                    is_typeclass=entry.is_typeclass,
                 )
             case _:
                 assert False, f"Unique not supported for {ctx} ({type(ctx)})"

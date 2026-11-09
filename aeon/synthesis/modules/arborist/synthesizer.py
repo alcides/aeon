@@ -104,6 +104,15 @@ class ArboristSynthesizer(ProgramSynthesizer):
             scalar_key(output)
 
         ty, hole_ctx = get_holes_info(ctx, program, top, targets, refined_types=True)[hole]
+        from aeon.synthesis.typeclasses import prepare_typeclass_components
+        from aeon.synthesis.scope import shadow_fitness_helpers, without_excluded_names
+
+        components = prepare_typeclass_components(
+            without_excluded_names(shadow_fitness_helpers(hole_ctx, metadata)),
+            ty,
+            exclude=frozenset({function}),
+            deadline=deadline,
+        )
         result_type = refined_to_unrefined_type(ty)
         if result_type not in (t_int, t_bool):
             raise UnsupportedSynthesisGoal("arborist requires an Int or Bool expression hole")
@@ -134,6 +143,13 @@ class ArboristSynthesizer(ProgramSynthesizer):
             base = refined_to_unrefined_type(variable_type)
             if name in local_names and base in (t_int, t_bool):
                 variables.append((name, base))
+        hole_bindings = {}
+        for name, definition in components.definitions.items():
+            base = refined_to_unrefined_type(components.context.type_of(name))
+            if base in (t_int, t_bool):
+                variables.append((name, base))
+                available.add(name)
+                hole_bindings[name] = definition
         forest = Forest(
             scalar_labels(
                 variables, available, constants=self.constants, operators=self.operators, conditionals=self.conditionals
@@ -142,13 +158,19 @@ class ArboristSynthesizer(ProgramSynthesizer):
             compress=self.compress,
             max_states=self.max_states,
         )
-        interpreter = LiftedInterpreter(forest, definitions, hole, max_steps=self.max_steps)
+        interpreter = LiftedInterpreter(
+            forest, definitions, hole, max_steps=self.max_steps, typing_ctx=hole_ctx, hole_bindings=hole_bindings
+        )
         for inputs, _ in rows:
             for argument in inputs:
                 interpreter.check_data(argument)
         self.stats = forest.stats
         self.reachable = interpreter.reachable
-        replace = make_program(program, hole)
+        original_replace = make_program(program, hole)
+
+        def replace(candidate):
+            return original_replace(components.expand(candidate))
+
         validate = make_validator(ctx, replace)
 
         def runtime_check(filled: Term) -> bool:
@@ -215,12 +237,12 @@ class ArboristSynthesizer(ProgramSynthesizer):
                         "SYNTHESIZER",
                         f"arborist: {len(forest.states)} packed states, {self.stats.transitions} transitions, {self.stats.merges} merges, {len(self.reachable)} reachable contexts, {self.stats.validated} extracted candidates checked",
                     )
-                    return {hole: candidate}
+                    return {hole: components.expand(candidate)}
                 ui.progress(self.stats.transitions, self.stats.validated, monotonic() - start)
             selected = archive.result()
             if selected is not None:
                 ui.end(selected, None)
-                return {hole: selected}
+                return {hole: components.expand(selected)}
             raise SynthesisNotSuccessful(
                 f"arborist: no validated example-consistent expression through depth {self.max_depth}"
             )

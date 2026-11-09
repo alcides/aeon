@@ -244,6 +244,10 @@ class AFTASynthesizer(Synthesizer):
         # Only conjuncts our lightweight evaluator can decide are usable; the
         # rest are dropped (validate still has the final say).
         refvar, all_atoms = _refinement_atoms(type)
+        from aeon.core.liquid import liquid_free_vars
+        from aeon.prelude.prelude import ALL_OPS
+
+        open_refinement = any(set(liquid_free_vars(atom)) - {refvar, *ALL_OPS} for atom in all_atoms)
 
         def obs_value(term: Term) -> tuple[bool, Any]:
             """A goal-typed term's concrete output, if observable. Returns
@@ -269,7 +273,10 @@ class AFTASynthesizer(Synthesizer):
             are never merged unsoundly, and are always treated as candidates."""
             # Refinement predicates do not describe runtime example/property
             # checks. Keep distinct candidates until those checks validate them.
-            if metadata.get(fun_name, {}).get("goals") or not value_ok:
+            # One observed output cannot establish equivalence for a contract
+            # quantified over the enclosing function's inputs. In particular,
+            # do not merge a specialized method call with an invalid constant.
+            if open_refinement or metadata.get(fun_name, {}).get("goals") or not value_ok:
                 return ("opaque", str(term))  # validated individually, never merged
             truths: list[Truth] = []
             for atom in active:
