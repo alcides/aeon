@@ -32,7 +32,7 @@ from aeon.core.types import (
 )
 from aeon.core.types import Type, t_bool
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import synth
+from aeon.typechecking.typeinfer import _reflected_impl_for, synth
 from aeon.utils.name import Name
 
 
@@ -84,6 +84,21 @@ def _child_holes(
     if not term_has_holes(child):
         return {}
     return get_holes_info(ctx, child, ty, targets, refined_types)
+
+
+def _with_definition(
+    ctx: TypingContext, name: Name, ty: Type, value: Term, refined_types: bool, *, has_termination_metric: bool = False
+) -> TypingContext:
+    """Preserve the same reflection evidence as ordinary checking for completed definitions.
+
+    Incomplete definitions remain opaque: reflecting a synthesis hole would
+    assume the implementation that the search still has to establish.
+    """
+    if refined_types and not term_has_holes(value):
+        reflected = _reflected_impl_for(name, ty, value, has_termination_metric=has_termination_metric)
+        if reflected is not None:
+            return ctx.with_reflected(name, ty, *reflected)
+    return ctx.with_var(name, ty)
 
 
 # dict (hole_name , (hole_type, hole_typingContext))
@@ -138,7 +153,7 @@ def get_holes_info(
             _, t1 = synth(ctx, value)
             t1 = t1 if refined_types else refined_to_unrefined_type(t1)
             if not isinstance(value, Hole) and not (isinstance(value, Annotation) and isinstance(value.expr, Hole)):
-                ctx = ctx.with_var(vname, t1)
+                ctx = _with_definition(ctx, vname, t1, value, refined_types)
                 hs1 = _child_holes(ctx, value, ty, targets, refined_types)
                 hs2 = _child_holes(ctx, body, ty, targets, refined_types)
             else:
@@ -160,7 +175,10 @@ def get_holes_info(
                 hs1 = _child_holes(value_ctx, value, vtype, targets, refined_types)
             else:
                 hs1 = _child_holes(ctx, value, vtype, targets, refined_types)
-            hs2 = _child_holes(ctx.with_var(vname, vtype), body, ty, targets, refined_types)
+            body_ctx = _with_definition(
+                ctx, vname, vtype, value, refined_types, has_termination_metric=bool(t.decreasing_by)
+            )
+            hs2 = _child_holes(body_ctx, body, ty, targets, refined_types)
             return hs1 | hs2
         case TypeApplication(body=body, type=argty):
             _, bty = synth(ctx, body)

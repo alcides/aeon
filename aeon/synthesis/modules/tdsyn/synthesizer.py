@@ -30,7 +30,12 @@ from aeon.synthesis.modules.tdsyn.actions import (
     forward_let_tabs_candidates,
     forward_let_tapp_candidates,
 )
-from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn, is_constructor_term
+from aeon.synthesis.modules.tdsyn.helpers import (
+    bind_constructor_arguments,
+    clear_tdsyn_caches,
+    make_skip_fn,
+    is_constructor_term,
+)
 from aeon.synthesis.modules.tdsyn.constraints import deadline
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
 from aeon.synthesis.modules.tdsyn.worklist import (
@@ -173,7 +178,7 @@ class TDSynSynthesizer(Synthesizer):
         """
         if not partial.is_complete():
             return front, None
-        term = partial.term
+        term = bind_constructor_arguments(partial.term)
         try:
             if validate(term):
                 if not self._has_goals:
@@ -215,6 +220,8 @@ class TDSynSynthesizer(Synthesizer):
 
         early: Term | None = None
         for solution in solutions:
+            if monotonic_ns() * 1e-9 >= deadline.get():
+                break
             term = substitute_holes_map(partial.term, solution)
             complete = PartialAST(term=term, holes=[], depth=partial.depth)
             front, early = self._try_complete(complete, validate, evaluate, start_time, ui, front)
