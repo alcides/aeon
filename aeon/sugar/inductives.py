@@ -256,7 +256,9 @@ def expand_inductive_decls(p: Program) -> Program:
     for decl in p.inductive_decls:
         match decl:
             case InductiveDecl(name, args, dtype_rfs, constructors, measures, loc):
-                tds.append(TypeDecl(name, args, list(dtype_rfs), arg_kinds=decl.arg_kinds))
+                tds.append(
+                    TypeDecl(name, args, list(dtype_rfs), arg_kinds=decl.arg_kinds, is_typeclass=decl.is_typeclass)
+                )
                 parameter_kinds = dict(zip(args, decl.arg_kinds or (Kind.BASE,) * len(args)))
 
                 for measure in measures:

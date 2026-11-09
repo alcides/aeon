@@ -109,3 +109,55 @@ operators in logical predicates; calls in executable code retain the
 refinements promised by the methods. Interfaces that omit a shape or other
 property from their signatures, such as the current `Models` interfaces,
 do not acquire that property implicitly from a concrete implementation.
+
+## Synthesis
+
+Typeclass adaptation is shared by the synthesis entry point. It specializes
+dictionary-passing functions using types in the hole's scope, resolves their
+dictionaries, and exposes ordinary typed components to the search backend.
+Abstract type variables, constructor variables and partial applications such
+as `Pair Int` participate according to their declared kinds. An `Int` is never
+used to instantiate a parameter of kind `B -> B`.
+
+For example, the [generic conversion problem](../examples/synthesis/typeclasses/convert.ae)
+asks for a value of abstract type `b`:
+
+```aeon
+class Convert (a:B) (b:B) where
+    convert : (x:a) -> b;
+
+def applyConvert [Convert a b] (x:a) : b := ?body;
+```
+
+TDSyn can synthesize `convert x`, internally supplying the `Convert a b`
+dictionary received by `applyConvert`. Run the complete example with:
+
+```sh
+uv run python -m aeon --budget 10 -s tdsyn examples/synthesis/typeclasses/convert.ae
+uv run python -m aeon --budget 10 -s tdsyn_backward examples/synthesis/typeclasses/higher_kinded.ae
+```
+
+Resolution uses lexical dictionaries and their superclass evidence before
+global instances. It also composes constrained instances, such as resolving
+`Eq (Box (Box Int))` through `Eq (Box Int)` and `Eq Int`. Repeated instance
+parameters must agree; cyclic or growing prerequisite chains stop. Generated
+dictionary constructors are not used to invent missing instances. Hidden
+bindings and the function currently being synthesized cannot supply evidence.
+
+Method refinements remain on specialized components. Temporary search names
+expand to Core type applications and dictionary applications before validation,
+fitness evaluation, example probing and returning a solution, including joint
+synthesis. Thus optimization scores and correctness checks see the actual
+program, and no extra bindings are required to execute the result.
+
+| Backend family | Typeclass integration |
+| --- | --- |
+| TDSyn variants, Synquid, FTA/AFTA, LTA/CATA, grammar search | Specialized method components; generic conversion is covered by end-to-end tests. Individual backends retain their existing higher-order and datatype restrictions. |
+| AMaze | Calls on available inputs become scalar components; its expression language remains monomorphic `Int`/`Bool`. |
+| Arborist | Uses the same scalar components and interprets compiler-generated dictionary field access. Method bodies must remain within its pure interpreted language. |
+| Solver-only and source-generating backends | Retain their existing expression languages and source elaboration. This adapter does not turn a numeric solver into an arbitrary polymorphic program generator. |
+
+Preparation uses the synthesis time budget. Its type universe consists of
+in-scope types and their constructor prefixes; it does not enumerate arbitrary
+nested type expressions. Scalar components can call methods on existing inputs,
+while backends that support function components can build further applications.

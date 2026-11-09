@@ -30,7 +30,14 @@ from aeon.core.terms import (
 )
 from aeon.synthesis.api import SynthesisNotSuccessful, UnsupportedSynthesisGoal
 from aeon.core.types import t_unit
-from aeon.synthesis.modules.arborist.data import Algebraic, generated_inductives
+from aeon.synthesis.modules.arborist.data import (
+    Algebraic,
+    DictionaryValue,
+    DictionaryProjection,
+    generated_inductives,
+    generated_dictionary_projections,
+)
+from aeon.typechecking.context import TypingContext
 from aeon.synthesis.modules.arborist.forest import Forest, OPERATORS, scalar_key
 from aeon.utils.name import Name
 
@@ -48,7 +55,16 @@ class Primitive:
 
 
 class LiftedInterpreter:
-    def __init__(self, forest: Forest, definitions: dict[Name, Term], hole: Name, *, max_steps: int = 1_000_000):
+    def __init__(
+        self,
+        forest: Forest,
+        definitions: dict[Name, Term],
+        hole: Name,
+        *,
+        max_steps: int = 1_000_000,
+        typing_ctx: TypingContext | None = None,
+        hole_bindings: dict[Name, Term] | None = None,
+    ):
         self.forest = forest
         self.definitions = definitions
         self.hole = hole
@@ -56,6 +72,10 @@ class LiftedInterpreter:
         self.reachable: set[tuple] = set()
         self.inductives = generated_inductives(definitions)
         self.constructors = {p.name: p.arity for p in self.inductives.values() if not p.cases}
+        self.dictionary_tags, self.projections = (
+            generated_dictionary_projections(definitions, typing_ctx) if typing_ctx is not None else (set(), {})
+        )
+        self.hole_bindings = hole_bindings or {}
 
     def check_data(self, value: Any) -> None:
         """Bound constructor inputs and intermediate data before traversing them.
@@ -97,6 +117,8 @@ class LiftedInterpreter:
             case Var(name):
                 if name in environment:
                     yield environment[name], language
+                elif name in self.projections:
+                    yield self.projections[name], language
                 elif name in self.inductives:
                     primitive = self.inductives[name]
                     yield (primitive.name,) if primitive.arity == 0 else primitive, language
@@ -137,12 +159,22 @@ class LiftedInterpreter:
             case Hole(name):
                 if name != self.hole:
                     raise UnsupportedSynthesisGoal("arborist supports one expression hole")
-                try:
-                    bindings = {name: environment[name] for name in self.forest.variables}
-                except KeyError as exc:
-                    raise UnsupportedSynthesisGoal("arborist grammar variable is outside the runtime scope") from exc
-                self.reachable.add(tuple(scalar_key(bindings[name]) for name in self.forest.variables))
-                yield from self.forest.specialize(language, bindings)
+                environments = [(environment, language)]
+                for alias, definition in self.hole_bindings.items():
+                    environments = [
+                        (scope | {alias: value}, narrowed)
+                        for scope, current in environments
+                        for value, narrowed in self.evaluate(definition, scope, current)
+                    ]
+                for scope, current in environments:
+                    try:
+                        bindings = {name: scope[name] for name in self.forest.variables}
+                    except KeyError as exc:
+                        raise UnsupportedSynthesisGoal(
+                            "arborist grammar variable is outside the runtime scope"
+                        ) from exc
+                    self.reachable.add(tuple(scalar_key(bindings[name]) for name in self.forest.variables))
+                    yield from self.forest.specialize(current, bindings)
             case _:
                 raise UnsupportedSynthesisGoal(f"arborist does not support {term.__class__.__name__}")
 
@@ -151,6 +183,15 @@ class LiftedInterpreter:
             yield from self.evaluate(
                 function.term.body, function.environment | {function.term.var_name: argument}, language
             )
+        elif isinstance(function, DictionaryProjection):
+            args = (*function.arguments, argument)
+            if len(args) < function.arity:
+                yield replace(function, arguments=args), language
+            else:
+                dictionary, *values = args
+                if not isinstance(dictionary, DictionaryValue) or dictionary.tag != function.tag:
+                    raise UnsupportedSynthesisGoal("arborist method received a dictionary of another class")
+                yield from self.apply_many(dictionary.fields[function.index], tuple(values), language)
         elif isinstance(function, Primitive):
             args = (*function.arguments, argument)
             if len(args) == (1 if function.name == "!" else 2):
@@ -166,6 +207,9 @@ class LiftedInterpreter:
             if len(args) < function.arity:
                 yield replace(function, arguments=args), language
             elif not function.cases:
+                if function.name in self.dictionary_tags:
+                    yield DictionaryValue(function.name, args), language
+                    return
                 value = (function.name, *args)
                 self.check_data(value)
                 yield value, language

@@ -31,6 +31,9 @@ CORE_TESTS = [
     "tests/typeclass_test.py",
     "tests/typeclass_resolution_test.py",
     "tests/typeclass_higher_kinds_test.py",
+    "tests/synthesis_typeclasses_test.py::test_generic_convert_across_backends[tdsyn]",
+    "tests/synthesis_typeclasses_test.py::test_generic_convert_across_backends[tdsyn_backward]",
+    "tests/synthesis_typeclasses_test.py::test_kind_matching_includes_abstract_and_partially_applied_constructors",
     "tests/stdlib_num_test.py",
     "tests/package_dependencies_test.py",
 ]

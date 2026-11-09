@@ -101,7 +101,9 @@ def bind_ectx(
             case ElabTypeDecl(name, args, rforalls, linear):
                 name, subs = check_type_decl_name(name, subs)
                 new_rfs = [(rn, bind_stype(rs, subs)) for (rn, rs) in rforalls]
-                e = ElabTypeDecl(name, args, new_rfs, linear, arg_kinds=entry.arg_kinds)
+                e = ElabTypeDecl(
+                    name, args, new_rfs, linear, arg_kinds=entry.arg_kinds, is_typeclass=entry.is_typeclass
+                )
             case _:
                 assert False, f"{entry} not yet supported in bind."
         nentries.append(e)
@@ -321,7 +323,11 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
         for pname, psort in td.rforalls:
             nname, nsubs = check_name(pname, nsubs)
             trfs.append((nname, bind_stype(psort, nsubs)))
-        type_decls.append(TypeDecl(name, targs, trfs, loc=td.loc, linear=td.linear, arg_kinds=td.arg_kinds))
+        type_decls.append(
+            TypeDecl(
+                name, targs, trfs, loc=td.loc, linear=td.linear, arg_kinds=td.arg_kinds, is_typeclass=td.is_typeclass
+            )
+        )
     # Pre-register every inductive type name before binding any constructor, so
     # a constructor of one inductive can reference a sibling inductive declared
     # *later* in the file (mutually-recursive datatypes, e.g. `Tree` whose
@@ -362,7 +368,16 @@ def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
             measures.append(bound_meas)
         nsubs = measure_scope
         inductive_decls.append(
-            InductiveDecl(name, iargs, drfs, constructors, measures, loc=ind.loc, arg_kinds=ind.arg_kinds)
+            InductiveDecl(
+                name,
+                iargs,
+                drfs,
+                constructors,
+                measures,
+                loc=ind.loc,
+                arg_kinds=ind.arg_kinds,
+                is_typeclass=ind.is_typeclass,
+            )
         )
 
     # Bind definitions, but pre-register the names of each ``mutual`` group so

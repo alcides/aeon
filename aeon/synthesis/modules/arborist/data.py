@@ -23,6 +23,8 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.utils.name import Name
+from aeon.core.types import AbstractionType, TypeConstructor, TypePolymorphism
+from aeon.typechecking.context import TypingContext
 from aeon.verification.constructor_registry import (
     get_constructor_fields,
     get_constructor_groups,
@@ -37,6 +39,53 @@ class Algebraic:
     # Empty for a constructor; declaration order for an eliminator.
     cases: tuple[str, ...] = ()
     arguments: tuple[Any, ...] = ()
+
+
+@dataclass(frozen=True)
+class DictionaryValue:
+    tag: str
+    fields: tuple[Any, ...]
+
+
+@dataclass(frozen=True)
+class DictionaryProjection:
+    tag: str
+    index: int
+    arity: int
+    arguments: tuple[Any, ...] = ()
+
+
+def generated_dictionary_projections(
+    definitions: dict[Name, Term], ctx: TypingContext
+) -> tuple[set[str], dict[Name, DictionaryProjection]]:
+    """Recognize exactly the compiler's field access, without evaluating Python."""
+    classes = {e.name: (get_constructor_order(e.name.name) or []) for e in ctx._constructor_entries() if e.is_typeclass}
+    tags = {tag for constructors in classes.values() for tag in constructors}
+    projections = {}
+    for name, ty in ctx.concrete_vars():
+        while isinstance(ty, TypePolymorphism):
+            ty = ty.body
+        if not isinstance(ty, AbstractionType) or not isinstance(ty.var_type, TypeConstructor):
+            continue
+        constructors = classes.get(ty.var_type.name, [])
+        if len(constructors) != 1 or name not in definitions:
+            continue
+        body = erase(definitions[name])
+        params = []
+        while isinstance(body, (Abstraction, TypeAbstraction, RefinementAbstraction)):
+            if isinstance(body, Abstraction):
+                params.append(body.var_name.name)
+            body = erase(body.body)
+        if not params or not isinstance(body, Application) or erase(body.fun) != Var(Name("native", 0)):
+            continue
+        if not isinstance(body.arg, Literal):
+            continue
+        tag = constructors[0]
+        for index in range(len(get_constructor_fields(tag) or [])):
+            expected = f"{params[0]}[{index + 1}]" + "".join(f"({p})" for p in params[1:])
+            if body.arg.value == expected:
+                projections[name] = DictionaryProjection(tag, index, len(params))
+    return tags, projections
 
 
 def erase(term: Term) -> Term:

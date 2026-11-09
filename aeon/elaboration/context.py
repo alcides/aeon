@@ -37,6 +37,7 @@ class ElabTypeDecl(ElabTypingContextEntry):
     rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     linear: bool = False
     arg_kinds: tuple[Kinding, ...] = field(default_factory=tuple)
+    is_typeclass: bool = False
 
 
 @dataclass
@@ -122,7 +123,10 @@ def build_typing_context(
         constructor_defs = {}
     return ElaborationTypingContext(
         [ElabVariableBinder(name, ls[name]) for name in ls]
-        + [ElabTypeDecl(td.name, td.args, td.rforalls, td.linear, arg_kinds=td.arg_kinds) for td in tdecl],
+        + [
+            ElabTypeDecl(td.name, td.args, td.rforalls, td.linear, arg_kinds=td.arg_kinds, is_typeclass=td.is_typeclass)
+            for td in tdecl
+        ],
         constructor_to_type,
         constructor_defs,
     )

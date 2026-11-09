@@ -93,6 +93,7 @@ class TypeConstructorBinder(TypingContextEntry):
     """Declared as ``linear type``: binders of this type must be at multiplicity 1."""
 
     arg_kinds: tuple[Kinding, ...] = field(default_factory=tuple)
+    is_typeclass: bool = False
 
     def __repr__(self):
         if self.args:

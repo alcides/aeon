@@ -1,0 +1,12 @@
+inductive Box a
+| box (value:a) : (Box a)
+
+class Pointed (f:B -> B) where
+    pure : forall a:B, (x:a) -> (f a);
+
+instance : Pointed Box where
+    pure x := Box.box x;
+
+# f is an abstract constructor; a is an abstract element type.
+def wrap [Pointed f] (x:a) : (f a) := ?body;
+def main (args:Int) : Int := match wrap{Int}{Box} 7 with | box value => value;
