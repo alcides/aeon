@@ -20,7 +20,9 @@ from aeon.core.liquid import (
     LiquidLiteralUnit,
     LiquidTerm,
     LiquidVar,
+    LiquidPredicate,
 )
+from aeon.core.terms import Term
 from aeon.core.liquid_ops import ops
 from aeon.core.substitutions import substitute_vartype
 from aeon.core.types import (
@@ -38,10 +40,33 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.utils.name import Name
+from aeon.typechecking.context import TypingContext
 
 # Base sorts used to instantiate foralls when the program contributes no type
 # arguments (plain ``Int``/``Float`` holes).
 DEFAULT_POLY_INSTANTIATION_UNIVERSE: frozenset[TypeConstructor] = frozenset({t_int, t_float, t_bool, t_string})
+
+
+def predicate_argument(ctx: TypingContext, predicate: LiquidPredicate, sort: Type) -> Term:
+    """Reinsert erased operator type applications in a logical predicate.
+
+    Explicit refinement applications are checked Core terms, so arithmetic
+    predicates need the same elaboration as source-written arguments.
+    Logical predicate binders are allowed here because arguments are erased.
+    """
+    from aeon.core.predicates import predicate_to_term
+    from aeon.elaboration import elaborate
+    from aeon.elaboration.context import ElaborationTypingContext, ElabVariableBinder, ElabTypeVarBinder
+    from aeon.sugar.lifting import lift, lift_type
+    from aeon.sugar.lowering import lower_to_core
+    from aeon.typechecking.context import RefinementBinder
+
+    context = ElaborationTypingContext([ElabVariableBinder(n, lift_type(t)) for n, t in ctx.vars()])
+    context.entries.extend(ElabTypeVarBinder(n, k) for n, k in ctx.typevars())
+    context.entries.extend(
+        ElabVariableBinder(e.name, lift_type(e.type)) for e in ctx.entries if isinstance(e, RefinementBinder)
+    )
+    return lower_to_core(elaborate(context, lift(predicate_to_term(predicate)), lift_type(sort)))
 
 
 def filter_uninterpreted(lt: LiquidTerm) -> Optional[LiquidTerm]:

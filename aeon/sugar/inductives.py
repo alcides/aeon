@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from collections import Counter
 
 from aeon.core.multiplicity import MOmega, Multiplicity
 from aeon.core.types import Kinding
@@ -49,6 +50,61 @@ def canonical_measure_name(inductive: Name, measure: Name) -> Name:
     as ``List_size``.
     """
     return Name(f"{inductive.name}_{measure.name}", measure.id)
+
+
+def _declares_structural_measure(
+    measure: Name, constructors: list[Definition], field_types: dict[str, list[str]], type_name: str
+) -> bool:
+    """Check the equations before installing the structural SMT RecFunction.
+
+    A name such as ``size`` does not determine its meaning: the PLDI16 AST
+    counts leaves as one and binary nodes as two. Guessing zero/one from the
+    name contradicts its constructor contracts and proves arbitrary claims.
+    Recognise only sums of the declared measure on recursive fields, with the
+    appropriate constant. Other measures keep their declared constructor facts.
+    """
+
+    def summands(term: STerm) -> tuple[int, Counter[str]] | None:
+        match term:
+            case SLiteral(value, _) if type(value) is int:
+                return value, Counter()
+            case SApplication(SApplication(SVar(op), left), right) if op.name == "+":
+                lhs, rhs = summands(left), summands(right)
+                if lhs is not None and rhs is not None:
+                    return lhs[0] + rhs[0], lhs[1] + rhs[1]
+            case SApplication(SVar(fn), SVar(arg)) if fn.name == measure.name:
+                return 0, Counter([arg.name])
+        return None
+
+    def has_equation(term: STerm, binder: Name, expected: tuple[int, Counter[str]]) -> bool:
+        match term:
+            case SApplication(SApplication(SVar(op), left), right) if op.name == "&&":
+                return has_equation(left, binder, expected) or has_equation(right, binder, expected)
+            case SApplication(SApplication(SVar(op), left), right) if op.name == "==":
+                for lhs, rhs in ((left, right), (right, left)):
+                    if (
+                        isinstance(lhs, SApplication)
+                        and isinstance(lhs.fun, SVar)
+                        and lhs.fun.name.name == measure.name
+                        and isinstance(lhs.arg, SVar)
+                        and lhs.arg.name == binder
+                        and summands(rhs) == expected
+                    ):
+                        return True
+        return False
+
+    for constructor in constructors:
+        result = constructor.type
+        if not isinstance(result, SRefinedType):
+            return False
+        skeletons = field_types[f"{type_name}_{constructor.name.name}"]
+        recursive = Counter(
+            name.name for (name, _), skeleton in zip(constructor.args, skeletons) if skeleton == type_name
+        )
+        expected = (int(bool(constructor.args)), recursive)
+        if not has_equation(result.refinement, result.name, expected):
+            return False
+    return True
 
 
 def _canonicalize_measure_references(ty: SType, inductive: Name, measures: list[Definition]) -> SType:
@@ -264,7 +320,15 @@ def expand_inductive_decls(p: Program) -> Program:
                 )
                 canonical_measures = [canonical_measure_name(name, measure.name).name for measure in measures]
                 if canonical_measures:
-                    register_measures(name.name, canonical_measures)
+                    register_measures(
+                        name.name,
+                        canonical_measures,
+                        structural=[
+                            canonical_measure_name(name, measure.name).name
+                            for measure in measures
+                            if _declares_structural_measure(measure.name, constructors, field_types, name.name)
+                        ],
+                    )
                 for constructor in constructors:
                     match constructor:
                         case Definition(cname, cforalls, cargs, crtype, _, cdecs, c_rf, c_decr, cloc):

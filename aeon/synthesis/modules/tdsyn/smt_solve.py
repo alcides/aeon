@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from z3 import Length, Not, Or, Solver, StrToCode, SubString, sat, unsat
+from z3 import BoolRef, Length, Not, Or, Solver, StrToCode, SubString, sat, unsat
 from z3.z3types import Z3Exception
 from z3.z3 import ModelRef
 
@@ -17,7 +17,8 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
-from aeon.synthesis.modules.tdsyn.constraints import configure_solver, existential_formula, has_refinement
+from aeon.synthesis.modules.tdsyn.constraints import configure_solver, has_refinement
+from aeon.synthesis.modules.tdsyn.incremental import solver_query
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
@@ -81,22 +82,28 @@ def solve_literals(
         predicates.extend(hole.constraints)
     if not predicates and not any(has_refinement(ty) for ty in bindings.values()):
         return []
-    solver = Solver()
-    if not configure_solver(solver):
-        return []
     try:
-        solver.add(existential_formula(holes[0].context, bindings, list(dict.fromkeys(predicates))))
-        z3_vars = {}
-        for hole in holes:
-            base = base_type_of(hole.expected_type)
-            assert base is not None
-            z3_vars[str(hole.name)] = make_variable(str(hole.name), base)
+        with solver_query(holes[0].context, bindings, list(dict.fromkeys(predicates))) as (solver, assumptions):
+            z3_vars = {}
+            for hole in holes:
+                base = base_type_of(hole.expected_type)
+                assert base is not None
+                z3_vars[str(hole.name)] = make_variable(str(hole.name), base)
+            return _literal_models(solver, assumptions, holes, z3_vars, max_models)
     except (AssertionError, KeyError, TypeError, ValueError, NotImplementedError, Z3Exception):
         return []
 
+
+def _literal_models(
+    solver: Solver,
+    assumptions: list[BoolRef],
+    holes: list[TypedHole],
+    z3_vars: dict[str, object],
+    max_models: int,
+) -> list[dict[Name, Term]]:
     solutions: list[dict[Name, Term]] = []
     for _ in range(max_models):
-        if not configure_solver(solver) or solver.check() != sat:
+        if not configure_solver(solver) or solver.check(*assumptions) != sat:
             break
         model = solver.model()
         solution = _extract_solution(model, holes, z3_vars)

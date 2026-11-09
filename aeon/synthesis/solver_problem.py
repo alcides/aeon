@@ -190,6 +190,7 @@ def build_solver_problem(
                 _check_liquid(logical, {h.symbol for h in schemas} | {r.name for r in reflections})
             obligation = entailment_context(prefix_ctx, check(prefix_ctx, value, declared))
             for reflection in reversed(reflections):
+                assert isinstance(reflection.type, AbstractionType)
                 obligation = ReflectedFunctionDeclaration(
                     reflection.name, reflection.type, reflection.params, reflection.body, obligation
                 )
@@ -232,6 +233,7 @@ def build_solver_problem(
                 value = Application(value, arg)
             obligation = entailment_context(local_ctx, check(local_ctx, schema.wrap(value), hole.type))
             for reflection in reversed(reflections):
+                assert isinstance(reflection.type, AbstractionType)
                 obligation = ReflectedFunctionDeclaration(
                     reflection.name, reflection.type, reflection.params, reflection.body, obligation
                 )

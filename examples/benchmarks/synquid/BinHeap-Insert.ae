@@ -1,8 +1,5 @@
-# BinHeap-Insert: insert into a binary heap.
-#
-# Synquid benchmark BinHeap-Insert (pldi16).
-#
-# Element type polymorphic. Heap ORDER invariant (parent <= children) NOT encoded (needs #1); only node-count. Structural/size port.
+# BinHeap-Insert — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BinHeap-Insert.sq for the missing contracts.
 
 inductive Heap a
 | hleaf : {h:(Heap a) | hsz h = 0}

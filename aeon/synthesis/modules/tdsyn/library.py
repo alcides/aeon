@@ -12,6 +12,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 
+from aeon.core.equality import canonicalize_type
 from aeon.core.terms import Term, Var
 from aeon.core.types import (
     AbstractionType,
@@ -45,7 +46,7 @@ _VALUE_BINDERS = (VariableBinder, UninterpretedBinder, ReflectedBinder)
 FunEntry = tuple[Term, AbstractionType]
 ValueEntry = tuple[Term, Type]
 
-_library_cache: dict[int, "ComponentLibrary"] = {}
+_library_cache: dict[int, dict[str | None, "ComponentLibrary"]] = {}
 
 
 def clear_component_library_cache() -> None:
@@ -120,10 +121,12 @@ def _merge_buckets(index: dict[str, tuple], key: str) -> tuple:
 def get_component_library(
     ctx: TypingContext,
     skip: Callable[[Name], bool],
+    goal: Type | None = None,
 ) -> ComponentLibrary:
     """Return (and memoize) the indexed library for ``ctx``.
 
-    Cached by ``id(ctx)``, with a :func:`weakref.finalize` hook that evicts the
+    Cached by ``id(ctx)`` and the goal's retained datatype relations, with a
+    :func:`weakref.finalize` hook that evicts the
     entry when ``ctx`` is garbage collected — otherwise a later context reusing
     the same address would silently receive a stale library (observed as
     order-dependent test failures). ``skip`` must stay stable for the lifetime
@@ -132,16 +135,22 @@ def get_component_library(
     search so a fresh skip is always used.
     """
     key = id(ctx)
-    cached = _library_cache.get(key)
+    base = base_type_of(goal) if goal is not None else None
+    goal_key = repr(canonicalize_type(base)) if base is not None and base.refinements else None
+    bucket = _library_cache.get(key)
+    if bucket is None:
+        bucket = {}
+        _library_cache[key] = bucket
+        weakref.finalize(ctx, _library_cache.pop, key, None)
+    cached = bucket.get(goal_key)
     if cached is not None:
         return cached
-    library = _build_library(ctx, skip)
-    _library_cache[key] = library
-    weakref.finalize(ctx, _library_cache.pop, key, None)
+    library = _build_library(ctx, skip, base if goal_key is not None else None)
+    bucket[goal_key] = library
     return library
 
 
-def _build_library(ctx: TypingContext, skip: Callable[[Name], bool]) -> ComponentLibrary:
+def _build_library(ctx: TypingContext, skip: Callable[[Name], bool], goal: Type | None = None) -> ComponentLibrary:
     functions: list[FunEntry] = []
     values: list[ValueEntry] = []
 
@@ -149,7 +158,7 @@ def _build_library(ctx: TypingContext, skip: Callable[[Name], bool]) -> Componen
         if skip(name):
             continue
         if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
-            for term, mono_ty in monomorphize(name, ty, ctx):
+            for term, mono_ty in monomorphize(name, ty, ctx, goal):
                 if isinstance(mono_ty, AbstractionType):
                     functions.append((term, mono_ty))
                 else:

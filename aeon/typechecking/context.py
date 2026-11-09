@@ -66,7 +66,7 @@ class UninterpretedBinder(TypingContextEntry):
 @dataclass(unsafe_hash=True)
 class ReflectedBinder(TypingContextEntry):
     name: Name
-    type: AbstractionType
+    type: Type
     params: tuple[Name, ...]
     body: LiquidTerm
 
@@ -110,15 +110,26 @@ class TypeConstructorBinder(TypingContextEntry):
 
 
 class _ContextEntries(list[TypingContextEntry]):
-    """Owned derived entries with a mutation-aware constructor-only view.
+    """Owned derived entries with mutation-aware views of type declarations.
 
-    Variable/type-variable extensions share the view, not a global cache. Keep
-    actual binder objects so updates to a declaration's name or args stay live.
+    Scope extensions share the views, not a global cache. Keep actual binder
+    objects so updates to a declaration's name, kind or args stay live.
     """
 
-    def __init__(self, values: Iterable[TypingContextEntry], constructors: tuple[TypeConstructorBinder, ...] | None):
+    def __init__(
+        self,
+        values: Iterable[TypingContextEntry],
+        constructors: tuple[TypeConstructorBinder, ...] | None,
+        type_binders: tuple[TypeBinder, ...] | None = None,
+    ):
         super().__init__(values)
         self._constructors = constructors
+        self._type_binders = type_binders
+
+    def type_binders(self) -> tuple[TypeBinder, ...]:
+        if self._type_binders is None:
+            self._type_binders = tuple(e for e in self if isinstance(e, TypeBinder))
+        return self._type_binders
 
     def constructors(self) -> tuple[TypeConstructorBinder, ...]:
         if self._constructors is None:
@@ -127,52 +138,64 @@ class _ContextEntries(list[TypingContextEntry]):
 
     def append(self, value):
         self._constructors = None
+        self._type_binders = None
         return super().append(value)
 
     def extend(self, values):
         self._constructors = None
+        self._type_binders = None
         return super().extend(values)
 
     def insert(self, index, value):
         self._constructors = None
+        self._type_binders = None
         return super().insert(index, value)
 
     def __setitem__(self, index, value):
         self._constructors = None
+        self._type_binders = None
         return super().__setitem__(index, value)
 
     def __delitem__(self, index):
         self._constructors = None
+        self._type_binders = None
         return super().__delitem__(index)
 
     def clear(self):
         self._constructors = None
+        self._type_binders = None
         return super().clear()
 
     def pop(self, index=-1):
         self._constructors = None
+        self._type_binders = None
         return super().pop(index)
 
     def remove(self, value):
         self._constructors = None
+        self._type_binders = None
         return super().remove(value)
 
     def reverse(self):
         self._constructors = None
+        self._type_binders = None
         return super().reverse()
 
     def sort(self, *args, **kwargs):
         self._constructors = None
+        self._type_binders = None
         return super().sort(*args, **kwargs)
 
     # list's + overload widens element types; += preserves the list's type.
     def __iadd__(self, values: Iterable[TypingContextEntry]) -> _ContextEntries:  # type: ignore[override, misc]
         self._constructors = None
+        self._type_binders = None
         super().__iadd__(values)
         return self
 
     def __imul__(self, count: SupportsIndex) -> _ContextEntries:
         self._constructors = None
+        self._type_binders = None
         super().__imul__(count)
         return self
 
@@ -192,10 +215,12 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
         blocks: tuple[tuple[TypingContextEntry, ...], ...],
         tail: tuple[TypingContextEntry, ...],
         constructors: tuple[TypeConstructorBinder, ...],
+        type_binders: tuple[TypeBinder, ...],
     ) -> None:
         self._blocks: tuple[tuple[TypingContextEntry, ...], ...] = blocks
         self._tail: tuple[TypingContextEntry, ...] = tail
         self._constructors: tuple[TypeConstructorBinder, ...] = constructors
+        self._type_binders: tuple[TypeBinder, ...] = type_binders
         self._mutable: _ContextEntries | None = None
 
     @classmethod
@@ -208,15 +233,23 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
         if isinstance(entries, cls):
             entries._freeze()
             blocks, tail = entries._blocks, entries._tail
+            type_binders = entries._type_binders
         else:
             values = tuple(entries)
             boundary = len(values) // cls._CHUNK_SIZE * cls._CHUNK_SIZE
             blocks = tuple(values[i : i + cls._CHUNK_SIZE] for i in range(0, boundary, cls._CHUNK_SIZE))
             tail = values[boundary:]
+            type_binders = (
+                entries.type_binders()
+                if isinstance(entries, _ContextEntries)
+                else tuple(e for e in values if isinstance(e, TypeBinder))
+            )
+        if isinstance(binder, TypeBinder):
+            type_binders = (*type_binders, binder)
         tail = (*tail, binder)
         if len(tail) == cls._CHUNK_SIZE:
             blocks, tail = (*blocks, tail), ()
-        return cls(blocks, tail, constructors)
+        return cls(blocks, tail, constructors, type_binders)
 
     def _freeze(self) -> None:
         if self._mutable is not None:
@@ -225,15 +258,19 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
             self._blocks = tuple(values[i : i + self._CHUNK_SIZE] for i in range(0, boundary, self._CHUNK_SIZE))
             self._tail = values[boundary:]
             self._constructors = self._mutable.constructors()
+            self._type_binders = self._mutable.type_binders()
             self._mutable = None
 
     def _writable(self) -> _ContextEntries:
         if self._mutable is None:
-            self._mutable = _ContextEntries(self, self._constructors)
+            self._mutable = _ContextEntries(self, self._constructors, self._type_binders)
         return self._mutable
 
     def constructors(self) -> tuple[TypeConstructorBinder, ...]:
         return self._mutable.constructors() if self._mutable is not None else self._constructors
+
+    def type_binders(self) -> tuple[TypeBinder, ...]:
+        return self._mutable.type_binders() if self._mutable is not None else self._type_binders
 
     def __len__(self):
         if self._mutable is not None:
@@ -335,6 +372,16 @@ class TypingContext:
             _ensure_builtins=False,
         )
 
+    def with_reflected(self, name: Name, type: Type, params: tuple[Name, ...], body: LiquidTerm) -> TypingContext:
+        """Keep a checked definition's executable signature and logical body."""
+        return TypingContext(
+            _ContextSnapshot.extend_scope(
+                self.entries, ReflectedBinder(name, type, params, body), self._constructor_entries()
+            ),
+            trusted_names=self.trusted_names,
+            _ensure_builtins=False,
+        )
+
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
             match e:
@@ -386,7 +433,12 @@ class TypingContext:
                 assert False, f"Unknown type in context: {ty}"
 
     def typevars(self) -> list[tuple[Name, Kinding]]:
-        return [(e.type_name, e.type_kind) for e in self.entries if isinstance(e, TypeBinder)]
+        if isinstance(self.entries, (_ContextEntries, _ContextSnapshot)):
+            entries = self.entries.type_binders()
+        else:
+            # Caller-owned lists can mutate without notifying the context.
+            entries = tuple(e for e in self.entries if isinstance(e, TypeBinder))
+        return [(e.type_name, e.type_kind) for e in entries]
 
     def vars(self) -> list[tuple[Name, Type]]:
         return [
@@ -410,7 +462,7 @@ class TypingContext:
         for e in self.entries:
             if isinstance(e, RefinementBinder):
                 latest.pop(e.name.name, None)
-            elif isinstance(e, VariableBinder):
+            elif isinstance(e, (VariableBinder, ReflectedBinder)):
                 latest[e.name.name] = (e.name, e.type)
         return list(latest.values())
 

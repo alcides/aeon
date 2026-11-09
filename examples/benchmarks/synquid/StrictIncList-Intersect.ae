@@ -1,8 +1,5 @@
-# StrictIncList-Intersect: intersection of two strict lists.
-#
-# Synquid benchmark StrictIncList-Intersect (pldi16).
-#
-# Element type kept Int: the type carries a STRICT order invariant (scons requires hd < min of the tail). Becomes `forall a` with #1.
+# StrictIncList-Intersect — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/StrictIncList-Intersect.sq for the missing contracts.
 
 inductive SList
 | snil : {l:SList | slen l = 0}

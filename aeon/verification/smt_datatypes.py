@@ -35,7 +35,7 @@ from aeon.compilation.session import SessionMapping, SessionSet, current_session
 from aeon.verification.constructor_registry import (
     get_constructor_fields,
     get_constructor_order,
-    get_measures,
+    get_structural_measures,
     get_type_param_count,
 )
 
@@ -165,30 +165,6 @@ def _inductive_sort_name(type_name: str, args: list[Type], mangle: Callable[[Typ
         else:
             parts.append(mangle(a))
     return "_".join(parts)
-
-
-_SIZE_MEASURE_NAMES = frozenset({"size", "length", "len", "llen"})
-_SIZE_MEASURE_SUFFIXES = ("_size", "_length", "_len")
-
-
-def _is_structural_size_measure(measure_name: str) -> bool:
-    """Whether ``measure_name`` denotes a cardinality / size measure.
-
-    Structural RecFunction bodies (nullary → 0, else 1 + Σ recursive fields)
-    are only sound for size-like measures. User measures such as ``val``,
-    ``unwrap``, or ``fst`` are pinned by constructor refinements to payload
-    values; installing a structural RecFunction for them makes those
-    refinements unsatisfiable and vacuously discharges false match branches.
-    """
-    base = strip_binder_id(measure_name)
-    if base in _SIZE_MEASURE_NAMES:
-        return True
-    if any(base.endswith(suf) for suf in _SIZE_MEASURE_SUFFIXES):
-        return True
-    # ``List_size`` / ``Foo_length`` — last underscore segment.
-    if "_" in base and base.rsplit("_", 1)[-1] in _SIZE_MEASURE_NAMES:
-        return True
-    return False
 
 
 def _has_recursive_constructor_field(type_name: str, order: list[str]) -> bool:
@@ -329,13 +305,10 @@ def try_build_inductive_sort(
             short_names[prefixed] = short
             _ctors_by_aeon_name.setdefault(prefixed, []).append((sname, z3_ctor))
 
-        # LH size measures: recursive definitions over the datatype (size nil = 0,
-        # size (cons h t) = 1 + size t, …). Only for cardinality-like names on
-        # recursive inductives — payload measures (``val``, ``unwrap``, …) stay
-        # uninterpreted and are constrained by constructor refinements instead.
+        # Install structural definitions only after the declaration's equations
+        # have been checked. A measure's name alone cannot justify its meaning.
         measure_funs: dict[str, Any] = {}
-        measure_names = get_measures(type_name)
-        canonical_size_names = [n for n in measure_names if _is_structural_size_measure(n)]
+        canonical_size_names = get_structural_measures(type_name)
         if canonical_size_names and _has_recursive_constructor_field(type_name, order):
             for canonical in canonical_size_names:
                 rec = _build_measure_recfunction(created, sname, type_name, order, canonical)

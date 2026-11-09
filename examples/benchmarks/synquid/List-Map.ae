@@ -1,9 +1,9 @@
-# List-Map: map a function; preserves length.
-#
-# Synquid benchmark List-Map (pldi16).
-#
-# Polymorphic in both element types (a -> b), matching the original.
+# List-Map — Synquid PLDI16, pinned source in upstream/List-Map.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def mapL (f: (x:a) -> b) (xs: (List a)) : {l:(List b) | List.size l = List.size xs} := ?hole;
+def map (f:(x:a) -> b) (xs:(List a)) : {v:(List b) | List.len v = List.len xs} decreasing_by [List.len xs] := ?hole;

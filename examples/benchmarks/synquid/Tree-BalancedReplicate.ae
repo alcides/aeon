@@ -1,12 +1,16 @@
-# Tree-BalancedReplicate: a tree of n nodes all holding x.
-#
-# Synquid benchmark Tree-BalancedReplicate (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Balance (height) invariant not encoded; node-count is.
+# Tree-BalancedReplicate — Synquid PLDI16, pinned source in upstream/Tree-BalancedReplicate.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-inductive Tree a
-| leaf : {t:(Tree a) | tsize t = 0}
-| node (left: (Tree a)) (x: a) (right: (Tree a)) : {t:(Tree a) | tsize t = tsize left + tsize right + 1}
-+ tsize (t: (Tree a)) : Int
+inductive BalTree a
+| empty : {t:(BalTree a) | size t = 0 && height t = 0}
+| node (x:a) (l:(BalTree a)) (r:{v:(BalTree a) | height v = height l}) : {t:(BalTree a) | size t = size l + size r + 1 && height t = height l + 1}
++ size (t:(BalTree a)) : {v:Int | v >= 0}
++ height (t:(BalTree a)) : {v:Int | v >= 0}
 
-def balancedReplicate (n: {v:Int | v >= 0}) (x: a) : {t:(Tree a) | tsize t = n} := ?hole;
+def zero : {v:Int | v = 0} := 0;
+def inc (x:Int) : {v:Int | v = x + 1} := x + 1;
+def dec (x:Int) : {v:Int | v = x - 1} := x - 1;
+def leq (x:Int) (y:Int) : {v:Bool | v = (x <= y)} := x <= y;
+def neq (x:Int) (y:Int) : {v:Bool | v = (x != y)} := x != y;
+
+def replicate (x:a) (h:{v:Int | v >= 0}) : {t:(BalTree a) | BalTree.height t = h} decreasing_by [h] := ?hole;

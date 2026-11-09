@@ -34,6 +34,7 @@ from z3.z3 import StringSort
 from z3.z3 import SortRef
 from z3.z3types import Z3Exception
 from z3 import Datatype
+from z3 import BoolVal, Concat, SeqSort, Unit, simplify, is_app_of, Z3_OP_SEQ_CONCAT, Z3_OP_SEQ_UNIT
 from z3 import Distinct, EmptySet, SetAdd, SetUnion, SetIntersect, SetDifference, IsMember, IsSubset, SetSort
 
 from aeon.core.liquid import LiquidApp
@@ -45,6 +46,7 @@ from aeon.core.liquid import LiquidLiteralString
 from aeon.core.liquid import LiquidLiteralUnit
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
+from aeon.core.liquid import liquid_free_vars
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_liquid, substitution_in_type
 from aeon.core.terms import Var
@@ -52,6 +54,7 @@ from aeon.core.types import AbstractionType, RefinedType, RefinementPolymorphism
 from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_set, t_string, t_unit
+from aeon.core.types import type_free_term_vars
 from aeon.verification.sub import lower_constraint_type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import alpha_key
@@ -135,6 +138,80 @@ smt_function_translation: dict[str, list[str]] = {
     "Set_mem": ["smtSetMem"],
     "Set_sub": ["smtSetSub"],
 }
+
+
+def _array_literal(*values: Any) -> Any:
+    values = tuple(
+        BoolVal(v) if isinstance(v, bool) else StringVal(v) if isinstance(v, str) else _coerce_z3_arg(v) for v in values
+    )
+    cache = current_session().state(VerificationState).array_literals
+    key = tuple(_array_ast_key(value) for value in values)
+    if key not in cache:
+        elements = [Unit(v) for v in values]
+        cache[key] = elements[0] if len(elements) == 1 else Concat(*elements)
+        _bound(cache)
+    return cache[key]
+
+
+def _array_ast_key(value: Any) -> tuple[int, int]:
+    # Cache entries keep the ASTs alive so Z3 cannot recycle their ids.
+    return (value.ctx_ref().value, value.get_id())
+
+
+def _array_get(array: Any, index: Any) -> Any:
+    """Keep reads of literal tables in arithmetic, including symbolic indices."""
+    state = current_session().state(VerificationState)
+    array_key = _array_ast_key(array)
+    index_key: tuple[str, int] | tuple[int, int] = ("int", index) if isinstance(index, int) else _array_ast_key(index)
+    key = (array_key, index_key)
+    cached = state.array_reads.get(key)
+    if cached is not None:
+        return cached[2]
+    result = _array_get_uncached(array, index, array_key)
+    state.array_reads[key] = (array, index, result)
+    _bound(state.array_reads)
+    return result
+
+
+def _array_get_uncached(array: Any, index: Any, array_key: tuple[int, int]) -> Any:
+    items: list[Any] = []
+
+    def collect(term: Any) -> bool:
+        if is_app_of(term, Z3_OP_SEQ_UNIT):
+            items.append(term.arg(0))
+            return True
+        return is_app_of(term, Z3_OP_SEQ_CONCAT) and all(collect(child) for child in term.children())
+
+    cache = current_session().state(VerificationState).array_elements
+    cached = cache.get(array_key)
+    if cached is None:
+        elements = tuple(items) if collect(array) and items else None
+        cache[array_key] = (array, elements)
+        _bound(cache)
+    else:
+        elements = cached[1]
+    if elements:
+        items = list(elements)
+        if isinstance(index, int) and 0 <= index < len(items):
+            return items[index]
+
+        def select(lo: int, hi: int) -> Any:
+            if hi - lo == 1:
+                return items[lo]
+            mid = (lo + hi) // 2
+            return If(index < mid, select(lo, mid), select(mid, hi))
+
+        return If(And(index >= 0, index < len(items)), select(0, len(items)), array[index])
+    return simplify(array[index])
+
+
+_array_functions: dict[str, Any] = {
+    "__array_literal": _array_literal,
+    "__array_concat": Concat,
+    "__array_get": _array_get,
+    "__array_size": lambda arr: simplify(Length(arr)),
+}
+
 
 base_functions: dict[str, Any] = {
     "==": lambda x, y: x == y,
@@ -225,9 +302,15 @@ def _ple_unfold_once(
             if key in reflected_functions:
                 params, body = reflected_functions[key]
                 if len(params) == len(n_args):
-                    unfolded = body
-                    for param, arg in zip(params, n_args):
-                        unfolded = substitution_in_liquid(unfolded, arg, param)
+                    cache = current_session().state(VerificationState).reflected_calls
+                    call = (fun, params, body, tuple(n_args))
+                    unfolded = cache.get(call)
+                    if unfolded is None:
+                        unfolded = body
+                        for param, arg in zip(params, n_args):
+                            unfolded = substitution_in_liquid(unfolded, arg, param)
+                        cache[call] = unfolded
+                        _bound(cache)
                     return unfolded, True
             if changed:
                 return LiquidApp(fun, n_args, loc=loc), True
@@ -617,7 +700,8 @@ def _contract_well_scoped(t: LiquidTerm, ctx: SMTContext) -> bool:
         return str(t.name) in ctx.variables or any(t.name.name in group for group in get_constructor_groups().values())
     if isinstance(t, LiquidApp):
         is_operator = all(not c.isalnum() and c != "_" for c in t.fun.name)
-        if not (is_operator or str(t.fun) in ctx.functions or t.fun.name in base_functions):
+        internal_array = t.fun.id == 0 and t.fun.name in _array_functions
+        if not (is_operator or str(t.fun) in ctx.functions or t.fun.name in base_functions or internal_array):
             return False
         return all(_contract_well_scoped(a, ctx) for a in t.args)
     return True
@@ -665,6 +749,7 @@ class CanonicConstraint:
     variables: dict[str, TypeConstructor]
     premise: LiquidTerm
     conclusion: LiquidTerm
+    proof_key: str | None
 
     def __init__(self, ctx: SMTContext, pos: LiquidTerm):
         self.sorts = ctx.sorts
@@ -672,6 +757,7 @@ class CanonicConstraint:
         self.variables = ctx.variables
         self.premise = reduce(mk_liquid_and, ctx.premises, LiquidLiteralBool(True))
         self.conclusion = pos
+        self.proof_key = None
 
 
 def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constraint:
@@ -732,6 +818,8 @@ def _trivial_constraint(c: Constraint, memo: dict[int, tuple[Constraint, bool]])
     match c:
         case LiquidConstraint(LiquidLiteralBool(True)):
             result = True
+        case Implication(pred=LiquidLiteralBool(False)):
+            result = True
         case Conjunction(left, right):
             result = _trivial_constraint(left, memo) and _trivial_constraint(right, memo)
         case Implication(seq=seq) | UninterpretedFunctionDeclaration(seq=seq) | ReflectedFunctionDeclaration(seq=seq):
@@ -747,6 +835,7 @@ def flatten(
     ctx: SMTContext | None = None,
     _trivial_memo: dict[int, tuple[Constraint, bool]] | None = None,
     _bound_names: set[str] | None = None,
+    _proved: dict[str, bool] | None = None,
 ) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
@@ -759,6 +848,13 @@ def flatten(
         return
     match c:
         case LiquidConstraint(expr):
+            proof_key = None
+            if _proved is not None:
+                proof_key = _clause_proof_key(CanonicConstraint(ctx, expr)) + repr(
+                    tuple(ctx.reflected_functions.items())
+                )
+                if proof_key in _proved:
+                    return
             specializations: dict[tuple[str, tuple[str, ...]], str] = {}
             nfunctions = ctx.functions
             nref = ctx.reflected_functions
@@ -773,10 +869,12 @@ def flatten(
             sexpr, nfunctions, nref = _specialize_liquid_term(expr, nfunctions, ctx.variables, nref, specializations)
             premise = [ple_unfold_fixpoint(p, nref) for p in sprem]
             out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
-            yield CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
+            clause = CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
+            clause.proof_key = proof_key
+            yield clause
         case Conjunction(c1, c2):
-            yield from flatten(c1, ctx, _trivial_memo, _bound_names)
-            yield from flatten(c2, ctx, _trivial_memo, _bound_names)
+            yield from flatten(c1, ctx, _trivial_memo, _bound_names, _proved)
+            yield from flatten(c2, ctx, _trivial_memo, _bound_names, _proved)
         case Implication(oname, base, pred, seq):
             # Bound core names already carry unique IDs. Alpha-rename only
             # when this scope would shadow an existing symbol or reuse a
@@ -797,18 +895,20 @@ def flatten(
             assert isinstance(base, (TypeVar, TypeConstructor)), f"{base} is not a base type"
             lowered_base = lower_constraint_type(base)
             assert isinstance(lowered_base, TypeConstructor)
-            yield from flatten(seq, ctx.with_var(name, lowered_base).with_premise(pred), _trivial_memo, _bound_names)
+            yield from flatten(
+                seq, ctx.with_var(name, lowered_base).with_premise(pred), _trivial_memo, _bound_names, _proved
+            )
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
-            yield from flatten(seq, nctx.with_function(name, ty), _trivial_memo, _bound_names)
+            yield from flatten(seq, nctx.with_function(name, ty), _trivial_memo, _bound_names, _proved)
         case ReflectedFunctionDeclaration(name, ty, params, body, seq):
             nctx = (
                 _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
             )
             app = LiquidApp(name, [LiquidVar(p) for p in params])
             eq = LiquidApp(Name("==", 0), [app, body])
-            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo, _bound_names)
+            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo, _bound_names, _proved)
         case _:
             assert False, f"Cannot flatten {c}."
 
@@ -847,8 +947,11 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
     # different alpha-renamed namespaces, and discarded when this call returns.
     translate_memo: dict[int, tuple[LiquidTerm, Any]] = {}
     n = 0
-    for c in flatten(constraint):
+    proved = current_session().state(VerificationState).proved_clauses
+    for c in flatten(constraint, _proved=proved):
         n += 1
+        clause_key = c.proof_key
+        assert clause_key is not None
         # These clauses have no shared assertions. Discard internal search
         # state too: push/pop alone can make later recursive-measure queries
         # time out even when the same formula solves quickly in isolation.
@@ -879,6 +982,8 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
                 _bound(_smt_status_cache)
                 return False
             if smt_c is False:
+                proved[clause_key] = True
+                _bound(proved)
                 continue
             s.add(smt_c)
             result = s.check()
@@ -894,6 +999,8 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
                 _smt_status_cache[key] = ("unknown", s.reason_unknown())
                 _bound(_smt_status_cache)
                 return False
+            proved[clause_key] = True
+            _bound(proved)
         finally:
             # Always balance the matching ``push`` -- ``s`` is session-owned
             # solver, so an early ``return``/``continue`` that skipped the pop
@@ -905,6 +1012,33 @@ def _smt_valid(constraint: Constraint, key: str) -> bool:
     _smt_status_cache[key] = ("valid", None)
     _bound(_smt_status_cache)
     return True
+
+
+def _clause_proof_key(clause: CanonicConstraint) -> str:
+    """Reuse proved obligations when another definition in a program changes.
+
+    Include the complete reflected premises, referenced function signatures,
+    and variable sorts. Only fresh binder numbers are normalized; changed
+    definitions or assumptions must produce a different key.
+    """
+    names = {str(n): n for term in (clause.premise, clause.conclusion) for n in liquid_free_vars(term)}
+    pending = list(names)
+    while pending:
+        name = pending.pop()
+        referenced_type = clause.functions.get(name) or clause.variables.get(name)
+        if referenced_type is not None:
+            for free in type_free_term_vars(referenced_type):
+                if str(free) not in names:
+                    names[str(free)] = free
+                    pending.append(str(free))
+    constraint: Constraint = Conjunction(LiquidConstraint(clause.premise), LiquidConstraint(clause.conclusion))
+    for name, ty in reversed(list(clause.variables.items())):
+        if name in names:
+            constraint = Implication(names[name], ty, LiquidLiteralBool(True), constraint)
+    for name, function_type in reversed(list(clause.functions.items())):
+        if name in names:
+            constraint = UninterpretedFunctionDeclaration(names[name], function_type, constraint)
+    return repr(clause.sorts) + alpha_key(constraint)
 
 
 # Superscript digits encode binder ids in variable names (e.g. ``x¹¹``); strip
@@ -1048,6 +1182,11 @@ def get_sort(base: Type) -> SortRef:
             return StringSort()
         case TypeConstructor(Name("Set", _)):
             return SetSort(IntSort())
+        case TypeConstructor(Name("Array", _), [element]):
+            sname = _mangle_sort_name(base)
+            if sname not in sort_cache:
+                sort_cache[sname] = SeqSort(get_sort(lower_constraint_type(element)))
+            return sort_cache[sname]
         case TypeConstructor(name, args):
             sname = _mangle_sort_name(base) if args else str(name)
             from aeon.core.types import TypeVar as _TV
@@ -1108,6 +1247,13 @@ def get_sort(base: Type) -> SortRef:
 
 def clear_smt_caches() -> None:
     """Drop sort / helper / validity caches (e.g. between tests that re-register inductives)."""
+    state = current_session().state(VerificationState)
+    state.array_literals.clear()
+    state.array_elements.clear()
+    state.array_reads.clear()
+    state.reflected_calls.clear()
+    state.proved_clauses.clear()
+    state.generation += 1
     keep_unit = sort_cache.get("Unit", _unit_sort_ref)
     sort_cache.clear()
     sort_cache["Unit"] = keep_unit
@@ -1387,6 +1533,8 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
                 fun = ctor
             elif measure is not None:
                 fun = measure
+            elif fun_name.id == 0 and fun_name.name in _array_functions:
+                fun = _array_functions[fun_name.name]
             else:
                 fun = base_functions.get(fun_name.name, variables.get(str(fun_name), None))
                 if fun is None:
@@ -1552,6 +1700,8 @@ def translate(
     # P => true is valid independently of P. Avoid materialising every sort
     # and function in a large program for these ubiquitous typing tautologies.
     if isinstance(c.conclusion, LiquidLiteralBool) and c.conclusion.value:
+        return False
+    if isinstance(c.premise, LiquidLiteralBool) and not c.premise.value:
         return False
     sorts = mk_sorts(c.sorts)
     # Uninterpreted declarations have no effect until referenced. A weakening

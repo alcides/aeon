@@ -3,12 +3,15 @@ from __future__ import annotations
 import weakref
 from typing import Callable
 
+from aeon.core.equality import core_type_equality
 from aeon.core.instantiation import type_substitution
+from aeon.core.liquid import LiquidApp, LiquidPredicate, LiquidVar
 from aeon.core.substitutions import instantiate_refinement_in_type
 from aeon.core.terms import (
     Abstraction,
     Application,
     ImplicitRefinementHole,
+    Let,
     Literal,
     RefinementApplication,
     Term,
@@ -30,6 +33,8 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
+from aeon.synthesis.grammar.poly import predicate_argument
+from aeon.typechecking.branch_evidence import stored_match_predicate, unconstrained_predicate
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment
 from aeon.utils.location import SynthesizedLocation
@@ -37,13 +42,6 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.verification.sub import sub
 
 _loc = SynthesizedLocation("tdsyn")
-
-
-def _trivial_true_predicate() -> Abstraction:
-    """``λy. true`` — used only to weaken the *candidate type* while the term
-    still carries an ``ImplicitRefinementHole`` for Horn inference."""
-    y = Name("_pred_y", fresh_counter.fresh())
-    return Abstraction(y, Literal(True, t_bool, _loc), _loc)
 
 
 # Subtype results are stable for a given TypingContext object identity. Keyed
@@ -56,6 +54,9 @@ _subtype_cache: dict[int, dict[tuple[str, str], bool]] = {}
 
 def clear_tdsyn_caches() -> None:
     """Drop memoized subtype / component-library results for a fresh search."""
+    from aeon.synthesis.modules.tdsyn.incremental import clear_incremental_queries
+
+    clear_incremental_queries()
     _subtype_cache.clear()
     from aeon.synthesis.modules.tdsyn.library import clear_component_library_cache
 
@@ -175,17 +176,43 @@ def _mono_types_for(name: Name, ctx: TypingContext) -> list[TypeConstructor]:
     return _collect_concrete_types(ctx)
 
 
-def monomorphize(name: Name, ty: Type, ctx: TypingContext) -> list[tuple[Term, Type]]:
+def monomorphize(name: Name, ty: Type, ctx: TypingContext, goal: Type | None = None) -> list[tuple[Term, Type]]:
     """Generate all monomorphic instantiations of a (possibly polymorphic) type.
 
     Returns list of (term, monomorphic_type) pairs.
     For non-polymorphic types, returns [(Var(name), ty)].
     For polymorphic types, instantiates type variables with concrete types from context.
-    Abstract refinement quantifiers (``forall <p>``) are opened with an
-    ``ImplicitRefinementHole``, matching elaboration: Horn inference fills in
-    ``p`` when the finished term is typechecked.
+    Retained result relations are instantiated from ``goal`` when available.
+    Other abstract predicates remain implicit for final Horn inference, with
+    an arity-correct unconstrained approximation used during search.
     """
-    return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx))
+    return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx), goal)
+
+
+def _result_predicate(body: Type, name: Name, sort: Type, goal: Type | None) -> LiquidPredicate | None:
+    """Match a retained predicate variable to the corresponding goal argument.
+
+    Match by the predicate's identity in the result, not quantifier position:
+    helpers can reorder relation parameters. Compound relation expressions
+    are left to inference rather than treating them as bare parameters.
+    """
+    if goal is None:
+        return None
+    while isinstance(body, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
+        body = body.type if isinstance(body, AbstractionType) else body.body
+    result, target = base_type_of(body), base_type_of(goal)
+    if (
+        result is None
+        or target is None
+        or not core_type_equality(TypeConstructor(result.name, result.args), TypeConstructor(target.name, target.args))
+    ):
+        return None
+    for index, predicate in enumerate(result.refinements):
+        direct = not predicate.parameters and predicate.body == LiquidVar(name)
+        eta = predicate.body == LiquidApp(name, [LiquidVar(p) for p in predicate.parameters])
+        if (direct or eta) and index < len(target.refinements):
+            return stored_match_predicate(target, index, sort)
+    return None
 
 
 def _monomorphize_term(
@@ -193,6 +220,7 @@ def _monomorphize_term(
     ty: Type,
     ctx: TypingContext,
     concrete_types: list[TypeConstructor],
+    goal: Type | None = None,
 ) -> list[tuple[Term, Type]]:
     """Continue monomorphizing an already partially applied term."""
     match ty:
@@ -201,17 +229,19 @@ def _monomorphize_term(
             for concrete_type in concrete_types:
                 substituted = type_substitution(body, var_name, concrete_type)
                 applied: Term = TypeApplication(base_term, concrete_type, _loc)
-                results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types))
+                results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types, goal))
             return results
-        case RefinementPolymorphism(pred_name, _sort, body):
-            # Match elaboration: open ``forall <p>`` with an implicit hole on the
-            # *term* so Horn inference can instantiate ``p`` at typecheck time.
-            # The candidate type used for search is weakened with ``λy. true``
-            # (same approximation as LTA) so argument holes stay SMT-friendly.
-            hole = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
-            applied = RefinementApplication(base_term, hole, _loc)
-            substituted = instantiate_refinement_in_type(body, pred_name, _trivial_true_predicate())
-            return _monomorphize_term(applied, substituted, ctx, concrete_types)
+        case RefinementPolymorphism(pred_name, sort, body):
+            predicate = _result_predicate(body, pred_name, sort, goal)
+            if predicate is None:
+                argument: Term = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
+                replacement: Abstraction | LiquidPredicate = unconstrained_predicate(sort)
+            else:
+                argument = predicate_argument(ctx, predicate, sort)
+                replacement = predicate
+            applied = RefinementApplication(base_term, argument, _loc)
+            substituted = instantiate_refinement_in_type(body, pred_name, replacement)
+            return _monomorphize_term(applied, substituted, ctx, concrete_types, goal)
         case _:
             return [(base_term, ty)]
 
@@ -234,3 +264,53 @@ def is_constructor_term(term: Term) -> bool:
     while isinstance(term, (Application, TypeApplication, RefinementApplication)):
         term = term.fun if isinstance(term, Application) else term.body
     return isinstance(term, Var) and any(term.name.name in names for names in get_constructor_groups().values())
+
+
+def bind_constructor_arguments(term: Term) -> Term:
+    """Name intermediate data values before checking dependent measure types.
+
+    A nested constructor argument is otherwise substituted into every use of
+    its measures, making deep list proofs expand dramatically. Only pure data
+    trees are rewritten; calls and control flow keep their evaluation order.
+    """
+
+    def spine(value: Term) -> tuple[Term, list[Term]]:
+        args = []
+        while isinstance(value, Application):
+            args.append(value.arg)
+            value = value.fun
+        return value, list(reversed(args))
+
+    def data_tree(value: Term) -> bool:
+        if isinstance(value, (Literal, Var)):
+            return True
+        return is_constructor_term(value) and all(data_tree(arg) for arg in spine(value)[1])
+
+    if not is_constructor_term(term) or not data_tree(term):
+        return term
+    bindings: list[tuple[Name, Term]] = []
+
+    def bind(value: Term) -> Var:
+        name = Name("_data", fresh_counter.fresh())
+        bindings.append((name, value))
+        return Var(name, _loc)
+
+    def visit(value: Term) -> Term:
+        head, args = spine(value)
+        for arg in args:
+            if is_constructor_term(arg):
+                # Evaluate earlier curried applications before this argument,
+                # even if a local function shadows a registered constructor.
+                atomic_head = head
+                while isinstance(atomic_head, (TypeApplication, RefinementApplication)):
+                    atomic_head = atomic_head.body
+                if not isinstance(atomic_head, Var):
+                    head = bind(head)
+                arg = bind(visit(arg))
+            head = Application(head, arg, value.loc)
+        return head
+
+    result = visit(term)
+    for name, value in reversed(bindings):
+        result = Let(name, value, result, _loc)
+    return result

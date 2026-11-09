@@ -43,5 +43,7 @@ inductive Tree
     get_sort(TypeConstructor(Name("Nat", 0)))
     get_sort(TypeConstructor(Name("Tree", 0)))
     assert lookup_measure("Nat_size") is not None
-    assert lookup_measure("Tree_size") is not None
+    # Tree counts its nullary leaf as one, so the standard zero/one structural
+    # RecFunction would contradict its declared equation. Keep it uninterpreted.
+    assert lookup_measure("Tree_size") is None
     assert lookup_measure("size") is None

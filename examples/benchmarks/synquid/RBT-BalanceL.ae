@@ -1,8 +1,5 @@
-# RBT-BalanceL: left-balancing constructor.
-#
-# Synquid benchmark RBT-BalanceL (pldi16).
-#
-# Element type polymorphic. Red-black COLOUR / black-height (and BST order) NOT encoded (needs #1); node-count only. Structural/size port.
+# RBT-BalanceL — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/RBT-BalanceL.sq for the missing contracts.
 
 inductive Rbt a
 | rleaf : {t:(Rbt a) | rsz t = 0}

@@ -1,0 +1,964 @@
+{
+  "upstream": {
+    "repository": "https://github.com/nadia-polikarpova/synquid",
+    "commit": "9bceb4cc775e07ab279fff8c51fdd86ae0b2878c",
+    "directory": "test/pldi16",
+    "license": "upstream/LICENSE"
+  },
+  "statuses": {
+    "contract-faithful": "Target contracts and relevant datatype invariants match upstream, up to syntax/alpha-renaming. This does not assert identical grammar, search or synthesis success.",
+    "partial": "Upgraded with current features, but listed logical contract gaps remain.",
+    "legacy-approximation": "Audited existing approximation; do not count solutions as solutions to the upstream problem."
+  },
+  "benchmarks": [
+    {
+      "id": "AVL-Balance",
+      "aeon_file": "AVL-Balance.ae",
+      "upstream_file": "upstream/AVL-Balance.sq",
+      "sha256": "121109a5b8ab5995b7ada515f3f71c8362b8278ec842686d487706b82b101dce",
+      "upstream_goals": [
+        "balance"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing BST ordering, balance invariants, stored height field, balance factor, element sets, original helper components and exact height contracts. Original restricts the child height difference to two and bounds the balanced result height."
+      ],
+      "notes": []
+    },
+    {
+      "id": "AVL-Delete",
+      "aeon_file": "AVL-Delete.ae",
+      "upstream_file": "upstream/AVL-Delete.sq",
+      "sha256": "b5d4b4bd303dbf5fb25d5a9b13c81e03fc08f36462e6a6ae9fea62b12f46d149",
+      "upstream_goals": [
+        "merge",
+        "delete"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing BST ordering, balance invariants, stored height field, balance factor, element sets, original helper components and exact height contracts. Original synthesizes merge and delete, with height-change and set-difference contracts."
+      ],
+      "notes": []
+    },
+    {
+      "id": "AVL-ExtractMin",
+      "aeon_file": "AVL-ExtractMin.ae",
+      "upstream_file": "upstream/AVL-ExtractMin.sq",
+      "sha256": "40ba5c9199d4196cc5a8005f976abe36b2debaddc2f680e6328121d6fa3e7ce5",
+      "upstream_goals": [
+        "extractMin"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing BST ordering, balance invariants, stored height field, balance factor, element sets, original helper components and exact height contracts. Original accepts empty trees and returns MinPair (including Nothing), preserving elements and bounding the remaining height."
+      ],
+      "notes": []
+    },
+    {
+      "id": "AVL-Insert",
+      "aeon_file": "AVL-Insert.ae",
+      "upstream_file": "upstream/AVL-Insert.sq",
+      "sha256": "4a16a9f5cf493c5d842b69bb94a54868d8b5249b9dd638231027dd9bc562a223",
+      "upstream_goals": [
+        "insert"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing BST ordering, balance invariants, stored height field, balance factor, element sets, original helper components and exact height contracts. Original bounds height growth to zero or one and preserves the element-set union."
+      ],
+      "notes": []
+    },
+    {
+      "id": "AVL-RotateL",
+      "aeon_file": "AVL-RotateL.ae",
+      "upstream_file": "upstream/AVL-RotateL.sq",
+      "sha256": "ca4caf660ae935123edd179f8d57c4f8eab06922e078161619ae1255ab9ed5da",
+      "upstream_goals": [
+        "rotLR",
+        "rotLL",
+        "rotL0"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing BST ordering, balance invariants, stored height field, balance factor, element sets, original helper components and exact height contracts. Original synthesizes rotLR, rotLL and rotL0 with separate balance-factor preconditions."
+      ],
+      "notes": []
+    },
+    {
+      "id": "AVL-RotateR",
+      "aeon_file": "AVL-RotateR.ae",
+      "upstream_file": "upstream/AVL-RotateR.sq",
+      "sha256": "917eb93238388ffe910c631920e9ce85ea7d3c0ced1038d572b2366f2e59e9ed",
+      "upstream_goals": [
+        "rotRR",
+        "rotRL",
+        "rotR0"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing BST ordering, balance invariants, stored height field, balance factor, element sets, original helper components and exact height contracts. Original synthesizes rotRR, rotRL and rotR0 with separate balance-factor preconditions."
+      ],
+      "notes": []
+    },
+    {
+      "id": "AddressBook-Make",
+      "aeon_file": "AddressBook-Make.ae",
+      "upstream_file": "upstream/AddressBook-Make.sq",
+      "sha256": "4006e94b067e0be573181c8fb092b7a98b3aaa50bbf1189e797802bc0343feab",
+      "upstream_goals": [
+        "mkAddressBook"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "AddressBook-Merge",
+      "aeon_file": "AddressBook-Merge.ae",
+      "upstream_file": "upstream/AddressBook-Merge.sq",
+      "sha256": "879ee79589c0cd8b98b2f17ef9d011593d948b80d93149c2860cb3f7c1bf1373",
+      "upstream_goals": [
+        "mergeAddressBooks"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "BST-Delete",
+      "aeon_file": "BST-Delete.ae",
+      "upstream_file": "upstream/BST-Delete.sq",
+      "sha256": "db67d49f6a650ababd7299e72d9a65e181b47a37eb35df2935e25acf28725581",
+      "upstream_goals": [
+        "delete"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict left/right key bounds, original key/left/right constructor order, telems sets and original components/qualifiers. Argument order differs; size upper bound replaces set difference."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BST-Insert",
+      "aeon_file": "BST-Insert.ae",
+      "upstream_file": "upstream/BST-Insert.sq",
+      "sha256": "2e4b42bb7861d50b660acfec9a381643f1ea73ff5bfb99ac787a580fdc929ab9",
+      "upstream_goals": [
+        "insert"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict left/right key bounds, original key/left/right constructor order, telems sets and original components/qualifiers. Size lower bound replaces set union."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BST-Member",
+      "aeon_file": "BST-Member.ae",
+      "upstream_file": "upstream/BST-Member.sq",
+      "sha256": "8c2a4dc60ff041d4c07325fb87b3740699d38e7659515437a7bc23ad01697c39",
+      "upstream_goals": [
+        "member"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict left/right key bounds, original key/left/right constructor order, telems sets and original components/qualifiers. Bool result lacks the membership equivalence."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BST-Sort",
+      "aeon_file": "BST-Sort.ae",
+      "upstream_file": "upstream/BST-Sort.sq",
+      "sha256": "ac3bcb92e08f1998654f16b0943aaee4fad2e3935b9429aa495998e94a9f99e6",
+      "upstream_goals": [
+        "insert",
+        "toBST",
+        "pivotAppend",
+        "flatten",
+        "sort"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Original synthesizes five goals (insert, toBST, pivotAppend, flatten, sort), uses polymorphic strict IList/BST order and set equations; port has one Int, non-strict, length-preserving goal."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BinHeap-Doubleton",
+      "aeon_file": "BinHeap-Doubleton.ae",
+      "upstream_file": "upstream/BinHeap-Doubleton.sq",
+      "sha256": "48ab585a9bed8a47041f68041d579db8321b3b425ff13fbef44f45589016ab21",
+      "upstream_goals": [
+        "doubleton"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict child-key bound (> parent), original key/left/right constructor order, element-set contract and original components/qualifiers. Cardinality/Bool approximation is not equivalent (upstream sets ignore duplicates)."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BinHeap-Insert",
+      "aeon_file": "BinHeap-Insert.ae",
+      "upstream_file": "upstream/BinHeap-Insert.sq",
+      "sha256": "7f5f820436f717724e668d20e0eb26381e7da349dded1d4ab82ed6c044fc3b84",
+      "upstream_goals": [
+        "insert"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict child-key bound (> parent), original key/left/right constructor order, element-set contract and original components/qualifiers. Original argument order is heap then element. Cardinality/Bool approximation is not equivalent (upstream sets ignore duplicates)."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BinHeap-Member",
+      "aeon_file": "BinHeap-Member.ae",
+      "upstream_file": "upstream/BinHeap-Member.sq",
+      "sha256": "ca23d49a21f6e86268140636455845297f122ecbd893d3784ff34ecccd4c3090",
+      "upstream_goals": [
+        "member"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict child-key bound (> parent), original key/left/right constructor order, element-set contract and original components/qualifiers. Cardinality/Bool approximation is not equivalent (upstream sets ignore duplicates)."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BinHeap-Singleton",
+      "aeon_file": "BinHeap-Singleton.ae",
+      "upstream_file": "upstream/BinHeap-Singleton.sq",
+      "sha256": "c6d61b26532857f6a49faf92cb06f006b175687dea583df64b6275158d170063",
+      "upstream_goals": [
+        "singleton"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict child-key bound (> parent), original key/left/right constructor order, element-set contract and original components/qualifiers. Cardinality/Bool approximation is not equivalent (upstream sets ignore duplicates)."
+      ],
+      "notes": []
+    },
+    {
+      "id": "BinHeap-Tripleton",
+      "aeon_file": "BinHeap-Tripleton.ae",
+      "upstream_file": "upstream/BinHeap-Tripleton.sq",
+      "sha256": "bdc57ffb943768671127023c93013e6738e881ea639d984e57e9c2101a768c3c",
+      "upstream_goals": [
+        "tripleton"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing strict child-key bound (> parent), original key/left/right constructor order, element-set contract and original components/qualifiers. Cardinality/Bool approximation is not equivalent (upstream sets ignore duplicates)."
+      ],
+      "notes": []
+    },
+    {
+      "id": "Evaluator",
+      "aeon_file": "Evaluator.ae",
+      "upstream_file": "upstream/Evaluator.sq",
+      "sha256": "d56827f82123ea59ce38c21ea1fbd324a40a12fccbc01463b1e0d2dbeddf6552",
+      "upstream_goals": [
+        "transform"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "IncList-Insert",
+      "aeon_file": "IncList-Insert.ae",
+      "upstream_file": "upstream/IncList-Insert.sq",
+      "sha256": "c7649b0f9f9859e3f094fdd7a37507f4ef65a60c8e209b0902fd298f0df6fce7",
+      "upstream_goals": [
+        "insert"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Int-only head/min encoding instead of polymorphic refined element types; missing leq/neq components and set union; inserted length equation is not upstream."
+      ],
+      "notes": []
+    },
+    {
+      "id": "IncList-Merge",
+      "aeon_file": "IncList-Merge.ae",
+      "upstream_file": "upstream/IncList-Merge.sq",
+      "sha256": "70aad66f8a6390b320bd5dff1598c1406cc43275378dd8ea35ef319370592f55",
+      "upstream_goals": [
+        "merge"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Int-only head/min encoding instead of polymorphic refined element types; missing leq/neq components and set union."
+      ],
+      "notes": []
+    },
+    {
+      "id": "IncList-PivotAppend",
+      "aeon_file": "IncList-PivotAppend.ae",
+      "upstream_file": "upstream/IncList-PivotAppend.sq",
+      "sha256": "5e76a6a84615b262919c04287314d432f827ec4301a10aaba01804df61a1a3ef",
+      "upstream_goals": [
+        "pivotAppend"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Int-only head/min encoding; left elements should be <= pivot, right elements > pivot; missing pivot in output length (+1) and set union."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Append",
+      "aeon_file": "List-Append.ae",
+      "upstream_file": "upstream/List-Append.sq",
+      "sha256": "87f43cbfe4d9dc7fdfe863aeb0963fd488e670e97ca717cd66e4e5c95efa4341",
+      "upstream_goals": [
+        "append"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Compress",
+      "aeon_file": "List-Compress.ae",
+      "upstream_file": "upstream/List-Compress.sq",
+      "sha256": "a3eb0184724f8e9ab59937442b2132e18c74d851004ab7843739e9abf12ae6a2",
+      "upstream_goals": [
+        "compress"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing PList predicate a -> PList a -> Bool, heads/elems sets and adjacent-distinct output; length bound is a substitute, not the original contract."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Concat",
+      "aeon_file": "List-Concat.ae",
+      "upstream_file": "upstream/List-Concat.sq",
+      "sha256": "3b1d83e03d3b95e69660dd633b4f61ea02e126d0fc47b3615aff9de068dbffee",
+      "upstream_goals": [
+        "concat"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "List-Delete",
+      "aeon_file": "List-Delete.ae",
+      "upstream_file": "upstream/List-Delete.sq",
+      "sha256": "a1eea9e53f26f4c7afe7b0ad52e2f6a527cc597b38daf329a8981a7e3280ebf0",
+      "upstream_goals": [
+        "delete"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing element-set difference; the length bound does not specify deletion."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Drop",
+      "aeon_file": "List-Drop.ae",
+      "upstream_file": "upstream/List-Drop.sq",
+      "sha256": "fd4f807d7998cc61b8b25575d5fee5c4d147ebdb00c9aae424d03d380ab3cfd9",
+      "upstream_goals": [
+        "drop"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Elem",
+      "aeon_file": "List-Elem.ae",
+      "upstream_file": "upstream/List-Elem.sq",
+      "sha256": "47142cbd8cdeb735d0599d1e56ac89447550c49dff57b825527a4f2b9debc093",
+      "upstream_goals": [
+        "elem"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing membership equivalence; Bool result is unconstrained."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-ElemIndex",
+      "aeon_file": "List-ElemIndex.ae",
+      "upstream_file": "upstream/List-ElemIndex.sq",
+      "sha256": "6d38593c573c6c0b05947d9e9c39f1895cfe604337d174e2ab3cc2d5bce83d80",
+      "upstream_goals": [
+        "elemIndex"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Original requires membership, uses an index-shifting predicate, and returns Int satisfying p index x; this port instead returns unconstrained Maybe Int."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-ExtractMin",
+      "aeon_file": "List-ExtractMin.ae",
+      "upstream_file": "upstream/List-ExtractMin.sq",
+      "sha256": "c655937ec57844982a70e210b84bb28f9673f369d927c269a3df1fc008cb36dc",
+      "upstream_goals": [
+        "extractMin"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Original returns a MinPair with a scalar minimum, a tail bounded below by it, and set/length equations; this port returns a pair of lists."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Fold-Append",
+      "aeon_file": "List-Fold-Append.ae",
+      "upstream_file": "upstream/List-Fold-Append.sq",
+      "sha256": "f6ef604c11a8dd9081f55ffad9ef8d5cb6b8b224b777f6a229bf091c30574ea1",
+      "upstream_goals": [
+        "append"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Unused polymorphic elems measure omitted; no target or component contract mentions it.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "List-Fold-Length",
+      "aeon_file": "List-Fold-Length.ae",
+      "upstream_file": "upstream/List-Fold-Length.sq",
+      "sha256": "56a1e9f78519462d9450689307263b153c194d05250a938d780caaeed9a5aa9a",
+      "upstream_goals": [
+        "length"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Unused polymorphic elems measure omitted; no target or component contract mentions it.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "List-Fold-Sort",
+      "aeon_file": "List-Fold-Sort.ae",
+      "upstream_file": "upstream/List-Fold-Sort.sq",
+      "sha256": "9ae5d6608bb1d7412ac5cabd41bb28d1e7a980f2c0eb3bff5383318247340c26",
+      "upstream_goals": [
+        "sort"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing relational RList datatype, dependent foldr component, nondecreasing output and element-set preservation."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Foldr",
+      "aeon_file": "List-Foldr.ae",
+      "upstream_file": "upstream/List-Foldr.sq",
+      "sha256": "aa36a3c2527117f2903b2afa102950bce46b1ad14ab56a93e390fada0b070f72",
+      "upstream_goals": [
+        "foldr"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Unused polymorphic elems measure omitted; no target or component contract mentions it."
+      ]
+    },
+    {
+      "id": "List-InsertSort",
+      "aeon_file": "List-InsertSort.ae",
+      "upstream_file": "upstream/List-InsertSort.sq",
+      "sha256": "8040f04cd625d05d5cc4da8354052b6efdbd9ae6ee886edea3a2afbd891333fc",
+      "upstream_goals": [
+        "insertSort"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing polymorphic IList order, insert component and element-set equation; original has no length equation."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Ith",
+      "aeon_file": "List-Ith.ae",
+      "upstream_file": "upstream/List-Ith.sq",
+      "sha256": "b664274a336c0f1fde88f4bfbcefb24869f645c69bb07af180347d6ef0e7fd99",
+      "upstream_goals": [
+        "ith"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Map",
+      "aeon_file": "List-Map.ae",
+      "upstream_file": "upstream/List-Map.sq",
+      "sha256": "979c90f8cdb13af283cb4095849c786c2779189ee170a831c2c0798f7c0e05a9",
+      "upstream_goals": [
+        "map"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-MergeSort",
+      "aeon_file": "List-MergeSort.ae",
+      "upstream_file": "upstream/List-MergeSort.sq",
+      "sha256": "6e6cdde51f74eb88c6d49f300da6c522d8c75b285404577abb018d193c69a9c2",
+      "upstream_goals": [
+        "mergeSort"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing polymorphic IList order, balanced split and merge components, and element-set equation."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Nub",
+      "aeon_file": "List-Nub.ae",
+      "upstream_file": "upstream/List-Nub.sq",
+      "sha256": "4b932cf05da7924ea3e35b442d8312c8582624a01da01308be22c7923a6a4d90",
+      "upstream_goals": [
+        "nub"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing PList predicate a -> PList a -> Bool, unique output, elem component and element-set preservation."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Null",
+      "aeon_file": "List-Null.ae",
+      "upstream_file": "upstream/List-Null.sq",
+      "sha256": "ae74d25891f5ed71dc3955f569b9938e2ce0440577ec9c6d22b88093447b8a3c",
+      "upstream_goals": [
+        "null"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Partition",
+      "aeon_file": "List-Partition.ae",
+      "upstream_file": "upstream/List-Partition.sq",
+      "sha256": "ec9a254e7b68272344ea6573712e11965aebda64ca0abc355e620a67dde52590",
+      "upstream_goals": [
+        "partition"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing generic Pair of lists whose element types are bounded by the pivot (<= and >), leq component and element-set union."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Product",
+      "aeon_file": "List-Product.ae",
+      "upstream_file": "upstream/List-Product.sq",
+      "sha256": "a4cf7e7c90f3b60d10520aca7d52e93503b478601460768a707f132fada2c388",
+      "upstream_goals": [
+        "product"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "List-QuickSort",
+      "aeon_file": "List-QuickSort.ae",
+      "upstream_file": "upstream/List-QuickSort.sq",
+      "sha256": "fb22b728031ca58ec6d160d6562b4bc48bdfa6aa60143a27eb9532423d2738ca",
+      "upstream_goals": [
+        "quickSort"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing polymorphic IList order, partition/pivotAppend components and element-set equation."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Replicate",
+      "aeon_file": "List-Replicate.ae",
+      "upstream_file": "upstream/List-Replicate.sq",
+      "sha256": "fcb5967116c614c5a1a4abac3c8840b442a56a17d26168690ab4d2272abe4a73",
+      "upstream_goals": [
+        "replicate"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Reverse",
+      "aeon_file": "List-Reverse.ae",
+      "upstream_file": "upstream/List-Reverse.sq",
+      "sha256": "15bd849c5788cee0fd7037306ce01197f7a85154c150c3cb7564751e480510a1",
+      "upstream_goals": [
+        "reverse"
+      ],
+      "status": "partial",
+      "gaps": [
+        "Element-set preservation is missing from both snoc and reverse."
+      ],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "List-SelectSort",
+      "aeon_file": "List-SelectSort.ae",
+      "upstream_file": "upstream/List-SelectSort.sq",
+      "sha256": "7e72a9fdec9ee6114da37d279c76ba59ba2315e4aaaafe513e17e173377155b3",
+      "upstream_goals": [
+        "selectSort"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing polymorphic IList order, dependent MinPair/extractMin component and element-set equation; original has no length equation."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Snoc",
+      "aeon_file": "List-Snoc.ae",
+      "upstream_file": "upstream/List-Snoc.sq",
+      "sha256": "bbf57d975b4e768ffe5f7f389b0095c21dc471e00b5a2f65a36746eecd9d47a0",
+      "upstream_goals": [
+        "snoc"
+      ],
+      "status": "partial",
+      "gaps": [
+        "Element-set union is missing from the result."
+      ],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Split",
+      "aeon_file": "List-Split.ae",
+      "upstream_file": "upstream/List-Split.sq",
+      "sha256": "6288f8142720fae389d6ce8b2be9e9e26377c1fdb53111a8d5f85d38826b7a50",
+      "upstream_goals": [
+        "split"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing generic Pair, near-equal halves (absolute size difference <= 1) and element-set union."
+      ],
+      "notes": []
+    },
+    {
+      "id": "List-Stutter",
+      "aeon_file": "List-Stutter.ae",
+      "upstream_file": "upstream/List-Stutter.sq",
+      "sha256": "52640bd278242a9a8efc488a927ddf04554bf5d0933c57085b623b2b16659663",
+      "upstream_goals": [
+        "stutter"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Take",
+      "aeon_file": "List-Take.ae",
+      "upstream_file": "upstream/List-Take.sq",
+      "sha256": "e3dfff1bea2efca1a759a9f7313025aa5ffccea81228bcad80487abfdef4bae6",
+      "upstream_goals": [
+        "take"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-Zip",
+      "aeon_file": "List-Zip.ae",
+      "upstream_file": "upstream/List-Zip.sq",
+      "sha256": "43c0e0679fe153475ec414b1755b100c075aa0c4bb38d16284f8701ffe1627bd",
+      "upstream_goals": [
+        "zip"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "List-ZipWith",
+      "aeon_file": "List-ZipWith.ae",
+      "upstream_file": "upstream/List-ZipWith.sq",
+      "sha256": "75851c20edefa69a40b3df64ddf829979f7b2ab2c06c8086eb1c6288575fd5f4",
+      "upstream_goals": [
+        "zipWith"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "RBT-BalanceL",
+      "aeon_file": "RBT-BalanceL.ae",
+      "upstream_file": "upstream/RBT-BalanceL.sq",
+      "sha256": "735f4e4a54f08ba23f06f8da376d9af395fadf72a5537914bd825952c518b93d",
+      "upstream_goals": [
+        "rotateL",
+        "balanceL"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing color field, strict BST ordering, red-child rule, equal black heights, WeakRBT Ok/Bad datatype, element sets, helper components and exact height/size contracts. Original synthesizes rotateL and balanceL."
+      ],
+      "notes": []
+    },
+    {
+      "id": "RBT-BalanceR",
+      "aeon_file": "RBT-BalanceR.ae",
+      "upstream_file": "upstream/RBT-BalanceR.sq",
+      "sha256": "6baddd6f2ee749d171a92ec1e76e6d694a1b9806b52dcbce1fff68ffd8ad76ab",
+      "upstream_goals": [
+        "rotateR",
+        "balanceR"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing color field, strict BST ordering, red-child rule, equal black heights, WeakRBT Ok/Bad datatype, element sets, helper components and exact height/size contracts. Original synthesizes rotateR and balanceR."
+      ],
+      "notes": []
+    },
+    {
+      "id": "RBT-Insert",
+      "aeon_file": "RBT-Insert.ae",
+      "upstream_file": "upstream/RBT-Insert.sq",
+      "sha256": "2f99b496a51188cfd0be1d9d77acb186bca7309e1e42345264c6454a96292a35",
+      "upstream_goals": [
+        "ins",
+        "mkBlack",
+        "insert"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing color field, strict BST ordering, red-child rule, equal black heights, WeakRBT Ok/Bad datatype, element sets, helper components and exact height/size contracts. Original synthesizes ins, mkBlack and insert."
+      ],
+      "notes": []
+    },
+    {
+      "id": "StrictIncList-Delete",
+      "aeon_file": "StrictIncList-Delete.ae",
+      "upstream_file": "upstream/StrictIncList-Delete.sq",
+      "sha256": "8131c761e7a11381abc7ed57237435cd99f6ee207959fb03279bcf4df74fb072",
+      "upstream_goals": [
+        "delete"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Int-only head/min encoding instead of polymorphic refined element types; missing lt component and set difference; length bound is a substitute."
+      ],
+      "notes": []
+    },
+    {
+      "id": "StrictIncList-Insert",
+      "aeon_file": "StrictIncList-Insert.ae",
+      "upstream_file": "upstream/StrictIncList-Insert.sq",
+      "sha256": "900951213bc748b8741666c9762569779dacba6247993c7ff534d9a9c8105513",
+      "upstream_goals": [
+        "insert"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Int-only head/min encoding instead of polymorphic refined element types; missing lt component and set union; length bound is a substitute."
+      ],
+      "notes": []
+    },
+    {
+      "id": "StrictIncList-Intersect",
+      "aeon_file": "StrictIncList-Intersect.ae",
+      "upstream_file": "upstream/StrictIncList-Intersect.sq",
+      "sha256": "7f4234b61a8b821b20a0fe51bbeb76a628be9d3e8c72ca0866287a2963cc818b",
+      "upstream_goals": [
+        "intersect"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Int-only head/min encoding instead of polymorphic refined element types; missing lt component and set intersection; length bounds are substitutes."
+      ],
+      "notes": []
+    },
+    {
+      "id": "Tree-BalancedReplicate",
+      "aeon_file": "Tree-BalancedReplicate.ae",
+      "upstream_file": "upstream/Tree-BalancedReplicate.sq",
+      "sha256": "5dc750394fe17f0858adf20d84725cb0bf4be93312c6c77d5e5dafa4148fe255",
+      "upstream_goals": [
+        "replicate"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "Tree-Count",
+      "aeon_file": "Tree-Count.ae",
+      "upstream_file": "upstream/Tree-Count.sq",
+      "sha256": "740da888bbea2ec28dce71fcbb7418bfc880b9e09bd6f8cd84b63ea2115ec5b7",
+      "upstream_goals": [
+        "countNodes"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
+    },
+    {
+      "id": "Tree-Elem",
+      "aeon_file": "Tree-Elem.ae",
+      "upstream_file": "upstream/Tree-Elem.sq",
+      "sha256": "64755fd9976245e89961c2bb362e98cc9ec0a900257df71c0ba6705dbe741997",
+      "upstream_goals": [
+        "elem"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing telems membership equivalence, Boolean components and equality qualifier; Bool result is unconstrained."
+      ],
+      "notes": []
+    },
+    {
+      "id": "Tree-ToList",
+      "aeon_file": "Tree-ToList.ae",
+      "upstream_file": "upstream/Tree-ToList.sq",
+      "sha256": "6ffc4ce2d22bfcd29c3636893e6e4188457e2094ab8a4b9d566055124d5ed55c",
+      "upstream_goals": [
+        "toList"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Upstream signature-only components are supplied as checked Aeon definitions."
+      ]
+    },
+    {
+      "id": "UniqueList-Delete",
+      "aeon_file": "UniqueList-Delete.ae",
+      "upstream_file": "upstream/UniqueList-Delete.sq",
+      "sha256": "4fc597a13f325bc180c4201c8773c443be5ab75b09317e728a11db22fc183ac0",
+      "upstream_goals": [
+        "delete"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing PList element-to-tail predicate, uniqueness, eq/neq components and set difference; length bound is a substitute."
+      ],
+      "notes": []
+    },
+    {
+      "id": "UniqueList-Insert",
+      "aeon_file": "UniqueList-Insert.ae",
+      "upstream_file": "upstream/UniqueList-Insert.sq",
+      "sha256": "9b46f98e7815d69408df113fb45fb6f1d119d63239cbd237e6ae2f3517d44c84",
+      "upstream_goals": [
+        "insert"
+      ],
+      "status": "legacy-approximation",
+      "gaps": [
+        "Missing PList element-to-tail predicate, uniqueness, eq/neq components and set union; length bounds are substitutes."
+      ],
+      "notes": []
+    },
+    {
+      "id": "UniqueList-Range",
+      "aeon_file": "UniqueList-Range.ae",
+      "upstream_file": "upstream/UniqueList-Range.sq",
+      "sha256": "66340b34d8d42245c2b28d033e2c33aaa691d29a272bdd4832446696c4191cb9",
+      "upstream_goals": [
+        "range"
+      ],
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
+        "Unused polymorphic elems measure omitted; no target or component contract mentions it."
+      ]
+    }
+  ]
+}

@@ -1,8 +1,5 @@
-# BST-Delete: delete a key from a BST.
-#
-# Synquid benchmark BST-Delete (pldi16).
-#
-# Element type polymorphic. BST ORDER invariant NOT encoded (needs n-ary abstract refinements, #1); only node-count. Structural/size port.
+# BST-Delete — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BST-Delete.sq for the missing contracts.
 
 inductive BTree a
 | bleaf : {t:(BTree a) | bsz t = 0}

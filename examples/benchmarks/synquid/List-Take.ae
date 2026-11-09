@@ -1,9 +1,15 @@
-# List-Take: keep the first n elements.
-#
-# Synquid benchmark List-Take (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# List-Take — Synquid PLDI16, pinned source in upstream/List-Take.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def take (n: {v:Int | v >= 0}) (xs: {l:(List a) | List.size l >= n}) : {r:(List a) | List.size r = n} := ?hole;
+def zero : {v:Int | v = 0} := 0;
+def inc (x:Int) : {v:Int | v = x + 1} := x + 1;
+def dec (x:Int) : {v:Int | v = x - 1} := x - 1;
+def leq (x:Int) (y:Int) : {v:Bool | v = (x <= y)} := x <= y;
+def neq (x:Int) (y:Int) : {v:Bool | v = (x != y)} := x != y;
+
+def take (n:{v:Int | v >= 0}) (xs:{v:(List a) | List.len v >= n}) : {v:(List a) | List.len v = n} decreasing_by [n] := ?hole;
