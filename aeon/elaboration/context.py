@@ -2,7 +2,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import MutableSequence
 
-from aeon.core.types import Kind
+from aeon.core.types import Kinding
 from aeon.sugar.program import TypeDecl
 from aeon.sugar.stypes import SType
 from aeon.utils.name import Name, fresh_counter
@@ -27,7 +27,7 @@ class ElabUninterpretedBinder(ElabTypingContextEntry):
 @dataclass
 class ElabTypeVarBinder(ElabTypingContextEntry):
     name: Name
-    type: Kind
+    type: Kinding
 
 
 @dataclass
@@ -36,6 +36,7 @@ class ElabTypeDecl(ElabTypingContextEntry):
     args: list[Name]
     rforalls: list[tuple[Name, SType]] = field(default_factory=list)
     linear: bool = False
+    arg_kinds: tuple[Kinding, ...] = field(default_factory=tuple)
 
 
 @dataclass
@@ -92,7 +93,7 @@ class ElaborationTypingContext:
         nentries = [x for x in self.entries] + [ElabVariableBinder(name, ty)]
         return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs, self.instances)
 
-    def with_typevar(self, name: Name, kind: Kind):
+    def with_typevar(self, name: Name, kind: Kinding):
         """Creates a new context, with an extra type variable"""
         nentries = [x for x in self.entries] + [ElabTypeVarBinder(name, kind)]
         return ElaborationTypingContext(nentries, self.constructor_to_type, self.constructor_defs, self.instances)
@@ -121,7 +122,7 @@ def build_typing_context(
         constructor_defs = {}
     return ElaborationTypingContext(
         [ElabVariableBinder(name, ls[name]) for name in ls]
-        + [ElabTypeDecl(td.name, td.args, td.rforalls, td.linear) for td in tdecl],
+        + [ElabTypeDecl(td.name, td.args, td.rforalls, td.linear, arg_kinds=td.arg_kinds) for td in tdecl],
         constructor_to_type,
         constructor_defs,
     )

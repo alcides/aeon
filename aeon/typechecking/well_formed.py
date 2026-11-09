@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidLiteralBool
+from aeon.core.types import Kinding, kind_compatible
 from aeon.core.types import AbstractionType, RefinementPolymorphism, Top, TypeConstructor
 from aeon.core.types import ExistentialType
 from aeon.core.types import Kind
@@ -13,10 +14,10 @@ from aeon.typechecking.context import TypingContext
 from aeon.typechecking.liquid import typecheck_liquid, LiquidTypeCheckException
 
 
-def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
+def wf_inner(ctx: TypingContext, t: Type, k: Kinding = Kind.STAR) -> bool:
     match t:
         case Top():
-            return True  # wf_no_refinement
+            return kind_compatible(Kind.BASE, k)  # wf_no_refinement
         case RefinedType(_, TypeConstructor() as inner, LiquidLiteralBool()):
             # A literal predicate has Bool sort independently of value scope.
             # Avoid copying thousands of unrelated bindings to check `true`.
@@ -25,9 +26,9 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
             inferred_type = typecheck_liquid(ctx, refinement, (name, ty))
             return wf_inner(ctx, ty, k) and inferred_type == t_bool
         case TypeVar(tvname):
-            return tvname in [v[0] for v in ctx.typevars()]
+            return any(n == tvname and kind_compatible(kind, k) for n, kind in ctx.typevars())
         case RefinedType(name, TypeVar(tvname), LiquidLiteralBool(True)):
-            return (tvname, k) in ctx.typevars()
+            return k in (Kind.BASE, Kind.STAR) and (tvname, k) in ctx.typevars()
         case RefinedType(name, TypeVar(tvname) as ty, refinement):
             return (
                 k == Kind.BASE
@@ -63,19 +64,13 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
                             return False
                     except (AssertionError, ValueError, KeyError, LiquidTypeCheckException):
                         return False
-            if not args:
-                return ctx.get_type_constructor(name) is not None
-            else:
-                cargs = ctx.get_type_constructor(name)
-                if not cargs or len(cargs) != len(args):
-                    return False
-                # Type-constructor arguments are base types (with optional
-                # refinement); use ``wellformed`` so refined type variables
-                # like ``{_r:a | p _r}`` (which need Kind.BASE) are accepted
-                # in positions like ``List a<p>`` or ``Pair a<p> b<q>``.
-                return all(wellformed(ctx, t) for t in args)
+            return kind_compatible(ctx.kind_of(t), k) and all(wellformed(ctx, arg, ctx.kind_of(arg)) for arg in args)
         case RefinedType(name, TypeConstructor(_, args) as ity, refinement):
-            return wf_inner(ctx, ity) and typecheck_liquid(ctx, refinement, (name, ity)) == t_bool
+            return (
+                k in (Kind.BASE, Kind.STAR)
+                and wf_inner(ctx, ity)
+                and typecheck_liquid(ctx, refinement, (name, ity)) == t_bool
+            )
         case ExistentialType(binders, body):
             ext_ctx = ctx
             for bn, bt in binders:
@@ -87,12 +82,12 @@ def wf_inner(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
             return False
 
 
-def wellformed(ctx: TypingContext, t: Type, k: Kind = Kind.STAR) -> bool:
+def wellformed(ctx: TypingContext, t: Type, k: Kinding = Kind.STAR) -> bool:
     try:
         match k:
             case Kind.STAR:
                 return wf_inner(ctx, t, Kind.STAR) or wf_inner(ctx, t, Kind.BASE)
             case _:
-                return wf_inner(ctx, t, Kind.BASE)
-    except LiquidTypeCheckException:
+                return wf_inner(ctx, t, k)
+    except (LiquidTypeCheckException, ValueError):
         return False

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from functools import reduce
 
 from aeon.core.multiplicity import Multiplicity, MOmega
-from aeon.core.types import Kind
+from aeon.core.types import Kinding
 
 from typing import TYPE_CHECKING
 
@@ -64,7 +64,7 @@ class SAbstractionType(SType):
 @dataclass(unsafe_hash=True)
 class STypePolymorphism(SType):
     name: Name
-    kind: Kind
+    kind: Kinding
     body: SType
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 
@@ -115,6 +115,8 @@ def get_type_vars(ty: SType) -> set[STypeVar]:
         case SRefinementPolymorphism(name, _, body):
             return get_type_vars(body)
         case STypeConstructor(name, args):
-            return reduce(lambda acc, v: acc.union(get_type_vars(v)), args, set())
+            return reduce(
+                lambda acc, v: acc.union(get_type_vars(v)), args, {STypeVar(name)} if name.name[:1].islower() else set()
+            )
         case _:
             assert False, f"Unknown type ({ty}) ({type(ty)})"

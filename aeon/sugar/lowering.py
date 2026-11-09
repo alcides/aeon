@@ -336,7 +336,7 @@ def wrap_ctx_entry(e: ElabTypingContextEntry) -> TypingContextEntry:
             return TypeBinder(name, kind)
         case ElabTypeDecl(name, args, rforalls, linear):
             rfs = [(n, type_to_core(s)) for (n, s) in rforalls]
-            return TypeConstructorBinder(name, args, rfs, linear)
+            return TypeConstructorBinder(name, args, rfs, linear, arg_kinds=e.arg_kinds)
         case _:
             assert False, f"{e} not supported in Core."
 

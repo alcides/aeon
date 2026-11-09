@@ -29,6 +29,9 @@ CORE_TESTS = [
     "tests/precondition_diagnostics_test.py",
     "tests/refined_match_test.py",
     "tests/typeclass_test.py",
+    "tests/typeclass_resolution_test.py",
+    "tests/typeclass_higher_kinds_test.py",
+    "tests/stdlib_num_test.py",
     "tests/package_dependencies_test.py",
 ]
 

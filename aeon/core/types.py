@@ -26,6 +26,41 @@ class Kind(Enum):
         return f"Kind.{self.name}"
 
 
+@dataclass(frozen=True)
+class ArrowKind:
+    domain: "Kinding"
+    codomain: "Kinding"
+
+    def __str__(self) -> str:
+        domain = f"({self.domain})" if isinstance(self.domain, ArrowKind) else str(self.domain)
+        return f"{domain} -> {self.codomain}"
+
+
+Kinding = Kind | ArrowKind
+
+
+def kind_to_source(kind: Kinding) -> str:
+    if isinstance(kind, ArrowKind):
+        domain = kind_to_source(kind.domain)
+        if isinstance(kind.domain, ArrowKind):
+            domain = f"({domain})"
+        return f"{domain} -> {kind_to_source(kind.codomain)}"
+    return "B" if kind == Kind.BASE else "*"
+
+
+def kind_compatible(actual: Kinding, expected: Kinding) -> bool:
+    if isinstance(actual, ArrowKind) and isinstance(expected, ArrowKind):
+        return kind_compatible(expected.domain, actual.domain) and kind_compatible(actual.codomain, expected.codomain)
+    return actual == expected or (actual == Kind.BASE and expected == Kind.STAR)
+
+
+def constructor_kind(parameters: list[Kinding] | tuple[Kinding, ...]) -> Kinding:
+    result: Kinding = Kind.BASE
+    for parameter in reversed(parameters):
+        result = ArrowKind(parameter, result)
+    return result
+
+
 class Type(ABC):
     loc: Location
 
@@ -124,7 +159,7 @@ class RefinedType(Type):
 @dataclass
 class TypePolymorphism(Type):
     name: Name  # alpha
-    kind: Kind
+    kind: Kinding
     body: Type
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 

@@ -10,6 +10,7 @@ from dataclasses import fields, is_dataclass, replace
 from typing import NamedTuple
 
 from aeon.core.multiplicity import MOmega
+from aeon.core.types import Kinding, ArrowKind
 from aeon.core.types import Kind
 from aeon.decorators import apply_decorators, collect_core_decorator_queue, Metadata
 from aeon.elaboration.context import (
@@ -620,7 +621,9 @@ def desugar(
     constructor_defs: dict[str, Name] = {}
     for decl in combined_inductives:
         for cons in decl.constructors:
-            prefixed = Name(f"{decl.name.name}_{cons.name.name}", cons.name.id)
+            prefixed = qualified_scope.get(
+                (decl.name.name, cons.name.name), Name(f"{decl.name.name}_{cons.name.name}", cons.name.id)
+            )
             qualified_scope[(decl.name.name, cons.name.name)] = prefixed
             constructor_to_type[cons.name.name] = decl.name
             constructor_defs[cons.name.name] = prefixed
@@ -733,13 +736,23 @@ def desugar(
     prog, etctx = canonicalize_imported_type_constructors(prog, etctx, type_names)
     # Lower match expressions (Lean syntax) into the generated inductive eliminators.
     # Use the folded snapshot so matches inside imported library bodies are also lowered.
-    prog = lower_match_to_inductive_rec(prog, combined_inductives)
+    prog = lower_match_to_inductive_rec(
+        prog,
+        combined_inductives,
+        {
+            decl.name.name: qualified_scope[(decl.name.name, "rec")]
+            for decl in combined_inductives
+            if (decl.name.name, "rec") in qualified_scope
+        },
+    )
     return DesugaredProgram(
         prog, etctx, metadata, constructor_to_type, constructor_defs, combined_inductives, inductive_decls_snapshot
     )
 
 
-def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDecl]) -> STerm:
+def lower_match_to_inductive_rec(
+    prog: STerm, inductive_decls: list[InductiveDecl], recursors: dict[str, Name] | None = None
+) -> STerm:
     """
     Rewrite `match scrutinee with | C x y => e | ...` into:
         <Inductive>_rec scrutinee (fun x => fun y => e) ...
@@ -792,7 +805,7 @@ def lower_match_to_inductive_rec(prog: STerm, inductive_decls: list[InductiveDec
                     # Fall back: this should typically be rejected by typechecking later.
                     return SMatch(lowered_scrut, branches, loc=t.loc)
 
-                rec_name = Name(chosen.name + "_rec", -1)
+                rec_name = (recursors or {}).get(chosen.name, Name(chosen.name + "_rec", -1))
                 rec_fun: STerm = SVar(rec_name, loc=t.loc)  # will be bound like any other var
 
                 # Constructor handlers must be passed to the eliminator in constructor order,
@@ -910,7 +923,20 @@ def _expand_bare_parametric_type_ctors_in_stype(
         case STypeVar(_):
             return ty
         case STypeConstructor(name, args, loc):
-            return STypeConstructor(name, [rec(a) for a in args], loc=loc, refinements=ty.refinements)
+            declaration = parametric.get(name.name)
+            kinds = declaration.arg_kinds if declaration is not None else ()
+            expanded: list[SType] = []
+            for i, argument in enumerate(args):
+                if (
+                    i < len(kinds)
+                    and isinstance(kinds[i], ArrowKind)
+                    and isinstance(argument, STypeVar)
+                    and argument.name.name in parametric
+                ):
+                    expanded.append(STypeConstructor(parametric[argument.name.name].name))
+                else:
+                    expanded.append(rec(argument))
+            return STypeConstructor(name, expanded, loc=loc, refinements=ty.refinements)
         case SAbstractionType(vname, vty, rty, loc):
             return SAbstractionType(vname, rec(vty), rec(rty), loc=loc, multiplicity=ty.multiplicity)
         case SRefinedType(name, ity, ref, loc):
@@ -962,6 +988,10 @@ def _expand_bare_parametric_type_ctors_in_sterm(
         case SIf(cond, then, otherwise, loc):
             return SIf(rec(cond), rec(then), rec(otherwise), loc=loc)
         case STypeApplication(body, ty, loc):
+            if isinstance(ty, STypeVar) and ty.name.name in parametric:
+                # Explicit constructor arguments stay unsaturated; their expected
+                # kind is checked at the polymorphic application.
+                return STypeApplication(rec(body), STypeConstructor(parametric[ty.name.name].name), loc=loc)
             return STypeApplication(rec(body), rec_ty(ty), loc=loc)
         case STypeAbstraction(name, kind, body, loc):
             return STypeAbstraction(name, kind, rec(body), loc=loc)
@@ -1085,7 +1115,7 @@ def introduce_forall_in_types(
     for d in defs:
         match d:
             case Definition(name, foralls, args, rtype, body, decorators, rforalls, decreasing_by, loc):
-                new_foralls: list[tuple[Name, Kind]] = []
+                new_foralls: list[tuple[Name, Kinding]] = []
 
                 bound_tvars = {n for n, _ in foralls}
                 tlst: list[SType] = [ty for _, ty in args] + [rtype]
@@ -1094,10 +1124,13 @@ def introduce_forall_in_types(
                     free_tvars.update(get_type_vars(ty))
                 _collect_type_vars_in_sterm(body, free_tvars, bound_tvars)
                 bound_tvar_names = {n.name for n in bound_tvars}
+                from aeon.sugar.instance_registry import infer_type_variable_kinds
+
+                inferred_kinds = infer_type_variable_kinds(tlst)
                 for t in sorted(free_tvars, key=lambda ty: (ty.name.name, ty.name.id)):
                     tname = t.name
                     if tname.name not in type_names and tname.name not in bound_tvar_names:
-                        entry = (tname, Kind.BASE)
+                        entry = (tname, inferred_kinds.get(tname, Kind.BASE))
                         if entry not in new_foralls:
                             new_foralls.append(entry)
                 ndefs.append(
@@ -1322,6 +1355,10 @@ def _refresh_inductive_constructor_scopes(
     """After ``build_module_scopes``, align inductive constructor maps with prefixed binders."""
     def_by_name = {d.name.name: d.name for d in defs}
     for decl in inductive_decls:
+        for candidate in (f"{module_export_name}_{decl.name.name}_rec", f"{decl.name.name}_rec"):
+            if candidate in def_by_name:
+                qualified_scope[(decl.name.name, "rec")] = def_by_name[candidate]
+                break
         for cons in decl.constructors:
             bare = cons.name.name
             candidates = (
@@ -1412,11 +1449,11 @@ def extend_elabcontext_with_imports(
         seen_types: set[str] = {e.name.name for e in entries if isinstance(e, ElabTypeDecl)}
         for td in unit.type_decls:
             if td.name.name not in seen_types:
-                entries.append(ElabTypeDecl(td.name, td.args, td.rforalls, td.linear))
+                entries.append(ElabTypeDecl(td.name, td.args, td.rforalls, td.linear, arg_kinds=td.arg_kinds))
                 seen_types.add(td.name.name)
         for decl in unit.inductive_decls:
             if decl.name.name not in seen_types:
-                entries.append(ElabTypeDecl(decl.name, decl.args, decl.rforalls))
+                entries.append(ElabTypeDecl(decl.name, decl.args, decl.rforalls, arg_kinds=decl.arg_kinds))
                 seen_types.add(decl.name.name)
         for decl in unit.inductive_decls:
             constructor_to_type.update({cons.name.name: decl.name for cons in decl.constructors})
@@ -1477,6 +1514,7 @@ def handle_imports(
         seen_modules[imp.module_path] = {}
         import_p = resolve_import(imp)
         import_p = infer_inductive_rforall_decls(import_p)
+        local_inductives = list(import_p.inductive_decls)
         imported_inductives.extend(import_p.inductive_decls)
         # ``expand_inductive_decls`` lowers members such as ``Public.mk`` to
         # implementation names such as ``Public_mk``.  The public module
@@ -1577,6 +1615,8 @@ def handle_imports(
                 elif imp.selected_names:
                     if bare in imp.selected_names:
                         _add_unqualified(unqualified_scope, bare, internal_name)
+
+        _refresh_inductive_constructor_scopes(local_inductives, prefixed_definitions, module_name, qualified_scope, {})
 
         # A re-export has no local definition to prefix: it deliberately keeps
         # the dependency's internal binder while publishing it under this

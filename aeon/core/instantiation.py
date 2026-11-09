@@ -43,6 +43,15 @@ def type_substitution(t: Type, alpha: Name, beta: Type) -> Type:
                 return TypePolymorphism(name, kind, rec(body), loc=loc)
         case RefinementPolymorphism(rname, sort, body, loc):
             return RefinementPolymorphism(rname, rec(sort), rec(body), loc=loc)
+        case TypeConstructor(name, args, loc) if name == alpha:
+            actual = beta.type if isinstance(beta, RefinedType) else beta
+            if isinstance(actual, TypeConstructor):
+                return TypeConstructor(
+                    actual.name, actual.args + [rec(a) for a in args], loc=loc, refinements=t.refinements
+                )
+            if isinstance(actual, TypeVar):
+                return TypeConstructor(actual.name, [rec(a) for a in args], loc=loc, refinements=t.refinements)
+            raise ValueError(f"Cannot apply type arguments to {actual}")
         case TypeConstructor(name, args, loc):
             from aeon.core.predicates import map_predicate_types
 
@@ -63,6 +72,15 @@ def type_variable_instantiation(t: Type, alpha: Name, beta: Type) -> Type:
         return type_variable_instantiation(x, alpha, beta)
 
     match t:
+        case TypeConstructor(name, args, loc) if name == alpha:
+            actual = beta.type if isinstance(beta, RefinedType) else beta
+            if isinstance(actual, TypeConstructor):
+                return TypeConstructor(
+                    actual.name, actual.args + [rec(a) for a in args], loc=loc, refinements=t.refinements
+                )
+            if isinstance(actual, TypeVar):
+                return TypeConstructor(actual.name, [rec(a) for a in args], loc=loc, refinements=t.refinements)
+            raise ValueError(f"Cannot apply type arguments to {actual}")
         case TypeConstructor(name, args, loc):
             from aeon.core.predicates import map_predicate_types
 

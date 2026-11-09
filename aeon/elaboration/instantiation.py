@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from aeon.utils.location import Location, SynthesizedLocation
+
 from aeon.sugar.stypes import (
     SAbstractionType,
     SRefinedType,
@@ -11,6 +14,27 @@ from aeon.sugar.stypes import (
 )
 from aeon.sugar.substitutions import normalize
 from aeon.utils.name import Name, fresh_counter
+
+
+@dataclass
+class AppliedType(SType):
+    """A constructor application whose head is still a unification variable."""
+
+    head: SType
+    args: list[SType]
+    loc: Location = field(default_factory=lambda: SynthesizedLocation("constructor application"))
+
+
+def apply_constructor(head: SType, args: list[SType], loc: Location) -> SType:
+    if isinstance(head, SRefinedType):
+        head = head.type
+    if isinstance(head, STypeVar):
+        return STypeConstructor(head.name, args, loc=loc)
+    if isinstance(head, STypeConstructor):
+        return STypeConstructor(head.name, head.args + args, loc=loc, refinements=head.refinements)
+    if isinstance(head, AppliedType):
+        return AppliedType(head.head, head.args + args, loc=loc)
+    return AppliedType(head, args, loc=loc)
 
 
 def free_type_var_names(ty: SType, *, include_bound: bool = False, _path: frozenset[int] = frozenset()) -> set[Name]:
@@ -46,8 +70,11 @@ def free_type_var_names(ty: SType, *, include_bound: bool = False, _path: frozen
             return rec(body) | {name} if include_bound else rec(body) - {name}
         case SRefinementPolymorphism(_, sort, body):
             return rec(sort) | rec(body)
-        case STypeConstructor(_, args):
-            return set().union(*(rec(a) for a in args)) if args else set()
+        case STypeConstructor(name, args):
+            variables = {name} if name.name[:1].islower() else set()
+            return variables | set().union(*(rec(a) for a in args))
+        case AppliedType(head, args):
+            return rec(head) | set().union(*(rec(a) for a in args))
         case _:
             # Elaboration-internal variants (UnificationVar.lower/upper,
             # Union.united, Intersection.intersected) and any future node:
@@ -105,8 +132,12 @@ def type_substitution(ty: SType, alpha: Name, beta: SType) -> SType:
             return STypePolymorphism(name, kind, rec(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
             return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
+        case STypeConstructor(name, args, loc) if name == alpha:
+            return apply_constructor(beta, [rec(a) for a in args], loc)
         case STypeConstructor(name, args, loc):
             return STypeConstructor(name, [rec(a) for a in args], loc=loc, refinements=ty.refinements)
+        case AppliedType(head, args, loc):
+            return apply_constructor(rec(head), [rec(a) for a in args], loc)
         case _:
             return ty
 
@@ -146,7 +177,11 @@ def type_variable_instantiation(ty: SType, alpha: Name, beta: SType) -> SType:
             return STypePolymorphism(name, kind, rec(body), loc=loc)
         case SRefinementPolymorphism(name, sort, body, loc):
             return SRefinementPolymorphism(name, rec(sort), rec(body), loc=loc)
+        case STypeConstructor(name, args, loc) if name == alpha:
+            return apply_constructor(beta, [rec(a) for a in args], loc)
         case STypeConstructor(name, args, loc):
             return STypeConstructor(name, [rec(a) for a in args], loc=loc, refinements=ty.refinements)
+        case AppliedType(head, args, loc):
+            return apply_constructor(rec(head), [rec(a) for a in args], loc)
         case _:
             assert False

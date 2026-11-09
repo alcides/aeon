@@ -132,7 +132,13 @@ def bind_ctx(ctx: TypingContext, subs: RenamingSubstitions) -> tuple[TypingConte
             case TypeConstructorBinder(name, args, rforalls, linear):
                 name, subs = check_name(name, subs)
                 local = subs + [(a.name, a) for a in args]
-                e = TypeConstructorBinder(name, args, [(n, bind_type(s, local)) for n, s in rforalls], linear=linear)
+                e = TypeConstructorBinder(
+                    name,
+                    args,
+                    [(n, bind_type(s, local)) for n, s in rforalls],
+                    linear=linear,
+                    arg_kinds=entry.arg_kinds,
+                )
             case _:
                 assert False, f"Unique not supported for {ctx} ({type(ctx)})"
         entries.append(e)

@@ -5,7 +5,7 @@ import json
 import math
 from typing import Callable, List, Tuple
 
-from aeon.core.types import Kind
+from aeon.core.types import kind_to_source
 from aeon.sugar.ast_helpers import true, false
 from aeon.sugar.program import (
     SLet,
@@ -437,7 +437,7 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
         case STypePolymorphism(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
             # Grammar form (``polymorphism_t``): ASCII kinds only.
-            pretty_kind = text("B" if kind == Kind.BASE else "*")
+            pretty_kind = text(kind_to_source(kind))
 
             pretty_body = pretty_stype_with_parens(body, ParenthesisContext(Precedence.POLYMORPHISM, Side.RIGHT))
 
@@ -647,7 +647,7 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
         case STypeAbstraction(name=name, kind=kind, body=body):
             pretty_name = text(name.pretty())
             # Grammar form (``tabstraction_e``): ASCII kinds only.
-            pretty_kind = text("B" if kind == Kind.BASE else "*")
+            pretty_kind = text(kind_to_source(kind))
             pretty_body = pretty_sterm_with_parens(
                 body, ParenthesisContext(Precedence.APPLICATION, Side.RIGHT), depth + 1
             )

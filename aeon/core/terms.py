@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from aeon.core.multiplicity import Multiplicity, MOmega
-from aeon.core.types import Kind
+from aeon.core.types import Kinding
 from aeon.core.types import t_string
 from aeon.core.types import Type
 from aeon.utils.location import Location, SynthesizedLocation
@@ -289,7 +289,7 @@ class If(Term):
 @dataclass(frozen=True)
 class TypeAbstraction(Term):
     name: Name
-    kind: Kind
+    kind: Kinding
     body: Term
     loc: Location = field(default_factory=lambda: SynthesizedLocation("default"))
 

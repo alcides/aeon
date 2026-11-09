@@ -6,6 +6,7 @@ from dataclasses import replace
 from collections import Counter
 
 from aeon.core.multiplicity import MOmega, Multiplicity
+from aeon.core.types import Kinding
 from aeon.core.types import Kind
 from aeon.sugar.ast_helpers import st_bool, st_string
 from aeon.sugar.program import (
@@ -255,7 +256,8 @@ def expand_inductive_decls(p: Program) -> Program:
     for decl in p.inductive_decls:
         match decl:
             case InductiveDecl(name, args, dtype_rfs, constructors, measures, loc):
-                tds.append(TypeDecl(name, args, list(dtype_rfs)))
+                tds.append(TypeDecl(name, args, list(dtype_rfs), arg_kinds=decl.arg_kinds))
+                parameter_kinds = dict(zip(args, decl.arg_kinds or (Kind.BASE,) * len(args)))
 
                 for measure in measures:
                     match measure:
@@ -342,7 +344,8 @@ def expand_inductive_decls(p: Program) -> Program:
                                 # Constructor type applications follow the
                                 # datatype's declared parameter order, not
                                 # hash-set iteration during implicit inference.
-                                [(arg, Kind.BASE) for arg in args if arg not in {n for n, _ in cforalls}] + cforalls,
+                                [(arg, parameter_kinds[arg]) for arg in args if arg not in {n for n, _ in cforalls}]
+                                + cforalls,
                                 [
                                     (arg_name, _canonicalize_measure_references(arg_ty, name, measures))
                                     for arg_name, arg_ty in cargs
@@ -353,6 +356,7 @@ def expand_inductive_decls(p: Program) -> Program:
                                 merged_c_rf,
                                 c_decr,
                                 loc=cloc,
+                                instance_flags=constructor.instance_flags,
                             )
                             defs.append(de)
 
@@ -372,7 +376,7 @@ def expand_inductive_decls(p: Program) -> Program:
                             # TypeConstructor args and is a separate follow-up.
                             this_arg_types: list[SType] = [STypeVar(tv) for tv in args]
                             this_type: SType = STypeConstructor(name, this_arg_types)
-                            proj_foralls: list[tuple[Name, Kind]] = [(tv, Kind.BASE) for tv in args]
+                            proj_foralls: list[tuple[Name, Kinding]] = [(tv, parameter_kinds[tv]) for tv in args]
                             for field_idx, (fname, fty) in enumerate(cargs):
                                 proj_name = Name(f"{name.name}_{cname.name}_{fname.name}", fresh_counter.fresh())
                                 this_name = Name("this", fresh_counter.fresh())
@@ -413,7 +417,7 @@ def expand_inductive_decls(p: Program) -> Program:
                     rec_expr = f"({body} if {guard} else {rec_expr})"
                 rec_body: STerm = SApplication(SVar(Name("native", 0)), SLiteral(rec_expr, st_string))
 
-                foralls: list[tuple[Name, Kind]] = [(a, Kind.BASE) for a in args]
+                foralls: list[tuple[Name, Kinding]] = [(a, parameter_kinds[a]) for a in args]
                 rec_args: list[tuple[Name, SType]] = []
 
                 # Return Type

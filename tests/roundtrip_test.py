@@ -13,7 +13,7 @@ import pytest
 from hypothesis import given, note, strategies as st
 
 from aeon.core.multiplicity import Multiplicity
-from aeon.core.types import Kind
+from aeon.core.types import Kind, ArrowKind
 from aeon.sugar.ast_helpers import st_bool, st_float, st_int, st_string
 from aeon.sugar.parser import parse_expression, parse_type
 from aeon.sugar.program import (
@@ -48,7 +48,7 @@ from aeon.utils.pprint import pretty_print_sterm, pretty_print_stype, sterm_pret
 names = st.from_regex(r"v[a-zA-Z0-9_]{0,7}", fullmatch=True).map(Name)
 operators = st.sampled_from(["+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||"])
 multiplicities = st.sampled_from(list(Multiplicity))
-kinds = st.sampled_from(list(Kind))
+kinds = st.recursive(st.sampled_from(list(Kind)), lambda child: st.builds(ArrowKind, child, child), max_leaves=4)
 literals = st.one_of(
     st.builds(SLiteral, st.integers(), st.just(st_int)),
     st.builds(SLiteral, st.booleans(), st.just(st_bool)),

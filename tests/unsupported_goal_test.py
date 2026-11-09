@@ -30,8 +30,9 @@ def test_other_solver_failures_are_not_mislabeled():
 
 def test_ortools_unsupported_cli_returns_two_without_traceback(tmp_path):
     pytest.importorskip("ortools")
-    path = tmp_path / "no_objective.ae"
-    path.write_text("def x:Int := ?hole;")
+    # Type-only integer goals are supported; String holes remain unsupported.
+    path = tmp_path / "unsupported_type.ae"
+    path.write_text("def x:String := ?hole;")
     result = subprocess.run(
         [sys.executable, "-m", "aeon", "--no-main", "-s", "ortools", str(path)],
         capture_output=True,

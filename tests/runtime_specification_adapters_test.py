@@ -75,7 +75,8 @@ def test_cpsat_uses_runtime_objective_when_symbolic_translation_is_unavailable()
     backend = CPSatHoleSynthesizer(bound=2)
     result = solve(driver, backend, 4)
     assert {hole.name: term.value for hole, term in result.items()} == {"hx": 1, "hy": 2}
-    assert backend.pareto_front[0][0] == [0.5]
+    # Int division uses Euclidean quotient semantics, so 1 / 2 scores zero.
+    assert backend.pareto_front[0][0] == [0.0]
 
 
 def test_cpsat_property_rejection_continues_to_next_assignment():

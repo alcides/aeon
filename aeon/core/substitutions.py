@@ -62,6 +62,15 @@ def substitute_vartype(t: Type, rep: Type, name: Name) -> Type:
                 return TypePolymorphism(pname, kind, rec(body), loc=loc)
         case RefinementPolymorphism(rname, sort, body, loc):
             return RefinementPolymorphism(rname, rec(sort), rec(body), loc=loc)
+        case TypeConstructor(cname, args, loc) if cname == name:
+            actual = rep.type if isinstance(rep, RefinedType) else rep
+            if isinstance(actual, TypeConstructor):
+                return TypeConstructor(
+                    actual.name, actual.args + [rec(a) for a in args], loc=loc, refinements=t.refinements
+                )
+            if isinstance(actual, TypeVar):
+                return TypeConstructor(actual.name, [rec(a) for a in args], loc=loc, refinements=t.refinements)
+            raise ValueError(f"Cannot apply type arguments to {actual}")
         case TypeConstructor(cname, args, loc):
             from aeon.core.predicates import map_predicate_types
 

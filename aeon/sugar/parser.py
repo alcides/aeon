@@ -593,6 +593,11 @@ class TreeToSugar(Transformer):
     def star_kind(self, args):
         return Kind.STAR
 
+    def arrow_kind(self, args):
+        from aeon.core.types import ArrowKind
+
+        return ArrowKind(args[0], args[1])
+
     def list(self, args):
         return args
 

@@ -82,6 +82,13 @@ def substitute_svartype_in_stype_by_name(ty: SType, beta: SType, alpha_name: str
             return STypePolymorphism(tname, kind, rec(body))
         case SRefinementPolymorphism(name, sort, body):
             return SRefinementPolymorphism(name, rec(sort), rec(body))
+        case STypeConstructor(name, args) if _type_name_key(name.name) == alpha_key:
+            actual = beta.type if isinstance(beta, SRefinedType) else beta
+            if isinstance(actual, STypeConstructor):
+                return STypeConstructor(actual.name, actual.args + [rec(a) for a in args], refinements=ty.refinements)
+            if isinstance(actual, STypeVar):
+                return STypeConstructor(actual.name, [rec(a) for a in args], refinements=ty.refinements)
+            raise ValueError(f"Cannot apply type arguments to {actual}")
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args], refinements=ty.refinements)
         case _:
@@ -194,6 +201,13 @@ def substitute_svartype_in_stype(ty: SType, beta: SType, alpha: Name):
                 return STypePolymorphism(tname, kind, rec(body))
         case SRefinementPolymorphism(name, sort, body):
             return SRefinementPolymorphism(name, rec(sort), rec(body))
+        case STypeConstructor(name, args) if name == alpha:
+            actual = beta.type if isinstance(beta, SRefinedType) else beta
+            if isinstance(actual, STypeConstructor):
+                return STypeConstructor(actual.name, actual.args + [rec(a) for a in args], refinements=ty.refinements)
+            if isinstance(actual, STypeVar):
+                return STypeConstructor(actual.name, [rec(a) for a in args], refinements=ty.refinements)
+            raise ValueError(f"Cannot apply type arguments to {actual}")
         case STypeConstructor(name, args):
             return STypeConstructor(name, [rec(a) for a in args], refinements=ty.refinements)
         case _:
