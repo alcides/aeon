@@ -48,7 +48,9 @@ def test_conditionals_do_not_consume_application_depth():
         raw("{v:Int | (((v >= x) && (v >= y)) && (v >= z)) && (((v == x) || (v == y)) || (v == z))}"),
         [(n.name, n) for n in ops] + [(s, name(s)) for s in ("Int", "x", "y", "z")],
     )
-    term, mem = search(ctx, goal, depth=0, names={"x", "y", "z"})
+    # This checks application-depth accounting, not a performance threshold.
+    # MUS enumeration needs headroom when the full suite shares CI workers.
+    term, mem = search(ctx, goal, depth=0, names={"x", "y", "z"}, seconds=60)
     assert isinstance(term, Annotation) and isinstance(term.expr, If)
     assert mem["synquid_stats"].abduced_guards >= 2
 
