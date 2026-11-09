@@ -11,6 +11,7 @@ Supported hole types:
   * ``Float``         -> a fixed-point integer variable (value ``= var / SCALE``);
   * ``(Array Int)``   -> one integer variable per element (exact);
   * ``(Array Float)`` -> one fixed-point variable per element.
+  * fixed-length lists -> a constructor spine with Bool/Int/Float variables.
 
 CP-SAT has no continuous variables, so Float holes are modelled in fixed point:
 each float is an integer multiple of ``1 / SCALE`` (default 1/1000). Results are
@@ -22,7 +23,8 @@ The objective is the ``@minimize``/``@maximize`` expression over the holes
 (integer/float ``+``, ``-``, ``*``, literals, comparisons, Boolean ``&&``/``||``,
 numeric conditionals, ``Array.get`` with a literal index, ``Array.size``, and
 inlined definitions and structurally recursive algebraic data types). Bool holes
-and hard @require predicates are supported.
+can carry dependent refinements over earlier values, using measure equations
+from datatype constructors. Hard @require predicates are also supported.
 Anything outside this
 fragment raises :class:`UnsupportedSynthesisGoal` pointing at another synthesizer backend.
 """
@@ -42,6 +44,7 @@ from aeon.core.liquid import (
     LiquidLiteralBool,
     LiquidLiteralFloat,
     LiquidLiteralInt,
+    LiquidPredicate,
     LiquidTerm,
     LiquidVar,
 )
@@ -55,17 +58,32 @@ from aeon.core.terms import (
     Let,
     Literal,
     Rec,
+    RefinementAbstraction,
     RefinementApplication,
     Term,
     TypeApplication,
     TypeAbstraction,
     Var,
 )
-from aeon.core.types import RefinedType, Type, TypeConstructor, t_bool, t_float, t_int, top
+from aeon.core.predicates import predicate_to_term
+from aeon.core.types import (
+    AbstractionType,
+    RefinedType,
+    RefinementPolymorphism,
+    Type,
+    TypeConstructor,
+    TypePolymorphism,
+    t_bool,
+    t_float,
+    t_int,
+    top,
+)
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import ProgramSynthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.decorators import Goal
+from aeon.synthesis.modules.cpsat_lists import ListExpansion, expand_list
+from aeon.synthesis.modules.tdsyn.worklist import substitute_holes_map
 from aeon.synthesis.identification import get_holes_info, iterate_top_level, term_has_holes
 from aeon.synthesis.program_specifications import ProgramSpecifications
 from aeon.synthesis.uis.api import SynthesisUI
@@ -149,7 +167,19 @@ class _Recursor:
     arguments: tuple[_Value, ...] = ()
 
 
-_Value = Union[_Num, _Vec, _Bool, _Data, _Closure, _Constructor, _Recursor]
+@dataclass
+class _Measure:
+    name: Name
+
+
+@dataclass
+class _ArrayConstructor:
+    operation: str
+    arity: int
+    arguments: tuple[_Value, ...] = ()
+
+
+_Value = Union[_Num, _Vec, _Bool, _Data, _Closure, _Constructor, _Recursor, _Measure, _ArrayConstructor]
 
 
 def _base(ty: object) -> object:
@@ -265,17 +295,44 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if not all_holes:
             raise UnsupportedSynthesisGoal("CPSatHole requires at least one hole.")
 
+        # Retain the original specification and hole names for validation,
+        # scoring and decoding. Only the solver sees the expanded spines.
+        original_term = term
+        self._original_holes = all_holes
+        self._list_expansions: dict[Name, ListExpansion] = {}
+        heads, _ = self._inductive_heads(term)
+        constructors = [binding for binding in iterate_top_level(term) if binding.var_name in heads]
+        hole_types = {}
+        for hole in all_holes:
+            ty = holes_info[hole][0]
+            if _is_bool(ty) or _is_int(ty) or _is_float(ty) or _array_elem(ty):
+                hole_types[hole] = ty
+            else:
+                expansion = expand_list(hole, ty, constructors, holes_info[hole][1])
+                self._list_expansions[hole] = expansion
+                hole_types.update(expansion.leaves)
+        if self._list_expansions:
+            term = substitute_holes_map(
+                term, {hole: expansion.term for hole, expansion in self._list_expansions.items()}
+            )
+        self._list_guards = {guard for expansion in self._list_expansions.values() for guard in expansion.guards}
+        self._checked_list_guards: set[Name] = set()
+        all_holes = list(hole_types)
+
         self._model = cp_model.CpModel()
         self._square_hints: set[int] = set()
         self._hole_value: dict[Name, _Value] = {}
         # hole -> (kind, [cp vars]) for decoding the solution.
         self._hole_meta: dict[Name, tuple[str, list[Any]]] = {}
         self._hole_types: dict[Name, Type] = {}
+        self._dependent_booleans: dict[Name, RefinedType] = {}
+        self._checked_dependent_booleans: set[Name] = set()
+        self._symbolic_branch = False
         for hole in all_holes:
-            hole_type = holes_info[hole][0]
+            hole_type = hole_types[hole]
             self._hole_types[hole] = hole_type.type if isinstance(hole_type, RefinedType) else hole_type
             try:
-                self._declare_hole(hole, holes_info[hole][0])
+                self._declare_hole(hole, hole_type)
             except _Unsupported as e:
                 raise UnsupportedSynthesisGoal(
                     f"CPSatHole cannot handle hole {hole.pretty()} ({e}). "
@@ -289,6 +346,10 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._definition_cache: dict[Name, _Value] = {}
         self._application_cache: dict[tuple, tuple[_Closure, _Value, _Value]] = {}
         self._constructor_heads, self._recursor_heads = self._inductive_heads(term)
+        self._array_heads = self._array_constructors(term)
+        self._measure_equations = self._inductive_measure_equations(term)
+        self._measure_cache: dict[tuple[Name, int], tuple[_Data, _Value]] = {}
+        self._measure_active: set[tuple[Name, int]] = set()
 
         goals: list[Goal] = [g for d in metadata.values() for g in d.get("goals", [])]
         # Keep the exact symbolic optimizer for one scalar objective. Runtime
@@ -333,6 +394,13 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 continue
             oriented.append(value if goal.minimize else _Num(-value.expr, value.scale, -value.hi, -value.lo))
 
+        if (self._dependent_booleans.keys() - self._checked_dependent_booleans) or (
+            self._list_guards - self._checked_list_guards
+        ):
+            self._model = base_model
+            runtime = True
+            oriented = []
+
         model = self._model
         try:
             target_scale = max((n.scale for n in oriented), default=0)
@@ -344,7 +412,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         if runtime:
             return self._runtime_search(
-                ctx, ectx, term, targets, metadata, max(0.0, budget - (monotonic() - started)), ui
+                ctx, ectx, original_term, targets, metadata, max(0.0, budget - (monotonic() - started)), ui
             )
 
         solver = cp_model.CpSolver()
@@ -355,11 +423,11 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             ui.end(None, None)
-            return {hole: None for hole in all_holes}
+            return {hole: None for hole in self._original_holes}
 
-        mapping: dict[Name, Optional[Term]] = {h: self._decode(solver, h) for h in all_holes}
+        mapping = self._decode_mapping(solver)
         with ProgramSpecifications(
-            ctx, ectx, term, targets, metadata, budget_eval=max(0.01, min(1.0, budget))
+            ctx, ectx, original_term, targets, metadata, budget_eval=max(0.01, min(1.0, budget))
         ) as specifications:
             candidate = specifications.candidate(mapping)
             if not specifications.validate(candidate):
@@ -401,9 +469,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 status = solver.solve(self._model)
                 if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                     break
-                candidate = specifications.candidate(
-                    {hole: self._decode(solver, hole) for hole in specifications.holes}
-                )
+                candidate = specifications.candidate(self._decode_mapping(solver))
                 if specifications.validate(candidate) and archive.consider(candidate):
                     break
                 if not variables:
@@ -414,6 +480,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return specifications.mapping(result)
 
     # -- hole declaration -------------------------------------------------
+
+    def _decode_mapping(self, solver: Any) -> dict[Name, Optional[Term]]:
+        leaves = {hole: self._decode(solver, hole) for hole in self._hole_meta}
+        return {
+            hole: substitute_holes_map(self._list_expansions[hole].template, leaves)
+            if hole in self._list_expansions
+            else leaves[hole]
+            for hole in self._original_holes
+        }
 
     def _declare_hole(self, hole: Name, ty: Type) -> None:
         model = self._model
@@ -436,7 +511,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             self._hole_value[hole] = _Bool(variable)
             self._hole_meta[hole] = ("bool", [variable])
             if isinstance(ty, RefinedType):
-                self._boolean_refinement(ty.name, variable, ty.refinement)
+                # Relational constructor fields may refer to preceding values
+                # and their measures. Their lexical environment is available
+                # when the objective traverses the containing value.
+                before = model.clone()
+                try:
+                    self._boolean_refinement(ty.name, variable, ty.refinement)
+                except _Unsupported:
+                    self._model = before
+                    self._dependent_booleans[hole] = ty
         elif (elem := _array_elem(ty)) is not None:
             k = _array_length(ty)
             if k is None or k < 0:
@@ -487,9 +570,22 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if self._translation_steps > 100_000:
             raise _Unsupported("structural expansion limit (possibly symbolic recursion)")
         if isinstance(t, Annotation):
-            return self._translate(t.expr, env, visited)
+            value = self._translate(t.expr, env, visited)
+            if isinstance(t.type, RefinedType) and t.type.name in self._list_guards:
+                if self._symbolic_branch:
+                    raise _Unsupported("list refinement in a symbolic branch")
+                try:
+                    predicate = predicate_to_term(LiquidPredicate((), t.type.refinement))
+                except ValueError as exc:
+                    raise _Unsupported("unresolved list refinement") from exc
+                condition = self._boolean(
+                    self._translate(predicate, {**env, t.type.name: value}, visited), "list refinement"
+                )
+                self._model.add_bool_or([condition.expr])
+                self._checked_list_guards.add(t.type.name)
+            return value
 
-        if isinstance(t, (TypeApplication, TypeAbstraction, RefinementApplication)):
+        if isinstance(t, (TypeApplication, TypeAbstraction, RefinementApplication, RefinementAbstraction)):
             return self._translate(t.body, env, visited)
 
         if isinstance(t, Abstraction):
@@ -497,12 +593,31 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         if isinstance(t, Hole):
             if t.name in self._hole_value:
-                return self._hole_value[t.name]
+                value = self._hole_value[t.name]
+                if t.name in self._dependent_booleans:
+                    if self._symbolic_branch:
+                        raise _Unsupported("dependent Boolean refinement in a symbolic branch")
+                    ty = self._dependent_booleans[t.name]
+                    try:
+                        predicate = predicate_to_term(LiquidPredicate((), ty.refinement))
+                    except ValueError as exc:
+                        raise _Unsupported("unresolved Boolean refinement") from exc
+                    condition = self._boolean(
+                        self._translate(predicate, {**env, ty.name: value}, visited), "Boolean refinement"
+                    )
+                    self._model.add_bool_or([condition.expr])
+                    self._checked_dependent_booleans.add(t.name)
+                return value
             raise _Unsupported(f"hole '{t.name.pretty()}'")
 
         if isinstance(t, (Let, Rec)):
             value = self._translate(t.var_value, env, visited)
             return self._translate(t.body, {**env, t.var_name: value}, visited)
+
+        if isinstance(t, Application) and isinstance(t.fun, Var) and t.fun.name == Name("toFloat", 0):
+            # The prelude cast preserves the exact numeric value. A user
+            # binding named toFloat has a different identity and is inlined.
+            return self._num(self._translate(t.arg, env, visited), "toFloat")
 
         if isinstance(t, Application) and _head_name(t.fun) == "!":
             value = self._boolean(self._translate(t.arg, env, visited), "!")
@@ -512,8 +627,13 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             condition = self._boolean(self._translate(t.cond, env, visited), "if")
             if condition.known is not None:
                 return self._translate(t.then if condition.known else t.otherwise, env, visited)
-            yes_value = self._translate(t.then, env, visited)
-            no_value = self._translate(t.otherwise, env, visited)
+            previous_branch = self._symbolic_branch
+            self._symbolic_branch = True
+            try:
+                yes_value = self._translate(t.then, env, visited)
+                no_value = self._translate(t.otherwise, env, visited)
+            finally:
+                self._symbolic_branch = previous_branch
             if isinstance(yes_value, _Bool) and isinstance(no_value, _Bool):
                 boolean = self._model.new_bool_var("if_bool")
                 self._model.add(boolean == yes_value.expr).only_enforce_if(condition.expr)
@@ -604,6 +724,10 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if isinstance(t, Var):
             if t.name in env:
                 return env[t.name]
+            if t.name in self._array_heads:
+                return self._array_heads[t.name]
+            if t.name in self._measure_equations:
+                return _Measure(t.name)
             if t.name in self._constructor_heads:
                 return self._constructor_heads[t.name]
             if t.name in self._recursor_heads:
@@ -646,6 +770,17 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         raise _Unsupported(type(t).__name__)
 
     def _apply(self, function: _Value, argument: _Value, visited: frozenset[Name]) -> _Value:
+        if isinstance(function, _ArrayConstructor):
+            args = function.arguments + (argument,)
+            if len(args) < function.arity:
+                return _ArrayConstructor(function.operation, function.arity, args)
+            if function.operation == "__array_concat":
+                if not all(isinstance(arg, _Vec) for arg in args):
+                    raise _Unsupported("array concatenation needs arrays")
+                return _Vec([item for arg in args if isinstance(arg, _Vec) for item in arg.items])
+            return _Vec([self._num(arg, "array element") for arg in args])
+        if isinstance(function, _Measure):
+            return self._measure(function.name, argument)
         if isinstance(function, _Closure):
             body = function.body
             if (
@@ -690,6 +825,93 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         raise _Unsupported("application of a non-function")
 
     @staticmethod
+    def _array_constructors(term: Term) -> dict[Name, _ArrayConstructor]:
+        from aeon.verification.array_logic import array_logical_body
+
+        result = {}
+        for binding in iterate_top_level(term):
+            if not isinstance(binding, Rec):
+                continue
+            body, ty = binding.var_value, binding.var_type
+            params, types = [], []
+            while isinstance(body, (TypeAbstraction, RefinementAbstraction, Abstraction)):
+                if isinstance(body, Abstraction):
+                    params.append(body.var_name)
+                body = body.body
+            while isinstance(ty, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
+                if isinstance(ty, AbstractionType):
+                    types.append(ty.var_type)
+                    ty = ty.type
+                else:
+                    ty = ty.body
+            if len(params) != len(types):
+                continue
+            logical = array_logical_body(binding.var_name, params, types, ty, body)
+            if isinstance(logical, LiquidApp) and logical.fun.name in {"__array_literal", "__array_concat"}:
+                result[binding.var_name] = _ArrayConstructor(logical.fun.name, len(params))
+        return result
+
+    def _measure(self, name: Name, value: _Value) -> _Value:
+        if not isinstance(value, _Data):
+            raise _Unsupported("measure of a value without a known constructor")
+        key = (name, id(value))
+        if key in self._measure_cache:
+            return self._measure_cache[key][1]
+        equation = self._measure_equations[name].get(value.tag)
+        if equation is None or key in self._measure_active:
+            raise _Unsupported("missing or cyclic constructor measure equation")
+        parameters, body = equation
+        self._measure_active.add(key)
+        try:
+            result = self._translate(body, dict(zip(parameters, value.fields)), frozenset())
+            self._measure_cache[key] = (value, result)
+            return result
+        finally:
+            self._measure_active.remove(key)
+
+    def _inductive_measure_equations(self, term: Term) -> dict[Name, dict[str, tuple[tuple[Name, ...], Term]]]:
+        """Read measure equations from the compiler's checked constructor types."""
+        from aeon.verification.constructor_registry import is_registered_measure
+
+        equations: dict[Name, dict[str, tuple[tuple[Name, ...], Term]]] = {}
+        for binding in iterate_top_level(term):
+            constructor = self._constructor_heads.get(binding.var_name)
+            if not isinstance(constructor, (_Data, _Constructor)) or not isinstance(binding, Rec):
+                continue
+            ty = binding.var_type
+            parameters = []
+            while isinstance(ty, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
+                if isinstance(ty, AbstractionType):
+                    parameters.append(ty.var_name)
+                    ty = ty.type
+                else:
+                    ty = ty.body
+            if not isinstance(ty, RefinedType):
+                continue
+            pending = [ty.refinement]
+            while pending:
+                predicate = pending.pop()
+                if not isinstance(predicate, LiquidApp):
+                    continue
+                if predicate.fun.name == "&&":
+                    pending.extend(predicate.args)
+                elif predicate.fun.name == "==":
+                    for lhs, rhs in (predicate.args, predicate.args[::-1]):
+                        if (
+                            isinstance(lhs, LiquidApp)
+                            and is_registered_measure(lhs.fun.name)
+                            and lhs.args == [LiquidVar(ty.name)]
+                        ):
+                            try:
+                                body = predicate_to_term(LiquidPredicate((), rhs))
+                            except ValueError:
+                                # No interpretation for unresolved logical
+                                # predicates: their use must fall back.
+                                continue
+                            equations.setdefault(lhs.fun, {})[constructor.tag] = (tuple(parameters), body)
+        return equations
+
+    @staticmethod
     def _value_key(value: _Value) -> tuple:
         if isinstance(value, _Num):
             expression = ("constant", value.expr) if isinstance(value.expr, int) else ("symbolic", id(value.expr))
@@ -715,7 +937,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         for binding in iterate_top_level(term):
             body = binding.var_value
             arguments: list[str] = []
-            while isinstance(body, (TypeAbstraction, Abstraction)):
+            while isinstance(body, (TypeAbstraction, RefinementAbstraction, Abstraction)):
                 if isinstance(body, Abstraction):
                     arguments.append(body.var_name.name)
                 body = body.body

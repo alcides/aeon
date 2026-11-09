@@ -65,7 +65,7 @@ class UninterpretedBinder(TypingContextEntry):
 @dataclass(unsafe_hash=True)
 class ReflectedBinder(TypingContextEntry):
     name: Name
-    type: AbstractionType
+    type: Type
     params: tuple[Name, ...]
     body: LiquidTerm
 
@@ -332,6 +332,16 @@ class TypingContext:
             _ensure_builtins=False,
         )
 
+    def with_reflected(self, name: Name, type: Type, params: tuple[Name, ...], body: LiquidTerm) -> TypingContext:
+        """Keep a checked definition's executable signature and logical body."""
+        return TypingContext(
+            _ContextSnapshot.extend_scope(
+                self.entries, ReflectedBinder(name, type, params, body), self._constructor_entries()
+            ),
+            trusted_names=self.trusted_names,
+            _ensure_builtins=False,
+        )
+
     def type_of(self, name: Name) -> Type | None:
         for e in self.entries:
             match e:
@@ -393,7 +403,7 @@ class TypingContext:
         for e in self.entries:
             if isinstance(e, RefinementBinder):
                 latest.pop(e.name.name, None)
-            elif isinstance(e, VariableBinder):
+            elif isinstance(e, (VariableBinder, ReflectedBinder)):
                 latest[e.name.name] = (e.name, e.type)
         return list(latest.values())
 

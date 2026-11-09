@@ -65,7 +65,7 @@ same fitness infrastructure, subject to the stated search limits.
 | `smt` | Single: fitness; joint: logical/check | Single: fitness; joint: logical/check | Single: Pareto; joint: external Pareto | Yes | Supported solver sorts and bounded candidate templates. |
 | `sygus` | Check; joint examples also logical | Check; joint properties also logical | External Pareto | Yes | cvc5 grammar/sort support; incremental solution enumeration. |
 | `polynomial` | Logical examples; exact-fit CSV check | Logical + check | External Pareto | Yes | Arithmetic polynomial fragment and coefficient/certificate bounds. |
-| `ortools`, `ortools_int`, `cpsat` | Hard examples; soft CSV regression | Check and continue to next assignment | Pareto over blocked assignments | Yes | Bounded numeric/Bool/fixed-length array holes; fixed-point Float representation. |
+| `ortools`, `ortools_int`, `cpsat` | Hard examples; soft CSV regression | Check and continue to next assignment | Pareto over blocked assignments | Yes | Bounded numeric/Bool holes, fixed-length arrays and lists; fixed-point Float representation. |
 | `boolean_bounded` | Logical examples; exact-fit Bool CSV check | Logical Boolean obligations + check | External Pareto over finite CNF selectors | Yes | First-order Boolean functions and declared CNF bound. |
 | `amaze` | Fitness; typed Int/Bool CSV | Fitness | Pareto | Yes | Learned Int/Bool grammar. |
 | `regus` | Fitness; CSV does not fit controller signature | Fitness | Pareto | Yes | `ControlProgram` and the `@cluster` execution-observation protocol. |

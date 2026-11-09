@@ -561,6 +561,32 @@ Unchosen application arguments are existential witnesses during feasibility chec
 
 Property-test input generation has a separate, explicitly bounded sampling API; its caller-supplied limits do not limit full synthesis.
 
+Constructor relations retained in the result type are instantiated from the
+hole's goal, including predicates with several arguments. For example, a goal
+`Mask{|fun w => fun rest => w + rest <= 100|}` supplies that relation to `Mask.cons`
+and its argument holes. Predicates left for Horn inference keep their declared
+arity. The final validator still checks every completed candidate against the
+original specification.
+
+Completed definitions keep the compiler's logical reflection in hole contexts,
+including array literals and indexed reads. Constructor equations constrain
+pending arguments even after a nullary constructor closes a hole. Thus an exact
+length refinement can force a fixed list shape before SMT solves its scalar
+elements jointly with constraints such as total weight. The search checks these
+obligations separately during reflection so large lists do not leave array
+expressions opaque merely because their combined formula is large.
+Completed constructor trees name intermediate data values before final checking
+to keep dependent measure proofs compact. Ordinary calls and control flow retain
+their original form and evaluation order.
+
+Related constructor steps reuse a session-local SMT solver and the translated
+constraints they share. Branch assumptions and model-blocking clauses remain
+isolated. Constant arrays, indexed reads, and reflected substitutions are cached.
+Final validation reuses successful proofs for unchanged obligations, keyed by
+their premises, variable sorts, function signatures, and reflected definitions;
+new or changed obligations still require a proof. These caches are bounded and
+cleared between compilation sessions.
+
 ---
 
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)
@@ -649,6 +675,30 @@ Component-based synthesis via Liquid Tree Automata (Algorithm 1 of the LTA paper
 Polymorphic library functions are kept as cyclic *template* states and finitely unrolled into monomorphic instantiations against a small type universe. The expansion is depth-bounded (default `max_depth = 4`).
 
 ---
+
+### `ortools` / `cpsat` — Fixed-length lists
+
+CP-SAT can fill one hole with an entire list, including a custom list datatype.
+For example, `{xs:(List Bool) | List.size xs = 50}` fixes the constructor spine
+and leaves 50 Boolean decisions for the solver. Integer and fixed-point Float
+elements use the same bounds and precision as scalar holes.
+
+The datatype must have an empty constructor and a two-field constructor with
+one scalar element and one recursive tail, in either order. The length must be
+a literal equality in the hole's refinement. The backend recognizes length by
+the constructor equations `length empty = 0` and `length node = length tail + 1`,
+so custom measure names work too. Lengths from 0 through 1000 are supported;
+variable-length lists and nested lists require another backend.
+
+Constructor relations and whole-list measure refinements constrain the symbolic
+model. Every completed list is also checked against the original program's type
+and hard specifications. Constraints outside symbolic translation use the
+backend's validated assignment search.
+
+The [50-item knapsack example](../examples/synthesis/puzzle/knapsack_50.ae)
+uses `@maximize` for value and a refined Boolean list for logical weight. Its
+synthesis body is simply `?solution`; list nodes contain only a Boolean and a
+tail, while item weights and values live in arrays.
 
 ## Choosing a Synthesizer
 

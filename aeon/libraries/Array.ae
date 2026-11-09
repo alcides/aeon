@@ -198,7 +198,7 @@ def len_array (l: (ArrayLen a<p>)) : {r: (Array a<p>) | size r = held_size l} :=
 
 # Indexed read; the result is known to satisfy ``p``. Consumes the array —
 # use ``get_at`` to read and keep it.
-def get (1 arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
+def get (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
     native "arr[i]"
 
 

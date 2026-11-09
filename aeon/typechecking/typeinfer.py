@@ -83,6 +83,7 @@ from aeon.verification.sub import ensure_refined
 from aeon.verification.sub import implication_constraint
 from aeon.verification.sub import is_first_order_function
 from aeon.verification.sub import sub
+from aeon.verification.array_logic import ARRAY_CONSTRUCTORS, ARRAY_OPERATIONS, array_logical_body
 from aeon.verification.vcs import conjoin, UninterpretedFunctionDeclaration
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import LiquidConstraint
@@ -244,9 +245,8 @@ def _reflected_impl_for(
     while isinstance(current, Abstraction):
         impl_params.append(current.var_name)
         current = current.body
-    if not impl_params:
-        return None
     ty_params: list[Name] = []
+    ty_args: list[Type] = []
     cur_ty: Type = ty
     refinement_params: set[Name] = set()
     while isinstance(cur_ty, TypePolymorphism) or isinstance(cur_ty, RefinementPolymorphism):
@@ -257,9 +257,19 @@ def _reflected_impl_for(
             cur_ty = cur_ty.body
     while isinstance(cur_ty, AbstractionType):
         ty_params.append(cur_ty.var_name)
+        ty_args.append(cur_ty.var_type)
         cur_ty = cur_ty.type
-    if len(ty_params) != len(impl_params):
+    # The Array size measure is declared as an uninterpreted function value,
+    # without runtime lambdas. Its parameters still come from its signature.
+    if not impl_params and name.name == "Array_size":
+        impl_params = ty_params
+    if not impl_params or len(ty_params) != len(impl_params):
         return None
+    array_body = array_logical_body(name, impl_params, ty_args, cur_ty, current)
+    if array_body is not None:
+        for src, dst in zip(impl_params, ty_params):
+            array_body = substitution_in_liquid(array_body, LiquidVar(dst), src)
+        return (tuple(ty_params), array_body)
     liq = liquefy(current)
     if liq is None:
         return None
@@ -273,7 +283,7 @@ def _reflected_impl_for(
     allowed = set(ty_params) | {name}
     # ``liquefy_if`` lowers a pure conditional to the SMT builtin ``ite``.
     # It is not an external free function and must not disable reflection.
-    op_names = {op.name for op in ops} | {"ite"}
+    op_names = {op.name for op in ops} | {"ite"} | ARRAY_CONSTRUCTORS
     if any(v not in allowed and v.name not in op_names for v in liquid_free_vars(liq)):
         return None
     is_recursive_body = any(v == name for v in liquid_free_vars(liq))
@@ -348,7 +358,9 @@ def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool 
                     if isinstance(fun_ty, (TypePolymorphism, RefinementPolymorphism)):
                         from aeon.verification.constructor_registry import get_constructor_groups
 
-                        if not any(fun.name in group for group in get_constructor_groups().values()):
+                        if fun.name not in ARRAY_OPERATIONS and not any(
+                            fun.name in group for group in get_constructor_groups().values()
+                        ):
                             return False
                     while isinstance(fun_ty, (TypePolymorphism, RefinementPolymorphism)):
                         fun_ty = fun_ty.body
