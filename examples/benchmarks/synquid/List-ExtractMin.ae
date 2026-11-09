@@ -1,8 +1,5 @@
-# List-ExtractMin: minimum and the remaining list.
-#
-# Synquid benchmark List-ExtractMin (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Returns (singleton-min, rest); minimality needs an order on `a` (arrives with #1).
+# List-ExtractMin — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-ExtractMin.sq for the missing contracts.
 
 open List
 

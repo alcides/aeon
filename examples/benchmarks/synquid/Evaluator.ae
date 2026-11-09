@@ -1,12 +1,24 @@
-# Evaluator: evaluate an arithmetic expression to an Int.
-#
-# Synquid benchmark Evaluator (pldi16).
-#
-# Monomorphic: Expr is over Int literals. Result unconstrained (Synquid ties it to a denotational measure).
+# Evaluator — Synquid PLDI16, pinned source in upstream/Evaluator.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-inductive Expr
-| lit (v: Int) : Expr
-| add (le: Expr) (re: Expr) : Expr
-| mul (me: Expr) (ne: Expr) : Expr
+def zero : {v:Int | v = 0} := 0;
+def one : {v:Int | v = 1} := 1;
+def two : {v:Int | v = 2} := 2;
 
-def eval (e: Expr) : Int := ?hole;
+inductive AST
+| zero : {v:AST | size v = 1 && result v = 0}
+| one : {v:AST | size v = 1 && result v = 1}
+| two : {v:AST | size v = 1 && result v = 2}
+| plusNode (l:AST) (r:AST) : {v:AST | size v = 1 + size l + size r + 1 && result v = result l + result r}
+| minusNode (l:AST) (r:AST) : {v:AST | size v = 1 + size l + size r + 1 && result v = result l - result r}
+| productNode (l:AST) (r:AST) : {v:AST | size v = 1 + size l + size r + 1 && result v = result l * result r}
++ size (v:AST) : {n:Int | n >= 0}
++ result (v:AST) : Int
+
+inductive PAST
+| intNode (x:Int) : {v:PAST | size2 v = 1 && result2 v = x}
+| opNode (op:{v:Int | 0 <= v && v <= 2}) (l:PAST) (r:PAST) : {v:PAST | size2 v = 1 + size2 l + size2 r && result2 v = (if op = 0 then result2 l + result2 r else (if op = 1 then result2 l - result2 r else result2 l * result2 r))}
++ size2 (v:PAST) : {n:Int | n >= 0}
++ result2 (v:PAST) : Int
+
+def transform (x:AST) : {v:PAST | PAST.result2 v = AST.result x} decreasing_by [AST.size x] := ?hole;

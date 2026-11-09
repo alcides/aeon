@@ -1,8 +1,5 @@
-# BST-Member: membership in a BST.
-#
-# Synquid benchmark BST-Member (pldi16).
-#
-# Element type polymorphic. BST ORDER invariant NOT encoded (needs n-ary abstract refinements, #1); only node-count. Structural/size port.
+# BST-Member — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BST-Member.sq for the missing contracts.
 
 inductive BTree a
 | bleaf : {t:(BTree a) | bsz t = 0}

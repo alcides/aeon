@@ -1,9 +1,18 @@
-# List-Ith: the i-th element (0-indexed).
-#
-# Synquid benchmark List-Ith (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Index bounded by the length; the returned value is unconstrained.
+# List-Ith — Synquid PLDI16, pinned source in upstream/List-Ith.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-open List
+inductive List a forall <p:Int -> a -> Bool>
+| nil : {xs:(List a){|p|} | len xs = 0}
+| cons (x:{v:a | p 0 v}) (xs:(List a){|fun i => fun y => p (i + 1) y|}) : {ys:(List a){|p|} | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def ith (xs: (List a)) (i: {v:Int | v >= 0 && v < List.size xs}) : a := ?hole;
+def zero : {v:Int | v = 0} := 0;
+def inc (x:Int) : {v:Int | v = x + 1} := x + 1;
+def dec (x:Int) : {v:Int | v = x - 1} := x - 1;
+def leq (x:Int) (y:Int) : {v:Bool | v = (x <= y)} := x <= y;
+def neq (x:Int) (y:Int) : {v:Bool | v = (x != y)} := x != y;
+
+def ith : forall a:B, forall <p:Int -> a -> Bool>,
+    (xs:(List a){|p|}) -> (i:{v:Int | 0 <= v && v < List.len xs}) -> {v:a | p i v}
+    decreasing_by [List.len xs] :=
+    Λ a:B => Λ <p:Int -> a -> Bool> => fun xs => fun i => ?hole;

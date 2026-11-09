@@ -1,107 +1,112 @@
-# Synquid benchmarks
+# Synquid PLDI16 benchmarks
 
-Aeon ports of the synthesis suite from Polikarpova, Kuraj & Solar-Lezama,
-*Program Synthesis from Polymorphic Refinement Types* (PLDI 2016) — the 64
-`.sq` programs under
-[`test/pldi16`](https://github.com/nadia-polikarpova/synquid/tree/master/test/pldi16)
-of the Synquid tool. Each file states a datatype, a refinement-typed signature,
-and a `?hole` for Aeon's synthesizer to fill:
+This directory contains 64 Aeon ports of Polikarpova, Kuraj & Solar-Lezama's
+*Program Synthesis from Polymorphic Refinement Types* suite. The review is pinned
+to upstream commit
+[`9bceb4cc775e07ab279fff8c51fdd86ae0b2878c`](https://github.com/nadia-polikarpova/synquid/tree/9bceb4cc775e07ab279fff8c51fdd86ae0b2878c/test/pldi16).
+The original specifications are copied byte-for-byte into [upstream](upstream),
+with their MIT [license](upstream/LICENSE). [manifest.json](manifest.json) records
+the source checksum, original synthesis goals, fidelity and remaining differences
+for **every** file. Tests check the inventory and checksums without network access.
 
-```bash
-# Attempt one benchmark (type-directed enumeration, 30s budget):
-uv run python -m aeon --budget 30 -s synquid examples/benchmarks/synquid/List-Reverse.ae
+**These are not all equivalent ports.** The review upgraded 24 files: 22 now
+preserve the original target contracts and relevant datatype invariants; two
+restore abstract relations but still omit set preservation. The other 40 remain
+explicitly labelled legacy approximations. A solution to one of those weaker
+problems must not be reported as a solution to the upstream benchmark.
 
-# Or with genetic programming:
-uv run python -m aeon --budget 30 -s gp examples/benchmarks/synquid/List-Replicate.ae
+## Restored specifications
+
+| Benchmarks | Original specification now expressed in Aeon |
+| --- | --- |
+| `List-Ith` | `p : Int -> a -> Bool`, `p 0 head`, index-shifted tail, bounded index, result satisfying `p i result` |
+| `List-Foldr` | `p : List a -> b -> Bool`; the step receives the tail, element and related accumulator; the seed relates to nil and the result to the input |
+| `List-Fold-Append`, `List-Fold-Length` | The original dependent `foldr` component, supplied as a checked Aeon definition |
+| `List-Snoc`, `List-Reverse` | Persistent element relation, snoc's element bound and reversed predicate; **partial**, because `elems` preservation is still missing |
+| `UniqueList-Range` | Pairwise inequality, length `size`, elements in the **inclusive** interval `[lo, lo + size]`, arguments `size` then `lo` |
+| `List-Concat` | Flatten `ListOfLists a` into `List a`, with length equal to `sumLen`; the old port was a cons operation |
+| `List-Zip`, `List-Product` | Lists of pairs with two independent element types; zip requires equal input lengths and product has multiplicative length |
+| `Tree-BalancedReplicate` | Equal child heights and requested output **height**, with arguments `x` then `h` |
+| `AddressBook-Make`, `AddressBook-Merge` | Original `Info`/`Address` records, privacy-based business/personal classification and total-size contracts |
+| `Evaluator` | Translate `AST` to opcode-based `PAST` while preserving the result measure, including subtraction; the old port returned an unconstrained integer |
+| `List-Append`, `List-Map`, `List-Null`, `List-Stutter`, `List-ZipWith`, `List-Replicate`, `List-Take`, `List-Drop`, `Tree-Count`, `Tree-ToList` | Preserve original contracts while restoring local datatypes and the declared helper components |
+
+For example, the `ith` goal is now:
+
+```aeon
+def ith : forall a:B, forall <p:Int -> a -> Bool>,
+    (xs:(List a){|p|}) -> (i:{v:Int | 0 <= v && v < List.len xs}) -> {v:a | p i v}
+    decreasing_by [List.len xs] :=
+    Λ a:B => Λ <p:Int -> a -> Bool> => fun xs => fun i => ?hole;
 ```
 
-These are an *on-demand* suite (not swept by `run_examples.sh`): like the CSG and
-Vericoding corpora, most are hard enough to exit "no solution found" inside a
-short budget, so running all 64 on every push adds time without signal.
+The datatype in [List-Ith.ae](List-Ith.ae) stores the predicate and shifts its
+index in the tail. Returning the head regardless of `i` is rejected. Likewise,
+[List-Reverse.ae](List-Reverse.ae) now rejects the identity function, and
+[List-Foldr.ae](List-Foldr.ae) rejects returning the seed regardless of the input.
+These checks use arbitrary abstract predicates, not a handful of examples.
 
-## Fidelity
+The revised files declare their own datatypes rather than opening the entire
+standard `List` library, which previously offered implementations of the very
+operations being synthesized. Checked helper definitions are supplied only where
+upstream declares those components. Constructor names use Aeon's lowercase,
+qualified spelling; type-variable renaming is immaterial. Nonnegative measure
+codomains and explicit termination metrics preserve the original inductive
+hypotheses. The unused `elems` declarations in the fold and range examples are
+omitted; none of their target/component contracts depend on them.
 
-The ports are faithful in structure; the remaining gaps to a 1:1 Synquid port
-are being closed in order (see *Aligning further*). Current state:
+“Contract-faithful” in the manifest concerns the **logical problem**, not identical
+search behavior: Aeon's prelude, automatic constructor machinery and qualifier
+policy still differ from Synquid's. There is no claim of equal search grammars,
+paper timings, or that a synthesizer solves every well-formed specification.
 
-0. **SMT measures (done).** Inductive `+ size` measures (e.g. `List.size`) are
-   reflected as Z3 `RecFunction`s over monomorphic datatypes (`List_Int`), so
-   equations like `size nil = 0` and `size (cons h t) = 1 + size t` discharge
-   structurally (LiquidHaskell-style), which Synquid list/tree length
-   refinements rely on.
+## Remaining differences
 
-1. **Polymorphism (done).** Element types are polymorphic (`forall a`,
-   inferred from lowercase type variables) wherever the element is used only
-   structurally — matching the Synquid originals. `Int` is retained only where
-   the element is *ordered or integer-specific*:
-   * `IncList-*`, `StrictIncList-*`, `BST-Sort` — the datatype carries an
-     **order** invariant (`hd <= min(tail)`), which needs an order on the
-     element; these go polymorphic once n-ary abstract refinements (#1) provide
-     the order relation.
-   * `UniqueList-Range` (enumerates an integer range) and `Evaluator` (an
-     expression language over `Int` literals) are inherently integer.
+| Family | Remaining work |
+| --- | --- |
+| Set-based lists and trees; reverse/snoc | Polymorphic logical `Set a` and element measures with union, difference, intersection and membership. Aeon's SMT `Set` primitives currently operate on integers; the generic runtime `Set` library is not a replacement for that theory. |
+| `List-ElemIndex` | Restore indexed predicates **and** the membership precondition before replacing `Maybe Int` by the original dependent `Int` result. Dropping the precondition would make the problem unsatisfiable for absent elements. |
+| `List-Compress`, `List-Nub`, `UniqueList-Insert/Delete` | Element-to-tail predicates and head/element set measures, rather than length bounds. These differ from the element-to-element relation used in `UniqueList-Range`. |
+| `IncList-*`, `StrictIncList-*`, list sorting, `BST-*`, `BinHeap-*` | Polymorphic refined element types, exact component signatures and set contracts. BST children have strict bounds; heap children are **strictly** greater than the parent. The old size approximations can mishandle duplicates. |
+| `AVL-*` | Key bounds, balance, stored height field, balance factor, exact height contracts, set contracts and all rotation/merge goals. |
+| `RBT-*` | Colors, red-child rule, equal black heights, `WeakRBT`'s `Ok`/`Bad` cases, set contracts and all intermediate goals. |
 
-2. **`Int`-measure invariants are encoded; richer invariants are documented.**
-   * `List` length, `Tree`/heap node-count, AVL height — encoded exactly.
-   * **Sortedness** is encoded *faithfully* for the sorted-list families: the
-     `IncList` / `SList` datatypes carry the order invariant in their `cons`
-     constructor (`hd <= min(tail)` / `hd < min(tail)`), so any value of that
-     type *is* sorted.
-   * **Two-sided / set / structural invariants** that Synquid expresses with
-     *abstract refinements* — BST key ordering, binary-heap order, AVL balance,
-     red-black colour/black-height, `elems`-set preservation, element
-     uniqueness — are **not** yet encoded; those benchmarks are ported as
-     structural (size/height) specs and flagged `Structural/size port` in the
-     file. See *Aligning further*.
-   * **`List-Reverse`** preserves only length. The original's abstract relation
-     that specifies reversed element order is absent, so the identity function
-     satisfies the port. See the [runnable relational examples](../../../docs/synquid-round-trip.md#abstract-refinements-runnable-examples).
+The new relation support makes several of these datatype invariants expressible;
+sets remain a separate missing feature. The manifest records per-file mismatches,
+including changed argument/result types and missing goals. For example, upstream
+`BST-Sort` has **five** goals, while its legacy Aeon file has only one. The legacy
+files are retained for compatibility, with their former fidelity claims removed.
 
-Datatypes with a standard-library equivalent use it directly (`List` via
-`open List`, `Maybe` via `open Maybe`); only datatypes with **no** stdlib
-counterpart are defined inline (`IncList`, `SList`, the polymorphic `Tree a`,
-`BTree a`, `Heap a`, `Avl a`, `Rbt a`, the list-pair `LPair a`, `AddrBook a`,
-and the monomorphic `Expr`).
+## Validation and running
 
-> Using `open List` brings the whole List component library into the synthesis
-> grammar — closer to Synquid's component-based setup. This relies on the
-> `get_holes_info` fix in #344 (hole identification no longer crashes on
-> hole-free polymorphic library bodies); before it, opening `List` next to a
-> hole aborted synthesis.
+```bash
+# Compile all 64 and check restored contracts, including incorrect candidates:
+uv run pytest tests/synquid_benchmark_test.py
 
-## Coverage
+# Attempt a benchmark without synthesizing a synthetic main function:
+uv run python -m aeon --no-main --budget 30 -s synquid examples/benchmarks/synquid/List-Ith.ae
+```
 
-All 64 parse, elaborate, and build the synthesis grammar without error
-(verified with `aeon --no-main`; a handful are solved outright at a 3s budget).
-Each file's top comment states its fidelity tier:
+The suite is on demand and is not included in `run_examples.sh`. The regression
+tests verify provenance, all 64 files' compilation, and original goal names in
+the 24 revised files. Checked witnesses exercise dependent fold execution,
+indexed-list predicates, reversal, uniqueness, balanced trees, address privacy
+and AST semantics; invalid witnesses must fail.
 
-* **Exact** — size/length/height encoded precisely and, for the sorted-list
-  families, the order invariant too.
-* **Structural** — shape ported; a two-sided/set/colour/balance invariant
-  documented as omitted (the `BST`, `BinHeap`, `AVL`, `RBT` families, the `List`
-  sort variants, `List-Compress/Nub`, `UniqueList-*`).
-* **Signature** — the result is deliberately unconstrained (`List-Elem`,
-  `List-Ith`, `List-ElemIndex`, `List-Foldr`, `Tree-Elem`, `BST-Member`,
-  `BinHeap-Member`, `Evaluator`).
+Two shared verification fixes were needed by the upstream contracts:
 
-By family: List (30), IncList (3), StrictIncList (3), Tree (4), BST (4),
-BinHeap (5), AVL (6), RBT (3), AddressBook (2), Evaluator (1), UniqueList (3).
+- Termination VCs now bind the function's abstract predicates, including when the
+  implementation alpha-renames them. This matters for `foldr`'s refined seed.
+- Structural SMT measures are installed only when constructor equations actually
+  match structural cardinality, not because the measure is named `size` or `len`.
+  The original evaluator uses leaf size one and binary-node increment two. A
+  guessed zero/one measure contradicted those equations and accepted wrong code.
+  Nonstructural measures retain their declared constructor facts.
 
-## Aligning further with the original
-
-In order of planned work:
-
-3. **Polymorphism — done** (above).
-1. **Translate the remaining datatype relations.** Aeon now retains n-ary
-   predicate arguments, for example `(RList a){|r|}`. The
-   [relational examples](../../../docs/synquid-round-trip.md#abstract-refinements-runnable-examples)
-   exercise polymorphic relation reversal. The BST/BinHeap/AVL/RBT benchmark
-   contracts still need to be translated and their synthesis performance tested.
-2. **A `Set`/`elems` measure** for lists and trees, so `Elem`, `Delete`, `Nub`,
-   `Compress`, `UniqueList-*`, and the sort benchmarks can state
-   *element-set preservation* (and uniqueness) rather than only a length bound.
-4. **Balance / colour invariants** (AVL balance, RBT colour & black-height),
-   built on the n-ary refinements plus arithmetic over the height measure.
-5. **Result-tying measures** for `List-Ith`/`ElemIndex`/`Foldr`/`Evaluator`.
-6. **A `synquid` CI lane** (a curated subset that actually synthesizes), once
-   the synthesizer solves them reliably, mirroring `examples/benchmarks/psb2/solved/`.
+A single five-second Synquid smoke attempt on each of the 24 revised files solved
+`List-Null` (0.221s including compilation); the other 23 exhausted the search
+budget without a complete solution. There were no crashes or process timeouts.
+The [per-file results](validation.json) include source checksums and timings.
+This is a smoke run, not a success-rate estimate or a comparison to the paper.
+The solved program was checked again as a whole; the manually checked witnesses
+in the tests are reported separately from synthesis successes.

@@ -1,8 +1,5 @@
-# BST-Insert: insert a key into a BST.
-#
-# Synquid benchmark BST-Insert (pldi16).
-#
-# Element type polymorphic. BST ORDER invariant NOT encoded (needs n-ary abstract refinements, #1); only node-count. Structural/size port.
+# BST-Insert — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BST-Insert.sq for the missing contracts.
 
 inductive BTree a
 | bleaf : {t:(BTree a) | bsz t = 0}

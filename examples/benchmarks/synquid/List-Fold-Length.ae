@@ -1,9 +1,20 @@
-# List-Fold-Length: length of the list as an Int.
-#
-# Synquid benchmark List-Fold-Length (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# List-Fold-Length — Synquid PLDI16, pinned source in upstream/List-Fold-Length.sq
+# Original dependent fold component and length contract; unused elems measure omitted.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def lengthL (xs: (List a)) : {r:Int | r = List.size xs} := ?hole;
+def zero : {v:Int | v = 0} := 0;
+def inc (x:Int) : {v:Int | v = x + 1} := x + 1;
+def dec (x:Int) : {v:Int | v = x - 1} := x - 1;
+
+def foldr : forall a:B, forall b:B, forall <p:(List a) -> b -> Bool>,
+    (f:(xs:(List a)) -> (x:a) -> (acc:{v:b | p xs v}) -> {v:b | p (List.cons x xs) v}) ->
+    (seed:{v:b | p (List.nil{a}) v}) -> (ys:(List a)) -> {v:b | p ys v}
+    decreasing_by [List.len ys] :=
+    Λ a:B => Λ b:B => Λ <p:(List a) -> b -> Bool> => fun f => fun seed => fun ys =>
+    match ys with | nil => seed | cons x xs => f xs x (foldr{a}{b}{|p|} f seed xs);
+
+def length (xs:(List a)) : {v:Int | v = List.len xs} decreasing_by [List.len xs] := ?hole;

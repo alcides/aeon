@@ -1,8 +1,5 @@
-# BST-Sort: sort a list by routing it through a BST.
-#
-# Synquid benchmark BST-Sort (pldi16).
-#
-# Result is a sorted IncList (Int element); becomes polymorphic with #1. Length preserved.
+# BST-Sort — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BST-Sort.sq for the missing contracts.
 
 open List
 

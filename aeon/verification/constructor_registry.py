@@ -9,6 +9,7 @@ LH-style **measure** names (``List_size``) for recursive Z3 definitions.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
+from collections.abc import Sequence
 
 from aeon.compilation.session import SessionMapping, current_session
 
@@ -19,6 +20,7 @@ class ConstructorRegistry:
     parameter_counts: dict[str, int] = field(default_factory=dict)
     fields: dict[str, list[str]] = field(default_factory=dict)
     measures: dict[str, list[str]] = field(default_factory=dict)
+    structural_measures: dict[str, list[str]] = field(default_factory=dict)
 
 
 # Maps inductive type name -> ordered prefixed constructor constant names
@@ -49,9 +51,15 @@ def register_constructors(
         _constructor_fields.update(field_types)
 
 
-def register_measures(type_name: str, measure_names: list[str]) -> None:
+def register_measures(type_name: str, measure_names: list[str], *, structural: Sequence[str] = ()) -> None:
     """Record LH-style measures declared with ``+ size …`` on an inductive."""
     _measures[type_name] = list(measure_names)
+    current_session().state(ConstructorRegistry).structural_measures[type_name] = list(structural)
+
+
+def get_structural_measures(type_name: str) -> list[str]:
+    """Measures whose constructor equations justify structural cardinality."""
+    return list(current_session().state(ConstructorRegistry).structural_measures.get(type_name, []))
 
 
 def get_constructor_groups() -> dict[str, set[str]]:
@@ -87,6 +95,7 @@ def clear_constructor_registry() -> None:
     _type_param_counts.clear()
     _constructor_fields.clear()
     _measures.clear()
+    current_session().state(ConstructorRegistry).structural_measures.clear()
     # Keep SMT datatype / sort caches in sync so a fresh inductive registration
     # is not shadowed by a stale Z3 Datatype from a previous program.
     try:

@@ -1,8 +1,5 @@
-# List-Delete: remove occurrences of x; result no longer.
-#
-# Synquid benchmark List-Delete (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Element equality (Synquid's Eq) is not in the spec; only the length bound.
+# List-Delete — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-Delete.sq for the missing contracts.
 
 open List
 

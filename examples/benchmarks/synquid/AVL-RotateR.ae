@@ -1,8 +1,5 @@
-# AVL-RotateR: right rotation, preserving node-count.
-#
-# Synquid benchmark AVL-RotateR (pldi16).
-#
-# Element type polymorphic. AVL BALANCE invariant (and BST order) NOT encoded (needs #1); node-count and height only. Structural/size port.
+# AVL-RotateR — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/AVL-RotateR.sq for the missing contracts.
 
 inductive Avl a
 | aleaf : {t:(Avl a) | asz t = 0 && ah t = 0}

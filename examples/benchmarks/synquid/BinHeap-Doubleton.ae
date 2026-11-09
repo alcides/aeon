@@ -1,8 +1,5 @@
-# BinHeap-Doubleton: a two-element heap.
-#
-# Synquid benchmark BinHeap-Doubleton (pldi16).
-#
-# Element type polymorphic. Heap ORDER invariant (parent <= children) NOT encoded (needs #1); only node-count. Structural/size port.
+# BinHeap-Doubleton — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BinHeap-Doubleton.sq for the missing contracts.
 
 inductive Heap a
 | hleaf : {h:(Heap a) | hsz h = 0}

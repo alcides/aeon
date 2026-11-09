@@ -1,9 +1,9 @@
-# List-ZipWith: zip with f; result length is the shorter one.
-#
-# Synquid benchmark List-ZipWith (pldi16).
-#
-# Polymorphic in (a, b, c); specialised to equal-length inputs so the result length is exact.
+# List-ZipWith — Synquid PLDI16, pinned source in upstream/List-ZipWith.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-def zipWith (f: (x:a) -> (y:b) -> c) (xs: (List a)) (ys: {l:(List b) | List.size l = List.size xs}) : {r:(List c) | List.size r = List.size xs} := ?hole;
+def zipWith (f:(x:a) -> (y:b) -> c) (xs:(List a)) (ys:{v:(List b) | List.len v = List.len xs}) : {v:(List c) | List.len v = List.len xs} decreasing_by [List.len xs] := ?hole;

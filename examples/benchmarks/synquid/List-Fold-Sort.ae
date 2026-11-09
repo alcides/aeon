@@ -1,8 +1,5 @@
-# List-Fold-Sort: sort expressed as a fold; length preserved.
-#
-# Synquid benchmark List-Fold-Sort (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Sortedness needs an order on `a` (arrives with #1); length preservation only for now.
+# List-Fold-Sort — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-Fold-Sort.sq for the missing contracts.
 
 open List
 

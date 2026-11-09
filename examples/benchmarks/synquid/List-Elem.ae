@@ -1,8 +1,5 @@
-# List-Elem: membership test.
-#
-# Synquid benchmark List-Elem (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original. Result not tied to an elems set measure.
+# List-Elem — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/List-Elem.sq for the missing contracts.
 
 open List
 

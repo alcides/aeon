@@ -1,14 +1,27 @@
-# AddressBook-Merge: merge two address books.
-#
-# Synquid benchmark AddressBook-Merge (pldi16).
-#
-# Element type left polymorphic (forall a), matching the Synquid original.
+# AddressBook-Merge — Synquid PLDI16, pinned source in upstream/AddressBook-Merge.sq
+# Contract matches upstream; see manifest.json for vocabulary differences.
 
-open List
+inductive List a
+| nil : {xs:(List a) | len xs = 0}
+| cons (x:a) (xs:(List a)) : {ys:(List a) | len ys = 1 + len xs}
++ len (xs:(List a)) : {v:Int | v >= 0}
 
-inductive AddrBook a
-| mkAB (biz: (List a)) (per: (List a)) : {ab:(AddrBook a) | bcount ab = List.size biz && pcount ab = List.size per}
-+ bcount (ab: (AddrBook a)) : Int
-+ pcount (ab: (AddrBook a)) : Int
+def append (xs:(List a)) (ys:(List a)) : {v:(List a) | List.len v = List.len xs + List.len ys}
+    decreasing_by [List.len xs] :=
+    match xs with | nil => ys | cons x tail => List.cons x (append tail ys);
 
-def mergeAB (x: (AddrBook a)) (y: (AddrBook a)) : {c:(AddrBook a) | bcount c = bcount x + bcount y && pcount c = pcount x + pcount y} := ?hole;
+inductive Info
+| info (streetAddr:Int) (zipcode:Int) (local:Bool) : Info
+
+inductive Address
+| address (info:Info) (priv:Bool) : {v:Address | isPriv v = priv}
++ isPriv (v:Address) : Bool
+
+def getPriv (a:Address) : {v:Bool | v = Address.isPriv a} :=
+    match a with | address info priv => priv;
+
+inductive AddressBook
+| addressBook (business:(List {v:Address | !(Address.isPriv v)})) (personal:(List {v:Address | Address.isPriv v})) : {v:AddressBook | size v = List.len business + List.len personal}
++ size (v:AddressBook) : {v:Int | v >= 0}
+
+def mergeAddressBooks (a:AddressBook) (b:AddressBook) : {v:AddressBook | AddressBook.size v = AddressBook.size a + AddressBook.size b} := ?hole;

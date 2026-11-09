@@ -1,8 +1,5 @@
-# BinHeap-Tripleton: a three-element heap.
-#
-# Synquid benchmark BinHeap-Tripleton (pldi16).
-#
-# Element type polymorphic. Heap ORDER invariant (parent <= children) NOT encoded (needs #1); only node-count. Structural/size port.
+# BinHeap-Tripleton — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
+# See manifest.json and upstream/BinHeap-Tripleton.sq for the missing contracts.
 
 inductive Heap a
 | hleaf : {h:(Heap a) | hsz h = 0}
