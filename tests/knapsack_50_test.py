@@ -112,6 +112,7 @@ def test_synthesis_returns_50_boolean_nodes_with_optimal_value(monkeypatch):
     driver = _driver("ortools", budget=30)
     assert not driver.parse(filename=str(EXAMPLE))
     assert driver.has_synth()
+    assert [[hole.name for hole in holes] for _, holes in driver.incomplete_functions] == [["solution"]]
     driver.synth()
     decisions = _unpack(driver.run())
     assert len(decisions) == 50

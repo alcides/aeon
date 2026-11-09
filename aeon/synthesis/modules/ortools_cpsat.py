@@ -11,6 +11,7 @@ Supported hole types:
   * ``Float``         -> a fixed-point integer variable (value ``= var / SCALE``);
   * ``(Array Int)``   -> one integer variable per element (exact);
   * ``(Array Float)`` -> one fixed-point variable per element.
+  * fixed-length lists -> a constructor spine with Bool/Int/Float variables.
 
 CP-SAT has no continuous variables, so Float holes are modelled in fixed point:
 each float is an integer multiple of ``1 / SCALE`` (default 1/1000). Results are
@@ -81,6 +82,8 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.api import ProgramSynthesizer, UnsupportedSynthesisGoal
 from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.decorators import Goal
+from aeon.synthesis.modules.cpsat_lists import ListExpansion, expand_list
+from aeon.synthesis.modules.tdsyn.worklist import substitute_holes_map
 from aeon.synthesis.identification import get_holes_info, iterate_top_level, term_has_holes
 from aeon.synthesis.program_specifications import ProgramSpecifications
 from aeon.synthesis.uis.api import SynthesisUI
@@ -292,6 +295,30 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if not all_holes:
             raise UnsupportedSynthesisGoal("CPSatHole requires at least one hole.")
 
+        # Retain the original specification and hole names for validation,
+        # scoring and decoding. Only the solver sees the expanded spines.
+        original_term = term
+        self._original_holes = all_holes
+        self._list_expansions: dict[Name, ListExpansion] = {}
+        heads, _ = self._inductive_heads(term)
+        constructors = [binding for binding in iterate_top_level(term) if binding.var_name in heads]
+        hole_types = {}
+        for hole in all_holes:
+            ty = holes_info[hole][0]
+            if _is_bool(ty) or _is_int(ty) or _is_float(ty) or _array_elem(ty):
+                hole_types[hole] = ty
+            else:
+                expansion = expand_list(hole, ty, constructors, holes_info[hole][1])
+                self._list_expansions[hole] = expansion
+                hole_types.update(expansion.leaves)
+        if self._list_expansions:
+            term = substitute_holes_map(
+                term, {hole: expansion.term for hole, expansion in self._list_expansions.items()}
+            )
+        self._list_guards = {guard for expansion in self._list_expansions.values() for guard in expansion.guards}
+        self._checked_list_guards: set[Name] = set()
+        all_holes = list(hole_types)
+
         self._model = cp_model.CpModel()
         self._square_hints: set[int] = set()
         self._hole_value: dict[Name, _Value] = {}
@@ -302,10 +329,10 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         self._checked_dependent_booleans: set[Name] = set()
         self._symbolic_branch = False
         for hole in all_holes:
-            hole_type = holes_info[hole][0]
+            hole_type = hole_types[hole]
             self._hole_types[hole] = hole_type.type if isinstance(hole_type, RefinedType) else hole_type
             try:
-                self._declare_hole(hole, holes_info[hole][0])
+                self._declare_hole(hole, hole_type)
             except _Unsupported as e:
                 raise UnsupportedSynthesisGoal(
                     f"CPSatHole cannot handle hole {hole.pretty()} ({e}). "
@@ -367,7 +394,9 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 continue
             oriented.append(value if goal.minimize else _Num(-value.expr, value.scale, -value.hi, -value.lo))
 
-        if self._dependent_booleans.keys() - self._checked_dependent_booleans:
+        if (self._dependent_booleans.keys() - self._checked_dependent_booleans) or (
+            self._list_guards - self._checked_list_guards
+        ):
             self._model = base_model
             runtime = True
             oriented = []
@@ -383,7 +412,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         if runtime:
             return self._runtime_search(
-                ctx, ectx, term, targets, metadata, max(0.0, budget - (monotonic() - started)), ui
+                ctx, ectx, original_term, targets, metadata, max(0.0, budget - (monotonic() - started)), ui
             )
 
         solver = cp_model.CpSolver()
@@ -394,11 +423,11 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
 
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             ui.end(None, None)
-            return {hole: None for hole in all_holes}
+            return {hole: None for hole in self._original_holes}
 
-        mapping: dict[Name, Optional[Term]] = {h: self._decode(solver, h) for h in all_holes}
+        mapping = self._decode_mapping(solver)
         with ProgramSpecifications(
-            ctx, ectx, term, targets, metadata, budget_eval=max(0.01, min(1.0, budget))
+            ctx, ectx, original_term, targets, metadata, budget_eval=max(0.01, min(1.0, budget))
         ) as specifications:
             candidate = specifications.candidate(mapping)
             if not specifications.validate(candidate):
@@ -440,9 +469,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 status = solver.solve(self._model)
                 if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                     break
-                candidate = specifications.candidate(
-                    {hole: self._decode(solver, hole) for hole in specifications.holes}
-                )
+                candidate = specifications.candidate(self._decode_mapping(solver))
                 if specifications.validate(candidate) and archive.consider(candidate):
                     break
                 if not variables:
@@ -453,6 +480,15 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             return specifications.mapping(result)
 
     # -- hole declaration -------------------------------------------------
+
+    def _decode_mapping(self, solver: Any) -> dict[Name, Optional[Term]]:
+        leaves = {hole: self._decode(solver, hole) for hole in self._hole_meta}
+        return {
+            hole: substitute_holes_map(self._list_expansions[hole].template, leaves)
+            if hole in self._list_expansions
+            else leaves[hole]
+            for hole in self._original_holes
+        }
 
     def _declare_hole(self, hole: Name, ty: Type) -> None:
         model = self._model
@@ -534,7 +570,20 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if self._translation_steps > 100_000:
             raise _Unsupported("structural expansion limit (possibly symbolic recursion)")
         if isinstance(t, Annotation):
-            return self._translate(t.expr, env, visited)
+            value = self._translate(t.expr, env, visited)
+            if isinstance(t.type, RefinedType) and t.type.name in self._list_guards:
+                if self._symbolic_branch:
+                    raise _Unsupported("list refinement in a symbolic branch")
+                try:
+                    predicate = predicate_to_term(LiquidPredicate((), t.type.refinement))
+                except ValueError as exc:
+                    raise _Unsupported("unresolved list refinement") from exc
+                condition = self._boolean(
+                    self._translate(predicate, {**env, t.type.name: value}, visited), "list refinement"
+                )
+                self._model.add_bool_or([condition.expr])
+                self._checked_list_guards.add(t.type.name)
+            return value
 
         if isinstance(t, (TypeApplication, TypeAbstraction, RefinementApplication, RefinementAbstraction)):
             return self._translate(t.body, env, visited)

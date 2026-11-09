@@ -650,6 +650,30 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 
 ---
 
+### `ortools` / `cpsat` — Fixed-length lists
+
+CP-SAT can fill one hole with an entire list, including a custom list datatype.
+For example, `{xs:(List Bool) | List.size xs = 50}` fixes the constructor spine
+and leaves 50 Boolean decisions for the solver. Integer and fixed-point Float
+elements use the same bounds and precision as scalar holes.
+
+The datatype must have an empty constructor and a two-field constructor with
+one scalar element and one recursive tail, in either order. The length must be
+a literal equality in the hole's refinement. The backend recognizes length by
+the constructor equations `length empty = 0` and `length node = length tail + 1`,
+so custom measure names work too. Lengths from 0 through 1000 are supported;
+variable-length lists and nested lists require another backend.
+
+Constructor relations and whole-list measure refinements constrain the symbolic
+model. Every completed list is also checked against the original program's type
+and hard specifications. Constraints outside symbolic translation use the
+backend's validated assignment search.
+
+The [50-item knapsack example](../examples/synthesis/puzzle/knapsack_50.ae)
+uses `@maximize` for value and a refined Boolean list for logical weight. Its
+synthesis body is simply `?solution`; list nodes contain only a Boolean and a
+tail, while item weights and values live in arrays.
+
 ## Choosing a Synthesizer
 
 | Synthesizer     | Strategy         | Best for |

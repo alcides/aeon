@@ -25,59 +25,6 @@ def total_value (mask:Mask{|fun w => fun rest => w + rest <= 100|})
 @maximize(toFloat (total_value knapsack 0))
 def knapsack: {m:Mask{|fun w => fun rest => w + rest <= 100|} |
     Mask.count m = 50 && Mask.weight m <= 100} :=
-    let cons := Mask.cons{|fun w => fun rest => w + rest <= 100|} in
-    let mask := Mask.empty{|fun w => fun rest => w + rest <= 100|} in
-    # Prepend decisions from the last item to the first.
-    let mask := cons mask ?b49 in
-    let mask := cons mask ?b48 in
-    let mask := cons mask ?b47 in
-    let mask := cons mask ?b46 in
-    let mask := cons mask ?b45 in
-    let mask := cons mask ?b44 in
-    let mask := cons mask ?b43 in
-    let mask := cons mask ?b42 in
-    let mask := cons mask ?b41 in
-    let mask := cons mask ?b40 in
-    let mask := cons mask ?b39 in
-    let mask := cons mask ?b38 in
-    let mask := cons mask ?b37 in
-    let mask := cons mask ?b36 in
-    let mask := cons mask ?b35 in
-    let mask := cons mask ?b34 in
-    let mask := cons mask ?b33 in
-    let mask := cons mask ?b32 in
-    let mask := cons mask ?b31 in
-    let mask := cons mask ?b30 in
-    let mask := cons mask ?b29 in
-    let mask := cons mask ?b28 in
-    let mask := cons mask ?b27 in
-    let mask := cons mask ?b26 in
-    let mask := cons mask ?b25 in
-    let mask := cons mask ?b24 in
-    let mask := cons mask ?b23 in
-    let mask := cons mask ?b22 in
-    let mask := cons mask ?b21 in
-    let mask := cons mask ?b20 in
-    let mask := cons mask ?b19 in
-    let mask := cons mask ?b18 in
-    let mask := cons mask ?b17 in
-    let mask := cons mask ?b16 in
-    let mask := cons mask ?b15 in
-    let mask := cons mask ?b14 in
-    let mask := cons mask ?b13 in
-    let mask := cons mask ?b12 in
-    let mask := cons mask ?b11 in
-    let mask := cons mask ?b10 in
-    let mask := cons mask ?b9 in
-    let mask := cons mask ?b8 in
-    let mask := cons mask ?b7 in
-    let mask := cons mask ?b6 in
-    let mask := cons mask ?b5 in
-    let mask := cons mask ?b4 in
-    let mask := cons mask ?b3 in
-    let mask := cons mask ?b2 in
-    let mask := cons mask ?b1 in
-    let mask := cons mask ?b0 in
-    mask;
+    ?solution;
 
 def main (u:Int):Mask{|fun w => fun rest => w + rest <= 100|} := knapsack;
