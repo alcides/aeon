@@ -579,6 +579,14 @@ Completed constructor trees name intermediate data values before final checking
 to keep dependent measure proofs compact. Ordinary calls and control flow retain
 their original form and evaluation order.
 
+Related constructor steps reuse a session-local SMT solver and the translated
+constraints they share. Branch assumptions and model-blocking clauses remain
+isolated. Constant arrays, indexed reads, and reflected substitutions are cached.
+Final validation reuses successful proofs for unchanged obligations, keyed by
+their premises, variable sorts, function signatures, and reflected definitions;
+new or changed obligations still require a proof. These caches are bounded and
+cleared between compilation sessions.
+
 ---
 
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)

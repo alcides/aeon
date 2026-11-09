@@ -54,6 +54,9 @@ _subtype_cache: dict[int, dict[tuple[str, str], bool]] = {}
 
 def clear_tdsyn_caches() -> None:
     """Drop memoized subtype / component-library results for a fresh search."""
+    from aeon.synthesis.modules.tdsyn.incremental import clear_incremental_queries
+
+    clear_incremental_queries()
     _subtype_cache.clear()
     from aeon.synthesis.modules.tdsyn.library import clear_component_library_cache
 

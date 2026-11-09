@@ -20,6 +20,7 @@ class VerificationState:
     timeout_ms: int = field(default_factory=lambda: current_session().options.smt_timeout_ms)
     solver: Solver | None = field(default=None, init=False, repr=False)
     validity: dict[str, bool] = field(default_factory=dict)
+    proved_clauses: dict[str, bool] = field(default_factory=dict)
     statuses: dict[str, tuple[Status, str | None]] = field(default_factory=dict)
     ple: dict[tuple[int, int], tuple[LiquidTerm, dict[str, tuple[tuple[Name, ...], LiquidTerm]], LiquidTerm]] = field(
         default_factory=dict
@@ -31,6 +32,15 @@ class VerificationState:
         default_factory=dict
     )
     sort_sets: dict[tuple[str, ...], dict[str, SortRef]] = field(default_factory=dict)
+    array_literals: dict[tuple[tuple[int, int], ...], Any] = field(default_factory=dict)
+    array_elements: dict[tuple[int, int], tuple[Any, tuple[Any, ...] | None]] = field(default_factory=dict)
+    array_reads: dict[tuple[tuple[int, int], tuple[int, int] | tuple[str, int]], tuple[Any, Any, Any]] = field(
+        default_factory=dict
+    )
+    reflected_calls: dict[tuple[Name, tuple[Name, ...], LiquidTerm, tuple[LiquidTerm, ...]], LiquidTerm] = field(
+        default_factory=dict
+    )
+    generation: int = 0
 
     def get_solver(self) -> Solver:
         if self.solver is None:

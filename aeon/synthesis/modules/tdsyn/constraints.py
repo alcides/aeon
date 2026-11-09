@@ -95,19 +95,25 @@ def existential_formula(ctx: TypingContext, bindings: dict[Name, Type], predicat
     for name, ty in reversed(list(bindings.items())):
         constraint = implication_constraint(name, ty, constraint)
     constraint = entailment_context(ctx, constraint)
-    return z3.And(*[translate(clause) for clause in flatten(constraint)])
+    clauses = [translate(clause) for clause in flatten(constraint)]
+    # The conclusion is false, so a vacuously valid VC means its assumptions
+    # are impossible. Flattening drops that VC; it is not a feasible witness.
+    return z3.And(*clauses) if clauses else z3.BoolVal(False)
 
 
 def feasible(ctx: TypingContext, bindings: dict[Name, Type], predicates: list[LiquidTerm]) -> bool:
     """Prune only UNSAT. Unsupported theories and UNKNOWN retain the candidate."""
     if not predicates and not any(has_refinement(ty) for ty in bindings.values()):
         return True
-    solver = z3.Solver()
-    if not configure_solver(solver):
+    from aeon.synthesis.modules.tdsyn.incremental import solver_query
+
+    if deadline.get() <= monotonic():
         return True
     try:
-        solver.add(existential_formula(ctx, bindings, predicates))
-        return solver.check() != z3.unsat
+        with solver_query(ctx, bindings, predicates) as (solver, assumptions):
+            if not configure_solver(solver):
+                return True
+            return solver.check(*assumptions) != z3.unsat
     except (AssertionError, KeyError, TypeError, ValueError, NotImplementedError, z3.Z3Exception):
         return True
 

@@ -27,6 +27,7 @@ from aeon.core.types import t_unit
 from aeon.core.types import t_string
 from aeon.prelude.prelude import native_types
 from aeon.typechecking.context import (
+    ReflectedBinder,
     RefinementBinder,
     TypeBinder,
     TypeConstructorBinder,
@@ -175,7 +176,7 @@ def lower_context(
             case RefinementBinder(name, ty):
                 if needed is None or name in needed:
                     functions[name] = lower_abstraction_type(ty)
-            case VariableBinder(name, ty):
+            case VariableBinder(name, ty) | ReflectedBinder(name, ty, _, _):
                 if needed is None or name in needed or isinstance(ty, ExistentialType):
                     add_variable(name, ty)
             case TypeBinder(name, _):
