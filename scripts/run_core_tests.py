@@ -6,6 +6,7 @@ import pytest
 
 CORE_TESTS = [
     "tests/core_properties_test.py",
+    "tests/synquid_properties_test.py",
     "tests/context_snapshot_test.py",
     "tests/parser_locations_test.py",
     "tests/roundtrip_test.py",
