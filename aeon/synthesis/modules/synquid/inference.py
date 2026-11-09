@@ -8,6 +8,7 @@ unknowns until later construction steps determine them (Fig. 6).
 from dataclasses import dataclass
 from time import monotonic
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.substitutions import instantiate_refinement_with_horn_in_type, substitution
 from aeon.core.terms import (
@@ -49,7 +50,7 @@ def infer_terms(ctx, level, skip, mem, state):
         child = state.fork()
         child.add(vc)
         yield InferredArgument(literal, ty, child)
-    for name, typ in ctx.concrete_vars():
+    for name, typ in grammar_bindings(ctx):
         if monotonic() >= state.deadline:
             return
         if skip(name) or name.name.endswith("_rec") and name.name[:-4] in get_constructor_groups():

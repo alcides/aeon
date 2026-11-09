@@ -59,36 +59,29 @@ limits, or search strategy. Incremental Synquid queries reuse validity
 obligations, but do not provide a specialized generator for a 50-node mask.
 These optimizations therefore do not make every backend solve this example.
 
-## GP and Synquid generation fixes
+## Separate grammar domains
 
-A second run on the same day, with the same example, seeds, limits, and
-independent result checks, produced valid masks from both backends:
+The current grammar distinguishes `Term[T]` from `Refinement[T]` before
+creating productions. Logical functions remain available for refinements and
+never enter executable productions. Synquid retains and materializes solved
+predicate arguments, and skips unresolved match branches rather than crashing.
 
-| Backend | First valid candidate, seconds | Synthesis seconds | Total seconds | Weight | Value |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `gp` | 32.5 | 62.3 | 69.3 | 99 | 538 |
-| `synquid` | 32.3 | 61.5 | 68.4 | 100 | 459 |
+Fixed-size list expansion is now exclusive to CP-SAT. The earlier GP result
+of value 538 and Synquid result of value 459 used a list specialization that
+has been removed; those results do not describe the current implementation.
+GP and Synquid now use ordinary grammar search for the complete list shape.
 
-Both results contain exactly 50 Booleans. They are feasible, not optimal; the
-optimum remains 1077. Final validation still slightly overruns the search
-budget. The changes address three generation problems:
+Repeating the same 60-second experiment after that change gives:
 
-- GP's component library admitted SMT-only projections, including
-  `Mask_cons_used`. These are logical functions without executable values and
-  now stay out of the grammar while still shadowing older bindings.
-- Synquid replaced solved abstract predicates with unrelated implicit holes.
-  It now retains goal relations and emits the predicate assignment it solved,
-  with operator instantiations elaborated for Core checking. A match requiring
-  an unresolved predicate is skipped rather than crashing the entire search.
-- Both solvers searched for the list spine even though the type fixes its
-  length. They now share the existing CP-SAT constructor-schema analysis to
-  unroll fixed-size Boolean lists. GP evolves each Boolean preference, with
-  feasibility checks repairing invalid choices. Synquid enumerates feasible
-  assignments. Neither delegates its objective search to CP-SAT.
+| Backend | Outcome | Total seconds | Weight | Value |
+| --- | --- | ---: | ---: | ---: |
+| `gp` | No solution within budget | 68.8 | — | — |
+| `synquid` | No solution within budget | 67.7 | — | — |
+| `ortools` (CP-SAT) | Optimal solution | 40.8 | 100 | 1077 |
 
-Field refinements, tail preconditions, and the final result predicate all
-remain in the generation constraints. Unknown SMT answers produce no model,
-and every proposed term still passes normal validation before acceptance.
+Neither GP nor Synquid crashed, but neither produced a valid candidate within
+the budget. CP-SAT's first solution arrived after 30.3 seconds of synthesis;
+its full synthesis run took 33.7 seconds.
 
 ## Reproduce
 

@@ -11,6 +11,7 @@ from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
 from aeon.core.substitutions import liquefy, substitution_in_liquid
 from aeon.core.terms import Term, Var
 from aeon.core.types import RefinedType, Type, t_unit
+from aeon.synthesis.grammar.nonterminals import ExpressionDomain
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, substitute_holes_map
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment_context
@@ -53,6 +54,10 @@ def symbolic_term(term: Term, holes: list[TypedHole]) -> LiquidTerm | None:
 def obligations(
     hole: TypedHole, replacement: Term, children: list[TypedHole], actual_type: Type | None = None
 ) -> tuple[dict[Name, Type], list[LiquidTerm]]:
+    if hole.domain is ExpressionDomain.REFINEMENT:
+        # Logical grammar holes describe expressions, not existential runtime
+        # values. Their applications are checked at the predicate boundary.
+        return {}, []
     bindings = dict(hole.bindings)
     bindings[hole.name] = hole.expected_type
     predicates = list(hole.constraints)
@@ -121,7 +126,7 @@ def feasible(ctx: TypingContext, bindings: dict[Name, Type], predicates: list[Li
 def candidate_feasible(
     hole: TypedHole, replacement: Term, children: list[TypedHole], actual_type: Type | None = None
 ) -> bool:
-    if not eager_pruning.get():
+    if hole.domain is ExpressionDomain.REFINEMENT or not eager_pruning.get():
         return True
     bindings, predicates = obligations(hole, replacement, children, actual_type)
     return feasible(hole.context, bindings, predicates)

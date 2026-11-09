@@ -1,5 +1,6 @@
 """FIX, TABS and ABS, with a decreasing recursive hypothesis."""
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_type, substitution_in_liquid, liquefy
@@ -60,7 +61,7 @@ def enclosing_function(ctx, name, goal):
         inner = type_substitution(inner, parameter, instance)
     args = []
     while isinstance(inner, AbstractionType):
-        actual = next((n for n, _ in reversed(ctx.concrete_vars()) if n.name == inner.var_name.name), None)
+        actual = next((n for n, _ in reversed(grammar_bindings(ctx)) if n.name == inner.var_name.name), None)
         if actual is None:
             return None
         args.append(Var(actual))

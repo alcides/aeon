@@ -1,5 +1,6 @@
 """MATCH through Aeon's existing lowered datatype eliminators."""
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.substitutions import (
     substitution_in_type,
@@ -50,7 +51,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
         return
     groups = get_constructor_groups()
     datatypes = set()
-    for _, ty in ctx.concrete_vars():
+    for _, ty in grammar_bindings(ctx):
         while isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
             ty = ty.body
         while isinstance(ty, AbstractionType):
@@ -81,7 +82,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                 yield ty
 
     for datatype in datatype_shapes():
-        rec = next(((n, t) for n, t in ctx.concrete_vars() if n.name == datatype.name.name + "_rec"), None)
+        rec = next(((n, t) for n, t in grammar_bindings(ctx) if n.name == datatype.name.name + "_rec"), None)
         if rec is None:
             continue
         rec_name, rec_type = rec
@@ -263,11 +264,11 @@ def abduced_matches(ctx, level, goal, skip, mem, state):
         return
     facts = []
     groups = get_constructor_groups()
-    for variable, datatype in ctx.concrete_vars():
+    for variable, datatype in grammar_bindings(ctx):
         datatype = erase(datatype)
         if skip(variable) or variable in state.matched or not isinstance(datatype, TypeConstructor):
             continue
-        for constructor, schema in ctx.concrete_vars():
+        for constructor, schema in grammar_bindings(ctx):
             if constructor.name not in groups.get(datatype.name.name, set()):
                 continue
             while isinstance(schema, (TypePolymorphism, RefinementPolymorphism)):

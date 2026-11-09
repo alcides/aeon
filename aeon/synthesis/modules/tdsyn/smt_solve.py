@@ -17,6 +17,7 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
+from aeon.synthesis.grammar.nonterminals import ExpressionDomain
 from aeon.synthesis.modules.tdsyn.constraints import configure_solver, has_refinement
 from aeon.synthesis.modules.tdsyn.incremental import solver_query
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole
@@ -51,6 +52,8 @@ def literal_satisfies(term: Term, ty: RefinedType) -> bool:
 
 def _is_leaf_hole(hole: TypedHole) -> bool:
     """Check whether a hole can be completed by an SMT-backed base literal."""
+    if hole.domain is ExpressionDomain.REFINEMENT:
+        return False
     base = base_type_of(hole.expected_type)
     if base is None:
         return False
@@ -72,7 +75,7 @@ def solve_literals(
     bindings. Unsupported predicates are never silently removed from a model
     query: leave the holes open for ordinary search and final validation.
     """
-    if not holes:
+    if not holes or any(h.domain is ExpressionDomain.REFINEMENT for h in holes):
         return []
     bindings: dict[Name, Type] = {}
     predicates: list[LiquidTerm] = []

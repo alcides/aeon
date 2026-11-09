@@ -60,8 +60,9 @@ class _Constructor:
     result: Type
 
 
-def _instantiate(name: Name, ty: Type, actual: TypeConstructor, ctx: TypingContext) -> _Constructor:
-    head: Term = Var(name)
+def _instantiate(binding: Rec, actual: TypeConstructor, ctx: TypingContext) -> _Constructor:
+    head: Term = Var(binding.var_name)
+    ty = binding.var_type
     type_index = relation_index = 0
     while isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
         if isinstance(ty, TypePolymorphism):
@@ -90,9 +91,6 @@ class ListExpansion:
     template: Term
     leaves: dict[Name, Type] = field(default_factory=dict)
     guards: set[Name] = field(default_factory=set)
-    bindings: dict[Name, Type] = field(default_factory=dict)
-    constraints: list[LiquidTerm] = field(default_factory=list)
-    result_name: Name | None = None
 
     def guard(self, value: Term, ty: Type) -> Term:
         if not isinstance(ty, RefinedType):
@@ -104,12 +102,6 @@ class ListExpansion:
 
 
 def expand_list(hole: Name, ty: Type, constructors: list[Rec], ctx: TypingContext) -> ListExpansion:
-    return expand_list_schema(hole, ty, [(c.var_name, c.var_type) for c in constructors], ctx)
-
-
-def expand_list_schema(
-    hole: Name, ty: Type, constructors: list[tuple[Name, Type]], ctx: TypingContext
-) -> ListExpansion:
     """Support nil/cons ADTs with one recursive tail and one scalar field."""
     actual = _base(ty)
     error = (
@@ -119,13 +111,13 @@ def expand_list_schema(
         raise UnsupportedSynthesisGoal(error)
 
     matching = []
-    for name, constructor_type in constructors:
-        result_type = constructor_type
+    for binding in constructors:
+        result_type = binding.var_type
         while isinstance(result_type, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
             result_type = result_type.type if isinstance(result_type, AbstractionType) else result_type.body
         base = _base(result_type)
         if isinstance(base, TypeConstructor) and base.name == actual.name:
-            matching.append(_instantiate(name, constructor_type, actual, ctx))
+            matching.append(_instantiate(binding, actual, ctx))
     nil = next((c for c in matching if not c.fields), None)
     cons = next((c for c in matching if len(c.fields) == 2), None)
     if len(matching) != 2 or nil is None or cons is None:
@@ -165,7 +157,6 @@ def expand_list_schema(
     constructor = _fresh("list_cons")
     previous = _fresh("list_nil")
     bindings: list[tuple[Name, Term, Term]] = [(constructor, cons.head, cons.head), (previous, nil.head, nil.head)]
-    expansion.bindings[previous] = nil.result
     for index in range(length):
         application: Term = Var(constructor)
         template_application: Term = Var(constructor)
@@ -178,30 +169,18 @@ def expand_list_schema(
             else:
                 leaf = _fresh(f"{hole.name}_{length - index - 1}")
                 expansion.leaves[leaf] = field_type.var_type
-                expansion.bindings[leaf] = field_type.var_type
                 argument = Hole(leaf)
                 checked_argument = argument
                 if position == 0:
                     # Later field refinements can refer to an earlier element.
                     element_name = _fresh("list_element")
                     bindings.append((element_name, argument, argument))
-                    # Relate the runtime alias to the scalar witness as well.
-                    expansion.bindings[element_name] = RefinedType(
-                        element_name, element, LiquidApp(Name("==", 0), [LiquidVar(element_name), LiquidVar(leaf)])
-                    )
                     argument = checked_argument = Var(element_name)
             application = Application(application, checked_argument)
             template_application = Application(template_application, argument)
-            witness = Var(argument.name) if isinstance(argument, Hole) else argument
-            assert isinstance(witness, Var)
-            if isinstance(field_type.var_type, RefinedType):
-                required = field_type.var_type
-                expansion.constraints.append(
-                    substitution_in_liquid(required.refinement, LiquidVar(witness.name), required.name)
-                )
-            field_type = substitution_in_type(field_type.type, witness, field_type.var_name)
+            if position == 0:
+                field_type = substitution_in_type(field_type.type, argument, field_type.var_name)
         previous = _fresh("list_node")
-        expansion.bindings[previous] = field_type
         bindings.append((previous, application, template_application))
     result = expansion.guard(Var(previous), ty)
     template: Term = Var(previous)
@@ -212,5 +191,4 @@ def expand_list_schema(
     # Solver guards must not weaken literal/tail selfification when checking
     # the finished term. Its original type and constructor types check them.
     expansion.template = template
-    expansion.result_name = previous
     return expansion

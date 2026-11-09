@@ -6,6 +6,7 @@ from itertools import count, takewhile, islice
 from time import monotonic
 from typing import Callable
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidLiteralBool, liquid_free_vars
 from aeon.core.substitutions import substitution, substitution_in_type, instantiate_refinement_with_horn_in_type
@@ -44,7 +45,7 @@ def monomorfic(t: Type, typing_ctx: TypingContext, t_l: dict[Name, Type]):
         case TypePolymorphism(var_name, _, var_body):
             for t in [
                 t
-                for n, t in typing_ctx.concrete_vars()
+                for n, t in grammar_bindings(typing_ctx)
                 if isinstance(t, TypeConstructor) and t != TypeConstructor(Name("Unit", 0))
             ]:
                 t_l[var_name] = t
@@ -327,20 +328,20 @@ def _leaf_terms(ctx, ret_t, skip, state):
     if arrow_goal is not None:
         for name, _ in [
             (n, t)
-            for n, t in ctx.concrete_vars()
+            for n, t in grammar_bindings(ctx)
             if isinstance(t, AbstractionType) and match_result(t, arrow_goal, set()) is not None and not skip(n)
         ]:
             yield Var(name)
         return
     if isinstance(base_t, TypeVar):
-        for name, t in ctx.concrete_vars():
+        for name, t in grammar_bindings(ctx):
             if erase(t) == base_t and not skip(name) and _local_check(ctx, Var(name), ret_t, state):
                 yield Var(name)
         return
     assert isinstance(base_t, TypeConstructor)
     for name, _ in [
         (n, t)
-        for n, t in ctx.concrete_vars()
+        for n, t in grammar_bindings(ctx)
         if isinstance(t, (TypeConstructor, RefinedType)) and erase(t) == base_t and not skip(n)
     ]:
         if _local_check(ctx, Var(name), ret_t, state):
@@ -386,7 +387,7 @@ def _eliminations(
     if level == 0:
         yield from _leaf_terms(ctx, ret_t, skip, state)
     for name, typ in [
-        (n, ty) for n, ty in ctx.concrete_vars() if not isinstance(ty, (TypeConstructor, RefinedType)) and not skip(n)
+        (n, ty) for n, ty in grammar_bindings(ctx) if not isinstance(ty, (TypeConstructor, RefinedType)) and not skip(n)
     ]:
         from aeon.verification.constructor_registry import get_constructor_groups
 

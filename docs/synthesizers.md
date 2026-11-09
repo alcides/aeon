@@ -24,6 +24,17 @@ enumerative search, Synquid, and CP-SAT. Bindings stay inside their original
 lambda or branch. Returned programs, runtime evaluation, expression-size scores,
 and resource objectives use the original candidate.
 
+Expression grammar nonterminals carry both a domain and a type:
+`Term[T]` produces executable code, and `Refinement[T]` produces logical
+expressions. Runtime values and reflected functions contribute term productions;
+logical predicates and uninterpreted functions contribute refinement productions.
+First-order runtime values can participate in both. Lexical shadowing is resolved
+before either set of productions is built. Application arguments, lambda bodies,
+and conditional branches retain their parent's domain, and component caches
+keep the two nonterminals distinct even when their types match. Explicit erased
+predicate arguments use the refinement domain. Both domains retain normal type
+checking; logical expressions are not treated as existential runtime values.
+
 See the [50-item knapsack comparison](knapsack-solver-comparison.md) for measured
 results and remaining limitations across ten backends.
 
@@ -35,12 +46,8 @@ results and remaining limitations across ten backends.
 
 Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
 
-For a fixed-size Boolean list, checked constructor measure equations determine
-the spine before decoding. Each codon controls one Boolean preference; SMT
-repairs choices that would violate the field or result refinements. This avoids
-spending generations guessing a length already fixed by the type. Evolution
-and `@maximize` still choose among feasible masks. SMT-only functions and field
-projections are excluded from the executable grammar.
+GP decodes executable candidates through the term nonterminal. It uses ordinary
+grammar expansion for lists, including goals whose refinements fix their length.
 
 Population size is chosen from a timing probe of the first ten random individuals so that initial evaluation uses at most 10% of the wall-clock budget. Crossover rate and mutation rate are sampled randomly each run; tournament size, novelty rate and related operator knobs are re-sampled every generation. Elitism keeps the best 5% of the population. Fitness comes from the synthesis decorators (`@minimize_*`, `@maximize_*`, `@property`, …). When objectives are present the shared Pareto driver returns a random non-dominated candidate; otherwise the first well-typed term wins. No GeneticEngine dependency.
 
@@ -287,11 +294,11 @@ this backend does not jointly solve coupled holes.
 
 This backend implements round-trip checking, incremental shape/refinement constraints, MUSFIX condition abduction, polymorphic function and fixpoint introduction, and datatype match synthesis. See [the implementation and validation notes](synquid-round-trip.md) for supported fragments, bounds, and differences from PLDI 2016 Synquid.
 
-Fixed-size Boolean lists use the same constructor-measure analysis as CP-SAT
-and GP, followed by enumeration of feasible scalar assignments. The result's
-retained relations instantiate constructors directly; inferred predicates are
+The result's retained relations instantiate constructors directly; inferred predicates are
 materialized from the solved assignment rather than replaced with fresh
-inference holes. Every candidate still undergoes normal whole-program validation.
+inference holes. Executable components use the term grammar, and erased predicate
+arguments use the refinement grammar. Lists use ordinary search. Every candidate
+still undergoes normal whole-program validation.
 
 **Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, `synquid_max_candidates`, and `synquid_typecheck_candidate_first`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Term memoization is disabled because `(context, level, goal)` does not identify the pending constraint state.
 
@@ -709,6 +716,8 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 ### `ortools` / `cpsat` — Fixed-length lists
 
 CP-SAT can fill one hole with an entire list, including a custom list datatype.
+Only CP-SAT uses this fixed-list specializer; the other backends expand their
+ordinary expression grammars.
 For example, `{xs:(List Bool) | List.size xs = 50}` fixes the constructor spine
 and leaves 50 Boolean decisions for the solver. Integer and fixed-point Float
 elements use the same bounds and precision as scalar holes.

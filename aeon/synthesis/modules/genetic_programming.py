@@ -442,21 +442,6 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
         rng = random.Random(self.seed)
         started = monotonic()
 
-        if decode is None and len(initial.holes) == 1:
-            from aeon.synthesis.fixed_data import FixedBooleanList
-            from aeon.synthesis.modules.tdsyn.worklist import substitute_holes_map
-
-            hole = initial.holes[0]
-            space = FixedBooleanList.build(hole.context, hole.expected_type, skip, started + budget)
-            if space is not None:
-                min_genome_length = max(min_genome_length, len(space.expansion.leaves))
-
-                def decode_fixed(genome, generation):
-                    term = space.decode(genome, generation)
-                    return substitute_holes_map(initial.term, {hole.name: term}) if term is not None else None
-
-                decode = decode_fixed
-
         state = GPState(
             rng=rng,
             minimize=minimize,

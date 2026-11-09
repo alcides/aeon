@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidTerm, LiquidVar
 from aeon.core.terms import Annotation, Application, Literal, TypeApplication, Var
 from aeon.core.terms import Term
@@ -66,7 +67,7 @@ def bool_terms_from_qualifier_atoms(
     It fires only when Q carries a relational template *and* an ``Int`` variable
     is in scope, so non-ordering goals pay nothing, and is bounded by
     ``max_terms``."""
-    in_ctx = {n for n, _ in ctx.concrete_vars()}
+    in_ctx = {n for n, _ in grammar_bindings(ctx)}
     out: list[Term] = []
     seen: set[tuple[Name, str, str]] = set()
 
@@ -96,7 +97,7 @@ def bool_terms_from_qualifier_atoms(
 
     # (b) template instantiation over in-scope Int variables (+ 0/1)
     ops = _relational_ops_in(atoms)
-    int_vars = [Var(n) for n, t in ctx.concrete_vars() if _is_int_base(t)]
+    int_vars = [Var(n) for n, t in grammar_bindings(ctx) if _is_int_base(t)]
     if ops and int_vars:
         operands: list[Term] = int_vars + [Literal(0, _INT), Literal(1, _INT)]
         for op in ops:
