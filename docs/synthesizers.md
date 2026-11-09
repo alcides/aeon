@@ -24,6 +24,9 @@ enumerative search, Synquid, and CP-SAT. Bindings stay inside their original
 lambda or branch. Returned programs, runtime evaluation, expression-size scores,
 and resource objectives use the original candidate.
 
+See the [50-item knapsack comparison](knapsack-solver-comparison.md) for measured
+results and remaining limitations across ten backends.
+
 ---
 
 ## Available Synthesizers
