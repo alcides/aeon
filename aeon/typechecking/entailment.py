@@ -18,10 +18,13 @@ from aeon.typechecking.context import UninterpretedBinder
 from aeon.typechecking.context import VariableBinder
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.verification.horn import solve
-from aeon.verification.sub import is_first_order_function, lower_constraint_type_keep_refinements
+from aeon.verification.sub import (
+    implication_constraint,
+    is_first_order_function,
+    lower_constraint_type_keep_refinements,
+)
 from aeon.verification.vcs import Constraint
 from aeon.verification.vcs import Implication
-from aeon.verification.vcs import ReflectedFunctionDeclaration
 from aeon.verification.vcs import UninterpretedFunctionDeclaration
 
 from aeon.core.liquid_ops import ops
@@ -92,7 +95,7 @@ def entailment_context(ctx: TypingContext, c: Constraint) -> Constraint:
                 if isinstance(lowered, AbstractionType):
                     c = UninterpretedFunctionDeclaration(name, lowered, c)
             case ReflectedBinder(name, type, params, body):
-                c = ReflectedFunctionDeclaration(name, type, params, body, c)
+                c = implication_constraint(name, type, c, reflected_impl=(params, body), keep_refinements=True)
             case TypeConstructorBinder(name, _):
                 pass
             case _:

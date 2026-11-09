@@ -101,13 +101,16 @@ def test_count_refinement_rejects_a_missing_decision():
     assert _driver().parse(aeon_code=_program([True, False], count=3))
 
 
-def test_tdsyn_can_expand_the_relational_knapsack_constructor():
+def test_tdsyn_refinements_force_50_nodes_and_feasible_booleans():
+    from aeon.core.substitutions import substitution
     from aeon.core.terms import Application, RefinementApplication, TypeApplication, Var
     from aeon.core.types import top
     from aeon.synthesis.identification import get_holes_info
     from aeon.synthesis.modules.native_search import initial_partial
-    from aeon.synthesis.modules.tdsyn.actions import backward_app_candidates
+    from aeon.synthesis.modules.tdsyn.actions import backward_app_candidates, backward_close_candidates
     from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
+    from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
+    from aeon.synthesis.modules.tdsyn.worklist import expand_at_hole, substitute_holes_map
 
     driver = _driver()
     assert not driver.parse(filename=str(EXAMPLE))
@@ -118,16 +121,27 @@ def test_tdsyn_can_expand_the_relational_knapsack_constructor():
             driver.typing_ctx, driver.core, top, driver.incomplete_functions, refined_types=True
         )[hole]
         partial = initial_partial(ctx, goal)
-        candidates = backward_app_candidates(partial.holes[0], make_skip_fn(function, driver.metadata))
-        heads = []
-        for term, children in candidates:
-            while isinstance(term, (Application, TypeApplication, RefinementApplication)):
-                term = term.fun if isinstance(term, Application) else term.body
-            if isinstance(term, Var):
-                heads.append(term.name.name)
-                if term.name.name == "Mask_cons":
-                    assert len(children) == 2
-        assert "Mask_cons" in heads
+        skip = make_skip_fn(function, driver.metadata)
+        for count in range(51):
+            tail = next(h for h in partial.holes if not all_leaf_holes([h]))
+            candidates = backward_app_candidates(tail, skip) + backward_close_candidates(tail, skip)
+            # Every premature empty and every extra cons must be pruned, not
+            # deferred to final validation after the Boolean search.
+            [(term, children)] = candidates
+            head = term
+            while isinstance(head, (Application, TypeApplication, RefinementApplication)):
+                head = head.fun if isinstance(head, Application) else head.body
+            assert isinstance(head, Var)
+            assert head.name.name == ("Mask_cons" if count < 50 else "Mask_empty")
+            partial = expand_at_hole(partial, tail, term, children, partial.depth + 1)
+        assert len(partial.holes) == 50 and all_leaf_holes(partial.holes)
+        solutions = solve_literals(partial.holes, max_models=1)
+        assert solutions
+        candidate = substitute_holes_map(partial.term, solutions[0])
+        driver.core = substitution(driver.core, candidate, hole)
+    decisions = _unpack(driver.run())
+    assert len(decisions) == 50
+    assert sum(weight for (_, weight), used in zip(_items(), decisions) if used) <= 100
 
 
 def test_synthesis_returns_50_boolean_nodes_with_optimal_value(monkeypatch):

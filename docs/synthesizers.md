@@ -568,6 +568,25 @@ and its argument holes. Predicates left for Horn inference keep their declared
 arity. The final validator still checks every completed candidate against the
 original specification.
 
+Completed definitions keep the compiler's logical reflection in hole contexts,
+including array literals and indexed reads. Constructor equations constrain
+pending arguments even after a nullary constructor closes a hole. Thus an exact
+length refinement can force a fixed list shape before SMT solves its scalar
+elements jointly with constraints such as total weight. The search checks these
+obligations separately during reflection so large lists do not leave array
+expressions opaque merely because their combined formula is large.
+Completed constructor trees name intermediate data values before final checking
+to keep dependent measure proofs compact. Ordinary calls and control flow retain
+their original form and evaluation order.
+
+Related constructor steps reuse a session-local SMT solver and the translated
+constraints they share. Branch assumptions and model-blocking clauses remain
+isolated. Constant arrays, indexed reads, and reflected substitutions are cached.
+Final validation reuses successful proofs for unchanged obligations, keyed by
+their premises, variable sorts, function signatures, and reflected definitions;
+new or changed obligations still require a proof. These caches are bounded and
+cleared between compilation sessions.
+
 ---
 
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)

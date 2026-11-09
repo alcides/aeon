@@ -8,17 +8,16 @@ from time import monotonic
 import z3
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
-from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import liquefy, substitution_in_liquid
 from aeon.core.terms import Term, Var
-from aeon.core.types import RefinedType, Type
+from aeon.core.types import RefinedType, Type, t_unit
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, substitute_holes_map
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.entailment import entailment_context
-from aeon.utils.name import Name
+from aeon.utils.name import Name, fresh_counter
 from aeon.verification.smt import flatten, translate
 from aeon.verification.sub import implication_constraint
-from aeon.verification.vcs import Constraint, LiquidConstraint
+from aeon.verification.vcs import Constraint, Implication, LiquidConstraint
 
 # Shared by candidate pruning and literal completion. A query cannot outlive
 # the synthesis budget; callers outside full synthesis retain a short query cap.
@@ -66,6 +65,13 @@ def obligations(
     # SMT query for every constructor and every unconstrained scalar.
     if not predicates and not any(has_refinement(ty) for ty in bindings.values()):
         return bindings, []
+    # Closing a value hole must also constrain its pending siblings. In
+    # particular, a nullary constructor's count/weight equations cannot be
+    # used only for pruning and then lost before scalar model extraction.
+    if actual_type is None and not children:
+        from aeon.typechecking.typeinfer import synth
+
+        _, actual_type = synth(hole.context, replacement)
     value = LiquidVar(hole.name)
     if actual_type is not None:
         predicates.append(predicate_at(actual_type, value))
@@ -79,29 +85,35 @@ def existential_formula(ctx: TypingContext, bindings: dict[Name, Type], predicat
     """Encode Γ ∧ ∃ witnesses. contracts ∧ predicates using verification's SMT translation.
 
     ``translate`` produces a counterexample formula (premise ∧ ¬conclusion).
-    Negating our predicate as its conclusion therefore asks for a witness,
-    rather than requiring the predicate to hold for every possible argument.
+    Use each predicate as a premise and false as the conclusion to ask for a
+    witness. Keeping predicates separate also lets reflection unfold each
+    array read without hitting its size guard on one giant conjunction.
     """
-    predicate: LiquidTerm = LiquidLiteralBool(True)
-    for part in predicates:
-        predicate = mk_liquid_and(predicate, part)
-    constraint: Constraint = LiquidConstraint(LiquidApp(Name("!", 0), [predicate]))
+    constraint: Constraint = LiquidConstraint(LiquidLiteralBool(False))
+    for part in reversed(predicates):
+        constraint = Implication(Name("_tdsyn_constraint", fresh_counter.fresh()), t_unit, part, constraint)
     for name, ty in reversed(list(bindings.items())):
         constraint = implication_constraint(name, ty, constraint)
     constraint = entailment_context(ctx, constraint)
-    return z3.And(*[translate(clause) for clause in flatten(constraint)])
+    clauses = [translate(clause) for clause in flatten(constraint)]
+    # The conclusion is false, so a vacuously valid VC means its assumptions
+    # are impossible. Flattening drops that VC; it is not a feasible witness.
+    return z3.And(*clauses) if clauses else z3.BoolVal(False)
 
 
 def feasible(ctx: TypingContext, bindings: dict[Name, Type], predicates: list[LiquidTerm]) -> bool:
     """Prune only UNSAT. Unsupported theories and UNKNOWN retain the candidate."""
     if not predicates and not any(has_refinement(ty) for ty in bindings.values()):
         return True
-    solver = z3.Solver()
-    if not configure_solver(solver):
+    from aeon.synthesis.modules.tdsyn.incremental import solver_query
+
+    if deadline.get() <= monotonic():
         return True
     try:
-        solver.add(existential_formula(ctx, bindings, predicates))
-        return solver.check() != z3.unsat
+        with solver_query(ctx, bindings, predicates) as (solver, assumptions):
+            if not configure_solver(solver):
+                return True
+            return solver.check(*assumptions) != z3.unsat
     except (AssertionError, KeyError, TypeError, ValueError, NotImplementedError, z3.Z3Exception):
         return True
 
