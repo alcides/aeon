@@ -96,7 +96,11 @@ def _synthesis_dummy_literal(ty: Type) -> Term:
 
 
 def make_validator(
-    ctx: TypingContext, replace: Callable[[Term], Term], metadata: Metadata | None = None
+    ctx: TypingContext,
+    replace: Callable[[Term], Term],
+    metadata: Metadata | None = None,
+    *,
+    check_types: bool = True,
 ) -> Callable[[Term], bool]:
     def validate(candidate: Term) -> bool:
         from aeon.synthesis.constructors import prepare_candidate
@@ -107,6 +111,8 @@ def make_validator(
 
             if not check_program(prog, metadata):
                 return False
+        if not check_types:
+            return True
         prepared = prepare_candidate(candidate)
         if prepared is not candidate:
             prog = without_main_placeholder(replace(prepared))
@@ -438,6 +444,9 @@ def _synthesize_one(
         elif len(tac_map) == 1:
             steps = tuple(next(iter(tac_map.values())))
     syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
+    tyctx = syn_impl.prepare_context(tyctx, prog, fun_name, synthesis_metadata)
+    if syn_impl.produces_typed_candidates:
+        validator = make_validator(ctx, replace, metadata, check_types=False)
 
     # Evaluate every candidate on a persistent worker pool. The backend
     # declares which computations it wants run per candidate (the objective

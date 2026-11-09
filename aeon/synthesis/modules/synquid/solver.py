@@ -17,7 +17,15 @@ import z3
 
 from aeon.compilation.session import CompilationSession, current_session
 from aeon.core.liquid import LiquidTerm, LiquidApp, LiquidVar, LiquidLiteralBool
-from aeon.core.types import LiquidHornApplication, Top, TypeConstructor, TypeVar, builtin_core_types, t_bool
+from aeon.core.types import (
+    LiquidHornApplication,
+    RefinedType,
+    Top,
+    TypeConstructor,
+    TypeVar,
+    builtin_core_types,
+    t_bool,
+)
 from aeon.core.liquid_ops import liquid_prelude
 from aeon.typechecking.liquid import (
     LiquidTypeCheckingContext,
@@ -43,6 +51,7 @@ from aeon.verification.vcs import (
     ReflectedFunctionDeclaration,
     UninterpretedFunctionDeclaration,
     alpha_key,
+    TypeVarDeclaration,
 )
 
 
@@ -61,6 +70,7 @@ class SearchStats:
     partial_rejections: int = 0
     complete_rejections: int = 0
     full_validations: int = 0
+    specification_checks: int = 0
     abduction_branches: int = 0
     abduced_guards: int = 0
     fallback_guards: int = 0
@@ -76,7 +86,24 @@ class SearchStats:
         return status
 
 
+def _logical_sort(ty):
+    """Datatype predicates and element refinements do not change SMT sorts."""
+    if isinstance(ty, RefinedType):
+        return _logical_sort(ty.type)
+    if isinstance(ty, TypeConstructor):
+        # VC lowering encodes quantified type variables as lowercase nullary
+        # constructors. Normalize signatures and local variables alike.
+        if not ty.args and ty.name.name[:1].islower():
+            return TypeVar(ty.name)
+        return TypeConstructor(ty.name, [_logical_sort(arg) for arg in ty.args])
+    return ty
+
+
 def _well_sorted(c: Constraint, ctx: LiquidTypeCheckingContext) -> bool:
+    if isinstance(c, TypeVarDeclaration):
+        return _well_sorted(
+            c.seq, LiquidTypeCheckingContext([*ctx.known_types, TypeConstructor(c.name)], ctx.variables, ctx.functions)
+        )
     if isinstance(c, LiquidConstraint):
         return check_liquid(ctx, c.expr, t_bool)
     if isinstance(c, Conjunction):
@@ -84,23 +111,15 @@ def _well_sorted(c: Constraint, ctx: LiquidTypeCheckingContext) -> bool:
     if isinstance(c, Implication):
         if isinstance(c.base, Top):
             return False
-        inner = LiquidTypeCheckingContext(ctx.known_types, {**ctx.variables, c.name: c.base}, ctx.functions)
+        inner = LiquidTypeCheckingContext(
+            ctx.known_types, {**ctx.variables, c.name: _logical_sort(c.base)}, ctx.functions
+        )
         return check_liquid(inner, c.pred, t_bool) and _well_sorted(c.seq, inner)
     if isinstance(c, (UninterpretedFunctionDeclaration, ReflectedFunctionDeclaration)):
-
-        def schema_sort(ty):
-            # VC declarations encode quantified type variables as lowercase
-            # nullary constructors (the SMT specialisation convention).
-            if isinstance(ty, TypeConstructor):
-                if not ty.args and ty.name.name[:1].islower():
-                    return TypeVar(ty.name)
-                return TypeConstructor(ty.name, [schema_sort(a) for a in ty.args])
-            return ty
-
         inner = LiquidTypeCheckingContext(
             ctx.known_types,
             ctx.variables,
-            {**ctx.functions, c.name: [schema_sort(t) for t in lower_abstraction_type(c.type)]},
+            {**ctx.functions, c.name: [_logical_sort(t) for t in lower_abstraction_type(c.type)]},
         )
         return _well_sorted(c.seq, inner)
     return False
@@ -172,10 +191,13 @@ class SMTQuery:
         if monotonic() >= self.deadline:
             return Status.UNKNOWN
         try:
-            if not _well_sorted(
-                constraint,
-                self.liquid_context or LiquidTypeCheckingContext(builtin_core_types, {}, dict(liquid_prelude)),
-            ):
+            context = self.liquid_context or LiquidTypeCheckingContext(builtin_core_types, {}, {})
+            context = LiquidTypeCheckingContext(
+                context.known_types,
+                {n: _logical_sort(t) for n, t in context.variables.items()},
+                {n: [_logical_sort(t) for t in ts] for n, ts in {**liquid_prelude, **context.functions}.items()},
+            )
+            if not _well_sorted(constraint, context):
                 return Status.UNSUPPORTED
             solver, cached = self.state.prepare(constraint)
             for index, clause in enumerate(cached.clauses):
@@ -302,8 +324,6 @@ def minimal_subsets(
     proves: Callable[[frozenset[int]], Status],
     *,
     max_checks: int | None = None,
-    implies: dict[int, frozenset[int]] | None = None,
-    impossible: frozenset[int] = frozenset(),
 ) -> tuple[list[frozenset[int]], Status]:
     """Enumerate MUSes relative to a fixed negated conclusion.
 
@@ -313,8 +333,6 @@ def minimal_subsets(
     """
     selector = z3.Solver()
     bits = [z3.Bool(f"select_{i}") for i in range(count)]
-    for i in impossible:
-        selector.add(z3.Not(bits[i]))
     cache: dict[frozenset[int], Status] = {}
     found: list[frozenset[int]] = []
 
@@ -349,12 +367,10 @@ def minimal_subsets(
                 found.append(seed)
             elif consistency != Status.INCONSISTENT:
                 return found, consistency
-            # Block semantic supersets as well as syntactic ones. Each atom
-            # may be supplied by any stronger atom in the same predicate's
-            # creation scope. This preserves the weakest alternatives.
-            selector.add(
-                z3.Not(z3.And([z3.Or([bits[j] for j in (implies or {}).get(i, frozenset({i}))]) for i in seed]))
-            )
+            # MARCO blocks syntactic supersets of this MUS. Compare semantic
+            # strength only between the resulting valuations, not every pair
+            # of input qualifiers before enumeration.
+            selector.add(z3.Or([z3.Not(bits[i]) for i in seed]))
         elif result == Status.INVALID:
             for i in range(count):
                 if i in seed:
@@ -388,43 +404,6 @@ def _freeze_head(c: Constraint, assignment: Assignment) -> Constraint:
     if isinstance(c, ReflectedFunctionDeclaration):
         return ReflectedFunctionDeclaration(c.name, c.type, c.params, c.body, _freeze_head(c.seq, assignment))
     raise NotImplementedError(type(c))
-
-
-def qualifier_order(predicates, assignment, choices, query):
-    """Semantic implication in each predicate's own scope, not a Horn clause.
-
-    Comparing in a clause's stronger assumptions could incorrectly discard a
-    valuation needed by a later clause. Creation scopes are stable across all
-    occurrences, so this ordering is safe for incremental backtracking.
-    """
-    formulas = []
-    solver = z3.Solver()
-    query.configure(solver)
-    impossible = set()
-    for i, (name, qualifier) in enumerate(choices):
-        if monotonic() >= query.deadline:
-            return {}, frozenset(impossible)
-        extended = {**assignment, name: assignment[name] + [qualifier]}
-        formula = z3.Or([translate(c) for c in flatten(apply_constraint(extended, predicates[name].nonempty))])
-        formulas.append(formula)
-        query.configure(solver)
-        query.stats.solver_queries += 1
-        if solver.check(formula) == z3.unsat:
-            impossible.add(i)
-    order = {i: {i} for i in range(len(choices))}
-    for i, (name, _) in enumerate(choices):
-        if i in impossible:
-            continue
-        for j, (other, _) in enumerate(choices):
-            if i == j or name != other or j in impossible:
-                continue
-            if monotonic() >= query.deadline:
-                return {i: frozenset(v) for i, v in order.items()}, frozenset(impossible)
-            query.stats.solver_queries += 1
-            query.configure(solver)
-            if solver.check(formulas[j], z3.Not(formulas[i])) == z3.unsat:
-                order[i].add(j)
-    return {i: frozenset(v) for i, v in order.items()}, frozenset(impossible)
 
 
 def semantic_minima(assignments, predicates, query):
@@ -533,15 +512,15 @@ def weakest_assignments(
 
                 try:
                     oracle = StrengtheningOracle(frozen, assignment, choices, query)
-                    order, impossible = qualifier_order(predicates, assignment, choices, query)
-                    subsets, status = minimal_subsets(
-                        len(choices), oracle, max_checks=max_checks, implies=order, impossible=impossible
-                    )
+                    subsets, status = minimal_subsets(len(choices), oracle, max_checks=max_checks)
                 except (AssertionError, KeyError, TypeError, ValueError, NotImplementedError, z3.Z3Exception):
                     subsets, status = [], Status.UNSUPPORTED
                 if status != Status.VALID:
                     incomplete = status
-                todo.extend(strengthen(indices) for indices in subsets if indices)
+                # PLDI'16 §3.6: enumerate syntactically minimal sufficient
+                # sets, then discard semantically stronger alternatives.
+                alternatives = [strengthen(indices) for indices in subsets if indices]
+                todo.extend(semantic_minima(alternatives, predicates, query))
                 break
             else:
                 solutions.append(assignment)

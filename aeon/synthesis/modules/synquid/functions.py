@@ -1,7 +1,7 @@
 """FIX, TABS and ABS, with a decreasing recursive hypothesis."""
 
 from aeon.synthesis.grammar.nonterminals import grammar_bindings
-from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar, liquid_free_vars
 from aeon.core.liquid_ops import mk_liquid_and
 from aeon.core.substitutions import substitution_in_type, substitution_in_liquid, liquefy
 from aeon.core.terms import (
@@ -111,7 +111,7 @@ def metrics(ctx, params):
                     break
 
 
-def weaken(schema, ordered_metrics):
+def weaken(schema, ordered_metrics, *, entry_metrics=None):
     """Use the paper's lexicographic order on all eligible arguments.
 
     Place the tuple obligation on the final measured argument, where all
@@ -122,6 +122,8 @@ def weaken(schema, ordered_metrics):
 
     entries = [liquefy(metric) for _, metric in ordered_metrics]
     assert all(entry is not None for entry in entries)
+    caller = entries if entry_metrics is None else [liquefy(metric) for metric in entry_metrics]
+    assert all(entry is not None for entry in caller)
     last = ordered_metrics[-1][0]
 
     def build(ty, index, mapping):
@@ -144,7 +146,7 @@ def weaken(schema, ordered_metrics):
                     substitution_in_liquid(call, LiquidVar(v if replacement == n else replacement), original)
                     for call in calls
                 ]
-            condition = _lexicographic_less(calls, entries)
+            condition = _lexicographic_less(calls, caller)
             for call in calls:
                 condition = mk_liquid_and(LiquidApp(Name(">=", 0), [call, LiquidLiteralInt(0)]), condition)
             domain = RefinedType(v, base, mk_liquid_and(predicate, condition))
@@ -155,6 +157,88 @@ def weaken(schema, ordered_metrics):
         return AbstractionType(n, domain, body, multiplicity=ty.multiplicity)
 
     return build(schema, 0, {})
+
+
+def recursive_context(ctx, program, name):
+    """Constrain source-level recursive calls before expanding applications.
+
+    The hole context otherwise contains the full declared recursive contract.
+    Reuse the source's actual termination metric, including for mutual calls,
+    so no whole-program recheck is needed to establish decreasing calls.
+    """
+    from aeon.synthesis.identification import iterate_top_level
+    from aeon.typechecking.termination import _align_polymorphic_schema, peel_abstractions
+    from aeon.typechecking.typeinfer import _erase_return_refinement
+    from aeon.core.types import top
+    from aeon.typechecking.context import VariableBinder
+    from dataclasses import replace
+
+    def replace_binding(context, target, hypothesis):
+        return replace(
+            context,
+            entries=[
+                VariableBinder(target, hypothesis) if getattr(entry, "name", None) == target else entry
+                for entry in context.entries
+            ],
+        )
+
+    owner = next((r for r in iterate_top_level(program) if r.var_name == name), None)
+    if owner is None:
+        schema = ctx.type_of(name)
+        return replace_binding(ctx, name, _erase_return_refinement(schema)) if schema is not None else ctx
+
+    def aligned(schema, value):
+        formals, _ = peel_abstractions(value)
+        names = iter(formals)
+
+        def rename(ty):
+            if isinstance(ty, TypePolymorphism):
+                return TypePolymorphism(ty.name, ty.kind, rename(ty.body))
+            if isinstance(ty, RefinementPolymorphism):
+                return RefinementPolymorphism(ty.name, ty.sort, rename(ty.body))
+            if isinstance(ty, AbstractionType):
+                n = next(names)
+                return AbstractionType(
+                    n,
+                    ty.var_type,
+                    rename(substitution_in_type(ty.type, Var(n), ty.var_name)),
+                    multiplicity=ty.multiplicity,
+                )
+            return ty
+
+        return rename(_align_polymorphic_schema(schema, value)), formals
+
+    family = [(owner.var_name, owner.var_type, owner.var_value, owner.decreasing_by)]
+    family.extend((c.name, c.type, c.value, c.decreasing_by) for c in owner.companions)
+    for target, schema, value, measures in family:
+        if not owner.decreasing_by:
+            hypothesis = _erase_return_refinement(schema)
+        elif not measures or len(measures) != len(owner.decreasing_by):
+            hypothesis = top
+        else:
+            schema, formals = aligned(schema, value)
+            inner = schema
+            while isinstance(inner, (TypePolymorphism, RefinementPolymorphism)):
+                inner = inner.body
+            domains = []
+            while isinstance(inner, AbstractionType):
+                domains.append(inner.var_type)
+                inner = inner.type
+            # A higher-order final parameter cannot carry a scalar refinement.
+            # Attach the obligation where all metric arguments are in scope.
+            position = next(
+                (i for i in reversed(range(len(domains))) if isinstance(erase(domains[i]), (TypeConstructor, TypeVar))),
+                None,
+            )
+            metric_variables = {n for metric in measures for n in liquid_free_vars(liquefy(metric))}
+            if position is None or any(n in metric_variables for n in formals[position + 1 :]):
+                hypothesis = top
+            else:
+                hypothesis = weaken(
+                    schema, [(position, metric) for metric in measures], entry_metrics=owner.decreasing_by
+                )
+        ctx = replace_binding(ctx, target, hypothesis)
+    return ctx
 
 
 def function_terms(ctx, level, goal, skip, mem, state):

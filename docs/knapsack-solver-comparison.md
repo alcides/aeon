@@ -83,6 +83,23 @@ Neither GP nor Synquid crashed, but neither produced a valid candidate within
 the budget. CP-SAT's first solution arrived after 30.3 seconds of synthesis;
 its full synthesis run took 33.7 seconds.
 
+## Synquid MUS enumeration and construction proofs
+
+Synquid now enumerates syntactically minimal sufficient qualifier sets before
+comparing the resulting valuations semantically, following MUSFIX in the
+PLDI 2016 paper. It no longer orders every pair of input qualifiers before
+enumeration. Completed candidates require valid construction proofs, so the
+entrypoint no longer repeats whole-program typechecking for each candidate.
+Non-type specifications and optimization objectives still apply.
+
+Repeating the same 60-second experiment with these changes produced no
+solution in 67.1 seconds including parsing. A separate sampled run recorded
+zero whole-program validations and remained at search depth 1; approximately
+96% of samples were inside minimal-subset enumeration. The remaining search
+cost is therefore still significant. This change does not establish a speedup
+or solve the 50-node example through ordinary grammar search. GP and CP-SAT
+were not rerun for this Synquid-only follow-up.
+
 ## Reproduce
 
 From the checkout being measured, with the development and optional OR-Tools

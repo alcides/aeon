@@ -9,7 +9,7 @@ from typing import Callable
 from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidLiteralBool, liquid_free_vars
-from aeon.core.substitutions import substitution, substitution_in_type, instantiate_refinement_with_horn_in_type
+from aeon.core.substitutions import substitution, instantiate_refinement_with_horn_in_type
 from aeon.core.terms import (
     Annotation,
     Application,
@@ -107,15 +107,15 @@ def _solve_literal(ret_t: Type, base_t: TypeConstructor, deadline=float("inf")):
 
 
 def _local_check(ctx: TypingContext, term: Term, goal: Type, state: ConstraintState | None = None) -> bool:
-    """Prune a known invalid obligation, retaining unknown/unsupported results."""
+    """Discharge a construction rule's obligation before emitting its term."""
     from aeon.typechecking.typeinfer import check
 
     trial = state.fork() if state is not None else ConstraintState(ctx)
     try:
         trial.add(check(trial.context, term, goal))
-        return trial.solve() not in (Status.INVALID, Status.EXHAUSTED)
+        return trial.solve() == Status.VALID
     except Exception:
-        return True
+        return False
 
 
 def _arg_gen(ctx, level, goal, skip, mem, state):
@@ -148,7 +148,7 @@ def _application_terms(ctx, level, head, application, skip, mem, filling=False):
             )
             yield from _application_terms(ctx, level, head, deferred, skip, mem, filling=True)
         else:
-            if application.state.finalize() in (Status.INVALID, Status.EXHAUSTED):
+            if application.state.finalize() != Status.VALID:
                 return
             for assignment in application.state.assignments:
                 yield _materialize_term(head, assignment, application.state)
@@ -183,22 +183,9 @@ def _application_terms(ctx, level, head, application, skip, mem, filling=False):
                 continue
             except Exception:
                 application.state.stats.record(Status.UNSUPPORTED)
-                # Retain unsupported fragments for whole-program checking.
-                # Do not invent facts from an argument whose inference failed.
-                child = ApplicationState(
-                    application.state.fork(),
-                    application.params[1:],
-                    application.result,
-                    application.goal,
-                    application.deferred,
-                )
-                from aeon.synthesis.modules.synquid.inference import InferredArgument
-
-                argument = argument.term if isinstance(argument, InferredArgument) else argument
-                binder, _ = application.params[0]
-                child.params = [(n, substitution_in_type(t, argument, binder)) for n, t in child.params]
-                child.result = substitution_in_type(child.result, argument, binder)
-                child.deferred = [(n, substitution_in_type(t, argument, binder)) for n, t in child.deferred]
+                # No later whole-program oracle repairs missing argument
+                # evidence. An unsupported construction cannot certify a term.
+                continue
             from aeon.synthesis.modules.synquid.inference import InferredArgument
 
             argument = argument.term if isinstance(argument, InferredArgument) else argument
@@ -321,6 +308,12 @@ def match_type(t1: Type, t2: Type):
 
 
 def _leaf_terms(ctx, ret_t, skip, state):
+    for term in _leaf_proposals(ctx, ret_t, skip, state.deadline):
+        if _local_check(ctx, term, ret_t, state):
+            yield term
+
+
+def _leaf_proposals(ctx, ret_t, skip, deadline):
     base_t = erase(ret_t)
     arrow_goal: AbstractionType | None = ret_t if isinstance(ret_t, AbstractionType) else None
     if arrow_goal is None and isinstance(ret_t, RefinedType) and isinstance(ret_t.type, AbstractionType):
@@ -335,7 +328,7 @@ def _leaf_terms(ctx, ret_t, skip, state):
         return
     if isinstance(base_t, TypeVar):
         for name, t in grammar_bindings(ctx):
-            if erase(t) == base_t and not skip(name) and _local_check(ctx, Var(name), ret_t, state):
+            if erase(t) == base_t and not skip(name):
                 yield Var(name)
         return
     assert isinstance(base_t, TypeConstructor)
@@ -344,19 +337,16 @@ def _leaf_terms(ctx, ret_t, skip, state):
         for n, t in grammar_bindings(ctx)
         if isinstance(t, (TypeConstructor, RefinedType)) and erase(t) == base_t and not skip(n)
     ]:
-        if _local_check(ctx, Var(name), ret_t, state):
-            yield Var(name)
+        yield Var(name)
     match base_t:
         case TypeConstructor(Name("Bool", 0)):
             yield from [Literal(True, base_t), Literal(False, base_t)]
         case TypeConstructor(Name("Int", 0)):
             # ?intLit: solved by z3 against the VC (goal refinement) here.
-            yield from dict.fromkeys(
-                [*_solve_literal(ret_t, base_t, state.deadline), Literal(0, base_t), Literal(1, base_t)]
-            )
+            yield from dict.fromkeys([*_solve_literal(ret_t, base_t, deadline), Literal(0, base_t), Literal(1, base_t)])
         case TypeConstructor(Name("Float", 0)):
             # ?floatLit: solved by z3 against the VC (goal refinement) here.
-            yield from _solve_literal(ret_t, base_t, state.deadline)
+            yield from _solve_literal(ret_t, base_t, deadline)
         case TypeConstructor(Name("String", 0)):
             yield from (
                 Literal(s, base_t)

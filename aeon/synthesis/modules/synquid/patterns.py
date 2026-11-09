@@ -74,7 +74,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
             ty = erase(candidate.state.resolve(candidate.type))
             if not isinstance(ty, TypeConstructor) or ty.name.name not in groups:
                 continue
-            if candidate.state.finalize() in (Status.INVALID, Status.EXHAUSTED):
+            if candidate.state.finalize() != Status.VALID:
                 continue
             ty = erase(candidate.state.resolve(candidate.type))
             if ty not in datatypes and wellformed(ctx, ty):
@@ -187,7 +187,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
 
             def handlers(index, bodies, partial):
                 if index == len(cases):
-                    if partial.finalize() in (Status.INVALID, Status.EXHAUSTED):
+                    if partial.finalize() != Status.VALID:
                         return
                     for assignment in partial.assignments:
                         term = Var(rec_name)

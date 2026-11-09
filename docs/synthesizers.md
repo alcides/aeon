@@ -20,7 +20,7 @@ refinement conversions, and planned improvements.
 The shared candidate validators name intermediate constructor values in a
 temporary copy before typechecking. This keeps deep dependent-measure proofs
 compact for expression and whole-program backends, including GP, random search,
-enumerative search, Synquid, and CP-SAT. Bindings stay inside their original
+enumerative search and CP-SAT. Bindings stay inside their original
 lambda or branch. Returned programs, runtime evaluation, expression-size scores,
 and resource objectives use the original candidate.
 
@@ -297,16 +297,16 @@ This backend implements round-trip checking, incremental shape/refinement constr
 The result's retained relations instantiate constructors directly; inferred predicates are
 materialized from the solved assignment rather than replaced with fresh
 inference holes. Executable components use the term grammar, and erased predicate
-arguments use the refinement grammar. Lists use ordinary search. Every candidate
-still undergoes normal whole-program validation.
+arguments use the refinement grammar. Lists use ordinary search. Candidates carry
+completed construction proofs, so Synquid skips repeated whole-program typechecking.
 
-**Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, `synquid_max_candidates`, and `synquid_typecheck_candidate_first`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Term memoization is disabled because `(context, level, goal)` does not identify the pending constraint state.
+**Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, and `synquid_max_candidates`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Term memoization is disabled because `(context, level, goal)` does not identify the pending constraint state.
 
-**Applications.** The expected result constrains liquid polymorphic instantiations before arguments are chosen. Independent result obligations are checked immediately; dependent obligations remain pending. Selected arguments contribute their inferred refinements and existential witnesses. Consistency checks ask whether remaining arguments and the result can jointly satisfy their contracts, including datatype measures and branch assumptions. Only proved failures or exhaustion of a finite qualifier space reject an alternative; SMT unknown/unsupported outcomes remain eligible for final verification. Higher-order arguments can be deferred until first-order arguments determine their types.
+**Applications.** The expected result constrains liquid polymorphic instantiations before arguments are chosen. Independent result obligations are checked immediately; dependent obligations remain pending. Selected arguments contribute their inferred refinements and existential witnesses. Consistency checks ask whether remaining arguments and the result can jointly satisfy their contracts, including datatype measures and branch assumptions. Only proved failures prune partial applications. Completed constructions require discharged proofs; unknown or unsupported obligations cannot certify a candidate. Higher-order arguments can be deferred until first-order arguments determine their types.
 
-**Conditionals.** Search proposes a branch under an unknown path predicate, derives its verification conditions, and strengthens the predicate from `true` using MUSFIX-style minimal-subset enumeration. It retains incomparable solutions, removes semantically stronger guards, realizes a Boolean expression, and builds the other branch under the guard's negation. The bounded qualifier-conjunction enumerator remains a fallback when abduction cannot handle the obligation or its vocabulary is insufficient.
+**Conditionals.** Search proposes a branch under an unknown path predicate, derives its verification conditions, and strengthens the predicate from `true` using MUSFIX-style minimal-subset enumeration. It retains incomparable solutions, removes semantically stronger guards, realizes a Boolean expression, and builds the other branch under the guard's negation. MARCO enumerates syntactically minimal sufficient qualifier sets; semantic minimization compares only the resulting valuations. No eager pairwise qualifier ordering is performed.
 
-**Validation and observability.** Every accepted candidate still passes the supplied whole-program validator, including termination checks. With no fitness goals, the first valid candidate is returned. `SynquidSynthesizer.stats` records generated arguments, partial rejections, full validations, abduction proposals/guards, fallback guards, solver queries, and explicit solver outcomes. `modular.py` continues to expose the compatibility decomposition API and `ModularVC`.
+**Validation and observability.** Typing and termination obligations are discharged during construction. The entrypoint skips per-candidate whole-program typechecking for Synquid; non-type checks such as `@bounded_cnf` remain active. With no fitness goals, the first certified candidate satisfying those checks is returned. `SynquidSynthesizer.stats` records generated arguments, partial rejections, specification checks, abduction proposals/guards, fallback guards, solver queries, and explicit solver outcomes. The compatibility counter `full_validations` stays zero. `modular.py` continues to expose the compatibility decomposition API and `ModularVC`.
 
 Validity queries reuse a bounded SMT solver and translated constraints across
 search forks and application-depth levels. Each obligation has its own
