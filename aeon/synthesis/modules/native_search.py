@@ -14,8 +14,10 @@ from time import monotonic
 from aeon.core.terms import Abstraction, Term
 from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
+from aeon.errors import CoreTypeCheckingError
 from aeon.synthesis.api import InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
 from aeon.synthesis.decorators import Goal
+from aeon.synthesis.modules.tdsyn.bindings import open_abstraction
 from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
 from aeon.synthesis.modules.tdsyn.constraints import eager_pruning
 from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn
@@ -73,9 +75,8 @@ def peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, list[TypedHol
     current_ctx = ctx
     var_names: list[Name] = []
     while isinstance(current_type, AbstractionType):
-        var_names.append(current_type.var_name)
-        current_ctx = current_ctx.with_var(current_type.var_name, current_type.var_type)
-        current_type = current_type.type
+        name, current_type, current_ctx = open_abstraction(current_type, current_ctx)
+        var_names.append(name)
 
     # Innermost hole sits under ``len(var_names)`` abstraction bodies.
     hole_path = tuple(Child.BODY for _ in var_names)
@@ -124,7 +125,12 @@ def expansions_for_hole(
             depth = partial.depth + (1 if new_holes else 0)
             if max_depth is not None and depth > max_depth:
                 continue
-            results.append(expand_at_hole(partial, hole, replacement, new_holes, depth))
+            try:
+                results.append(expand_at_hole(partial, hole, replacement, new_holes, depth))
+            except CoreTypeCheckingError:
+                # A failed production is not a failure of the whole search.
+                # In particular, deferred refinement checks may reject it.
+                continue
     return results
 
 

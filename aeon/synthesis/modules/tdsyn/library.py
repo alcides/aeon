@@ -20,6 +20,7 @@ from aeon.core.types import (
     Type,
     TypePolymorphism,
 )
+from aeon.synthesis.modules.tdsyn.bindings import GrammarScope
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
     get_return_type,
@@ -27,7 +28,6 @@ from aeon.synthesis.modules.tdsyn.helpers import (
 )
 from aeon.typechecking.context import (
     ReflectedBinder,
-    RefinementBinder,
     TypingContext,
     UninterpretedBinder,
     VariableBinder,
@@ -67,13 +67,8 @@ def visible_vars(ctx: TypingContext) -> list[tuple[Name, Type]]:
     to hide fitness helpers, ADT projectors, recursors, …) is a no-op for the
     type-directed grammar.
     """
-    latest: dict[str, tuple[Name, Type]] = {}
-    for e in ctx.entries:
-        if isinstance(e, RefinementBinder):
-            latest.pop(e.name.name, None)
-        elif isinstance(e, _VALUE_BINDERS):
-            latest[e.name.name] = (e.name, e.type)
-    return list(latest.values())
+    scope = GrammarScope.from_context(ctx)
+    return [(term.name, typ) for ref in scope.visible_levels() for term, typ in [ref.lower(scope)]]
 
 
 @dataclass(frozen=True)

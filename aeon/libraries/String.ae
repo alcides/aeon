@@ -46,8 +46,8 @@ def replace(i: String) (j: {s: String | len s > 0}) (l: String): String := nativ
 # Splits the string by the given separator.
 # i: input string
 # j: separator string (non-empty)
-# returns: list of substrings
-def split(i: String) (j: {s: String | len s > 0}): (Array String) := native "i.split(j)"
+# returns: non-empty array of substrings, including for an empty input
+def split(i: String) (j: {s: String | len s > 0}): {parts:(Array String) | size parts > 0} := native "i.split(j)"
 
 # Concatenates two strings.
 # i: first string
