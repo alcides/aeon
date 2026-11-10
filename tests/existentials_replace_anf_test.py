@@ -17,6 +17,10 @@ that:
 
 from __future__ import annotations
 
+from hypothesis import example, given, strategies as st
+import pytest
+
+from aeon.compilation.session import CompilationSession
 from aeon.core.bind import bind_ids
 from aeon.core.parser import parse_term
 from aeon.core.terms import Application, Term
@@ -81,3 +85,42 @@ def test_synth_application_emits_existential_for_non_var_arg():
     assert ty.binders, "Existential should have at least one binder"
     _, bt = ty.binders[0]
     assert isinstance(bt, (RefinedType, AbstractionType)), f"Binder type should be Refined/Abstraction, got {bt}"
+
+
+@example(values=[1, 2, 3], nested=True)
+@example(values=[0, 1, 1], nested=False)
+@example(values=[1, 0, 1], nested=False)
+@example(values=[1, 1, 0], nested=False)
+@given(
+    values=st.lists(st.integers(min_value=-3, max_value=3), min_size=2, max_size=5),
+    nested=st.booleans(),
+)
+def test_every_nested_argument_must_satisfy_its_precondition(values: list[int], nested: bool):
+    """A failed call cannot use its contradictory result to justify earlier arguments."""
+    names = [f"arg{i}" for i in range(len(values))]
+    signature = " -> ".join([*(f"({name}:{{v:Int | v > 0}})" for name in names), "Int"])
+    body = "".join(f"fun {name} => " for name in names) + names[-1]
+    arguments = [f"(identity ({value}))" if nested else f"({value})" for value in values]
+    source = f"""
+        let identity : (x:Int) -> {{r:Int | r == x}} = fun x => x in
+        let positive : (x:{{v:Int | v > 0}}) -> {{r:Int | (r == x) && (r > 0)}} = fun x => x in
+        let consume : {signature} = {body} in
+        consume {" ".join(f"(positive {argument})" for argument in arguments)}
+    """
+    with CompilationSession().activate():
+        ctx, term = _ctx_and_term(source)
+        assert check_type(ctx, term, top) == all(value > 0 for value in values)
+
+
+@pytest.mark.parametrize("later, accepted", [(1, False), (2, False), (3, True)])
+def test_later_arguments_can_depend_on_checked_earlier_arguments(later: int, accepted: bool):
+    """An earlier existential witness still scopes the later argument's obligation."""
+    source = f"""
+        let identity : (x:Int) -> {{r:Int | r == x}} = fun x => x in
+        let increasing : (x:Int) -> (y:{{v:Int | v > x}}) -> {{r:Int | r > x}} =
+            fun x => fun y => y in
+        increasing (identity 2) (identity {later})
+    """
+    with CompilationSession().activate():
+        ctx, term = _ctx_and_term(source)
+        assert check_type(ctx, term, top) == accepted

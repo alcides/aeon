@@ -98,6 +98,7 @@ def test_cifar10_shape_and_dataset_refinement():
 @pytest.mark.parametrize(
     "replacement",
     [
+        ("Denser.input 0", "Denser.input 8"),
         ("32 3 1 1 1 true 28", "31 3 1 1 1 true 28"),
         ("32 3 1 1 1 true 28", "32 6 1 1 1 true 28"),
         ("32 3 1 1 1 true 28", "32 3 0 1 1 true 28"),
@@ -111,6 +112,25 @@ def test_cifar10_shape_and_dataset_refinement():
 def test_invalid_parameters_and_shape_witnesses_are_rejected_by_aeon(benchmark, replacement):
     before, after = replacement
     assert not benchmark.verify(candidate().replace(before, after))
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "Denser.sgd (Denser.input 8) 0.01 0.9 0.0001 false 5 50",
+        "Denser.dense (Denser.input 8) 128 1 true",
+        "Denser.pool (Denser.input 8) 1 2 2 0 14",
+        # Original GP candidate: several domain and phase violations must not
+        # disappear when an invalid input gives an inconsistent result refinement.
+        "Denser.dense (Denser.dense (Denser.adam (Denser.pool "
+        "(Denser.sgd (Denser.input 8) (-1.0) 0.0 1.0 true 4 (-2)) 1 3 5 6 7) "
+        "0.0 2.0 2.0 1.0 (-2) 8) 3 6 true) 0 5 false",
+    ],
+)
+def test_invalid_nested_arguments_cannot_prove_their_own_preconditions(benchmark, expression):
+    assert not benchmark.verify(expression)
+    with pytest.raises(ValueError, match="does not satisfy the Aeon specification"):
+        benchmark.value(expression)
 
 
 @pytest.mark.parametrize(

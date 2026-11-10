@@ -330,8 +330,11 @@ def test_lexical_captures_keep_their_scope_and_pay_for_their_definitions():
     @example(f 0 = 1) @example(f 1 = 2) @example(f 2 = 3)
     def f(x:Int):Int := let captured := x + 1 in ?h;
     """)
-    engine = NoisySynthesizer(config=Config(candidates_per_round=8))
-    completed = fill(driver, solve(driver, engine, 5))
+    # This checks capture scope and complexity accounting, not worker latency.
+    # A one-second call limit can stop enumeration before the captured variable
+    # on a busy CI runner. Timeout behavior has dedicated tests above.
+    engine = NoisySynthesizer(config=Config(candidates_per_round=8, max_expansions=1, call_timeout=10))
+    completed = fill(driver, solve(driver, engine, 30))
     assert not engine.last_report.residuals
     assert engine.last_report.complexity > 1
     name = next(r.var_name for r in iterate_top_level(completed) if r.var_name.name == "f")
