@@ -178,6 +178,15 @@ database. The default local profile is unchanged. See the
 for reproduction and configuration. Coverage is reported without an arbitrary
 percentage gate; changes should add tests for the affected verification paths.
 
+`tests/synquid_properties_test.py` generates inhabited synthesis problems with
+integer and Boolean refinements, dependent applications and functions,
+polymorphic applications and functions, and conditional results. It samples
+the raw Synquid candidate stream and independently checks every sampled term
+against the requested type in a fresh compilation session. Empty searches fail,
+and candidates are never filtered through the checker. Grammar depth and sample
+size bound the searches; recursion and datatype matches retain their separate
+regression tests. Both the core and nightly gates include these properties.
+
 ## Readability review and functional composition
 
 A source review against master `3bfc0041` found useful existing boundaries:

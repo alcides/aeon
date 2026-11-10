@@ -18,6 +18,7 @@ from aeon.errors import CoreTypeCheckingError
 from aeon.synthesis.api import InvalidIndividualException, Synthesizer, TimeoutInEvaluationException
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.modules.tdsyn.bindings import open_abstraction
+from aeon.synthesis.grammar.nonterminals import ExpressionDomain
 from aeon.synthesis.modules.tdsyn.actions import backward_candidates, forward_candidates
 from aeon.synthesis.modules.tdsyn.constraints import eager_pruning
 from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches, make_skip_fn
@@ -65,10 +66,12 @@ __all__ = [
 ]
 
 
-def peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, list[TypedHole]]:
+def peel_abstractions(
+    ty: Type, ctx: TypingContext, domain: ExpressionDomain = ExpressionDomain.TERM
+) -> tuple[Term, list[TypedHole]]:
     """Wrap a function goal as ``λ…λ.?hole`` and extend the context with binders."""
     if not isinstance(ty, AbstractionType):
-        hole_term, typed_hole = fresh_hole(ty, ctx, path=())
+        hole_term, typed_hole = fresh_hole(ty, ctx, path=(), domain=domain)
         return hole_term, [typed_hole]
 
     current_type: Type = ty
@@ -80,7 +83,7 @@ def peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, list[TypedHol
 
     # Innermost hole sits under ``len(var_names)`` abstraction bodies.
     hole_path = tuple(Child.BODY for _ in var_names)
-    inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx, path=hole_path)
+    inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx, path=hole_path, domain=domain)
     term: Term = inner_hole_term
     for var_name in reversed(var_names):
         term = Abstraction(var_name, term, _loc)
@@ -170,8 +173,8 @@ def sample_one(
     return partial.term if partial.is_complete() else None
 
 
-def initial_partial(ctx: TypingContext, target: Type) -> PartialAST:
-    root, holes = peel_abstractions(target, ctx)
+def initial_partial(ctx: TypingContext, target: Type, domain: ExpressionDomain = ExpressionDomain.TERM) -> PartialAST:
+    root, holes = peel_abstractions(target, ctx, domain)
     return PartialAST(root, holes, depth=0)
 
 

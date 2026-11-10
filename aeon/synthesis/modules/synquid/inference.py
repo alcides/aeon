@@ -8,6 +8,7 @@ unknowns until later construction steps determine them (Fig. 6).
 from dataclasses import dataclass
 from time import monotonic
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.substitutions import instantiate_refinement_with_horn_in_type, substitution
 from aeon.core.terms import (
@@ -20,7 +21,7 @@ from aeon.core.terms import (
     ImplicitRefinementHole,
 )
 from aeon.core.types import Type, TypePolymorphism, RefinementPolymorphism, AbstractionType, t_int, t_bool, t_string
-from aeon.synthesis.modules.synquid.constraints import ConstraintState, fresh_name
+from aeon.synthesis.modules.synquid.constraints import ConstraintState
 from aeon.synthesis.modules.synquid.round_trip import ApplicationState
 from aeon.synthesis.modules.synquid.solver import Status
 from aeon.typechecking.typeinfer import synth
@@ -49,7 +50,7 @@ def infer_terms(ctx, level, skip, mem, state):
         child = state.fork()
         child.add(vc)
         yield InferredArgument(literal, ty, child)
-    for name, typ in ctx.concrete_vars():
+    for name, typ in grammar_bindings(ctx):
         if monotonic() >= state.deadline:
             return
         if skip(name) or name.name.endswith("_rec") and name.name[:-4] in get_constructor_groups():
@@ -63,7 +64,7 @@ def infer_terms(ctx, level, skip, mem, state):
                 typ = type_substitution(typ.body, typ.name, instance)
             else:
                 predicate = child.refinement_parameter(typ.sort)
-                head = RefinementApplication(head, ImplicitRefinementHole(fresh_name("implicit")))
+                head = RefinementApplication(head, ImplicitRefinementHole(predicate.name))
                 typ = instantiate_refinement_with_horn_in_type(typ.body, typ.name, typ.sort, predicate.name)
         if not isinstance(typ, AbstractionType):
             if isinstance(head, Var):

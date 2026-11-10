@@ -41,6 +41,7 @@ from aeon.core.types import (
 )
 from aeon.utils.name import Name
 from aeon.typechecking.context import TypingContext
+from aeon.synthesis.grammar.nonterminals import ExpressionDomain, grammar_bindings
 
 # Base sorts used to instantiate foralls when the program contributes no type
 # arguments (plain ``Int``/``Float`` holes).
@@ -59,13 +60,11 @@ def predicate_argument(ctx: TypingContext, predicate: LiquidPredicate, sort: Typ
     from aeon.elaboration.context import ElaborationTypingContext, ElabVariableBinder, ElabTypeVarBinder
     from aeon.sugar.lifting import lift, lift_type
     from aeon.sugar.lowering import lower_to_core
-    from aeon.typechecking.context import RefinementBinder
 
-    context = ElaborationTypingContext([ElabVariableBinder(n, lift_type(t)) for n, t in ctx.vars()])
-    context.entries.extend(ElabTypeVarBinder(n, k) for n, k in ctx.typevars())
-    context.entries.extend(
-        ElabVariableBinder(e.name, lift_type(e.type)) for e in ctx.entries if isinstance(e, RefinementBinder)
+    context = ElaborationTypingContext(
+        [ElabVariableBinder(n, lift_type(t)) for n, t in grammar_bindings(ctx, ExpressionDomain.REFINEMENT)]
     )
+    context.entries.extend(ElabTypeVarBinder(n, k) for n, k in ctx.typevars())
     return lower_to_core(elaborate(context, lift(predicate_to_term(predicate)), lift_type(sort)))
 
 

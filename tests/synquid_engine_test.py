@@ -1,7 +1,7 @@
 from itertools import islice
 
 from aeon.core.terms import Abstraction, Literal, Var
-from aeon.core.types import AbstractionType, TypeConstructor, TypeVar
+from aeon.core.types import AbstractionType, TypeConstructor, TypeVar, Kind
 from aeon.synthesis.modules.synquid.engine import synthes_memory
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -36,7 +36,7 @@ def test_synthes_memory_unit_literal():
 def test_synthes_memory_typevar_from_context():
     tv = TypeVar(Name("t", 0))
     x = Name("x", 0)
-    ctx = TypingContext().with_var(x, tv)
+    ctx = TypingContext().with_typevar(tv.name, Kind.BASE).with_var(x, tv)
 
     def skip(_: Name) -> bool:
         return False

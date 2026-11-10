@@ -17,6 +17,27 @@ See the [specification support matrix](synthesis-specifications.md) for each
 backend's handling of examples, both CSV decorators, optimization, properties,
 refinement conversions, and planned improvements.
 
+The shared candidate validators name intermediate constructor values in a
+temporary copy before typechecking. This keeps deep dependent-measure proofs
+compact for expression and whole-program backends, including GP, random search,
+enumerative search and CP-SAT. Bindings stay inside their original
+lambda or branch. Returned programs, runtime evaluation, expression-size scores,
+and resource objectives use the original candidate.
+
+Expression grammar nonterminals carry both a domain and a type:
+`Term[T]` produces executable code, and `Refinement[T]` produces logical
+expressions. Runtime values and reflected functions contribute term productions;
+logical predicates and uninterpreted functions contribute refinement productions.
+First-order runtime values can participate in both. Lexical shadowing is resolved
+before either set of productions is built. Application arguments, lambda bodies,
+and conditional branches retain their parent's domain, and component caches
+keep the two nonterminals distinct even when their types match. Explicit erased
+predicate arguments use the refinement domain. Both domains retain normal type
+checking; logical expressions are not treated as existential runtime values.
+
+See the [50-item knapsack comparison](knapsack-solver-comparison.md) for measured
+results and remaining limitations across ten backends.
+
 ---
 
 ## Available Synthesizers
@@ -24,6 +45,9 @@ refinement conversions, and planned improvements.
 ### `gp` — Genetic Programming
 
 Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
+
+GP decodes executable candidates through the term nonterminal. It uses ordinary
+grammar expansion for lists, including goals whose refinements fix their length.
 
 Population size is chosen from a timing probe of the first ten random individuals so that initial evaluation uses at most 10% of the wall-clock budget. Crossover rate and mutation rate are sampled randomly each run; tournament size, novelty rate and related operator knobs are re-sampled every generation. Elitism keeps the best 5% of the population. Fitness comes from the synthesis decorators (`@minimize_*`, `@maximize_*`, `@property`, …). When objectives are present the shared Pareto driver returns a random non-dominated candidate; otherwise the first well-typed term wins. No GeneticEngine dependency.
 
@@ -270,13 +294,26 @@ this backend does not jointly solve coupled holes.
 
 This backend implements round-trip checking, incremental shape/refinement constraints, MUSFIX condition abduction, polymorphic function and fixpoint introduction, and datatype match synthesis. See [the implementation and validation notes](synquid-round-trip.md) for supported fragments, bounds, and differences from PLDI 2016 Synquid.
 
-**Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, `synquid_max_candidates`, and `synquid_typecheck_candidate_first`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Term memoization is disabled because `(context, level, goal)` does not identify the pending constraint state.
+The result's retained relations instantiate constructors directly; inferred predicates are
+materialized from the solved assignment rather than replaced with fresh
+inference holes. Executable components use the term grammar, and erased predicate
+arguments use the refinement grammar. Lists use ordinary search. Candidates carry
+completed construction proofs, so Synquid skips repeated whole-program typechecking.
 
-**Applications.** The expected result constrains liquid polymorphic instantiations before arguments are chosen. Independent result obligations are checked immediately; dependent obligations remain pending. Selected arguments contribute their inferred refinements and existential witnesses. Consistency checks ask whether remaining arguments and the result can jointly satisfy their contracts, including datatype measures and branch assumptions. Only proved failures or exhaustion of a finite qualifier space reject an alternative; SMT unknown/unsupported outcomes remain eligible for final verification. Higher-order arguments can be deferred until first-order arguments determine their types.
+**Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, and `synquid_max_candidates`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Term memoization is disabled because `(context, level, goal)` does not identify the pending constraint state.
 
-**Conditionals.** Search proposes a branch under an unknown path predicate, derives its verification conditions, and strengthens the predicate from `true` using MUSFIX-style minimal-subset enumeration. It retains incomparable solutions, removes semantically stronger guards, realizes a Boolean expression, and builds the other branch under the guard's negation. The bounded qualifier-conjunction enumerator remains a fallback when abduction cannot handle the obligation or its vocabulary is insufficient.
+**Applications.** The expected result constrains liquid polymorphic instantiations before arguments are chosen. Independent result obligations are checked immediately; dependent obligations remain pending. Selected arguments contribute their inferred refinements and existential witnesses. Consistency checks ask whether remaining arguments and the result can jointly satisfy their contracts, including datatype measures and branch assumptions. Only proved failures prune partial applications. Completed constructions require discharged proofs; unknown or unsupported obligations cannot certify a candidate. Higher-order arguments can be deferred until first-order arguments determine their types.
 
-**Validation and observability.** Every accepted candidate still passes the supplied whole-program validator, including termination checks. With no fitness goals, the first valid candidate is returned. `SynquidSynthesizer.stats` records generated arguments, partial rejections, full validations, abduction proposals/guards, fallback guards, solver queries, and explicit solver outcomes. `modular.py` continues to expose the compatibility decomposition API and `ModularVC`.
+**Conditionals.** Search proposes a branch under an unknown path predicate, derives its verification conditions, and strengthens the predicate from `true` using MUSFIX-style minimal-subset enumeration. It retains incomparable solutions, removes semantically stronger guards, realizes a Boolean expression, and builds the other branch under the guard's negation. MARCO enumerates syntactically minimal sufficient qualifier sets; semantic minimization compares only the resulting valuations. No eager pairwise qualifier ordering is performed.
+
+**Validation and observability.** Typing and termination obligations are discharged during construction. The entrypoint skips per-candidate whole-program typechecking for Synquid; non-type checks such as `@bounded_cnf` remain active. With no fitness goals, the first certified candidate satisfying those checks is returned. `SynquidSynthesizer.stats` records generated arguments, partial rejections, specification checks, abduction proposals/guards, fallback guards, solver queries, and explicit solver outcomes. The compatibility counter `full_validations` stays zero. `modular.py` continues to expose the compatibility decomposition API and `ModularVC`.
+
+Validity queries reuse a bounded SMT solver and translated constraints across
+search forks and application-depth levels. Each obligation has its own
+assumption selector, so assertions from other branches cannot change its result.
+Queries are rechecked with the current deadline; unknown results are never
+treated as proofs. Compilation-session changes and datatype resets invalidate
+the cache. MUSFIX keeps its separate tracked-assumption solvers.
 
 ---
 
@@ -557,6 +594,23 @@ Top-down, type-directed synthesizer that grows a partial AST by applying **backw
 
 Full synthesis is limited by the time budget, with no fixed depth or expansion-count cap. Breadth-first exploration alternates with constructor continuations so that deep data can be built while other expressions remain in the search. Structural holes are expanded before scalar payloads, which SMT can complete jointly. If no optimization goals are present, the first valid term is returned; otherwise candidates contribute to the shared Pareto front.
 
+Use `--tdsyn-expansion eager|lazy` to compare expansion strategies across
+`tdsyn`, `tdsyn_enumerative`, `tdsyn_backward`, and `tdsyn_random`. The default
+is `eager`, which prepares and checks every alternative before continuing.
+`lazy` constructs and checks alternatives on demand. BFS keeps resumable
+expansions in its ordinary queue, allowing constructor children to progress
+through the guided queue while postponed siblings still receive FIFO turns.
+Both modes use the same productions, feasibility checks, final validation,
+and objective evaluation. Their visitation order can differ.
+
+```bash
+python -m aeon -s tdsyn_backward --tdsyn-expansion eager --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+python -m aeon -s tdsyn_backward --tdsyn-expansion lazy --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+```
+
+Python callers can use `AeonConfig(..., tdsyn_expansion="lazy")` or
+`TDSynSynthesizer(..., expansion="lazy")`.
+
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
 
 Property-test input generation has a separate, explicitly bounded sampling API; its caller-supplied limits do not limit full synthesis.
@@ -592,6 +646,12 @@ cleared between compilation sessions.
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)
 
 Same expansion rules as `tdsyn`, using random walks with a preference for constructor expansions. Walks prioritize structural holes and check available completions before growing deeper. Probabilistic restarts avoid spending the whole budget on one unproductive walk; there is no maximum walk length. SMT solves the remaining scalar leaves jointly.
+
+With lazy expansion, random walks shuffle production descriptions before
+checking them and take the first usable child. They try constructor productions
+first on 90% of steps, falling back to ordinary productions when necessary.
+This avoids checking all siblings, but changes the sampling distribution from
+eager random search; the flag is not a promise of identical seeded candidates.
 
 ---
 
@@ -679,6 +739,8 @@ Polymorphic library functions are kept as cyclic *template* states and finitely 
 ### `ortools` / `cpsat` — Fixed-length lists
 
 CP-SAT can fill one hole with an entire list, including a custom list datatype.
+Only CP-SAT uses this fixed-list specializer; the other backends expand their
+ordinary expression grammars.
 For example, `{xs:(List Bool) | List.size xs = 50}` fixes the constructor spine
 and leaves 50 Boolean decisions for the solver. Integer and fixed-point Float
 elements use the same bounds and precision as scalar holes.

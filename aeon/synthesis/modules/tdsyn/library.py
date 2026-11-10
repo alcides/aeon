@@ -20,18 +20,13 @@ from aeon.core.types import (
     Type,
     TypePolymorphism,
 )
-from aeon.synthesis.modules.tdsyn.bindings import GrammarScope
+from aeon.synthesis.grammar.nonterminals import ExpressionDomain, Nonterminal, grammar_bindings
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
     get_return_type,
     monomorphize,
 )
-from aeon.typechecking.context import (
-    ReflectedBinder,
-    TypingContext,
-    UninterpretedBinder,
-    VariableBinder,
-)
+from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 
@@ -41,12 +36,10 @@ _loc = SynthesizedLocation("tdsyn")
 # (e.g. higher-order parameters). Always consulted alongside a concrete key.
 _OTHER = "*"
 
-_VALUE_BINDERS = (VariableBinder, UninterpretedBinder, ReflectedBinder)
-
 FunEntry = tuple[Term, AbstractionType]
 ValueEntry = tuple[Term, Type]
 
-_library_cache: dict[int, dict[str | None, "ComponentLibrary"]] = {}
+_library_cache: dict[int, dict[tuple[ExpressionDomain, str | None], "ComponentLibrary"]] = {}
 
 
 def clear_component_library_cache() -> None:
@@ -59,16 +52,8 @@ def _base_key(ty: Type) -> str:
 
 
 def visible_vars(ctx: TypingContext) -> list[tuple[Name, Type]]:
-    """Value bindings reachable at ``ctx``, honoring lexical shadowing.
-
-    ``TypingContext.vars()`` returns every binder including outer names that an
-    inner ``let x := unit in …`` has shadowed. Synthesis must only see the
-    innermost binding per surface name — otherwise hole-local shadowing (used
-    to hide fitness helpers, ADT projectors, recursors, …) is a no-op for the
-    type-directed grammar.
-    """
-    scope = GrammarScope.from_context(ctx)
-    return [(term.name, typ) for ref in scope.visible_levels() for term, typ in [ref.lower(scope)]]
+    """Compatibility view of the term nonterminal's in-scope components."""
+    return list(grammar_bindings(ctx, ExpressionDomain.TERM))
 
 
 @dataclass(frozen=True)
@@ -116,11 +101,13 @@ def _merge_buckets(index: dict[str, tuple], key: str) -> tuple:
 def get_component_library(
     ctx: TypingContext,
     skip: Callable[[Name], bool],
-    goal: Type | None = None,
+    goal: Type | Nonterminal | None = None,
+    *,
+    domain: ExpressionDomain = ExpressionDomain.TERM,
 ) -> ComponentLibrary:
     """Return (and memoize) the indexed library for ``ctx``.
 
-    Cached by ``id(ctx)`` and the goal's retained datatype relations, with a
+    Cached by ``id(ctx)``, expression domain, and retained datatype relations, with a
     :func:`weakref.finalize` hook that evicts the
     entry when ``ctx`` is garbage collected — otherwise a later context reusing
     the same address would silently receive a stale library (observed as
@@ -129,6 +116,8 @@ def get_component_library(
     :func:`clear_component_library_cache` (via ``clear_tdsyn_caches``) before
     search so a fresh skip is always used.
     """
+    if isinstance(goal, Nonterminal):
+        domain, goal = goal.domain, goal.type
     key = id(ctx)
     base = base_type_of(goal) if goal is not None else None
     goal_key = repr(canonicalize_type(base)) if base is not None and base.refinements else None
@@ -137,19 +126,22 @@ def get_component_library(
         bucket = {}
         _library_cache[key] = bucket
         weakref.finalize(ctx, _library_cache.pop, key, None)
-    cached = bucket.get(goal_key)
+    cache_key = (domain, goal_key)
+    cached = bucket.get(cache_key)
     if cached is not None:
         return cached
-    library = _build_library(ctx, skip, base if goal_key is not None else None)
-    bucket[goal_key] = library
+    library = _build_library(ctx, skip, base if goal_key is not None else None, domain)
+    bucket[cache_key] = library
     return library
 
 
-def _build_library(ctx: TypingContext, skip: Callable[[Name], bool], goal: Type | None = None) -> ComponentLibrary:
+def _build_library(
+    ctx: TypingContext, skip: Callable[[Name], bool], goal: Type | None, domain: ExpressionDomain
+) -> ComponentLibrary:
     functions: list[FunEntry] = []
     values: list[ValueEntry] = []
 
-    for name, ty in visible_vars(ctx):
+    for name, ty in grammar_bindings(ctx, domain):
         if skip(name):
             continue
         if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
@@ -183,9 +175,11 @@ def _build_library(ctx: TypingContext, skip: Callable[[Name], bool], goal: Type 
     )
 
 
-def iter_concrete_vars(ctx: TypingContext, skip: Callable[[Name], bool]) -> Iterable[tuple[Name, Type]]:
+def iter_concrete_vars(
+    ctx: TypingContext, skip: Callable[[Name], bool], domain: ExpressionDomain = ExpressionDomain.TERM
+) -> Iterable[tuple[Name, Type]]:
     """Non-function variables in ``ctx`` (used when a full scan is still needed)."""
-    for name, var_type in visible_vars(ctx):
+    for name, var_type in grammar_bindings(ctx, domain):
         if skip(name):
             continue
         if isinstance(var_type, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):

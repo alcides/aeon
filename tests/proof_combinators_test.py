@@ -12,16 +12,22 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 ROOT = Path(__file__).resolve().parents[1] / "examples/benchmarks/equational_reasoning"
 
 
-def compile_source(tmp_path, source, *, no_main=True):
+def compile_source(tmp_path, source, *, no_main=True, smt_timeout_ms=200):
     path = tmp_path / "proof.ae"
     path.write_text(source)
-    driver = AeonDriver(AeonConfig("enumerative", SilentSynthesisUI(), 0, no_main=no_main))
+    driver = AeonDriver(
+        AeonConfig("enumerative", SilentSynthesisUI(), 0, no_main=no_main, smt_timeout_ms=smt_timeout_ms)
+    )
     errors = list(driver.parse(filename=str(path), aeon_code=source))
     return driver, errors
 
 
 def test_paper_proofs_and_runtime_examples(tmp_path):
-    driver, errors = compile_source(tmp_path, (ROOT / "Paper.ae").read_text(), no_main=False)
+    # Recursive list/stack-machine obligations can exhaust the default 200 ms
+    # per-query budget when the full suite shares CI CPUs. This checks proof
+    # validity and execution, not solver speed: every obligation must still be
+    # proved, and UNKNOWN must still fail the assertions below.
+    driver, errors = compile_source(tmp_path, (ROOT / "Paper.ae").read_text(), no_main=False, smt_timeout_ms=5_000)
     assert not errors, errors
     assert not driver.has_synth(), "Every proof must be complete, with no synthesis holes"
     assert driver.run() == 42
