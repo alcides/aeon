@@ -20,7 +20,10 @@ from aeon.utils.name import Name
 )
 @pytest.mark.parametrize("expansion", ["eager", "lazy"])
 def test_synthesize_exact_list_length(backend, length, first, expansion):
-    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), 20, tdsyn_expansion=expansion))
+    # Building a deep list with a constrained head needs CI headroom when the
+    # full suite runs concurrently. This checks correctness, not search speed.
+    budget = 60 if first is not None else 20
+    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), budget, tdsyn_expansion=expansion))
     refinement = f"List.size xs = {length}"
     if first is not None:
         refinement += f" && List.first xs = {first}"
