@@ -17,6 +17,7 @@ from aeon.core.types import (
     t_int,
     t_string,
 )
+from aeon.synthesis.modules.tdsyn.bindings import GrammarScope, open_abstraction
 from aeon.synthesis.modules.tdsyn.constraints import candidate_feasible, eager_pruning, obligations
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
@@ -89,9 +90,10 @@ def backward_abs_candidates(
     with ``x`` in scope. Only applies when the goal is a function type.
     """
     match hole.expected_type:
-        case AbstractionType(var_name, var_type, body_type):
-            body_hole_term, body_typed_hole = fresh_hole(body_type, hole.context.with_var(var_name, var_type))
-            return [(Abstraction(var_name, body_hole_term, _loc), [body_typed_hole])]
+        case AbstractionType():
+            name, body, context = open_abstraction(hole.expected_type, hole.context)
+            body_hole_term, body_typed_hole = fresh_hole(body, context)
+            return [(Abstraction(name, body_hole_term, _loc), [body_typed_hole])]
         case _:
             return []
 
@@ -274,10 +276,12 @@ def _let_candidate(
     synthesizable type — and so the demonstrative insertion shows the type the
     step brings into scope.
     """
-    v_name = Name("v", fresh_counter.fresh())
+    level, scope = GrammarScope.from_context(hole.context).bind("v", value_type)
+    variable, _ = level.lower(scope)
+    v_name = variable.name
     goal_hole_term, goal_typed_hole = fresh_hole(
         hole.expected_type,
-        hole.context.with_var(v_name, value_type),
+        scope.context,
         list(hole.constraints),
     )
     return Rec(v_name, value_type, value_term, goal_hole_term, loc=_loc), value_holes + [goal_typed_hole]
@@ -380,8 +384,10 @@ def forward_let_abs_candidates(
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
     for domain in (t_int, t_bool, t_float):
-        x_name = Name("x", fresh_counter.fresh())
-        body_hole_term, body_typed_hole = fresh_hole(T, ctx.with_var(x_name, domain))
+        level, scope = GrammarScope.from_context(ctx).bind("x", domain)
+        variable, _ = level.lower(scope)
+        x_name = variable.name
+        body_hole_term, body_typed_hole = fresh_hole(T, scope.context)
         value = Abstraction(x_name, body_hole_term, _loc)
         candidates.append(_let_candidate(hole, value, [body_typed_hole], AbstractionType(x_name, domain, T)))
     return candidates
