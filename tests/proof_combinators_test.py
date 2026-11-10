@@ -8,21 +8,29 @@ import pytest
 from aeon.errors import LiquidTypeCheckingFailedRelation
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
+from aeon.verification.state import VerificationState
 
 ROOT = Path(__file__).resolve().parents[1] / "examples/benchmarks/equational_reasoning"
 
 
-def compile_source(tmp_path, source, *, no_main=True):
+def compile_source(tmp_path, source, *, no_main=True, smt_timeout_ms=200):
     path = tmp_path / "proof.ae"
     path.write_text(source)
-    driver = AeonDriver(AeonConfig("enumerative", SilentSynthesisUI(), 0, no_main=no_main))
+    driver = AeonDriver(
+        AeonConfig("enumerative", SilentSynthesisUI(), 0, no_main=no_main, smt_timeout_ms=smt_timeout_ms)
+    )
     errors = list(driver.parse(filename=str(path), aeon_code=source))
     return driver, errors
 
 
 def test_paper_proofs_and_runtime_examples(tmp_path):
-    driver, errors = compile_source(tmp_path, (ROOT / "Paper.ae").read_text(), no_main=False)
-    assert not errors, errors
+    # The complete paper is a correctness regression, not a 200 ms SMT benchmark.
+    # Allow its larger obligations to complete on shared CI runners.
+    driver, errors = compile_source(tmp_path, (ROOT / "Paper.ae").read_text(), no_main=False, smt_timeout_ms=5000)
+    assert not errors, (
+        errors,
+        [reason for status, reason in driver.session.state(VerificationState).statuses.values() if status == "unknown"],
+    )
     assert not driver.has_synth(), "Every proof must be complete, with no synthesis holes"
     assert driver.run() == 42
 

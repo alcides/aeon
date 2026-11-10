@@ -68,6 +68,12 @@ jobs:
 
   full-suite:
     runs-on: ubuntu-latest
+    # pytest already runs four workers; keep native numeric libraries from
+    # creating another full thread pool in each worker and starving SMT calls.
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
     # Keep this exhaustive, but do not trace every library/synthesis operation.
     # Coverage has its own bounded trusted-core job below.
     timeout-minutes: 90
