@@ -24,9 +24,11 @@ def compile_source(tmp_path, source, *, no_main=True, smt_timeout_ms=200):
 
 
 def test_paper_proofs_and_runtime_examples(tmp_path):
-    # The complete paper is a correctness regression, not a 200 ms SMT benchmark.
-    # Allow its larger obligations to complete on shared CI runners.
-    driver, errors = compile_source(tmp_path, (ROOT / "Paper.ae").read_text(), no_main=False, smt_timeout_ms=5000)
+    # Recursive list/stack-machine obligations can exhaust the default 200 ms
+    # per-query budget when the full suite shares CI CPUs. This checks proof
+    # validity and execution, not solver speed: every obligation must still be
+    # proved, and UNKNOWN must still fail the assertions below.
+    driver, errors = compile_source(tmp_path, (ROOT / "Paper.ae").read_text(), no_main=False, smt_timeout_ms=5_000)
     assert not errors, (
         errors,
         [reason for status, reason in driver.session.state(VerificationState).statuses.values() if status == "unknown"],

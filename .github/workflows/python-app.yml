@@ -221,7 +221,7 @@ jobs:
           cache-dependency-glob: pyproject.toml
       - run: uv venv
       - run: uv pip install -e ".[dev]"
-      - run: uv run pytest tests/core_properties_test.py tests/roundtrip_test.py tests/dace_test.py tests/csg_benchmark_test.py -q --durations=30 --junitxml=research-results.xml
+      - run: uv run pytest tests/core_properties_test.py tests/synquid_properties_test.py tests/roundtrip_test.py tests/dace_test.py tests/csg_benchmark_test.py -q --durations=30 --junitxml=research-results.xml
       - name: Compiler performance samples (not synthesis timings)
         run: uv run python scripts/benchmark_compilation.py --repeats 3 examples/syntax/maxI.ae examples/verification/horn_tournament.ae > compiler-timings.json
       - uses: actions/upload-artifact@v4

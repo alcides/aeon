@@ -28,6 +28,7 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.core.types import Type
+from aeon.synthesis.grammar.nonterminals import ExpressionDomain, Nonterminal
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name, fresh_counter
@@ -60,6 +61,11 @@ class TypedHole:
     constraints: list[LiquidTerm] = field(default_factory=list)
     path: Path = ()
     bindings: dict[Name, Type] = field(default_factory=dict)
+    domain: ExpressionDomain = ExpressionDomain.TERM
+
+    @property
+    def nonterminal(self) -> Nonterminal:
+        return Nonterminal(self.domain, self.expected_type)
 
 
 @dataclass
@@ -80,12 +86,14 @@ def fresh_hole(
     context: TypingContext,
     constraints: list[LiquidTerm] | None = None,
     path: Path = (),
+    *,
+    domain: ExpressionDomain = ExpressionDomain.TERM,
 ) -> tuple[Hole, TypedHole]:
     """Create a fresh hole with a unique name."""
     name = Name("tdsyn_hole", fresh_counter.fresh())
     loc = SynthesizedLocation("tdsyn")
     hole_term = Hole(name, loc)
-    typed_hole = TypedHole(name, expected_type, context, constraints or [], path)
+    typed_hole = TypedHole(name, expected_type, context, constraints or [], path, domain=domain)
     return hole_term, typed_hole
 
 

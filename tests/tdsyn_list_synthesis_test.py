@@ -20,11 +20,12 @@ from aeon.utils.name import Name
     ]
     + [("tdsyn_enumerative", 12, 42)],
 )
-def test_synthesize_exact_list_length(backend, length, first, record_property):
+@pytest.mark.parametrize("expansion", ["eager", "lazy"])
+def test_synthesize_exact_list_length(backend, length, first, expansion, record_property):
     # Search is incomplete: budget exhaustion is valid, but returned candidates
     # must satisfy every structural and element assertion below.
     budget = 20
-    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), budget))
+    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), budget, tdsyn_expansion=expansion))
     refinement = f"List.size xs = {length}"
     if first is not None:
         refinement += f" && List.first xs = {first}"

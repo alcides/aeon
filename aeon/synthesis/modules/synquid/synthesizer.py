@@ -21,7 +21,6 @@ from aeon.synthesis.modules.synquid.search import iter_candidates_size_then_leve
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
-from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
 
@@ -31,9 +30,18 @@ def get_elapsed_time(start_time) -> float:
 
 
 class SynquidSynthesizer(Synthesizer):
+    produces_typed_candidates = True
+
     def __init__(self, seed: int = 0):
         self.seed = seed
         self.stats = SearchStats()
+
+    def prepare_context(self, ctx, program, fun_name, metadata):
+        if metadata.get(fun_name, {}).get("recursion", False):
+            from aeon.synthesis.modules.synquid.functions import recursive_context
+
+            return recursive_context(ctx, program, fun_name)
+        return ctx
 
     def synthesize(
         self,
@@ -75,7 +83,6 @@ class SynquidSynthesizer(Synthesizer):
         goals = current_metadata.get("goals", [])
         minimize = minimize_flags_from_goals(goals)
         search_mode = current_metadata.get("synquid_search", "paper")
-        typecheck_candidate_first = bool(current_metadata.get("synquid_typecheck_candidate_first", False))
         # Depth is unbounded by default: the search runs until the time budget
         # (the budget check in `consider`) or the candidate space is exhausted.
         # A concrete `synquid_max_level` caps the depth explicitly.
@@ -101,8 +108,8 @@ class SynquidSynthesizer(Synthesizer):
                 search_type, close_candidate = prepared
 
         def _safe_check(fn, *args) -> bool:
-            # A candidate that makes the typechecker/SMT raise (e.g. an
-            # ill-sorted intermediate term) is simply rejected, never fatal.
+            # The callback enforces non-type specifications. Construction has
+            # already discharged each candidate's typing obligations.
             try:
                 return bool(fn(*args))
             except Exception:
@@ -117,12 +124,7 @@ class SynquidSynthesizer(Synthesizer):
         def consider(result: Term) -> bool:
             nonlocal pareto_front, done
             result = close_candidate(result)
-            if typecheck_candidate_first and not _safe_check(check_type, ctx, result, type):
-                ui.register(result, "Invalid (hole-local)", get_elapsed_time(start_time), False)
-                if get_elapsed_time(start_time) > budget:
-                    done = False
-                return False
-            self.stats.full_validations += 1
+            self.stats.specification_checks += 1
             if _safe_check(validate, result):
                 if not goals:
                     ui.register(result, [], get_elapsed_time(start_time), True)

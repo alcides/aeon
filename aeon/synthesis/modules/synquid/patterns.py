@@ -1,5 +1,6 @@
 """MATCH through Aeon's existing lowered datatype eliminators."""
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.substitutions import (
     substitution_in_type,
@@ -29,15 +30,18 @@ from aeon.errors import AeonError
 from aeon.verification.constructor_registry import get_constructor_groups
 
 
-def _predicate_term(predicate, assignment):
+def _predicate_term(predicate, assignment, context, sort):
     """Close a solved logical predicate as the recursor's explicit argument."""
     from aeon.core.liquid import LiquidPredicate
-    from aeon.core.predicates import predicate_to_term
-    from aeon.verification.horn import apply_liquid
+    from aeon.synthesis.grammar.poly import predicate_argument
+    from aeon.verification.horn import apply_liquid, obtain_holes
 
     if not isinstance(predicate, LiquidPredicate):
         predicate = LiquidPredicate(tuple(arg.name for arg, _ in predicate.argtypes), predicate)
-    return predicate_to_term(LiquidPredicate(predicate.parameters, apply_liquid(assignment, predicate.body)))
+    body = apply_liquid(assignment, predicate.body)
+    if obtain_holes(body):
+        return None
+    return predicate_argument(context, LiquidPredicate(predicate.parameters, body), sort)
 
 
 def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=None):
@@ -47,7 +51,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
         return
     groups = get_constructor_groups()
     datatypes = set()
-    for _, ty in ctx.concrete_vars():
+    for _, ty in grammar_bindings(ctx):
         while isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
             ty = ty.body
         while isinstance(ty, AbstractionType):
@@ -70,7 +74,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
             ty = erase(candidate.state.resolve(candidate.type))
             if not isinstance(ty, TypeConstructor) or ty.name.name not in groups:
                 continue
-            if candidate.state.finalize() in (Status.INVALID, Status.EXHAUSTED):
+            if candidate.state.finalize() != Status.VALID:
                 continue
             ty = erase(candidate.state.resolve(candidate.type))
             if ty not in datatypes and wellformed(ctx, ty):
@@ -78,7 +82,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                 yield ty
 
     for datatype in datatype_shapes():
-        rec = next(((n, t) for n, t in ctx.concrete_vars() if n.name == datatype.name.name + "_rec"), None)
+        rec = next(((n, t) for n, t in grammar_bindings(ctx) if n.name == datatype.name.name + "_rec"), None)
         if rec is None:
             continue
         rec_name, rec_type = rec
@@ -129,7 +133,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                     arg = next(args, None)
                     # The final type parameter is the result motive.
                     arg = erase(goal) if arg is None else arg
-                    spine.append(("T", arg))
+                    spine.append(("T", arg, None))
                     assert isinstance(safe_inst, TypePolymorphism)
                     safe_inst = type_substitution(safe_inst.body, safe_inst.name, arg)
                     inst = type_substitution(inst.body, inst.name, arg)
@@ -140,11 +144,11 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                     if predicate_index < len(precise.refinements):
                         # An invariant datatype parameter is already known;
                         # matching needs no search for a replacement relation.
-                        spine.append(("S", retained))
+                        spine.append(("S", retained, inst.sort))
                         inst = instantiate_refinement_in_type(inst.body, inst.name, retained)
                     else:
                         predicate = child.refinement_parameter(inst.sort)
-                        spine.append(("R", predicate))
+                        spine.append(("R", predicate, inst.sort))
                         inst = instantiate_refinement_with_horn_in_type(inst.body, inst.name, inst.sort, predicate.name)
                     predicate_index += 1
             if not isinstance(inst, AbstractionType):
@@ -166,7 +170,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                 skeleton = Hole(fresh_name("case"))
                 for n in reversed(fields):
                     skeleton = Abstraction(n, skeleton)
-                if any(kind == "R" for kind, _ in spine):
+                if any(kind == "R" for kind, _, _ in spine):
                     child.add(
                         match_refinement_obligation(
                             child.context, skeleton, safe_rest.var_type, case_type, datatype.name.name, case_name, scrut
@@ -183,22 +187,28 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
 
             def handlers(index, bodies, partial):
                 if index == len(cases):
-                    if partial.finalize() in (Status.INVALID, Status.EXHAUSTED):
+                    if partial.finalize() != Status.VALID:
                         return
                     for assignment in partial.assignments:
                         term = Var(rec_name)
-                        for kind, arg in spine:
-                            term = (
-                                TypeApplication(term, partial.materialize(arg, assignment))
-                                if kind == "T"
-                                else RefinementApplication(term, _predicate_term(arg, assignment))
-                            )
-                        term = Application(term, scrut)
-                        for body in bodies:
-                            term = Application(term, _materialize_term(body, assignment, partial))
-                        if _local_check(body_ctx, term, goal, partial):
-                            state.stats.matches += 1
-                            yield term if scrut is scrutinee else Let(scrut.name, scrutinee, term)
+                        for kind, arg, sort in spine:
+                            if kind == "T":
+                                term = TypeApplication(term, partial.materialize(arg, assignment))
+                            else:
+                                predicate = _predicate_term(
+                                    arg, assignment, partial.resolve_context(body_ctx), partial.resolve(sort)
+                                )
+                                if predicate is None:
+                                    partial.stats.record(Status.UNSUPPORTED)
+                                    break
+                                term = RefinementApplication(term, predicate)
+                        else:
+                            term = Application(term, scrut)
+                            for body in bodies:
+                                term = Application(term, _materialize_term(body, assignment, partial))
+                            if _local_check(body_ctx, term, goal, partial):
+                                state.stats.matches += 1
+                                yield term if scrut is scrutinee else Let(scrut.name, scrutinee, term)
                     return
                 case_name, fields, evidence = cases[index]
                 if evidence is None:
@@ -254,11 +264,11 @@ def abduced_matches(ctx, level, goal, skip, mem, state):
         return
     facts = []
     groups = get_constructor_groups()
-    for variable, datatype in ctx.concrete_vars():
+    for variable, datatype in grammar_bindings(ctx):
         datatype = erase(datatype)
         if skip(variable) or variable in state.matched or not isinstance(datatype, TypeConstructor):
             continue
-        for constructor, schema in ctx.concrete_vars():
+        for constructor, schema in grammar_bindings(ctx):
             if constructor.name not in groups.get(datatype.name.name, set()):
                 continue
             while isinstance(schema, (TypePolymorphism, RefinementPolymorphism)):

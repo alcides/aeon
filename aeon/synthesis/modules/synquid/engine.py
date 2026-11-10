@@ -6,9 +6,10 @@ from itertools import count, takewhile, islice
 from time import monotonic
 from typing import Callable
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidLiteralBool, liquid_free_vars
-from aeon.core.substitutions import substitution, substitution_in_type, instantiate_refinement_with_horn_in_type
+from aeon.core.substitutions import substitution, instantiate_refinement_with_horn_in_type
 from aeon.core.terms import (
     Annotation,
     Application,
@@ -32,7 +33,7 @@ from aeon.core.types import (
 from aeon.synthesis.modules.synquid.decompose import uncurry as uncurry
 from aeon.synthesis.modules.synquid.constraints import ConstraintState, negate, fresh_name
 from aeon.synthesis.modules.synquid.round_trip import ApplicationState, erase, match_result
-from aeon.synthesis.modules.synquid.solver import SearchStats, Status
+from aeon.synthesis.modules.synquid.solver import SearchStats, SMTQueryState, Status
 from aeon.synthesis.modules.synquid.abduction import abduce, branch_environment
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
@@ -44,7 +45,7 @@ def monomorfic(t: Type, typing_ctx: TypingContext, t_l: dict[Name, Type]):
         case TypePolymorphism(var_name, _, var_body):
             for t in [
                 t
-                for n, t in typing_ctx.concrete_vars()
+                for n, t in grammar_bindings(typing_ctx)
                 if isinstance(t, TypeConstructor) and t != TypeConstructor(Name("Unit", 0))
             ]:
                 t_l[var_name] = t
@@ -106,15 +107,15 @@ def _solve_literal(ret_t: Type, base_t: TypeConstructor, deadline=float("inf")):
 
 
 def _local_check(ctx: TypingContext, term: Term, goal: Type, state: ConstraintState | None = None) -> bool:
-    """Prune a known invalid obligation, retaining unknown/unsupported results."""
+    """Discharge a construction rule's obligation before emitting its term."""
     from aeon.typechecking.typeinfer import check
 
     trial = state.fork() if state is not None else ConstraintState(ctx)
     try:
         trial.add(check(trial.context, term, goal))
-        return trial.solve() not in (Status.INVALID, Status.EXHAUSTED)
+        return trial.solve() == Status.VALID
     except Exception:
-        return True
+        return False
 
 
 def _arg_gen(ctx, level, goal, skip, mem, state):
@@ -147,7 +148,7 @@ def _application_terms(ctx, level, head, application, skip, mem, filling=False):
             )
             yield from _application_terms(ctx, level, head, deferred, skip, mem, filling=True)
         else:
-            if application.state.finalize() in (Status.INVALID, Status.EXHAUSTED):
+            if application.state.finalize() != Status.VALID:
                 return
             for assignment in application.state.assignments:
                 yield _materialize_term(head, assignment, application.state)
@@ -182,22 +183,9 @@ def _application_terms(ctx, level, head, application, skip, mem, filling=False):
                 continue
             except Exception:
                 application.state.stats.record(Status.UNSUPPORTED)
-                # Retain unsupported fragments for whole-program checking.
-                # Do not invent facts from an argument whose inference failed.
-                child = ApplicationState(
-                    application.state.fork(),
-                    application.params[1:],
-                    application.result,
-                    application.goal,
-                    application.deferred,
-                )
-                from aeon.synthesis.modules.synquid.inference import InferredArgument
-
-                argument = argument.term if isinstance(argument, InferredArgument) else argument
-                binder, _ = application.params[0]
-                child.params = [(n, substitution_in_type(t, argument, binder)) for n, t in child.params]
-                child.result = substitution_in_type(child.result, argument, binder)
-                child.deferred = [(n, substitution_in_type(t, argument, binder)) for n, t in child.deferred]
+                # No later whole-program oracle repairs missing argument
+                # evidence. An unsupported construction cannot certify a term.
+                continue
             from aeon.synthesis.modules.synquid.inference import InferredArgument
 
             argument = argument.term if isinstance(argument, InferredArgument) else argument
@@ -214,7 +202,10 @@ def _materialize_term(term, assignment, state):
             _materialize_term(term.body, assignment, state), state.materialize(term.type, assignment)
         )
     if isinstance(term, RefinementApplication):
-        return RefinementApplication(_materialize_term(term.body, assignment, state), term.refinement)
+        argument = term.refinement
+        if isinstance(argument, ImplicitRefinementHole) and argument.name in state.predicates:
+            argument = state.materialize_predicate(argument.name, assignment)
+        return RefinementApplication(_materialize_term(term.body, assignment, state), argument)
     if isinstance(term, Application):
         return Application(
             _materialize_term(term.fun, assignment, state), _materialize_term(term.arg, assignment, state)
@@ -286,12 +277,13 @@ def synthes_memory(
 ):
     # A context/level/type key cannot distinguish liquid assignments or pending
     # result obligations. Disable term memoization until state equivalence is
-    # established; mem carries per-search instrumentation and the deadline only.
+    # established; mem carries instrumentation, the deadline, and SMT state.
     if state is None:
         state = ConstraintState(
             ctx,
             stats=mem.setdefault("synquid_stats", SearchStats()),
             deadline=mem.get("synquid_deadline", float("inf")),
+            solver_state=mem.setdefault("synquid_solver_state", SMTQueryState()),
         )
     if monotonic() >= mem.get("synquid_deadline", float("inf")):
         return
@@ -316,6 +308,12 @@ def match_type(t1: Type, t2: Type):
 
 
 def _leaf_terms(ctx, ret_t, skip, state):
+    for term in _leaf_proposals(ctx, ret_t, skip, state.deadline):
+        if _local_check(ctx, term, ret_t, state):
+            yield term
+
+
+def _leaf_proposals(ctx, ret_t, skip, deadline):
     base_t = erase(ret_t)
     arrow_goal: AbstractionType | None = ret_t if isinstance(ret_t, AbstractionType) else None
     if arrow_goal is None and isinstance(ret_t, RefinedType) and isinstance(ret_t.type, AbstractionType):
@@ -323,35 +321,32 @@ def _leaf_terms(ctx, ret_t, skip, state):
     if arrow_goal is not None:
         for name, _ in [
             (n, t)
-            for n, t in ctx.concrete_vars()
+            for n, t in grammar_bindings(ctx)
             if isinstance(t, AbstractionType) and match_result(t, arrow_goal, set()) is not None and not skip(n)
         ]:
             yield Var(name)
         return
     if isinstance(base_t, TypeVar):
-        for name, t in ctx.concrete_vars():
-            if erase(t) == base_t and not skip(name) and _local_check(ctx, Var(name), ret_t, state):
+        for name, t in grammar_bindings(ctx):
+            if erase(t) == base_t and not skip(name):
                 yield Var(name)
         return
     assert isinstance(base_t, TypeConstructor)
     for name, _ in [
         (n, t)
-        for n, t in ctx.concrete_vars()
+        for n, t in grammar_bindings(ctx)
         if isinstance(t, (TypeConstructor, RefinedType)) and erase(t) == base_t and not skip(n)
     ]:
-        if _local_check(ctx, Var(name), ret_t, state):
-            yield Var(name)
+        yield Var(name)
     match base_t:
         case TypeConstructor(Name("Bool", 0)):
             yield from [Literal(True, base_t), Literal(False, base_t)]
         case TypeConstructor(Name("Int", 0)):
             # ?intLit: solved by z3 against the VC (goal refinement) here.
-            yield from dict.fromkeys(
-                [*_solve_literal(ret_t, base_t, state.deadline), Literal(0, base_t), Literal(1, base_t)]
-            )
+            yield from dict.fromkeys([*_solve_literal(ret_t, base_t, deadline), Literal(0, base_t), Literal(1, base_t)])
         case TypeConstructor(Name("Float", 0)):
             # ?floatLit: solved by z3 against the VC (goal refinement) here.
-            yield from _solve_literal(ret_t, base_t, state.deadline)
+            yield from _solve_literal(ret_t, base_t, deadline)
         case TypeConstructor(Name("String", 0)):
             yield from (
                 Literal(s, base_t)
@@ -382,7 +377,7 @@ def _eliminations(
     if level == 0:
         yield from _leaf_terms(ctx, ret_t, skip, state)
     for name, typ in [
-        (n, ty) for n, ty in ctx.concrete_vars() if not isinstance(ty, (TypeConstructor, RefinedType)) and not skip(n)
+        (n, ty) for n, ty in grammar_bindings(ctx) if not isinstance(ty, (TypeConstructor, RefinedType)) and not skip(n)
     ]:
         from aeon.verification.constructor_registry import get_constructor_groups
 
@@ -411,9 +406,18 @@ def _eliminations(
                 inner = type_substitution(inner.body, tv, instance)
                 head = TypeApplication(head, instance)
             else:
-                predicate = branch_state.refinement_parameter(inner.sort)
-                inner = instantiate_refinement_with_horn_in_type(inner.body, inner.name, inner.sort, predicate.name)
-                head = RefinementApplication(head, ImplicitRefinementHole(fresh_name("implicit")))
+                from aeon.core.substitutions import instantiate_refinement_in_type
+                from aeon.synthesis.grammar.poly import predicate_argument
+                from aeon.synthesis.modules.tdsyn.helpers import result_predicate
+
+                retained = result_predicate(inner.body, inner.name, inner.sort, ret_t)
+                if retained is not None:
+                    head = RefinementApplication(head, predicate_argument(ctx, retained, inner.sort))
+                    inner = instantiate_refinement_in_type(inner.body, inner.name, retained)
+                else:
+                    predicate = branch_state.refinement_parameter(inner.sort)
+                    inner = instantiate_refinement_with_horn_in_type(inner.body, inner.name, inner.sort, predicate.name)
+                    head = RefinementApplication(head, ImplicitRefinementHole(predicate.name))
         application = ApplicationState.start(branch_state, inner, ret_t)
         yield from _application_terms(ctx, level, head, application, skip, mem)
 

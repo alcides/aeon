@@ -59,6 +59,10 @@ class InvalidIndividualException(SynthesisError):
 
 
 class Synthesizer(ABC):
+    # Only backends that discharge typing obligations during construction may
+    # skip the entrypoint's repeated whole-program type check. Non-type
+    # specification checks still apply to every candidate.
+    produces_typed_candidates: bool = False
     # False means the entrypoint converts test/error goals into acceptance
     # checks. Arbitrary objectives need a candidate enumeration adapter.
     supports_optimization: bool = True
@@ -72,6 +76,10 @@ class Synthesizer(ABC):
 
     # Opt in only when search ranks candidates using shared fitness scores.
     supports_size_objective: bool = False
+
+    def prepare_context(self, ctx: TypingContext, program: Term, fun_name: Name, metadata: Metadata) -> TypingContext:
+        """Prepare construction assumptions once, before candidate search."""
+        return ctx
 
     def evaluation_timeout(self, default: float) -> float:
         """Per-candidate worker allowance, including all requested observations."""

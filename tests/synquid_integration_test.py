@@ -35,7 +35,8 @@ def test_recursive_datatype_synthesis_verifies_measure_and_termination():
     assert isinstance(candidate, Application) and candidate.fun == Var(function)
     assert isinstance(candidate.arg, Var) and candidate.arg.name.name == "m"
     assert check_type(ctx, substitution(program, candidate, hole), top)
-    assert backend.stats.full_validations >= 1
+    assert backend.stats.full_validations == 0
+    assert backend.stats.specification_checks >= 1
 
     # Adding an unused, non-decreasing recursive call preserves the result's
     # value/refinement but must fail whole-program termination validation.

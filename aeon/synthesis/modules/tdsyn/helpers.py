@@ -9,10 +9,7 @@ from aeon.core.liquid import LiquidApp, LiquidPredicate, LiquidVar
 from aeon.core.substitutions import instantiate_refinement_in_type
 from aeon.core.terms import (
     Abstraction,
-    Application,
     ImplicitRefinementHole,
-    Let,
-    Literal,
     RefinementApplication,
     Term,
     TypeApplication,
@@ -33,6 +30,7 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.decorators.api import Metadata
+from aeon.synthesis.constructors import bind_constructor_arguments, is_constructor_term  # noqa: F401
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.grammar.poly import predicate_argument
 from aeon.typechecking.branch_evidence import stored_match_predicate, unconstrained_predicate
@@ -193,7 +191,7 @@ def monomorphize(name: Name, ty: Type, ctx: TypingContext, goal: Type | None = N
     return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx), goal)
 
 
-def _result_predicate(body: Type, name: Name, sort: Type, goal: Type | None) -> LiquidPredicate | None:
+def result_predicate(body: Type, name: Name, sort: Type, goal: Type | None) -> LiquidPredicate | None:
     """Match a retained predicate variable to the corresponding goal argument.
 
     Match by the predicate's identity in the result, not quantifier position:
@@ -236,7 +234,7 @@ def _monomorphize_term(
                 results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types, goal))
             return results
         case RefinementPolymorphism(pred_name, sort, body):
-            predicate = _result_predicate(body, pred_name, sort, goal)
+            predicate = result_predicate(body, pred_name, sort, goal)
             if predicate is None:
                 argument: Term = ImplicitRefinementHole(Name("_pred", fresh_counter.fresh()), _loc)
                 replacement: Abstraction | LiquidPredicate = unconstrained_predicate(sort)
@@ -259,62 +257,3 @@ def make_skip_fn(fun_name: Name, metadata: Metadata) -> Callable[[Name], bool]:
         return should_skip(name, fun_name, metadata, is_recursion_allowed)
 
     return skip
-
-
-def is_constructor_term(term: Term) -> bool:
-    """Recognize a registered constructor through applications and instantiation."""
-    from aeon.verification.constructor_registry import get_constructor_groups
-
-    while isinstance(term, (Application, TypeApplication, RefinementApplication)):
-        term = term.fun if isinstance(term, Application) else term.body
-    return isinstance(term, Var) and any(term.name.name in names for names in get_constructor_groups().values())
-
-
-def bind_constructor_arguments(term: Term) -> Term:
-    """Name intermediate data values before checking dependent measure types.
-
-    A nested constructor argument is otherwise substituted into every use of
-    its measures, making deep list proofs expand dramatically. Only pure data
-    trees are rewritten; calls and control flow keep their evaluation order.
-    """
-
-    def spine(value: Term) -> tuple[Term, list[Term]]:
-        args = []
-        while isinstance(value, Application):
-            args.append(value.arg)
-            value = value.fun
-        return value, list(reversed(args))
-
-    def data_tree(value: Term) -> bool:
-        if isinstance(value, (Literal, Var)):
-            return True
-        return is_constructor_term(value) and all(data_tree(arg) for arg in spine(value)[1])
-
-    if not is_constructor_term(term) or not data_tree(term):
-        return term
-    bindings: list[tuple[Name, Term]] = []
-
-    def bind(value: Term) -> Var:
-        name = Name("_data", fresh_counter.fresh())
-        bindings.append((name, value))
-        return Var(name, _loc)
-
-    def visit(value: Term) -> Term:
-        head, args = spine(value)
-        for arg in args:
-            if is_constructor_term(arg):
-                # Evaluate earlier curried applications before this argument,
-                # even if a local function shadows a registered constructor.
-                atomic_head = head
-                while isinstance(atomic_head, (TypeApplication, RefinementApplication)):
-                    atomic_head = atomic_head.body
-                if not isinstance(atomic_head, Var):
-                    head = bind(head)
-                arg = bind(visit(arg))
-            head = Application(head, arg, value.loc)
-        return head
-
-    result = visit(term)
-    for name, value in reversed(bindings):
-        result = Let(name, value, result, _loc)
-    return result

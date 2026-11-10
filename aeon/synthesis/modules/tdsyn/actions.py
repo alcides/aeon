@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Iterable, Iterator
+from random import Random
+from typing import Callable, TypeVar
 
 from aeon.core.substitutions import substitution_in_type
 from aeon.core.terms import Abstraction, Application, If, Literal, Rec, Term, TypeAbstraction, Var
@@ -19,14 +21,16 @@ from aeon.core.types import (
 )
 from aeon.synthesis.modules.tdsyn.bindings import GrammarScope, open_abstraction
 from aeon.synthesis.modules.tdsyn.constraints import candidate_feasible, eager_pruning, obligations
+from aeon.synthesis.grammar.nonterminals import ExpressionDomain, grammar_bindings
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
     bases_match,
     get_return_type,
     is_subtype,
     monomorphize,
+    is_constructor_term,
 )
-from aeon.synthesis.modules.tdsyn.library import get_component_library, iter_concrete_vars, visible_vars
+from aeon.synthesis.modules.tdsyn.library import get_component_library, iter_concrete_vars
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -34,6 +38,18 @@ from aeon.utils.name import Name, fresh_counter
 from aeon.utils.pprint import AEON_INFIX_OPERATORS
 
 _loc = SynthesizedLocation("tdsyn")
+
+Candidate = tuple[Term, list[TypedHole]]
+_T = TypeVar("_T")
+
+
+def _ordered(items: Iterable[_T], rng: Random | None) -> Iterable[_T]:
+    """Randomize cheap production descriptions, before constructing/checking them."""
+    if rng is None:
+        return items
+    result = list(items)
+    rng.shuffle(result)
+    return result
 
 
 def get_applicable_functions(
@@ -58,7 +74,7 @@ def _build_application(
     children: list[TypedHole] = []
     result = f_term
     while isinstance(f_type, AbstractionType):
-        hole_term, child = fresh_hole(f_type.var_type, hole.context)
+        hole_term, child = fresh_hole(f_type.var_type, hole.context, domain=hole.domain)
         result = Application(result, hole_term, _loc)
         children.append(child)
         f_type = substitution_in_type(f_type.type, Var(child.name), f_type.var_name)
@@ -92,7 +108,7 @@ def backward_abs_candidates(
     match hole.expected_type:
         case AbstractionType():
             name, body, context = open_abstraction(hole.expected_type, hole.context)
-            body_hole_term, body_typed_hole = fresh_hole(body, context)
+            body_hole_term, body_typed_hole = fresh_hole(body, context, domain=hole.domain)
             return [(Abstraction(name, body_hole_term, _loc), [body_typed_hole])]
         case _:
             return []
@@ -103,6 +119,12 @@ def backward_lit_candidates(
     skip: Callable[[Name], bool],
 ) -> list[tuple[Term, list[TypedHole]]]:
     """Backward literal tactic: literal candidates for a base-typed goal."""
+    return list(iter_backward_lit_candidates(hole, skip))
+
+
+def iter_backward_lit_candidates(
+    hole: TypedHole, skip: Callable[[Name], bool], rng: Random | None = None
+) -> Iterator[Candidate]:
     candidates: list[tuple[Term, list[TypedHole]]] = []
     base = base_type_of(hole.expected_type)
     if base is not None:
@@ -123,7 +145,9 @@ def backward_lit_candidates(
                     candidates.append((Literal(sval, t_string, _loc), []))
             case _:
                 pass
-    return [(term, children) for term, children in candidates if candidate_feasible(hole, term, children)]
+    for term, children in _ordered(candidates, rng):
+        if candidate_feasible(hole, term, children):
+            yield term, children
 
 
 def backward_close_candidates(
@@ -149,15 +173,22 @@ def backward_app_candidates(
     function whose return type matches the goal, leaving fresh holes for the
     arguments.
     """
+    return list(iter_backward_app_candidates(hole, skip))
+
+
+def iter_backward_app_candidates(
+    hole: TypedHole, skip: Callable[[Name], bool], rng: Random | None = None, *, constructors_only: bool = False
+) -> Iterator[Candidate]:
     T = hole.expected_type
-    candidates: list[tuple[Term, list[TypedHole]]] = []
-    for f_term, f_type in get_component_library(hole.context, skip, T).functions_returning(T):
+    functions = get_component_library(hole.context, skip, hole.nonterminal).functions_returning(T)
+    for f_term, f_type in _ordered(functions, rng):
+        if constructors_only and not is_constructor_term(f_term):
+            continue
         ret_type = get_return_type(f_type)
         if _compatible_result(hole.context, ret_type, T):
             app_term, new_holes = _build_application(f_term, f_type, hole)
             if candidate_feasible(hole, app_term, new_holes):
-                candidates.append((app_term, new_holes))
-    return candidates
+                yield app_term, new_holes
 
 
 def backward_if_candidates(
@@ -167,9 +198,9 @@ def backward_if_candidates(
     """Backward if tactic: an if-then-else whose branches are typed by the goal."""
     T = hole.expected_type
     ctx = hole.context
-    cond_hole_term, cond_typed_hole = fresh_hole(t_bool, ctx)
-    then_hole_term, then_typed_hole = fresh_hole(T, ctx)
-    else_hole_term, else_typed_hole = fresh_hole(T, ctx)
+    cond_hole_term, cond_typed_hole = fresh_hole(t_bool, ctx, domain=hole.domain)
+    then_hole_term, then_typed_hole = fresh_hole(T, ctx, domain=hole.domain)
+    else_hole_term, else_typed_hole = fresh_hole(T, ctx, domain=hole.domain)
     return [
         (
             If(cond_hole_term, then_hole_term, else_hole_term, _loc),
@@ -203,6 +234,23 @@ def backward_candidates(
     return candidates
 
 
+def iter_backward_candidates(
+    hole: TypedHole, skip: Callable[[Name], bool], rng: Random | None = None, *, constructors_only: bool = False
+) -> Iterator[Candidate]:
+    if constructors_only:
+        yield from iter_forward_close_candidates(hole, skip, rng, constructors_only=True)
+        yield from iter_backward_app_candidates(hole, skip, rng, constructors_only=True)
+        return
+    abstractions = backward_abs_candidates(hole, skip)
+    if abstractions:
+        yield from abstractions
+        return
+    yield from iter_backward_lit_candidates(hole, skip, rng)
+    yield from iter_forward_close_candidates(hole, skip, rng)
+    yield from iter_backward_app_candidates(hole, skip, rng)
+    yield from backward_if_candidates(hole, skip)
+
+
 def _forward_applications(
     hole: TypedHole,
     skip: Callable[[Name], bool],
@@ -214,13 +262,18 @@ def _forward_applications(
     remaining holes if needed, keeping only applications whose result type
     matches T. Returns (term, new_holes, result_type) triples.
     """
+    return list(_iter_forward_applications(hole, skip))
+
+
+def _iter_forward_applications(
+    hole: TypedHole, skip: Callable[[Name], bool], rng: Random | None = None
+) -> Iterator[tuple[Term, list[TypedHole], Type]]:
     T = hole.expected_type
     ctx = hole.context
-    results: list[tuple[Term, list[TypedHole], Type]] = []
-    library = get_component_library(ctx, skip, T)
+    library = get_component_library(ctx, skip, hole.nonterminal)
 
-    for v_name, v_type in iter_concrete_vars(ctx, skip):
-        for f_term, f_type in library.functions_accepting(v_type):
+    for v_name, v_type in _ordered(iter_concrete_vars(ctx, skip, hole.domain), rng):
+        for f_term, f_type in _ordered(library.functions_accepting(v_type), rng):
             first_param_type = f_type.var_type
 
             if not bases_match(v_type, first_param_type):
@@ -241,12 +294,10 @@ def _forward_applications(
                     continue
                 result, new_holes = _build_application(applied, remaining_type, hole)
                 if candidate_feasible(hole, result, new_holes):
-                    results.append((result, new_holes, final_ret))
+                    yield result, new_holes, final_ret
             else:
                 if _compatible_result(ctx, remaining_type, T) and candidate_feasible(hole, applied, [], remaining_type):
-                    results.append((applied, [], remaining_type))
-
-    return results
+                    yield applied, [], remaining_type
 
 
 def forward_candidates(
@@ -260,6 +311,13 @@ def forward_candidates(
     remaining holes if needed.
     """
     return [(term, new_holes) for term, new_holes, _ in _forward_applications(hole, skip)]
+
+
+def iter_forward_candidates(
+    hole: TypedHole, skip: Callable[[Name], bool], rng: Random | None = None
+) -> Iterator[Candidate]:
+    for term, children, _ in _iter_forward_applications(hole, skip, rng):
+        yield term, children
 
 
 def _let_candidate(
@@ -283,6 +341,7 @@ def _let_candidate(
         hole.expected_type,
         scope.context,
         list(hole.constraints),
+        domain=hole.domain,
     )
     return Rec(v_name, value_type, value_term, goal_hole_term, loc=_loc), value_holes + [goal_typed_hole]
 
@@ -297,13 +356,19 @@ def forward_close_candidates(
     monomorphized and included when the instantiation matches the goal — needed
     for ADT value generation as well as ordinary type-directed search.
     """
+    return list(iter_forward_close_candidates(hole, skip))
+
+
+def iter_forward_close_candidates(
+    hole: TypedHole, skip: Callable[[Name], bool], rng: Random | None = None, *, constructors_only: bool = False
+) -> Iterator[Candidate]:
     T = hole.expected_type
     ctx = hole.context
-    candidates: list[tuple[Term, list[TypedHole]]] = []
-    for term, var_type in get_component_library(ctx, skip, T).values_matching(T):
+    for term, var_type in _ordered(get_component_library(ctx, skip, hole.nonterminal).values_matching(T), rng):
+        if constructors_only and not is_constructor_term(term):
+            continue
         if _compatible_result(ctx, var_type, T) and candidate_feasible(hole, term, [], var_type):
-            candidates.append((term, []))
-    return candidates
+            yield term, []
 
 
 def forward_let_app_candidates(
@@ -317,6 +382,8 @@ def forward_let_app_candidates(
     unrefined result type: dependent refinements on a function's return type
     mention its parameter binders, which are not in scope at the binding site.
     """
+    if hole.domain is ExpressionDomain.REFINEMENT:
+        return []
     return [
         _let_candidate(hole, value_term, value_holes, refined_to_unrefined_type(value_type))
         for value_term, value_holes, value_type in _forward_applications(hole, skip)
@@ -332,11 +399,13 @@ def forward_let_if_candidates(
     Produces ``let v := if ?c then ?t else ?e in ?goal`` where the branches and
     ``v`` carry the goal's type, so a later step can close the goal with ``v``.
     """
+    if hole.domain is ExpressionDomain.REFINEMENT:
+        return []
     T = hole.expected_type
     ctx = hole.context
-    cond_hole_term, cond_typed_hole = fresh_hole(t_bool, ctx)
-    then_hole_term, then_typed_hole = fresh_hole(T, ctx)
-    else_hole_term, else_typed_hole = fresh_hole(T, ctx)
+    cond_hole_term, cond_typed_hole = fresh_hole(t_bool, ctx, domain=hole.domain)
+    then_hole_term, then_typed_hole = fresh_hole(T, ctx, domain=hole.domain)
+    else_hole_term, else_typed_hole = fresh_hole(T, ctx, domain=hole.domain)
     value = If(cond_hole_term, then_hole_term, else_hole_term, _loc)
     return [_let_candidate(hole, value, [cond_typed_hole, then_typed_hole, else_typed_hole], T)]
 
@@ -353,9 +422,11 @@ def forward_let_tapp_candidates(
     variables (``==``, ``+``, ...) print as operator sections (``(=)``,
     ``(+)``, ...).
     """
+    if hole.domain is ExpressionDomain.REFINEMENT:
+        return []
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
-    for name, var_type in visible_vars(ctx):
+    for name, var_type in grammar_bindings(ctx, hole.domain):
         if skip(name):
             continue
         # Only variables with a printable surface form: identifiers, or the
@@ -380,6 +451,8 @@ def forward_let_abs_candidates(
     ``let v := (fun x -> ?body) in ?goal`` where ``?body`` has the goal's type
     with ``x`` in scope, so ``v : (x:domain) -> goal``.
     """
+    if hole.domain is ExpressionDomain.REFINEMENT:
+        return []
     T = hole.expected_type
     ctx = hole.context
     candidates: list[tuple[Term, list[TypedHole]]] = []
@@ -387,7 +460,7 @@ def forward_let_abs_candidates(
         level, scope = GrammarScope.from_context(ctx).bind("x", domain)
         variable, _ = level.lower(scope)
         x_name = variable.name
-        body_hole_term, body_typed_hole = fresh_hole(T, scope.context)
+        body_hole_term, body_typed_hole = fresh_hole(T, scope.context, domain=hole.domain)
         value = Abstraction(x_name, body_hole_term, _loc)
         candidates.append(_let_candidate(hole, value, [body_typed_hole], AbstractionType(x_name, domain, T)))
     return candidates
@@ -402,9 +475,11 @@ def forward_let_tabs_candidates(
     Produces ``let v := (Λa:B. ?body) in ?goal`` where ``?body`` has the goal's
     type with the type variable ``a`` in scope, so ``v : forall a:B, goal``.
     """
+    if hole.domain is ExpressionDomain.REFINEMENT:
+        return []
     T = hole.expected_type
     ctx = hole.context
     a_name = Name("a", fresh_counter.fresh())
-    body_hole_term, body_typed_hole = fresh_hole(T, ctx.with_typevar(a_name, Kind.BASE))
+    body_hole_term, body_typed_hole = fresh_hole(T, ctx.with_typevar(a_name, Kind.BASE), domain=hole.domain)
     value = TypeAbstraction(a_name, Kind.BASE, body_hole_term, _loc)
     return [_let_candidate(hole, value, [body_typed_hole], TypePolymorphism(a_name, Kind.BASE, T))]

@@ -57,6 +57,7 @@ class AeonConfig:
     smt_timeout_ms: int = 200
     cache_limit: int = 1024
     check_only: bool = False
+    tdsyn_expansion: str = "eager"
 
 
 P = ParamSpec("P")
@@ -258,7 +259,7 @@ class AeonDriver:
     def _run_synthesis(self, ui: SynthesisUI) -> dict[Name, STerm]:
         """Synthesize the open holes, substitute the results into ``self.core``
         in place, and return the per-hole solutions lifted to sugar terms."""
-        synthesizer = make_synthesizer(self.cfg.synthesizer)
+        synthesizer = make_synthesizer(self.cfg.synthesizer, tdsyn_expansion=self.cfg.tdsyn_expansion)
         mapping: dict[Name, Term] = synthesize_holes(
             self.typing_ctx,
             self.evaluation_ctx,

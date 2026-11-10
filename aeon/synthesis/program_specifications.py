@@ -15,6 +15,7 @@ from aeon.core.types import top
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import InvalidIndividualException, TimeoutInEvaluationException
 from aeon.synthesis.bounded_cnf import check_program
+from aeon.synthesis.constructors import prepare_candidate
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.evaluation_pool import EvaluationPool, OK, TIMEOUT
 from aeon.synthesis.fitness_eval import (
@@ -184,7 +185,11 @@ class ProgramSpecifications:
     def validate(self, candidate: Term) -> bool:
         try:
             program = self.replace(candidate)
-            if not check_program(program, self.source_metadata) or not check_type(self.ctx, program, top):
+            if not check_program(program, self.source_metadata):
+                return False
+            prepared = prepare_candidate(candidate)
+            checking_program = self.replace(prepared) if prepared is not candidate else program
+            if not check_type(self.ctx, checking_program, top):
                 return False
             if not self.checks:
                 return True

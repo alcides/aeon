@@ -2,8 +2,10 @@
 
 The `synquid` backend implements the search rules in
 [Polikarpova, Kuraj and Solar-Lezama, PLDI 2016, §§3.2–3.7](https://cseweb.ucsd.edu/~npolikarpova/publications/pldi16.pdf),
-adapted to Aeon's core terms and verifier. Whole-program refinement and
-termination checking remains the final acceptance gate.
+adapted to Aeon's core terms and verifier. Construction discharges refinement
+and termination obligations before emitting candidates. Synquid does not rerun
+whole-program typechecking for each candidate; non-type specifications and
+objective evaluation still use the shared adapters.
 
 ## Search rules
 
@@ -20,8 +22,9 @@ metrics and pass the ordinary termination verifier.
 For a hole occupying a surface function's body, the backend recovers the enclosing
 schema, synthesizes a local function, and applies it to the existing parameters.
 This allows FIX and TABS without rewriting the outer declaration. Holes already
-inside `@allow_recursion` definitions retain access to that definition and its
-existing termination checks.
+inside `@allow_recursion` definitions receive recursive hypotheses weakened by
+the source's explicit termination metrics. Without a metric, recursive return
+refinements are erased as in the core checker.
 
 At scalar goals the engine enumerates elimination terms (variables, literals,
 and applications), checking partial applications as it constructs them. It tries
@@ -155,16 +158,20 @@ algorithm. Strengthening uses an incremental SMT solver with tracked qualifier
 assumptions and a fixed negated Horn head. Unsat cores seed MUS minimization;
 a MARCO Boolean map blocks supersets of MUSes and subsets of maximal satisfiable
 sets. Predicate-tagged selectors preserve alternative partitions of a MUS among
-unknowns. Implication checks remove semantically stronger valuations, including
-implications between whole conjunctions, while retaining incomparable alternatives.
+unknowns. Following §3.6, semantic minimization compares the valuations produced
+by MUS enumeration, including implications between whole conjunctions. There is
+no eager all-pairs implication ordering of the input qualifiers. Incomparable
+alternatives remain available to subsequent constraints.
 
 Qualifiers are sorted templates harvested from the specification and component
 types, instantiated over visible variables. They include Boolean predicates and
 datatype measures as well as integer relations. Neither qualifier count nor
 conjunction width has a synthesis-specific cap. The solver has no default
 256-query/valuation limit; SMT queries use the remaining synthesis deadline.
-Unknown or unsupported results do not justify logical rejection. Qualifier
-exhaustion is distinguished from a proof that no program exists.
+Unknown or unsupported results cannot certify a completed candidate. Partial
+applications may defer obligations until their arguments are known, but completed
+applications, leaves, and matches must discharge their construction proofs.
+Failure to certify a candidate is not a proof that no program exists.
 
 ## Bounds and compatibility
 

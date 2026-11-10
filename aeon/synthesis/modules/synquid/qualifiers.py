@@ -2,6 +2,7 @@
 
 from itertools import product
 
+from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.liquid import LiquidApp, LiquidVar, LiquidLiteralBool
 from aeon.core.substitutions import substitution_in_liquid, liquefy
 from aeon.core.types import (
@@ -59,7 +60,7 @@ def vocabulary(ctx, goal):
     collect(goal)
     visible = {
         n: base(t)
-        for n, t in ctx.concrete_vars()
+        for n, t in grammar_bindings(ctx)
         if not n.name.startswith("_sq_path") and isinstance(base(t), (TypeConstructor, TypeVar))
     }
     lc = lower_context(ctx)
@@ -119,7 +120,7 @@ def realize(ctx, guard):
     """Cheap executable atoms; other conditions become a synthesis subgoal."""
     if isinstance(guard, LiquidLiteralBool):
         return Literal(guard.value, t_bool)
-    if isinstance(guard, LiquidVar) and any(n == guard.name and base(t) == t_bool for n, t in ctx.concrete_vars()):
+    if isinstance(guard, LiquidVar) and any(n == guard.name and base(t) == t_bool for n, t in grammar_bindings(ctx)):
         return Var(guard.name)
     atoms = bool_terms_from_qualifier_atoms(ctx, frozenset({guard}), max_terms=None)
     for term in atoms:

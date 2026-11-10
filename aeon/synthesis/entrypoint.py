@@ -97,15 +97,26 @@ def _synthesis_dummy_literal(ty: Type) -> Term:
 
 
 def make_validator(
-    ctx: TypingContext, replace: Callable[[Term], Term], metadata: Metadata | None = None
+    ctx: TypingContext,
+    replace: Callable[[Term], Term],
+    metadata: Metadata | None = None,
+    *,
+    check_types: bool = True,
 ) -> Callable[[Term], bool]:
     def validate(candidate: Term) -> bool:
+        from aeon.synthesis.constructors import prepare_candidate
+
         prog = without_main_placeholder(replace(candidate))
         if metadata is not None:
             from aeon.synthesis.bounded_cnf import check_program
 
             if not check_program(prog, metadata):
                 return False
+        if not check_types:
+            return True
+        prepared = prepare_candidate(candidate)
+        if prepared is not candidate:
+            prog = without_main_placeholder(replace(prepared))
         return check_type(ctx, prog, Top())
 
     return validate
@@ -440,6 +451,9 @@ def _synthesize_one(
         elif len(tac_map) == 1:
             steps = tuple(next(iter(tac_map.values())))
     syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
+    tyctx = syn_impl.prepare_context(tyctx, prog, fun_name, synthesis_metadata)
+    if syn_impl.produces_typed_candidates:
+        validator = make_validator(ctx, replace, metadata, check_types=False)
 
     # Evaluate every candidate on a persistent worker pool. The backend
     # declares which computations it wants run per candidate (the objective
@@ -665,11 +679,16 @@ def _synthesize_joint(
         return result
 
     def validate_types(candidate: Term) -> bool:
+        from aeon.synthesis.constructors import prepare_candidate
+
         try:
             completed = replace(candidate)
         except InvalidIndividualException:
             return False
-        return check_program(completed, metadata) and check_type(ctx, completed, top)
+        if not check_program(completed, metadata):
+            return False
+        prepared = prepare_candidate(candidate)
+        return check_type(ctx, replace(prepared) if prepared is not candidate else completed, top)
 
     goals: list[Goal] = []
     for entry in metadata.values():
