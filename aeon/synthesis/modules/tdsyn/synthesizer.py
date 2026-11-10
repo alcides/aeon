@@ -38,6 +38,7 @@ from aeon.synthesis.modules.tdsyn.helpers import (
 )
 from aeon.synthesis.modules.tdsyn.constraints import deadline
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
+from aeon.synthesis.modules.tdsyn.bindings import open_abstraction
 from aeon.synthesis.modules.tdsyn.worklist import (
     Child,
     PartialAST,
@@ -76,9 +77,8 @@ def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, Typing
     var_names: list[Name] = []
 
     while isinstance(current_type, AbstractionType):
-        var_names.append(current_type.var_name)
-        current_ctx = current_ctx.with_var(current_type.var_name, current_type.var_type)
-        current_type = current_type.type
+        name, current_type, current_ctx = open_abstraction(current_type, current_ctx)
+        var_names.append(name)
 
     hole_path = tuple(Child.BODY for _ in var_names)
     inner_hole_term, inner_typed_hole = fresh_hole(current_type, current_ctx, path=hole_path)

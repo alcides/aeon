@@ -144,3 +144,21 @@ success rate or model-quality claim is made.
 * Expand existing grammars (constructor CSV schemas, classification trees, richer
   recurrence alternatives, and joint Contata optimization) separately from the
   specification adapters.
+
+## Grammar binding levels
+
+Native grammar search (including GP, random search, and TDSyn) uses
+`GrammarScope` and `BoundLevel` for its value-binding interface. Levels count
+from the outermost scope, so extending a scope does not shift existing
+references. Logical predicate binders occupy scope positions but cannot be
+selected as runtime values.
+
+The core AST and SMT/typechecking interfaces remain named. The grammar lowers
+levels to core variables and allocates fresh identities whenever it introduces
+a lambda or let binder. Opening a function signature also substitutes the fresh
+variable into its dependent result type. Distinct generated binders have
+distinct printable names when nested, preserving both outer-variable access
+and unambiguous printed source. This prevents repeated polymorphic library
+signatures (such as nested `Array.zipWith` callbacks) from reusing a binder's
+identity at incompatible types. Type errors in an individual native grammar
+expansion reject that expansion rather than aborting the search.
