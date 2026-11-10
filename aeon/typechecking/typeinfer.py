@@ -793,15 +793,15 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                             binder_ty = RefinedType(y, binder_ty.type, renamed)
                         outer_binders = outer_binders + ((y, binder_ty),)
                         t_subs = substitution_in_type(rtype, Var(y), aname)
-                    # cp may reference the function's lifted binders through
-                    # atype; wrap c0 in implications over them so those
-                    # references are bound when the constraint reaches SMT.
-                    # Argument-side binders propagate to the caller via the
-                    # existential type and get their implication wrap there
-                    # (e.g. in Let's opened_binders loop).
-                    c0: Constraint = conjoin(c, cp)
+                    # Only the current argument was checked under the lifted
+                    # binders. The function's earlier obligations must remain
+                    # outside their assumptions: an invalid earlier argument
+                    # can give its result an inconsistent refinement, which
+                    # must not make its own precondition vacuously true.
+                    c0: Constraint = cp
                     for bn, bt in reversed(fun_binders):
                         c0 = implication_constraint(bn, bt, c0, t.loc)
+                    c0 = conjoin(c, c0)
                     # Selfify uninformative result types so the value stays
                     # connected to the call that produced it (issue #378).
                     t_subs = _selfify_application_type(ctx_inner, t, t_subs)
