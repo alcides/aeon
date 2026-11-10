@@ -403,7 +403,7 @@ def test_non_numeric_hole_rejected():
 def test_hard_constraint_cannot_be_traded_for_a_better_objective():
     source = """
         def x : {v:Int | 0 <= v && v <= 5} := ?hx;
-        @require(x >= 3)
+        @example(x >= 3)
         @minimize_int(1000000 * x)
         def score : Int := 1000000 * x;
     """
@@ -413,7 +413,7 @@ def test_hard_constraint_cannot_be_traded_for_a_better_objective():
 def test_inconsistent_hard_constraint_has_no_solution():
     source = """
         def x : {v:Int | 0 <= v && v <= 1} := ?hx;
-        @require(x > 2)
+        @example(x > 2)
         def score : Int := 0;
     """
     assert all(value is None for value in _solve(_parse(source)).values())
@@ -422,7 +422,7 @@ def test_inconsistent_hard_constraint_has_no_solution():
 def test_native_boolean_hole_and_refinement():
     source = """
         def flag : {v:Bool | v} := ?flag;
-        @require(flag)
+        @example(flag)
         def score : Int := 0;
     """
     assert _values(_solve(_parse(source))) == {"flag": True}
@@ -431,7 +431,7 @@ def test_native_boolean_hole_and_refinement():
 def test_boolean_negation_in_hard_constraints():
     source = """
         def flag : Bool := ?flag;
-        @require(!flag)
+        @example(!flag)
         def score : Int := 0;
     """
     assert _values(_solve(_parse(source))) == {"flag": False}
@@ -461,7 +461,7 @@ def test_pure_recursive_adt_constraint_helpers_keep_holes_symbolic():
         def x : {v:Int | 0 <= v && v <= 4} := ?hx;
         def y : {v:Int | 0 <= v && v <= 4} := ?hy;
         def xs : (Vec Int) := Vec.cons x (Vec.cons y Vec.nil);
-        @require(Vec.allDifferent xs && Vec.sum xs = 3)
+        @example(Vec.allDifferent xs && Vec.sum xs = 3)
         @minimize_int(x)
         def score : Int := x;
     """
@@ -484,7 +484,7 @@ def test_fractional_coefficients_are_not_rounded_to_hole_grid():
     mapping = _solve(
         _parse("""
         def x : {v:Float | 0.0 <= v && v <= 0.002} := ?hx;
-        @require(x * 0.0005 = 0.000001)
+        @example(x * 0.0005 = 0.000001)
         @minimize_float(x)
         def benchmark : Float := x;
     """)
@@ -510,7 +510,7 @@ def test_balanced_adt_contains_individually_refined_holes():
         def choices : (DecisionTree Int) := DecisionTree.branch 1
             (DecisionTree.leaf (?hx : {v:Int | 10000 <= v && v <= 10001}))
             (DecisionTree.leaf (?hy : {v:Int | 2 <= v && v <= 3}));
-        @require((DecisionTree.intAt 0 choices) + (DecisionTree.intAt 1 choices) = 10003)
+        @example((DecisionTree.intAt 0 choices) + (DecisionTree.intAt 1 choices) = 10003)
         @minimize_int(DecisionTree.intAt 0 choices)
         def benchmark : Int := DecisionTree.intAt 0 choices;
     """)

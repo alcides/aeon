@@ -38,7 +38,7 @@ def test_pooled_checks_reuse_fitness_vector_and_refresh_for_each_candidate(monke
     with specifications("""
         import Array;
         @multi_minimize_int(native "[7, 8]", 2)
-        @require(f = 2)
+        @example(f = 2)
         @maximize_int(f)
         def f : {v:Int | 1 <= v && v <= 2} := ?h;
     """) as specs:
@@ -54,11 +54,11 @@ def test_pooled_checks_reuse_fitness_vector_and_refresh_for_each_candidate(monke
 def test_omitted_objective_still_enforces_hard_constraint():
     with specifications(
         """
-        @require(f = 2)
+        @example(f = 2)
         @maximize_int(f)
         def f : {v:Int | 1 <= v && v <= 2} := ?h;
     """,
-        omit_objectives=frozenset({"constraint"}),
+        omit_objectives=frozenset({"example"}),
     ) as specs:
         hole = specs.holes[0]
         assert not specs.validate(specs.candidate({hole: Literal(1, t_int)}))
@@ -73,7 +73,7 @@ def test_failed_fitness_does_not_hide_independent_constraint_result(monkeypatch)
 
     monkeypatch.setattr(fitness_eval, "measure_cputime", failed_measure)
     with specifications("""
-        @require(f = 2)
+        @example(f = 2)
         @minimize_cputime(f)
         def f : {v:Int | 1 <= v && v <= 2} := ?h;
     """) as specs:

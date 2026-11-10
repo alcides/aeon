@@ -47,6 +47,7 @@ from aeon.synthesis.api import (
 from aeon.synthesis.evaluation_pool import EvalPrimitives, EvaluationPool
 from aeon.synthesis.expression_size import make_size_evaluator
 from aeon.synthesis.fitness_eval import (
+    CandidateEvaluationCache,
     as_objective_vector,
     candidate_key,
     require_complete_program,
@@ -149,6 +150,10 @@ def _make_fitness(goal: Goal, ectx: EvaluationContext) -> Callable[[Term], list[
                 raw = measure_energy(lambda: eval(program_for_fitness, ectx))
             else:
                 raw = eval(program_for_fitness, ectx)
+            if goal.kind == "require":
+                if raw != 0:
+                    raise InvalidIndividualException("candidate violates @require")
+                return []
             return as_objective_vector(raw, goal.length)
         except InvalidIndividualException:
             raise
@@ -415,12 +420,14 @@ def _synthesize_one(
 
     evaluators = make_evaluators(ectx, fun_name, synthesis_metadata, property_evaluators, hole_program=prog)
     fitness_goals: list[Goal] = synthesis_metadata.get(fun_name, {}).get("goals", [])
+    runtime_cache = CandidateEvaluationCache() if any(g.kind == "require" for g in fitness_goals) else None
     bundled_fitness = make_bundled_fitness_evaluator(
         fitness_goals,
         _ectx_for_workers(ectx),
         fun_name,
         prog,
         property_evaluators if corpora else None,
+        runtime_cache=runtime_cache,
     )
     assert isinstance(tyctx, TypingContext)
     assert isinstance(ty, Type)
@@ -450,15 +457,23 @@ def _synthesize_one(
         bundled_fitness=bundled_fitness,
     )
     computations = syn_impl.computations(primitives)
-    check_specs = bool(fitness_goals) and not syn_impl.supports_optimization
-    if check_specs:
+    if not syn_impl.supports_optimization:
         require_checkable(fitness_goals, syn_impl)
-        checks = [g for g in fitness_goals if g.kind in CHECKABLE_GOALS]
-        check_specs = bool(checks)
-        if check_specs:
-            computations["specification"] = make_bundled_fitness_evaluator(
-                checks, _ectx_for_workers(ectx), fun_name, prog, property_evaluators if corpora else None
-            )
+    checks = [
+        g
+        for g in fitness_goals
+        if g.kind == "require" or (not syn_impl.supports_optimization and g.kind in CHECKABLE_GOALS)
+    ]
+    check_specs = bool(checks)
+    if check_specs:
+        computations["specification"] = make_bundled_fitness_evaluator(
+            checks,
+            _ectx_for_workers(ectx),
+            fun_name,
+            prog,
+            property_evaluators if corpora else None,
+            runtime_cache=runtime_cache,
+        )
     if syn_impl.supports_candidate_enumeration:
         computations["fitness"] = bundled_fitness
     pool = EvaluationPool(replace, computations, budget_eval=syn_impl.evaluation_timeout(budget_eval))
@@ -469,20 +484,20 @@ def _synthesize_one(
     from aeon.synthesis.bounded_cnf import bounds
 
     bounded = bool(bounds(metadata))
-    if bounded:
+    if bounded or any(g.kind == "require" for g in fitness_goals):
         # Enforce the contract even when a backend tries scoring before checking.
         raw_evaluator, raw_output = evaluator, output_evaluator
 
         def evaluator(candidate):
             if not validator(candidate):
-                raise InvalidIndividualException("candidate violates @bounded_cnf or its type")
+                raise InvalidIndividualException("candidate violates its type, @bounded_cnf or @require")
             return raw_evaluator(candidate)
 
         if raw_output is not None:
 
             def output_evaluator(candidate):
                 if not validator(candidate):
-                    raise InvalidIndividualException("candidate violates @bounded_cnf or its type")
+                    raise InvalidIndividualException("candidate violates its type, @bounded_cnf or @require")
                 return raw_output(candidate)
 
     # Example-driven (PBE) probe: evaluate a candidate body on a concrete
@@ -562,7 +577,7 @@ def _synthesize_one(
             output_value=output_evaluator,
         )
         if bounded and not validator(t):
-            raise SynthesisNotSuccessful("returned candidate violates @bounded_cnf or its type")
+            raise SynthesisNotSuccessful("returned candidate violates its type, @bounded_cnf or @require")
         # Interactive one-step tactics may intentionally leave subgoals. Every
         # complete result must pass the same oracle even if a backend skipped it.
         if (check_specs or components.definitions) and t is not None and not term_has_holes(t) and not validator(t):
@@ -715,15 +730,19 @@ def _synthesize_joint(
     anchor = targets[0][0]
     workers_ctx = _ectx_for_workers(ectx)
     properties = [make_property_fitness(corpus, workers_ctx, target=anchor) for corpus in corpora]
-    fitness = make_bundled_fitness_evaluator(goals, workers_ctx, anchor, prog, properties)
+    runtime_cache = CandidateEvaluationCache() if any(g.kind == "require" for g in goals) else None
+    fitness = make_bundled_fitness_evaluator(goals, workers_ctx, anchor, prog, properties, runtime_cache=runtime_cache)
     computations = {"fitness": fitness}
     validate: Callable[[Term], bool] = validate_types
     check_specs = bool(goals) and not getattr(
         synthesizer, "supports_joint_optimization", synthesizer.supports_optimization
     )
-    checks = [g for g in goals if g.kind in CHECKABLE_GOALS]
+    checks = [g for g in goals if g.kind == "require" or (check_specs and g.kind in CHECKABLE_GOALS)]
+    check_specs = bool(checks)
     if check_specs and checks:
-        computations["specification"] = make_bundled_fitness_evaluator(checks, workers_ctx, anchor, prog, properties)
+        computations["specification"] = make_bundled_fitness_evaluator(
+            checks, workers_ctx, anchor, prog, properties, runtime_cache=runtime_cache
+        )
     pool = None
     if isolated:
         # The complete search already runs in a killable worker; avoid nested pools.
@@ -744,12 +763,12 @@ def _synthesize_joint(
         if check_specs and checks:
             validate = checked_validator(validate_types, pool)
         evaluator, _ = _pool_backed(pool)
-    if bounded:
+    if bounded or any(g.kind == "require" for g in goals):
         raw_evaluator = evaluator
 
         def evaluator(candidate):
             if not validate(candidate):
-                raise InvalidIndividualException("candidate violates @bounded_cnf or its type")
+                raise InvalidIndividualException("candidate violates its type, @bounded_cnf or @require")
             return raw_evaluator(candidate)
 
     ui.start(ctx, ectx, "+".join(name.name for name in names), None, budget)
@@ -839,6 +858,21 @@ def synthesize_holes(
     siblings. ``constructor_names`` (data-constructor names) is forwarded to
     the ``@property`` runner used as a relational/k-safety acceptance oracle."""
 
+    # A single-hole search can evaluate objectives declared on a separate
+    # benchmark function by substituting its candidate into the full program.
+    if (
+        not isinstance(synthesizer, (ProgramSynthesizer, JointSynthesizer))
+        and len({hole for _, holes in targets for hole in holes}) == 1
+    ):
+        owner = next(function for function, holes in targets if holes)
+        owner_entry = dict(metadata.get(owner, {}))
+        goals = list(owner_entry.get("goals", []))
+        for entry in metadata.values():
+            for goal in entry.get("goals", []):
+                if goal.kind != "size" and goal not in goals:
+                    goals.append(goal)
+        metadata = dict(metadata) | {owner: owner_entry | {"goals": goals}}
+
     size_objectives = any(goal.kind == "size" for entry in metadata.values() for goal in entry.get("goals", []))
     if size_objectives and not (
         synthesizer.supports_optimization
@@ -857,7 +891,7 @@ def synthesize_holes(
     hard_constraints = any(goal.kind == "constraint" for entry in metadata.values() for goal in entry.get("goals", []))
     if hard_constraints and not getattr(synthesizer, "supports_hard_constraints", False):
         raise UnsupportedSynthesisGoal(
-            "@require needs a synthesizer supporting hard constraints (currently -s ortools)"
+            "Internal constraint goals need a synthesizer supporting hard constraints (currently -s ortools)"
         )
 
     from aeon.synthesis.modules.noisy import NoisySynthesizer
@@ -915,6 +949,10 @@ def synthesize_holes(
         and any(hs for _, hs in targets)
         and (
             len({h for _, hs in targets for h in hs}) > 1
+            or any(
+                entry.get("goals") and function not in {owner for owner, _ in targets}
+                for function, entry in metadata.items()
+            )
             or getattr(synthesizer, "requires_whole_program", False)
             or getattr(synthesizer, "requires_joint_obligations", False)
         )
