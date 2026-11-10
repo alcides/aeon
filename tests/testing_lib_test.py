@@ -143,3 +143,30 @@ def test_string_length_refinement_rejects_out_of_bounds_literal():
     Z3 string length makes `99 <= len "hello"` provably false, not unknown."""
     src = 'open String\ndef bad (_:Int) : String := slice "hello" 0 99;\n'
     assert _parse_errors(src) != []
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ('"" ","', ""),
+        ('"abc" ","', "abc"),
+        ('",a,," ","', ""),
+        ('"a::b" "::"', "a"),
+    ],
+)
+def test_string_split_guarantees_a_first_element(source, expected):
+    """The native split contract justifies indexing even when the input is empty."""
+    driver = AeonDriver(AeonConfig("none", SynthesisUI(), 0))
+    errors = driver.parse(
+        aeon_code=f"""
+        import String;
+        import Array;
+        def main (_:Int):String := Array.get (String.split {source}) 0;
+    """
+    )
+    assert errors == [], errors
+    assert driver.run() == expected
+
+
+def test_string_split_still_rejects_an_empty_separator():
+    assert _parse_errors('import String; import Array; def main (_:Int):Int := Array.length (String.split "abc" "");')
