@@ -18,7 +18,11 @@ from aeon.synthesis.bounded_cnf import check_program
 from aeon.synthesis.constructors import prepare_candidate
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.evaluation_pool import EvaluationPool, OK, TIMEOUT
-from aeon.synthesis.fitness_eval import make_bundled_fitness_evaluator, without_main_placeholder
+from aeon.synthesis.fitness_eval import (
+    CandidateEvaluationCache,
+    make_bundled_fitness_evaluator,
+    without_main_placeholder,
+)
 from aeon.synthesis.identification import get_holes, term_has_holes
 from aeon.synthesis.joint import JointCandidate
 from aeon.synthesis.modules.tdsyn.worklist import substitute_holes_map
@@ -88,14 +92,20 @@ class ProgramSpecifications:
         self.all_goals.extend(goal for goal in property_goals if goal not in self.all_goals)
         self.goals = [goal for goal in self.all_goals if goal.kind not in omit_objectives]
         self.checks = [
-            goal for goal in self.all_goals if goal.kind in hard_kinds or (properties_hard and goal.kind == "property")
+            goal
+            for goal in self.all_goals
+            if goal.kind == "require" or goal.kind in hard_kinds or (properties_hard and goal.kind == "property")
         ]
         self.name = Name("$program", 0)
         self.metadata = dict(metadata) | {self.name: {"goals": self.goals}}
 
+        runtime_cache = CandidateEvaluationCache() if any(g.kind == "require" for g in self.all_goals) else None
+
         def evaluator(goals):
             properties = [property_evaluators[goal.function] for goal in goals if goal.kind == "property"]
-            return make_bundled_fitness_evaluator(goals, workers_ctx, anchor, self.program, properties)
+            return make_bundled_fitness_evaluator(
+                goals, workers_ctx, anchor, self.program, properties, runtime_cache=runtime_cache
+            )
 
         self._fitness = evaluator(self.goals)
         self._checks = evaluator(self.checks)
@@ -189,11 +199,13 @@ class ProgramSpecifications:
                 status, scores = self._results(candidate).get("specification", ("error", None))
                 if status != OK or not isinstance(scores, list):
                     return False
-            return bool(scores) and all(score == 0 for score in scores)
+            return all(score == 0 for score in scores)
         except (InvalidIndividualException, TimeoutInEvaluationException):
             return False
 
     def evaluate(self, candidate: Term) -> list[float]:
+        if any(g.kind == "require" for g in self.all_goals) and not self.validate(candidate):
+            raise InvalidIndividualException("candidate violates its type or @require")
         if self.pool is None:
             return self._fitness(self.replace(candidate))
         status, scores = self._results(candidate).get("fitness", ("error", None))

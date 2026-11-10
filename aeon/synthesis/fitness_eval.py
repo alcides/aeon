@@ -117,13 +117,117 @@ def as_objective_vector(value: Any, length: int) -> list[float]:
         raise InvalidIndividualException()
 
 
+def _require_slice(program: Term, function: Name) -> Term:
+    """Evaluate only a requirement's dependencies, never unrelated objectives.
+
+    Names are already uniquely bound. Keeping whole mutual groups preserves
+    the interpreter's recursion environment when a requirement calls one.
+    """
+    bindings = []
+    node = program
+    while isinstance(node, (Let, Rec)):
+        bindings.append(node)
+        node = node.body
+    by_name = {binding.var_name: binding for binding in bindings}
+
+    def references(value):
+        if isinstance(value, Var):
+            yield value.name
+        elif isinstance(value, Term) and dataclasses.is_dataclass(value):
+            for field in dataclasses.fields(value):
+                yield from references(getattr(value, field.name))
+        elif isinstance(value, (tuple, list)):
+            for item in value:
+                yield from references(item)
+
+    needed = set()
+    pending = [function]
+    while pending:
+        name = pending.pop()
+        if name in needed or name not in by_name:
+            continue
+        needed.add(name)
+        binding = by_name[name]
+        pending.extend(references(binding.var_value))
+        group = getattr(binding, "mutual_group_id", None)
+        if group is not None:
+            pending.extend(b.var_name for b in bindings if getattr(b, "mutual_group_id", None) == group)
+    result: Term = Var(function)
+    for binding in reversed(bindings):
+        if binding.var_name in needed:
+            result = dataclasses.replace(binding, body=result)
+    return result
+
+
+class CandidateEvaluationCache:
+    """One candidate's runtime bindings, shared by checks and objective scoring.
+
+    Only the most recent program is retained. New candidates cannot inherit
+    values or failures from the previous candidate.
+    """
+
+    def __init__(self):
+        self.program: Term | None = None
+        self.context: EvaluationContext | None = None
+        self.values: dict[Name, Any] = {}
+        self.failures: set[Name] = set()
+
+    def evaluate(self, program: Term, suffix: Term, context: EvaluationContext, function: Name) -> Any:
+        if self.program is None or self.program != program:
+            self.program = program
+            self.context = context
+            self.values = {}
+            self.failures = set()
+        if function in self.failures:
+            raise InvalidIndividualException()
+        if function in self.values:
+            return self.values[function]
+        # Dependency slicing avoids executing unrelated objective helpers before
+        # requirements pass. Bindings already computed by another check/goal
+        # are reused from the same runtime environment.
+        node = _require_slice(suffix, function)
+        try:
+            while isinstance(node, (Let, Rec)):
+                group = getattr(node, "mutual_group_id", None)
+                if group is not None:
+                    members = []
+                    while isinstance(node, Rec) and node.mutual_group_id == group:
+                        members.append(node)
+                        node = node.body
+                    for member in members:
+                        if member.var_name not in self.values:
+                            group_term: Term = Var(member.var_name)
+                            for binding in reversed(members):
+                                group_term = dataclasses.replace(binding, body=group_term)
+                            self.values[member.var_name] = aeon_eval(group_term, self.context)
+                    for member in members:
+                        self.context = self.context.with_var(member.var_name, self.values[member.var_name])
+                    continue
+                if node.var_name not in self.values:
+                    self.values[node.var_name] = aeon_eval(
+                        dataclasses.replace(node, body=Var(node.var_name)), self.context
+                    )
+                    self.context = self.context.with_var(node.var_name, self.values[node.var_name])
+                node = node.body
+            if function not in self.values:
+                self.values[function] = aeon_eval(Var(function), self.context)
+            return self.values[function]
+        except Exception:
+            self.failures.add(function)
+            raise InvalidIndividualException()
+
+
 def _eval_goal(
     suffix: Term,
     prefix_ctx: EvaluationContext,
     goal: Goal,
 ) -> Any:
     """Evaluate one generated-helper goal against an already-extracted suffix."""
-    program_for_fitness = set_program_tail(suffix, Var(goal.function))
+    program_for_fitness = (
+        _require_slice(suffix, goal.function)
+        if goal.kind == "require"
+        else set_program_tail(suffix, Var(goal.function))
+    )
     try:
         if goal.kind == "cputime":
             return measure_cputime(lambda: aeon_eval(program_for_fitness, prefix_ctx))
@@ -161,6 +265,7 @@ def make_bundled_fitness_evaluator(
     fun_name: Name,
     prefix_prog: Term,
     property_evaluators: list[Callable[[Term], float]] | None = None,
+    runtime_cache: CandidateEvaluationCache | None = None,
 ) -> Callable[[Term], list[float]]:
     """Return one evaluator that scores every goal for a substituted program.
 
@@ -178,6 +283,8 @@ def make_bundled_fitness_evaluator(
     only their replacements are measured. Size-only scoring never evaluates
     program bindings.
     """
+    if runtime_cache is None and any(g.kind == "require" for g in goals):
+        runtime_cache = CandidateEvaluationCache()
     size_evaluators = {g.function: make_size_evaluator(prefix_prog, g.function) for g in goals if g.kind == "size"}
     needs_runtime = any(g.kind not in {"size", "property"} for g in goals)
     # A legacy per-hole caller may still have open siblings in its prefix.
@@ -201,9 +308,26 @@ def make_bundled_fitness_evaluator(
             candidate_ctx, suffix = prebind_prefix(prog, ectx, fun_name)
         else:
             candidate_ctx, suffix = prefix_ctx, extract_suffix(prog, fun_name)
-        expr_values = _collect_expression_goals(suffix, candidate_ctx, expr_functions) if expr_functions else {}
+        # Mandatory checks run before any objective evaluation and contribute
+        # no dimensions to the Pareto vector. Exceptions are candidate rejection.
+        for goal in goals:
+            if goal.kind == "require" and runtime_cache.evaluate(prog, suffix, candidate_ctx, goal.function) != 0:
+                raise InvalidIndividualException("candidate violates @require")
+        expr_values = (
+            {
+                goal.function: runtime_cache.evaluate(prog, suffix, candidate_ctx, goal.function)
+                for goal in goals
+                if goal.function in expr_functions
+            }
+            if runtime_cache is not None
+            else _collect_expression_goals(suffix, candidate_ctx, expr_functions)
+            if expr_functions
+            else {}
+        )
         scores: list[float] = []
         for goal in goals:
+            if goal.kind == "require":
+                continue
             if goal.kind == "size":
                 scores.extend(size_evaluators[goal.function](prog))
             elif goal.kind == "property":

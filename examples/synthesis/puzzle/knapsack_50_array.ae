@@ -1,0 +1,26 @@
+# Array version of knapsack_50.ae: the same 50 items and capacity 100.
+# The result is a stdlib Array of Boolean decisions in item order.
+# @require rejects candidates whose weight exceeds 100 after typechecking.
+# Only feasible candidates are scored by the value objective.
+# One hole: the synthesizer chooses the entire array expression and its structure.
+# Arrays are linear: each call to selection constructs a fresh array.
+# Example: python -m aeon -s gp --budget 60 examples/synthesis/puzzle/knapsack_50_array.ae
+import Array;
+import examples.synthesis.puzzle.knapsack_data as Data;
+
+def selected_value (used:Bool) (value:Int):Int :=
+    if used then value else 0;
+
+def selection (_:Unit): {a:(Array Bool) | Array.size a = 50} := ?solution;
+
+def total_weight (_:Unit):Int :=
+    Array.sum (Array.zipWith selected_value (selection unit) (Data.weights unit));
+
+def total_value (_:Unit):Int :=
+    Array.sum (Array.zipWith selected_value (selection unit) (Data.values unit));
+
+@require(total_weight unit <= 100)
+@maximize_int(total_value unit)
+def benchmark : Int := total_value unit;
+
+def main (_:Int): {a:(Array Bool) | Array.size a = 50} := selection unit;

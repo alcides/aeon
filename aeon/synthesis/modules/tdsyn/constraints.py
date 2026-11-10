@@ -10,10 +10,10 @@ import z3
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
 from aeon.core.substitutions import liquefy, substitution_in_liquid
 from aeon.core.terms import Term, Var
-from aeon.core.types import RefinedType, Type, t_unit
+from aeon.core.types import RefinedType, RefinementPolymorphism, Type, TypePolymorphism, t_unit
 from aeon.synthesis.grammar.nonterminals import ExpressionDomain
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, substitute_holes_map
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.typechecking.entailment import entailment_context
 from aeon.utils.name import Name, fresh_counter
 from aeon.verification.smt import flatten, translate
@@ -81,7 +81,18 @@ def obligations(
     if actual_type is not None:
         predicates.append(predicate_at(actual_type, value))
     expression = symbolic_term(replacement, children)
-    if expression is not None:
+    # Polymorphic runtime-only functions are not declared by entailment_context.
+    # Their instantiated return contract above is the sound abstraction for
+    # generation; inventing a logical application blocks scalar completion
+    # (e.g. Array.mk_repeat's length argument). Final type checking still checks
+    # the actual application, including all argument and result refinements.
+    runtime_polymorphic = isinstance(expression, LiquidApp) and any(
+        isinstance(entry, VariableBinder)
+        and entry.name == expression.fun
+        and isinstance(entry.type, (TypePolymorphism, RefinementPolymorphism))
+        for entry in hole.context.entries
+    )
+    if expression is not None and not runtime_polymorphic:
         predicates.append(LiquidApp(Name("==", 0), [value, expression]))
     return bindings, list(dict.fromkeys(p for p in predicates if p != LiquidLiteralBool(True)))
 

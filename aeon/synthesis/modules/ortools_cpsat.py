@@ -355,10 +355,13 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         # Keep the exact symbolic optimizer for one scalar objective. Runtime
         # metrics and independent objectives instead rank a stream of feasible
         # assignments through the same evaluator as grammar-based backends.
-        numeric_goals = [goal for goal in goals if goal.kind not in {"example", "constraint"}]
+        numeric_goals = [goal for goal in goals if goal.kind not in {"example", "constraint", "require"}]
         runtime = (
             len(numeric_goals) > 1
-            or any(goal.kind in {"size", "cputime", "energy", "property"} or goal.length != 1 for goal in goals)
+            or any(
+                goal.kind in {"size", "cputime", "energy", "property"} or (goal.length != 1 and goal.kind != "require")
+                for goal in goals
+            )
             or any("property" in entry for entry in metadata.values())
         )
         base_model = self._model.clone()
@@ -367,7 +370,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         # minimisation (negate maximise) and align scales before summing.
         oriented: list[_Num] = []
         for goal in goals:
-            if goal.kind in {"size", "cputime", "energy", "property"} or goal.length != 1:
+            if goal.kind in {"size", "cputime", "energy", "property"} or (goal.length != 1 and goal.kind != "require"):
                 continue
             body = self._def_bodies.get(goal.function)
             if body is None:
@@ -389,7 +392,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
                 runtime = True
                 oriented = []
                 break
-            if goal.kind in ("constraint", "example"):
+            if goal.kind in ("constraint", "example", "require"):
                 self._model.add(value.expr == 0)
                 continue
             oriented.append(value if goal.minimize else _Num(-value.expr, value.scale, -value.hi, -value.lo))

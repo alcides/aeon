@@ -71,7 +71,7 @@ def test_entire_joint_run_is_contained(monkeypatch, phase):
 
         monkeypatch.setattr(entrypoint, "check_type", final_check)
     else:
-        monkeypatch.setattr(entrypoint, "make_bundled_fitness_evaluator", lambda *args: block)
+        monkeypatch.setattr(entrypoint, "make_bundled_fitness_evaluator", lambda *args, **kwargs: block)
 
     started = monotonic()
     with pytest.raises(BoundedBooleanFailure) as exc:

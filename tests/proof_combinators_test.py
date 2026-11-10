@@ -8,6 +8,7 @@ import pytest
 from aeon.errors import LiquidTypeCheckingFailedRelation
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
+from aeon.verification.state import VerificationState
 
 ROOT = Path(__file__).resolve().parents[1] / "examples/benchmarks/equational_reasoning"
 
@@ -28,7 +29,10 @@ def test_paper_proofs_and_runtime_examples(tmp_path):
     # validity and execution, not solver speed: every obligation must still be
     # proved, and UNKNOWN must still fail the assertions below.
     driver, errors = compile_source(tmp_path, (ROOT / "Paper.ae").read_text(), no_main=False, smt_timeout_ms=5_000)
-    assert not errors, errors
+    assert not errors, (
+        errors,
+        [reason for status, reason in driver.session.state(VerificationState).statuses.values() if status == "unknown"],
+    )
     assert not driver.has_synth(), "Every proof must be complete, with no synthesis holes"
     assert driver.run() == 42
 

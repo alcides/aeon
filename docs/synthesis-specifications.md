@@ -145,6 +145,26 @@ success rate or model-quality claim is made.
   recurrence alternatives, and joint Contata optimization) separately from the
   specification adapters.
 
+## Mandatory runtime requirements
+
+`@require(condition)` is a mandatory candidate validation check. After
+successful typechecking, the condition is evaluated before scoring objectives.
+A false condition, evaluation error, or timeout rejects the candidate; search
+continues with other candidates. Requirements add no fitness dimensions and
+cannot trade off against minimize/maximize objectives or enter the Pareto front
+as violations. This shared validation applies to GP, random search, TDSyn,
+Synquid, and complete-program backends. OR-Tools can additionally encode a
+translatable requirement in its constraint model. Existing backend restrictions
+on types and search spaces still apply.
+
+Requirements and expression objectives share a runtime environment for each
+candidate. A top-level value needed by several checks or scores is computed
+once and reused, including between validation and scoring callbacks. Cached
+values and failures are discarded when the candidate changes. This reuses
+bindings, not arbitrary repeated function calls; factor an expensive common
+result into a shared value to reuse it. CPU-time and energy objectives retain
+their independent measured executions.
+
 ## Grammar binding levels
 
 Native grammar search (including GP, random search, and TDSyn) uses

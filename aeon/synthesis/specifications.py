@@ -13,7 +13,7 @@ from aeon.synthesis.decorators import Goal
 from aeon.synthesis.evaluation_pool import EvaluationPool, OK
 
 
-CHECKABLE_GOALS = frozenset({"example", "csv", "property", "constraint"})
+CHECKABLE_GOALS = frozenset({"example", "csv", "property", "constraint", "require"})
 
 
 def require_checkable(goals: list[Goal], backend: object) -> None:
@@ -40,6 +40,6 @@ def checked_validator(
         if not validate(candidate):
             return False
         status, scores = pool.run(candidate).get(computation, ("error", None))
-        return status == OK and isinstance(scores, list) and bool(scores) and all(score == 0 for score in scores)
+        return status == OK and isinstance(scores, list) and all(score == 0 for score in scores)
 
     return checked

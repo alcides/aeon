@@ -68,6 +68,12 @@ jobs:
 
   full-suite:
     runs-on: ubuntu-latest
+    # pytest already runs four workers; keep native numeric libraries from
+    # creating another full thread pool in each worker and starving SMT calls.
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
     # Keep this exhaustive, but do not trace every library/synthesis operation.
     # Coverage has its own bounded trusted-core job below.
     timeout-minutes: 90
@@ -129,7 +135,7 @@ jobs:
       - if: matrix.backend == 'ortools'
         run: |
           uv pip install -e ".[synthesis-ortools]"
-          uv run pytest tests/ortools_cpsat_test.py tests/cpsat_lists_test.py tests/knapsack_50_test.py::test_synthesis_returns_50_boolean_nodes_with_optimal_value tests/program_specifications_test.py tests/hakank_cp_examples_test.py tests/hakank_flatzinc_test.py tests/hakank_domains_test.py tests/hakank_algorithmic_test.py tests/hakank_manual_test.py tests/hakank_variants_test.py tests/hakank_globals_test.py -q --junitxml=optional-results.xml
+          uv run pytest tests/ortools_cpsat_test.py tests/cpsat_lists_test.py tests/knapsack_50_test.py::test_synthesis_returns_50_boolean_nodes_with_optimal_value tests/program_specifications_test.py tests/require_validation_test.py tests/hakank_cp_examples_test.py tests/hakank_flatzinc_test.py tests/hakank_domains_test.py tests/hakank_algorithmic_test.py tests/hakank_manual_test.py tests/hakank_variants_test.py tests/hakank_globals_test.py -q --junitxml=optional-results.xml
       - if: matrix.backend == 'torch'
         run: |
           uv pip install torch --index-url https://download.pytorch.org/whl/cpu

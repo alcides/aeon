@@ -30,6 +30,8 @@ class Goal(NamedTuple):
     # ``"example"`` and ``"csv"`` preserve the source of zero-target error
     # goals, so satisfaction backends can validate them without guessing what
     # value an arbitrary optimization expression is supposed to attain.
+    # "require" is a mandatory runtime check with length zero: no objective
+    # dimension, and rejection on a nonzero violation helper result.
     kind: str = "expression"
 
 
@@ -151,16 +153,10 @@ def require(
     fun: Definition,
     metadata: Metadata,
 ) -> tuple[Definition, list[Definition], Metadata]:
-    """A hard Boolean synthesis constraint, currently supported by CP-SAT.
-
-    Keep the helper numeric so existing goal metadata, display, and evaluator
-    protocols remain valid. A supporting backend requires its value to be zero,
-    independently of the optimization objective. Unsupported backends reject
-    this goal explicitly rather than treating it as a weighted penalty.
-    """
+    """Reject candidates failing this runtime check; add no fitness component."""
     assert len(decorator.macro_args) == 1, "require expects one Boolean expression"
     violation = SIf(decorator.macro_args[0], SLiteral(0, st_int), SLiteral(1, st_int))
-    return make_optimizer([violation], fun, metadata, st_int, minimize=True, kind="constraint")
+    return make_optimizer([violation], fun, metadata, st_int, minimize=True, length=0, kind="require")
 
 
 def maximize_int(
