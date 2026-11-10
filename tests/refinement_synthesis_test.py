@@ -103,7 +103,9 @@ def test_synthesizes_identity_under_abstract_predicate(backend):
         evaluate=lambda _: [],
         fun_name=owner,
         metadata={},
-        budget=3,
+        # This checks predicate preservation, not a three-second performance
+        # target. Parallel CI workers share a small CPU allocation.
+        budget=30,
         ui=SilentSynthesisUI(),
     )
     # Equivalent identities such as x / 1 are also valid synthesis results.

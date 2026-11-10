@@ -114,7 +114,10 @@ def test_generated_logical_predicate_is_accepted_only_at_an_erased_boundary():
     hole = initial.holes[0]
     term, children = next(c for c in backward_app_candidates(hole, lambda _: False) if head(c[0]) == P)
     partial = expand_at_hole(initial, hole, term, children, 1)
-    term, children = next(c for c in backward_close_candidates(partial.holes[0], lambda _: False) if c[0] == Var(ARG))
+    assert isinstance(initial.term, Abstraction)
+    term, children = next(
+        c for c in backward_close_candidates(partial.holes[0], lambda _: False) if c[0] == Var(initial.term.var_name)
+    )
     predicate = expand_at_hole(partial, partial.holes[0], term, children, 1).term
     assert check_type(ctx, Application(RefinementApplication(Var(function), predicate), Var(X)), actual)
 

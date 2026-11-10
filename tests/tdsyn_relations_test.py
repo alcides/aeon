@@ -20,8 +20,8 @@ DUO = """
 """
 
 
-def _driver(source, backend="tdsyn"):
-    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), 10))
+def _driver(source, backend="tdsyn", budget=10):
+    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), budget))
     assert not driver.parse(aeon_code=source)
     assert driver.has_synth()
     return driver
@@ -195,7 +195,10 @@ def test_goal_relation_can_reference_a_function_parameter():
         + """
         def pair (limit:Int):(Duo Int){|fun x => fun y => y = limit|} := ?pair;
         def main (u:Int):(Duo Int){|fun x => fun y => y = 7|} := pair 7;
-    """
+    """,
+        # Solving a relation under a lexical parameter exercises several
+        # refinement checks; allow CPU contention in the full CI suite.
+        budget=60,
     )
     driver.synth()
     assert driver.run()[2] == 7
