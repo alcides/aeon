@@ -19,7 +19,10 @@ from aeon.utils.name import Name
     + [("tdsyn_enumerative", 12, 42)],
 )
 def test_synthesize_exact_list_length(backend, length, first):
-    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), 20))
+    # The larger, doubly refined case takes nearly 20 seconds even in isolation.
+    # This checks synthesis and runtime structure, not latency under CI contention.
+    budget = 120 if first is not None else 20
+    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), budget))
     refinement = f"List.size xs = {length}"
     if first is not None:
         refinement += f" && List.first xs = {first}"

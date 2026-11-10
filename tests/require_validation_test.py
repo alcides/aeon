@@ -11,7 +11,13 @@ from tests.joint_hole_synthesis_test import parse
 BACKENDS = ["gp", "random_search", "tdsyn_backward", "tdsyn_enumerative", "tdsyn_random", "synquid", "ortools"]
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.fixture(params=BACKENDS)
+def backend(request):
+    if request.param == "ortools":
+        pytest.importorskip("ortools")
+    return request.param
+
+
 @pytest.mark.parametrize("external", [False, True])
 def test_require_rejects_false_candidates(backend, external):
     declaration = "def f : {v:Int | 0 <= v && v <= 1} := ?h;"
@@ -20,7 +26,6 @@ def test_require_rejects_false_candidates(backend, external):
     assert list(result.values()) == [Literal(1, t_int)]
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
 def test_false_requirement_has_no_solution(backend):
     try:
         result = solve("@require(false) def f : {v:Int | v = 0} := ?h;", make_synthesizer(backend), budget=1)
