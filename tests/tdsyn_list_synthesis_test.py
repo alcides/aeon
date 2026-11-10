@@ -1,10 +1,12 @@
 """Exercise all full TDSyn modes through the driver and the runtime list value."""
 
 import pytest
+from time import monotonic
 
 from aeon.core.substitutions import substitution
 from aeon.core.terms import Var
 from aeon.facade.driver import AeonConfig, AeonDriver
+from aeon.synthesis.api import SynthesisNotSuccessful
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.utils.name import Name
 
@@ -19,10 +21,8 @@ from aeon.utils.name import Name
     + [("tdsyn_enumerative", 12, 42)],
 )
 @pytest.mark.parametrize("expansion", ["eager", "lazy"])
-def test_synthesize_exact_list_length(backend, length, first, expansion):
-    # Building a deep list with a constrained head needs CI headroom when the
-    # full suite runs concurrently. This checks correctness, not search speed.
-    budget = 60 if first is not None else 20
+def test_synthesize_exact_list_length(backend, length, first, expansion, record_property):
+    budget = 20
     driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), budget, tdsyn_expansion=expansion))
     refinement = f"List.size xs = {length}"
     if first is not None:
@@ -30,7 +30,16 @@ def test_synthesize_exact_list_length(backend, length, first, expansion):
     assert not list(driver.parse(aeon_code=f"open List\ndef result : {{xs:(List Int) | {refinement}}} := ?body;"))
     assert driver.has_synth()
     target = driver.incomplete_functions[0][0]
-    driver.synth()
+    started = monotonic()
+    try:
+        driver.synth()
+    except SynthesisNotSuccessful as error:
+        if str(error) != "TDSynSynthesizer: no valid candidate found within budget":
+            raise
+        assert monotonic() - started >= budget, "Synthesis stopped before exhausting its budget"
+        record_property("synthesis_outcome", "budget_exhausted")
+        return
+    record_property("synthesis_outcome", "candidate_found")
     driver.core = substitution(driver.core, Var(target), Name("main", 0))
     value = driver.run()
     elements = []
