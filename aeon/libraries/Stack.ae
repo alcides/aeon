@@ -8,9 +8,9 @@ linear type Stack a
 
 # Opaque tokens so ``pop`` / ``peek`` / ``len_of`` can return a value and the
 # recovered stack without breaking linearity.
-type StackPop a
-type StackPeek a
-type StackLen a
+linear type StackPop a
+linear type StackPeek a
+linear type StackLen a
 
 def stack_size : (s: (Stack a)) -> Int := uninterpreted
 def pop_size : (p: (StackPop a)) -> Int := uninterpreted
@@ -32,10 +32,10 @@ def pop (1 s: {st: (Stack a) | stack_size st > 0}) :
     {p: (StackPop a) | pop_size p = stack_size s - 1} :=
     native "__import__('aeon.bindings.stack_deque', fromlist=['stack_pop']).stack_pop(s)"
 
-def pop_value (p: (StackPop a)) : a :=
+def pop_value (1 p: (StackPop a)) : a :=
     native "p[0]"
 
-def pop_stack (p: (StackPop a)) :
+def pop_stack (1 p: (StackPop a)) :
     {s: (Stack a) | stack_size s = pop_size p} :=
     native "p[1]"
 
@@ -44,10 +44,10 @@ def peek (1 s: {st: (Stack a) | stack_size st > 0}) :
     {p: (StackPeek a) | peek_size p = stack_size s} :=
     native "__import__('aeon.bindings.stack_deque', fromlist=['stack_peek']).stack_peek(s)"
 
-def peek_value (p: (StackPeek a)) : a :=
+def peek_value (1 p: (StackPeek a)) : a :=
     native "p[0]"
 
-def peek_stack (p: (StackPeek a)) :
+def peek_stack (1 p: (StackPeek a)) :
     {s: (Stack a) | stack_size s = peek_size p} :=
     native "p[1]"
 
@@ -56,14 +56,29 @@ def len_of (1 s: (Stack a)) :
     {l: (StackLen a) | held_size l = stack_size s} :=
     native "(len(s), s)"
 
-def len_value (l: (StackLen a)) :
+def len_value (1 l: (StackLen a)) :
     {n: Int | n = held_size l && n >= 0} :=
     native "l[0]"
 
-def len_stack (l: (StackLen a)) :
+def len_stack (1 l: (StackLen a)) :
     {s: (Stack a) | stack_size s = held_size l} :=
     native "l[1]"
 
 # Drop an empty stack.
 def discard (1 s: {st: (Stack a) | stack_size st = 0}) : Unit :=
     native "None"
+
+# Consume the token once and pass both observations to a linear continuation.
+def with_pop (1 token:(StackPop a))
+    (1 consume:(value:a) -> (1 handle:{h:(Stack a) | stack_size h = pop_size token}) -> b) : b :=
+    native "consume(token[0])(token[1])"
+
+# Consume the token once and pass both observations to a linear continuation.
+def with_peek (1 token:(StackPeek a))
+    (1 consume:(value:a) -> (1 handle:{h:(Stack a) | stack_size h = peek_size token}) -> b) : b :=
+    native "consume(token[0])(token[1])"
+
+# Consume the token once and pass both observations to a linear continuation.
+def with_len (1 token:(StackLen a))
+    (1 consume:(value:{n:Int | n = held_size token && n >= 0}) -> (1 handle:{h:(Stack a) | stack_size h = held_size token}) -> b) : b :=
+    native "consume(token[0])(token[1])"

@@ -58,7 +58,7 @@ def test_export_keeps_native_import_even_if_not_referenced_in_ast():
     # be force-included for the export to be runnable.
     src = 'def math : Unit := native_import "math";\ndef sq (x:Float) : Float := native "math.sqrt(x)";\n'
     code = _export(src, "sq")
-    assert "math = __import__('math')" in code
+    assert "math = _aeon_builtins.__import__('math')" in code
     ns: dict = {}
     exec(code, ns)
     assert ns["sq"](16.0) == 4.0
@@ -133,6 +133,54 @@ def test_export_unknown_function_raises():
     assert list(driver.parse(filename=None, aeon_code=src)) == []
     with pytest.raises(PythonExportError):
         driver.export("nonexistent")
+
+
+def test_export_preserves_shadowed_top_level_binding():
+    source = """
+    def x:Int := 1;
+    def f(y:Int):Int := x + y;
+    def x:Int := 2;
+    def result(z:Int):Int := f z + x;
+    """
+    assert _run(source, "result")(0) == 3
+
+
+def test_export_selects_latest_definition_without_rebinding_older_closures():
+    source = """
+    def f(x:Int):Int := x + 1;
+    def old(x:Int):Int := f x;
+    def f(x:Int):Int := old x + 1;
+    """
+    assert _run(source, "f")(0) == 2
+
+
+@pytest.mark.parametrize("operator,left", [("&&", "false"), ("||", "true"), ("-->", "false")])
+def test_export_evaluates_boolean_rhs_once(operator, left, capsys):
+    source = f"""
+    def side(u:Int):Bool := native "(print(99), True)[1]";
+    def f(u:Int):Bool := {left} {operator} side u;
+    """
+    _run(source, "f")(0)
+    assert capsys.readouterr().out == "99\n"
+
+
+@pytest.mark.parametrize("expression", ["double(x)", "globals()['double'](x)"])
+def test_export_bundles_native_function_dependencies(expression):
+    source = f'''
+    def double(x:Int):Int := x + x;
+    def f(x:Int):Int := native "{expression}";
+    '''
+    assert _run(source, "f")(5) == 10
+
+
+def test_export_native_names_resolve_in_the_original_lexical_scope():
+    source = """
+    def x:Int := 1;
+    def f(y:Int):Int := let z := y + 1 in native "x + z";
+    def x:Int := 20;
+    def result(x:Int):Int := f x + x;
+    """
+    assert _run(source, "result")(3) == 8
 
 
 # --- Cross-check: exported Python matches the Aeon interpreter ---------------

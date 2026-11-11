@@ -5,9 +5,9 @@
 
 linear type Deque a
 
-type DequePop a
-type DequePeek a
-type DequeLen a
+linear type DequePop a
+linear type DequePeek a
+linear type DequeLen a
 
 def deque_size : (d: (Deque a)) -> Int := uninterpreted
 def pop_size : (p: (DequePop a)) -> Int := uninterpreted
@@ -35,10 +35,10 @@ def pop_front (1 d: {q: (Deque a) | deque_size q > 0}) :
     {p: (DequePop a) | pop_size p = deque_size d - 1} :=
     native "__import__('aeon.bindings.stack_deque', fromlist=['deque_pop_front']).deque_pop_front(d)"
 
-def pop_value (p: (DequePop a)) : a :=
+def pop_value (1 p: (DequePop a)) : a :=
     native "p[0]"
 
-def pop_deque (p: (DequePop a)) :
+def pop_deque (1 p: (DequePop a)) :
     {d: (Deque a) | deque_size d = pop_size p} :=
     native "p[1]"
 
@@ -50,10 +50,10 @@ def peek_front (1 d: {q: (Deque a) | deque_size q > 0}) :
     {p: (DequePeek a) | peek_size p = deque_size d} :=
     native "__import__('aeon.bindings.stack_deque', fromlist=['deque_peek_front']).deque_peek_front(d)"
 
-def peek_value (p: (DequePeek a)) : a :=
+def peek_value (1 p: (DequePeek a)) : a :=
     native "p[0]"
 
-def peek_deque (p: (DequePeek a)) :
+def peek_deque (1 p: (DequePeek a)) :
     {d: (Deque a) | deque_size d = peek_size p} :=
     native "p[1]"
 
@@ -61,13 +61,28 @@ def len_of (1 d: (Deque a)) :
     {l: (DequeLen a) | held_size l = deque_size d} :=
     native "(len(d), d)"
 
-def len_value (l: (DequeLen a)) :
+def len_value (1 l: (DequeLen a)) :
     {n: Int | n = held_size l && n >= 0} :=
     native "l[0]"
 
-def len_deque (l: (DequeLen a)) :
+def len_deque (1 l: (DequeLen a)) :
     {d: (Deque a) | deque_size d = held_size l} :=
     native "l[1]"
 
 def discard (1 d: {q: (Deque a) | deque_size q = 0}) : Unit :=
     native "None"
+
+# Consume the token once and pass both observations to a linear continuation.
+def with_pop (1 token:(DequePop a))
+    (1 consume:(value:a) -> (1 handle:{h:(Deque a) | deque_size h = pop_size token}) -> b) : b :=
+    native "consume(token[0])(token[1])"
+
+# Consume the token once and pass both observations to a linear continuation.
+def with_peek (1 token:(DequePeek a))
+    (1 consume:(value:a) -> (1 handle:{h:(Deque a) | deque_size h = peek_size token}) -> b) : b :=
+    native "consume(token[0])(token[1])"
+
+# Consume the token once and pass both observations to a linear continuation.
+def with_len (1 token:(DequeLen a))
+    (1 consume:(value:{n:Int | n = held_size token && n >= 0}) -> (1 handle:{h:(Deque a) | deque_size h = held_size token}) -> b) : b :=
+    native "consume(token[0])(token[1])"

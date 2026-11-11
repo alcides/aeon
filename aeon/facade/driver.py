@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Iterable, Callable, Concatenate, ParamSpec, TypeVar
 from functools import wraps
 
@@ -58,6 +58,8 @@ class AeonConfig:
     cache_limit: int = 1024
     check_only: bool = False
     tdsyn_expansion: str = "eager"
+    # Editor buffers are snapshotted per request; they never update disk caches.
+    source_overrides: dict[str, str] = field(default_factory=dict)
 
 
 P = ParamSpec("P")
@@ -84,7 +86,10 @@ class AeonDriver:
         self.session = self._new_session()
 
     def _new_session(self) -> CompilationSession:
-        return CompilationSession(CompilationOptions(self.cfg.smt_timeout_ms, self.cfg.cache_limit))
+        return CompilationSession(
+            CompilationOptions(self.cfg.smt_timeout_ms, self.cfg.cache_limit),
+            source_overrides=self.cfg.source_overrides.copy(),
+        )
 
     def parse(self, filename: str = None, aeon_code: str = None) -> Iterable[AeonError]:
         self.session = self._new_session()

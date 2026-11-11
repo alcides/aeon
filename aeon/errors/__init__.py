@@ -24,10 +24,22 @@ from aeon.verification.vcs import Constraint
 from aeon.verification.helpers import pretty_print_constraint
 
 
+def _restore_error(cls, args, state):
+    error = Exception.__new__(cls, *args)
+    error.__dict__.update(state)
+    return error
+
+
 class AeonError(Exception):
     def __str__(self) -> str: ...
 
     def position(self) -> Location: ...
+
+    def __reduce__(self):
+        # Dataclass errors are often constructed with keywords, leaving
+        # Exception.args empty. Worker transport must restore their fields
+        # without invoking the dataclass constructor with missing arguments.
+        return _restore_error, (type(self), self.args, self.__dict__)
 
 
 class TypeClassError(AeonError):

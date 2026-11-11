@@ -91,3 +91,37 @@ def test_liquid_eval_uses_uninterpreted_dict():
     pred = LiquidApp(head, [LiquidVar(Name("x", 0)), LiquidLiteralInt(1)])
     with pytest.raises(UninterpretedInLiquid):
         eval_liquid_bool(pred, {Name("x", 0): [1.0]}, uninterpreted=uninterpreted, runtime={})
+
+
+@pytest.mark.parametrize("result", ["i - 10", "i + j - 1"])
+def test_dependent_return_contract_remembers_all_arguments(result):
+    source = f'''
+    def bad(i:Int)(j:Int):{{v:Int | v > i + j}} := native "{result}";
+    def main(u:Int):Int := bad 5 3;
+    '''
+    with pytest.raises(ContractViolationError) as exc:
+        _driver(source, contracts=True).run()
+    assert exc.value.blame == "callee"
+
+
+def test_curried_contract_captures_each_partial_application_independently():
+    from aeon.backend.contracts import ContractState, wrap_callable
+    from aeon.core.parser import parse_type
+
+    ty = parse_type("(x:Int) -> (y:{v:Int | v > x}) -> {r:Int | r > x}")
+    fn = wrap_callable(lambda x: lambda y: y, ty, Name("f", 0), ContractState({}, {}, {}))
+    low, high = fn(1), fn(10)
+    assert low(5) == 5
+    with pytest.raises(ContractViolationError) as exc:
+        high(5)
+    assert exc.value.blame == "caller"
+
+
+def test_return_contract_can_read_lexical_environment():
+    source = """
+    def limit:Int := 10;
+    def bad(i:Int):{v:Int | v > limit} := native "i";
+    def main(u:Int):Int := bad 5;
+    """
+    with pytest.raises(ContractViolationError):
+        _driver(source, contracts=True).run()

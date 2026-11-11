@@ -18,6 +18,8 @@ per-task timeout kills and replaces its worker.
 from __future__ import annotations
 
 import dataclasses
+import os
+from time import monotonic
 from typing import Any, Callable, Optional
 
 import multiprocess as mp
@@ -118,10 +120,10 @@ def _worker_main(static: tuple, task_q: Any, result_q: Any) -> None:
             prog = without_main_placeholder(replace(candidate))
             require_complete_program(prog)
         except InvalidIndividualException:
-            result_q.put((cid, {name: (INVALID, None) for name in computations}))
+            result_q.put((cid, monotonic(), {name: (INVALID, None) for name in computations}))
             continue
         except Exception as exc:
-            result_q.put((cid, {name: (ERROR, f"{type(exc).__name__}: {exc}") for name in computations}))
+            result_q.put((cid, monotonic(), {name: (ERROR, f"{type(exc).__name__}: {exc}") for name in computations}))
             continue
         out: dict[str, tuple[str, Any]] = {}
         for name, comp in computations.items():
@@ -135,7 +137,7 @@ def _worker_main(static: tuple, task_q: Any, result_q: Any) -> None:
                 out[name] = (INVALID, None)
             except Exception as e:  # noqa: BLE001 — any failure means "no value here"
                 out[name] = (ERROR, f"{type(e).__name__}: {e}")
-        result_q.put((cid, out))
+        result_q.put((cid, monotonic(), out))
 
 
 @dataclasses.dataclass
@@ -155,28 +157,41 @@ def _kill_process(proc: Any) -> None:
             proc.join(timeout=1)
         if proc.is_alive():
             proc.kill()
-            proc.join(timeout=1)
+        proc.join(timeout=1)
     except Exception:
         pass
 
 
 def _close_queues(*queues: Any) -> None:
-    """Close multiprocess queues and join their feeder threads.
+    """Discard pending writes after the worker has stopped, without hanging.
 
-    Leaving queues open after a recycle leaks feeder threads in the parent; a
-    later fork-based ``Process.start`` can then deadlock.
+    A dead reader leaves the task feeder blocked on a full pipe. Drain raw
+    bytes (never the queue's read lock, which a killed worker may hold) until
+    the feeder exits. Bound cleanup even if serialization itself is stuck.
+    These private handles belong to the fork-only multiprocess transport.
     """
     for q in queues:
         if q is None:
             continue
         try:
+            q.cancel_join_thread()
             q.close()
+            feeder = q._thread
+            deadline = monotonic() + 1.0
+            while feeder is not None and feeder.is_alive() and monotonic() < deadline:
+                if q._reader.poll(0.01):
+                    if not os.read(q._reader.fileno(), 65536):
+                        break
+                else:
+                    feeder.join(timeout=0.01)
         except Exception:
             pass
-        try:
-            q.join_thread()
-        except Exception:
-            pass
+        finally:
+            for connection in (q._reader, q._writer):
+                try:
+                    connection.close()
+                except OSError:
+                    pass
 
 
 class EvaluationPool:
@@ -196,6 +211,9 @@ class EvaluationPool:
 
     def _spawn(self) -> _Worker:
         task_q, result_q = _CTX.Queue(), _CTX.Queue()
+        # Discarding an abandoned task can close its pipe while the feeder is
+        # still finishing serialization. That is expected during hard teardown.
+        task_q._ignore_epipe = True
         proc = _CTX.Process(target=_worker_main, args=(self._static, task_q, result_q), daemon=True)
         proc.start()
         return _Worker(proc, task_q, result_q)
@@ -217,15 +235,18 @@ class EvaluationPool:
         and its term reported as a timeout for every computation."""
         results: list[dict[str, tuple[str, Any]]] = [self._timeout() for _ in terms]
         for base in range(0, len(terms), self._n):
-            dispatched: list[tuple[int, _Worker]] = []
+            dispatched: list[tuple[int, int, _Worker, float]] = []
             for offset, term in enumerate(terms[base : base + self._n]):
                 w = self._workers[offset]
                 self._counter += 1
+                deadline = monotonic() + self._budget + 1.0
                 w.task_q.put((self._counter, term))
-                dispatched.append((base + offset, w))
-            for idx, w in dispatched:
+                dispatched.append((base + offset, self._counter, w, deadline))
+            for idx, cid, w, deadline in dispatched:
                 try:
-                    _cid, out = w.result_q.get(timeout=self._budget + 1.0)
+                    received_id, finished, out = w.result_q.get(timeout=max(0.0, deadline - monotonic()))
+                    if received_id != cid or finished > deadline:
+                        raise TimeoutError("candidate finished after its dispatch deadline")
                     results[idx] = {
                         name: (status, ForkingPickler.loads(value) if status == OK else value)
                         for name, (status, value) in out.items()

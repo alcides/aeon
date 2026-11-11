@@ -11,7 +11,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 # Bump when the on-disk .aec layout or semantics change.
-AEC_FORMAT_VERSION = 8
+AEC_FORMAT_VERSION = 9
 
 
 @dataclass(frozen=True)
@@ -54,6 +54,8 @@ class CompiledUnit:
     trusted_names: frozenset[Name] = field(default_factory=frozenset)
     # Decorator metadata before the core phase runs (includes the core-phase queue).
     source_metadata: Metadata = field(default_factory=dict)
+    # Resolution and content of every direct/transitive source dependency.
+    dependency_sources: dict[str, tuple[str, str]] = field(default_factory=dict)
 
     def dependency_hashes(self) -> dict[str, str]:
-        return {dep: "" for dep in self.dependencies}
+        return {module: digest for module, (_, digest) in self.dependency_sources.items()}

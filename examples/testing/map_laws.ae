@@ -6,8 +6,8 @@ def prop_delete_preserves_other_key
     (key:Int) (other:{v:Int | v != key}) (value:Int) (other_value:Int) : Bool :=
     original := Map.set (Map.set Map.new key value) other other_value;
     changed := Map.delete original key;
-    !Map.has changed key && Map.has changed other && Map.get changed other = other_value &&
-        Map.has original key && Map.get original key = value;
+    !Map.has changed key && Map.has changed other && Map.get_or changed other 0 = other_value &&
+        Map.has original key && Map.get_or original key 0 = value;
 
 @property(30)
 def prop_distinct_writes_commute

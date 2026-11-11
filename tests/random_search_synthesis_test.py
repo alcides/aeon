@@ -1,6 +1,10 @@
 """Semantics specific to native random-search synthesis."""
 
 import random
+import subprocess
+import sys
+
+import pytest
 
 from aeon.core.terms import Literal
 from aeon.core.types import t_int
@@ -140,3 +144,37 @@ def test_sample_one_prefers_closed_expansions(monkeypatch):
     result = native_search.sample_one(initial, lambda _n: False, _Rng(0), max_depth=5)
     assert result == closed
     assert expansion_picks and all(opt.holes == [] for opt in expansion_picks[0])
+
+
+def test_uninhabited_goal_obeys_search_budget():
+    code = """
+from aeon.facade.driver import AeonConfig, AeonDriver
+from aeon.synthesis.uis.api import SilentSynthesisUI
+from aeon.synthesis.api import SynthesisNotSuccessful
+driver = AeonDriver(AeonConfig('random_search', SilentSynthesisUI(), 0.05, no_main=True))
+assert not driver.parse(aeon_code='type Empty; def f:Empty := ?hole;')
+assert driver.has_synth()
+try:
+    driver.synth()
+except SynthesisNotSuccessful:
+    pass
+"""
+    completed = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=15)
+    assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.parametrize("score", [float("nan"), float("inf"), -float("inf")])
+def test_nonfinite_candidate_cannot_join_native_pareto_front(score):
+    function = Name("f", 0)
+    good, bad = Literal(0, t_int), Literal(1, t_int)
+    result = native_search.drive_candidates(
+        iter([good, bad]),
+        lambda _: True,
+        lambda t: [0.0 if t == good else score],
+        function,
+        {function: {"goals": [Goal(True, 1, function)]}},
+        10,
+        SilentSynthesisUI(),
+        0,
+    )
+    assert result == good

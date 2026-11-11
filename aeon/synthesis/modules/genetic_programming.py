@@ -325,10 +325,11 @@ def _assess(
         else:
             if len(values) != len(state.minimize):
                 raise ValueError(f"Expected {len(state.minimize)} objective values, got {len(values)}")
-            ind.valid = True
-            ind.fitness = values
-            state.pareto_front, is_best = update_pareto_front(state.pareto_front, values, term, state.minimize)
-            score = values
+            if all(math.isfinite(value) for value in values):
+                ind.valid = True
+                ind.fitness = values
+                state.pareto_front, is_best = update_pareto_front(state.pareto_front, values, term, state.minimize)
+                score = values
 
     elapsed = monotonic() - started
     if is_best:

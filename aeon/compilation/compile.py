@@ -21,7 +21,7 @@ from aeon.compilation.link import (
     link_typing_context,
 )
 from aeon.compilation.resolve import import_search_containers, resolve_import_path, resolve_module_source
-from aeon.compilation.serialize import read_unit, source_hash, write_unit
+from aeon.compilation.serialize import is_cache_valid, read_unit, source_hash, write_unit
 from aeon.compilation.unit import AEC_FORMAT_VERSION, CompiledUnit
 from aeon.compilation.session import SessionMapping, compilation_entrypoint, current_session
 from aeon.core.bind import bind_ids, populate_mutual_companions
@@ -64,6 +64,27 @@ def _resolve_module_source(module_path: str) -> str | None:
     return resolve_module_source(module_path)
 
 
+def _dependencies_unchanged(unit: CompiledUnit, contents: str) -> bool:
+    hashes: dict[str, str] = {}
+    for module, (previous_path, _) in unit.dependency_sources.items():
+        current_path = _resolve_module_source(module)
+        if current_path is None or str(Path(current_path).resolve()) != previous_path:
+            return False
+        try:
+            hashes[module] = source_hash(current_session().read_source(current_path))
+        except OSError:
+            return False
+    return is_cache_valid(unit, contents, hashes)
+
+
+def _dependency_sources(units: list[CompiledUnit]) -> dict[str, tuple[str, str]]:
+    sources: dict[str, tuple[str, str]] = {}
+    for unit in units:
+        sources.update(unit.dependency_sources)
+        sources[unit.module_path] = (unit.source_path, unit.source_hash)
+    return sources
+
+
 def _ensure_dependencies_cached(module_paths: list[str]) -> None:
     """Populate ``_module_cache`` with every transitive dependency unit."""
     pending = list(module_paths)
@@ -103,7 +124,7 @@ def compile_file(
     module_path: str | None = None,
 ) -> tuple[CompiledUnit, list[AeonError]]:
     path = str(Path(filename).resolve())
-    contents = Path(path).read_text(encoding="utf-8")
+    contents = current_session().read_source(path)
     return compile_program(
         contents,
         filename=path,
@@ -144,6 +165,8 @@ def compile_program(
             and cached.source_hash == digest
             and cached.compiler_version == _COMPILER_VERSION
             and cached.format_version == AEC_FORMAT_VERSION
+            and (module_path is None or cached.module_path == module_path)
+            and _dependencies_unchanged(cached, aeon_code)
         ):
             _source_cache[path] = cached
             _module_cache[cached.module_path] = cached
@@ -365,13 +388,14 @@ def compile_program(
         dependencies=dep_module_paths,
         trusted_names=frozenset(v.internal_name for v in exports.values()),
         source_metadata=source_metadata,
+        dependency_sources=_dependency_sources(dep_list),
     )
 
     if path != "<stdin>":
         _source_cache[path] = unit
         if export_prefix is not None:
             _module_cache[unit.module_path] = unit
-        if write_cache and cacheable:
+        if write_cache and cacheable and not current_session().source_overrides:
             write_unit(unit, path)
 
     return unit, []

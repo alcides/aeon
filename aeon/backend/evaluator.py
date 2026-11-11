@@ -61,7 +61,7 @@ class EvaluationContext:
         reject_holes: bool = False,
     ):
         if prev:
-            self.variables = {k: v for (k, v) in prev.items()}
+            self.variables = prev.copy()
         else:
             self.variables = {}
         self.metadata = metadata
@@ -74,14 +74,12 @@ class EvaluationContext:
 
     def with_var(self, name: Name, value: Any):
         assert isinstance(name, Name)
-        v = self.variables.copy()
-        v.update({name: value})
         if self.contract_state is not None:
             from aeon.backend.contracts import register_runtime_callable
 
             register_runtime_callable(self.contract_state, name, value)
-        return EvaluationContext(
-            v,
+        child = EvaluationContext(
+            self.variables,
             metadata=self.metadata,
             pipeline=self.pipeline,
             trace=self.trace,
@@ -90,6 +88,8 @@ class EvaluationContext:
             interactive_holes=self.interactive_holes,
             reject_holes=self.reject_holes,
         )
+        child.variables[name] = value
+        return child
 
     def get(self, name: Name):
         return self.variables[name]
@@ -119,7 +119,7 @@ def _wrap_if_contract(
 ) -> Any:
     if ctx.contract_state is None or fn_type is None:
         return fn
-    return wrap_callable(fn, fn_type, callee, ctx.contract_state, loc=loc)
+    return wrap_callable(fn, fn_type, callee, ctx.contract_state, loc=loc, env=ctx.variables)
 
 
 # pattern match term

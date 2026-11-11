@@ -84,7 +84,9 @@ def eval_liquid(
         if callee is None:
             raise UnevaluableLiquid(f"unknown liquid head {head!r}")
         args = [eval_liquid(a, env, uninterpreted=uninterpreted, runtime=runtime) for a in term.args]
-        return callee(*args)
+        for arg in args:
+            callee = callee(arg)
+        return callee
     raise UnevaluableLiquid(f"unsupported liquid form {type(term).__name__}")
 
 

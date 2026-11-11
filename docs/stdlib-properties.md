@@ -115,6 +115,12 @@ actual standard-library operations. The stack property consumes each linear
 handle once and discards the final empty stack. Map/Set properties additionally
 check that immutable original snapshots were not modified.
 
+`Map.get m key` returns `Maybe v`: `Maybe.just value` when the key exists,
+and `Maybe.none` otherwise. Callers needing a plain value can use
+`Map.get_or m key fallback`, or handle the result with `Maybe.withDefault`.
+Stack and Deque result tokens are linear; use `with_pop`, `with_peek`, and
+`with_len` to consume a token while receiving both its value and updated handle.
+
 Current scope is deliberately bounded. ADT generation has a depth cap and may
 fail to find a provably valid input even when the type is inhabited. Checker
 errors reject candidates rather than admitting unverified values. Constructor-based

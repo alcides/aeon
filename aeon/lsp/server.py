@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from dataclasses import replace
 from typing import List, Optional, AsyncIterable
 
 from lsprotocol.types import (
@@ -8,6 +9,7 @@ from lsprotocol.types import (
     TEXT_DOCUMENT_DEFINITION,
     TEXT_DOCUMENT_DID_OPEN,
     TEXT_DOCUMENT_DID_CHANGE,
+    TEXT_DOCUMENT_DID_CLOSE,
     TEXT_DOCUMENT_DOCUMENT_SYMBOL,
     TEXT_DOCUMENT_HOVER,
     TEXT_DOCUMENT_INLAY_HINT,
@@ -25,6 +27,7 @@ from lsprotocol.types import (
     CompletionParams,
     DefinitionParams,
     DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams,
     DidChangeWatchedFilesParams,
     DidOpenTextDocumentParams,
     Diagnostic,
@@ -46,6 +49,8 @@ from lsprotocol.types import (
     Range,
     SymbolKind,
     TextEdit,
+    TextDocumentEdit,
+    OptionalVersionedTextDocumentIdentifier,
     WorkspaceEdit,
 )
 from pygls.lsp.server import LanguageServer
@@ -72,6 +77,7 @@ class AeonLanguageServer(LanguageServer):
         super().__init__("aeon.lsp.server", "0.1.0")
         self.aeon_driver = aeon_driver
         self.debounce_delay = 0.3
+        self._diagnostic_requests: dict[str, int] = {}
         self._setup_handlers()
 
     def start(self, tcp_server):
@@ -85,7 +91,11 @@ class AeonLanguageServer(LanguageServer):
         self.start_tcp(host, int(port))
 
     async def _parse_and_send_diagnostics(self, uri) -> None:
+        request = self._diagnostic_requests.get(uri, 0) + 1
+        self._diagnostic_requests[uri] = request
         await asyncio.sleep(self.debounce_delay)
+        if self._diagnostic_requests.get(uri) != request:
+            return
         diagnostics: list[Diagnostic] = []
         try:
             async for diag in self._get_diagnostics(uri):
@@ -100,10 +110,17 @@ class AeonLanguageServer(LanguageServer):
                     severity=DiagnosticSeverity.Error,
                 )
             ]
+        if self._diagnostic_requests.get(uri) != request:
+            return
         try:
             self.text_document_publish_diagnostics(PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics))
         except Exception:
             logger.exception("Failed to publish diagnostics for %s", uri)
+
+    async def _refresh_documents(self, uris: set[str]) -> None:
+        await asyncio.gather(
+            *(self._parse_and_send_diagnostics(uri) for uri in uris if uri in self.workspace.text_documents)
+        )
 
     async def _get_diagnostics(self, uri: str) -> AsyncIterable[Diagnostic]:
         from . import aeon_adapter
@@ -128,7 +145,18 @@ class AeonLanguageServer(LanguageServer):
             ls: AeonLanguageServer,
             params: DidOpenTextDocumentParams,
         ) -> None:
-            await ls._parse_and_send_diagnostics(params.text_document.uri)
+            from . import aeon_adapter
+
+            await ls._refresh_documents(aeon_adapter.clear_cache(params.text_document.uri))
+
+        @self.feature(TEXT_DOCUMENT_DID_CLOSE)
+        async def did_close(ls: AeonLanguageServer, params: DidCloseTextDocumentParams) -> None:
+            from . import aeon_adapter
+
+            uri = params.text_document.uri
+            ls._diagnostic_requests[uri] = ls._diagnostic_requests.get(uri, 0) + 1
+            ls.text_document_publish_diagnostics(PublishDiagnosticsParams(uri=uri, diagnostics=[]))
+            await ls._refresh_documents(aeon_adapter.clear_cache(uri) - {uri})
 
         @self.feature(TEXT_DOCUMENT_DID_CHANGE)
         async def did_change(
@@ -137,8 +165,7 @@ class AeonLanguageServer(LanguageServer):
         ) -> None:
             from . import aeon_adapter
 
-            aeon_adapter.clear_cache(params.text_document.uri)
-            await ls._parse_and_send_diagnostics(params.text_document.uri)
+            await ls._refresh_documents(aeon_adapter.clear_cache(params.text_document.uri))
 
         @self.feature(WORKSPACE_DID_CHANGE_WATCHED_FILES)
         async def did_change_watched_file(
@@ -147,8 +174,10 @@ class AeonLanguageServer(LanguageServer):
         ) -> None:
             from . import aeon_adapter
 
+            affected: set[str] = set()
             for change in params.changes:
-                aeon_adapter.clear_cache(change.uri)
+                affected.update(aeon_adapter.clear_cache(change.uri))
+            await ls._refresh_documents(affected)
 
         @self.feature(TEXT_DOCUMENT_HOVER)
         async def hover(
@@ -423,13 +452,19 @@ class AeonLanguageServer(LanguageServer):
             synthesizer_name: str,
             budget_seconds: float = 15.0,
         ) -> None:
+            from . import aeon_adapter
+
+            document = ls.workspace.get_text_document(uri)
+            source, version = document.source, document.version
+            revision = aeon_adapter._revision
+            driver = AeonDriver(replace(ls.aeon_driver.cfg, source_overrides=aeon_adapter.source_overrides(ls)))
             _emit_synthesis_pending(ls, hole_name_str, synthesizer_name, budget_seconds)
             loop = asyncio.get_event_loop()
             try:
                 result = await loop.run_in_executor(
                     None,
                     lambda: _run_synthesis(
-                        ls.aeon_driver, ls, uri, hole_name_str, synthesizer_name, budget_seconds=budget_seconds
+                        driver, ls, uri, hole_name_str, synthesizer_name, budget_seconds=budget_seconds, source=source
                     ),
                 )
             except Exception as e:
@@ -439,9 +474,25 @@ class AeonLanguageServer(LanguageServer):
             if result is None:
                 return
 
+            current = ls.workspace.get_text_document(uri)
+            if current.version != version or current.source != source or aeon_adapter._revision != revision:
+                ls.window_show_message(
+                    ShowMessageParams(
+                        type=MessageType.Info,
+                        message="Synthesis result discarded because the document or its dependencies changed. Run synthesis again.",
+                    )
+                )
+                return
+
             synthesized_str, hole_range = result
             edit = TextEdit(range=hole_range, new_text=synthesized_str)
-            workspace_edit = WorkspaceEdit(changes={uri: [edit]})
+            workspace_edit = WorkspaceEdit(
+                document_changes=[
+                    TextDocumentEdit(
+                        text_document=OptionalVersionedTextDocumentIdentifier(uri=uri, version=version), edits=[edit]
+                    )
+                ]
+            )
             ls.workspace_apply_edit(ApplyWorkspaceEditParams(edit=workspace_edit))
             ls.window_show_message(
                 ShowMessageParams(type=MessageType.Info, message=f"Synthesized ?{hole_name_str} = {synthesized_str}")
@@ -556,6 +607,7 @@ def _run_synthesis(
     hole_name_str: str,
     synthesizer_name: str,
     budget_seconds: float = 15.0,
+    source: str | None = None,
 ):
     """Blocking synthesis function, meant to run in a thread executor."""
     from . import aeon_adapter
@@ -568,8 +620,8 @@ def _run_synthesis(
     from aeon.utils.pprint import pretty_print_sterm
     from z3.z3types import Z3Exception
 
-    document = ls.workspace.get_text_document(uri)
-    source = document.source
+    if source is None:
+        source = ls.workspace.get_text_document(uri).source
 
     try:
         errors = list(driver.parse(filename=uri, aeon_code=source))

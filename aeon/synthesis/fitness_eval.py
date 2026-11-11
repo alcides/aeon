@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 from collections import OrderedDict
 from collections.abc import Callable
+from math import isfinite
 from typing import Any
 
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
@@ -51,9 +52,13 @@ def set_program_tail(term: Term, new_tail: Term) -> Term:
     return new_tail
 
 
-def candidate_key(term: Term) -> int:
-    """Stable structural hash for memo keys (ignores source locations)."""
-    return hash(term)
+def candidate_key(term: Term) -> Term:
+    """Structural key: dictionary lookup must check equality after hashing.
+
+    Different literals (notably -1 and -2) can have identical Python hashes.
+    Core terms already provide structural equality ignoring source locations.
+    """
+    return term
 
 
 def extract_suffix(prog: Term, stop_before: Name) -> Term:
@@ -106,15 +111,19 @@ def as_objective_vector(value: Any, length: int) -> list[float]:
                 raise InvalidIndividualException()
             value = value[0]
         try:
-            return [float(value)]
+            scores = [float(value)]
         except (TypeError, ValueError, OverflowError):
             raise InvalidIndividualException()
-    if not isinstance(value, (list, tuple)) or len(value) != length:
+    else:
+        if not isinstance(value, (list, tuple)) or len(value) != length:
+            raise InvalidIndividualException()
+        try:
+            scores = [float(x) for x in value]
+        except (TypeError, ValueError, OverflowError):
+            raise InvalidIndividualException()
+    if not all(isfinite(score) for score in scores):
         raise InvalidIndividualException()
-    try:
-        return [float(x) for x in value]
-    except (TypeError, ValueError, OverflowError):
-        raise InvalidIndividualException()
+    return scores
 
 
 def _require_slice(program: Term, function: Name) -> Term:
@@ -348,7 +357,7 @@ def make_bundled_fitness_evaluator(
 
 def memoize_fitness(comp: Computation, maxsize: int = _FITNESS_MEMO_MAX) -> Computation:
     """LRU memo keyed by ``candidate_key`` for duplicate phenotypes."""
-    cache: OrderedDict[int, Any] = OrderedDict()
+    cache: OrderedDict[Term, Any] = OrderedDict()
 
     def wrapped(prog: Term) -> Any:
         key = candidate_key(prog)
