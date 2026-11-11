@@ -198,8 +198,9 @@ class _Generator:
 
 
 def gen(t: Term) -> str:
-    """Render an expression; builtin calls use the exported builtins namespace."""
-    return _Generator().gen(t, {})
+    """Render a self-contained expression, including its builtin namespace."""
+    expression = _Generator().gen(t, {})
+    return f"(lambda _aeon_builtins: {expression})(__import__('builtins'))"
 
 
 def top_level_bindings(core: Term) -> list[tuple[Name, Term]]:
