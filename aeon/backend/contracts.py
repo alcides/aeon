@@ -21,18 +21,18 @@ from aeon.utils.name import Name
 class ContractState:
     """Runtime contract configuration threaded through evaluation."""
 
-    uninterpreted: dict[str, Type]
-    runtime: dict[str, Any]
+    uninterpreted: dict[Name | str, Type]
+    runtime: dict[Name | str, Any]
     fn_types: dict[Name, Type]
 
     @classmethod
     def from_contexts(
-        cls, typing_ctx: TypingContext, fn_types: dict[Name, Type], runtime: dict[str, Any]
+        cls, typing_ctx: TypingContext, fn_types: dict[Name, Type], runtime: dict[Name | str, Any]
     ) -> ContractState:
-        uninterpreted: dict[str, Type] = {}
+        uninterpreted: dict[Name | str, Type] = {}
         for entry in typing_ctx.entries:
             if isinstance(entry, UninterpretedBinder):
-                uninterpreted[entry.name.name] = entry.type
+                uninterpreted[entry.name] = entry.type
         return cls(uninterpreted=uninterpreted, runtime=runtime, fn_types=fn_types)
 
 
@@ -45,18 +45,18 @@ def collect_top_level_fn_types(core: Term) -> dict[Name, Type]:
     return out
 
 
-def build_runtime_liquid_env(values: dict[Name, Any]) -> dict[str, Any]:
-    """Map surface function names to callables for liquid predicate evaluation."""
-    runtime: dict[str, Any] = {}
+def build_runtime_liquid_env(values: dict[Name, Any]) -> dict[Name | str, Any]:
+    """Keep lexical binding identities when registering liquid callables."""
+    runtime: dict[Name | str, Any] = {}
     for name, value in values.items():
         if callable(value):
-            runtime[name.name] = value
+            runtime[name] = value
     return runtime
 
 
 def register_runtime_callable(state: ContractState, name: Name, value: Any) -> None:
     if callable(value):
-        state.runtime[name.name] = value
+        state.runtime[name] = value
 
 
 def _strip_type_wrappers(ty: Type) -> Type:

@@ -9,6 +9,7 @@ so each name maps to at most one implementation.
 from __future__ import annotations
 
 from typing import Any
+from collections.abc import Mapping
 
 from aeon.core.liquid import (
     LiquidApp,
@@ -51,8 +52,8 @@ def eval_liquid(
     term: LiquidTerm,
     env: dict[Name, Any],
     *,
-    uninterpreted: dict[str, Type],
-    runtime: dict[str, Any],
+    uninterpreted: Mapping[Name | str, Type],
+    runtime: Mapping[Name | str, Any],
 ) -> Any:
     if isinstance(term, LiquidVar):
         if term.name not in env:
@@ -64,23 +65,29 @@ def eval_liquid(
         return term.value
     if isinstance(term, LiquidApp):
         head = term.fun.name
-        if head in uninterpreted:
+        builtin = term.fun == Name(head, 0)
+        if term.fun in uninterpreted or (builtin and head in uninterpreted):
             raise UninterpretedInLiquid(head)
-        if head == "!" and len(term.args) == 1:
+        if builtin and head == "!" and len(term.args) == 1:
             return not bool(eval_liquid(term.args[0], env, uninterpreted=uninterpreted, runtime=runtime))
-        if head in ("/", "%") and len(term.args) == 2:
+        if builtin and head in ("/", "%") and len(term.args) == 2:
             a = eval_liquid(term.args[0], env, uninterpreted=uninterpreted, runtime=runtime)
             b = eval_liquid(term.args[1], env, uninterpreted=uninterpreted, runtime=runtime)
             if not isinstance(a, int) or not isinstance(b, int) or b == 0:
                 raise UnevaluableLiquid("non-integral or zero division")
             return a // b if head == "/" else a % b
-        fn = _BINOPS.get(head)
+        fn = _BINOPS.get(head) if builtin else None
         if fn is not None and len(term.args) == 2:
             return fn(
                 eval_liquid(term.args[0], env, uninterpreted=uninterpreted, runtime=runtime),
                 eval_liquid(term.args[1], env, uninterpreted=uninterpreted, runtime=runtime),
             )
-        callee = runtime.get(head)
+        # Captured closures take precedence over registrations from later calls
+        # of the same local binding. String keys are only a legacy API for
+        # unbound symbols, never a fallback for a resolved lexical name.
+        callee = env.get(term.fun, runtime.get(term.fun))
+        if callee is None and builtin:
+            callee = runtime.get(head)
         if callee is None:
             raise UnevaluableLiquid(f"unknown liquid head {head!r}")
         args = [eval_liquid(a, env, uninterpreted=uninterpreted, runtime=runtime) for a in term.args]
@@ -94,8 +101,8 @@ def eval_liquid_bool(
     term: LiquidTerm,
     env: dict[Name, Any],
     *,
-    uninterpreted: dict[str, Type],
-    runtime: dict[str, Any],
+    uninterpreted: Mapping[Name | str, Type],
+    runtime: Mapping[Name | str, Any],
 ) -> bool:
     try:
         return bool(eval_liquid(term, env, uninterpreted=uninterpreted, runtime=runtime))

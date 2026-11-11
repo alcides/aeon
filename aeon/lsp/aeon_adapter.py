@@ -20,6 +20,7 @@ import logging
 import re
 import urllib.parse
 from dataclasses import dataclass, field
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, TextIO, cast
 
@@ -31,7 +32,6 @@ from lsprotocol.types import Position, Range
 from z3.z3types import Z3Exception
 
 from aeon.facade.driver import AeonDriver
-from aeon.backend.evaluator import EvaluationContext
 from aeon.core.terms import Term
 from aeon.decorators.api import Metadata
 from aeon.lsp.server import AeonLanguageServer, _loc_to_range
@@ -71,6 +71,7 @@ _core_cache: "Dict[URI, object]" = {}
 _metadata_cache: "Dict[URI, object]" = {}
 _evaluation_ctx_cache: "Dict[URI, object]" = {}
 _constructor_names_cache: "Dict[URI, object]" = {}
+_constructor_registry_cache: "Dict[URI, object]" = {}
 # Structured semantic errors from the most recent parse of each document. Unlike
 # the caches above these track the *current* parse (cleared on every reparse) so
 # the info view's error tab can present the live verification failures — their
@@ -79,6 +80,7 @@ _errors_cache: "Dict[URI, list]" = {}
 _proof_cache: "Dict[URI, list[dict]]" = {}
 _dependencies: dict[URI, set[URI]] = {}
 _revision = 0
+_changed_at: dict[URI, int] = {}
 _parse_sources: dict[URI, str] = {}
 _pending: dict[URI, tuple[str, int, asyncio.Task]] = {}
 
@@ -92,6 +94,7 @@ def analysis_caches() -> dict[str, dict]:
         "metadata": _metadata_cache,
         "evaluation": _evaluation_ctx_cache,
         "constructors": _constructor_names_cache,
+        "constructor_registry": _constructor_registry_cache,
         "errors": _errors_cache,
         "proofs": _proof_cache,
     }
@@ -141,12 +144,19 @@ def restore_driver_from_cache(driver: AeonDriver, uri: URI) -> bool:
     driver.core = cast(Term, core)
     driver.typing_ctx = cast(TypingContext, typing_ctx)
     driver.metadata = cast(Metadata, metadata)
-    evaluation_ctx = _evaluation_ctx_cache.get(uri)
-    if evaluation_ctx is not None:
-        driver.evaluation_ctx = cast(EvaluationContext, evaluation_ctx)
     constructor_names = _constructor_names_cache.get(uri)
-    if constructor_names is not None:
-        driver.constructor_names = cast(set[str], constructor_names)
+    driver.constructor_names = set(cast(set[str], constructor_names or set()))
+    from aeon.verification.constructor_registry import ConstructorRegistry
+    from dataclasses import fields
+
+    cached_registry = _constructor_registry_cache.get(uri)
+    if cached_registry is not None:
+        registry = driver.session.state(ConstructorRegistry)
+        for item in fields(ConstructorRegistry):
+            setattr(registry, item.name, deepcopy(getattr(cached_registry, item.name)))
+    # Check-only workers deliberately never serialize LLVM engines or runtime
+    # closures. Rebuild them in the requesting driver's own session instead.
+    driver.prepare_execution()
     return True
 
 
@@ -155,15 +165,26 @@ def get_errors(uri: URI) -> list:
     return _errors_cache.get(uri, [])
 
 
-def _refresh_analysis(driver: AeonDriver, uri: URI) -> None:
-    """After a parse, rebuild and cache the position→type index for ``uri`` if
-    core generation succeeded. On failure the previous caches are left intact."""
+def driver_dependencies(driver: AeonDriver) -> set[URI]:
     from aeon.compilation.compile import CompilationState
 
     state = driver.session.state(CompilationState)
-    _dependencies[uri] = {Path(unit.source_path).as_uri() for unit in state.modules.values()} | {
+    return {Path(unit.source_path).as_uri() for unit in state.modules.values()} | {
         Path(path).as_uri() for path in driver.session.source_paths
     }
+
+
+def dependencies_changed(uri: URI, revision: int, dependencies: set[URI] | None = None) -> bool:
+    """Check changes to this source and its actual imports, including imports
+    first discovered by an analysis that was already running when they changed."""
+    relevant = {uri} | _dependencies.get(uri, set()) | (dependencies or set())
+    return any(_changed_at.get(dependency, 0) > revision for dependency in relevant)
+
+
+def _refresh_analysis(driver: AeonDriver, uri: URI) -> None:
+    """After a parse, rebuild and cache the position→type index for ``uri`` if
+    core generation succeeded. On failure the previous caches are left intact."""
+    _dependencies[uri] = driver_dependencies(driver)
     core = getattr(driver, "core", None)
     typing_ctx = getattr(driver, "typing_ctx", None)
     if core is None or typing_ctx is None:
@@ -174,6 +195,9 @@ def _refresh_analysis(driver: AeonDriver, uri: URI) -> None:
         _type_index_cache[uri] = build_type_index(typing_ctx, core)
         _typing_ctx_cache[uri] = typing_ctx
         _core_cache[uri] = core
+        from aeon.verification.constructor_registry import ConstructorRegistry
+
+        _constructor_registry_cache[uri] = deepcopy(driver.session.state(ConstructorRegistry))
         metadata = getattr(driver, "metadata", None)
         if metadata is not None:
             _metadata_cache[uri] = metadata
@@ -209,6 +233,7 @@ def clear_cache(uri: URI) -> set[URI]:
     """
     global _revision
     _revision += 1
+    _changed_at[uri] = _revision
     affected = {uri} | {document for document, dependencies in _dependencies.items() if uri in dependencies}
     for document in affected:
         _parse_result_cache.pop(document, None)
@@ -272,7 +297,8 @@ async def parse(
 
     revision = _revision
     pending = _pending.get(uri)
-    if pending is not None and pending[:2] == (source, revision):
+    if pending is not None and pending[0] == source and not dependencies_changed(uri, pending[1]):
+        revision = pending[1]
         task = pending[2]
     else:
         from dataclasses import replace
@@ -280,15 +306,24 @@ async def parse(
         config = replace(aeon_lsp.aeon_driver.cfg, source_overrides=source_overrides(aeon_lsp))
         task = asyncio.create_task(analyze(source, config, uri))
         _pending[uri] = (source, revision, task)
+        if pending is not None:
+            pending[2].cancel()
     try:
         parse_result, snapshot, dependencies = await asyncio.shield(task)
+    except asyncio.CancelledError:
+        replacement = _pending.get(uri)
+        if task.cancelled() and replacement is not None and replacement[2] is not task:
+            # Another revision superseded this analysis. Existing hover and
+            # diagnostic callers join its replacement instead of seeing an error.
+            return await parse(aeon_lsp, uri, allow_errors)
+        raise
     finally:
         if _pending.get(uri, (None, None, None))[2] is task and task.done():
             _pending.pop(uri, None)
     # Changes may arrive while the compiler runs. Never publish stale proofs or
     # locations, including when a dependency changes during the first analysis.
     current_source = source if parsed_uri.scheme in HTTP_SCHEMES else aeon_lsp.workspace.get_text_document(uri).source
-    if revision != _revision or current_source != source:
+    if dependencies_changed(uri, revision, dependencies) or current_source != source:
         return await parse(aeon_lsp, uri, allow_errors)
     for key, cache in analysis_caches().items():
         if snapshot.get(key) is not None:

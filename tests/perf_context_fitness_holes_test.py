@@ -118,3 +118,23 @@ def test_term_has_holes_ignores_refinement_free_trees():
     assert term_has_holes(Application(Var(Name("f", 0)), Hole(Name("h", 0))))
     assert not term_has_holes(Let(Name("x", 0), Literal(True, t_bool), Literal(0, t_int)))
     assert term_has_holes(Abstraction(Name("x", 0), Hole(Name("h", 0))))
+
+
+def test_float_fitness_cache_preserves_signed_zero():
+    import math
+    from aeon.core.types import t_float
+    from aeon.synthesis.entrypoint import _pool_backed
+
+    positive, negative = Literal(0.0, t_float), Literal(-0.0, t_float)
+    memo = memoize_fitness(lambda term: [math.copysign(1.0, term.value)])
+    assert memo(positive) == [1.0]
+    assert memo(negative) == [-1.0]
+
+    class Pool:
+        def run(self, term):
+            return {"fitness": ("ok", memo(term)), "output": ("ok", term.value)}
+
+    evaluate, output = _pool_backed(Pool())
+    assert evaluate(positive) == [1.0]
+    assert evaluate(negative) == [-1.0]
+    assert math.copysign(1.0, output(negative)) == -1.0

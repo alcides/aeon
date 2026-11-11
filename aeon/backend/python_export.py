@@ -26,6 +26,7 @@ from aeon.core.terms import (
 import keyword
 import re
 
+from aeon.core.multiplicity import M0
 from aeon.optimization.whnf import strip_type_wrappers
 from aeon.core.types import t_bool, t_string, t_unit
 from aeon.utils.name import Name
@@ -124,6 +125,9 @@ class _Generator:
                 return f"(lambda {parameter}: {self.gen(body, env | {name.name: name})})"
             case If(cond, then, otherwise):
                 return f"({self.gen(then, env)} if {self.gen(cond, env)} else {self.gen(otherwise, env)})"
+            case Let(name, _, body, _, mult) | Rec(name, _, _, body, _, _, mult) if mult is M0:
+                parameter = self.name(name)
+                return f"(lambda {parameter}: {self.gen(body, env | {name.name: name})})(None)"
             case Let(name, value, body):
                 parameter = self.name(name)
                 return f"(lambda {parameter}: {self.gen(body, env | {name.name: name})})({self.gen(value, env)})"
@@ -131,9 +135,14 @@ class _Generator:
                 return self.application(t, env)
             case Hole(name):
                 raise PythonExportError(f"cannot export a function with an unfilled hole: ?{name}")
-            case Rec(name, _, _, _, _, _, _):
-                raise PythonExportError(
-                    f"cannot export local recursive binding '{name.name}'; only top-level functions are supported"
+            case Rec(name, _, value, body):
+                parameter = self.name(name)
+                inner = env | {name.name: name}
+                # The lambda creates a lexical cell for recursion, initialized
+                # to None just like the interpreter's recursive environment.
+                return (
+                    f"(lambda {parameter}: (({parameter} := {self.gen(value, inner)}), "
+                    f"{self.gen(body, inner)})[1])(None)"
                 )
             case _:
                 raise PythonExportError(f"unsupported term in export: {type(t).__name__}")
@@ -152,7 +161,7 @@ class _Generator:
                 namespace = ", ".join(f"{key!r}: {self.name(value)}" for key, value in env.items())
                 return f"_aeon_builtins.eval({first.value!r}, {{{namespace}}})"
             if op == "native_import" and isinstance(first, Literal):
-                return f"_aeon_builtins.__import__({first.value!r})"
+                return f"_aeon_builtins.__import__('importlib').import_module({first.value!r})"
             if op == "print" and len(args) == 1:
                 return f"(_aeon_builtins.print(_aeon_builtins.str({self.gen(args[0], env)})) or 0)"
             if op == "!" and len(args) == 1:
@@ -208,7 +217,7 @@ def top_level_bindings(core: Term) -> list[tuple[Name, Term]]:
     out: list[tuple[Name, Term]] = []
     t = core
     while isinstance(t, (Rec, Let)):
-        out.append((t.var_name, t.var_value))
+        out.append((t.var_name, Literal(None, t_unit) if t.multiplicity is M0 else t.var_value))
         t = t.body
     return out
 

@@ -72,3 +72,57 @@ else:
 """.replace("SCENARIO", repr(scenario))
     completed = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=15)
     assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.parametrize("failure", ["crash", "stall"])
+def test_partial_result_transfer_is_bounded_and_worker_recovers(failure):
+    # Run with an outer watchdog: a broken frame timeout must fail the test,
+    # rather than hanging the entire test runner. The signal is delivered only
+    # after transmission starts, so both a dead and a live blocked writer are
+    # exercised through the normal pool API.
+    code = """
+import os, select, signal, threading
+from aeon.core.terms import Literal
+from aeon.core.types import t_int
+from aeon.synthesis.evaluation_pool import EvaluationPool, TIMEOUT
+pool = EvaluationPool(lambda t: t, {'fitness': lambda t: b'x' * (64 * 1024 * 1024) if t.value == 0 else 42}, budget_eval=.1)
+worker = pool._workers[0]
+def interrupt_reply():
+    assert select.select([worker.result], [], [], 10)[0]
+    os.kill(worker.proc.pid, signal.SIGKILL if FAILURE == 'crash' else signal.SIGSTOP)
+interrupter = threading.Thread(target=interrupt_reply, daemon=True)
+interrupter.start()
+try:
+    assert pool.run(Literal(0, t_int))['fitness'][0] == TIMEOUT
+    interrupter.join(timeout=2)
+    assert not interrupter.is_alive()
+    assert pool.run(Literal(1, t_int))['fitness'] == ('ok', 42)
+finally:
+    pool.close()
+""".replace("FAILURE", repr(failure))
+    completed = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=15)
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_large_result_survives_multiple_socket_reads():
+    data = b"result" * 200_000
+    pool = EvaluationPool(lambda t: t, {"output": lambda _: data}, budget_eval=2)
+    try:
+        assert pool.run(Literal(0, t_int))["output"] == ("ok", data)
+    finally:
+        pool.close()
+
+
+def test_hung_worker_does_not_expire_a_healthy_siblings_reply():
+    def compute(term):
+        if term.value == 0:
+            time.sleep(100)
+        return b"x" * 1_000_000
+
+    pool = EvaluationPool(lambda t: t, {"output": compute}, budget_eval=0.1, n_workers=2)
+    try:
+        results = pool.map([Literal(0, t_int), Literal(1, t_int)])
+        assert results[0]["output"][0] == TIMEOUT
+        assert results[1]["output"] == ("ok", b"x" * 1_000_000)
+    finally:
+        pool.close()

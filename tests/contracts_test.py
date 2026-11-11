@@ -125,3 +125,74 @@ def test_return_contract_can_read_lexical_environment():
     """
     with pytest.raises(ContractViolationError):
         _driver(source, contracts=True).run()
+
+
+@pytest.mark.parametrize("contracts", [False, True])
+def test_dependent_annotation_contract_reads_lexical_arguments(contracts):
+    source = """
+    def f(i:Int):Int := ((native "i - 10") : {v:Int | v > i});
+    def main(u:Int):Int := f 5;
+    """
+    driver = _driver(source, contracts=contracts)
+    if contracts:
+        with pytest.raises(ContractViolationError):
+            driver.run()
+    else:
+        assert driver.run() == -5
+
+
+@pytest.mark.parametrize("llvm", ["", "@llvm"])
+@pytest.mark.parametrize("contracts", [False, True])
+def test_compiled_functions_preserve_opt_in_argument_contracts(llvm, contracts):
+    source = f"""
+    {llvm}
+    def f(x:{{v:Int | v > 0}}):Int := x;
+    def main(u:Int):Int := f (native "-1");
+    """
+    driver = _driver(source, contracts=contracts)
+    if contracts:
+        with pytest.raises(ContractViolationError) as exc:
+            driver.run()
+        assert exc.value.blame == "caller"
+    else:
+        assert driver.run() == -1
+
+
+def test_shadowed_predicate_does_not_change_an_existing_contract():
+    source = """
+    def p(x:Int):Bool := x > 0;
+    def f(x:Int):{v:Int | p v} := native "-1";
+    def p(x:Int):Bool := true;
+    def main(u:Int):Int := f 5;
+    """
+    with pytest.raises(ContractViolationError):
+        _driver(source, contracts=True).run()
+
+
+def test_contract_prefers_captured_predicate_over_later_registration():
+    from aeon.backend.contracts import ContractState, wrap_callable
+    from aeon.core.types import AbstractionType, RefinedType
+
+    p, x, v = Name("p", 100), Name("x", 101), Name("v", 102)
+    ty = AbstractionType(x, t_int, RefinedType(v, t_int, LiquidApp(p, [LiquidVar(v)])))
+    state = ContractState({}, {}, {})
+    fn = wrap_callable(lambda _: -1, ty, Name("f", 103), state, env={p: lambda value: value > 0})
+    state.runtime[p] = lambda _: True
+    with pytest.raises(ContractViolationError):
+        fn(0)
+
+
+def test_compiled_return_contract_violation_is_not_swallowed(monkeypatch):
+    driver = _driver(
+        """
+    @llvm def f(x:Int):{v:Int | v = x} := x;
+    def main(u:Int):Int := f 1;
+    """,
+        contracts=True,
+    )
+    # Model a compiled/native implementation returning outside its declared
+    # type. Runtime contract failures must propagate, not trigger fallback.
+    monkeypatch.setattr(driver.evaluation_ctx.pipeline, "get_curried_function", lambda _: lambda x: -1)
+    with pytest.raises(ContractViolationError) as exc:
+        driver.run()
+    assert exc.value.blame == "callee"

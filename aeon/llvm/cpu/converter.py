@@ -505,7 +505,7 @@ class CPULLVMIRGenerator(LLVMIRGenerator, LLVMVisitor):
                 return self.builder.icmp_signed("==", a, b)
             case "!=":
                 if is_f:
-                    return self.builder.fcmp_ordered("!=", vals[0], vals[1])
+                    return self.builder.fcmp_unordered("!=", vals[0], vals[1])
                 a, b = as_i64(vals[0]), as_i64(vals[1])
                 return self.builder.icmp_signed("!=", a, b)
             case "<":

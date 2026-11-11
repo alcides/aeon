@@ -475,7 +475,11 @@ class AeonLanguageServer(LanguageServer):
                 return
 
             current = ls.workspace.get_text_document(uri)
-            if current.version != version or current.source != source or aeon_adapter._revision != revision:
+            if (
+                current.version != version
+                or current.source != source
+                or aeon_adapter.dependencies_changed(uri, revision, aeon_adapter.driver_dependencies(driver))
+            ):
                 ls.window_show_message(
                     ShowMessageParams(
                         type=MessageType.Info,
@@ -647,9 +651,6 @@ def _run_synthesis(
             ShowMessageParams(type=MessageType.Error, message=f"Cannot synthesize: parse failed ({e})")
         )
         return None
-
-    if not errors:
-        aeon_adapter.cache_driver_analysis(driver, uri)
 
     if errors:
         ls.window_show_message(

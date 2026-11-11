@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import struct
 
 from aeon.core.multiplicity import Multiplicity, MOmega
 from aeon.core.types import Kinding
@@ -34,10 +35,21 @@ class Literal(Term):
         return f"{self.value}".lower()
 
     def __eq__(self, other):
-        return isinstance(other, Literal) and self.value == other.value and self.type == other.type
+        if not isinstance(other, Literal) or self.type != other.type:
+            return False
+        if isinstance(self.value, float) or isinstance(other.value, float):
+            return (
+                isinstance(self.value, float)
+                and isinstance(other.value, float)
+                and struct.pack("!d", self.value) == struct.pack("!d", other.value)
+            )
+        return self.value == other.value
 
     def __hash__(self) -> int:
-        return hash((Literal, self.value, self.type))
+        # AST identity is structural, not numeric equality: native objectives
+        # can observe the sign of zero (and the bit pattern of a NaN).
+        value = (float, struct.pack("!d", self.value)) if isinstance(self.value, float) else self.value
+        return hash((Literal, value, self.type))
 
     def pretty(self):
         if self.type == t_string:

@@ -19,6 +19,9 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import socket
+import struct
+from selectors import DefaultSelector, EVENT_READ
 from time import monotonic
 from typing import Any, Callable, Optional
 
@@ -109,7 +112,42 @@ class EvalPrimitives:
         return lambda prog: eval(set_program_tail(prog, Var(fun)), ectx)
 
 
-def _worker_main(static: tuple, task_q: Any, result_q: Any) -> None:
+def _send_result(channel: socket.socket, result: Any) -> None:
+    payload = ForkingPickler.dumps(result)
+    channel.sendall(struct.pack("!Q", len(payload)))
+    channel.sendall(payload)
+
+
+@dataclasses.dataclass
+class _ResultReader:
+    """Incrementally receive a frame without blocking on a partial reply."""
+
+    size: int | None = None
+    data: bytearray = dataclasses.field(default_factory=bytearray)
+
+    def read(self, channel: socket.socket) -> Any:
+        remaining = (8 if self.size is None else self.size) - len(self.data)
+        block = channel.recv(min(remaining, 65536))
+        if not block:
+            raise EOFError("worker closed an incomplete result")
+        self.data.extend(block)
+        if self.size is None and len(self.data) == 8:
+            self.size = struct.unpack("!Q", self.data)[0]
+            self.data.clear()
+        elif self.size is not None and len(self.data) == self.size:
+            return ForkingPickler.loads(self.data)
+        return None
+
+
+def _worker_main(static: tuple, task_q: Any, result: socket.socket, parent_result: socket.socket) -> None:
+    parent_result.close()
+    try:
+        _worker_loop(static, task_q, result)
+    finally:
+        result.close()
+
+
+def _worker_loop(static: tuple, task_q: Any, result: socket.socket) -> None:
     replace, computations = static
     while True:
         msg = task_q.get()
@@ -120,31 +158,32 @@ def _worker_main(static: tuple, task_q: Any, result_q: Any) -> None:
             prog = without_main_placeholder(replace(candidate))
             require_complete_program(prog)
         except InvalidIndividualException:
-            result_q.put((cid, monotonic(), {name: (INVALID, None) for name in computations}))
+            _send_result(result, (cid, monotonic(), {name: (INVALID, None) for name in computations}))
             continue
         except Exception as exc:
-            result_q.put((cid, monotonic(), {name: (ERROR, f"{type(exc).__name__}: {exc}") for name in computations}))
+            _send_result(
+                result, (cid, monotonic(), {name: (ERROR, f"{type(exc).__name__}: {exc}") for name in computations})
+            )
             continue
         out: dict[str, tuple[str, Any]] = {}
         for name, comp in computations.items():
             try:
-                # Queue feeder threads report pickling failures asynchronously,
-                # dropping the reply. Serialize here so each failed computation
-                # has a normal error result and successful siblings survive.
+                # Serialize separately so one unpicklable computation has a
+                # normal error result and successful siblings survive.
                 value = bytes(ForkingPickler.dumps(comp(prog)))
                 out[name] = (OK, value)
             except InvalidIndividualException:
                 out[name] = (INVALID, None)
             except Exception as e:  # noqa: BLE001 — any failure means "no value here"
                 out[name] = (ERROR, f"{type(e).__name__}: {e}")
-        result_q.put((cid, monotonic(), out))
+        _send_result(result, (cid, monotonic(), out))
 
 
 @dataclasses.dataclass
 class _Worker:
     proc: Any
     task_q: Any
-    result_q: Any
+    result: socket.socket
 
 
 def _kill_process(proc: Any) -> None:
@@ -210,20 +249,29 @@ class EvaluationPool:
         self._workers: list[_Worker] = [self._spawn() for _ in range(self._n)]
 
     def _spawn(self) -> _Worker:
-        task_q, result_q = _CTX.Queue(), _CTX.Queue()
+        task_q = _CTX.Queue()
+        parent_result, child_result = socket.socketpair()
         # Discarding an abandoned task can close its pipe while the feeder is
         # still finishing serialization. That is expected during hard teardown.
         task_q._ignore_epipe = True
-        proc = _CTX.Process(target=_worker_main, args=(self._static, task_q, result_q), daemon=True)
-        proc.start()
-        return _Worker(proc, task_q, result_q)
+        proc = _CTX.Process(target=_worker_main, args=(self._static, task_q, child_result, parent_result), daemon=True)
+        try:
+            proc.start()
+        except BaseException:
+            parent_result.close()
+            _close_queues(task_q)
+            raise
+        finally:
+            child_result.close()
+        parent_result.setblocking(False)
+        return _Worker(proc, task_q, parent_result)
 
     def _recycle(self, w: _Worker) -> None:
-        old_task, old_result = w.task_q, w.result_q
         _kill_process(w.proc)
-        _close_queues(old_task, old_result)
+        _close_queues(w.task_q)
+        w.result.close()
         fresh = self._spawn()
-        w.proc, w.task_q, w.result_q = fresh.proc, fresh.task_q, fresh.result_q
+        w.proc, w.task_q, w.result = fresh.proc, fresh.task_q, fresh.result
 
     def _timeout(self) -> dict[str, tuple[str, Any]]:
         return {name: (TIMEOUT, None) for name in self._names}
@@ -242,18 +290,40 @@ class EvaluationPool:
                 deadline = monotonic() + self._budget + 1.0
                 w.task_q.put((self._counter, term))
                 dispatched.append((base + offset, self._counter, w, deadline))
-            for idx, cid, w, deadline in dispatched:
-                try:
-                    received_id, finished, out = w.result_q.get(timeout=max(0.0, deadline - monotonic()))
-                    if received_id != cid or finished > deadline:
-                        raise TimeoutError("candidate finished after its dispatch deadline")
-                    results[idx] = {
-                        name: (status, ForkingPickler.loads(value) if status == OK else value)
-                        for name, (status, value) in out.items()
-                    }
-                except Exception:
-                    self._recycle(w)
-                    results[idx] = self._timeout()
+            failed: list[_Worker] = []
+            with DefaultSelector() as selector:
+                for idx, cid, w, deadline in dispatched:
+                    selector.register(w.result, EVENT_READ, (idx, cid, w, deadline, _ResultReader()))
+                # Drain every worker concurrently. Waiting for a hung worker
+                # first must not consume healthy siblings' receive deadlines.
+                while selector.get_map():
+                    deadline = min(key.data[3] for key in selector.get_map().values())
+                    for key, _ in selector.select(max(0.0, deadline - monotonic())):
+                        idx, cid, w, deadline, reader = key.data
+                        try:
+                            reply = reader.read(w.result)
+                            if reply is None:
+                                continue
+                            received_id, finished, out = reply
+                            if received_id != cid or finished > deadline or monotonic() > deadline:
+                                raise TimeoutError("candidate result exceeded its dispatch deadline")
+                            results[idx] = {
+                                name: (status, ForkingPickler.loads(value) if status == OK else value)
+                                for name, (status, value) in out.items()
+                            }
+                        except BlockingIOError:
+                            continue
+                        except Exception:
+                            failed.append(w)
+                        selector.unregister(key.fileobj)
+                    for key in list(selector.get_map().values()):
+                        if monotonic() >= key.data[3]:
+                            failed.append(key.data[2])
+                            selector.unregister(key.fileobj)
+            # Cleanup can wait for process termination; only do it after all
+            # other replies have been received or reached their own deadlines.
+            for w in failed:
+                self._recycle(w)
         return results
 
     def run(self, term: Term) -> dict[str, tuple[str, Any]]:
@@ -271,4 +341,5 @@ class EvaluationPool:
             except Exception:
                 pass
             _kill_process(w.proc)
-            _close_queues(w.task_q, w.result_q)
+            _close_queues(w.task_q)
+            w.result.close()

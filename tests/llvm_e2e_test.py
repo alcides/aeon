@@ -212,3 +212,14 @@ def test_e2e_llvm_math_integration():
     """
     res = compile_and_run(source)
     assert abs(res - 78.53981633974483) < 1e-5
+
+
+@pytest.mark.parametrize("value", ["float('nan')", "float('inf')", "-0.0", "1.5"])
+def test_float_inequality_agrees_with_interpreter(value):
+    template = """
+    ANNOTATION
+    def different(x:Float)(y:Float):Bool := x != y;
+    def main(u:Int):Bool := different (native "VALUE" : Float) 1.5;
+    """.replace("VALUE", value)
+    interpreted = compile_and_run(template.replace("ANNOTATION", ""))
+    assert compile_and_run(template.replace("ANNOTATION", "@llvm")) == interpreted
