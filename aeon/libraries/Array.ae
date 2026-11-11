@@ -208,8 +208,9 @@ def set (1 arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) (1 x: {v:a | p 
     native "arr[:i] + [x] + arr[i+1:]"
 
 
-# First element of a non-empty array. Consumes the array.
-def head (1 arr: {arr:(Array a) | size arr > 0}) : {v:a | p v} :=
+# First element of a non-empty array. Its predicate must come from the input;
+# a free output predicate would let callers prove arbitrary facts. Consumes it.
+def head (1 arr: {arr:(Array a<p>) | size arr > 0}) : {v:a | p v} :=
     native "arr[0]"
 
 
@@ -220,19 +221,19 @@ def reversed (1 arr: (Array a)) : {r:(Array a) | size r = size arr} :=
 
 # Map a function across the array; length is preserved and the result
 # refinement ``q`` is pushed through ``f``. Consumes the array linearly.
-def map (f: (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a)) : {r:(Array b) | size r = size arr} :=
+def map (f: (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) : {r:(Array b<q>) | size r = size arr} :=
     native "list(map(f, arr))"
 
 
 # Filter an array by ``f``; the length never grows. Consumes the array
 # linearly.
-def filter (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a)) : {r:(Array a) | size r <= size arr} :=
+def filter (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a<p>)) : {r:(Array a<p>) | size r <= size arr} :=
     native "list(filter(f, arr))"
 
 
 # Right fold: ``reduce f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.
 # Consumes the array.
-def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (1 arr: (Array a)) : b :=
+def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (1 arr: (Array a<p>)) : b :=
     native "functools.reduce(lambda acc, curr: f(curr)(acc), reversed(arr), z)"
 
 
@@ -247,20 +248,20 @@ def mean (1 arr: (Array Float)) : Float :=
 
 
 # Index-aware map: ``f`` receives ``(index, element)``. Length preserved.
-def imap (f: (i: Int) -> (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a)) :
-    {r:(Array b) | size r = size arr} :=
+def imap (f: (i: Int) -> (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) :
+    {r:(Array b<q>) | size r = size arr} :=
     native "[f(i)(x) for i, x in enumerate(arr)]"
 
 
 # Pairwise zip-with; both arrays must share length ``size``.
 def zipWith (f: (x: {v:a | p v}) -> (y: {w:b | q w}) -> {z:c | r z})
-    (1 xs: (Array a)) (1 ys: {arr:(Array b) | size arr = size xs}) :
-    {out:(Array c) | size out = size xs} :=
+    (1 xs: (Array a<p>)) (1 ys: {arr:(Array b<q>) | size arr = size xs}) :
+    {out:(Array c<r>) | size out = size xs} :=
     native "[f(x)(y) for x, y in zip(xs, ys)]"
 
 
 # Count elements satisfying ``f``. Consumes the array.
-def count (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a)) : {n:Int | n >= 0 && n <= size arr} :=
+def count (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a<p>)) : {n:Int | n >= 0 && n <= size arr} :=
     native "sum(1 for x in arr if f(x))"
 
 
