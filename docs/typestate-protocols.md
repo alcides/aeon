@@ -120,14 +120,15 @@ open Stack
 def demo (u: Unit) : Int :=
     let 1 s0 := new_stack{Int} u in
     let 1 s1 := push 7 s0 in
-    let po := pop s1 in
-    let v := pop_value po in
-    let 1 s2 := pop_stack po in
-    let _ := discard s2 in
-    v;
+    let 1 po := pop s1 in
+    with_pop po (fun v => fun s2 =>
+        let _ := discard s2 in v);
 ```
 
 `pop` / `peek` require `stack_size > 0`; `discard` requires an empty stack.
+Recovery tokens are linear. Use `with_pop`, `with_peek`, or `with_len` to
+consume a token and receive both its value and handle. Individual projections
+also consume the token, so the same handle cannot be extracted twice.
 
 ## Deque
 
@@ -138,14 +139,11 @@ def demo (u: Unit) : Int :=
     let 1 d0 := new_deque{Int} u in
     let 1 d1 := push_back 1 d0 in
     let 1 d2 := push_front 0 d1 in
-    let po := pop_front d2 in
-    let v := pop_value po in
-    let 1 d3 := pop_deque po in
-    let po2 := pop_back d3 in
-    let _ := pop_value po2 in
-    let 1 d4 := pop_deque po2 in
-    let _ := discard d4 in
-    v;
+    let 1 po := pop_front d2 in
+    with_pop po (fun v => fun d3 =>
+        let 1 po2 := pop_back d3 in
+        let 1 d4 := pop_deque po2 in
+        let _ := discard d4 in v);
 ```
 
 Same size discipline as `Stack`, with operations at both ends.

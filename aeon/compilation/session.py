@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from functools import wraps
+from pathlib import Path
 from typing import TYPE_CHECKING, ParamSpec, TypeVar, cast
 
 if TYPE_CHECKING:
@@ -41,6 +42,8 @@ class CompilationOptions:
 class CompilationSession:
     options: CompilationOptions = field(default_factory=CompilationOptions)
     diagnostics: list[AeonError] = field(default_factory=list)
+    source_overrides: dict[str, str] = field(default_factory=dict)
+    source_paths: set[str] = field(default_factory=set)
     _states: dict[type, object] = field(default_factory=dict, init=False, repr=False)
 
     def state(self, factory: type[T]) -> T:
@@ -48,6 +51,13 @@ class CompilationSession:
             with self.activate():
                 self._states[factory] = factory()
         return cast(T, self._states[factory])
+
+    def read_source(self, filename: str) -> str:
+        path = str(Path(filename).resolve())
+        self.source_paths.add(path)
+        if path in self.source_overrides:
+            return self.source_overrides[path]
+        return Path(path).read_text(encoding="utf-8")
 
     @contextmanager
     def activate(self) -> Iterator[CompilationSession]:

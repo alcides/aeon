@@ -8,6 +8,7 @@ through the same validate / evaluate / Pareto archive loop.
 from __future__ import annotations
 
 import random
+from math import isfinite
 from collections.abc import Callable, Iterator
 from time import monotonic
 
@@ -229,10 +230,11 @@ def drive_candidates(
             else:
                 if len(values) != len(minimize):
                     raise ValueError(f"Expected {len(minimize)} objective values, got {len(values)}")
-                pareto_front, is_best = update_pareto_front(pareto_front, values, candidate, minimize)
-                if backend is not None:
-                    backend.pareto_front = pareto_front
-                score = values
+                if all(isfinite(value) for value in values):
+                    pareto_front, is_best = update_pareto_front(pareto_front, values, candidate, minimize)
+                    if backend is not None:
+                        backend.pareto_front = pareto_front
+                    score = values
 
         elapsed = monotonic() - started
         if is_best:

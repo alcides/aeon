@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import time
+import subprocess
+import sys
+
+import pytest
 
 from aeon.core.terms import Literal
 from aeon.core.types import t_int
@@ -36,3 +40,35 @@ def test_pool_evaluates_simple_fitness():
         assert out["fitness"] == ("ok", [12.0])
     finally:
         pool.close()
+
+
+@pytest.mark.parametrize("scenario", ["dead_worker", "dispatch_deadline"])
+def test_worker_failures_do_not_escape_their_deadlines(scenario):
+    code = """
+import time
+from aeon.core.terms import Literal
+from aeon.core.types import t_int, t_string
+from aeon.synthesis.evaluation_pool import EvaluationPool, TIMEOUT
+if SCENARIO == 'dead_worker':
+    pool = EvaluationPool(lambda t: t, {'fitness': lambda t: 42}, budget_eval=0.05)
+    try:
+        worker = pool._workers[0]
+        worker.proc.kill()
+        worker.proc.join()
+        assert pool.run(Literal('x' * 1000000, t_string))['fitness'][0] == TIMEOUT
+        assert pool.run(Literal(0, t_int))['fitness'] == ('ok', 42)
+    finally:
+        pool.close()
+else:
+    def wait(term):
+        time.sleep(term.value)
+        return term.value
+    pool = EvaluationPool(lambda t: t, {'fitness': wait}, budget_eval=0.05, n_workers=2)
+    try:
+        results = pool.map([Literal(100, t_int), Literal(2, t_int)])
+        assert [r['fitness'][0] for r in results] == [TIMEOUT, TIMEOUT], results
+    finally:
+        pool.close()
+""".replace("SCENARIO", repr(scenario))
+    completed = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=15)
+    assert completed.returncode == 0, completed.stderr

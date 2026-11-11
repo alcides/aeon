@@ -27,13 +27,7 @@ def is_cache_valid(unit: CompiledUnit, contents: str, dep_hashes: dict[str, str]
         return False
     if unit.source_hash != source_hash(contents):
         return False
-    for dep_path, dep_hash in dep_hashes.items():
-        if dep_path not in unit.dependencies:
-            return False
-        # Dependency content is validated when each dependency unit is loaded.
-        if dep_hash and dep_path in unit.dependencies:
-            pass
-    return True
+    return set(unit.dependencies) <= dep_hashes.keys() and unit.dependency_hashes() == dep_hashes
 
 
 def write_unit(unit: CompiledUnit, source_path: str | Path) -> Path:

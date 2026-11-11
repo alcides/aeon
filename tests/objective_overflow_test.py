@@ -17,6 +17,13 @@ def test_objective_float_overflow_is_invalid_fitness(value, length):
         as_objective_vector(value, length)
 
 
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf")])
+@pytest.mark.parametrize("length", [1, 2])
+def test_nonfinite_objectives_are_rejected(bad, length):
+    with pytest.raises(InvalidIndividualException):
+        as_objective_vector(bad if length == 1 else [0, bad], length)
+
+
 @pytest.mark.parametrize("case", ["function_refined_synthesis_args", "hole_refined_synthesis"])
 def test_enumeration_survives_large_integer_objectives(case):
     result = subprocess.run(

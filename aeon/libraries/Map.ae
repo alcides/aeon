@@ -1,3 +1,5 @@
+import Maybe
+
 type Map k v
 
 # Returns the size (number of entries) of the map.
@@ -16,8 +18,12 @@ def set (m: (Map k v)) (key: k) (value: v) : (Map k v) := native "{**m, key: val
 # Gets the value for a key in the map.
 # m: map
 # k: key
-# returns: value for key, or default if not found
-def get (m: (Map k v)) (key: k) : v := native "m.get(key)"
+# returns: just the value, or none when the key is absent
+def get (m: (Map k v)) (key: k) : (Maybe v) :=
+    if native "key in m" then Maybe.just (native "m[key]") else Maybe.none
+
+# Gets a value with an explicit fallback of the same type.
+def get_or (m: (Map k v)) (key: k) (default:v) : v := native "m.get(key, default)"
 
 # Checks if the map contains a key.
 # m: map

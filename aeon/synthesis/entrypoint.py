@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections import OrderedDict
 from typing import Any, Optional
 from typing import Callable
 from typing import TypeAlias
@@ -1080,12 +1081,16 @@ def _pool_backed(pool: EvaluationPool) -> tuple[Callable[[Term], list[float]], C
     ``output_value`` the ``output`` one. Each candidate is run once (all its
     computations together) and the results cached, so the two callables share
     that single round-trip."""
-    cache: dict[int, dict[str, tuple[str, Any]]] = {}
+    cache: OrderedDict[Term, dict[str, tuple[str, Any]]] = OrderedDict()
 
     def results(term: Term) -> dict[str, tuple[str, Any]]:
         key = candidate_key(term)
         if key not in cache:
             cache[key] = pool.run(term)
+            if len(cache) > 4096:
+                cache.popitem(last=False)
+        else:
+            cache.move_to_end(key)
         return cache[key]
 
     def evaluate(term: Term) -> list[float]:

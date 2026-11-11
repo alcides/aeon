@@ -15,10 +15,12 @@
 ##############################################################################
 
 import io
+import asyncio
 import logging
 import re
 import urllib.parse
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, TextIO, cast
 
 import requests
@@ -75,6 +77,24 @@ _constructor_names_cache: "Dict[URI, object]" = {}
 # counterexamples and the simplification chain of the failing VC.
 _errors_cache: "Dict[URI, list]" = {}
 _proof_cache: "Dict[URI, list[dict]]" = {}
+_dependencies: dict[URI, set[URI]] = {}
+_revision = 0
+_parse_sources: dict[URI, str] = {}
+_pending: dict[URI, tuple[str, int, asyncio.Task]] = {}
+
+
+def analysis_caches() -> dict[str, dict]:
+    """Serializable editor state, excluding compiler sessions and solvers."""
+    return {
+        "index": _type_index_cache,
+        "context": _typing_ctx_cache,
+        "core": _core_cache,
+        "metadata": _metadata_cache,
+        "evaluation": _evaluation_ctx_cache,
+        "constructors": _constructor_names_cache,
+        "errors": _errors_cache,
+        "proofs": _proof_cache,
+    }
 
 
 def get_proof_obligations(uri: URI) -> list[dict]:
@@ -138,6 +158,12 @@ def get_errors(uri: URI) -> list:
 def _refresh_analysis(driver: AeonDriver, uri: URI) -> None:
     """After a parse, rebuild and cache the position→type index for ``uri`` if
     core generation succeeded. On failure the previous caches are left intact."""
+    from aeon.compilation.compile import CompilationState
+
+    state = driver.session.state(CompilationState)
+    _dependencies[uri] = {Path(unit.source_path).as_uri() for unit in state.modules.values()} | {
+        Path(path).as_uri() for path in driver.session.source_paths
+    }
     core = getattr(driver, "core", None)
     typing_ctx = getattr(driver, "typing_ctx", None)
     if core is None or typing_ctx is None:
@@ -177,18 +203,31 @@ def find_holes_in_source(source: str) -> List[HolePosition]:
 _parse_result_cache: Dict[URI, ParseResult] = {}
 
 
-def clear_cache(uri: URI) -> None:
+def clear_cache(uri: URI) -> set[URI]:
     """Clear all caches for uri.
     This is to be called when the document is modified.
     """
-    logger.debug("Clearing cache for %s", uri)
-    _parse_result_cache.pop(uri, None)
-    _errors_cache.pop(uri, None)
-    _proof_cache.pop(uri, None)
-    logger.debug("DONE!")
+    global _revision
+    _revision += 1
+    affected = {uri} | {document for document, dependencies in _dependencies.items() if uri in dependencies}
+    for document in affected:
+        _parse_result_cache.pop(document, None)
+        _parse_sources.pop(document, None)
+        _errors_cache.pop(document, None)
+        _proof_cache.pop(document, None)
+    return affected
 
 
 _isurl = re.compile("([a-zA-Z0-9+.-]+)://").match
+
+
+def source_overrides(aeon_lsp: AeonLanguageServer) -> dict[str, str]:
+    """Capture imported editor buffers with the same lifetime as the main file."""
+    return {
+        str(Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path)).resolve()): document.source
+        for uri, document in getattr(aeon_lsp.workspace, "text_documents", {}).items()
+        if urllib.parse.urlparse(uri).scheme == "file"
+    }
 
 
 async def parse(
@@ -196,13 +235,10 @@ async def parse(
     uri: URI,
     allow_errors: bool = True,
 ) -> ParseResult:
-    if uri in _parse_result_cache:
-        return _parse_result_cache[uri]
-
     parsed_uri = urllib.parse.urlparse(uri)
     if parsed_uri.scheme in HTTP_SCHEMES:
         try:
-            response = requests_session.get(uri)
+            response = await asyncio.to_thread(requests_session.get, uri, timeout=10)
             response.raise_for_status()
             fp = io.StringIO(response.text)
         except requests.RequestException:
@@ -229,8 +265,37 @@ async def parse(
                 ]
             )
 
-    parse_result = await _parse(fp, aeon_lsp.aeon_driver, uri)
+    source = fp.read()
+    if uri in _parse_result_cache and _parse_sources.get(uri) == source:
+        return _parse_result_cache[uri]
+    from aeon.lsp.analysis import analyze
+
+    revision = _revision
+    pending = _pending.get(uri)
+    if pending is not None and pending[:2] == (source, revision):
+        task = pending[2]
+    else:
+        from dataclasses import replace
+
+        config = replace(aeon_lsp.aeon_driver.cfg, source_overrides=source_overrides(aeon_lsp))
+        task = asyncio.create_task(analyze(source, config, uri))
+        _pending[uri] = (source, revision, task)
+    try:
+        parse_result, snapshot, dependencies = await asyncio.shield(task)
+    finally:
+        if _pending.get(uri, (None, None, None))[2] is task and task.done():
+            _pending.pop(uri, None)
+    # Changes may arrive while the compiler runs. Never publish stale proofs or
+    # locations, including when a dependency changes during the first analysis.
+    current_source = source if parsed_uri.scheme in HTTP_SCHEMES else aeon_lsp.workspace.get_text_document(uri).source
+    if revision != _revision or current_source != source:
+        return await parse(aeon_lsp, uri, allow_errors)
+    for key, cache in analysis_caches().items():
+        if snapshot.get(key) is not None:
+            cache[uri] = snapshot[key]
+    _dependencies[uri] = dependencies
     _parse_result_cache[uri] = parse_result
+    _parse_sources[uri] = source
     return parse_result
 
 

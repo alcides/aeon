@@ -10,6 +10,7 @@ evaluates, and maintains a Pareto archive.
 from __future__ import annotations
 
 import random
+from time import monotonic
 from collections.abc import Callable, Iterator
 
 from aeon.core.terms import Term
@@ -38,11 +39,13 @@ def iter_random_candidates(
     metadata: Metadata,
     rng: random.Random,
     max_depth: int = MAX_DEPTH,
+    *,
+    deadline: float = float("inf"),
 ) -> Iterator[Term]:
     """Yield complete core terms by independent random walks over the grammar."""
     initial = initial_partial(ctx, target)
     skip = make_skip(fun_name, metadata)
-    while True:
+    while monotonic() < deadline:
         sample = sample_one(initial, skip, rng, max_depth)
         if sample is not None:
             yield sample
@@ -72,7 +75,7 @@ class RandomSearchSynthesizer(JointSynthesizer):
         assert isinstance(type, Type)
         rng = random.Random(self.seed)
         return drive_candidates(
-            iter_random_candidates(ctx, type, fun_name, metadata, rng),
+            iter_random_candidates(ctx, type, fun_name, metadata, rng, deadline=monotonic() + max(0.0, budget)),
             validate,
             evaluate,
             fun_name,
@@ -94,7 +97,8 @@ class RandomSearchSynthesizer(JointSynthesizer):
         ui: SynthesisUI = SynthesisUI(),
     ) -> JointCandidate | None:
         rng = random.Random(self.seed)
-        streams = [iter_random_candidates(h.ctx, h.type, h.function, metadata, rng) for h in holes]
+        deadline = monotonic() + max(0.0, budget)
+        streams = [iter_random_candidates(h.ctx, h.type, h.function, metadata, rng, deadline=deadline) for h in holes]
 
         def candidates() -> Iterator[Term]:
             for terms in zip(*streams):

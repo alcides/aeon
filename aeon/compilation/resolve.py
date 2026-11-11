@@ -88,7 +88,9 @@ def resolve_module_source(module_path: str) -> str | None:
     rel = module_path.replace(".", "/") + ".ae"
     for container in import_search_containers():
         candidate = container / rel
-        if candidate.exists():
+        path = str(candidate.resolve())
+        current_session().source_paths.add(path)
+        if candidate.exists() or path in current_session().source_overrides:
             if current_session().options.package_only_imports:
                 if not candidate.resolve(strict=True).is_relative_to(container.resolve(strict=True)):
                     raise ValueError(f"stdlib import escapes the package: {module_path}")
@@ -115,7 +117,7 @@ def resolve_import(imp: ImportAe) -> Program:
 
     _currently_importing.add(resolved)
     try:
-        program = parse_main_program(Path(resolved).read_text(encoding="utf-8"), filename=resolved)
+        program = parse_main_program(current_session().read_source(resolved), filename=resolved)
         _import_cache[resolved] = program
         return program
     finally:

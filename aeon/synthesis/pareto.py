@@ -8,6 +8,7 @@ front updates stay consistent.
 from __future__ import annotations
 
 import random
+from math import isfinite
 from collections.abc import Sequence
 from typing import TypeVar
 
@@ -40,6 +41,10 @@ def update_pareto_front(
     minimize: Sequence[bool],
 ) -> tuple[list[tuple[list[float], T]], bool]:
     """Insert an evaluated candidate and report whether it joins the front."""
+    if len(score) != len(minimize):
+        raise ValueError("fitness vectors and objective directions must have equal lengths")
+    if not all(isfinite(value) for value in score):
+        return front, False
     if any(list(existing_score) == list(score) for existing_score, _ in front):
         return front, False
     if any(dominates(existing_score, score, minimize) for existing_score, _ in front):

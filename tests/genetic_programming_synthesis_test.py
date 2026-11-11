@@ -1,6 +1,7 @@
 """Semantics specific to native genetic-programming synthesis."""
 
 import random
+import pytest
 
 from aeon.core.terms import Literal
 from aeon.core.types import t_int
@@ -19,6 +20,26 @@ from aeon.synthesis.modules.tdsyn.worklist import PartialAST
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
+
+
+@pytest.mark.parametrize("score", [float("nan"), float("inf"), -float("inf")])
+def test_nonfinite_individual_never_enters_selection_or_archive(score):
+    state = gp.GPState(random.Random(0), [True], 0.5, 0.5)
+    individual = gp.Individual([0])
+    gp._assess(
+        individual,
+        initial_partial(TypingContext(), t_int),
+        lambda _: False,
+        lambda _: True,
+        lambda _: [score],
+        state,
+        SilentSynthesisUI(),
+        gp.monotonic(),
+        1.0,
+        decode=lambda *_: Literal(1, t_int),
+    )
+    assert not individual.valid and individual.fitness is None
+    assert state.pareto_front == []
 
 
 def test_terminal_choices_finish_sibling_arguments(monkeypatch):

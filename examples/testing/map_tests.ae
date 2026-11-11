@@ -6,11 +6,12 @@
 
 open Testing
 open Map
+import Maybe
 
 # ── Unit tests ───────────────────────────────────────────────────────────────
 
 @property(1)
-def test_get_after_set : Bool := assertEqual (get (set Map.new 1 100) 1) 100;
+def test_get_after_set : Bool := assertEqual (get_or (set Map.new 1 100) 1 0) 100;
 
 @property(1)
 def test_has : Bool :=
@@ -21,13 +22,13 @@ def test_has : Bool :=
 @property(1)
 def test_overwrite : Bool :=
     m := set (set Map.new 1 100) 1 200;
-    assertEqual (get m 1) 200;
+    assertEqual (get_or m 1 0) 200;
 
 @property(1)
 def test_two_keys : Bool :=
     m := set (set Map.new 1 10) 2 20;
-    both (assertEqual (get m 1) 10)
-         (assertEqual (get m 2) 20);
+    both (assertEqual (get_or m 1 0) 10)
+         (assertEqual (get_or m 2 0) 20);
 
 @property(1)
 def test_delete : Bool :=
@@ -45,7 +46,7 @@ def test_delete_keeps_others : Bool :=
 # Whatever value you set for a key, you get it back.
 @property
 def prop_set_get_roundtrip (k : Int) (v : Int) : Bool :=
-    assertEqual (get (set Map.new k v) k) v;
+    assertEqual (get_or (set Map.new k v) k 0) v;
 
 # A key is present right after being set.
 @property
@@ -60,4 +61,13 @@ def prop_delete_then_absent (k : Int) (v : Int) : Bool :=
 # The last write wins.
 @property
 def prop_last_write_wins (k : Int) (v1 : Int) (v2 : Int) : Bool :=
-    assertEqual (get (set (set Map.new k v1) k v2) k) v2;
+    assertEqual (get_or (set (set Map.new k v1) k v2) k 0) v2;
+
+@property(1)
+def test_missing_key_is_none : Bool := Maybe.isNone (get (set Map.new 1 10) 2);
+
+@property(1)
+def test_missing_key_uses_default : Bool := get_or (set Map.new 1 10) 2 99 = 99;
+
+@property(1)
+def test_present_key_is_just : Bool := Maybe.withDefault 99 (get (set Map.new 1 10) 1) = 10;

@@ -1,25 +1,8 @@
-"""Export an Aeon function as a stand-alone, pure-Python definition.
+"""Export Aeon functions with lexical binding identity and strict evaluation.
 
-This backs the ``--export=fun_name`` CLI flag. The output bundles
-``fun_name`` with every top-level binding it transitively depends on
-(unreferenced bindings are dropped, but ``native_import`` bindings are always
-kept since ``native`` strings reference the imported modules by name). For
-each binding the pipeline is:
-
-1. Locate the top-level binding for ``fun_name`` in the core AST.
-2. Reduce its body to weak-head normal form (``aeon.optimization.whnf``) — this strips the
-   type-level wrappers introduced by elaboration (type/refinement
-   abstractions and applications, annotations) and beta-reduces any redex
-   at the head, exposing the underlying ``Abstraction``.
-3. Walk the resulting term and emit Python source, mirroring the choices the
-   interpreter (``aeon/backend/evaluator.py``) makes at runtime: curried
-   lambdas for abstractions, ternaries for ``if``, immediately-applied
-   lambdas for ``let``. ``native`` strings are inlined verbatim, exactly as
-   the interpreter would ``eval`` them.
-
-The emitted function preserves Aeon's currying convention, so a binary call
-``f a b`` becomes ``f(a)(b)`` and the inlined native strings (which reference
-the source-level parameter names) resolve against the surrounding lambdas.
+Core types are erased, functions stay curried, and native Python expressions
+receive their source-level lexical namespace. Only reachable definitions are
+emitted; native expressions conservatively retain every visible binding.
 """
 
 from __future__ import annotations
@@ -40,7 +23,10 @@ from aeon.core.terms import (
     TypeApplication,
     Var,
 )
-from aeon.optimization.whnf import strip_type_wrappers, whnf
+import keyword
+import re
+
+from aeon.optimization.whnf import strip_type_wrappers
 from aeon.core.types import t_bool, t_string, t_unit
 from aeon.utils.name import Name
 
@@ -101,74 +87,119 @@ def _literal_to_python(value: object, type) -> str:
     return repr(value)
 
 
+class _Generator:
+    def __init__(self):
+        self.names: dict[Name, str] = {}
+        self.used = {"_aeon_builtins"}
+        self.refs: set[Name] = set()
+
+    def name(self, name: Name) -> str:
+        if name not in self.names:
+            base = re.sub(r"\W", "_", name.name)
+            if not base or base[0].isdigit() or keyword.iskeyword(base):
+                base = "_" + base
+            candidate, suffix = base, 1
+            while candidate in self.used:
+                candidate = f"{base}_{suffix}"
+                suffix += 1
+            self.names[name] = candidate
+            self.used.add(candidate)
+        return self.names[name]
+
+    def gen(self, t: Term, env: dict[str, Name]) -> str:
+        match t:
+            case Literal(value, ty):
+                return _literal_to_python(value, ty)
+            case Var(name):
+                self.refs.add(name)
+                return self.name(name)
+            case Annotation(expr, _):
+                return self.gen(expr, env)
+            case TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
+                return self.gen(body, env)
+            case TypeApplication(body, _) | RefinementApplication(body, _):
+                return self.gen(body, env)
+            case Abstraction(name, body):
+                parameter = self.name(name)
+                return f"(lambda {parameter}: {self.gen(body, env | {name.name: name})})"
+            case If(cond, then, otherwise):
+                return f"({self.gen(then, env)} if {self.gen(cond, env)} else {self.gen(otherwise, env)})"
+            case Let(name, value, body):
+                parameter = self.name(name)
+                return f"(lambda {parameter}: {self.gen(body, env | {name.name: name})})({self.gen(value, env)})"
+            case Application():
+                return self.application(t, env)
+            case Hole(name):
+                raise PythonExportError(f"cannot export a function with an unfilled hole: ?{name}")
+            case Rec(name, _, _, _, _, _, _):
+                raise PythonExportError(
+                    f"cannot export local recursive binding '{name.name}'; only top-level functions are supported"
+                )
+            case _:
+                raise PythonExportError(f"unsupported term in export: {type(t).__name__}")
+
+    def application(self, t: Application, env: dict[str, Name]) -> str:
+        head, args = _unfold_application(t)
+        # Match builtin identity, never a user's binding with the same spelling.
+        if isinstance(head, Var) and head.name == Name(head.name.name, 0):
+            op = head.name.name
+            first = strip_type_wrappers(args[0]) if args else None
+            if op == "native" and isinstance(first, Literal):
+                # Native expressions can inspect their namespace dynamically.
+                # Preserve all lexical dependencies, including those invisible
+                # to Aeon's Var traversal. Python lambdas keep this namespace.
+                self.refs.update(env.values())
+                namespace = ", ".join(f"{key!r}: {self.name(value)}" for key, value in env.items())
+                return f"_aeon_builtins.eval({first.value!r}, {{{namespace}}})"
+            if op == "native_import" and isinstance(first, Literal):
+                return f"_aeon_builtins.__import__({first.value!r})"
+            if op == "print" and len(args) == 1:
+                return f"(_aeon_builtins.print(_aeon_builtins.str({self.gen(args[0], env)})) or 0)"
+            if op == "!" and len(args) == 1:
+                return f"(not {self.gen(args[0], env)})"
+            if op == "$" and len(args) == 2:
+                return f"({self.gen(args[0], env)})({self.gen(args[1], env)})"
+            if len(args) == 2:
+                left, right = (self.gen(arg, env) for arg in args)
+                if op in {"&&", "||", "-->"}:
+                    body = {"&&": "x and y", "||": "x or y", "-->": "(not x) or y"}[op]
+                    return f"(lambda x, y: {body})({left}, {right})"
+                if op == "/":
+                    return (
+                        "(lambda x, y: x // y if _aeon_builtins.isinstance(x, _aeon_builtins.int) "
+                        "and _aeon_builtins.isinstance(y, _aeon_builtins.int) else x / y)"
+                        f"({left}, {right})"
+                    )
+                if op in BINARY_OPERATORS:
+                    return f"({left} {BINARY_OPERATORS[op]} {right})"
+        out = self.gen(head, env)
+        for arg in args:
+            out = f"({out})({self.gen(arg, env)})"
+        return out
+
+    def binding(self, name: Name, value: Term, env: dict[str, Name]) -> str:
+        # Beta reduction can erase let bindings read only by native strings.
+        body = strip_type_wrappers(value)
+        params: list[str] = []
+        if isinstance(body, Abstraction):
+            env = env | {name.name: name}
+        while isinstance(body, Abstraction):
+            params.append(self.name(body.var_name))
+            env = env | {body.var_name.name: body.var_name}
+            body = strip_type_wrappers(body.body)
+        body_src = self.gen(body, env)
+        binding = self.name(name)
+        if not params:
+            return f"{binding} = {body_src}"
+        head, *rest = params
+        for parameter in reversed(rest):
+            body_src = f"lambda {parameter}: {body_src}"
+        return f"def {binding}({head}):\n    return {body_src}"
+
+
 def gen(t: Term) -> str:
-    """Translate a core ``Term`` into a pure-Python expression string."""
-    match t:
-        case Literal(value, ty):
-            return _literal_to_python(value, ty)
-        case Var(name):
-            return name.name
-        case Annotation(expr, _):
-            return gen(expr)
-        case TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
-            return gen(body)
-        case TypeApplication(body, _) | RefinementApplication(body, _):
-            return gen(body)
-        case Abstraction(var_name, body):
-            return f"(lambda {var_name.name}: {gen(body)})"
-        case If(cond, then, otherwise):
-            return f"({gen(then)} if {gen(cond)} else {gen(otherwise)})"
-        case Let(var_name, var_value, body):
-            return f"(lambda {var_name.name}: {gen(body)})({gen(var_value)})"
-        case Application():
-            return _gen_application(t)
-        case Hole(name):
-            raise PythonExportError(f"cannot export a function with an unfilled hole: ?{name}")
-        case Rec(var_name, _, _, _, _, _, _):
-            raise PythonExportError(
-                f"cannot export local recursive binding '{var_name.name}'; only top-level functions are supported"
-            )
-        case _:
-            raise PythonExportError(f"unsupported term in export: {type(t).__name__}")
-
-
-def _gen_application(t: Application) -> str:
-    head, args = _unfold_application(t)
-
-    if isinstance(head, Var):
-        op = head.name.name
-        first = strip_type_wrappers(args[0]) if args else None
-        # Inline ``native "..."`` strings verbatim, as the interpreter evals them.
-        if op == "native" and isinstance(first, Literal):
-            return f"({first.value})"
-        if op == "native_import" and isinstance(first, Literal):
-            return f"__import__({first.value!r})"
-        # ``print`` mirrors the prelude's ``p``: print and yield 0.
-        if op == "print" and len(args) == 1:
-            return f"(print(str({gen(args[0])})) or 0)"
-        # ``!`` is unary boolean negation.
-        if op == "!" and len(args) == 1:
-            return f"(not {gen(args[0])})"
-        # ``-->`` is logical implication.
-        if op == "-->" and len(args) == 2:
-            return f"((not {gen(args[0])}) or {gen(args[1])})"
-        # ``$`` is application.
-        if op == "$" and len(args) == 2:
-            return f"({gen(args[0])})({gen(args[1])})"
-        if op == "/" and len(args) == 2:
-            # Bind each operand once, preserving evaluation order and effects.
-            return (
-                "(lambda x, y: x // y if isinstance(x, int) and isinstance(y, int) else x / y)"
-                f"({gen(args[0])}, {gen(args[1])})"
-            )
-        if op in BINARY_OPERATORS and len(args) == 2:
-            return f"({gen(args[0])} {BINARY_OPERATORS[op]} {gen(args[1])})"
-
-    # Fall back to plain curried application.
-    out = gen(head)
-    for arg in args:
-        out = f"({out})({gen(arg)})"
-    return out
+    """Render an expression; builtin calls use the exported builtins namespace."""
+    return _Generator().gen(t, {})
 
 
 def top_level_bindings(core: Term) -> list[tuple[Name, Term]]:
@@ -179,36 +210,6 @@ def top_level_bindings(core: Term) -> list[tuple[Name, Term]]:
         out.append((t.var_name, t.var_value))
         t = t.body
     return out
-
-
-def _collect_refs(t: Term, acc: set[Name]) -> None:
-    """Accumulate the names of every ``Var`` that occurs in ``t``."""
-    match t:
-        case Var(name):
-            acc.add(name)
-        case Literal() | Hole():
-            return
-        case Application(fun, arg):
-            _collect_refs(fun, acc)
-            _collect_refs(arg, acc)
-        case Abstraction(_, body):
-            _collect_refs(body, acc)
-        case Annotation(expr, _):
-            _collect_refs(expr, acc)
-        case If(cond, then, otherwise):
-            _collect_refs(cond, acc)
-            _collect_refs(then, acc)
-            _collect_refs(otherwise, acc)
-        case Let(_, var_value, body):
-            _collect_refs(var_value, acc)
-            _collect_refs(body, acc)
-        case Rec(_, _, var_value, body):
-            _collect_refs(var_value, acc)
-            _collect_refs(body, acc)
-        case TypeAbstraction(_, _, body) | RefinementAbstraction(_, _, body):
-            _collect_refs(body, acc)
-        case TypeApplication(body, _) | RefinementApplication(body, _):
-            _collect_refs(body, acc)
 
 
 def _native_import_module(value: Term) -> str | None:
@@ -223,62 +224,42 @@ def _native_import_module(value: Term) -> str | None:
     return None
 
 
-def _render_binding(name: Name, value: Term) -> str:
-    """Render a single top-level binding as Python.
-
-    Functions (terms with leading abstractions) become curried ``def``s;
-    value bindings — including ``native_import`` and ``native`` constants —
-    become module-level assignments so references resolve to the value
-    itself, exactly as the interpreter binds them."""
-    body = whnf(value)
-    params: list[str] = []
-    while isinstance(body, Abstraction):
-        params.append(body.var_name.name)
-        body = whnf(body.body)
-    body_src = gen(body)
-
-    if not params:
-        return f"{name.name} = {body_src}"
-
-    head, *rest = params
-    inner = body_src
-    for p in reversed(rest):
-        inner = f"lambda {p}: {inner}"
-    return f"def {name.name}({head}):\n    return {inner}"
-
-
 def export_function(core: Term, fun_name: str) -> str:
-    """Produce a pure-Python rendering of ``fun_name`` and its dependencies.
+    """Export the visible binding and its lexical dependencies.
 
-    The output bundles ``fun_name`` together with every top-level binding it
-    transitively references, dropping anything unmentioned — except
-    ``native_import`` bindings, which are always kept (the ``native`` strings
-    that depend on them reference the imported modules by name, invisibly to
-    AST-level dependency analysis)."""
+    Native expressions retain their entire visible namespace because Python
+    can discover dependencies dynamically (for example through globals()).
+    """
     bindings = top_level_bindings(core)
-    by_name = {name: value for name, value in bindings}
-
-    target = next((name for name, _ in bindings if name.name == fun_name), None)
+    by_name = dict(bindings)
+    target = next((name for name, _ in reversed(bindings) if name.name == fun_name), None)
     if target is None:
         raise PythonExportError(f"no top-level function named '{fun_name}' was found")
+    if not fun_name.isidentifier() or keyword.iskeyword(fun_name) or fun_name == "_aeon_builtins":
+        raise PythonExportError(f"exported entrypoint is not a supported Python identifier: {fun_name!r}")
 
-    top_names = set(by_name)
+    generator = _Generator()
+    # Reserve the public name before allocating names for shadowed definitions.
+    generator.name(target)
+    environments: dict[Name, dict[str, Name]] = {}
+    env: dict[str, Name] = {}
+    for name, _ in bindings:
+        generator.name(name)
+        environments[name] = env
+        env = env | {name.name: name}
 
-    # Transitive closure of the dependencies reachable from the target.
-    needed: set[Name] = {target}
-    worklist = [target]
-    while worklist:
-        refs: set[Name] = set()
-        _collect_refs(by_name[worklist.pop()], refs)
-        for ref in refs:
-            if ref in top_names and ref not in needed:
-                needed.add(ref)
-                worklist.append(ref)
+    needed = {target} | {name for name, value in bindings if _native_import_module(value) is not None}
+    pending = list(needed)
+    rendered: dict[Name, str] = {}
+    while pending:
+        name = pending.pop()
+        generator.refs = set()
+        rendered[name] = generator.binding(name, by_name[name], environments[name])
+        for dependency in generator.refs & by_name.keys():
+            if dependency not in needed:
+                needed.add(dependency)
+                pending.append(dependency)
 
-    # ``native_import`` bindings are always included.
-    for name, value in bindings:
-        if _native_import_module(value) is not None:
-            needed.add(name)
-
-    parts = [_render_binding(name, value) for name, value in bindings if name in needed]
+    parts = ["import builtins as _aeon_builtins"]
+    parts.extend(rendered[name] for name, _ in bindings if name in needed)
     return "\n\n".join(parts) + "\n"

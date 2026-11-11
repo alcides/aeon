@@ -44,6 +44,56 @@ def test_aec_cache_written_and_reloaded(tmp_path, monkeypatch):
     assert unit2.exports["value"].internal_name.name == "Lib_value"
 
 
+@pytest.mark.parametrize("transitive", [False, True])
+@pytest.mark.parametrize("mutation", ["type", "delete", "resolution"])
+def test_cached_library_rechecks_changed_dependencies(tmp_path, monkeypatch, transitive, mutation):
+    monkeypatch.chdir(tmp_path)
+    dependency = tmp_path / "A.ae"
+    dependency.write_text("def value:Int := 1;")
+    (tmp_path / "B.ae").write_text("import A; def keep:Int := A.value;")
+    source = tmp_path / ("C.ae" if transitive else "B.ae")
+    if transitive:
+        source.write_text("import B; def keep:Int := B.keep;")
+    unit, errors = compile_file(str(source))
+    assert not errors
+    assert "A" in unit.dependency_sources
+    if mutation == "type":
+        dependency.write_text("def value:Bool := true;")
+    elif mutation == "delete":
+        dependency.unlink()
+    else:
+        # Same module name now resolves to a different import root.
+        directory = tmp_path / "libraries"
+        directory.mkdir()
+        dependency.rename(directory / "A.ae")
+        (directory / "A.ae").write_text("def value:Bool := true;")
+    clear_unit_cache()
+    _, errors = compile_file(str(source))
+    assert errors
+
+
+def test_unchanged_dependency_still_allows_a_disk_cache_hit(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "A.ae").write_text("def value:Int := 1;")
+    source = tmp_path / "B.ae"
+    source.write_text("import A; def keep:Int := A.value;")
+    first, errors = compile_file(str(source))
+    assert not errors
+    clear_unit_cache()
+    import aeon.compilation.compile as compiler
+
+    parse = compiler.parse_main_program
+
+    def guard(contents, **kwargs):
+        assert contents != source.read_text(), "unchanged importer was unnecessarily recompiled"
+        return parse(contents, **kwargs)
+
+    monkeypatch.setattr(compiler, "parse_main_program", guard)
+    second, errors = compile_file(str(source))
+    assert not errors
+    assert second.dependency_sources == first.dependency_sources
+
+
 def test_imported_program_via_driver(tmp_path, monkeypatch):
     lib = tmp_path / "Counter.ae"
     lib.write_text("def inc (n:Int) : Int := n + 1;\n")

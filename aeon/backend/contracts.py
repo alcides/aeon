@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from aeon.backend.liquid_eval import UninterpretedInLiquid, UnevaluableLiquid, eval_liquid_bool
@@ -93,7 +93,14 @@ def _check_liquid(
 
 
 def check_param_refinement(
-    param_type: Type, param_name: Name, value: Any, state: ContractState, *, callee: Name, loc: Location | None
+    param_type: Type,
+    param_name: Name,
+    value: Any,
+    state: ContractState,
+    *,
+    callee: Name,
+    loc: Location | None,
+    env: dict[Name, Any] | None = None,
 ) -> None:
     param_type = _strip_type_wrappers(param_type)
     if not isinstance(param_type, RefinedType):
@@ -101,17 +108,23 @@ def check_param_refinement(
     opened = _opened_refinement_liquid(param_type, param_name, [param_name], [param_name])
     if opened is None:
         return
-    env = {param_name: value}
+    env = {**(env or {}), param_name: value}
     _check_liquid(opened, env, state, blame="caller", callee=callee, loc=loc)
 
 
 def check_return_refinement(
-    return_type: Type, value: Any, state: ContractState, *, callee: Name, loc: Location | None
+    return_type: Type,
+    value: Any,
+    state: ContractState,
+    *,
+    callee: Name,
+    loc: Location | None,
+    env: dict[Name, Any] | None = None,
 ) -> None:
     return_type = _strip_type_wrappers(return_type)
     if not isinstance(return_type, RefinedType):
         return
-    env = {return_type.name: value}
+    env = {**(env or {}), return_type.name: value}
     _check_liquid(return_type.refinement, env, state, blame="callee", callee=callee, loc=loc)
 
 
@@ -124,19 +137,21 @@ class ContractClosure:
     callee: Name
     state: ContractState
     loc: Location | None = None
+    env: dict[Name, Any] = field(default_factory=dict)
 
     def __call__(self, arg: Any) -> Any:
         ty = _strip_type_wrappers(self.arrow_type)
         if isinstance(ty, AbstractionType):
-            check_param_refinement(ty.var_type, ty.var_name, arg, self.state, callee=self.callee, loc=self.loc)
+            env = {**self.env, ty.var_name: arg}
+            check_param_refinement(ty.var_type, ty.var_name, arg, self.state, callee=self.callee, loc=self.loc, env=env)
             result = self.fn(arg)
             rest = _strip_type_wrappers(ty.type)
             if isinstance(rest, AbstractionType):
-                return ContractClosure(result, rest, self.callee, self.state, loc=self.loc)
-            check_return_refinement(rest, result, self.state, callee=self.callee, loc=self.loc)
+                return ContractClosure(result, rest, self.callee, self.state, loc=self.loc, env=env)
+            check_return_refinement(rest, result, self.state, callee=self.callee, loc=self.loc, env=env)
             return result
         result = self.fn(arg)
-        check_return_refinement(ty, result, self.state, callee=self.callee, loc=self.loc)
+        check_return_refinement(ty, result, self.state, callee=self.callee, loc=self.loc, env=self.env)
         return result
 
 
@@ -147,5 +162,6 @@ def wrap_callable(
     state: ContractState,
     *,
     loc: Location | None = None,
+    env: dict[Name, Any] | None = None,
 ) -> ContractClosure:
-    return ContractClosure(fn, fn_type, callee, state, loc=loc)
+    return ContractClosure(fn, fn_type, callee, state, loc=loc, env=dict(env or {}))

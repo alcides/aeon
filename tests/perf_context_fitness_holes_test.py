@@ -53,6 +53,39 @@ def test_memoize_fitness_lru_evicts_oldest():
     assert calls == [1, 2, 3, 2]
 
 
+def test_fitness_caches_distinguish_colliding_candidates():
+    from aeon.synthesis.entrypoint import _pool_backed
+
+    a, b = Literal(-1, t_int), Literal(-2, t_int)
+    assert a != b and hash(a) == hash(b)
+    memo = memoize_fitness(lambda term: [abs(term.value + 1)])
+    assert memo(a) == [0]
+    assert memo(b) == [1]
+
+    class Pool:
+        def run(self, term):
+            return {"fitness": ("ok", memo(term)), "output": ("ok", term.value)}
+
+    evaluate, output = _pool_backed(Pool())
+    assert evaluate(a) == [0]
+    assert evaluate(b) == [1]
+    assert output(a) == -1 and output(b) == -2
+
+
+def test_runtime_context_extension_preserves_closure_snapshots():
+    from aeon.backend.evaluator import eval
+
+    x, y = Name("x", 1), Name("y", 2)
+    original = {x: 1}
+    parent = EvaluationContext(original, reject_holes=True)
+    original[x] = 99
+    closure = eval(Abstraction(y, Var(x)), parent)
+    child = parent.with_var(x, 2)
+    assert parent.get(x) == 1 and child.get(x) == 2
+    assert closure(0) == 1
+    assert child.reject_holes
+
+
 def test_hard_constraint_and_objective_share_one_candidate_evaluation():
     f, hole, constraint, score, observe = (Name(name, 0) for name in ("f", "h", "constraint", "score", "observe"))
     calls = []
