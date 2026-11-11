@@ -135,49 +135,36 @@ def _extract_solution(
 
     for hole in holes:
         z3_var = z3_vars[str(hole.name)]
-        val = model[z3_var]
+        # Complete free scalars in the model itself so the blocking clause
+        # also excludes their chosen values on the next iteration. Defaults
+        # outside the model silently skip alternatives (e.g. false after true).
+        val = model.eval(z3_var, model_completion=True)
         base = base_type_of(hole.expected_type)
         assert base is not None
 
-        if val is None:
-            # Z3 didn't constrain this variable; pick a default
+        try:
             match base.name.name:
                 case "Int":
-                    solution[hole.name] = Literal(0, t_int, _loc)
+                    int_val = val.as_long()
+                    solution[hole.name] = Literal(int_val, t_int, _loc)
                 case "Bool":
-                    solution[hole.name] = Literal(True, t_bool, _loc)
+                    from z3 import is_true
+
+                    bool_val = is_true(val)
+                    solution[hole.name] = Literal(bool_val, t_bool, _loc)
                 case "Float":
-                    solution[hole.name] = Literal(0.0, t_float, _loc)
+                    float_val = float(val.as_decimal(10).rstrip("?"))
+                    solution[hole.name] = Literal(float_val, t_float, _loc)
                 case "String":
-                    solution[hole.name] = Literal("", t_string, _loc)
+                    # as_string() renders non-ASCII codepoints as textual
+                    # \\u{...} escapes, changing their Python length. Decode
+                    # model characters, not Z3's display representation.
+                    length = model.eval(Length(val)).as_long()
+                    value = "".join(chr(model.eval(StrToCode(SubString(val, i, 1))).as_long()) for i in range(length))
+                    solution[hole.name] = Literal(value, t_string, _loc)
                 case _:
                     return None
-        else:
-            try:
-                match base.name.name:
-                    case "Int":
-                        int_val = val.as_long()
-                        solution[hole.name] = Literal(int_val, t_int, _loc)
-                    case "Bool":
-                        from z3 import is_true
-
-                        bool_val = is_true(val)
-                        solution[hole.name] = Literal(bool_val, t_bool, _loc)
-                    case "Float":
-                        float_val = float(val.as_decimal(10).rstrip("?"))
-                        solution[hole.name] = Literal(float_val, t_float, _loc)
-                    case "String":
-                        # as_string() renders non-ASCII codepoints as textual
-                        # \\u{...} escapes, changing their Python length. Decode
-                        # model characters, not Z3's display representation.
-                        length = model.eval(Length(val)).as_long()
-                        value = "".join(
-                            chr(model.eval(StrToCode(SubString(val, i, 1))).as_long()) for i in range(length)
-                        )
-                        solution[hole.name] = Literal(value, t_string, _loc)
-                    case _:
-                        return None
-            except Exception:
-                return None
+        except Exception:
+            return None
 
     return solution
