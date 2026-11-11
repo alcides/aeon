@@ -18,7 +18,7 @@ from aeon.utils.name import Name
 from aeon.backend.contracts import ContractClosure, ContractState, wrap_callable
 from aeon.core.types import Type
 from aeon.decorators.api import Metadata
-from aeon.llvm.core import LLVMPipeline
+from aeon.llvm.core import LLVMBackendError, LLVMPipeline
 
 real_eval = eval
 
@@ -222,12 +222,23 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                         break
 
             if found_llvm:
+                compiled = None
                 try:
-                    v = ctx.pipeline.get_curried_function(var_name)
-                    if v is not None:
-                        return eval(body, ctx.with_var(var_name, v))
+                    compiled = ctx.pipeline.get_curried_function(var_name)
                 except Exception:
                     pass
+                if compiled is not None:
+                    v = (
+                        _wrap_if_contract(compiled, var_type, var_name, ctx, loc=t.loc)
+                        if callable(compiled)
+                        else compiled
+                    )
+                    try:
+                        return eval(body, ctx.with_var(var_name, v))
+                    except LLVMBackendError:
+                        # An unavailable device/linker still permits interpreter
+                        # fallback. Contract violations must always propagate.
+                        pass
 
             # Peel off TypeAbstraction/RefinementAbstraction wrappers introduced by
             # elaboration so the recursion-tying trick still applies to polymorphic
@@ -286,6 +297,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                     ctx.contract_state,
                     callee=Name("<annotation>", 0),
                     loc=expr.loc,
+                    env=ctx.variables,
                 )
             return value
         case Hole(name):

@@ -149,22 +149,29 @@ class AeonDriver:
 
         self.metadata = metadata
 
-        if self.cfg.check_only:
-            return []
-
         dep_units = dependency_units_for(unit)
         self.constructor_names = collect_constructor_names(unit, dep_units)
 
+        if self.cfg.check_only:
+            return []
+
+        self.prepare_execution()
+        return []
+
+    @_in_driver_session
+    def prepare_execution(self) -> None:
+        """Build fresh runtime state from checked core, including editor snapshots."""
+        assert self.core is not None and self.typing_ctx is not None
         with RecordTime("Preparing execution env"):
-            pipeline = MultiBackendPipeline(metadata=metadata)
+            pipeline = MultiBackendPipeline(metadata=self.metadata)
             contract_state: ContractState | None = None
             if self.cfg.contracts:
-                fn_types = collect_top_level_fn_types(core)
+                fn_types = collect_top_level_fn_types(self.core)
                 runtime = build_runtime_liquid_env(evaluation_vars)
-                contract_state = ContractState.from_contexts(typing_ctx, fn_types, runtime)
+                contract_state = ContractState.from_contexts(self.typing_ctx, fn_types, runtime)
             self.evaluation_ctx = EvaluationContext(
                 evaluation_vars,
-                metadata=metadata,
+                metadata=self.metadata,
                 pipeline=pipeline,
                 contract_state=contract_state,
                 reject_holes=True,
@@ -172,8 +179,6 @@ class AeonDriver:
 
         with RecordTime("LLVM compilation"):
             pipeline.compile(self.core)
-
-        return []
 
     @_in_driver_session
     def run(self) -> Any:

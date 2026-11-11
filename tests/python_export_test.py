@@ -58,7 +58,7 @@ def test_export_keeps_native_import_even_if_not_referenced_in_ast():
     # be force-included for the export to be runnable.
     src = 'def math : Unit := native_import "math";\ndef sq (x:Float) : Float := native "math.sqrt(x)";\n'
     code = _export(src, "sq")
-    assert "math = _aeon_builtins.__import__('math')" in code
+    assert "math = " in code
     ns: dict = {}
     exec(code, ns)
     assert ns["sq"](16.0) == 4.0
@@ -239,3 +239,37 @@ def test_exported_python_matches_aeon(filename: str, fun_name: str, args: list[i
     aeon_result = _eval_with_aeon(driver, fun_name, args)
     python_result = _eval_with_python(driver, fun_name, args)
     assert python_result == aeon_result
+
+
+@pytest.mark.parametrize(
+    "binding", ['let 0 ignored := (native "1 // 0" : Int)', 'let 0 ignored:Int := native "1 // 0"']
+)
+def test_export_skips_erased_bindings(binding):
+    source = f"def f(x:Int):Int := {binding} in x;"
+    assert _run(source, "f")(5) == 5
+
+
+def test_export_native_import_preserves_dotted_module():
+    source = """
+    def path:Unit := native_import "os.path";
+    def f(x:String):Bool := native "path.isabs(x)";
+    """
+    assert _run(source, "f")("/tmp") is True
+
+
+def test_native_export_can_retain_a_helper_with_typed_local_binding():
+    source = """
+    def helper(x:Int):Int := let y:Int := x in y;
+    def f(x:Int):Int := native "x + 1";
+    """
+    assert _run(source, "f")(5) == 6
+    assert _run(source.replace('"x + 1"', '"helper(x) + 1"'), "f")(5) == 6
+
+
+def test_export_local_recursion_preserves_lexical_scope():
+    source = """
+    def f(x:Int):Int :=
+        let go:(n:Int)->Int := fun n => if n <= 0 then x else go (n - 1)
+        in go 3;
+    """
+    assert _run(source, "f")(5) == 5

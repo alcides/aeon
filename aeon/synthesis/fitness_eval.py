@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import dataclasses
+import ast
+import symtable
+from functools import lru_cache
 from collections import OrderedDict
 from collections.abc import Callable
 from math import isfinite
 from typing import Any
 
 from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
-from aeon.core.terms import Application, Hole, Let, Literal, Rec, Term, Var
+from aeon.core.terms import Abstraction, Application, Hole, Let, Literal, Rec, Term, Var
+from aeon.optimization.whnf import strip_type_wrappers
 from aeon.core.types import t_int
 from aeon.synthesis.api import InvalidIndividualException
 from aeon.synthesis.decorators import Goal
@@ -126,6 +130,35 @@ def as_objective_vector(value: Any, length: int) -> list[float]:
     return scores
 
 
+@lru_cache(maxsize=1024)
+def _native_globals(code: str) -> frozenset[str] | None:
+    """Python global reads, or None when the expression can inspect its scope."""
+    try:
+        tree = ast.parse(code, mode="eval")
+        # Dynamic namespace access must preserve the full lexical environment.
+        # Simple expressions still permit independent requirements to run
+        # without evaluating unrelated (possibly failing) objective helpers.
+        if any(
+            isinstance(node, ast.Name)
+            and node.id in {"eval", "exec", "globals", "locals", "vars", "__builtins__"}
+            or isinstance(node, ast.Attribute)
+            and node.attr in {"eval", "exec"}
+            for node in ast.walk(tree)
+        ):
+            return None
+        pending = [symtable.symtable(code, "<native-specification>", "eval")]
+        names: set[str] = set()
+        while pending:
+            table = pending.pop()
+            names.update(
+                symbol.get_name() for symbol in table.get_symbols() if symbol.is_global() and symbol.is_referenced()
+            )
+            pending.extend(table.get_children())
+        return frozenset(names)
+    except SyntaxError:
+        return None
+
+
 def _require_slice(program: Term, function: Name) -> Term:
     """Evaluate only a requirement's dependencies, never unrelated objectives.
 
@@ -138,16 +171,44 @@ def _require_slice(program: Term, function: Name) -> Term:
         bindings.append(node)
         node = node.body
     by_name = {binding.var_name: binding for binding in bindings}
+    environments = {}
+    visible: dict[str, Name] = {}
+    for binding in bindings:
+        group = getattr(binding, "mutual_group_id", None)
+        if group is not None:
+            visible = visible | {
+                b.var_name.name: b.var_name for b in bindings if getattr(b, "mutual_group_id", None) == group
+            }
+        environments[binding.var_name] = visible | (
+            {binding.var_name.name: binding.var_name} if isinstance(binding, Rec) else {}
+        )
+        visible = visible | {binding.var_name.name: binding.var_name}
 
-    def references(value):
+    def references(value, env):
         if isinstance(value, Var):
             yield value.name
+        elif isinstance(value, Abstraction):
+            yield from references(value.body, env | {value.var_name.name: value.var_name})
+        elif isinstance(value, (Let, Rec)):
+            inner = env | {value.var_name.name: value.var_name}
+            yield from references(value.var_value, inner if isinstance(value, Rec) else env)
+            yield from references(value.body, inner)
         elif isinstance(value, Term) and dataclasses.is_dataclass(value):
+            if isinstance(value, Application):
+                head = strip_type_wrappers(value.fun)
+                if isinstance(head, Var) and head.name == Name("native", 0):
+                    code = strip_type_wrappers(value.arg)
+                    names = (
+                        _native_globals(code.value)
+                        if isinstance(code, Literal) and isinstance(code.value, str)
+                        else None
+                    )
+                    yield from (env[name] for name in env if names is None or name in names)
             for field in dataclasses.fields(value):
-                yield from references(getattr(value, field.name))
+                yield from references(getattr(value, field.name), env)
         elif isinstance(value, (tuple, list)):
             for item in value:
-                yield from references(item)
+                yield from references(item, env)
 
     needed = set()
     pending = [function]
@@ -157,7 +218,7 @@ def _require_slice(program: Term, function: Name) -> Term:
             continue
         needed.add(name)
         binding = by_name[name]
-        pending.extend(references(binding.var_value))
+        pending.extend(references(binding.var_value, environments[name]))
         group = getattr(binding, "mutual_group_id", None)
         if group is not None:
             pending.extend(b.var_name for b in bindings if getattr(b, "mutual_group_id", None) == group)

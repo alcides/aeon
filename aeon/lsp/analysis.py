@@ -14,6 +14,7 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import replace
 from multiprocessing import get_context
 from pathlib import Path
+from weakref import WeakKeyDictionary
 
 import dill
 
@@ -21,6 +22,7 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
 _executor: ProcessPoolExecutor | None = None
+_gates: WeakKeyDictionary = WeakKeyDictionary()
 
 
 def _analyze(source: str, config: AeonConfig, uri: str, directory: str) -> bytes:
@@ -46,5 +48,19 @@ async def analyze(source: str, config: AeonConfig, uri: str):
     if _executor is None:
         _executor = ProcessPoolExecutor(max_workers=1, mp_context=get_context("spawn"))
     config = replace(config, synthesis_ui=SilentSynthesisUI())
-    payload = await asyncio.get_running_loop().run_in_executor(_executor, _analyze, source, config, uri, os.getcwd())
+    loop = asyncio.get_running_loop()
+    gate = _gates.setdefault(loop, asyncio.Lock())
+    # Keep pending work on the event loop, where superseded requests can still
+    # be cancelled. ProcessPoolExecutor otherwise marks prefetched jobs running
+    # before the compiler is available, making them impossible to cancel.
+    await gate.acquire()
+    try:
+        future = loop.run_in_executor(_executor, _analyze, source, config, uri, os.getcwd())
+    except BaseException:
+        gate.release()
+        raise
+    # Cancelling the caller must not release the gate while its process is
+    # still compiling. The next request is submitted only when that work ends.
+    future.add_done_callback(lambda _: gate.release())
+    payload = await asyncio.shield(future)
     return dill.loads(payload)

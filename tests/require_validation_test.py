@@ -161,3 +161,41 @@ def test_requirements_and_objectives_share_candidate_bindings(monkeypatch, poole
         bad = specs.candidate({specs.holes[0]: Literal(-2, t_int)})
         assert not specs.validate(bad)
         assert calls.value == 3  # even a rejected candidate's checks share work
+
+
+@pytest.mark.parametrize("expression", ['native "f == 1"', "native \"globals()['f'] == 1\""])
+@pytest.mark.parametrize("pooled", [False, True])
+def test_native_requirements_keep_lexical_dependencies(expression, pooled):
+    from tests.program_specifications_test import specifications
+
+    with specifications(f"@require({expression}) def f:Int := ?h;", pooled=pooled) as specs:
+        good = specs.candidate({specs.holes[0]: Literal(1, t_int)})
+        bad = specs.candidate({specs.holes[0]: Literal(0, t_int)})
+        assert specs.validate(good)
+        assert not specs.validate(bad)
+
+
+@pytest.mark.parametrize("pooled", [False, True])
+def test_requirement_does_not_break_native_objective(pooled):
+    from tests.program_specifications_test import specifications
+
+    with specifications('@require(true) @maximize_int(native "f") def f:Int := ?h;', pooled=pooled) as specs:
+        candidate = specs.candidate({specs.holes[0]: Literal(1, t_int)})
+        assert specs.validate(candidate)
+        assert specs.evaluate(candidate) == [1.0]
+
+
+def test_native_requirement_ignores_shadowed_python_lambda_parameter():
+    from tests.program_specifications_test import specifications
+
+    with specifications(
+        """
+        def f:Int := ?h;
+        def unused:Int := native "1 // 0";
+        @require(native "(lambda unused: unused == 1)(f)")
+        def score:Int := f;
+    """,
+        pooled=False,
+    ) as specs:
+        candidate = specs.candidate({specs.holes[0]: Literal(1, t_int)})
+        assert specs.validate(candidate)

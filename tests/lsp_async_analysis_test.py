@@ -155,3 +155,165 @@ def test_obsolete_analysis_is_not_published(monkeypatch):
         assert aeon_adapter.get_proof_obligations(uri) == [{"source": "new"}]
 
     asyncio.run(run())
+
+
+def test_stale_synthesis_cannot_replace_newer_type_cache(monkeypatch):
+    from aeon.core.terms import Rec, Let
+    from aeon.synthesis import entrypoint
+
+    ls = make_server()
+    uri = "file:///stale-synthesis-cache.ae"
+    first = "def marker:Int := 1; def f(x:Int):Int := ?hole;"
+    second = "def marker:Bool := true; def f(x:Int):Int := ?hole;"
+    put(ls, uri, first)
+    started, release = threading.Event(), threading.Event()
+    real_driver = server.AeonDriver
+
+    def blocking_driver(cfg):
+        driver = real_driver(cfg)
+        original = driver.parse
+
+        def parse(*args, **kwargs):
+            errors = original(*args, **kwargs)
+            started.set()
+            assert release.wait(20)
+            return errors
+
+        driver.parse = parse
+        return driver
+
+    def marker_type():
+        node = aeon_adapter.get_core(uri)
+        while isinstance(node, (Rec, Let)):
+            if node.var_name.name == "marker":
+                return str(node.var_type).strip()
+            node = node.body
+        raise AssertionError("missing marker")
+
+    monkeypatch.setattr(server, "AeonDriver", blocking_driver)
+    monkeypatch.setattr(entrypoint, "synthesize_holes", lambda *a, **kw: {})
+    monkeypatch.setattr(server, "_emit_synthesis_pending", lambda *args: None)
+    monkeypatch.setattr(ls, "window_show_message", lambda *args: None)
+
+    async def run():
+        assert not (await aeon_adapter.parse(ls, uri)).diagnostics
+        task = asyncio.create_task(ls.protocol.fm.commands[server.SYNTHESIZE_COMMAND](uri, "hole", "smt", 1))
+        try:
+            assert await asyncio.to_thread(started.wait, 20)
+            put(ls, uri, second, version=2)
+            aeon_adapter.clear_cache(uri)
+            assert not (await aeon_adapter.parse(ls, uri)).diagnostics
+            assert marker_type() == "Bool"
+        finally:
+            release.set()
+        await task
+        await aeon_adapter.parse(ls, uri)
+        assert marker_type() == "Bool"
+
+    asyncio.run(run())
+
+
+def test_z3_recovery_rebuilds_execution_state_from_worker_snapshot(monkeypatch):
+    from z3.z3types import Z3Exception
+    from aeon.verification.constructor_registry import ConstructorRegistry
+
+    ls = make_server()
+    uri = "file:///worker-snapshot-recovery.ae"
+    source = "import List; @llvm def id(x:Int):Int := x; def f:Int := ?hole;"
+    put(ls, uri, source)
+    messages = []
+    monkeypatch.setattr(ls, "window_show_message", lambda params: messages.append(params.message))
+
+    async def run():
+        assert not (await aeon_adapter.parse(ls, uri)).diagnostics
+        driver = AeonDriver(ls.aeon_driver.cfg)
+
+        def fail(*args, **kwargs):
+            raise Z3Exception("simulated solver failure")
+
+        monkeypatch.setattr(driver, "parse", fail)
+        result = await asyncio.to_thread(server._run_synthesis, driver, ls, uri, "hole", "smt", 1, source)
+        assert result is not None, messages
+        assert driver.evaluation_ctx is not None
+        assert driver.constructor_names
+        assert driver.session.state(ConstructorRegistry).groups
+        assert not any("Synthesis failed" in message for message in messages)
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("related", [False, True])
+def test_synthesis_only_discarded_for_its_actual_dependencies(monkeypatch, tmp_path, related):
+    ls = make_server()
+    uri = (tmp_path / "Main.ae").as_uri()
+    dependency = tmp_path / "Dependency.ae"
+    put(ls, uri, "def f:Int := ?hole;")
+    started, release = threading.Event(), threading.Event()
+    edits = []
+
+    def synthesize(driver, *_args, **_kwargs):
+        # Include a dependency first discovered by this request, before any
+        # editor analysis has populated the dependency cache for this URI.
+        driver.session.source_paths.add(str(dependency))
+        started.set()
+        assert release.wait(10)
+        return "42", Range(Position(0, 13), Position(0, 18))
+
+    monkeypatch.setattr(server, "_run_synthesis", synthesize)
+    monkeypatch.setattr(server, "_emit_synthesis_pending", lambda *args: None)
+    monkeypatch.setattr(ls, "window_show_message", lambda *args: None)
+    monkeypatch.setattr(ls, "workspace_apply_edit", edits.append)
+
+    async def run():
+        task = asyncio.create_task(ls.protocol.fm.commands[server.SYNTHESIZE_COMMAND](uri, "hole", "smt", 1))
+        try:
+            assert await asyncio.to_thread(started.wait, 10)
+            aeon_adapter.clear_cache((dependency if related else tmp_path / "Unrelated.ae").as_uri())
+        finally:
+            release.set()
+        await task
+
+    asyncio.run(run())
+    assert bool(edits) is not related
+
+
+def test_superseded_analyses_are_coalesced_before_worker_submission(monkeypatch):
+    import dill
+    from concurrent.futures import ThreadPoolExecutor
+    from aeon.lsp import analysis
+
+    ls = make_server()
+    uri = "file:///coalesced-analysis.ae"
+    put(ls, uri, "old")
+    started, release = threading.Event(), threading.Event()
+    seen = []
+
+    def analyze(source, *_args):
+        seen.append(source)
+        if source == "old":
+            started.set()
+            assert release.wait(10)
+        return dill.dumps((aeon_adapter.ParseResult([]), {"proofs": [{"source": source}]}, set()))
+
+    monkeypatch.setattr(analysis, "_analyze", analyze)
+
+    async def run():
+        tasks = [asyncio.create_task(aeon_adapter.parse(ls, uri))]
+        try:
+            assert await asyncio.to_thread(started.wait, 10)
+            for version, source in enumerate(["intermediate", "latest"], start=2):
+                put(ls, uri, source, version)
+                aeon_adapter.clear_cache(uri)
+                tasks.append(asyncio.create_task(aeon_adapter.parse(ls, uri)))
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+            assert seen == ["old"]
+        finally:
+            release.set()
+        await asyncio.gather(*tasks)
+        assert seen == ["old", "latest"]
+        assert aeon_adapter.get_proof_obligations(uri) == [{"source": "latest"}]
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        monkeypatch.setattr(analysis, "_executor", executor)
+        asyncio.run(run())
