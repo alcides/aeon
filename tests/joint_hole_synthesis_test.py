@@ -206,7 +206,7 @@ def test_pade_native_fitness_receives_all_three_coefficients(backend, monkeypatc
         monkeypatch.setattr(
             random_search,
             "iter_random_candidates",
-            lambda ctx, target, function, *args: iter([Literal(by_function[function.name], t_float)]),
+            lambda ctx, target, function, *args, **kwargs: iter([Literal(by_function[function.name], t_float)]),
         )
     else:
         from itertools import cycle
