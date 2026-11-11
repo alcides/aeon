@@ -42,7 +42,9 @@ def test_head_requires_its_promised_element_refinement(element, accepted):
     ],
 )
 @pytest.mark.parametrize("item,accepted", [("-1", False), ("1", True)])
-def test_higher_order_array_operations_enforce_element_preconditions(helpers, body, result_type, expected, item, accepted):
+def test_higher_order_array_operations_enforce_element_preconditions(
+    helpers, body, result_type, expected, item, accepted
+):
     driver, errors = compile_source(helpers + f"\ndef main (u:Int):{result_type} := {body.replace('ITEM', item)};")
     assert bool(errors) is not accepted
     if accepted:
