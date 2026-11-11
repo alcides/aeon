@@ -129,6 +129,7 @@ def _well_sorted(c: Constraint, ctx: LiquidTypeCheckingContext) -> bool:
 class CachedQuery:
     clauses: tuple[CanonicConstraint, ...]
     selectors: dict[int, z3.BoolRef] = field(default_factory=dict)
+    answer: Status | None = None
 
 
 @dataclass
@@ -138,7 +139,8 @@ class SMTQueryState:
     A selector guards each counterexample formula. Checking just that selector
     isolates an obligation from previously visited branches, while retaining
     translations and solver state for the constraints revisited by each fork.
-    Answers are never cached: UNKNOWN can be retried with a different budget.
+    Definite answers are reused across forks. UNKNOWN and unsupported queries
+    are never cached, so a later call can retry with a different budget.
     """
 
     solver: z3.Solver | None = field(default=None, repr=False)
@@ -200,6 +202,8 @@ class SMTQuery:
             if not _well_sorted(constraint, context):
                 return Status.UNSUPPORTED
             solver, cached = self.state.prepare(constraint)
+            if cached.answer is not None:
+                return cached.answer
             for index, clause in enumerate(cached.clauses):
                 if monotonic() >= self.deadline:
                     return Status.UNKNOWN
@@ -215,10 +219,12 @@ class SMTQuery:
                 self.stats.solver_queries += 1
                 answer = solver.check(selector)
                 if answer == z3.sat:
-                    return Status.INVALID
+                    cached.answer = Status.INVALID
+                    return cached.answer
                 if answer == z3.unknown:
                     return Status.UNKNOWN
-            return Status.VALID
+            cached.answer = Status.VALID
+            return cached.answer
         except (
             LiquidTypeCheckException,
             AssertionError,
