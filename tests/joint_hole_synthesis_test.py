@@ -92,7 +92,8 @@ def test_actual_backends_fill_multiple_holes_in_one_function(backend):
     driver = parse("""
     def f (x:Int) : Int := if ?cond then ?left else ?right;
     """)
-    mapping = solve(driver, backend(seed=0))
+    # This checks successful integration, not completion within 100 ms on CI.
+    mapping = solve(driver, backend(seed=0), budget=5)
     assert {name.name for name in mapping} == {"cond", "left", "right"}
     fill(driver, mapping)
 
@@ -106,7 +107,8 @@ def test_actual_backends_evaluate_coupled_mixed_type_holes(backend):
     @minimize_float(metric x y)
     def cost : Float := metric x y;
     """)
-    mapping = solve(driver, backend(seed=0))
+    # This checks successful integration, not completion within 100 ms on CI.
+    mapping = solve(driver, backend(seed=0), budget=5)
     assert len(mapping) == 2
     fill(driver, mapping)
 
