@@ -56,9 +56,10 @@ let at := Array.get xs in ...                  # retained partial borrow
 read xs (let _ := Array.dispose xs in 0)       # move during an active borrow
 ```
 
-Partial applications that retain a resource are rejected; partial applications
-of ordinary values remain available. A fully applied call may observe an owned
-variable while evaluating its later arguments:
+Partial applications may retain ownership when their resulting closure is used
+linearly, as described below. Partial applications retaining a read borrow are
+still rejected. A fully applied call may observe an owned variable while
+evaluating its later arguments:
 
 ```aeon
 let 1 updated := Array.set xs (Array.length xs - 1) value in ...
@@ -78,16 +79,76 @@ does this naturally. An implementation that consumes `xs` and only then returns
 can be instantiated with a linear type. Computation inside ordinary functions
 retains its existing evaluation order.
 
-To support retained partial applications later, function values need a way to
-express captured ownership or a borrow lifetime. A borrowed closure would freeze
-its owner until the closure's last use; an owning closure would consume the owner
-and itself require one-use tracking. Those are distinct language features.
-Reordering a function's arguments helps particular call sites but does not solve
-this general lifetime problem.
+## Owning closures and QTT
+
+A closure may capture a linear owner. Creating it transfers the owner into its
+environment; the closure must then be bound with `let 1` and consumed exactly
+once. This applies to partial applications too:
+
+```aeon
+let 1 xs := #[5,9] in
+let 1 update := Array.set xs in
+let 1 ys := update 0 7 in
+Array.consume Array.sum ys
+```
+
+After creating `update`, the original `xs` cannot be read, moved, or mutated.
+Compute an index before creating the partial application if it needs to inspect
+`xs`. The fully applied call rule above still permits nested observations in
+later arguments before ownership transfers.
+
+The quantity on a function parameter describes how often that argument is used;
+the quantity on a variable holding a function describes how often the function
+value is used:
+
+```aeon
+def run_once (1 f:(x:Int) -> Int):Int := f 0;
+
+def main (_:Int):Int :=
+    let 1 xs := #[5,9] in
+    let 1 sum:(x:Int) -> Int := fun x => Array.consume Array.sum xs in
+    run_once sum;
+```
+
+An owning closure may read its captures before consuming them. A closure which
+only borrows an external owner remains unsupported: it would need a lifetime
+that prevents moving or mutating that owner until the closure's final use.
+Erased captures have no runtime ownership cost. Captures of unrestricted values
+leave ordinary closures and scalar partial applications reusable.
+
+Ownership follows aliases, nested closures, conditional results, polymorphic
+transfers, and values stored by consuming constructors. A returned closure keeps
+its obligation even when the resource was allocated inside a factory:
+
+```aeon
+def make_sum (_:Int):(x:Int) -> Int :=
+    let 1 xs := #[5,9] in fun x => Array.consume Array.sum xs;
+
+def use_sum (_:Int):Int := let 1 f := make_sum 0 in f 0;
+```
+
+The checker infers these facts from the linked definitions, including imported
+and cached modules. A type annotation cannot erase them. Passing a factory to
+an unrestricted higher-order parameter cannot hide an owning result; use a `1`
+callback parameter and bind its potentially owning results with `let 1`.
+Analysis of opaque results and recursive calls is conservative. In particular,
+a non-scalar result of a consuming call may retain ownership even when its
+implementation happens to return independent data.
+
+Recursive closures cannot capture owners. Recursive functions can instead take
+resources explicitly as `1` parameters and thread their successors through
+recursive calls. Owning closures must be consumed once on every branch; copying
+them, dropping them, or putting them through unrestricted storage is rejected.
+These are static checks and apply with runtime contracts both enabled and
+disabled. See `examples/syntax/owning_closures.ae` for a runnable example.
+
+## Native implementations
 
 Native FFI bodies remain trusted. They must neither mutate borrowed inputs nor
 return references to their owned storage; native function values must also defer
-resource access until all their arguments are supplied. The checker cannot inspect arbitrary
+resource access until all their arguments are supplied. Native closures must
+also respect declared ownership; arbitrary captures inside Python code are not
+inferred. The checker cannot inspect arbitrary
 Python code to prove those obligations. ReadOnly views supplied to NDArray
 callbacks additionally enforce expiration at runtime; they do not provide a
 general static lifetime system.

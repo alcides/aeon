@@ -453,6 +453,21 @@ class BorrowingError(LinearityError):
 
 
 @dataclass
+class ClosureOwnershipError(LinearityError):
+    """A closure's retained ownership would be lost or duplicated."""
+
+    name: object
+    reason: str
+    term: Term
+
+    def __str__(self) -> str:
+        return f"Invalid closure ownership for {self.name}: {self.reason}."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
 class LinearUnusedError(LinearityError):
     """A ``1``-bound name was never referenced in its scope."""
 

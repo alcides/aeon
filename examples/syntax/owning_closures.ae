@@ -1,0 +1,16 @@
+import Array;
+
+# The returned closure owns an array allocated by this call.
+def make_sum (initial:Int):(ignored:Int) -> Int :=
+    let 1 values := #[initial,1] in
+    fun ignored => Array.consume Array.sum values;
+
+# The callback itself is consumed once; its Int parameter is unrestricted.
+def run_once (1 f:(ignored:Int) -> Int):Int := f 0;
+
+def main (_:Int):Int :=
+    let 1 values := #[5,9] in
+    let 1 update := Array.set values in
+    let 1 changed := update 0 7 in
+    let 1 sum:(ignored:Int) -> Int := fun ignored => Array.consume Array.sum changed in
+    run_once sum + run_once (make_sum 10);
