@@ -1,3 +1,5 @@
+open Copy
+
 # A value that is either present (``just v``) or absent (``none``).
 #
 # Models Python's ``None`` sentinel, partial functions, and any operation
@@ -18,3 +20,7 @@ def isJust (m:(Maybe a)) : Bool := m.rec false (fun v => true)
 
 # Returns the contained value, or ``d`` if the value is absent.
 def withDefault (d:a) (m:(Maybe a)) : a := m.rec d (fun v => v)
+
+# Immutable values are copyable when their elements are copyable.
+instance [Copy a] : Copy (Maybe a) where
+    duplicate x := x;

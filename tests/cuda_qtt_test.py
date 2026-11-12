@@ -147,12 +147,11 @@ def lifecycle (u: Unit) : Int :=
     let 1 pending := add_i32 launch stream left right in
     let 1 ready := synchronize pending in
     let 1 downloaded := download_i32 ready in
-    let pair := unpack_i32_download downloaded in
-    let 1 values := download_values_i32 pair in
-    let 1 next := download_buffer_i32 pair in
-    let total := Array.sum values in
+    let 1 pair := unpack_i32_download downloaded in
+    Cuda.with_i32_download pair (fun values => fun next =>
+    let total := (Array.consume Array.sum) values in
     let _ := free next in
-    total;
+    total);
 """
         + MAIN
     )
@@ -174,13 +173,12 @@ def lifecycle (u: Unit) : Unit :=
     let 1 pending := add_float64 launch stream left right in
     let 1 ready := synchronize pending in
     let 1 downloaded := download_float64 ready in
-    let pair := unpack_float64_download downloaded in
-    let 1 values := download_values_float64 pair in
-    let 1 next := download_buffer_float64 pair in
-    let _ := Array.length values in
+    let 1 pair := unpack_float64_download downloaded in
+    Cuda.with_float64_download pair (fun values => fun next =>
+    let _ := Array.dispose values in
     let _ := free next in
     let 1 spare := upload_i32 d ({_int_array((7,))}) in
-    free spare;
+    free spare);
 
 def abandon (u: Unit) : Unit :=
     let d := default_device u in
@@ -284,17 +282,15 @@ def repeated (d: Device) : Int :=
     let stream := default_stream d in
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
     let 1 downloaded0 := download_i32 ready0 in
-    let pair0 := unpack_i32_download downloaded0 in
-    let 1 values0 := download_values_i32 pair0 in
-    let 1 ready1 := download_buffer_i32 pair0 in
+    let 1 pair0 := unpack_i32_download downloaded0 in
+    Cuda.with_i32_download pair0 (fun values0 => fun ready1 =>
     let 1 downloaded1 := download_i32 ready1 in
-    let pair1 := unpack_i32_download downloaded1 in
-    let 1 values1 := download_values_i32 pair1 in
-    let 1 ready2 := download_buffer_i32 pair1 in
-    let first := Array.sum values0 in
-    let second := Array.sum values1 in
+    let 1 pair1 := unpack_i32_download downloaded1 in
+    Cuda.with_i32_download pair1 (fun values1 => fun ready2 =>
+    let first := (Array.consume Array.sum) values0 in
+    let second := (Array.consume Array.sum) values1 in
     let _ := free ready2 in
-    first + second;
+    first + second));
 """
         + MAIN
     )
@@ -311,20 +307,18 @@ def preserved (u: Unit) : Int :=
     let launch := launch_1d d 3 1 in
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
     let 1 downloaded0 := download_i32 ready0 in
-    let pair0 := unpack_i32_download downloaded0 in
-    let 1 values0 := download_values_i32 pair0 in
-    let 1 ready1 := download_buffer_i32 pair0 in
-    let total0 := Array.sum values0 in
+    let 1 pair0 := unpack_i32_download downloaded0 in
+    Cuda.with_i32_download pair0 (fun values0 => fun ready1 =>
+    let total0 := (Array.consume Array.sum) values0 in
     let 1 other := upload_i32 d ({_int_array((4, 5, 6))}) in
     let 1 pending := add_i32 launch stream ready1 other in
     let 1 ready2 := synchronize pending in
     let 1 downloaded1 := download_i32 ready2 in
-    let pair1 := unpack_i32_download downloaded1 in
-    let 1 values1 := download_values_i32 pair1 in
-    let 1 ready3 := download_buffer_i32 pair1 in
-    let result := Array.sum values1 in
+    let 1 pair1 := unpack_i32_download downloaded1 in
+    Cuda.with_i32_download pair1 (fun values1 => fun ready3 =>
+    let result := (Array.consume Array.sum) values1 in
     let _ := free ready3 in
-    result;
+    result));
 """
         + MAIN
     )
@@ -339,10 +333,9 @@ def leak_successor (d: Device) : Int :=
     let stream := default_stream d in
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
     let 1 downloaded := download_i32 ready in
-    let pair := unpack_i32_download downloaded in
-    let 1 values := download_values_i32 pair in
-    let 1 next := download_buffer_i32 pair in
-    Array.sum values;
+    let 1 pair := unpack_i32_download downloaded in
+    Cuda.with_i32_download pair (fun values => fun next =>
+    (Array.consume Array.sum) values);
 """
         + MAIN
     )
@@ -357,16 +350,15 @@ def stale (d: Device) : Unit :=
     let stream := default_stream d in
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
     let 1 downloaded := download_i32 ready in
-    let pair := unpack_i32_download downloaded in
-    let 1 values := download_values_i32 pair in
-    let 1 next := download_buffer_i32 pair in
-    let _ := Array.sum values in
+    let 1 pair := unpack_i32_download downloaded in
+    Cuda.with_i32_download pair (fun values => fun next =>
+    let _ := (Array.consume Array.sum) values in
     let _ := free next in
-    free ready;
+    free ready);
 """
         + MAIN
     )
-    assert any(isinstance(error, LinearUsedTooManyTimesError) for error in _linearity_errors(source))
+    assert any(isinstance(error, LinearityError) for error in _linearity_errors(source))
 
 
 def test_pending_cannot_be_downloaded_before_synchronize():
@@ -546,12 +538,11 @@ def freeze_then_add (u: Unit) : Int :=
     let 1 pending := add_i32 launch stream left right in
     let 1 ready := synchronize pending in
     let 1 downloaded := download_i32 ready in
-    let pair := unpack_i32_download downloaded in
-    let 1 values := download_values_i32 pair in
-    let 1 next := download_buffer_i32 pair in
-    let total := Array.sum values in
+    let 1 pair := unpack_i32_download downloaded in
+    Cuda.with_i32_download pair (fun values => fun next =>
+    let total := (Array.consume Array.sum) values in
     let _ := free next in
-    total;
+    total);
 """
         + MAIN
     )
@@ -637,17 +628,15 @@ def checked (u: Unit) : Int :=
     let 1 right := upload_i32 d ({_int_array((3, 4))}) in
     let 1 pending := add_i32 launch stream left right in
     let 1 sb := synchronize_with_status pending in
-    let pair := unpack_status_buffer sb in
-    let 1 st := status_pair_status pair in
-    let 1 buf := status_pair_buffer pair in
+    let 1 pair := unpack_status_buffer sb in
+    Cuda.with_status_pair pair (fun st => fun buf =>
     let _ := check_ok st in
     let 1 downloaded := download_i32 buf in
-    let dl := unpack_i32_download downloaded in
-    let 1 values := download_values_i32 dl in
-    let 1 next := download_buffer_i32 dl in
-    let total := Array.sum values in
+    let 1 dl := unpack_i32_download downloaded in
+    Cuda.with_i32_download dl (fun values => fun next =>
+    let total := (Array.consume Array.sum) values in
     let _ := free next in
-    total;
+    total));
 """
         + MAIN
     )

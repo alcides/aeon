@@ -24,20 +24,31 @@ def best_f1 (path: String) : Float :=
     let 1 df := read_csv path in
     let 1 ds0 := target df "species" false false in
     let 1 ds := require_enough_data ds0 in
-    let parts := split ds 0.7 true in
-    let 1 train0 := train_of parts in
-    let 1 test0 := test_of parts in
-    let tp1 := copy_dataset train0 in
-    let tp2 := copy_dataset (snd_dataset tp1) in
-    let tp3 := copy_dataset (snd_dataset tp2) in
-    let ep1 := copy_dataset test0 in
-    let ep2 := copy_dataset (snd_dataset ep1) in
-    let ep3 := copy_dataset (snd_dataset ep2) in
-    let forest := f1 (random_forest_classifier (fst_dataset tp1)) (fst_dataset ep1) in
-    let tree   := f1 (decision_tree_classifier (fst_dataset tp2)) (fst_dataset ep2) in
-    let svc_f  := f1 (svc (fst_dataset tp3)) (fst_dataset ep3) in
-    let lda    := f1 (linear_discriminant_analysis (snd_dataset tp3)) (snd_dataset ep3) in
-    maxf (maxf forest tree) (maxf svc_f lda) ;
+    let 1 parts := split ds 0.7 true in
+    with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let 1 train0 := owned_left_parts in
+        let 1 test0 := owned_right_parts in
+        let 1 tp1 := copy_dataset train0 in
+        with_datasets tp1 (fun owned_left_tp1 => fun owned_right_tp1 =>
+            let 1 tp2 := copy_dataset (owned_right_tp1) in
+            with_datasets tp2 (fun owned_left_tp2 => fun owned_right_tp2 =>
+                let 1 tp3 := copy_dataset (owned_right_tp2) in
+                with_datasets tp3 (fun owned_left_tp3 => fun owned_right_tp3 =>
+                    let 1 ep1 := copy_dataset test0 in
+                    with_datasets ep1 (fun owned_left_ep1 => fun owned_right_ep1 =>
+                        let 1 ep2 := copy_dataset (owned_right_ep1) in
+                        with_datasets ep2 (fun owned_left_ep2 => fun owned_right_ep2 =>
+                            let 1 ep3 := copy_dataset (owned_right_ep2) in
+                            with_datasets ep3 (fun owned_left_ep3 => fun owned_right_ep3 =>
+                                let forest_model := random_forest_classifier owned_left_tp1 in
+                                let forest := f1 forest_model owned_left_ep1 in
+                                let tree_model := decision_tree_classifier owned_left_tp2 in
+                                let tree := f1 tree_model owned_left_ep2 in
+                                let svc_f_model := svc owned_left_tp3 in
+                                let svc_f := f1 svc_f_model owned_left_ep3 in
+                                let lda_model := linear_discriminant_analysis owned_right_tp3 in
+                                let lda := f1 lda_model owned_right_ep3 in
+                                maxf (maxf forest tree) (maxf svc_f lda) )))))));
 
 
 def main (_: Int) : Unit :=

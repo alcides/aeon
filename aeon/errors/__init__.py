@@ -438,6 +438,21 @@ class LinearityError(CoreTypeCheckingError):
 
 
 @dataclass
+class BorrowingError(LinearityError):
+    """A read-only borrow outlives its owner or escapes its call."""
+
+    name: object
+    reason: str
+    term: Term
+
+    def __str__(self) -> str:
+        return f"Invalid borrow of {self.name}: {self.reason}."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
 class LinearUnusedError(LinearityError):
     """A ``1``-bound name was never referenced in its scope."""
 
@@ -446,7 +461,7 @@ class LinearUnusedError(LinearityError):
     term: Term
 
     def __str__(self) -> str:
-        return f"Linear binding {self.name} is declared with multiplicity {self.declared} but is never used."
+        return f"Linear binding {self.name} is declared with multiplicity {self.declared} but is never consumed."
 
     def position(self) -> Location:
         return self.term.loc

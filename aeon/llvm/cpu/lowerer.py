@@ -746,6 +746,10 @@ class CPULLVMLowerer(LLVMLowerer):
         expected: LLVMType | None = None,
     ) -> LLVMTerm | None:
         head = self._head_var_name(base)
+        # Copy constraints are erased for these fixed numeric intrinsics. Raw
+        # core callers (including backend tests) already omit the evidence.
+        if head is not None and head.name == "ReadOnly_read" and len(args) == 3:
+            args = args[1:]
         if head is not None and head.name == "ReadOnly_read" and len(args) == 2:
             array = self._lower_term(args[0], None, type_env, env, allowed, in_vec)
             index = self._lower_term(args[1], LLVMInt, type_env, env, allowed, in_vec)
@@ -753,6 +757,25 @@ class CPULLVMLowerer(LLVMLowerer):
         if head is None or not head.name.startswith("NDArray_"):
             return None
         op = head.name[len("NDArray_") :]
+        copy_arities = {
+            "get1": 2,
+            "get2": 3,
+            "get3": 4,
+            "reduce": 3,
+            "filter": 2,
+            "map": 2,
+            "map_rows": 2,
+            "reduce_axis": 4,
+            "scan": 3,
+            "scan_exclusive": 3,
+            "iterate": 4,
+            "zipWith": 3,
+        }
+        evidence_count = 2 if op == "zipWith" else 1
+        if op in copy_arities and len(args) == copy_arities[op] + evidence_count:
+            args = args[evidence_count:]
+        if op in {"take1", "take2", "take3"}:
+            op = "get" + op[-1]
         if op in {"full1", "full2", "full3", "from_array", "to_array"}:
             raise LLVMValidationError("Construct NDArray values and convert Array storage on the host")
         if not args:

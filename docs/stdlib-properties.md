@@ -118,8 +118,9 @@ check that immutable original snapshots were not modified.
 `Map.get m key` returns `Maybe v`: `Maybe.just value` when the key exists,
 and `Maybe.none` otherwise. Callers needing a plain value can use
 `Map.get_or m key fallback`, or handle the result with `Maybe.withDefault`.
-Stack and Deque result tokens are linear; use `with_pop`, `with_peek`, and
-`with_len` to consume a token while receiving both its value and updated handle.
+Stack and Deque `length`, `empty`, and copyable-element `peek` operations borrow
+the handle. Pop tokens are linear; `with_pop` recovers a copyable value and its
+successor, while `with_pop_owned` moves a linear element and its successor.
 
 Current scope is deliberately bounded. ADT generation has a depth cap and may
 fail to find a provably valid input even when the type is inhabited. Checker

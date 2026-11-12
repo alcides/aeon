@@ -13,4 +13,6 @@ def main (args:Int) : Unit :=
     let 1 first := fill_matrix matrix 0 in
     let 1 second := fill_matrix first 42 in
     # The first host element read downloads the latest contents. Prints 42.
-    print (second.get2 16 32);
+    let result_value := second.get2 16 32 in
+    let _ := second.discard in
+    print result_value;

@@ -452,7 +452,7 @@ def main (args:Int) : Unit :=
     let 1 a:{r:(Array Int) | r.size = 16} := native "[7] * 16" in
     let 1 b := write a 11 in
     let 1 c := write b 22 in
-    print (c.get 0);
+    print (c.take 0);
 """
     driver = AeonDriver(AeonConfig(synthesizer="none", synthesis_ui=SilentSynthesisUI(), synthesis_budget=0))
     assert not driver.parse(aeon_code=source)

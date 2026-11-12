@@ -36,7 +36,7 @@ Array ──upload──► ReadyBuffer ──add──► Pending ──synchro
 | `Pending a` | In-flight kernel result (must `synchronize` or `discard`) |
 | `Status` / `StatusBuffer a` | Optional sync-with-status path (`check_ok` / `discard_status`) |
 | `I32Download` / `Float64Download` | Linear token: host snapshot + preserved buffer |
-| `*DownloadPair` / `StatusPair` | Unrestricted pairs after unpack |
+| `*DownloadPair` / `StatusPair` | Linear pairs; recover both fields with a one-use continuation |
 
 `discard` abandons a `Pending` without reading results. `free` releases a
 `ReadyBuffer`. The main lifecycle above is unchanged; Status and read-only views
@@ -139,10 +139,10 @@ Status-aware sync (must consume Status linearly):
 
 ```aeon
 let 1 sb := synchronize_with_status pending in
-let pair := unpack_status_buffer sb in
-let 1 st := status_pair_status pair in
-let 1 buf := status_pair_buffer pair in
-let _ := check_ok st in
+let 1 pair := unpack_status_buffer sb in
+with_status_pair pair (fun st => fun buf =>
+    let _ := check_ok st in
+    free buf)
 ```
 
 ---
@@ -166,12 +166,12 @@ def vector_add (u: Unit) : Int :=
     let 1 pending := add_i32 launch stream left right in
     let 1 ready := synchronize pending in
     let 1 downloaded := download_i32 ready in
-    let pair := unpack_i32_download downloaded in
-    let 1 result := download_values_i32 pair in
-    let 1 buf := download_buffer_i32 pair in
-    let total := Array.sum result in
-    let _ := free buf in
-    total;
+    let 1 pair := unpack_i32_download downloaded in
+    with_i32_download pair (fun result => fun buf =>
+        let total := Array.sum result in
+        let _ := Array.dispose result in
+        let _ := free buf in
+        total);
 ```
 
 Requires a CUDA-capable GPU and driver at runtime. See

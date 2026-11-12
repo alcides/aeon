@@ -553,7 +553,9 @@ def desugar(
     # Lower class/instance declarations into inductives + plain definitions
     # before any inductive processing so the generated dictionary types flow
     # through the normal pipeline.
+    original_def_names = {definition.name for definition in p.definitions}
     p = expand_typeclasses(p)
+    typeclass_providers = {definition.name for definition in p.definitions} - original_def_names
 
     # We need inductive constructor info to lower `match` expressions.
     # Note: `expand_inductive_decls` clears `p.inductive_decls`, so we snapshot it here.
@@ -655,6 +657,11 @@ def desugar(
         local_qualified: QualifiedScope = dict(qualified_scope)
         local_unqualified: UnqualifiedScope = dict(unqualified_scope)
         defs = build_module_scopes(defs, module_export_name, local_qualified, local_unqualified, combined_inductives)
+        from aeon.sugar.instance_registry import qualify_instance_providers
+
+        qualify_instance_providers(
+            {name: target for (module, name), target in local_qualified.items() if module == module_export_name}
+        )
         qualified_scope.update(local_qualified)
         unqualified_scope.update(local_unqualified)
         _refresh_inductive_constructor_scopes(
@@ -681,6 +688,19 @@ def desugar(
                 resolve_qualified_names_in_definition(definition, qualified_scope, local_unqualified, constructor_defs)
             )
         defs = resolved_defs
+        # A match hides a dependency on its generated recursor. Expose that
+        # dependency before moving instance implementations into scope.
+        if typeclass_providers:
+            recursors = {
+                decl.name.name: qualified_scope[(decl.name.name, "rec")]
+                for decl in combined_inductives
+                if (decl.name.name, "rec") in qualified_scope
+            }
+            defs = [
+                replace(definition, body=lower_match_to_inductive_rec(definition.body, combined_inductives, recursors))
+                for definition in defs
+            ]
+        defs = _hoist_typeclass_providers(defs, typeclass_providers)
     prog = resolve_qualified_names_in_sterm(prog, qualified_scope, unqualified_scope, constructor_defs)
 
     defs = inline_refinement_library_predicates(defs)
@@ -1277,6 +1297,65 @@ def _add_unqualified(scope: UnqualifiedScope, bare: str, internal: Name) -> None
     """Add an opened/imported name without silently choosing an import order."""
     prior = scope.get(bare)
     scope[bare] = internal if prior is None or prior == internal else Name(f"__ambiguous__{bare}", -1)
+
+
+def _hoist_typeclass_providers(definitions: list[Definition], providers: set[Name]) -> list[Definition]:
+    """Inline imported consumers need dictionaries before elaboration inserts them.
+
+    Move generated providers and their explicit dependencies ahead of consumers.
+    Other declarations keep their source order. Native imports have already
+    been hoisted because their dependencies are implicit in Python strings.
+    """
+    by_name = {definition.name: definition for definition in definitions}
+    by_runtime_name = {name.name: name for name in by_name}
+    emitted: set[Name] = set()
+    ordered: list[Definition] = []
+
+    def emit(name: Name) -> None:
+        if name in emitted or name not in by_name:
+            return
+        emitted.add(name)
+        definition = by_name[name]
+        pending: list[object] = [definition.body, definition.type, definition.args]
+        dependencies: set[Name] = set()
+        while pending:
+            node = pending.pop()
+            if isinstance(node, SApplication) and isinstance(node.arg, SLiteral) and isinstance(node.arg.value, str):
+                head = node.fun
+                while isinstance(head, (STypeApplication, SRefinementApplication)):
+                    head = head.body
+                if isinstance(head, SVar) and head.name.name == "native":
+                    # Native method closures capture the surrounding context
+                    # too. Their Python globals are not represented as SVar.
+                    import symtable
+
+                    try:
+                        scopes = [symtable.symtable(node.arg.value, "<native>", "eval")]
+                    except SyntaxError:
+                        scopes = []  # Preserve the ordinary native diagnostic.
+                    while scopes:
+                        scope = scopes.pop()
+                        dependencies.update(
+                            by_runtime_name[symbol.get_name()]
+                            for symbol in scope.get_symbols()
+                            if symbol.is_global() and symbol.get_name() in by_runtime_name
+                        )
+                        scopes.extend(scope.get_children())
+            if isinstance(node, Name):
+                dependencies.add(node)
+            elif isinstance(node, (tuple, list)):
+                pending.extend(node)
+            elif is_dataclass(node) and not isinstance(node, type):
+                pending.extend(getattr(node, field.name) for field in fields(node) if field.name != "loc")
+        for dependency in definitions:
+            if dependency.name in dependencies:
+                emit(dependency.name)
+        ordered.append(definition)
+
+    for definition in definitions:
+        if _is_native_import_def(definition) or definition.name in providers:
+            emit(definition.name)
+    return ordered + [definition for definition in definitions if definition.name not in emitted]
 
 
 def collect_imported_typeclasses(

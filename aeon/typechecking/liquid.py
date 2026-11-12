@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralFloat
 from aeon.core.liquid import LiquidLiteralBool
@@ -48,6 +48,7 @@ class LiquidTypeCheckingContext:
     known_types: list[TypeConstructor]
     variables: dict[Name, TypeConstructor | TypeVar]
     functions: dict[Name, list[TypeConstructor | TypeVar]]
+    implicit_evidence: set[Name] = field(default_factory=set)
 
     def __repr__(self):
         kt = "; ".join([str(t) for t in self.known_types])
@@ -128,6 +129,7 @@ def lower_context(
     known_types: list[Name] = list(native_types)
     variables: dict[Name, TypeConstructor | TypeVar] = {}
     functions = {}
+    implicit_evidence: set[Name] = set()
 
     def add_variable(name: Name, ty: Type) -> None:
         """Record a variable binding for liquid lookup. ``ExistentialType``
@@ -154,6 +156,17 @@ def lower_context(
                 variables[name] = bt
             case TypePolymorphism(_, _, _) | RefinementPolymorphism(_, _, _) | AbstractionType(_, _, _):
                 functions[name] = lower_abstraction_type(ty)
+                if name.name == "Array_get":
+                    signature = functions[name]
+                    if (
+                        len(signature) == 4
+                        and isinstance(signature[0], TypeConstructor)
+                        and signature[0].name.name in {"Copy", "Copy_Copy"}
+                        and isinstance(signature[1], TypeConstructor)
+                        and signature[1].name.name == "Array"
+                        and signature[2] == t_int
+                    ):
+                        implicit_evidence.add(name)
             case _:
                 assert False, f"Unsupported variable binder type {ty} ({type(ty)})"
 
@@ -169,7 +182,9 @@ def lower_context(
         else:
             for name, ty in resolved.items():
                 add_variable(name, ty)
-            return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
+            return LiquidTypeCheckingContext(
+                [TypeConstructor(n) for n in known_types], variables, functions, implicit_evidence
+            )
 
     for entry in reversed(ctx.entries):
         match entry:
@@ -197,7 +212,7 @@ def lower_context(
 
     if bound is not None:
         add_variable(*bound)
-    return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions)
+    return LiquidTypeCheckingContext([TypeConstructor(n) for n in known_types], variables, functions, implicit_evidence)
 
 
 def type_infer_liquid(
@@ -243,6 +258,10 @@ def type_infer_liquid(
             if fun not in ctx.functions:
                 raise LiquidTypeCheckException(f"Function {fun} not in context in {liq} ({ctx.functions}).")
             ftype = ctx.functions[fun]
+            # Source refinements do not supply runtime typeclass dictionaries.
+            # The SMT layer separately verifies the dictionary-independent body.
+            if fun in ctx.implicit_evidence and len(args) == 2:
+                ftype = ftype[1:]
             equalities: dict[Name, TypeConstructor | TypeVar] = {}
 
             def resolve_type(ty: Type) -> TypeConstructor | TypeVar:

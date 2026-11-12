@@ -1,6 +1,8 @@
+open Copy
+
 # Scoped array views supplied by NDArray.iterate. A view expires when its callback returns.
 type ReadOnly a
 
 def size : (xs: (ReadOnly a)) -> Int := uninterpreted
 
-def read (xs: (ReadOnly a)) (i: {v:Int | v >= 0 && v < size xs}) : a := native "xs[i]"
+def read [Copy a] (borrow xs: (ReadOnly a)) (i: {v:Int | v >= 0 && v < size xs}) : a := native "xs[i]"

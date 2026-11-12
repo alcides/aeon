@@ -1,5 +1,5 @@
 # Problem 40: Goldbach's conjecture.
-# Every even integer > 2 can be written as the sum of two primes.
+# Every even integer > 2 can be written as the (Array.consume Array.sum) of two primes.
 # Returns a 2-element list [p, q] with p + q = n, p and q prime.
 
 open Array

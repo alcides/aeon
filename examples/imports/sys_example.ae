@@ -1,8 +1,8 @@
 open Sys
 open Array
 
-# argv is statically known to be non-empty, so Array.head is well-typed.
-# Consuming argv linearly to read its head is fine — we only need the name.
+# argv is statically known to be non-empty, so Array.take_head is well-typed.
+# Consuming argv linearly to read its Array.take_head is fine — we only need the name.
 def progName : String := (Sys.argv unit).head
 
 def show : Unit :=

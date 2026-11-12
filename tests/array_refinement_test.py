@@ -33,7 +33,7 @@ def test_literal_read_proves_exact_element(element, contents, expected, value):
 @pytest.mark.parametrize("expected,valid", [(11, True), (9, False)])
 def test_symbolic_index_preserves_element_order(expected, valid):
     _, errors = _parse(f"""
-        def read (i:{{n:Int | n = 1}}): {{v:Int | v = {expected}}} := Array.get #[9, 11, 15] i;
+        def read (i:{{n:Int | n = 1}}): {{v:Int | v = {expected}}} := Array.take #[9, 11, 15] i;
         def main (_:Int):Int := read 1;
     """)
     assert (not errors) == valid
@@ -51,7 +51,7 @@ def test_read_across_literal_chunk_boundary():
 
 @pytest.mark.parametrize("index", [-1, 3])
 def test_out_of_bounds_read_is_rejected(index):
-    _, errors = _parse(f"def main (_:Int):Int := Array.get #[9, 11, 15] ({index});")
+    _, errors = _parse(f"def main (_:Int):Int := Array.take #[9, 11, 15] ({index});")
     assert errors
 
 

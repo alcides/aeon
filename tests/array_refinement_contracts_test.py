@@ -16,14 +16,14 @@ def test_head_cannot_prove_an_impossible_array_length():
     # Reduced from GP's four-element candidate accepted as a 50-item mask.
     _, errors = compile_source("""
         def main (u:Int):{a:(Array Bool) | Array.size a = 50} :=
-            Array.mk_4 false false false (Array.head #[false]);
+            Array.mk_4 false false false (Array.take_head #[false]);
     """)
-    assert errors, "Array.head must not introduce a false assumption that proves 4 = 50"
+    assert errors, "Array.take_head must not introduce a false assumption that proves 4 = 50"
 
 
 @pytest.mark.parametrize("element,accepted", [("false", False), ("true", True)])
 def test_head_requires_its_promised_element_refinement(element, accepted):
-    driver, errors = compile_source(f"def main (u:Int):{{v:Bool | v}} := Array.head #[{element}];")
+    driver, errors = compile_source(f"def main (u:Int):{{v:Bool | v}} := Array.take_head #[{element}];")
     assert bool(errors) is not accepted
     if accepted:
         assert driver.run() is True

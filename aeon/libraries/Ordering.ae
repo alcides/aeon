@@ -1,3 +1,5 @@
+open Copy
+
 inductive Ordering
 | less : Ordering
 | equal : Ordering
@@ -5,3 +7,7 @@ inductive Ordering
 
 def compareInt (x:Int) (y:Int) : Ordering :=
     if x < y then less else if x = y then equal else greater;
+
+# Immutable values are copyable when their elements are copyable.
+instance : Copy Ordering where
+    duplicate x := x;

@@ -25,10 +25,12 @@ open Random
 open Distributions
 def chain (seed: Int) : {xs: (Array Float) | Array.size xs > 0} :=
     let 1 g0 := new_rng seed in
-    let nd := normal_sample g0 2.0 1.0 10 in
+    let 1 nd := normal_sample g0 2.0 1.0 10 in
     let 1 g1 := sample_next nd in
-    let ud := uniform_sample g1 0.0 1.0 10 in
-    uniform_value 0.0 1.0 ud
+    let 1 ud := uniform_sample g1 0.0 1.0 10 in
+    let 1 result := uniform_value 0.0 1.0 ud in
+    let _ := discard_sample ud in
+    result
 def main (x:Int) : Unit := print 0 ;
 """
 
@@ -37,15 +39,17 @@ def test_distribution_chain_typechecks():
     assert _typechecks(_CHAIN)
 
 
-def test_unextracted_successor_needs_no_close():
+def test_final_sample_is_explicitly_discarded():
     # Like scalar draws, stopping after projecting the sample is fine.
     src = """
     open Random
     open Distributions
     def one_batch (seed: Int) : {xs: (Array Float) | Array.size xs > 0} :=
         let 1 g0 := new_rng seed in
-        let nd := normal_sample g0 2.0 1.0 10 in
-        normal_value 2.0 1.0 nd
+        let 1 nd := normal_sample g0 2.0 1.0 10 in
+        let 1 result := normal_value 2.0 1.0 nd in
+        let _ := discard_sample nd in
+        result
     def main (x:Int) : Unit := print 0 ;
     """
     assert _typechecks(src)
@@ -57,7 +61,7 @@ def test_extracted_successor_must_be_used():
     open Distributions
     def bad (seed: Int) : {xs: (Array Float) | Array.size xs > 0} :=
         let 1 g0 := new_rng seed in
-        let nd := normal_sample g0 2.0 1.0 10 in
+        let 1 nd := normal_sample g0 2.0 1.0 10 in
         let 1 xs := normal_value 2.0 1.0 nd in
         let 1 g1 := sample_next nd in
         xs

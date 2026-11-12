@@ -14,10 +14,10 @@ def selected_value (used:Bool) (value:Int):Int :=
 def selection (_:Unit): {a:(Array Bool) | Array.size a = 50} := ?solution;
 
 def total_weight (_:Unit):Int :=
-    Array.sum (Array.zipWith selected_value (selection unit) (Data.weights unit));
+    (Array.consume Array.sum) (Array.zipWith selected_value (selection unit) (Data.weights unit));
 
 def total_value (_:Unit):Int :=
-    Array.sum (Array.zipWith selected_value (selection unit) (Data.values unit));
+    (Array.consume Array.sum) (Array.zipWith selected_value (selection unit) (Data.values unit));
 
 @require(total_weight unit <= 100)
 @maximize_int(total_value unit)

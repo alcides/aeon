@@ -98,10 +98,12 @@ def test_replace : Bool := assertEqual (replace "hello" "l" "L") "heLLo";
 def test_replace_word : Bool := assertEqual (replace "foofoo" "foo" "bar") "barbar";
 
 @property(1)
-def test_split : Bool :=
+def test_split_length : Bool :=
     let 1 parts := split "a,b,c" "," in
-    let lo := Array.len_of parts in
-    let n := Array.len_value lo in
-    let 1 parts2 := Array.len_array lo in
-    both (assertEqual n 3)
-         (assertEqual (Array.get parts2 0) "a");
+    let n := Array.length parts in
+    both (assertEqual n 3) (assertEqual (Array.take parts 0) "a");
+
+@property(1)
+def test_split_first_element : Bool :=
+    let 1 parts := split "a,b,c" "," in
+    assertEqual (Array.take parts 0) "a";

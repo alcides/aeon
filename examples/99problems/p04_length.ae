@@ -3,7 +3,10 @@
 
 open Array
 
-def Array.len (1 l: (Array a)) : {n:Int | n = Array.size l} := l.length
+def Array.len (1 l: (Array a)) : {n:Int | n = Array.size l} :=
+    let n := l.length in
+    let _ := Array.dispose l in
+    n
 
 def main (args:Int) : Unit :=
     let 1 xs := Array.mk_concat (Array.mk_2{Int} 1 2) (Array.mk_1{Int} 3);

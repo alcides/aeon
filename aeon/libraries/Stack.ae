@@ -1,3 +1,5 @@
+open Copy
+
 # Linear stack with a ``size`` ghost (LiquidJava ``Stack`` exercise).
 #
 # ``push`` increases size; ``pop`` / ``peek`` require ``size > 0``. The stack
@@ -6,16 +8,11 @@
 
 linear type Stack a
 
-# Opaque tokens so ``pop`` / ``peek`` / ``len_of`` can return a value and the
-# recovered stack without breaking linearity.
+# A pop token owns its removed element and the successor stack.
 linear type StackPop a
-linear type StackPeek a
-linear type StackLen a
 
 def stack_size : (s: (Stack a)) -> Int := uninterpreted
 def pop_size : (p: (StackPop a)) -> Int := uninterpreted
-def peek_size : (p: (StackPeek a)) -> Int := uninterpreted
-def held_size : (l: (StackLen a)) -> Int := uninterpreted
 
 # Empty stack. Use as ``Stack.new_stack{Int} unit``.
 def new_stack (_: Unit) :
@@ -23,7 +20,7 @@ def new_stack (_: Unit) :
     native "__import__('aeon.bindings.stack_deque', fromlist=['new_stack']).new_stack()"
 
 # Push one element (size + 1).
-def push (x: a) (1 s: (Stack a)) :
+def push (1 x: a) (1 s: (Stack a)) :
     {out: (Stack a) | stack_size out = stack_size s + 1} :=
     native "__import__('aeon.bindings.stack_deque', fromlist=['stack_push']).stack_push(x, s)"
 
@@ -40,45 +37,28 @@ def pop_stack (1 p: (StackPop a)) :
     native "p[1]"
 
 # Peek at the top without removing it.
-def peek (1 s: {st: (Stack a) | stack_size st > 0}) :
-    {p: (StackPeek a) | peek_size p = stack_size s} :=
-    native "__import__('aeon.bindings.stack_deque', fromlist=['stack_peek']).stack_peek(s)"
+def peek [Copy a] (borrow s:{x:(Stack a) | stack_size x > 0}) : a :=
+    native "s[-1]"
 
-def peek_value (1 p: (StackPeek a)) : a :=
-    native "p[0]"
-
-def peek_stack (1 p: (StackPeek a)) :
-    {s: (Stack a) | stack_size s = peek_size p} :=
-    native "p[1]"
-
-# Observe length and recover the stack.
-def len_of (1 s: (Stack a)) :
-    {l: (StackLen a) | held_size l = stack_size s} :=
-    native "(len(s), s)"
-
-def len_value (1 l: (StackLen a)) :
-    {n: Int | n = held_size l && n >= 0} :=
-    native "l[0]"
-
-def len_stack (1 l: (StackLen a)) :
-    {s: (Stack a) | stack_size s = held_size l} :=
-    native "l[1]"
 
 # Drop an empty stack.
 def discard (1 s: {st: (Stack a) | stack_size st = 0}) : Unit :=
     native "None"
 
 # Consume the token once and pass both observations to a linear continuation.
-def with_pop (1 token:(StackPop a))
+def with_pop [Copy a] (1 token:(StackPop a))
     (1 consume:(value:a) -> (1 handle:{h:(Stack a) | stack_size h = pop_size token}) -> b) : b :=
     native "consume(token[0])(token[1])"
 
-# Consume the token once and pass both observations to a linear continuation.
-def with_peek (1 token:(StackPeek a))
-    (1 consume:(value:a) -> (1 handle:{h:(Stack a) | stack_size h = peek_size token}) -> b) : b :=
+# Non-consuming observations; finish with pop/discard as appropriate.
+# Transfer linear elements instead of copying observations.
+def with_pop_owned (1 token:(StackPop a))
+    (1 consume:(1 value:a) -> (1 handle:{h:(Stack a) | stack_size h = pop_size token}) -> b) : b :=
     native "consume(token[0])(token[1])"
 
-# Consume the token once and pass both observations to a linear continuation.
-def with_len (1 token:(StackLen a))
-    (1 consume:(value:{n:Int | n = held_size token && n >= 0}) -> (1 handle:{h:(Stack a) | stack_size h = held_size token}) -> b) : b :=
-    native "consume(token[0])(token[1])"
+# Non-consuming observations; finish with pop/discard as appropriate.
+def length (borrow s:(Stack a)) : {n:Int | n = stack_size s && n >= 0} :=
+    native "len(s)"
+
+def empty (borrow s:(Stack a)) : {b:Bool | b = (stack_size s = 0)} :=
+    length s = 0

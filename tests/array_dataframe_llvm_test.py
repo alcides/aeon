@@ -65,7 +65,7 @@ def main (i:Int) : Int :=
     let 1 a2 := Array.mk_concat a1 (Array.mk_1 2) in
     let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
     let 1 r := vec_inc a3 3 in
-    get{Int} r 2;
+    Array.take{Int} r 2;
 """
     assert _run(source) == 4
 
@@ -111,7 +111,7 @@ def main (i:Int) : Int :=
     let 1 a1 := Array.mk_concat a0 (Array.mk_1 10) in
     let 1 a2 := Array.mk_concat a1 (Array.mk_1 20) in
     let 1 r := vec_inc a2 2 in
-    get{Int} r 0;
+    Array.take{Int} r 0;
 """
     assert _run(source) == 11
 
@@ -133,13 +133,14 @@ open ArrayKernels
 def main (i:Int) : Float :=
     let 1 df0 := read_csv "{csv_path}" 3 3 in
     let 1 df1 := dropna df0 in
-    let pr := DataFrame.copy df1 in
-    let 1 left := fst_df pr in
-    let 1 right := snd_df pr in
+    let 1 pr := DataFrame.copy df1 in
+    DataFrame.with_pair pr (fun left => fun right =>
     let 1 col := col_as_array left "score" in
+    let _ := DataFrame.dispose left in
     let 1 scaled := scale 2.0 col in
     let 1 df3 := set_col right "score" scaled in
     let 1 col2 := col_as_array df3 "score" in
-    mean col2;
+    let _ := DataFrame.dispose df3 in
+    (Array.consume Array.mean) col2);
 """
     assert abs(_run(source) - 4.0) < 1e-9

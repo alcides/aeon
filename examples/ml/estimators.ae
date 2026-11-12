@@ -13,12 +13,13 @@ open Learning
 def main (_: Int) : Unit :=
     let 1 df := read_csv "examples/nn/data/iris2.csv" in
     let 1 ds := target df "species" false false in
-    let cp := copy_dataset ds in
-    let 1 ds_clf := fst_dataset cp in
-    let 1 ds_reg := snd_dataset cp in
+    let 1 cp := copy_dataset ds in
+    with_datasets cp (fun owned_left_cp => fun owned_right_cp =>
+        let 1 ds_clf := owned_left_cp in
+        let 1 ds_reg := owned_right_cp in
 
-    let c1 := extra_trees_classifier ds_clf in
-    let r1 := bayesian_ridge ds_reg in
+        let c1 := extra_trees_classifier ds_clf in
+        let r1 := bayesian_ridge ds_reg in
 
-    # Feature/class counts are stamped on every fitted model.
-    print ((clf_n_classes c1) + (reg_n_features r1))
+        # Feature/class counts are stamped on every fitted model.
+        print ((clf_n_classes c1) + (reg_n_features r1)))

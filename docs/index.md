@@ -3,6 +3,9 @@
 For contributor checks, compiler-session ownership, and generated semantic
 tests, see [Project quality](project-quality.md).
 
+For linear collections, read access, and curried calls, see
+[Borrowing and ownership](borrowing.md).
+
 For refined CNN architecture search with measured numerical objectives, see
 [DENSER synthesis](denser.md).
 

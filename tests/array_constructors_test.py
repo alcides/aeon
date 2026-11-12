@@ -41,7 +41,7 @@ def test_literal_arbitrary_lengths(size):
 def test_repeat_contents_size_and_element_refinement(size):
     assert_array(f"mk_repeat {size} 7", [7] * size)
     _, errors = compile_source(f"""
-def needs_sevens (1 xs:{{r:(Array {{v:Int | v = 7}}) | size r = {size}}}) : Int := sum xs;
+def needs_sevens (1 xs:{{r:(Array {{v:Int | v = 7}}) | size r = {size}}}) : Int := (Array.consume Array.sum) xs;
 def main (_:Int) : Int := needs_sevens (mk_repeat {size} 7);
 """)
     assert not errors, errors
@@ -63,13 +63,13 @@ def test_concat_order_and_size(expression, values):
 @pytest.mark.parametrize("value,accepted", [(3, True), (0, False)])
 def test_concat_preserves_and_enforces_element_refinement(value, accepted):
     _, errors = compile_source(f"""
-def positive (1 xs:(Array {{v:Int | v > 0}})) : Int := sum xs;
+def positive (1 xs:(Array {{v:Int | v > 0}})) : Int := (Array.consume Array.sum) xs;
 def main (_:Int) : Int := positive (mk_concat (mk_2 1 2) (mk_1 {value}));
 """)
     assert (not errors) == accepted, errors
 
 
-@pytest.mark.parametrize("expression", ["mk_repeat (-1) 7", "get (mk_2 1 2) 2"])
+@pytest.mark.parametrize("expression", ["mk_repeat (-1) 7", "Array.get (mk_2 1 2) 2"])
 def test_invalid_sizes_and_indices_are_rejected(expression):
     _, errors = compile_source(
         f"def main (_:Int) : Int := {'length (' + expression + ')' if expression.startswith('mk_repeat') else expression};"
@@ -96,7 +96,7 @@ def test_repeat_cannot_duplicate_an_inline_linear_array():
 @pytest.mark.parametrize("expression", ["mk_empty unit", "mk_concat (mk_empty unit) (mk_1 1)"])
 def test_empty_arrays_admit_element_refinements(expression):
     _, errors = compile_source(f"""
-def positive (1 xs:(Array {{v:Int | v > 0}})) : Int := sum xs;
+def positive (1 xs:(Array {{v:Int | v > 0}})) : Int := (Array.consume Array.sum) xs;
 def main (_:Int) : Int := positive ({expression});
 """)
     assert not errors, errors
@@ -119,7 +119,7 @@ def flatten (1 xs:(Array (Array Int))) : (Array Int) := native "[x for row in xs
 def main (_:Int) : Int :=
     let 1 a := mk_2 1 2 in
     let 1 b := mk_1 3 in
-    sum (flatten #[a, b]);
+    (Array.consume Array.sum) (flatten #[a, b]);
 """)
     assert not errors, errors
     assert driver.run() == 6

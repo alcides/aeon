@@ -2,7 +2,8 @@
 
 `Array.ae` is the standard library's flat, random-access sequence. Backing storage
 is a Python `list`; refinements use the abstract `Array.size` measure. Since 4.9,
-`Array` is a **linear type**: each value must be used exactly once.
+`Array` is a **linear type**: each owner must be consumed exactly once.
+Read-only borrows may precede that consuming use.
 
 - Source: [`aeon/libraries/Array.ae`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Array.ae)
 - Generated reference: [stdlib/Array.html](stdlib/Array.html)
@@ -15,19 +16,79 @@ Bind arrays at multiplicity **1**:
 
 ```aeon
 let 1 xs := Array.mk_2 1 2 in
-Array.sum xs
+Array.consume Array.sum xs
 ```
 
-Omitting `1` is a compile error. Using the same binder twice triggers
+Omitting `1` is a compile error. Consuming the same binder twice triggers
 `LinearUsedTooManyTimesError`; dropping a linear value without consuming it
 triggers `LinearUnusedError`.
 
 | Pattern | API |
 |---------|-----|
 | Transform (consume → new array) | `mk_concat`, `set`, `reversed`, `map`, `filter` |
-| Terminal read (consume array) | `length`, `get`, `head`, `sum`, `reduce`, `empty` |
-| Read and keep array | `get_at` + `got_value` / `got_array`; `len_of` + `len_value` / `len_array` |
-| Split into two independent arrays | `copy` → `fst_array` / `snd_array` |
+| Borrow (keep ownership) | `length`, `empty`, `get`, `head`, `sum`, `mean`, `count` |
+| Move an element (consume array) | `take`, `take_head` |
+| Fold and end ownership | `reduce`, `consume observer` |
+| Release after the last borrow | `dispose` |
+| Read element and keep array | `get_at` + `with_get` |
+| Split into two independent arrays | `copy` → `with_pair` |
+
+### Reading length before an update
+
+`Array.length` and `Array.empty` borrow the array for the duration of the call.
+The owner remains available for `Array.set` or another consuming operation:
+
+```aeon
+import Array;
+
+def main (_:Int) : Int :=
+    let 1 arr := #[5,9] in
+    let n := Array.length arr in
+    let 1 updated := Array.set arr (n - 1) 7 in
+    Array.consume Array.sum updated;
+```
+
+This returns `12`. The length refinement proves the index is in bounds;
+`set` preserves the size and element predicate. It consumes `arr`, so subsequent
+reads must use `updated`. Aeon expresses updates by binding the array returned
+by `set`; there is no assignment syntax.
+
+Borrowing does not discharge the owner's linear obligation. If the last
+operation is a borrowing read, explicitly release the array:
+
+```aeon
+let 1 arr := #[5,9] in
+let n := Array.length arr in
+let _ := Array.dispose arr in
+n
+```
+
+User-defined readers declare `(borrow arr:(Array a))`. They can take more
+arguments, including other borrows, and return scalars or independently owned
+results. The borrowed handle itself cannot be returned, moved, or retained in
+a closure. `get`, `head`, and `copy` require `[Copy a]`: primitive values and
+immutable containers of copyable elements support this capability; arrays and
+resource handles do not. `take` and `take_head` move nested linear elements.
+
+Borrowing lasts through the **whole curried call**, including evaluation of
+later arguments. `Array.get arr i` is supported; retaining `Array.get arr` in a
+variable is rejected. A later argument also cannot consume `arr` while the
+earlier borrow is active. Compute such arguments first, or keep the operation
+inside a fully applied call. Inline callbacks accepted at multiplicity `1` may
+consume captured owners once; reusable or escaping resource closures are rejected.
+
+Native implementations are trusted to honor read-only access and independent
+result storage, just as they are trusted to honor their refinement contracts.
+Borrow qualifiers are part of function types and checked for callback arguments.
+
+`set` updates the backing list in O(1), with ownership transferred to its result.
+`copy` duplicates the outer buffer only after proving its elements are copyable,
+so nested linear arrays cannot accidentally share mutable storage.
+
+Length checks use `Array.length` directly. The length-wrapper API
+(`len_of`, `len_value`, `len_array`, `with_len`, `ArrayLen`, and `held_size`)
+has been removed. A length read can now be followed directly by a consuming
+element read, as in [`examples/testing/array_tests.ae`](https://github.com/alcides/aeon/blob/master/examples/testing/array_tests.ae).
 
 ## Constructors
 
@@ -48,7 +109,7 @@ Different arguments need not have different values.
 let 1 prefix := Array.mk_repeat 3 7 in
 let 1 suffix := Array.mk_2 8 9 in
 let 1 xs := Array.mk_concat prefix suffix in
-Array.sum xs  # 38
+Array.consume Array.sum xs  # 38
 ```
 
 `mk_empty unit` is an applied action, so each evaluation creates a fresh buffer.
@@ -82,12 +143,26 @@ used wherever an array with that element refinement is required. The measure
 
 | Type | Purpose |
 |------|---------|
-| `ArrayPair a` | Two arrays from `copy` (project with `fst_array`, `snd_array`) |
+| `ArrayPair a` | Two arrays from `copy` (consume together with `with_pair`) |
 | `ArrayGet a` | Element + array from `get_at` |
-| `ArrayLen a` | Length + array from `len_of` |
 
-Wrapper projections are unrestricted; re-enter linear discipline by binding
-projected arrays with `let 1`.
+Wrappers are linear: bind them with `let 1` and consume each exactly once.
+The terminal projections (`fst_array`, `snd_array`, `got_value`, `got_array`)
+consume the wrapper and discard its other field.
+To recover both fields, use a continuation:
+
+```aeon
+let 1 read := Array.get_at #[5,9] 0 in
+Array.with_get read (fun value => fun arr =>
+    value + Array.consume Array.sum arr)
+```
+
+`Array.with_pair pair (fun left => fun right => ...)` exposes
+both independent buffers returned by `copy`.
+
+This replaces the old pattern of projecting the same wrapper twice. Repeated
+array projections returned aliases to one buffer, allowing a native operation
+that legitimately mutated its unique input to change another live reference.
 
 ---
 

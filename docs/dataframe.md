@@ -13,15 +13,18 @@
 | CSV I/O, select, join, groupby, nulls | pandas |
 | Dense numeric column kernels | `Array` + `@llvm` / `@gpu` |
 
-Aeon does **not** compile pandas to LLVM. Extract a column with `with_col`,
+Aeon does **not** compile pandas to LLVM. Borrow a numeric column with `col_as_array`,
 run an Array kernel, write back with `set_col` (or use `map_col`).
 
 ## Linearity helpers
 
 | API | Role |
 |-----|------|
-| `copy` → `fst_df` / `snd_df` | Split one frame into two independent copies |
-| `with_col` → `wc_frame` / `wc_array` | Read a Float column without losing the frame |
+| `copy` → `with_pair` | Unpack two independent frames exactly once |
+| `col_as_array` | Borrow the frame and allocate an independent Float column |
+| `with_col` → `with_column` | Consume a wrapper once to recover the frame and column |
+| `nrows`, `ncols`, `columns`, `has_col` | Borrowed observations |
+| `dispose` | End ownership after the final observation |
 | `map_col` | Extract → transform → write back in one call |
 
 ## Relation to other modules

@@ -565,6 +565,19 @@ def _specialize_liquid_term(
         return (t if not args_changed else LiquidApp(t.fun, nargs, loc=t.loc)), nfuncs, nref
 
     fty = nfuncs[fname]
+    if len(nargs) == 2 and fname in nref:
+        from aeon.verification.array_logic import has_copy_array_read_body
+
+        params, body = nref[fname]
+        if has_copy_array_read_body(params, body) and isinstance(fty.type, AbstractionType):
+            # A source refinement omits Copy evidence. Give that logical call
+            # its own arity; the executable signature and explicit calls keep it.
+            logical_name = fname + "__logical"
+            nfuncs = {**nfuncs, logical_name: fty.type}
+            nref = {**nref, logical_name: (params[1:], body)}
+            return _specialize_liquid_term(
+                LiquidApp(Name(logical_name, 0), nargs, loc=t.loc), nfuncs, variables, nref, specializations
+            )
     cur: Type = fty
     subst: dict[str, TypeConstructor] = {}
     for arg in nargs:

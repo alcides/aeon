@@ -77,3 +77,22 @@ def test_array_module_marks_array_linear():
     assert array.is_linear is True
     concat = next(f for f in doc.functions if f.name == "mk_concat")
     assert [arg[2] for arg in concat.args] == ["1 ", "1 "]
+
+
+def test_documentation_handles_instances_of_imported_classes():
+    source = """
+open Copy
+type Value
+instance : Copy Value where duplicate x := x;
+def observe (borrow value:Value):Int := native "0";
+"""
+    doc = extract_documentation("<test>", source)
+    assert [t.name for t in doc.types] == ["Value"]
+    assert [f.name for f in doc.functions] == ["observe"]
+    assert doc.functions[0].args[0][2] == "borrow "
+
+
+def test_documentation_keeps_local_class_methods():
+    doc = extract_documentation("aeon/libraries/Copy.ae")
+    assert any(t.name == "Copy" for t in doc.types)
+    assert any(f.name == "duplicate" for f in doc.functions)

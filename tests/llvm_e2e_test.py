@@ -117,7 +117,9 @@ def test_e2e_llvm_array_map():
         let 1 a4 := Array.mk_concat a3 (Array.mk_1 4) in
         let 1 a5 := Array.mk_concat a4 (Array.mk_1 5) in
         let 1 v2 := vec_inc a5 5 in
-        get{Int} v2 2;
+        let value := get{Int} v2 2 in
+        let _ := Array.dispose v2 in
+        value;
     """
     res = compile_and_run(source)
     assert res == 4
@@ -167,7 +169,9 @@ def test_e2e_llvm_array_filter():
         let 1 a3 := Array.mk_concat a2 (Array.mk_1 3) in
         let 1 a4 := Array.mk_concat a3 (Array.mk_1 4) in
         let 1 filtered := filter_even a4 4 in
-        sum filtered;
+        let total := sum filtered in
+        let _ := Array.dispose filtered in
+        total;
     """
     res = compile_and_run(source)
     assert res == 6
@@ -195,7 +199,9 @@ def test_e2e_llvm_array_zip_with():
         let 1 b2 := Array.mk_concat b1 (Array.mk_1 20) in
         let 1 b3 := Array.mk_concat b2 (Array.mk_1 30) in
         let 1 v3 := vec_add a3 b3 3 in
-        get{Int} v3 1;
+        let value := get{Int} v3 1 in
+        let _ := Array.dispose v3 in
+        value;
     """
     res = compile_and_run(source)
     assert res == 22

@@ -7,15 +7,15 @@
 # ``close`` consumes it.
 #
 #     let 1 r0 := open_reader path in
-#     let step := read r0 in
+#     let 1 step := read r0 in
 #     let code := read_code step in
 #     let 1 r1 := read_reader step in
 #     close r1;
 
 linear type Reader
 
-# Unrestricted token after ``read``: byte/EOF code plus the live reader.
-type ReaderStep
+# Linear token after ``read``: byte/EOF code plus the live reader.
+linear type ReaderStep
 
 def reader_open : (r: Reader) -> Bool := uninterpreted
 def step_code : (s: ReaderStep) -> Int := uninterpreted
@@ -33,11 +33,11 @@ def read (1 r: {x: Reader | reader_open x = true}) :
         step_code s <= 255} :=
     native "__import__('aeon.bindings.reader', fromlist=['read_step']).read_step(r)"
 
-def read_code (s: ReaderStep) :
+def read_code (borrow s: ReaderStep) :
     {n: Int | n = step_code s && n >= (0 - 1) && n <= 255} :=
     native "s[0]"
 
-def read_reader (s: ReaderStep) :
+def read_reader (1 s: ReaderStep) :
     {r: Reader | reader_open r = true} :=
     native "s[1]"
 

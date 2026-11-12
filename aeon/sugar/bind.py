@@ -298,13 +298,14 @@ def _bind_definition(
     ), nsubs
 
 
-def bind_program(p: Program, subs: RenamingSubstitions) -> Program:
+def bind_program(p: Program, subs: RenamingSubstitions, *, expand_classes: bool = True) -> Program:
     # Lower class/instance declarations to inductives + plain definitions up
     # front so they are renamed by the normal binding machinery (and so method
     # projection / dictionary references share ids with their definitions).
     from aeon.sugar.desugar import expand_typeclasses
 
-    p = expand_typeclasses(p)
+    if expand_classes:
+        p = expand_typeclasses(p)
 
     type_decls = []
     inductive_decls = []

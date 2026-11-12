@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from aeon.decorators.documentation import doc_text
@@ -394,7 +394,10 @@ def extract_documentation(filename: str, source: str | None = None) -> ModuleDoc
             source = f.read()
 
     prog: Program = parse_main_program(source, filename=filename)
-    prog = bind_program(prog, [])
+    # Document declarations without constructing instance dictionaries. Their
+    # classes may be imported, and documentation does not compile imports.
+    # Local class methods still expand into their public signatures.
+    prog = bind_program(replace(prog, instance_decls=[]), [])
 
     comments = extract_comments(source)
 

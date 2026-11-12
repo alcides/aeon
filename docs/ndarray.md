@@ -271,7 +271,8 @@ Change the body count and step count in `main` to try other system sizes.
 Each step reads the entire old state before replacing it. On the host,
 `snapshot` transfers that state into a flat `Vector Float` with only a read
 operation exposed. This uses the existing LLVM pointer representation for
-repeated reads; owned `NDArray.get2` currently consumes its array. A separately
+repeated reads. `NDArray.get2` borrows an owner when elements are `Copy`;
+`NDArray.take2` consumes it when moving a linear element. A separately
 allocated 2D destination is passed to `nbody_step`. Its `output.map_rows`
 callback gives each thread its own row, updated through method calls such as
 `row.set1 0 x`, and the entire matrix is returned with its original shape. Shape and

@@ -24,11 +24,10 @@ def vector_add (u: Unit) : Int :=
     let 1 pending := Cuda.add_i32 launch stream left right in
     let 1 ready := Cuda.synchronize pending in
     let 1 downloaded := Cuda.download_i32 ready in
-    let pair := Cuda.unpack_i32_download downloaded in
-    let 1 result := Cuda.download_values_i32 pair in
-    let 1 next := Cuda.download_buffer_i32 pair in
-    let total := Array.sum result in
-    let _ := Cuda.free next in
-    total;
+    let 1 pair := Cuda.unpack_i32_download downloaded in
+    Cuda.with_i32_download pair (fun result => fun next =>
+        let total := (Array.consume Array.sum) result in
+        let _ := Cuda.free next in
+        total);
 
 def main (args: Int) : Unit := print (vector_add unit);

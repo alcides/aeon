@@ -7,7 +7,7 @@ def select_even (1 values:(NDArray Int Rank1)) : (NDArray Int Rank1) :=
     values.filter (fun x => x % 2 = 0);
 
 @gpu
-def sum_values (1 values:(NDArray Int Rank1)) : Int :=
+def sum_values (borrow values:(NDArray Int Rank1)) : Int :=
     values.reduce (fun acc => fun x => acc + x) 0;
 
 def samples (n:{v:Int | v >= 0 && v <= 2147483647}) :
@@ -18,4 +18,6 @@ def main (args:Int) : Unit :=
     let 1 values := samples 1025 in
     let 1 selected := select_even values in
     # The selected elements stay on the GPU for this second call.
-    print (sum_values selected);
+    let total := sum_values selected in
+    let _ := selected.discard in
+    print total;

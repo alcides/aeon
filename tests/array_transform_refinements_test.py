@@ -40,7 +40,7 @@ def test_transform_preserves_both_length_and_element_predicate():
         def transform (1 arr:{a:(Array {v:Int | v > 0}) | Array.size a = 2}):
             {a:(Array {v:Int | v > 0}) | Array.size a = 2} :=
             Array.reversed (Array.set arr 1 3);
-        def main (_:Int):Int := Array.sum (transform #[1,2]);
+        def main (_:Int):Int := (Array.consume Array.sum) (transform #[1,2]);
     """
         )
     )

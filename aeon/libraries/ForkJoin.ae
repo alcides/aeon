@@ -38,19 +38,19 @@ linear type Future a
 
 # Result of ``fork``: packages the (still-open) pool with the new future so
 # both can be projected and the pool threaded onward.
-type Forked a
+linear type Forked a
 
 # Result of ``fork2``: pool plus the two independent futures.
-type Forked2 a b
+linear type Forked2 a b
 
 # Result of ``invoke``: pool plus the computed value.
-type Invoked a
+linear type Invoked a
 
-# Result of ``join2`` / ``parallel2``: an unrestricted pair of values.
-type Joined2 a b
+# Result of ``join2`` / ``parallel2``: an linear pair of values.
+linear type Joined2 a b
 
 # Result of ``halves``: two contiguous non-empty pieces of an array.
-type Halves a
+linear type Halves a
 
 # ── Uninterpreted measures (refinement logic only) ───────────────────────
 
@@ -86,12 +86,12 @@ def fork (1 p: Pool) (task: (_: Unit) -> a) :
     native "__import__('aeon.bindings.forkjoin', fromlist=['fork']).fork(p, task)"
 
 # Recover the pool from a ``fork`` result, with its worker count intact.
-def forked_pool (f: (Forked a)) :
+def forked_pool (1 f: (Forked a)) :
     {p: Pool | pool_workers p = forked_workers f} :=
     native "f[0]"
 
 # Recover the linear future from a ``fork`` result. Bind it to ``let 1``.
-def forked_future (f: (Forked a)) : (Future a) :=
+def forked_future (1 f: (Forked a)) : (Future a) :=
     native "f[1]"
 
 # Submit two independent thunks. Project with ``forked2_pool`` /
@@ -100,14 +100,14 @@ def fork2 (1 p: Pool) (left: (_: Unit) -> a) (right: (_: Unit) -> b) :
     {f: (Forked2 a b) | forked2_workers f = pool_workers p} :=
     native "__import__('aeon.bindings.forkjoin', fromlist=['fork2']).fork2(p, left, right)"
 
-def forked2_pool (f: (Forked2 a b)) :
+def forked2_pool (1 f: (Forked2 a b)) :
     {p: Pool | pool_workers p = forked2_workers f} :=
     native "f[0]"
 
-def forked2_left (f: (Forked2 a b)) : (Future a) :=
+def forked2_left (1 f: (Forked2 a b)) : (Future a) :=
     native "f[1]"
 
-def forked2_right (f: (Forked2 a b)) : (Future b) :=
+def forked2_right (1 f: (Forked2 a b)) : (Future b) :=
     native "f[2]"
 
 # Run ``task`` on the pool and wait; keep the pool for further work.
@@ -115,11 +115,11 @@ def invoke (1 p: Pool) (task: (_: Unit) -> a) :
     {i: (Invoked a) | invoked_workers i = pool_workers p} :=
     native "__import__('aeon.bindings.forkjoin', fromlist=['invoke']).invoke(p, task)"
 
-def invoked_pool (i: (Invoked a)) :
+def invoked_pool (1 i: (Invoked a)) :
     {p: Pool | pool_workers p = invoked_workers i} :=
     native "i[0]"
 
-def invoked_value (i: (Invoked a)) : a :=
+def invoked_value (1 i: (Invoked a)) : a :=
     native "i[1]"
 
 # Block until ``future`` completes; consumes the future.
@@ -134,10 +134,10 @@ def join_timeout (seconds: {s: Float | s > 0.0}) (1 future: (Future a)) : a :=
 def join2 (1 left: (Future a)) (1 right: (Future b)) : (Joined2 a b) :=
     native "__import__('aeon.bindings.forkjoin', fromlist=['join2']).join2(left, right)"
 
-def joined_fst (j: (Joined2 a b)) : a :=
+def joined_fst (1 j: (Joined2 a b)) : a :=
     native "j[0]"
 
-def joined_snd (j: (Joined2 a b)) : b :=
+def joined_snd (1 j: (Joined2 a b)) : b :=
     native "j[1]"
 
 # ── One-shot helpers ─────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ def parallel2 (workers: {n: Int | n > 0 && n <= 64})
 
 # Map ``f`` over a linear array using a temporary pool of ``workers`` threads.
 # Preserves length: the result has the same ``size`` as the input.
-def par_map (workers: {n: Int | n > 0 && n <= 64})
+def par_map [Copy a] (workers: {n: Int | n > 0 && n <= 64})
             (f: (x: {v:a | p v}) -> {w:b | q w})
             (1 xs: (Array a)) :
     {ys: (Array b) | size ys = size xs} :=
@@ -171,11 +171,41 @@ def halves (1 xs: {arr: (Array a) | size arr >= 2}) :
     native "__import__('aeon.bindings.forkjoin', fromlist=['halves']).halves(xs)"
 
 # Left half; length pinned to ``half_left_size``.
-def half_left (h: (Halves a)) :
+def half_left (1 h: (Halves a)) :
     {xs: (Array a) | size xs = half_left_size h && size xs >= 1} :=
     native "h[0]"
 
 # Right half; length pinned to ``half_right_size``.
-def half_right (h: (Halves a)) :
+def half_right (1 h: (Halves a)) :
     {xs: (Array a) | size xs = half_right_size h && size xs >= 1} :=
     native "h[1]"
+
+# Unpack every owned field in one consumption.
+def with_forked (1 token:(Forked a)) (1 consume:(1 pool:{p:Pool | pool_workers p = forked_workers token}) -> (1 future:(Future a)) -> c) : c :=
+    native "consume(token[0])(token[1])"
+
+# Unpack every owned field in one consumption.
+def with_forked2 (1 token:(Forked2 a b)) (1 consume:(1 pool:{p:Pool | pool_workers p = forked2_workers token}) -> (1 left:(Future a)) -> (1 right:(Future b)) -> c) : c :=
+    native "consume(token[0])(token[1])(token[2])"
+
+# Unpack every owned field in one consumption.
+def with_invoked [Copy a] (1 token:(Invoked a)) (1 consume:(1 pool:{p:Pool | pool_workers p = invoked_workers token}) -> (value:a) -> c) : c :=
+    native "consume(token[0])(token[1])"
+
+# Unpack every owned field in one consumption.
+# Transfer linear elements instead of copying observations.
+def with_invoked_owned (1 token:(Invoked a)) (1 consume:(1 pool:{p:Pool | pool_workers p = invoked_workers token}) -> (1 value:a) -> c) : c :=
+    native "consume(token[0])(token[1])"
+
+# Unpack every owned field in one consumption.
+def with_joined [Copy a] [Copy b] (1 token:(Joined2 a b)) (1 consume:(left:a) -> (right:b) -> c) : c :=
+    native "consume(token[0])(token[1])"
+
+# Unpack every owned field in one consumption.
+# Transfer linear elements instead of copying observations.
+def with_joined_owned (1 token:(Joined2 a b)) (1 consume:(1 left:a) -> (1 right:b) -> c) : c :=
+    native "consume(token[0])(token[1])"
+
+# Unpack every owned field in one consumption.
+def with_halves (1 token:(Halves a)) (1 consume:(1 left:{xs:(Array a) | size xs = half_left_size token && size xs >= 1}) -> (1 right:{xs:(Array a) | size xs = half_right_size token && size xs >= 1}) -> c) : c :=
+    native "consume(token[0])(token[1])"

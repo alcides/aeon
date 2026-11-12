@@ -1,35 +1,8 @@
-# Linear pseudo-random generators (issue #441).
-#
-# Modelling `random.random()` as a pure `Unit -> {r:Float | 0.0 <= r < 1.0}`
-# is unsound: the refinement logic treats it as referentially transparent,
-# so two draws look *equal* to the SMT solver and a single draw can be
-# silently shared. Purity is a precondition for the refinement logic to be
-# sound, so an impure value with a refinement is a hole.
-#
-# Here randomness is threaded through an explicit generator used at
-# multiplicity 1. Every draw consumes its generator and produces a result
-# carrying both the sample and a *successor* generator; to draw again, bind
-# the successor (`*_next`) to a `let 1` and draw from it. A value can never
-# be drawn twice from the same generator, and the logic never sees a draw as
-# a pure function.
-#
-# The numeric draws expose the sample through a refined projection, so the
-# bound survives and composes into proofs. To finish a chain, just project
-# the last sample and stop — the unextracted successor imposes no obligation
-# (the `*Draw` result is an ordinary value). For example, two dice provably
-# sum to [2, 12]:
-#
-#     def two_dice (seed: Int) : {s:Int | s >= 2 && s <= 12} :=
-#         let 1 g0 := new_rng seed in
-#         let d1   := draw_int 1 6 g0 in
-#         let a    := int_value 1 6 d1 in     # a : {r:Int | 1 <= r <= 6}
-#         let 1 g1 := int_next d1 in          # continue from the successor
-#         let d2   := draw_int 1 6 g1 in
-#         let b    := int_value 1 6 d2 in     # last draw: project and stop
-#         a + b
-#
-# `close_rng` is needed only to discharge a generator you *hold* but never
-# draw from — e.g. a helper handed a `(1 g: Rng)` it ends up not using.
+# Linear pseudo-random generators. Draws consume a generator and return a
+# linear token containing the sample and its successor. Observe the sample
+# with a borrowed *_value call, then consume the token with *_next or
+# discard_draw / discard_int_draw / discard_range_draw.
+# This prevents two projections from manufacturing aliases to one generator.
 
 open Array
 
@@ -39,13 +12,10 @@ open Array
 # multiplicity 1.
 linear type Rng
 
-# Results of a draw: the sample paired with the successor generator. These
-# are ordinary (non-linear) values — the generator re-enters the linear
-# discipline only when the `*_next` projection is bound to a `let 1`, so
-# stopping a chain is just declining to project the successor.
-type Draw
-type IntDraw
-type RangeDraw
+# Each result owns its successor generator until extracted or discarded.
+linear type Draw
+linear type IntDraw
+linear type RangeDraw
 
 # A fresh generator seeded deterministically. The `Int` argument makes this
 # an *applied* action, so each call yields a new generator — a nullary `def`
@@ -54,24 +24,24 @@ def new_rng (seed: Int) : Rng := native "__import__('random').Random(seed)"
 
 # ── Float draw in [0.0, 1.0) ────────────────────────────────────────────
 def draw (1 g: Rng) : Draw := native "(g.random(), g)"
-def draw_value (d: Draw) : {r: Float | r >= 0.0 && r < 1.0} := native "d[0]"
-def draw_next (d: Draw) : Rng := native "d[1]"
+def draw_value (borrow d: Draw) : {r: Float | r >= 0.0 && r < 1.0} := native "d[0]"
+def draw_next (1 d: Draw) : Rng := native "d[1]"
 
 # ── Integer draw in [lo, hi] ────────────────────────────────────────────
 # The bounds are repeated on the projection so the refinement survives the
 # opaque `IntDraw`.
 def draw_int (lo: Int) (hi: {y: Int | y >= lo}) (1 g: Rng) : IntDraw :=
     native "(g.randint(lo, hi), g)"
-def int_value (lo: Int) (hi: {y: Int | y >= lo}) (d: IntDraw) : {r: Int | r >= lo && r <= hi} :=
+def int_value (lo: Int) (hi: {y: Int | y >= lo}) (borrow d: IntDraw) : {r: Int | r >= lo && r <= hi} :=
     native "d[0]"
-def int_next (d: IntDraw) : Rng := native "d[1]"
+def int_next (1 d: IntDraw) : Rng := native "d[1]"
 
 # ── Float draw in [lo, hi) ──────────────────────────────────────────────
 def draw_range (lo: Float) (hi: {y: Float | y > lo}) (1 g: Rng) : RangeDraw :=
     native "(g.uniform(lo, hi), g)"
-def range_value (lo: Float) (hi: {y: Float | y > lo}) (d: RangeDraw) : {r: Float | r >= lo && r < hi} :=
+def range_value (lo: Float) (hi: {y: Float | y > lo}) (borrow d: RangeDraw) : {r: Float | r >= lo && r < hi} :=
     native "d[0]"
-def range_next (d: RangeDraw) : Rng := native "d[1]"
+def range_next (1 d: RangeDraw) : Rng := native "d[1]"
 
 # ── Uniform choice from a non-empty array (polymorphic) ─────────────────
 # Terminal: consume `g` and return the chosen element. To choose mid-chain
@@ -80,7 +50,14 @@ def range_next (d: RangeDraw) : Rng := native "d[1]"
 def choose (1 xs: {l: (Array a) | Array.size l > 0}) (1 g: Rng) : a :=
     native "g.choice(xs)"
 
-# Discharge a generator you hold but never draw from (e.g. a helper handed a
-# generator it ends up not using). Straight-line draw chains never need this
-# — just stop projecting the successor.
+# Explicitly end ownership of a generator.
 def close_rng (1 g: Rng) : Unit := native "None"
+
+# End a draw chain after observing its final sample.
+def discard_draw (1 d:Draw) : Unit := native "None"
+
+# End a draw chain after observing its final sample.
+def discard_int_draw (1 d:IntDraw) : Unit := native "None"
+
+# End a draw chain after observing its final sample.
+def discard_range_draw (1 d:RangeDraw) : Unit := native "None"

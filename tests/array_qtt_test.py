@@ -40,7 +40,7 @@ def build (n: Int) : Int :=
     let 1 a0 := Array.mk_1 1 in
     let 1 a1 := Array.mk_concat a0 (Array.mk_1 2) in
     let 1 a2 := set a1 0 n in
-    sum a2;
+    (Array.consume Array.sum) a2;
 
 def main (args: Int) : Unit := print "ok";
 """
@@ -73,7 +73,7 @@ def twice (args: Int) : Int :=
     let 1 a := Array.mk_1 1 in
     let 1 b := Array.mk_concat a (Array.mk_1 2) in
     let 1 c := Array.mk_concat a (Array.mk_1 3) in
-    sum b;
+    (Array.consume Array.sum) b;
 
 def main (args: Int) : Unit := print "ok";
 """
@@ -89,7 +89,7 @@ open Array
 
 def leak (args: Int) : Int :=
     let a := Array.mk_1 1 in
-    sum a;
+    (Array.consume Array.sum) a;
 
 def main (args: Int) : Unit := print "ok";
 """
@@ -105,10 +105,10 @@ open Array
 
 def fork (n: Int) : Int :=
     let 1 a := Array.mk_2 n 7 in
-    let p := copy a in
-    let 1 left := fst_array p in
-    let 1 right := snd_array p in
-    sum left + length right;
+    with_pair (copy a) (fun left => fun right =>
+        let count := length right in
+        let _ := dispose right in
+        (Array.consume Array.sum) left + count);
 
 def main (args: Int) : Unit := print "ok";
 """
@@ -122,10 +122,10 @@ def test_array_copy_preserves_refinement():
     src = """
 open Array
 
-def needs_pos (1 arr: (Array {v:Int | v > 0})) : Int := sum arr;
+def needs_pos (1 arr: (Array {v:Int | v > 0})) : Int := (Array.consume Array.sum) arr;
 
 def keeps_refinement (1 a: (Array {v:Int | v > 0})) : Int :=
-    let p := copy a in
+    let 1 p := copy a in
     let 1 left := fst_array p in
     needs_pos left;
 

@@ -15,7 +15,12 @@ within its scope:
   including zero. This is the default; existing programs that omit a
   multiplicity continue to behave identically.
 
-In addition to the QTT semiring there is a fourth, *non-semiring* marker:
+In addition to the QTT semiring there are two *non-semiring* markers:
+
+- ``MBorrow``: a scoped read-only parameter, written ``(borrow x: T)``.
+  Its ordered accesses are checked separately: reads preserve ownership,
+  cannot follow a move, and cannot escape into a closure. It is not an
+  operand of the QTT semiring.
 
 - ``MN``: multiplicity-polymorphic — written ``(n x: T)`` in source.
   The function works for *any* concrete instantiation of the
@@ -56,13 +61,13 @@ from enum import Enum
 
 
 class Multiplicity(Enum):
-    """The QTT multiplicity semiring ``{0, 1, ω}`` plus the polymorphism
-    marker ``MN``."""
+    """The QTT semiring plus polymorphism and scoped-borrow markers."""
 
     M0 = "0"  # erased
     M1 = "1"  # linear (use exactly once)
     MOmega = "ω"  # unrestricted (use any number of times)
     MN = "n"  # multiplicity-polymorphic (any concrete instantiation)
+    MBorrow = "borrow"  # scoped read-only parameter; checked outside the semiring
 
     def __repr__(self) -> str:
         return self.value
@@ -75,6 +80,7 @@ M0 = Multiplicity.M0
 M1 = Multiplicity.M1
 MOmega = Multiplicity.MOmega
 MN = Multiplicity.MN
+MBorrow = Multiplicity.MBorrow
 
 
 def add(a: Multiplicity, b: Multiplicity) -> Multiplicity:
@@ -84,6 +90,8 @@ def add(a: Multiplicity, b: Multiplicity) -> Multiplicity:
     absorbing for any non-zero argument. ``MN`` collapses to ``M1`` for
     the arithmetic.
     """
+    if a is MBorrow or b is MBorrow:
+        raise ValueError("Borrowing is an ordered access, not a QTT multiplicity")
     if a is MN:
         a = M1
     if b is MN:
@@ -109,6 +117,8 @@ def mul(a: Multiplicity, b: Multiplicity) -> Multiplicity:
     a polymorphic-multiplicity function does not artificially constrain
     its callers.
     """
+    if a is MBorrow or b is MBorrow:
+        raise ValueError("Borrowing is an ordered access, not a QTT multiplicity")
     if a is MN:
         return b
     if b is MN:
@@ -135,5 +145,7 @@ def from_token(tok: str) -> Multiplicity:
             return MOmega
         case "n":
             return MN
+        case "borrow":
+            return MBorrow
         case _:
             raise ValueError(f"Not a multiplicity token: {tok!r}")

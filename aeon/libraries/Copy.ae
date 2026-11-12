@@ -1,0 +1,16 @@
+# Values that can be duplicated without creating aliases to unique resources.
+# An instance promises ordinary unrestricted reuse is safe. Linear handles
+# deliberately have no instances; move them with consuming operations instead.
+class Copy (a:B) where
+    duplicate : (x:a) -> {r:a | r = x};
+
+instance : Copy Int where
+    duplicate x := x;
+instance : Copy Float where
+    duplicate x := x;
+instance : Copy Bool where
+    duplicate x := x;
+instance : Copy String where
+    duplicate x := x;
+instance : Copy Unit where
+    duplicate x := x;

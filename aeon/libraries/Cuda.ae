@@ -32,9 +32,9 @@ linear type Pending a
 linear type I32Download
 linear type Float64Download
 
-# Unrestricted pair after ``unpack_*`` (values + buffer projections).
-type I32DownloadPair
-type Float64DownloadPair
+# Linear pair after ``unpack_*`` (values + buffer projections).
+linear type I32DownloadPair
+linear type Float64DownloadPair
 
 # Linear completion token; must be ``check_ok`` or ``discard_status``.
 linear type Status
@@ -42,8 +42,8 @@ linear type Status
 # Linear pair from ``synchronize_with_status`` (status + optional ready buffer).
 linear type StatusBuffer a
 
-# Unrestricted pair after unpacking a ``StatusBuffer``.
-type StatusPair a
+# Linear pair after unpacking a ``StatusBuffer``.
+linear type StatusPair a
 
 # ── Kind / access constants ──────────────────────────────────────────────
 
@@ -357,12 +357,12 @@ def unpack_status_buffer (1 sb: {s: (StatusBuffer a) | status_buffer_ok s}) :
     native "__import__('aeon.bindings.cuda', fromlist=['unpack_status_buffer']).unpack_status_buffer(sb)"
 
 # Status half of an unpacked pair (still linear — check or discard).
-def status_pair_status (p: {pr: (StatusPair a) | status_pair_ok pr}) :
+def status_pair_status (1 p: {pr: (StatusPair a) | status_pair_ok pr}) :
     {s: Status | status_is_ok s} :=
     native "__import__('aeon.bindings.cuda', fromlist=['status_pair_status']).status_pair_status(p)"
 
 # Ready buffer half of an unpacked ok pair.
-def status_pair_buffer (p: {pr: (StatusPair a) | status_pair_ok pr}) :
+def status_pair_buffer (1 p: {pr: (StatusPair a) | status_pair_ok pr}) :
     {b: (ReadyBuffer a) |
         buffer_device b = status_pair_device p &&
         buffer_size b = status_pair_size p &&
@@ -397,14 +397,14 @@ def download_float64 (1 buffer: (ReadyBuffer Float)) :
         float64_download_size result = buffer_size buffer} :=
     native "__import__('aeon.bindings.cuda', fromlist=['download_float64_result']).download_float64_result(buffer)"
 
-# Split ``I32Download`` into an unrestricted pair (values tuple + buffer).
+# Split ``I32Download`` into an linear pair (values tuple + buffer).
 def unpack_i32_download (1 p: I32Download) :
     {pair: I32DownloadPair |
         i32_download_pair_device pair = i32_download_device p &&
         i32_download_pair_size pair = i32_download_size p} :=
     native "(p.values, p.buffer)"
 
-# Split ``Float64Download`` into an unrestricted pair.
+# Split ``Float64Download`` into an linear pair.
 def unpack_float64_download (1 p: Float64Download) :
     {pair: Float64DownloadPair |
         float64_download_pair_device pair = float64_download_device p &&
@@ -412,12 +412,12 @@ def unpack_float64_download (1 p: Float64Download) :
     native "(p.values, p.buffer)"
 
 # Host snapshot from an ``I32DownloadPair`` (linear ``Array Int``).
-def download_values_i32 (p: I32DownloadPair) :
+def download_values_i32 (1 p: I32DownloadPair) :
     {xs: (Array Int) | Array.size xs = i32_download_pair_size p} :=
     native "p[0]"
 
 # Live GPU buffer from an ``I32DownloadPair``; ``free`` when done.
-def download_buffer_i32 (p: I32DownloadPair) :
+def download_buffer_i32 (1 p: I32DownloadPair) :
     {b: (ReadyBuffer Int) |
         buffer_device b = i32_download_pair_device p &&
         buffer_size b = i32_download_pair_size p &&
@@ -430,12 +430,12 @@ def download_buffer_i32 (p: I32DownloadPair) :
     native "p[1]"
 
 # Host snapshot from a ``Float64DownloadPair``.
-def download_values_float64 (p: Float64DownloadPair) :
+def download_values_float64 (1 p: Float64DownloadPair) :
     {xs: (Array Float) | Array.size xs = float64_download_pair_size p} :=
     native "p[0]"
 
 # Live GPU buffer from a ``Float64DownloadPair``.
-def download_buffer_float64 (p: Float64DownloadPair) :
+def download_buffer_float64 (1 p: Float64DownloadPair) :
     {b: (ReadyBuffer Float) |
         buffer_device b = float64_download_pair_device p &&
         buffer_size b = float64_download_pair_size p &&
@@ -456,3 +456,40 @@ def free (1 buffer: (ReadyBuffer a)) : Unit :=
 # Abandon in-flight work without reading results.
 def discard (1 pending: (Pending a)) : Unit :=
     native "__import__('aeon.bindings.cuda', fromlist=['discard']).discard(pending)"
+
+# Recover both owned fields exactly once, preserving their contracts.
+def with_i32_download (1 token:I32DownloadPair)
+    (1 consume:(1 left:{xs: (Array Int) | Array.size xs = i32_download_pair_size token}) -> (1 right:{b: (ReadyBuffer Int) |
+        buffer_device b = i32_download_pair_device token &&
+        buffer_size b = i32_download_pair_size token &&
+        buffer_elem_size b = 4 &&
+        buffer_bytes b = buffer_size b * buffer_elem_size b &&
+        buffer_mem_kind b = mem_kind_device &&
+        buffer_access b = access_read_write &&
+        buffer_extent_x b = buffer_size b &&
+        buffer_extent_y b = 1}) -> b) : b :=
+    native "consume(token[0])(token[1])"
+
+# Recover both owned fields exactly once, preserving their contracts.
+def with_float64_download (1 token:Float64DownloadPair)
+    (1 consume:(1 left:{xs: (Array Float) | Array.size xs = float64_download_pair_size token}) -> (1 right:{b: (ReadyBuffer Float) |
+        buffer_device b = float64_download_pair_device token &&
+        buffer_size b = float64_download_pair_size token &&
+        buffer_elem_size b = 8 &&
+        buffer_bytes b = buffer_size b * buffer_elem_size b &&
+        buffer_mem_kind b = mem_kind_device &&
+        buffer_access b = access_read_write &&
+        buffer_extent_x b = buffer_size b &&
+        buffer_extent_y b = 1}) -> b) : b :=
+    native "consume(token[0])(token[1])"
+
+# Recover both owned fields exactly once, preserving their contracts.
+def with_status_pair (1 token:{pr:(StatusPair a) | status_pair_ok pr})
+    (1 consume:(1 left:{s: Status | status_is_ok s}) -> (1 right:{b: (ReadyBuffer a) |
+        buffer_device b = status_pair_device token &&
+        buffer_size b = status_pair_size token &&
+        buffer_mem_kind b = mem_kind_device &&
+        buffer_access b = access_read_write &&
+        buffer_extent_x b = buffer_size b &&
+        buffer_extent_y b = 1}) -> b) : b :=
+    native "consume(token[0])(token[1])"
