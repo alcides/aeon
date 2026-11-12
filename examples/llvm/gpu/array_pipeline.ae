@@ -7,7 +7,9 @@ def sum_selected (1 values: (NDArray Int Rank2)) : Int :=
     let 1 shifted := values.map (fun x => x + 1) in
     let 1 doubled := shifted.map (fun x => x * 2) in
     let 1 selected := doubled.filter (fun x => x > 5) in
-    selected.reduce (fun acc => fun x => acc + x) 0;
+    let total := selected.reduce (fun acc => fun x => acc + x) 0 in
+    let _ := selected.discard in
+    total;
 
 @gpu
 def row_totals (1 matrix: {m:(NDArray Int Rank2) | m.ndim = 2}) : (NDArray Int Rank2) :=

@@ -11,4 +11,6 @@ def zero_volume (1 volume: (NDArray Float Rank3)) :
 def main (args: Int) : Unit :=
     let 1 volume := full3 5 9 17 7.5 in
     let 1 result := zero_volume volume in
-    print (result.get3 4 8 16);
+    let result_value := result.get3 4 8 16 in
+    let _ := result.discard in
+    print result_value;

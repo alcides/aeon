@@ -17,30 +17,16 @@
 # use ``(borrow arr: ...)`` and return ownership to the caller after the
 # call. Borrowing neither consumes the array nor permits aliasing it.
 #
-# Because uniqueness is statically guaranteed, the native bodies are free
-# to mutate the backing list in place — there is no other observer that a
-# mutation could surprise. (The bodies below stay purely functional, so the
-# runtime behaviour is unchanged.)
-#
-# Operations follow these ownership rules:
-#
-#   * **Transformers** (``mk_concat``, ``set``, ``reversed``, ``map``,
-#     ``filter``) consume the array and return a fresh one — bind the result
-#     to the next ``let 1`` and keep going.
-#
-#   * **Borrowing reads** (``length``, ``empty``) leave the owner available
-#     for later updates. They return scalars, never references into the
-#     buffer. Reads after a move and closure captures are rejected.
-#
-#   * **Consuming reads** (``get``, ``head``, ``sum``, ``reduce``) end
-#     ownership. ``get_at`` with ``with_get`` threads an indexed read.
-#     Use ``dispose`` after the last borrow if no consuming operation is
-#     needed. Element and size refinements survive borrows and updates.
-#
-# When you need two genuinely independent arrays — to branch a computation
-# in two — call ``copy``: it consumes the array once and hands back two
-# arrays packaged in an ``ArrayPair`` (consumed with ``with_pair``), each
-# with the element refinement and length preserved.
+# Mutations consume the old owner and return its successor. ``set`` updates
+# the same backing list in O(1); ``mk_concat`` and ``reversed`` allocate.
+# Shape and numeric queries borrow. ``get`` / ``head`` also borrow, requiring
+# Copy elements so a read cannot duplicate a nested linear handle. Use
+# ``take`` / ``take_head`` to move an element and end ownership of its source.
+# ``copy`` requires Copy elements and returns a linear ArrayPair, unpacked
+# once with ``with_pair``. After a final read, call ``dispose`` explicitly,
+# or use ``consume observer arr`` to observe and finish a pipeline.
+
+open Copy
 
 linear type Array a forall <p : a -> Bool>
 
@@ -144,7 +130,7 @@ def empty (borrow arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
 # The element refinement ``<p>`` rides on the element type of the pair and
 # the length is threaded by the ``pair_size`` measure, so both projections
 # come back fully specified.
-def copy (1 arr: (Array a<p>)) : {pr: (ArrayPair a<p>) | pair_size pr = size arr} :=
+def copy [Copy a] (1 arr: (Array a<p>)) : {pr: (ArrayPair a<p>) | pair_size pr = size arr} :=
     native "(arr, list(arr))"
 
 
@@ -165,7 +151,7 @@ def snd_array (1 pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size p
 # Use ``with_get`` to recover both fields. A terminal
 # projection consumes the wrapper and discards the other field.
 
-def get_at (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) :
+def get_at [Copy a] (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) :
     {g: (ArrayGet a<p>) | got_size g = size arr} :=
     native "(arr[i], arr)"
 
@@ -193,21 +179,20 @@ def with_get (1 token:(ArrayGet a<p>))
     native "consume(token[0])(token[1])"
 
 
-# Indexed read; the result is known to satisfy ``p``. Consumes the array —
-# use ``get_at`` to read and keep it.
-def get (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
+# Indexed observation; the element is copyable and still satisfies ``p``.
+def get [Copy a] (borrow arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
     native "arr[i]"
 
 
 # Indexed write; preserves length, and the written value must satisfy ``p``.
-# Consumes the array linearly and returns the fresh, updated array.
+# Consumes the old owner and returns the updated owner of the same storage.
 def set (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) (1 x: {v:a | p v}) : {r:(Array a<p>) | size r = size arr} :=
-    native "arr[:i] + [x] + arr[i+1:]"
+    native "(arr.__setitem__(i, x), arr)[1]"
 
 
 # First element of a non-empty array. Its predicate must come from the input;
-# a free output predicate would let callers prove arbitrary facts. Consumes it.
-def head (1 arr: {arr:(Array a<p>) | size arr > 0}) : {v:a | p v} :=
+# a free output predicate would let callers prove arbitrary facts. Borrows it.
+def head [Copy a] (borrow arr: {arr:(Array a<p>) | size arr > 0}) : {v:a | p v} :=
     native "arr[0]"
 
 
@@ -218,47 +203,47 @@ def reversed (1 arr: (Array a<p>)) : {r:(Array a<p>) | size r = size arr} :=
 
 # Map a function across the array; length is preserved and the result
 # refinement ``q`` is pushed through ``f``. Consumes the array linearly.
-def map (f: (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) : {r:(Array b<q>) | size r = size arr} :=
+def map [Copy a] (f: (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) : {r:(Array b<q>) | size r = size arr} :=
     native "list(map(f, arr))"
 
 
 # Filter an array by ``f``; the length never grows. Consumes the array
 # linearly.
-def filter (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a<p>)) : {r:(Array a<p>) | size r <= size arr} :=
+def filter [Copy a] (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a<p>)) : {r:(Array a<p>) | size r <= size arr} :=
     native "list(filter(f, arr))"
 
 
 # Right fold: ``reduce f z [x1, ..., xn] == f x1 (f x2 (... (f xn z)))``.
 # Consumes the array.
-def reduce (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (1 arr: (Array a<p>)) : b :=
+def reduce [Copy a] (f: (x:{v:a | p v}) -> (acc:b) -> b) (z: b) (1 arr: (Array a<p>)) : b :=
     native "functools.reduce(lambda acc, curr: f(curr)(acc), reversed(arr), z)"
 
 
-# Sum of an Int array. Consumes the array.
-def sum (1 arr: (Array Int)) : Int :=
+# Sum of an Int array. Borrows the array.
+def sum (borrow arr: (Array Int)) : Int :=
     native "sum(arr)"
 
 
-# Mean of a Float array. Consumes the array.
-def mean (1 arr: (Array Float)) : Float :=
+# Mean of a Float array. Borrows the array.
+def mean (borrow arr: (Array Float)) : Float :=
     native "(sum(arr) / len(arr)) if len(arr) else 0.0"
 
 
 # Index-aware map: ``f`` receives ``(index, element)``. Length preserved.
-def imap (f: (i: Int) -> (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) :
+def imap [Copy a] (f: (i: Int) -> (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) :
     {r:(Array b<q>) | size r = size arr} :=
     native "[f(i)(x) for i, x in enumerate(arr)]"
 
 
 # Pairwise zip-with; both arrays must share length ``size``.
-def zipWith (f: (x: {v:a | p v}) -> (y: {w:b | q w}) -> {z:c | r z})
+def zipWith [Copy a] [Copy b] (f: (x: {v:a | p v}) -> (y: {w:b | q w}) -> {z:c | r z})
     (1 xs: (Array a<p>)) (1 ys: {arr:(Array b<q>) | size arr = size xs}) :
     {out:(Array c<r>) | size out = size xs} :=
     native "[f(x)(y) for x, y in zip(xs, ys)]"
 
 
-# Count elements satisfying ``f``. Consumes the array.
-def count (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a<p>)) : {n:Int | n >= 0 && n <= size arr} :=
+# Count copyable elements satisfying ``f``. Borrows the array.
+def count [Copy a] (f: (x: {v:a | p v}) -> Bool) (borrow arr: (Array a<p>)) : {n:Int | n >= 0 && n <= size arr} :=
     native "sum(1 for x in arr if f(x))"
 
 
@@ -271,3 +256,18 @@ def scale (k: Float) (1 arr: (Array Float)) : {r:(Array Float) | size r = size a
 def vadd (1 xs: (Array Float)) (1 ys: {arr:(Array Float) | size arr = size xs}) :
     {r:(Array Float) | size r = size xs} :=
     native "[a + b for a, b in zip(xs, ys)]"
+
+# Move an element out, ending ownership of the source array.
+def take (1 arr:(Array a<p>)) (i:{n:Int | n >= 0 && n < size arr}) : {v:a | p v} :=
+    native "arr[i]"
+
+def take_head (1 arr:{xs:(Array a<p>) | size xs > 0}) : {v:a | p v} :=
+    native "arr[0]"
+
+# Explicitly end ownership after a borrowed observation. Useful at pipeline ends.
+def consume (observe:(borrow xs:(Array a<p>)) -> b<q>) (1 arr:(Array a<p>)) : b<q> :=
+    native "observe(arr)"
+
+# Move every element into a consuming callback, including nested linear arrays.
+def map_owned (f:(1 x:a<p>) -> b<q>) (1 arr:(Array a<p>)) :
+    {r:(Array b<q>) | size r = size arr} := native "list(map(f, arr))"

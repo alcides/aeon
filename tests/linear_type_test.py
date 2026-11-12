@@ -239,7 +239,7 @@ def test_reader_preserves_the_length_measure():
         + """
 def read_twice (1 arr: {r: (Array {x:Int | x > 0}) | size r = 3}) : Int :=
     with_get (get_at arr 0) (fun first => fun back =>
-        use_positive first + use_positive (get back 2));"""
+        use_positive first + use_positive (Array.take back 2));"""
         + MAIN
     )
     assert _parse(src) == []
@@ -277,7 +277,7 @@ def read (1 arr: {r: (Array Int) | size r = 3}) : Int :=
 
 def test_abstract_refinement_is_not_vacuous():
     """``id2`` may only return a positive value if it was given one. The
-    Horn variable standing for ``p`` has to get a single solution across the
+    Horn variable standing for ``p`` has to Array.take a single solution across the
     argument and the result, or the call below is accepted vacuously."""
     src = (
         """

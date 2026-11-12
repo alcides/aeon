@@ -14,18 +14,19 @@ def score_ridge (path: String) (target_col: String) : Float :=
     # not a time series, but has missing values.
     let 1 ds0 := target df target_col false true in
     let 1 ds := require_enough_data ds0 in
-    let parts := split ds 0.8 true in
-    # Impute (and could scale) each half independently — no leakage.
-    let 1 train := fill_median (train_of parts) in
-    let 1 test := fill_median (test_of parts) in
-    let model := ridge_alpha 0.5 train in
-    r2 model test ;
+    let 1 parts := split ds 0.8 true in
+    with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        # Impute (and could scale) each half independently — no leakage.
+        let 1 train := fill_median (owned_left_parts) in
+        let 1 test := fill_median (owned_right_parts) in
+        let model := ridge_alpha 0.5 train in
+        r2 model test );
 
 
 def train_ridge (path: String) (target_col: String) : SklearnRegressor :=
     let 1 df := read_csv path in
     let 1 ds0 := target df target_col false true in
     let 1 ds := require_enough_data ds0 in
-    let parts := split ds 0.8 true in
+    let 1 parts := split ds 0.8 true in
     let 1 train := fill_median (train_of parts) in
     ridge train ;

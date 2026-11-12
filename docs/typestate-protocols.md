@@ -52,7 +52,7 @@ open Reader
 
 def read_once (path: {p: String | p != ""}) : Int :=
     let 1 r0 := open_reader path in
-    let step := read r0 in
+    let 1 step := read r0 in
     let code := read_code step in
     let 1 r1 := read_reader step in
     let _ := close r1 in
@@ -126,7 +126,7 @@ def demo (u: Unit) : Int :=
 ```
 
 `pop` / `peek` require `stack_size > 0`; `discard` requires an empty stack.
-Recovery tokens are linear. Use `with_pop`, `with_peek`, or `with_len` to
+Recovery tokens are linear. Use `with_pop` (or `with_pop_owned` for linear elements) to
 consume a token and receive both its value and handle. Individual projections
 also consume the token, so the same handle cannot be extracted twice.
 
@@ -157,17 +157,17 @@ open Iterator
 def sum_two (u: Unit) : Int :=
     let 1 xs := Array.mk_2 3 4 in
     let 1 it0 := from_array xs in
-    let p0 := has_next it0 in
+    let 1 p0 := has_next it0 in
     let 1 it1 := ready_iterator p0 in
-    let s0 := next it1 in
+    let 1 s0 := next it1 in
     let a := next_value s0 in
     let 1 it2 := next_iterator s0 in
-    let p1 := has_next it2 in
+    let 1 p1 := has_next it2 in
     let 1 it3 := ready_iterator p1 in
-    let s1 := next it3 in
+    let 1 s1 := next it3 in
     let b := next_value s1 in
     let 1 it4 := next_iterator s1 in
-    let p2 := has_next it4 in
+    let 1 p2 := has_next it4 in
     let 1 it5 := exhausted_iterator p2 in
     let _ := discard it5 in
     a + b;

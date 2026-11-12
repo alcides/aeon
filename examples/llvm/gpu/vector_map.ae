@@ -15,4 +15,4 @@ def main (args:Int) : Unit :=
     let 1 v2 := Array.mk_concat v1 (Array.mk_1 2) in
     let 1 v3 := Array.mk_concat v2 (Array.mk_1 3) in
     let 1 res := multiply_by_ten v3 3 in
-    print (get{Int} res 1);
+    print (Array.take{Int} res 1);

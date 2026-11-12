@@ -1,3 +1,5 @@
+open Copy
+
 # Linked list — an inductive datatype with the standard ``nil`` / ``cons``
 # constructors and a length measure.
 #
@@ -79,3 +81,7 @@ def all (p: (x:a) -> Bool) (l: (List a)) : Bool :=
     match l with
     | nil => true
     | cons hd tl => p hd && (all p tl);
+
+# Immutable values are copyable when their elements are copyable.
+instance [Copy a] : Copy (List a) where
+    duplicate x := x;

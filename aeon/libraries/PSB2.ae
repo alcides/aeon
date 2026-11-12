@@ -27,13 +27,13 @@ def extract_train_data : (1 ds:Dataset) -> TrainData := fun ds => native "ds[0]"
 def unpack_train_data : (td:TrainData) -> Tuple := fun td => native "list(map(list, zip(*td)))"
 
 
-def get_input_list : (t:Tuple) -> (Array Int) := fun t => native "t[0]"
+def get_input_list : (t:Tuple) -> (Array Int) := fun t => native "__import__('copy').deepcopy(t[0])"
 
 
 def get_output_list : (t:Tuple) -> (Array Int) := fun t => native "sum(t[1], [])"
 
 
-def get_output_list2 : (t:Tuple) -> (Array Int) := fun t => native "t[1]"
+def get_output_list2 : (t:Tuple) -> (Array Int) := fun t => native "__import__('copy').deepcopy(t[1])"
 
 
 def extract_test_data : (1 ds:Dataset) -> TestData := fun ds => native "ds[1]"

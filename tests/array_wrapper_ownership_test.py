@@ -28,7 +28,7 @@ def test_projecting_a_buffer_twice_is_rejected(make, project):
             let 1 token := {make} in
             let 1 a := {project} token in
             let 1 b := {project} token in
-            Array.sum a + Array.sum b;
+            (Array.consume Array.sum) a + (Array.consume Array.sum) b;
     """)
     assert any(isinstance(error, LinearityError) for error in errors), errors
 
@@ -53,8 +53,11 @@ def test_mutating_one_alias_cannot_invalidate_another_length_proof():
 @pytest.mark.parametrize(
     "body,expected",
     [
-        ("Array.with_get (Array.get_at #[1,2] 0) (fun x => fun a => x + Array.sum a)", 4),
-        ("Array.with_pair (Array.copy #[1,2]) (fun a => fun b => Array.sum a + Array.sum b)", 6),
+        ("Array.with_get (Array.get_at #[1,2] 0) (fun x => fun a => x + (Array.consume Array.sum) a)", 4),
+        (
+            "Array.with_pair (Array.copy #[1,2]) (fun a => fun b => (Array.consume Array.sum) a + (Array.consume Array.sum) b)",
+            6,
+        ),
     ],
 )
 def test_continuations_recover_both_fields_once(body, expected):
@@ -98,7 +101,7 @@ def test_continuation_keeps_element_refinements_and_index_bounds():
         def positive (1 x:{v:Int | v > 0}):Int := x;
         def main(_ :Int):Int :=
             Array.with_get (Array.get_at #[1,2] 0) (fun value => fun arr =>
-                positive value + positive (Array.get arr 1));
+                positive value + positive (Array.take arr 1));
     """)
     assert not errors, errors
     assert driver.run() == 3

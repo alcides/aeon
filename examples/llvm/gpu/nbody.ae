@@ -78,4 +78,6 @@ def main (args: Int) : Unit :=
     # 257 bodies use two CUDA blocks, with a partial final block.
     let 1 state := initial_state 257 in
     let 1 result := simulate 257 10 0.01 0.05 state in
-    print (result.get2 0 0);
+    let result_value := result.get2 0 0 in
+    let _ := result.discard in
+    print result_value;

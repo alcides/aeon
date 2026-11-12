@@ -16,7 +16,7 @@ Bind arrays at multiplicity **1**:
 
 ```aeon
 let 1 xs := Array.mk_2 1 2 in
-Array.sum xs
+Array.consume Array.sum xs
 ```
 
 Omitting `1` is a compile error. Consuming the same binder twice triggers
@@ -26,8 +26,9 @@ triggers `LinearUnusedError`.
 | Pattern | API |
 |---------|-----|
 | Transform (consume → new array) | `mk_concat`, `set`, `reversed`, `map`, `filter` |
-| Borrow (keep ownership) | `length`, `empty` |
-| Terminal read (consume array) | `get`, `head`, `sum`, `reduce` |
+| Borrow (keep ownership) | `length`, `empty`, `get`, `head`, `sum`, `mean`, `count` |
+| Move an element (consume array) | `take`, `take_head` |
+| Fold and end ownership | `reduce`, `consume observer` |
 | Release after the last borrow | `dispose` |
 | Read element and keep array | `get_at` + `with_get` |
 | Split into two independent arrays | `copy` → `with_pair` |
@@ -44,7 +45,7 @@ def main (_:Int) : Int :=
     let 1 arr := #[5,9] in
     let n := Array.length arr in
     let 1 updated := Array.set arr (n - 1) 7 in
-    Array.sum updated;
+    Array.consume Array.sum updated;
 ```
 
 This returns `12`. The length refinement proves the index is in bounds;
@@ -62,14 +63,27 @@ let _ := Array.dispose arr in
 n
 ```
 
-User-defined readers can declare `(borrow arr:(Array a))`. Borrowing parameters
-may only be read through other borrowing functions; they cannot be consumed,
-returned, or captured by closures. Currently a borrowing parameter must be the
-last value parameter and return `Int`, `Float`, `Bool`, `String`, or `Unit`
-(possibly refined). This excludes element reads that could expose a linear
-element or a reference into the buffer. Native implementations are trusted to
-honor the read-only, non-escaping contract. Borrow qualifiers are part of
-function types and are checked when passing functions as arguments.
+User-defined readers declare `(borrow arr:(Array a))`. They can take more
+arguments, including other borrows, and return scalars or independently owned
+results. The borrowed handle itself cannot be returned, moved, or retained in
+a closure. `get`, `head`, and `copy` require `[Copy a]`: primitive values and
+immutable containers of copyable elements support this capability; arrays and
+resource handles do not. `take` and `take_head` move nested linear elements.
+
+Borrowing lasts through the **whole curried call**, including evaluation of
+later arguments. `Array.get arr i` is supported; retaining `Array.get arr` in a
+variable is rejected. A later argument also cannot consume `arr` while the
+earlier borrow is active. Compute such arguments first, or keep the operation
+inside a fully applied call. Inline callbacks accepted at multiplicity `1` may
+consume captured owners once; reusable or escaping resource closures are rejected.
+
+Native implementations are trusted to honor read-only access and independent
+result storage, just as they are trusted to honor their refinement contracts.
+Borrow qualifiers are part of function types and checked for callback arguments.
+
+`set` updates the backing list in O(1), with ownership transferred to its result.
+`copy` duplicates the outer buffer only after proving its elements are copyable,
+so nested linear arrays cannot accidentally share mutable storage.
 
 Length checks use `Array.length` directly. The length-wrapper API
 (`len_of`, `len_value`, `len_array`, `with_len`, `ArrayLen`, and `held_size`)
@@ -95,7 +109,7 @@ Different arguments need not have different values.
 let 1 prefix := Array.mk_repeat 3 7 in
 let 1 suffix := Array.mk_2 8 9 in
 let 1 xs := Array.mk_concat prefix suffix in
-Array.sum xs  # 38
+Array.consume Array.sum xs  # 38
 ```
 
 `mk_empty unit` is an applied action, so each evaluation creates a fresh buffer.
@@ -140,7 +154,7 @@ To recover both fields, use a continuation:
 ```aeon
 let 1 read := Array.get_at #[5,9] 0 in
 Array.with_get read (fun value => fun arr =>
-    value + Array.sum arr)
+    value + Array.consume Array.sum arr)
 ```
 
 `Array.with_pair pair (fun left => fun right => ...)` exposes

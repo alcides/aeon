@@ -127,6 +127,29 @@ def resolve_qualified_names_in_sterm(
         case SRefinementAbstraction(pname, sort, body, loc):
             return SRefinementAbstraction(pname, sort, rec(body), loc=loc)
         case SMatch(scrutinee, branches, loc):
+
+            def pattern_qualifier(branch: SMatchBranch) -> str | None:
+                if branch.qualifier is not None:
+                    return branch.qualifier
+                resolved = unqualified_scope.get(branch.constructor.name)
+                if resolved is None:
+                    return None
+                if resolved.name.startswith("__ambiguous__"):
+                    raise NameResolutionError(
+                        f"Ambiguous constructor '{branch.constructor.name}'; use a datatype qualifier", branch.loc
+                    )
+                # Preserve the constructor selected by an explicit `open`.
+                # Otherwise an imported class dictionary's `mk` can steal a
+                # pattern intended for Pair when match lowering scans types.
+                for (qualifier, member), target in qualified_scope.items():
+                    if (
+                        member == branch.constructor.name
+                        and target == resolved
+                        and (qualifier, "rec") in qualified_scope
+                    ):
+                        return qualifier
+                return None
+
             return SMatch(
                 scrutinee=rec(scrutinee),
                 branches=[
@@ -134,7 +157,7 @@ def resolve_qualified_names_in_sterm(
                         constructor=br.constructor,
                         binders=br.binders,
                         body=rec(br.body, frozenset(b.name for b in br.binders)),
-                        qualifier=br.qualifier,
+                        qualifier=pattern_qualifier(br),
                         loc=br.loc,
                     )
                     for br in branches

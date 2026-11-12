@@ -36,9 +36,10 @@ def test_clean_static_pipeline():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true false false in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        accuracy model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        accuracy model (owned_right_parts) );
     """
     assert _typechecks(src)
 
@@ -50,9 +51,10 @@ def test_clean_timeseries_unshuffled_with_f1():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true true false in
-        let parts := split ds 0.8 false in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split ds 0.8 false in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert _typechecks(src)
 
@@ -62,9 +64,10 @@ def test_clean_imbalanced_with_f1():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 false false false in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert _typechecks(src)
 
@@ -74,14 +77,12 @@ def test_clean_accuracy_discharged_by_balanced_witness():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 false false false in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        let 1 test := test_of parts in
-        let cp := copy_dataset test in
-        let 1 t_check := fst_dataset cp in
-        let 1 t_use := snd_dataset cp in
-        if balanced t_check then accuracy model t_use
-        else f1 model t_use ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        let 1 test := owned_right_parts in
+        if balanced test then accuracy model test
+        else f1 model test );
     """
     assert _typechecks(src)
 
@@ -91,11 +92,12 @@ def test_clean_regression_per_split_imputation():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true false true in
-        let parts := split ds 0.8 true in
-        let 1 train := fill_median (train_of parts) in
-        let 1 test := fill_median (test_of parts) in
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let 1 train := fill_median (owned_left_parts) in
+        let 1 test := fill_median (owned_right_parts) in
         let model := ridge train in
-        r2 model test ;
+        r2 model test );
     """
     assert _typechecks(src)
 
@@ -107,9 +109,10 @@ def test_clean_csv_path_with_require_enough_data():
         let 1 df := read_csv path in
         let 1 ds0 := target df col false false in
         let 1 ds := require_enough_data ds0 in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert _typechecks(src)
 
@@ -123,9 +126,10 @@ def test_defect_temporal_leakage():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true true false in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert not _typechecks(src)
 
@@ -136,9 +140,10 @@ def test_defect_scale_before_split():
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true false false in
         let 1 scaled := standard_scale ds in
-        let parts := split scaled 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split scaled 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert not _typechecks(src)
 
@@ -149,9 +154,10 @@ def test_defect_smote_before_split():
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true false false in
         let 1 bds := smote ds in
-        let parts := split bds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split bds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert not _typechecks(src)
 
@@ -162,9 +168,10 @@ def test_defect_impute_before_split():
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true false true in
         let 1 filled := fill_median ds in
-        let parts := split filled 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split filled 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert not _typechecks(src)
 
@@ -174,7 +181,7 @@ def test_defect_evaluate_on_training_set():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true false false in
-        let parts := split ds 0.8 true in
+        let 1 parts := split ds 0.8 true in
         let 1 train := train_of parts in
         let model := random_forest_classifier train in
         f1 model train ;
@@ -187,9 +194,10 @@ def test_defect_missing_values_to_estimator():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 true false true in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert not _typechecks(src)
 
@@ -199,9 +207,10 @@ def test_defect_lack_of_data():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 20 4 true false false in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert not _typechecks(src)
 
@@ -211,9 +220,10 @@ def test_defect_balance_sensitive_metric_on_imbalanced():
     open Learning
     def p (a: Int) : Float :=
         let 1 ds := create_dataset 1000 4 false false false in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        accuracy model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        accuracy model (owned_right_parts) );
     """
     assert not _typechecks(src)
 
@@ -226,8 +236,9 @@ def test_defect_csv_path_without_require_enough_data():
     def p (path: String) (col: String) : Float :=
         let 1 df := read_csv path in
         let 1 ds := target df col false false in
-        let parts := split ds 0.8 true in
-        let model := random_forest_classifier (train_of parts) in
-        f1 model (test_of parts) ;
+        let 1 parts := split ds 0.8 true in
+        with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let model := random_forest_classifier (owned_left_parts) in
+        f1 model (owned_right_parts) );
     """
     assert not _typechecks(src)

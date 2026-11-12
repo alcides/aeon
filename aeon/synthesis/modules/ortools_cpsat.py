@@ -223,6 +223,10 @@ def _head_name(t: Term) -> str | None:
 def _as_binop(t: Term) -> tuple[str, Term, Term] | None:
     if isinstance(t, Application) and isinstance(t.fun, Application):
         op = _head_name(t.fun.fun)
+        if isinstance(t.fun.fun, Application) and _head_name(t.fun.fun.fun) == "Array_get":
+            # The leading Copy dictionary supplies evidence for a borrowed
+            # read; the array and index are the final two arguments.
+            op = "Array_get"
         if op is not None:
             return op, t.fun.arg, t.arg
     return None
@@ -664,7 +668,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
         if binop is not None:
             assert isinstance(t, Application)
             op, a, b = binop
-            if op == "Array_get":
+            if op in {"Array_get", "Array_take"}:
                 arr = self._translate(a, env, visited)
                 idx = self._translate(b, env, visited)
                 if not isinstance(arr, _Vec) or not isinstance(idx, _Num) or not isinstance(idx.expr, int):

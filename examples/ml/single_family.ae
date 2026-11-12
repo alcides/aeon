@@ -17,6 +17,7 @@ def main (_: Int) : Unit :=
     let 1 df := read_csv "examples/ml/data/iris.csv" in
     let 1 ds0 := target df "species" false false in
     let 1 ds := require_enough_data ds0 in
-    let parts := split ds 0.7 true in
-    let tree := decision_tree_classifier (train_of parts) in
-    print (f1 tree (test_of parts))
+    let 1 parts := split ds 0.7 true in
+    with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
+        let tree := decision_tree_classifier (owned_left_parts) in
+        print (f1 tree (owned_right_parts)))

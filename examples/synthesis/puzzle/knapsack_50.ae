@@ -9,9 +9,9 @@ import examples.synthesis.puzzle.knapsack_data as Data;
 inductive Mask forall <fits:Int -> Int -> Bool>
 | empty : {m:Mask{|fits|} | Mask.count m = 0 && Mask.weight m = 0}
 | cons (rest:{m:Mask{|fits|} | 0 <= Mask.count m && Mask.count m < 50})
-       (used:{b:Bool | fits (if b then Array.get (Data.weights unit) (49 - Mask.count rest) else 0) (Mask.weight rest)}) :
+       (used:{b:Bool | fits (if b then Array.take (Data.weights unit) (49 - Mask.count rest) else 0) (Mask.weight rest)}) :
     {m:Mask{|fits|} | Mask.count m = Mask.count rest + 1 &&
-        Mask.weight m = Mask.weight rest + (if used then Array.get (Data.weights unit) (49 - Mask.count rest) else 0)}
+        Mask.weight m = Mask.weight rest + (if used then Array.take (Data.weights unit) (49 - Mask.count rest) else 0)}
 + count (m:Mask) : Int
 + weight (m:Mask) : Int
 
@@ -20,7 +20,7 @@ def total_value (mask:Mask{|fun w => fun rest => w + rest <= 100|})
     match mask with
     | empty => 0
     | cons rest used =>
-        (if used then Array.get (Data.values unit) i else 0) + total_value rest (i + 1)
+        (if used then Array.take (Data.values unit) i else 0) + total_value rest (i + 1)
 
 @maximize(toFloat (total_value knapsack 0))
 def knapsack: {m:Mask{|fun w => fun rest => w + rest <= 100|} |

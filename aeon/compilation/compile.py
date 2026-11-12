@@ -215,7 +215,10 @@ def compile_program(
     try:
         check_theorem_statements(prog)
         prog = expand_induction(prog, [d for unit in dep_units.values() for d in unit.inductive_decls])
-        prog = bind_program(prog, [])
+        # Desugaring gathers imported classes before expanding instances.
+        # Expanding here would reject instances of an imported class and
+        # generate each local dictionary twice with different bound names.
+        prog = bind_program(prog, [], expand_classes=False)
     except AeonError as e:
         return _placeholder_unit(path, digest, dep_module_paths), [e]
     theorem_names = {d.name.name for d in prog.definitions if d.is_theorem}

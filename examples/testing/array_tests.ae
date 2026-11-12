@@ -19,11 +19,11 @@ def test_mk_empty : Bool :=
 def test_mk_2_length : Bool :=
     let 1 arr := Array.mk_2 5 9 in
     let n := Array.length arr in
-    both (assertEqual n 2) (assertEqual (sum arr) 14);
+    both (assertEqual n 2) (assertEqual ((Array.consume Array.sum) arr) 14);
 
 @property(1)
 def test_mk_2_sum : Bool :=
-    assertEqual (sum (Array.mk_2 5 9)) 14;
+    assertEqual ((Array.consume Array.sum) (Array.mk_2 5 9)) 14;
 
 @property(1)
 def test_get : Bool :=
@@ -38,10 +38,10 @@ def test_mk_concat_order : Bool :=
     let 1 arr := mk_concat (mk_1 5) (mk_1 9) in
     with_get (get_at arr 0) (fun v0 => fun arr2 =>
     both (assertEqual v0 5)
-         (assertEqual (get arr2 1) 9));
+         (assertEqual (Array.take arr2 1) 9));
 
 @property(1)
-def test_head : Bool := assertEqual (head (mk_concat (mk_1 5) (mk_1 9))) 5;
+def test_head : Bool := assertEqual (Array.head (mk_concat (mk_1 5) (mk_1 9))) 5;
 
 @property(1)
 def test_set_preserves_length : Bool :=
@@ -49,27 +49,27 @@ def test_set_preserves_length : Bool :=
     let before := Array.length arr in
     let 1 updated := Array.set arr 0 7 in
     let after := Array.length updated in
-    both (assertEqual before after) (assertEqual (get updated 0) 7);
+    both (assertEqual before after) (assertEqual (Array.take updated 0) 7);
 
 @property(1)
 def test_set_updates_element : Bool :=
     let 1 updated := Array.set (Array.mk_2 5 9) 0 7 in
-    assertEqual (Array.get updated 0) 7;
+    assertEqual (Array.take updated 0) 7;
 
 @property(1)
 def test_reversed : Bool :=
     let 1 arr := reversed (Array.mk_2 5 9) in
     with_get (get_at arr 0) (fun v0 => fun arr2 =>
     both (assertEqual v0 9)
-         (assertEqual (get arr2 1) 5));
+         (assertEqual (Array.take arr2 1) 5));
 
 @property(1)
 def test_map : Bool :=
     let 1 arr := map (fun x => x + 1) (Array.mk_2 5 9) in
-    assertEqual (sum arr) 16;
+    assertEqual ((Array.consume Array.sum) arr) 16;
 
 @property(1)
-def test_sum : Bool := assertEqual (sum (Array.mk_2 2 3)) 5;
+def test_sum : Bool := assertEqual ((Array.consume Array.sum) (Array.mk_2 2 3)) 5;
 
 # ``copy`` splits one linear reference into two independent arrays.
 @property(1)
@@ -78,7 +78,7 @@ def test_copy_duplicates : Bool :=
     with_pair (copy a) (fun left => fun right =>
     let count := length right in
     let _ := dispose right in
-    both (assertEqual (sum left) 14)
+    both (assertEqual ((Array.consume Array.sum) left) 14)
          (assertEqual count 2));
 
 # The two halves of a copy are independent: extending one leaves the other
@@ -99,7 +99,7 @@ def test_copy_independent : Bool :=
 
 @property
 def prop_singleton_get (x : Int) : Bool :=
-    assertEqual (get (Array.mk_1 x) 0) x;
+    assertEqual (Array.get (Array.mk_1 x) 0) x;
 
 @property
 def prop_mk_2_length (x : Int) (y : Int) : Bool :=
@@ -109,9 +109,9 @@ def prop_mk_2_length (x : Int) (y : Int) : Bool :=
 def prop_set_overwrites (x : Int) (y : Int) : Bool :=
     let 1 arr := set (Array.mk_1 x) 0 y in
     let n := length arr in
-    both (assertEqual (get arr 0) y)
+    both (assertEqual (Array.take arr 0) y)
          (assertEqual n 1);
 
 @property
 def prop_sum_two (x : Int) (y : Int) : Bool :=
-    assertEqual (sum (Array.mk_2 x y)) (x + y);
+    assertEqual ((Array.consume Array.sum) (Array.mk_2 x y)) (x + y);

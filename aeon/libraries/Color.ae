@@ -1,2 +1,8 @@
+open Copy
+
 inductive Color
 | mk (r:{v:Int | v >= 0 && v < 256}) (g:{v:Int | v >= 0 && v < 256}) (b:{v:Int | v >= 0 && v < 256}) : Color
+
+# Immutable values are copyable when their elements are copyable.
+instance : Copy Color where
+    duplicate x := x;

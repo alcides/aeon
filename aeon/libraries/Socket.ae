@@ -26,7 +26,7 @@ type SocketPayload
 type SockAddr
 
 # Runtime: `(socket, addr)` pair from `TCP accept`.
-type TcpAccept
+linear type TcpAccept
 
 # Runtime: `(data, addr)` pair from `UDP recvfrom`.
 type UdpRecvFrom
@@ -76,11 +76,11 @@ def dgram_socket (_ : Unit) :
 
 # ── TCP: projections (used in `stream_accept` refinements) ──────────────
 
-def tcp_accept_socket (r: TcpAccept) :
+def tcp_accept_socket (1 r: TcpAccept) :
     { s: StreamSocket | stream_connected s = true } :=
     native "r[0]"
 
-def tcp_accept_peer (r: TcpAccept) :
+def tcp_accept_peer (borrow r: TcpAccept) :
     { a: SockAddr | ipv4_sock_addr a = true } :=
     native "r[1]"
 

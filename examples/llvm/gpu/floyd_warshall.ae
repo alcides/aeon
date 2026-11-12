@@ -59,4 +59,6 @@ def main (args: Int) : Unit :=
     let 1 graph : {m:(NDArray Float Rank2) | m.dimension_size 0 = 4 && m.dimension_size 1 = 4 && m.elements = 16} :=
         native "__import__('aeon.bindings.ndarray', fromlist=['NDArray']).NDArray([0.0, 5.0, float('inf'), 10.0, float('inf'), 0.0, 3.0, float('inf'), float('inf'), float('inf'), 0.0, 1.0, float('inf'), float('inf'), float('inf'), 0.0], (4, 4))" in
     let 1 distances := floyd_warshall 4 graph in
-    print (distances.get2 0 3);
+    let result_value := distances.get2 0 3 in
+    let _ := distances.discard in
+    print result_value;

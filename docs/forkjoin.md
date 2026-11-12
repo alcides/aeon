@@ -48,28 +48,26 @@ and handles that cannot be aliased or leaked.
 ## Resource lifecycle
 
 ```
-pool ──fork──► Forked ──forked_pool──► Pool ──…──► shutdown
-                 │
-                 └──forked_future──► Future ──join──► value
+pool ──fork──► Forked ──with_forked──┬──► Pool ──…──► shutdown
+                                  └──► Future ──join──► value
 ```
 
 Or the two-task path:
 
 ```
-pool ──fork2──► Forked2 ──forked2_pool──► Pool ──shutdown──► Unit
-                   │
-                   ├──forked2_left──► Future a ─┐
-                   │                             ├──join2──► Joined2
-                   └──forked2_right─► Future b ─┘
+pool ──fork2──► Forked2 ──with_forked2──┬──► Pool ──shutdown──► Unit
+                                     ├──► Future a ─┐
+                                     │              ├──join2──► Joined2
+                                     └──► Future b ─┘
 ```
 
 | Handle | Role |
 |--------|------|
 | `Pool` | Linear thread pool; thread through forks, finish with `shutdown` |
 | `Future a` | Linear pending result; must `join` (or `join_timeout`) exactly once |
-| `Forked a` / `Forked2 a b` | Unrestricted wrappers that reintroduce the pool + future(s) |
+| `Forked a` / `Forked2 a b` | Linear wrappers that reintroduce the pool + future(s) |
 | `Invoked a` | Pool + value after `invoke` (fork+join in one step) |
-| `Joined2 a b` | Unrestricted pair after `join2` / `parallel2` |
+| `Joined2 a b` | Linear pair after `join2` / `parallel2` |
 | `Halves a` | Two non-empty contiguous pieces for divide-and-conquer |
 
 Bind every linear result with `let 1`:
@@ -79,12 +77,11 @@ def const21 (u: Unit) : Int := 21;
 
 def demo (_: Unit) : Int :=
     let 1 p0 := ForkJoin.pool 4 in
-    let f := ForkJoin.fork p0 const21 in
-    let 1 p1 := ForkJoin.forked_pool f in
-    let 1 fut := ForkJoin.forked_future f in
-    let v := ForkJoin.join fut in
-    let _ := ForkJoin.shutdown p1 in
-    v * 2;
+    let 1 f := ForkJoin.fork p0 const21 in
+    ForkJoin.with_forked f (fun p1 => fun fut =>
+        let v := ForkJoin.join fut in
+        let _ := ForkJoin.shutdown p1 in
+        v * 2);
 ```
 
 ---
@@ -100,8 +97,8 @@ def square (x: Int) : Int := x * x;
 
 # Two independent thunks; pool create/join/shutdown is internal.
 def both (_: Unit) : Int :=
-    let j := ForkJoin.parallel2 2 twenty twenty_two in
-    ForkJoin.joined_fst j + ForkJoin.joined_snd j;
+    let 1 j := ForkJoin.parallel2 2 twenty twenty_two in
+    ForkJoin.with_joined j (fun left => fun right => left + right);
 
 # Length-preserving parallel map over a linear array.
 def squares (1 xs: (Array Int)) : {ys: (Array Int) | Array.size ys = Array.size xs} :=
@@ -142,8 +139,9 @@ def main (_: Int) : Unit :=
     let 1 xs0 := Array.mk_2 1 2 in
     let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
     let 1 ys := ForkJoin.par_map 2 inc xs1 in
-    let j := ForkJoin.parallel2 2 work work in
-    print (ForkJoin.joined_fst j + ForkJoin.joined_snd j);
+    let _ := Array.dispose ys in
+    let 1 j := ForkJoin.parallel2 2 work work in
+    print (ForkJoin.with_joined j (fun left => fun right => left + right));
 ```
 
 Violations (zero workers, unjoined future, unshutdown pool, single-element

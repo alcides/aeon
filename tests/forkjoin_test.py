@@ -77,12 +77,11 @@ def test_open_forkjoin_lifecycle_typechecks():
 def const21 (x: Unit) : Int := 21;
 def demo (u: Unit) : Int :=
     let 1 p0 := pool 2 in
-    let f := fork p0 const21 in
-    let 1 p1 := forked_pool f in
-    let 1 fut := forked_future f in
+    let 1 f := fork p0 const21 in
+    with_forked f (fun p1 => fun fut =>
     let v := join fut in
     let _ := shutdown p1 in
-    v;
+    v);
 """
         + MAIN
     )
@@ -101,10 +100,9 @@ def test_unjoined_future_errors():
 def const1 (x: Unit) : Int := 1;
 def leak (u: Unit) : Unit :=
     let 1 p0 := pool 2 in
-    let f := fork p0 const1 in
-    let 1 p1 := forked_pool f in
-    let 1 fut := forked_future f in
-    shutdown p1;
+    let 1 f := fork p0 const1 in
+    with_forked f (fun p1 => fun fut =>
+    shutdown p1);
 """
         + MAIN
     )
@@ -119,13 +117,12 @@ def test_double_join_errors():
 def const1 (x: Unit) : Int := 1;
 def twice (u: Unit) : Int :=
     let 1 p0 := pool 2 in
-    let f := fork p0 const1 in
-    let 1 p1 := forked_pool f in
-    let 1 fut := forked_future f in
+    let 1 f := fork p0 const1 in
+    with_forked f (fun p1 => fun fut =>
     let a := join fut in
     let b := join fut in
     let _ := shutdown p1 in
-    a + b;
+    a + b);
 """
         + MAIN
     )
@@ -188,7 +185,7 @@ def test_halves_rejects_singleton_array():
         + """
 def bad (u: Unit) : Int :=
     let 1 xs := Array.mk_1{Int} 1 in
-    let h := halves xs in
+    let 1 h := halves xs in
     let 1 left := half_left h in
     let n := Array.length left in
     let _ := Array.dispose left in
@@ -208,14 +205,13 @@ def sq (x: Int) : Int := x * x;
 def ok (u: Unit) : Int :=
     let 1 xs0 := Array.mk_2{Int} 1 2 in
     let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
-    let h := halves xs1 in
-    let 1 left := half_left h in
-    let 1 right := half_right h in
+    let 1 h := halves xs1 in
+    with_halves h (fun left => fun right =>
     let 1 mapped := par_map 2 sq left in
     let n := Array.length mapped + Array.length right in
     let _ := Array.dispose mapped in
     let _ := Array.dispose right in
-    n;
+    n);
 """
         + MAIN
     )
@@ -237,13 +233,13 @@ def right (y: Unit) : Int := 22;
 def inc (x: Int) : Int := x + 1;
 
 def main (_: Int) : Int :=
-    let j := parallel2 2 left right in
+    let 1 j := parallel2 2 left right in
     let 1 xs0 := Array.mk_2{Int} 1 2 in
     let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
     let 1 ys := par_map 2 inc xs1 in
     let n := Array.length ys in
     let _ := Array.dispose ys in
-    joined_fst j + joined_snd j + n;
+    ForkJoin.with_joined j (fun a => fun b => a + b) + n;
 """
     assert _run(source) == 45
 
@@ -256,12 +252,11 @@ def const21 (x: Unit) : Int := 21;
 
 def main (_: Int) : Int :=
     let 1 p0 := pool 2 in
-    let f := fork p0 const21 in
-    let 1 p1 := forked_pool f in
-    let 1 fut := forked_future f in
+    let 1 f := fork p0 const21 in
+    with_forked f (fun p1 => fun fut =>
     let v := join fut in
     let _ := shutdown p1 in
-    v * 2;
+    v * 2);
 """
     assert _run(source) == 42
 

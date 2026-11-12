@@ -100,7 +100,7 @@ def test_reader_lifecycle_typechecks():
 open Reader
 def once (path: {p: String | p != ""}) : Int :=
     let 1 r0 := open_reader path in
-    let step := read r0 in
+    let 1 step := read r0 in
     let code := read_code step in
     let 1 r1 := read_reader step in
     let _ := close r1 in

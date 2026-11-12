@@ -11,4 +11,6 @@ def zero_matrix (1 matrix: (NDArray Int Rank2)) :
 def main (args: Int) : Unit :=
     let 1 matrix := full2 17 33 7 in
     let 1 result := zero_matrix matrix in
-    print (result.get2 16 32);
+    let result_value := result.get2 16 32 in
+    let _ := result.discard in
+    print result_value;

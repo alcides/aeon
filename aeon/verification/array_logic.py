@@ -7,7 +7,12 @@ from aeon.utils.name import Name
 
 
 ARRAY_CONSTRUCTORS = {f"Array_mk_{n}" for n in (1, 2, 4, 8, 16, 32)} | {"Array_mk_concat"}
-ARRAY_OPERATIONS = ARRAY_CONSTRUCTORS | {"Array_get", "Array_size"}
+ARRAY_OPERATIONS = ARRAY_CONSTRUCTORS | {"Array_get", "Array_take", "Array_size"}
+
+
+def has_copy_array_read_body(params: tuple[Name, ...], body: LiquidTerm) -> bool:
+    """Recognize a checked read whose first parameter is unused Copy evidence."""
+    return len(params) == 3 and body == LiquidApp(Name("__array_get", 0), [LiquidVar(params[1]), LiquidVar(params[2])])
 
 
 def array_logical_body(
@@ -47,7 +52,13 @@ def array_logical_body(
     if name.name == "Array_mk_concat" and len(params) == 2 and all(array(t) for t in [*types, result]):
         if code == f"{params[0].name} + {params[1].name}":
             return LiquidApp(Name("__array_concat", 0), args)
-    if name.name == "Array_get" and len(params) == 2 and array(types[0]) and base(types[1]) == t_int:
+    # Borrowed reads carry a Copy dictionary. It is compile-time evidence;
+    # the logical contents depend only on the array and index.
+    if name.name == "Array_get" and len(params) == 3:
+        evidence = base(types[0])
+        if isinstance(evidence, TypeConstructor) and evidence.name.name in {"Copy", "Copy_Copy"}:
+            params, types, args = params[1:], types[1:], args[1:]
+    if name.name in {"Array_get", "Array_take"} and len(params) == 2 and array(types[0]) and base(types[1]) == t_int:
         if code == f"{params[0].name}[{params[1].name}]":
             return LiquidApp(Name("__array_get", 0), args)
     return None

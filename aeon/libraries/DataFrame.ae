@@ -12,11 +12,11 @@ open Array
 
 linear type DataFrame
 
-# Unrestricted pair from ``copy`` — project with ``fst_df`` / ``snd_df``.
-type DataFramePair
+# Linear pair from ``copy`` — unpack both with ``with_pair``.
+linear type DataFramePair
 
 # Result of ``with_col``: frame + extracted numeric column.
-type DataFrameCol
+linear type DataFrameCol
 
 # Logical shape measures (SMT only; runtime witnesses below).
 def df_nrows : (df: DataFrame) -> Int := uninterpreted
@@ -50,12 +50,12 @@ def copy (1 df: DataFrame) :
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.copy_df(df)"
 
 
-def fst_df (pr: DataFramePair) :
+def fst_df (1 pr: DataFramePair) :
     {df: DataFrame | df_nrows df = pair_nrows pr && df_ncols df = pair_ncols pr} :=
     native "pr[0]"
 
 
-def snd_df (pr: DataFramePair) :
+def snd_df (1 pr: DataFramePair) :
     {df: DataFrame | df_nrows df = pair_nrows pr && df_ncols df = pair_ncols pr} :=
     native "pr[1]"
 
@@ -65,31 +65,31 @@ def with_col (1 df: DataFrame) (name: String) :
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.with_col(df)(name)"
 
 
-def wc_frame (w: DataFrameCol) :
+def wc_frame (1 w: DataFrameCol) :
     {df: DataFrame | df_nrows df = wc_nrows w && df_ncols df = wc_ncols w} :=
     native "w[0]"
 
 
-def wc_array (w: DataFrameCol) :
+def wc_array (1 w: DataFrameCol) :
     {col: (Array Float) | size col = wc_nrows w} :=
     native "w[1]"
 
 
 # ── Shape witnesses ─────────────────────────────────────────────────────
 
-def nrows (1 df: DataFrame) : {n:Int | n = df_nrows df} :=
+def nrows (borrow df: DataFrame) : {n:Int | n = df_nrows df} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.nrows(df)"
 
 
-def ncols (1 df: DataFrame) : {n:Int | n = df_ncols df} :=
+def ncols (borrow df: DataFrame) : {n:Int | n = df_ncols df} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.ncols(df)"
 
 
-def columns (1 df: DataFrame) : (Array String) :=
+def columns (borrow df: DataFrame) : (Array String) :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.columns(df)"
 
 
-def has_col (1 df: DataFrame) (name: String) : Bool :=
+def has_col (borrow df: DataFrame) (name: String) : Bool :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.has_col(df)(name)"
 
 
@@ -152,7 +152,7 @@ def assign_const (1 df: DataFrame) (name: String) (value: Float) :
 
 # ── Array bridge (LLVM / GPU column kernels) ────────────────────────────
 
-def col_as_array (1 df: DataFrame) (name: String) :
+def col_as_array (borrow df: DataFrame) (name: String) :
     {col: (Array Float) | size col = df_nrows df} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.col_as_array(df)(name)"
 
@@ -166,3 +166,15 @@ def set_col (1 df: DataFrame) (name: String) (1 col: (Array Float)) :
 def map_col (1 df: DataFrame) (name: String)
     (f: (1 col: (Array Float)) -> (Array Float)) : DataFrame :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.map_col(df)(name)(f)"
+
+def dispose (1 df:DataFrame) : Unit := native "None"
+
+def with_pair (1 token:DataFramePair)
+    (1 consume:(1 left:{df:DataFrame | df_nrows df = pair_nrows token && df_ncols df = pair_ncols token}) ->
+        (1 right:{df:DataFrame | df_nrows df = pair_nrows token && df_ncols df = pair_ncols token}) -> b) : b :=
+    native "consume(token[0])(token[1])"
+
+def with_column (1 token:DataFrameCol)
+    (1 consume:(1 frame:{df:DataFrame | df_nrows df = wc_nrows token && df_ncols df = wc_ncols token}) ->
+        (1 column:{xs:(Array Float) | size xs = wc_nrows token}) -> b) : b :=
+    native "consume(token[0])(token[1])"

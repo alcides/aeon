@@ -15,9 +15,9 @@ open Random
 open Statistics
 
 # Opaque batch draw: a sample array paired with the successor generator.
-type SampleDraw
+linear type SampleDraw
 
-def sample_next (d: SampleDraw) : Rng := native "d[1]"
+def sample_next (1 d: SampleDraw) : Rng := native "d[1]"
 
 # ─── Normal distribution N(mu, sigma) ──────────────────────────────────
 # z-scores: 1.282 (90%), 1.645 (95%), 2.33 (99%).
@@ -33,7 +33,7 @@ def normal_sample
 def normal_value
     (mu: Float)
     (sigma: {s: Float | s > 0.0})
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracBelow xs (mu + 2.33 * sigma)  >= 0.99
@@ -43,7 +43,7 @@ def normal_value
         && fracAbove xs (mu - 1.282 * sigma) >= 0.90
         && fracAbove xs (mu - 1.645 * sigma) >= 0.95
         && fracAbove xs (mu - 2.33 * sigma)  >= 0.99 }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Standard normal Z ~ N(0, 1) ───────────────────────────────────────
 
@@ -54,7 +54,7 @@ def standard_normal_sample
     := native "(list(g.gauss(0.0, 1.0) for _ in range(n)), g)"
 
 def standard_normal_value
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracBelow xs 2.33  >= 0.99
@@ -64,7 +64,7 @@ def standard_normal_value
         && fracAbove xs 0.0    >= 0.50
         && fracAbove xs (0.0 - 1.282) >= 0.90
         && fracAbove xs (0.0 - 2.33)  >= 0.99 }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Uniform distribution U(a, b) ──────────────────────────────────────
 # Quantile p is exactly a + p*(b - a). Support is [a, b].
@@ -80,7 +80,7 @@ def uniform_sample
 def uniform_value
     (a: Float)
     (b: {bb: Float | bb > a})
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs a >= 1.0
@@ -89,7 +89,7 @@ def uniform_value
         && fracBelow xs (a + 0.95 * (b - a)) >= 0.95
         && fracBelow xs (a + 0.50 * (b - a)) >= 0.50
         && fracBelow xs (a + 0.10 * (b - a)) >= 0.10 }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Exponential distribution Exp(rate = lambda) ───────────────────────
 # Quantile p:  -ln(1 - p) / lambda.   Support [0, ∞).
@@ -104,7 +104,7 @@ def exponential_sample
 
 def exponential_value
     (lam: {l: Float | l > 0.0})
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
@@ -112,7 +112,7 @@ def exponential_value
         && fracBelow xs (2.9957 / lam) >= 0.95
         && fracBelow xs (2.3026 / lam) >= 0.90
         && fracBelow xs (0.6931 / lam) >= 0.50 }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Beta distribution Beta(alpha, beta) ───────────────────────────────
 # Support is (0, 1). Mean = alpha / (alpha + beta).
@@ -128,13 +128,13 @@ def beta_sample
 def beta_value
     (alpha: {a: Float | a > 0.0})
     (beta:  {b: Float | b > 0.0})
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && fracBelow xs 1.0 >= 1.0
         && ((sampleMean xs) = (alpha / (alpha + beta))) }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Gamma distribution Gamma(shape k, scale theta) ────────────────────
 # Support [0, ∞). Mean = k * theta. Var = k * theta * theta.
@@ -150,13 +150,13 @@ def gamma_sample
 def gamma_value
     (k:     {kk: Float | kk > 0.0})
     (theta: {th: Float | th > 0.0})
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0
         && ((sampleMean xs) = (k * theta))
         && ((sampleVar  xs) = (k * (theta * theta))) }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Chi-squared distribution Chi²(k) ──────────────────────────────────
 # Support [0, ∞). Mean = k.  Var = 2k.
@@ -169,11 +169,11 @@ def chi_squared_sample
     := native "(list(sum(g.gauss(0.0, 1.0)**2 for _ in range(k)) for _ in range(n)), g)"
 
 def chi_squared_value
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs 0.0 >= 1.0 }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Bernoulli distribution Ber(p) ─────────────────────────────────────
 # Values are 0.0 or 1.0. Mean = p.
@@ -187,14 +187,14 @@ def bernoulli_sample
 
 def bernoulli_value
     (p: {pp: Float | pp >= 0.0 && pp <= 1.0})
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracBelow xs 0.5 >= (1.0 - p)
         && fracAbove xs 0.5 >= p
         && fracBelow xs 1.5 >= 1.0
         && fracAbove xs (0.0 - 0.5) >= 1.0 }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Binomial distribution Bin(trials, p) ──────────────────────────────
 # Support {0, 1, ..., trials}. Mean = trials * p.
@@ -208,11 +208,11 @@ def binomial_sample
     := native "(list(float(sum(1 if g.random() < p else 0 for _ in range(trials))) for _ in range(n)), g)"
 
 def binomial_value
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0 }
-    := native "d[0]"
+    := native "list(d[0])"
 
 # ─── Poisson distribution Pois(lambda) ─────────────────────────────────
 # Support {0, 1, 2, ...}. Mean = Var = lambda.
@@ -226,9 +226,12 @@ def poisson_sample
 
 def poisson_value
     (lam: {l: Float | l > 0.0})
-    (d: SampleDraw)
+    (borrow d: SampleDraw)
     : { xs: (Array Float)
       | Array.size xs > 0
         && fracAbove xs (0.0 - 0.5) >= 1.0
         && ((sampleMean xs) = lam) }
-    := native "d[0]"
+    := native "list(d[0])"
+
+# End ownership after the last sample read.
+def discard_sample (1 d:SampleDraw) : Unit := native "None"

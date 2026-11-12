@@ -12,21 +12,18 @@ import ForkJoin;
 def ret (n: Int) (u: Unit) : Int := n;
 
 def parallel_lengths (1 xs: {a: (Array Int) | Array.size a >= 2}) : Int :=
-    let h := ForkJoin.halves xs in
-    let 1 left := ForkJoin.half_left h in
-    let 1 right := ForkJoin.half_right h in
-    let l := Array.length left in
-    let r := Array.length right in
-    let _ := Array.dispose left in
-    let _ := Array.dispose right in
-    let 1 p0 := ForkJoin.pool 2 in
-    let f := ForkJoin.fork2 p0 (ret l) (ret r) in
-    let 1 p1 := ForkJoin.forked2_pool f in
-    let 1 fl := ForkJoin.forked2_left f in
-    let 1 fr := ForkJoin.forked2_right f in
-    let j := ForkJoin.join2 fl fr in
-    let _ := ForkJoin.shutdown p1 in
-    ForkJoin.joined_fst j + ForkJoin.joined_snd j;
+    let 1 h := ForkJoin.halves xs in
+    ForkJoin.with_halves h (fun left => fun right =>
+        let l := Array.length left in
+        let r := Array.length right in
+        let _ := Array.dispose left in
+        let _ := Array.dispose right in
+        let 1 p0 := ForkJoin.pool 2 in
+        let 1 f := ForkJoin.fork2 p0 (ret l) (ret r) in
+        ForkJoin.with_forked2 f (fun p1 => fun fl => fun fr =>
+            let 1 j := ForkJoin.join2 fl fr in
+            let _ := ForkJoin.shutdown p1 in
+            ForkJoin.with_joined j (fun a => fun b => a + b)));
 
 def main (_: Int) : Unit :=
     let 1 xs0 := Array.mk_2{Int} 10 20 in

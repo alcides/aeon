@@ -40,7 +40,7 @@ def recommendBooks (d: DB) : (Array String) :=
     native "(lambda cols: (lambda books, flat: sorted([b for b in books if flat.count(b)==max(flat.count(x) for x in books)]) if books else [])(sorted(set(x for c in cols for x in c)), [x for c in cols for x in c]))(d)"
 
 # Recommend the book pair(s) {a,b} with the highest co-occurrence frequency
-# (sum over collections of count(a)*count(b)), encoded "a|b".
+# ((Array.consume Array.sum) over collections of count(a)*count(b)), encoded "a|b".
 def recommendPairs (d: DB) : (Array String) :=
     native "(lambda cols: (lambda pairs, best: sorted([a+'|'+b for (a,b) in pairs if best(a,b)==max(best(x,y) for (x,y) in pairs)]) if pairs else [])((lambda allb: [(allb[i],allb[j]) for i in range(len(allb)) for j in range(i+1,len(allb))])(sorted(set(x for c in cols for x in c))), lambda a,b: sum(c.count(a)*c.count(b) for c in cols)))(d)"
 

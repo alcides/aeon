@@ -7,13 +7,13 @@ open Array
 # its array argument. Threading a value through a chain of ``let 1``s is
 # the canonical shape:
 #
-#     mk_1 → mk_concat → set → sum
+#     mk_1 → mk_concat → set → (Array.consume Array.sum)
 
 def build (n: Int) : Int :=
     let 1 a0 := Array.mk_1 1 in
     let 1 a1 := Array.mk_concat a0 (Array.mk_1 2) in
     let 1 a2 := set a1 0 n in
-    sum a2;
+    (Array.consume Array.sum) a2;
 
 # Borrow the length, update the array, then release the final owner.
 def length_after_update (n: Int) : {count:Int | count = 2} :=
@@ -29,7 +29,7 @@ def fork (n: Int) : Int :=
     with_pair (copy a) (fun left => fun right =>
         let count := length right in
         let _ := dispose right in
-        sum left + count);
+        (Array.consume Array.sum) left + count);
 
 def main (args: Int) : Unit :=
     let total := build 10 in

@@ -24,6 +24,18 @@ instance : Order Int where
 """
 
 
+def test_instance_hoisting_keeps_native_method_dependencies_in_scope():
+    assert (
+        _run("""
+        def offset : Int := 42;
+        class Shift (a:B) where shift : (x:a) -> Int;
+        instance : Shift Int where shift x := native "offset + x";
+        def main (_:Int):Int := shift 1;
+    """)
+        == 43
+    )
+
+
 def test_generic_constraint_supplies_method():
     assert (
         _run(
@@ -241,3 +253,28 @@ def test_named_instances_cannot_shadow_each_other():
     """
     )
     assert any(isinstance(e, TypeClassError) and "Duplicate instance name" in str(e) for e in errors)
+
+
+def test_imported_module_resolves_concrete_instance_before_its_body(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Evidence.ae").write_text(EQ + INT_EQ)
+    (tmp_path / "Consumer.ae").write_text("""
+        open Evidence;
+        def same (x:Int):Bool := eq x x;
+    """)
+    assert _run("import Consumer; def main (_:Int):Bool := Consumer.same 7;") is True
+
+
+def test_module_can_define_an_instance_of_an_imported_class(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Evidence.ae").write_text(EQ)
+    (tmp_path / "Concrete.ae").write_text(
+        "open Evidence;\n"
+        + INT_EQ
+        + """
+        def same (x:Int):Bool := eq x x;
+    """
+    )
+    source = "import Concrete; def main (_:Int):Bool := Concrete.same 7;"
+    assert _run(source) is True
+    assert _run(source) is True

@@ -1,3 +1,5 @@
+open Copy
+
 inductive Either a b
 | left (value:a) : (Either a b)
 | right (value:b) : (Either a b)
@@ -7,3 +9,7 @@ def either (f:(x:a) -> c) (g:(x:b) -> c) (value:(Either a b)) : c :=
 
 def map (f:(x:b) -> c) (value:(Either a b)) : (Either a c) :=
     match value with | left x => left x | right y => right (f y);
+
+# Immutable values are copyable when their elements are copyable.
+instance [Copy a] [Copy b] : Copy (Either a b) where
+    duplicate x := x;

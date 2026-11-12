@@ -392,6 +392,34 @@
         "status": "skipped"
       },
       {
+        "function": "take",
+        "id": "Array.ae:take",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Array.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "take_head",
+        "id": "Array.ae:take_head",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Array.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "consume",
+        "id": "Array.ae:consume",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Array.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "map_owned",
+        "id": "Array.ae:map_owned",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Array.ae",
+        "status": "skipped"
+      },
+      {
         "function": "np",
         "id": "ArrayKernels.ae:np",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -1806,6 +1834,27 @@
         "status": "skipped"
       },
       {
+        "function": "with_i32_download",
+        "id": "Cuda.ae:with_i32_download",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Cuda.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_float64_download",
+        "id": "Cuda.ae:with_float64_download",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Cuda.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_status_pair",
+        "id": "Cuda.ae:with_status_pair",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Cuda.ae",
+        "status": "skipped"
+      },
+      {
         "function": "col_at",
         "id": "Dace.ae:col_at",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -2163,6 +2212,27 @@
         "status": "skipped"
       },
       {
+        "function": "dispose",
+        "id": "DataFrame.ae:dispose",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "DataFrame.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_pair",
+        "id": "DataFrame.ae:with_pair",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "DataFrame.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_column",
+        "id": "DataFrame.ae:with_column",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "DataFrame.ae",
+        "status": "skipped"
+      },
+      {
         "function": "sqlite3",
         "id": "Database.ae:sqlite3",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -2275,20 +2345,6 @@
         "status": "skipped"
       },
       {
-        "function": "peek_size",
-        "id": "Deque.ae:peek_size",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Deque.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "held_size",
-        "id": "Deque.ae:held_size",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Deque.ae",
-        "status": "skipped"
-      },
-      {
         "function": "new_deque",
         "id": "Deque.ae:new_deque",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -2352,41 +2408,6 @@
         "status": "skipped"
       },
       {
-        "function": "peek_value",
-        "id": "Deque.ae:peek_value",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Deque.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "peek_deque",
-        "id": "Deque.ae:peek_deque",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Deque.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "len_of",
-        "id": "Deque.ae:len_of",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Deque.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "len_value",
-        "id": "Deque.ae:len_value",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Deque.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "len_deque",
-        "id": "Deque.ae:len_deque",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Deque.ae",
-        "status": "skipped"
-      },
-      {
         "function": "discard",
         "id": "Deque.ae:discard",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -2401,15 +2422,22 @@
         "status": "skipped"
       },
       {
-        "function": "with_peek",
-        "id": "Deque.ae:with_peek",
+        "function": "with_pop_owned",
+        "id": "Deque.ae:with_pop_owned",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "Deque.ae",
         "status": "skipped"
       },
       {
-        "function": "with_len",
-        "id": "Deque.ae:with_len",
+        "function": "length",
+        "id": "Deque.ae:length",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Deque.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "empty",
+        "id": "Deque.ae:empty",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "Deque.ae",
         "status": "skipped"
@@ -2557,6 +2585,13 @@
       {
         "function": "poisson_value",
         "id": "Distributions.ae:poisson_value",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Distributions.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "discard_sample",
+        "id": "Distributions.ae:discard_sample",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "Distributions.ae",
         "status": "skipped"
@@ -2879,6 +2914,55 @@
       {
         "function": "half_right",
         "id": "ForkJoin.ae:half_right",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "ForkJoin.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_forked",
+        "id": "ForkJoin.ae:with_forked",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "ForkJoin.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_forked2",
+        "id": "ForkJoin.ae:with_forked2",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "ForkJoin.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_invoked",
+        "id": "ForkJoin.ae:with_invoked",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "ForkJoin.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_invoked_owned",
+        "id": "ForkJoin.ae:with_invoked_owned",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "ForkJoin.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_joined",
+        "id": "ForkJoin.ae:with_joined",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "ForkJoin.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_joined_owned",
+        "id": "ForkJoin.ae:with_joined_owned",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "ForkJoin.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_halves",
+        "id": "ForkJoin.ae:with_halves",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "ForkJoin.ae",
         "status": "skipped"
@@ -3514,6 +3598,20 @@
         "status": "skipped"
       },
       {
+        "function": "with_next",
+        "id": "Iterator.ae:with_next",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Iterator.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_next_owned",
+        "id": "Iterator.ae:with_next_owned",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Iterator.ae",
+        "status": "skipped"
+      },
+      {
         "function": "json",
         "id": "Json.ae:json",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -4018,6 +4116,20 @@
         "status": "skipped"
       },
       {
+        "function": "dataset_left",
+        "id": "LearningCore.ae:dataset_left",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "LearningCore.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "dataset_right",
+        "id": "LearningCore.ae:dataset_right",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "LearningCore.ae",
+        "status": "skipped"
+      },
+      {
         "function": "df_rows",
         "id": "LearningCore.ae:df_rows",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -4482,6 +4594,27 @@
       {
         "function": "reg_n_features",
         "id": "LearningCore.ae:reg_n_features",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "LearningCore.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "dispose_dataset",
+        "id": "LearningCore.ae:dispose_dataset",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "LearningCore.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "dispose_dataframe",
+        "id": "LearningCore.ae:dispose_dataframe",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "LearningCore.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_datasets",
+        "id": "LearningCore.ae:with_datasets",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "LearningCore.ae",
         "status": "skipped"
@@ -6034,6 +6167,13 @@
         "status": "skipped"
       },
       {
+        "function": "take1",
+        "id": "NDArray.ae:take1",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "NDArray.ae",
+        "status": "skipped"
+      },
+      {
         "function": "get2",
         "id": "NDArray.ae:get2",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -6041,8 +6181,22 @@
         "status": "skipped"
       },
       {
+        "function": "take2",
+        "id": "NDArray.ae:take2",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "NDArray.ae",
+        "status": "skipped"
+      },
+      {
         "function": "get3",
         "id": "NDArray.ae:get3",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "NDArray.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "take3",
+        "id": "NDArray.ae:take3",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "NDArray.ae",
         "status": "skipped"
@@ -7455,6 +7609,27 @@
         "status": "skipped"
       },
       {
+        "function": "discard_draw",
+        "id": "Random.ae:discard_draw",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Random.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "discard_int_draw",
+        "id": "Random.ae:discard_int_draw",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Random.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "discard_range_draw",
+        "id": "Random.ae:discard_range_draw",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Random.ae",
+        "status": "skipped"
+      },
+      {
         "function": "mod_nonneg",
         "id": "RandomKernels.ae:mod_nonneg",
         "reason": "native/effectful, recursive, dependent, non-base-literal or unsupported body",
@@ -8085,20 +8260,6 @@
         "status": "skipped"
       },
       {
-        "function": "peek_size",
-        "id": "Stack.ae:peek_size",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Stack.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "held_size",
-        "id": "Stack.ae:held_size",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Stack.ae",
-        "status": "skipped"
-      },
-      {
         "function": "new_stack",
         "id": "Stack.ae:new_stack",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -8141,41 +8302,6 @@
         "status": "skipped"
       },
       {
-        "function": "peek_value",
-        "id": "Stack.ae:peek_value",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Stack.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "peek_stack",
-        "id": "Stack.ae:peek_stack",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Stack.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "len_of",
-        "id": "Stack.ae:len_of",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Stack.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "len_value",
-        "id": "Stack.ae:len_value",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Stack.ae",
-        "status": "skipped"
-      },
-      {
-        "function": "len_stack",
-        "id": "Stack.ae:len_stack",
-        "reason": "outside first-order scalar functions with one to three inputs",
-        "source": "Stack.ae",
-        "status": "skipped"
-      },
-      {
         "function": "discard",
         "id": "Stack.ae:discard",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -8190,15 +8316,22 @@
         "status": "skipped"
       },
       {
-        "function": "with_peek",
-        "id": "Stack.ae:with_peek",
+        "function": "with_pop_owned",
+        "id": "Stack.ae:with_pop_owned",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "Stack.ae",
         "status": "skipped"
       },
       {
-        "function": "with_len",
-        "id": "Stack.ae:with_len",
+        "function": "length",
+        "id": "Stack.ae:length",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Stack.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "empty",
+        "id": "Stack.ae:empty",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "Stack.ae",
         "status": "skipped"
@@ -9690,17 +9823,25 @@
     ],
     "dependencies": {
       "Args.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
-      "Array.ae": {},
+      "Array.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "ArrayKernels.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "BinaryTree.ae": {},
       "Buffer.ae": {},
-      "Bytes.ae": {},
+      "Bytes.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Certify.ae": {},
-      "Color.ae": {},
+      "Color.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Contest.ae": {
         "Seq.ae": "38098c61c3849fbc6ec67b7cec71325acafc3de389f234918745ab2ab478bcc4"
       },
@@ -9749,58 +9890,74 @@
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84"
       },
       "ControlTrace.ae": {},
+      "Copy.ae": {},
       "Cuda.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Dace.ae": {},
       "DataFrame.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Database.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "DecisionTree.ae": {},
       "Denser.ae": {},
-      "Deque.ae": {},
+      "Deque.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Distributions.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Random.ae": "8b010ad65ba35ab4cc48ddca687522274b42ce47dc91b6a1e9fd9d6af7048517",
+        "Random.ae": "93678d80d6dea54f7f7ab60b7fa019884814e402a151e9217b1b50f19ebd1e78",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
-        "Statistics.ae": "86a22439cfb5963402560d0ecfedbbcf331a160e6f8e2e4532f4c1ccadcfb584"
+        "Statistics.ae": "7a348c6d40f8fe128edc8fc07c5a61e80a76153e4486ac093d7e1e81157fdfc7"
       },
       "Downloader.ae": {},
-      "Either.ae": {},
+      "Either.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Email.ae": {},
       "ForkJoin.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Functional.ae": {
-        "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "Maybe.ae": "2ebf7dd160f550fab006c9a096d502a39832923ec452d2a8cb7971882af904c2",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Seq.ae": "38098c61c3849fbc6ec67b7cec71325acafc3de389f234918745ab2ab478bcc4"
       },
       "Gpu.ae": {},
       "Http.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
         "Json.ae": "4bbc45746993ec399cd3faa89cb535ae4c2ce3811ad6ad7f11c4b8bc97f9bb6e",
         "Map.ae": "4ecb5a67e7353727e1f99bf41440680268e45fcd3e779a0d4053c05ba5bcb206",
-        "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
+        "Maybe.ae": "2ebf7dd160f550fab006c9a096d502a39832923ec452d2a8cb7971882af904c2"
       },
       "Image.ae": {
-        "Color.ae": "e809ff52dbd61e5e72a7d7fbc1e6217574f29df53cd64649febea9a5fbd45239"
+        "Color.ae": "e5ad14e240d5b6592f83fd681acb9b8959e86129a025706ec996e2b6693c70db",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Iterator.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Json.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Karel.ae": {},
       "LeafTree.ae": {},
       "Learning.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
         "LearningDiscriminant.ae": "d90c11d722dcba1513baf7445e6a0e58e9131b9a8d47592ce2c3713632a7d046",
         "LearningDummy.ae": "8b193b5ea3110cf6a7e2431c0574c60b23787ab32154abdc42cec355d94712f3",
         "LearningEnsembles.ae": "70d6b2c81e8ded47354ca7b689c8f01b83b2208b29fde7d851ed2eb3d907d809",
@@ -9812,134 +9969,148 @@
         "LearningNeural.ae": "e52b03d80ed1b9dd86b5afe1f079b34e30648021b5b9097f3787756b2bcb1d41",
         "LearningSVM.ae": "443d4dad23b538f026fc7424cdaa4c17e4ca052903fffe70af3c6843f719d438",
         "LearningTrees.ae": "3c97e658855c97f622bdd5cbff5854bd29953abbe2e7cd2d9bb1855f70599e50",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningCore.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningDiscriminant.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningDummy.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningEnsembles.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningGaussianProcess.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningKernel.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningLinear.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningLines.ae": {},
       "LearningNaiveBayes.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningNeighbors.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningNeural.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningSVM.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningTrees.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
-      "List.ae": {},
+      "List.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Lock.ae": {},
       "LoopKernels.ae": {},
       "ML.ae": {
@@ -9947,68 +10118,88 @@
       },
       "MLCore.ae": {},
       "Map.ae": {
-        "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "Maybe.ae": "2ebf7dd160f550fab006c9a096d502a39832923ec452d2a8cb7971882af904c2"
       },
       "Math.ae": {
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84"
       },
       "Matrix.ae": {},
-      "Maybe.ae": {},
+      "Maybe.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Memoization.ae": {
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Seq.ae": "38098c61c3849fbc6ec67b7cec71325acafc3de389f234918745ab2ab478bcc4"
       },
       "Models.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "NN.ae": "559c15e70780607d8e9caa5ef4ac1bf1a1941588ac38c5038370663c33865a49",
-        "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
+        "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "NDArray.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
-        "ReadOnly.ae": "114ea372622a5e591da367feb6a55d21b5d0ab9df0750b3253f687820e8b1687"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "ReadOnly.ae": "6fad455fb38382b0d34af808abf377eb9371de74bde690700848747ce405472f"
       },
       "NN.ae": {
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474"
       },
       "Num.ae": {},
       "OS.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
         "Map.ae": "4ecb5a67e7353727e1f99bf41440680268e45fcd3e779a0d4053c05ba5bcb206",
-        "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
+        "Maybe.ae": "2ebf7dd160f550fab006c9a096d502a39832923ec452d2a8cb7971882af904c2"
       },
       "Order.ae": {},
-      "Ordering.ae": {},
+      "Ordering.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "PSB2.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "PSB2Fitness.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
-      "Pair.ae": {},
+      "Pair.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Path.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Plot.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "ProofCombinators.ae": {},
       "PropTesting.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Random.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "RandomKernels.ae": {},
-      "ReadOnly.ae": {},
+      "ReadOnly.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Reader.ae": {},
       "Refinement.ae": {},
       "Relax.ae": {},
@@ -10018,29 +10209,38 @@
       "SMTArithmetic.ae": {},
       "Seq.ae": {},
       "Set.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Socket.ae": {},
-      "Stack.ae": {},
+      "Stack.ae": {
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Statistics.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "String.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Subprocess.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Sys.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
         "Map.ae": "4ecb5a67e7353727e1f99bf41440680268e45fcd3e779a0d4053c05ba5bcb206",
-        "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
+        "Maybe.ae": "2ebf7dd160f550fab006c9a096d502a39832923ec452d2a8cb7971882af904c2"
       },
       "Table.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Tensor.ae": {
-        "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
+        "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84"
       },
@@ -10049,7 +10249,8 @@
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84"
       },
       "Tuple.ae": {
-        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
+        "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
       },
       "Vec.ae": {},
       "Writer.ae": {},
@@ -10063,7 +10264,7 @@
       },
       "Array.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Array.ae",
-        "sha256": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
+        "sha256": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0"
       },
       "ArrayKernels.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/ArrayKernels.ae",
@@ -10079,7 +10280,7 @@
       },
       "Bytes.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Bytes.ae",
-        "sha256": "f1a75332a6b5ee7d9fcb8658ef91b06b2b6e8950f9c3d8d2768843468816bf2b"
+        "sha256": "2a522334294693bb602c14afbf7fa742e6e40738377802e122a5efdaf582e4b0"
       },
       "Certify.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Certify.ae",
@@ -10087,7 +10288,7 @@
       },
       "Color.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Color.ae",
-        "sha256": "e809ff52dbd61e5e72a7d7fbc1e6217574f29df53cd64649febea9a5fbd45239"
+        "sha256": "e5ad14e240d5b6592f83fd681acb9b8959e86129a025706ec996e2b6693c70db"
       },
       "Contest.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Contest.ae",
@@ -10137,9 +10338,13 @@
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/ControlTrace.ae",
         "sha256": "b2a4a8365c3be7706710172b8826c14b80048e10605e49ac22bd811703cc2171"
       },
+      "Copy.ae": {
+        "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Copy.ae",
+        "sha256": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7"
+      },
       "Cuda.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Cuda.ae",
-        "sha256": "a57e0a00107976bdeb52568483c9cc2d4edb7cf6a57eeb9cc5a47ea7036c3a44"
+        "sha256": "242cbbb4c0e276eca4132d2da3d77fbe5acbda0a491f4b564f84b485eb43bbcc"
       },
       "Dace.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Dace.ae",
@@ -10147,7 +10352,7 @@
       },
       "DataFrame.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/DataFrame.ae",
-        "sha256": "ccd2cfc594cb556e45898b3bf17bcc29398f995ae873f2c5165ec8517d6c9501"
+        "sha256": "00c7d2c3dc0106cf5b49c71068eed50a54451f8e516dc76d17676a6e6b20756c"
       },
       "Database.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Database.ae",
@@ -10163,11 +10368,11 @@
       },
       "Deque.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Deque.ae",
-        "sha256": "786fa8a543037d1adee9211ca3c9c7889fc6476b66d115525eb1871b0c9e81fb"
+        "sha256": "b885801ba771272b22766ee8ce53e9180d3a24d3f44909fe514fe5d28cf60c85"
       },
       "Distributions.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Distributions.ae",
-        "sha256": "9d296a4191f8dd6829227db3a67cb9da84288685e860316ae3e4e74c20eebc85"
+        "sha256": "b2691e2317b3adf3654255b3ea8883017a6bf76f9a8e9f11cc69d9fed068e24d"
       },
       "Downloader.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Downloader.ae",
@@ -10175,7 +10380,7 @@
       },
       "Either.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Either.ae",
-        "sha256": "3eb14d5d040803364d2fd90b88bf22d9fe6efc4e4d9cb367819a4195f2752106"
+        "sha256": "9ea9430cf9b3eaf9ac392858ba2cd4227c2643683ed0de08dc76fde64f1d1563"
       },
       "Email.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Email.ae",
@@ -10183,7 +10388,7 @@
       },
       "ForkJoin.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/ForkJoin.ae",
-        "sha256": "75387fbde375ca9dbf345b08b930362cbaed61fc24aa297c747a5db36c9de600"
+        "sha256": "b4e926f940e4e259fdfce95a253f64262a7fff2c37bf5888b97b7671e071ee62"
       },
       "Functional.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Functional.ae",
@@ -10203,7 +10408,7 @@
       },
       "Iterator.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Iterator.ae",
-        "sha256": "f8c18707ba7821404810359ff081656d101895700c5a2b5a035e149f266119a1"
+        "sha256": "08e3d52007eb0104147681ab23a97d5acfba191e9d34b69595e62175da61ce66"
       },
       "Json.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Json.ae",
@@ -10223,7 +10428,7 @@
       },
       "LearningCore.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/LearningCore.ae",
-        "sha256": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218"
+        "sha256": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5"
       },
       "LearningDiscriminant.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/LearningDiscriminant.ae",
@@ -10275,7 +10480,7 @@
       },
       "List.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/List.ae",
-        "sha256": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee"
+        "sha256": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376"
       },
       "Lock.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Lock.ae",
@@ -10307,7 +10512,7 @@
       },
       "Maybe.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Maybe.ae",
-        "sha256": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
+        "sha256": "2ebf7dd160f550fab006c9a096d502a39832923ec452d2a8cb7971882af904c2"
       },
       "Memoization.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Memoization.ae",
@@ -10319,7 +10524,7 @@
       },
       "NDArray.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/NDArray.ae",
-        "sha256": "bdbb31a0cc226f2ba649a9d17863a5fff96860561d7f150f7efbb88cf6004146"
+        "sha256": "3d8d1ba2e9168f8a0c0b8788650ef9c3e7a471cba039724a5693bc317f4e8b51"
       },
       "NN.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/NN.ae",
@@ -10339,11 +10544,11 @@
       },
       "Ordering.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Ordering.ae",
-        "sha256": "e3c21f196b5d192fa48db10ffed198c3e8193ea5deda5d257d4cb3c81eaf5433"
+        "sha256": "566e0bdc8eab11cc69f618d4e5e5d95aef7667e00a7b0ea11589a44923c08d0b"
       },
       "PSB2.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/PSB2.ae",
-        "sha256": "81c568bf1b35790180536c09807d1e8547b49b93dd044ffdedf9be15bbea2f8e"
+        "sha256": "6ea264613212d50017b8aec394e4376de9a8c8a072654bb3e0f7180b057ff5d6"
       },
       "PSB2Fitness.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/PSB2Fitness.ae",
@@ -10351,7 +10556,7 @@
       },
       "Pair.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Pair.ae",
-        "sha256": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de"
+        "sha256": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c"
       },
       "Path.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Path.ae",
@@ -10367,11 +10572,11 @@
       },
       "PropTesting.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/PropTesting.ae",
-        "sha256": "ee597ea10480e5850d53796bf44ac97be92d97d8a52d96639a860602209e98c6"
+        "sha256": "b61edad30383bbcbd7415f35b106c5ee63f79e33509ad96ab0231cfed1a38478"
       },
       "Random.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Random.ae",
-        "sha256": "8b010ad65ba35ab4cc48ddca687522274b42ce47dc91b6a1e9fd9d6af7048517"
+        "sha256": "93678d80d6dea54f7f7ab60b7fa019884814e402a151e9217b1b50f19ebd1e78"
       },
       "RandomKernels.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/RandomKernels.ae",
@@ -10379,11 +10584,11 @@
       },
       "ReadOnly.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/ReadOnly.ae",
-        "sha256": "114ea372622a5e591da367feb6a55d21b5d0ab9df0750b3253f687820e8b1687"
+        "sha256": "6fad455fb38382b0d34af808abf377eb9371de74bde690700848747ce405472f"
       },
       "Reader.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Reader.ae",
-        "sha256": "b746a2b65016087dbf5cd9f5d3575883e9e4f7c2464514a1991d37bbaa2533c0"
+        "sha256": "7cccedcb2e19dbeb2ea2d0bd57d6e7567c8ee0b5396eb0f212f10eabfd4e82ac"
       },
       "Refinement.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Refinement.ae",
@@ -10411,15 +10616,15 @@
       },
       "Socket.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Socket.ae",
-        "sha256": "9216ddf0d62cd10118eab109c5eca14d812ffdabb8894527c17ece692bb06172"
+        "sha256": "ca1d26a0c69982e3445681d415e25da664df58422c1cef8a7e0dcfbe04161613"
       },
       "Stack.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Stack.ae",
-        "sha256": "9cf1caf3eeb54ae23b3e0adf217a91ef10bf821b24a434b267cd1de3c27866bb"
+        "sha256": "59b8259d46b5366c6e953dc8acf687ce9a05b3afc0bc0de53840cd449627362e"
       },
       "Statistics.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Statistics.ae",
-        "sha256": "86a22439cfb5963402560d0ecfedbbcf331a160e6f8e2e4532f4c1ccadcfb584"
+        "sha256": "7a348c6d40f8fe128edc8fc07c5a61e80a76153e4486ac093d7e1e81157fdfc7"
       },
       "String.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/String.ae",
@@ -10431,7 +10636,7 @@
       },
       "Sys.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Sys.ae",
-        "sha256": "8d77739eb081a49f0340e989a59a54e545bae65c045527de19107c661277bfbc"
+        "sha256": "e7213203a7c5d340fec54fc323acf7c40fa5bdb787bb322ddb355497c44ee50a"
       },
       "Table.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Table.ae",
@@ -10464,7 +10669,7 @@
     },
     "parse_errors": {},
     "root": "/tmp/aeon-fix-array-ownership/aeon/libraries",
-    "skipped": 1373,
+    "skipped": 1392,
     "split_counts": {
       "held_out": 2,
       "train": 5,
@@ -13255,7 +13460,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.009366404265165329,
+        "elapsed": 0.0033869780600070953,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13291,7 +13496,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.0110483318567276,
+        "elapsed": 0.004419689066708088,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13330,7 +13535,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.014652431011199951,
+        "elapsed": 0.009767882991582155,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13368,7 +13573,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.004434466827660799,
+        "elapsed": 0.004066342022269964,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13403,7 +13608,7 @@
         "verification_unknown": 0
       }
     ],
-    "runtime_model_log_mse": 0.4083164709030913
+    "runtime_model_log_mse": 0.21577058309688582
   },
   "known_solutions": {
     "Refinement.ae:bounded": [
@@ -13639,7 +13844,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.010516877751797438,
+      "elapsed": 0.009718180168420076,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13674,7 +13879,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.869398158043623,
+      "elapsed": 0.8373854020610452,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13688,7 +13893,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.747393926139921,
+      "elapsed": 0.7155850632116199,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13703,7 +13908,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009912666399031878,
+      "elapsed": 0.009402763098478317,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13738,7 +13943,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.7018399476073682,
+      "elapsed": 0.6980904429219663,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 85665,
@@ -13753,7 +13958,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009725933894515038,
+      "elapsed": 0.00896922405809164,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13791,7 +13996,7 @@
       "candidates": 11221,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.48005169117823243,
+      "elapsed": 0.4733598749153316,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13857,7 +14062,7 @@
       "candidates": 11246,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.4309491999447346,
+      "elapsed": 0.40681831911206245,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13923,7 +14128,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009326709900051355,
+      "elapsed": 0.0032084621489048004,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13960,7 +14165,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.6942133610136807,
+      "elapsed": 0.6893606018275023,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -14028,7 +14233,7 @@
     }
   ],
   "model_loss": "log-cost ridge regression; one-sided squared loss for measured censored lower bounds",
-  "offline_seconds": 6.374303434044123,
+  "offline_seconds": 6.236917474772781,
   "primitive_signatures": {
     "!": [
       [
@@ -14152,9 +14357,9 @@
     ]
   },
   "runtime_model": {
-    "intercept": -7.290807382572954,
+    "intercept": -7.808867437548283,
     "ridge": 1.0,
-    "slope": 0.6135727065500943,
+    "slope": 0.6590612835283369,
     "target": "elapsed"
   },
   "schema": 1,
@@ -14187,7 +14392,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.009725933894515038,
+          "elapsed": 0.00896922405809164,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14225,7 +14430,7 @@
           "candidates": 11221,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.48005169117823243,
+          "elapsed": 0.4733598749153316,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14291,7 +14496,7 @@
           "candidates": 11246,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.4309491999447346,
+          "elapsed": 0.40681831911206245,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14357,7 +14562,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.009326709900051355,
+          "elapsed": 0.0032084621489048004,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14394,7 +14599,7 @@
         {
           "candidates": 20000,
           "censored": true,
-          "elapsed": 0.6942133610136807,
+          "elapsed": 0.6893606018275023,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14414,7 +14619,7 @@
           "candidates": 34,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.009401781018823385,
+          "elapsed": 0.003218729980289936,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14452,7 +14657,7 @@
           "candidates": 5657,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.29330630507320166,
+          "elapsed": 0.2833660589531064,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14527,7 +14732,7 @@
       "candidates": 34,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.00994789320975542,
+      "elapsed": 0.009470300748944283,
       "phase": "validation_baseline",
       "productions": [],
       "rank_bound": 80,
@@ -14562,7 +14767,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 1.160217123106122,
+      "elapsed": 1.1490509426221251,
       "phase": "validation_baseline",
       "productions": [],
       "reference_rank_bound": 278130,

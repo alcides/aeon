@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from aeon.compilation.session import SessionMapping, current_session
 from aeon.core.types import Kinding, Kind, constructor_kind
@@ -121,6 +121,16 @@ def lookup_class(name: str) -> ClassInfo | None:
 def clear_instance_registry() -> None:
     _instances.clear()
     _classes.clear()
+
+
+def qualify_instance_providers(names: dict[str, Name]) -> None:
+    """Keep elaboration's implicit references aligned with module renaming."""
+    for class_name, instances in list(_instances.items()):
+        _instances[class_name] = tuple(
+            replace(info, dict_name=names.get(info.dict_name.name, info.dict_name)) for info in instances
+        )
+    for class_name, info in list(_classes.items()):
+        _classes[class_name] = replace(info, supers=tuple((names.get(name.name, name), ty) for name, ty in info.supers))
 
 
 def infer_type_variable_kinds(types: list[SType]) -> dict[Name, Kinding]:

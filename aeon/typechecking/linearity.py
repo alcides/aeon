@@ -43,6 +43,7 @@ from dataclasses import dataclass
 
 from aeon.core.multiplicity import M0, M1, MN, MOmega, MBorrow, Multiplicity, add, mul
 from aeon.core.substitutions import substitution
+from aeon.core.instantiation import type_substitution
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -67,11 +68,6 @@ from aeon.core.types import (
     Type,
     TypeConstructor,
     TypePolymorphism,
-    t_bool,
-    t_float,
-    t_int,
-    t_string,
-    t_unit,
 )
 from aeon.errors import (
     BorrowingError,
@@ -348,6 +344,7 @@ class _Walker:
     var_types: dict[Name, Type]
     errors: list[LinearityError]
     in_scope: frozenset[Name] = frozenset()
+    linear_types: frozenset[Name] = frozenset()
 
     def with_var(self, name: Name, ty: Type | None) -> _Walker:
         new_types = dict(self.var_types)
@@ -361,6 +358,7 @@ class _Walker:
             var_types=new_types,
             errors=self.errors,
             in_scope=self.in_scope | {name},
+            linear_types=self.linear_types,
         )
 
     def term_type(self, term: Term) -> Type | None:
@@ -379,14 +377,23 @@ class _Walker:
                 if isinstance(ft, AbstractionType):
                     return ft.type
                 return None
-            case TypeApplication(body, _) | RefinementApplication(body, _):
-                # Peel polymorphism wrappers from the underlying type so
-                # that ``print @ Int`` still exposes the ``(1 x:a) -> Unit``
-                # abstraction (and its parameter multiplicity) to scaling.
-                ty = _peel_existential(self.term_type(body))
-                while isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+            case TypeApplication(body, actual):
+                ty = self.term_type(body)
+                while isinstance(ty, ExistentialType):
                     ty = ty.body
+                if isinstance(ty, TypePolymorphism):
+                    try:
+                        return type_substitution(ty.body, ty.name, actual)
+                    except (AssertionError, ValueError):
+                        # Approximation only; the ordinary typechecker owns
+                        # invalid native/function refinement diagnostics.
+                        return ty.body
                 return ty
+            case RefinementApplication(body, _):
+                ty = self.term_type(body)
+                while isinstance(ty, ExistentialType):
+                    ty = ty.body
+                return ty.body if isinstance(ty, RefinementPolymorphism) else ty
             case _:
                 return None
 
@@ -397,6 +404,19 @@ class _Walker:
         analysis; the caller-side declaration is what carries the
         discipline."""
         return ({n: _BOTTOM for n in self.in_scope}, {})
+
+    def function_body_tally(self, body: Term, expected: Type | None) -> tuple[Tally, _Counts]:
+        """A definition's remaining curried parameters share one call scope.
+
+        Call sites must saturate applications that carry owners or borrows;
+        lambdas created inside the actual body still undergo capture checks.
+        """
+        expected = _peel_existential(expected)
+        if isinstance(body, Abstraction) and isinstance(expected, AbstractionType):
+            inner = self.with_var(body.var_name, expected.var_type)
+            bt, bc = inner.function_body_tally(body.body, expected.type)
+            return _drop(bt, bc, body.var_name)
+        return self.tally(body)
 
     def tally(self, term: Term) -> tuple[Tally, _Counts]:
         if _is_native_ffi_call(term):
@@ -410,33 +430,45 @@ class _Walker:
                 return ({}, {})
             case Annotation(expr, _):
                 return self.tally(expr)
-            case Application(fun, arg):
-                ft, fc = self.tally(fun)
-                at: Tally
-                fun_ty = _peel_existential(self.term_type(fun))
-                if isinstance(fun_ty, AbstractionType):
-                    pmult = fun_ty.multiplicity
-                else:
-                    # Unknown function type: don't penalise — scale by 1
-                    # so the syntactic-count semantics from Phase 2a is
-                    # preserved as a floor.
-                    pmult = M1
-                if pmult is MBorrow:
-                    borrowed = arg
-                    while isinstance(borrowed, Annotation):
-                        borrowed = borrowed.expr
-                    if isinstance(borrowed, Var):
-                        at, ac = {borrowed.name: _BorrowAccess()}, {borrowed.name: 1}
+            case Application():
+                head, applications = _application_spine(term)
+                ft, fc = self.tally(head)
+                active: Tally = {}
+                for application in applications:
+                    arg = application.arg
+                    fun_ty = _peel_existential(self.term_type(application.fun))
+                    pmult = fun_ty.multiplicity if isinstance(fun_ty, AbstractionType) else M1
+                    at: Tally
+                    if pmult is MBorrow:
+                        borrowed = arg
+                        while isinstance(borrowed, Annotation):
+                            borrowed = borrowed.expr
+                        if isinstance(borrowed, Var):
+                            at, ac = {borrowed.name: _BorrowAccess()}, {borrowed.name: 1}
+                            active[borrowed.name] = _BorrowAccess()
+                        else:
+                            at, ac = self.tally(arg)
                     else:
-                        # Evaluating a fresh argument still moves its inputs.
-                        # Only a direct reference borrows an existing owner.
                         at, ac = self.tally(arg)
-                    return _tally_add(ft, at), _counts_add(fc, ac)
-                at, ac = self.tally(arg)
-                return (
-                    _tally_add(ft, _tally_scale(pmult, at)),
-                    _counts_add(fc, _counts_scale(pmult, ac)),
-                )
+                        callback = arg
+                        while isinstance(callback, Annotation):
+                            callback = callback.expr
+                        if pmult is M1 and isinstance(callback, Abstraction):
+                            # An inline, one-use callback may take ownership of
+                            # its captures. Borrow-only captures still cannot
+                            # escape, and retained closures remain forbidden.
+                            at = {
+                                n: _BorrowAccess(u.moves, u.after_move)
+                                if isinstance(u, _BorrowAccess) and u.moves is M1
+                                else u
+                                for n, u in at.items()
+                            }
+                        at, ac = _tally_scale(pmult, at), _counts_scale(pmult, ac)
+                    ft, fc = _tally_add(ft, at), _counts_add(fc, ac)
+                # A curried call retains its early borrows while evaluating
+                # later arguments and running the body. Moving an early
+                # borrowed owner in a later argument is therefore invalid.
+                return _tally_add(ft, active), fc
             case Abstraction(n, body):
                 inner = self.with_var(n, None)
                 bt, bc = inner.tally(body)
@@ -446,6 +478,8 @@ class _Walker:
                 for name, use in bt.items():
                     if isinstance(use, _BorrowAccess):
                         bt[name] = _BorrowAccess(use.moves, use.after_move, captured=True)
+                    elif use in (M1, MOmega) and _linear_type_head(self.var_types.get(name), self.linear_types):
+                        bt[name] = _BorrowAccess(use, captured=True)
                 return bt, bc
             case Let(n, val, body, _, _):
                 # Best-effort type for the bound name: this lets nested
@@ -756,24 +790,19 @@ def _is_native_ffi_call(t: Term) -> bool:
     return False
 
 
-def _check_borrow_signature(ty: Type, term: Term, errors: list[LinearityError]) -> None:
-    """Validate even opaque native functions and annotated function aliases."""
-    if isinstance(ty, AbstractionType):
-        if ty.multiplicity is MBorrow:
-            result = _peel_existential(ty.type)
-            while isinstance(result, RefinedType):
-                result = result.type
-            if result not in (t_bool, t_float, t_int, t_string, t_unit):
-                errors.append(BorrowingError(ty.var_name, "a borrowing function must return a scalar value", term))
-        _check_borrow_signature(ty.var_type, term, errors)
-        _check_borrow_signature(ty.type, term, errors)
-    elif isinstance(ty, (ExistentialType, TypePolymorphism, RefinementPolymorphism)):
-        _check_borrow_signature(ty.body, term, errors)
-    elif isinstance(ty, RefinedType):
-        _check_borrow_signature(ty.type, term, errors)
-    elif isinstance(ty, TypeConstructor):
-        for arg in ty.args:
-            _check_borrow_signature(arg, term, errors)
+def _application_spine(term: Term) -> tuple[Term, list[Application]]:
+    """Runtime applications in their evaluation order; type arguments erase."""
+    applications: list[Application] = []
+    while True:
+        if isinstance(term, Application):
+            applications.append(term)
+            term = term.fun
+        elif isinstance(term, (TypeApplication, RefinementApplication)):
+            term = term.body
+        elif isinstance(term, Annotation):
+            term = term.expr
+        else:
+            return term, list(reversed(applications))
 
 
 def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[LinearityError]:
@@ -795,7 +824,6 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
     if ctx is not None:
         for n, t in ctx.vars():
             initial_types[n] = t
-            _check_borrow_signature(t, term, errors)
         linear_types = frozenset(
             entry.name for entry in ctx.entries if isinstance(entry, TypeConstructorBinder) and entry.linear
         )
@@ -810,27 +838,34 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
             case Literal() | Var() | Hole():
                 return
             case Annotation(expr, _):
-                _check_borrow_signature(node.type, node, errors)
                 visit(expr, walker, node.type)
-            case Application(fun, arg):
-                visit(fun, walker)
-                fun_ty = _peel_existential(walker.term_type(fun))
-                if isinstance(fun_ty, AbstractionType):
-                    # Fresh linear values have no local binder whose tally
-                    # could reveal duplication. Enforce the parameter's
-                    # discipline here too (e.g. mk_repeat 2 (mk_1 7)).
-                    if not isinstance(arg, Var):
-                        _check_linear_type_binder(
-                            fun_ty.var_name,
-                            walker.term_type(arg),
-                            fun_ty.multiplicity,
-                            node,
-                            linear_types,
-                            errors,
-                        )
-                    visit(arg, walker, fun_ty.var_type)
-                else:
-                    visit(arg, walker)
+            case Application():
+                head, applications = _application_spine(node)
+                visit(head, walker)
+                holds_resource = False
+                for application in applications:
+                    arg = application.arg
+                    fun_ty = _peel_existential(walker.term_type(application.fun))
+                    if isinstance(fun_ty, AbstractionType):
+                        if fun_ty.multiplicity is MBorrow or (
+                            fun_ty.multiplicity is M1 and _linear_type_head(walker.term_type(arg), linear_types)
+                        ):
+                            holds_resource = True
+                        if fun_ty.multiplicity is M1:
+                            arg_usage, _ = walker.tally(arg)
+                            if any(isinstance(use, _BorrowAccess) and use.captured for use in arg_usage.values()):
+                                holds_resource = True
+                        if not isinstance(arg, Var):
+                            _check_linear_type_binder(
+                                fun_ty.var_name, walker.term_type(arg), fun_ty.multiplicity, node, linear_types, errors
+                            )
+                        visit(arg, walker, fun_ty.var_type)
+                    else:
+                        visit(arg, walker)
+                if holds_resource and isinstance(_peel_existential(walker.term_type(node)), AbstractionType):
+                    errors.append(
+                        BorrowingError(head, "apply all remaining arguments before retaining a linear resource", node)
+                    )
             case Abstraction(name, body):
                 ety = _peel_existential(expected_ty)
                 if isinstance(ety, AbstractionType):
@@ -843,7 +878,7 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                     body_ty = None
                 inner = walker.with_var(name, inner_ty)
                 if param_mult in (M0, M1, MBorrow):
-                    bt, bc = inner.tally(body)
+                    bt, bc = inner.function_body_tally(body, body_ty)
                     _check_binder(name, param_mult, bt, bc, node, errors)
                 _check_linear_type_binder(name, inner_ty, param_mult, node, linear_types, errors)
                 visit(body, inner, body_ty)
@@ -863,7 +898,6 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 visit(val, walker)
                 visit(body, inner)
             case Rec(name, var_type, val, body, _, _, mult):
-                _check_borrow_signature(var_type, node, errors)
                 if mult is MBorrow:
                     errors.append(BorrowingError(name, "borrow is only supported on function parameters", node))
                 inner = walker.with_var(name, var_type)
@@ -891,6 +925,7 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
         var_types=initial_types,
         errors=errors,
         in_scope=frozenset(initial_types),
+        linear_types=linear_types,
     )
     visit(term, root)
     return errors
