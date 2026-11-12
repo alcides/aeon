@@ -22,7 +22,9 @@ def test_gpu_array_map_fallback():
             let 1 v2 := Array.mk_concat v0 (Array.mk_1 10) in
             let 1 v3 := Array.mk_concat v2 (Array.mk_1 20) in
             let 1 res := multiply_by_two v3 2 in
-            get{Int} res 0;
+            let value := get{Int} res 0 in
+            let _ := Array.dispose res in
+            value;
     """
     config = AeonConfig(synthesizer="none", synthesis_ui=SynthesisUI(), synthesis_budget=0)
     driver = AeonDriver(config)

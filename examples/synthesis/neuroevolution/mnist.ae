@@ -68,6 +68,11 @@ def evolved_arch : Arch :=
      let Array_reduce := unit in
      let Array_with_pair := unit in
      let Array_with_get := unit in
+     let Array_take := unit in
+     let Array_take_head := unit in
+     let Array_consume := unit in
+     let duplicate := unit in
+     let Copy_rec := unit in
      ?hole);
 
 # (b) A reasonable hand-written baseline: 196 -> 32 (relu) -> 10 (linear).
