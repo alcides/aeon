@@ -42,8 +42,10 @@ def test_mutating_one_alias_cannot_invalidate_another_length_proof():
             let 1 a := Array.got_array p in
             let 1 b := Array.got_array p in
             let 1 changed := push a 3 in
-            let ignored := Array.length changed in
-            Array.length b;
+            let ignored := Array.dispose changed in
+            let n := Array.length b in
+            let ignored := Array.dispose b in
+            n;
     """)
     assert any(isinstance(error, LinearityError) for error in errors), errors
 
@@ -65,8 +67,11 @@ def test_length_after_update_preserves_exact_size():
     driver, errors = parse("""
         def main(_ :Int):{n:Int | n = 2} :=
             let 1 arr := #[5,9] in
+            let before := Array.length arr in
             let 1 updated := Array.set arr 0 7 in
-            Array.length updated;
+            let after := Array.length updated in
+            let ignored := Array.dispose updated in
+            after;
     """)
     assert not errors, errors
     assert driver.run() == 2
@@ -79,8 +84,10 @@ def test_copy_continuation_exposes_independent_buffers():
         def main(_ :Int):Int :=
             Array.with_pair (Array.copy #[1,2]) (fun a => fun b =>
                 let 1 changed := push a 3 in
-                let ignored := Array.length changed in
-                Array.length b);
+                let ignored := Array.dispose changed in
+                let n := Array.length b in
+                let ignored := Array.dispose b in
+                n);
     """)
     assert not errors, errors
     assert driver.run() == 2

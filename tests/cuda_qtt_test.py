@@ -177,7 +177,7 @@ def lifecycle (u: Unit) : Unit :=
     let pair := unpack_float64_download downloaded in
     let 1 values := download_values_float64 pair in
     let 1 next := download_buffer_float64 pair in
-    let _ := Array.length values in
+    let _ := Array.dispose values in
     let _ := free next in
     let 1 spare := upload_i32 d ({_int_array((7,))}) in
     free spare;

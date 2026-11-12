@@ -190,7 +190,9 @@ def bad (u: Unit) : Int :=
     let 1 xs := Array.mk_1{Int} 1 in
     let h := halves xs in
     let 1 left := half_left h in
-    Array.length left;
+    let n := Array.length left in
+    let _ := Array.dispose left in
+    n;
 """
         + MAIN
     )
@@ -210,7 +212,10 @@ def ok (u: Unit) : Int :=
     let 1 left := half_left h in
     let 1 right := half_right h in
     let 1 mapped := par_map 2 sq left in
-    Array.length mapped + Array.length right;
+    let n := Array.length mapped + Array.length right in
+    let _ := Array.dispose mapped in
+    let _ := Array.dispose right in
+    n;
 """
         + MAIN
     )
@@ -236,7 +241,9 @@ def main (_: Int) : Int :=
     let 1 xs0 := Array.mk_2{Int} 1 2 in
     let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
     let 1 ys := par_map 2 inc xs1 in
-    joined_fst j + joined_snd j + Array.length ys;
+    let n := Array.length ys in
+    let _ := Array.dispose ys in
+    joined_fst j + joined_snd j + n;
 """
     assert _run(source) == 45
 

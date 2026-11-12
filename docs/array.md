@@ -2,7 +2,8 @@
 
 `Array.ae` is the standard library's flat, random-access sequence. Backing storage
 is a Python `list`; refinements use the abstract `Array.size` measure. Since 4.9,
-`Array` is a **linear type**: each value must be used exactly once.
+`Array` is a **linear type**: each owner must be consumed exactly once.
+Read-only borrows may precede that consuming use.
 
 - Source: [`aeon/libraries/Array.ae`](https://github.com/alcides/aeon/blob/master/aeon/libraries/Array.ae)
 - Generated reference: [stdlib/Array.html](stdlib/Array.html)
@@ -18,40 +19,62 @@ let 1 xs := Array.mk_2 1 2 in
 Array.sum xs
 ```
 
-Omitting `1` is a compile error. Using the same binder twice triggers
+Omitting `1` is a compile error. Consuming the same binder twice triggers
 `LinearUsedTooManyTimesError`; dropping a linear value without consuming it
 triggers `LinearUnusedError`.
 
 | Pattern | API |
 |---------|-----|
 | Transform (consume → new array) | `mk_concat`, `set`, `reversed`, `map`, `filter` |
-| Terminal read (consume array) | `length`, `get`, `head`, `sum`, `reduce`, `empty` |
+| Borrow (keep ownership) | `length`, `empty` |
+| Terminal read (consume array) | `get`, `head`, `sum`, `reduce` |
+| Release after the last borrow | `dispose` |
 | Read element and keep array | `get_at` + `with_get` |
 | Split into two independent arrays | `copy` → `with_pair` |
 
-### Updating an array and reading its length
+### Reading length before an update
 
-Use `Array.set` to update an element and bind the returned array. Then call
-`Array.length` to read its size:
+`Array.length` and `Array.empty` borrow the array for the duration of the call.
+The owner remains available for `Array.set` or another consuming operation:
 
 ```aeon
 import Array;
 
-def main (_:Int) : {n:Int | n = 2} :=
+def main (_:Int) : Int :=
     let 1 arr := #[5,9] in
-    let 1 updated := Array.set arr 0 7 in
-    Array.length updated;
+    let n := Array.length arr in
+    let 1 updated := Array.set arr (n - 1) 7 in
+    Array.sum updated;
 ```
 
-The result is `2`: `set` changes the element at index zero and preserves the
-array's size. `length` consumes the resulting array, so it cannot be used
-afterwards. Aeon expresses updates by binding the array returned by `set`;
-there is no assignment syntax.
+This returns `12`. The length refinement proves the index is in bounds;
+`set` preserves the size and element predicate. It consumes `arr`, so subsequent
+reads must use `updated`. Aeon expresses updates by binding the array returned
+by `set`; there is no assignment syntax.
+
+Borrowing does not discharge the owner's linear obligation. If the last
+operation is a borrowing read, explicitly release the array:
+
+```aeon
+let 1 arr := #[5,9] in
+let n := Array.length arr in
+let _ := Array.dispose arr in
+n
+```
+
+User-defined readers can declare `(borrow arr:(Array a))`. Borrowing parameters
+may only be read through other borrowing functions; they cannot be consumed,
+returned, or captured by closures. Currently a borrowing parameter must be the
+last value parameter and return `Int`, `Float`, `Bool`, `String`, or `Unit`
+(possibly refined). This excludes element reads that could expose a linear
+element or a reference into the buffer. Native implementations are trusted to
+honor the read-only, non-escaping contract. Borrow qualifiers are part of
+function types and are checked when passing functions as arguments.
 
 Length checks use `Array.length` directly. The length-wrapper API
 (`len_of`, `len_value`, `len_array`, `with_len`, `ArrayLen`, and `held_size`)
-has been removed. When testing both length and contents, use separate test
-cases, as in [`examples/testing/array_tests.ae`](https://github.com/alcides/aeon/blob/master/examples/testing/array_tests.ae).
+has been removed. A length read can now be followed directly by a consuming
+element read, as in [`examples/testing/array_tests.ae`](https://github.com/alcides/aeon/blob/master/examples/testing/array_tests.ae).
 
 ## Constructors
 

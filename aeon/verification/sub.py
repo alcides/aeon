@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from loguru import logger
 
+from aeon.core.multiplicity import MBorrow
+
 from aeon.core.liquid import LiquidLiteralBool
 from aeon.core.liquid import LiquidTerm
 from aeon.core.liquid import LiquidVar
@@ -370,7 +372,11 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             # Core instantiation is explicit (TypeApplication or
             # RefinementApplication). A bare schema cannot fill a concrete hole.
             return cfalse
-        case AbstractionType(a1, t1, rt1), AbstractionType(a2, t2, rt2):
+        case ((AbstractionType(a1, t1, rt1) as fun1), (AbstractionType(a2, t2, rt2) as fun2)):
+            # A consuming function cannot be disguised as a borrowing one,
+            # nor can a borrower discharge an owning parameter's obligation.
+            if (fun1.multiplicity is MBorrow) != (fun2.multiplicity is MBorrow):
+                return cfalse
             new_name_a: Name = Name(a1.name + a2.name, fresh_counter.fresh())
 
             c0 = sub(ctx, t2, t1, loc)

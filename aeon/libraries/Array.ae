@@ -11,31 +11,31 @@
 # ── Linear (QTT) discipline ──────────────────────────────────────────────
 #
 # ``Array`` is a ``linear type``: an array is a *unique* value, so every
-# binder that holds one must be declared at multiplicity 1 — ``let 1 a :=
+# owner that holds one must be declared at multiplicity 1 — ``let 1 a :=
 # ...`` for a local, ``(1 arr: ...)`` for a parameter. Omitting the ``1`` is
-# an error, not a silent escape hatch. Consequently every array is consumed
-# **exactly once**: using it twice (which would alias the buffer) or
-# dropping it without consuming it are both rejected.
+# an error. Every owner is consumed **exactly once**. Read-only parameters
+# use ``(borrow arr: ...)`` and return ownership to the caller after the
+# call. Borrowing neither consumes the array nor permits aliasing it.
 #
 # Because uniqueness is statically guaranteed, the native bodies are free
 # to mutate the backing list in place — there is no other observer that a
 # mutation could surprise. (The bodies below stay purely functional, so the
 # runtime behaviour is unchanged.)
 #
-# Operations come in two flavours:
+# Operations follow these ownership rules:
 #
 #   * **Transformers** (``mk_concat``, ``set``, ``reversed``, ``map``,
 #     ``filter``) consume the array and return a fresh one — bind the result
 #     to the next ``let 1`` and keep going.
 #
-#   * **Readers** (``length``, ``get``, ``head``, ``sum``, ``reduce``,
-#     ``empty``) also consume the array, because reading it uses up the one
-#     reference. Terminal reads therefore need nothing special:
-#     ``length #[5, 6, 7]`` is fine. To read a value *and carry on* with the
-#     array, use ``get_at`` with ``with_get``. For length checks, first
-#     perform updates with ``set`` and then call ``length`` on the result.
-#     These operations preserve the element predicate and the ``size``
-#     measure.
+#   * **Borrowing reads** (``length``, ``empty``) leave the owner available
+#     for later updates. They return scalars, never references into the
+#     buffer. Reads after a move and closure captures are rejected.
+#
+#   * **Consuming reads** (``get``, ``head``, ``sum``, ``reduce``) end
+#     ownership. ``get_at`` with ``with_get`` threads an indexed read.
+#     Use ``dispose`` after the last borrow if no consuming operation is
+#     needed. Element and size refinements survive borrows and updates.
 #
 # When you need two genuinely independent arrays — to branch a computation
 # in two — call ``copy``: it consumes the array once and hands back two
@@ -70,9 +70,13 @@ def got_size : (g: (ArrayGet a)) -> Int := uninterpreted
 def pair_size : (pr: (ArrayPair a)) -> Int := uninterpreted
 
 
-# Length of the array. Consumes it; perform array updates before this read.
-def length (1 arr: (Array a)) : {n:Int | n = size arr} :=
+# A scoped read: the caller retains ownership and may update the array later.
+def length (borrow arr: (Array a)) : {n:Int | n = size arr} :=
     native "len(arr)"
+
+
+# End ownership when no further consuming operation is needed.
+def dispose (1 arr: (Array a)) : Unit := native "None"
 
 
 # A Unit argument makes each empty array a fresh allocation.
@@ -126,8 +130,8 @@ def mk_concat (1 xs:(Array a<p>)) (1 ys:(Array a<p>)) :
     native "xs + ys";
 
 
-# True when the array is empty. Consumes it.
-def empty (1 arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
+# True when the array is empty. Borrows it without transferring ownership.
+def empty (borrow arr: (Array a)) : {b:Bool | b = (size arr = 0)} :=
     arr.length = 0
 
 

@@ -8,13 +8,13 @@ open Distributions
 def expectMostlyBelow7
     (1 xs: {ys: (Array Float) | Array.size ys > 0 && fracBelow ys 7.0 >= 0.99})
     : Unit
-    := let _ := length xs in print "ok: 99% of values below 7"
+    := let _ := dispose xs in print "ok: 99% of values below 7"
 
 # Consumer requiring 95% of values above 0 (i.e., positivity bound).
 def expectMostlyPositive
     (1 xs: {ys: (Array Float) | Array.size ys > 0 && fracAbove ys 0.0 >= 0.95})
     : Unit
-    := let _ := length xs in print "ok: 95% of values above 0"
+    := let _ := dispose xs in print "ok: 95% of values above 0"
 
 # Demo: thread one linear generator through several batch samplers.
 def main (seed: Int) : Unit :=

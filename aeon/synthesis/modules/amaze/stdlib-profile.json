@@ -161,6 +161,13 @@
         "status": "skipped"
       },
       {
+        "function": "dispose",
+        "id": "Array.ae:dispose",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Array.ae",
+        "status": "skipped"
+      },
+      {
         "function": "mk_empty",
         "id": "Array.ae:mk_empty",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -9683,11 +9690,11 @@
     ],
     "dependencies": {
       "Args.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Array.ae": {},
       "ArrayKernels.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "BinaryTree.ae": {},
       "Buffer.ae": {},
@@ -9743,20 +9750,20 @@
       },
       "ControlTrace.ae": {},
       "Cuda.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Dace.ae": {},
       "DataFrame.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Database.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "DecisionTree.ae": {},
       "Denser.ae": {},
       "Deque.ae": {},
       "Distributions.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Random.ae": "8b010ad65ba35ab4cc48ddca687522274b42ce47dc91b6a1e9fd9d6af7048517",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
@@ -9766,7 +9773,7 @@
       "Either.ae": {},
       "Email.ae": {},
       "ForkJoin.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Functional.ae": {
         "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d",
@@ -9775,7 +9782,7 @@
       },
       "Gpu.ae": {},
       "Http.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "Json.ae": "4bbc45746993ec399cd3faa89cb535ae4c2ce3811ad6ad7f11c4b8bc97f9bb6e",
         "Map.ae": "4ecb5a67e7353727e1f99bf41440680268e45fcd3e779a0d4053c05ba5bcb206",
         "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
@@ -9784,15 +9791,15 @@
         "Color.ae": "e809ff52dbd61e5e72a7d7fbc1e6217574f29df53cd64649febea9a5fbd45239"
       },
       "Iterator.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Json.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Karel.ae": {},
       "LeafTree.ae": {},
       "Learning.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "LearningDiscriminant.ae": "d90c11d722dcba1513baf7445e6a0e58e9131b9a8d47592ce2c3713632a7d046",
         "LearningDummy.ae": "8b193b5ea3110cf6a7e2431c0574c60b23787ab32154abdc42cec355d94712f3",
@@ -9813,7 +9820,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningCore.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "2337f61024952829fe4d247ead3d0305e56141ea21f6d1df271e01ddc8e7a2de",
@@ -9822,7 +9829,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningDiscriminant.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9832,7 +9839,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningDummy.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9842,7 +9849,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningEnsembles.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9852,7 +9859,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningGaussianProcess.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9862,7 +9869,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningKernel.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9872,7 +9879,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningLinear.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9883,7 +9890,7 @@
       },
       "LearningLines.ae": {},
       "LearningNaiveBayes.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9893,7 +9900,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningNeighbors.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9903,7 +9910,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningNeural.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9913,7 +9920,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningSVM.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9923,7 +9930,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "LearningTrees.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9952,7 +9959,7 @@
         "Seq.ae": "38098c61c3849fbc6ec67b7cec71325acafc3de389f234918745ab2ab478bcc4"
       },
       "Models.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "LearningCore.ae": "3031a389ad9470aa5e3e33d2b9052dddbbc7e823a2d6f4d920b3d12f6e854218",
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
@@ -9963,7 +9970,7 @@
         "Tuple.ae": "09db814221389f0f13f769dd1c78cedf1566f8b2ff1942e330ebf424adf5b1cb"
       },
       "NDArray.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "ReadOnly.ae": "114ea372622a5e591da367feb6a55d21b5d0ab9df0750b3253f687820e8b1687"
       },
       "NN.ae": {
@@ -9974,31 +9981,31 @@
       },
       "Num.ae": {},
       "OS.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "Map.ae": "4ecb5a67e7353727e1f99bf41440680268e45fcd3e779a0d4053c05ba5bcb206",
         "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
       },
       "Order.ae": {},
       "Ordering.ae": {},
       "PSB2.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "PSB2Fitness.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Pair.ae": {},
       "Path.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Plot.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "ProofCombinators.ae": {},
       "PropTesting.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Random.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "RandomKernels.ae": {},
       "ReadOnly.ae": {},
@@ -10011,26 +10018,26 @@
       "SMTArithmetic.ae": {},
       "Seq.ae": {},
       "Set.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Socket.ae": {},
       "Stack.ae": {},
       "Statistics.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "String.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Subprocess.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Sys.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46",
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53",
         "Map.ae": "4ecb5a67e7353727e1f99bf41440680268e45fcd3e779a0d4053c05ba5bcb206",
         "Maybe.ae": "787f8b030a508da1e9b7f61610f3723b23aa5f0e5b925f1de5ab0f1a0a08be7d"
       },
       "Table.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Tensor.ae": {
         "List.ae": "472ecadfbe0e0ad5608503726519d332fbc3db9946e63512201cfeb5fd8697ee",
@@ -10042,7 +10049,7 @@
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84"
       },
       "Tuple.ae": {
-        "Array.ae": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "Array.ae": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "Vec.ae": {},
       "Writer.ae": {},
@@ -10056,7 +10063,7 @@
       },
       "Array.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Array.ae",
-        "sha256": "8232eac041d4426dd5dee9bba5e74be2e854a8eeb045d35616ad2626106bca46"
+        "sha256": "6df286f81fef4b4cceceaa5b470a91829fabc0bb722caba9d4b902f6558b6b53"
       },
       "ArrayKernels.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/ArrayKernels.ae",
@@ -10457,7 +10464,7 @@
     },
     "parse_errors": {},
     "root": "/tmp/aeon-fix-array-ownership/aeon/libraries",
-    "skipped": 1372,
+    "skipped": 1373,
     "split_counts": {
       "held_out": 2,
       "train": 5,
@@ -13248,7 +13255,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.009821804706007242,
+        "elapsed": 0.009366404265165329,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13284,7 +13291,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.01118264626711607,
+        "elapsed": 0.0110483318567276,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13323,7 +13330,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.014858580194413662,
+        "elapsed": 0.014652431011199951,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13361,7 +13368,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.004468100145459175,
+        "elapsed": 0.004434466827660799,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13396,7 +13403,7 @@
         "verification_unknown": 0
       }
     ],
-    "runtime_model_log_mse": 0.38753740448483004
+    "runtime_model_log_mse": 0.4083164709030913
   },
   "known_solutions": {
     "Refinement.ae:bounded": [
@@ -13632,7 +13639,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.010051538702100515,
+      "elapsed": 0.010516877751797438,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13667,7 +13674,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.858459988143295,
+      "elapsed": 0.869398158043623,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13681,7 +13688,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.742132178042084,
+      "elapsed": 0.747393926139921,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13696,7 +13703,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009150546975433826,
+      "elapsed": 0.009912666399031878,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13731,7 +13738,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.6945224362425506,
+      "elapsed": 0.7018399476073682,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 85665,
@@ -13746,7 +13753,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.00909839803352952,
+      "elapsed": 0.009725933894515038,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13784,7 +13791,7 @@
       "candidates": 11221,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.47306297719478607,
+      "elapsed": 0.48005169117823243,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13850,7 +13857,7 @@
       "candidates": 11246,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.4183772369287908,
+      "elapsed": 0.4309491999447346,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13916,7 +13923,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009149535093456507,
+      "elapsed": 0.009326709900051355,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13953,7 +13960,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.6985362791456282,
+      "elapsed": 0.6942133610136807,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -14021,7 +14028,7 @@
     }
   ],
   "model_loss": "log-cost ridge regression; one-sided squared loss for measured censored lower bounds",
-  "offline_seconds": 6.323293922934681,
+  "offline_seconds": 6.374303434044123,
   "primitive_signatures": {
     "!": [
       [
@@ -14145,9 +14152,9 @@
     ]
   },
   "runtime_model": {
-    "intercept": -7.365172501945134,
+    "intercept": -7.290807382572954,
     "ridge": 1.0,
-    "slope": 0.618549715149868,
+    "slope": 0.6135727065500943,
     "target": "elapsed"
   },
   "schema": 1,
@@ -14180,7 +14187,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.00909839803352952,
+          "elapsed": 0.009725933894515038,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14218,7 +14225,7 @@
           "candidates": 11221,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.47306297719478607,
+          "elapsed": 0.48005169117823243,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14284,7 +14291,7 @@
           "candidates": 11246,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.4183772369287908,
+          "elapsed": 0.4309491999447346,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14350,7 +14357,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.009149535093456507,
+          "elapsed": 0.009326709900051355,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14387,7 +14394,7 @@
         {
           "candidates": 20000,
           "censored": true,
-          "elapsed": 0.6985362791456282,
+          "elapsed": 0.6942133610136807,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14407,7 +14414,7 @@
           "candidates": 34,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.009327310137450695,
+          "elapsed": 0.009401781018823385,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14445,7 +14452,7 @@
           "candidates": 5657,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.29454659204930067,
+          "elapsed": 0.29330630507320166,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14520,7 +14527,7 @@
       "candidates": 34,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009386122226715088,
+      "elapsed": 0.00994789320975542,
       "phase": "validation_baseline",
       "productions": [],
       "rank_bound": 80,
@@ -14555,7 +14562,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 1.1555674890987575,
+      "elapsed": 1.160217123106122,
       "phase": "validation_baseline",
       "productions": [],
       "reference_rank_bound": 278130,

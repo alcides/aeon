@@ -30,13 +30,19 @@ binder.
 
 Pure-``ω`` programs trigger no checks and pay no cost. Existing tests
 without any ``0``/``1`` annotation are unaffected.
+
+``borrow`` parameters add scoped read accesses alongside the consumption
+tally. Sequential composition checks that a read precedes every move;
+branches may read differently but must still agree on consumption. Read
+accesses neither discharge a linear obligation nor escape into closures.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from aeon.core.multiplicity import M0, M1, MN, MOmega, Multiplicity, add, mul
+from aeon.core.multiplicity import M0, M1, MN, MOmega, MBorrow, Multiplicity, add, mul
+from aeon.core.substitutions import substitution
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -61,8 +67,14 @@ from aeon.core.types import (
     Type,
     TypeConstructor,
     TypePolymorphism,
+    t_bool,
+    t_float,
+    t_int,
+    t_string,
+    t_unit,
 )
 from aeon.errors import (
+    BorrowingError,
     ErasedUsedAtRuntimeError,
     LinearBranchMismatchError,
     LinearityError,
@@ -128,7 +140,19 @@ class _Deferred:
 # Per-name usage record. ``count`` is the syntactic occurrence count
 # (used for diagnostics); ``mult`` is the QTT multiplicity that drives
 # the binder check. ``_Mismatch`` and ``_Bottom`` flow in place of either.
-_Usage = Multiplicity | _Mismatch | _Bottom | _Deferred
+_Moves = Multiplicity | _Mismatch | _Bottom | _Deferred
+
+
+@dataclass(frozen=True)
+class _BorrowAccess:
+    """Reads plus moves, in evaluation order. Reads never discharge ownership."""
+
+    moves: _Moves = M0
+    after_move: bool = False
+    captured: bool = False
+
+
+_Usage = _Moves | _BorrowAccess
 Tally = dict[Name, _Usage]
 _Counts = dict[Name, int]
 
@@ -144,6 +168,19 @@ def _peel_existential(ty: Type | None) -> Type | None:
 
 
 def _add_usage(a: _Usage, b: _Usage) -> _Usage:
+    if isinstance(a, _BorrowAccess) or isinstance(b, _BorrowAccess):
+        left = a.moves if isinstance(a, _BorrowAccess) else a
+        right = b.moves if isinstance(b, _BorrowAccess) else b
+        minimum = left.minimum if isinstance(left, _Deferred) else left
+        after_move = (
+            (isinstance(a, _BorrowAccess) and a.after_move)
+            or (isinstance(b, _BorrowAccess) and b.after_move)
+            or (isinstance(b, _BorrowAccess) and minimum in (M1, MN, MOmega))
+        )
+        moves = _add_usage(left, right)
+        assert not isinstance(moves, _BorrowAccess)
+        captured = (isinstance(a, _BorrowAccess) and a.captured) or (isinstance(b, _BorrowAccess) and b.captured)
+        return _BorrowAccess(moves, after_move, captured)
     # ``_Bottom`` and ``_Mismatch`` are sticky and dominate addition.
     if isinstance(a, _Bottom) or isinstance(b, _Bottom):
         return _BOTTOM
@@ -159,6 +196,12 @@ def _add_usage(a: _Usage, b: _Usage) -> _Usage:
 
 
 def _scale_usage(scale: Multiplicity, b: _Usage) -> _Usage:
+    if isinstance(b, _BorrowAccess):
+        moves = _scale_usage(scale, b.moves)
+        assert not isinstance(moves, _BorrowAccess)
+        # Arguments are evaluated before the call. Reusing a scalar result
+        # does not repeat the borrow that computed it.
+        return _BorrowAccess(moves, b.after_move, b.captured)
     if isinstance(b, _Bottom):
         return _BOTTOM
     if isinstance(b, _Mismatch):
@@ -369,7 +412,7 @@ class _Walker:
                 return self.tally(expr)
             case Application(fun, arg):
                 ft, fc = self.tally(fun)
-                at, ac = self.tally(arg)
+                at: Tally
                 fun_ty = _peel_existential(self.term_type(fun))
                 if isinstance(fun_ty, AbstractionType):
                     pmult = fun_ty.multiplicity
@@ -378,6 +421,18 @@ class _Walker:
                     # so the syntactic-count semantics from Phase 2a is
                     # preserved as a floor.
                     pmult = M1
+                if pmult is MBorrow:
+                    borrowed = arg
+                    while isinstance(borrowed, Annotation):
+                        borrowed = borrowed.expr
+                    if isinstance(borrowed, Var):
+                        at, ac = {borrowed.name: _BorrowAccess()}, {borrowed.name: 1}
+                    else:
+                        # Evaluating a fresh argument still moves its inputs.
+                        # Only a direct reference borrows an existing owner.
+                        at, ac = self.tally(arg)
+                    return _tally_add(ft, at), _counts_add(fc, ac)
+                at, ac = self.tally(arg)
                 return (
                     _tally_add(ft, _tally_scale(pmult, at)),
                     _counts_add(fc, _counts_scale(pmult, ac)),
@@ -385,7 +440,13 @@ class _Walker:
             case Abstraction(n, body):
                 inner = self.with_var(n, None)
                 bt, bc = inner.tally(body)
-                return _drop(bt, bc, n)
+                bt, bc = _drop(bt, bc, n)
+                # We do not have closure lifetimes. Reject captures of read
+                # borrows instead of letting a closure outlive the owner.
+                for name, use in bt.items():
+                    if isinstance(use, _BorrowAccess):
+                        bt[name] = _BorrowAccess(use.moves, use.after_move, captured=True)
+                return bt, bc
             case Let(n, val, body, _, _):
                 # Best-effort type for the bound name: this lets nested
                 # uses of ``n`` (e.g. partial applications saved into a
@@ -396,6 +457,10 @@ class _Walker:
                 inner = self.with_var(n, val_ty)
                 bt, bc = inner.tally(body)
                 if isinstance(val, Var) and val.name != n:
+                    if isinstance(bt.get(n), _BorrowAccess) or isinstance(bt.get(val.name), _BorrowAccess):
+                        # Preserve evaluation order across aliases. Aggregated
+                        # per-alias tallies cannot order a move against a read.
+                        return self.tally(substitution(body, val, n))
                     # Phase 3 alias projection: ``let n = x`` is pure
                     # renaming. Substitute ``n := x`` in body's tally and
                     # *don't* add a separate ``vt`` contribution — the
@@ -449,6 +514,15 @@ def _branch_merge(
     for k in keys:
         v_then = tt.get(k, M0)
         v_else = et.get(k, M0)
+        borrowed = isinstance(v_then, _BorrowAccess) or isinstance(v_else, _BorrowAccess)
+        after_move = (isinstance(v_then, _BorrowAccess) and v_then.after_move) or (
+            isinstance(v_else, _BorrowAccess) and v_else.after_move
+        )
+        captured = (isinstance(v_then, _BorrowAccess) and v_then.captured) or (
+            isinstance(v_else, _BorrowAccess) and v_else.captured
+        )
+        v_then = v_then.moves if isinstance(v_then, _BorrowAccess) else v_then
+        v_else = v_else.moves if isinstance(v_else, _BorrowAccess) else v_else
         if isinstance(v_then, _Bottom) or isinstance(v_else, _Bottom):
             # If either arm produces ``_Bottom`` (a native FFI body), the
             # whole branch is satisfied for this name.
@@ -477,6 +551,10 @@ def _branch_merge(
             # sticky mismatch carrying the *integer* counts so the user
             # sees concrete numbers in the diagnostic.
             out_t[k] = _Mismatch(then_uses=tc.get(k, 0), else_uses=ec.get(k, 0))
+        if borrowed:
+            moves = out_t[k]
+            assert not isinstance(moves, _BorrowAccess)
+            out_t[k] = _BorrowAccess(moves, after_move, captured)
     out_c: _Counts = {}
     for k in set(tc) | set(ec):
         out_c[k] = max(tc.get(k, 0), ec.get(k, 0))
@@ -516,6 +594,24 @@ def _check_binder(
 
     use = body_tally.get(name, M0)
     count = body_counts.get(name, 0)
+
+    if isinstance(use, _BorrowAccess):
+        if use.captured:
+            errors.append(BorrowingError(name, "read borrows cannot be captured by closures", term))
+            return
+        if use.after_move:
+            errors.append(BorrowingError(name, "the owner has already been consumed", term))
+            return
+        if multiplicity is M0:
+            errors.append(ErasedUsedAtRuntimeError(name=name, term=term))
+            return
+        use = use.moves
+
+    if multiplicity is MBorrow:
+        if use is M0 or isinstance(use, _Bottom) or (isinstance(use, _Deferred) and use.minimum is M0):
+            return
+        errors.append(BorrowingError(name, "a borrowed parameter cannot be consumed, returned, or captured", term))
+        return
 
     # ``_Bottom`` (native FFI body) satisfies any required multiplicity —
     # the body is opaque and the caller-side declaration carries the
@@ -603,11 +699,13 @@ def _check_linear_type_binder(
     linear_types: frozenset[Name],
     errors: list[LinearityError],
 ) -> None:
-    """A binder of a ``linear type`` must be introduced at multiplicity ``1``:
-    anything else would let the value be duplicated (``ω``) or dropped
-    (``0``)."""
+    """Linear owners require ``1``; borrowed parameters retain no ownership.
+
+    Other binders would permit duplication (``ω``) or dropping (``0``).
+    The visitor separately rejects ``borrow`` on local let/rec binders.
+    """
     head = _linear_type_head(declared_type, linear_types)
-    if head is None or multiplicity is M1:
+    if head is None or multiplicity in (M1, MBorrow):
         return
     errors.append(
         LinearTypeNotBoundLinearlyError(
@@ -658,6 +756,26 @@ def _is_native_ffi_call(t: Term) -> bool:
     return False
 
 
+def _check_borrow_signature(ty: Type, term: Term, errors: list[LinearityError]) -> None:
+    """Validate even opaque native functions and annotated function aliases."""
+    if isinstance(ty, AbstractionType):
+        if ty.multiplicity is MBorrow:
+            result = _peel_existential(ty.type)
+            while isinstance(result, RefinedType):
+                result = result.type
+            if result not in (t_bool, t_float, t_int, t_string, t_unit):
+                errors.append(BorrowingError(ty.var_name, "a borrowing function must return a scalar value", term))
+        _check_borrow_signature(ty.var_type, term, errors)
+        _check_borrow_signature(ty.type, term, errors)
+    elif isinstance(ty, (ExistentialType, TypePolymorphism, RefinementPolymorphism)):
+        _check_borrow_signature(ty.body, term, errors)
+    elif isinstance(ty, RefinedType):
+        _check_borrow_signature(ty.type, term, errors)
+    elif isinstance(ty, TypeConstructor):
+        for arg in ty.args:
+            _check_borrow_signature(arg, term, errors)
+
+
 def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[LinearityError]:
     """Walk ``term`` and return any linearity violations. Empty list ⇔ OK.
 
@@ -677,6 +795,7 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
     if ctx is not None:
         for n, t in ctx.vars():
             initial_types[n] = t
+            _check_borrow_signature(t, term, errors)
         linear_types = frozenset(
             entry.name for entry in ctx.entries if isinstance(entry, TypeConstructorBinder) and entry.linear
         )
@@ -691,7 +810,8 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
             case Literal() | Var() | Hole():
                 return
             case Annotation(expr, _):
-                visit(expr, walker, expected_ty)
+                _check_borrow_signature(node.type, node, errors)
+                visit(expr, walker, node.type)
             case Application(fun, arg):
                 visit(fun, walker)
                 fun_ty = _peel_existential(walker.term_type(fun))
@@ -722,12 +842,14 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                     inner_ty = None
                     body_ty = None
                 inner = walker.with_var(name, inner_ty)
-                if param_mult is M0 or param_mult is M1:
+                if param_mult in (M0, M1, MBorrow):
                     bt, bc = inner.tally(body)
                     _check_binder(name, param_mult, bt, bc, node, errors)
                 _check_linear_type_binder(name, inner_ty, param_mult, node, linear_types, errors)
                 visit(body, inner, body_ty)
             case Let(name, val, body, _, mult):
+                if mult is MBorrow:
+                    errors.append(BorrowingError(name, "borrow is only supported on function parameters", node))
                 # Inline-infer ``val``'s type so ``name`` carries it
                 # forward; downstream applications of ``name`` then scale
                 # by the *declared* parameter multiplicity instead of
@@ -741,6 +863,9 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 visit(val, walker)
                 visit(body, inner)
             case Rec(name, var_type, val, body, _, _, mult):
+                _check_borrow_signature(var_type, node, errors)
+                if mult is MBorrow:
+                    errors.append(BorrowingError(name, "borrow is only supported on function parameters", node))
                 inner = walker.with_var(name, var_type)
                 if mult is M0 or mult is M1:
                     bt, bc = inner.tally(body)

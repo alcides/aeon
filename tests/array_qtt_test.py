@@ -106,7 +106,9 @@ open Array
 def fork (n: Int) : Int :=
     let 1 a := Array.mk_2 n 7 in
     with_pair (copy a) (fun left => fun right =>
-        sum left + length right);
+        let count := length right in
+        let _ := dispose right in
+        sum left + count);
 
 def main (args: Int) : Unit := print "ok";
 """

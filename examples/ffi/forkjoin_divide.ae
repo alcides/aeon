@@ -17,6 +17,8 @@ def parallel_lengths (1 xs: {a: (Array Int) | Array.size a >= 2}) : Int :=
     let 1 right := ForkJoin.half_right h in
     let l := Array.length left in
     let r := Array.length right in
+    let _ := Array.dispose left in
+    let _ := Array.dispose right in
     let 1 p0 := ForkJoin.pool 2 in
     let f := ForkJoin.fork2 p0 (ret l) (ret r) in
     let 1 p1 := ForkJoin.forked2_pool f in

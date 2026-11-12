@@ -124,7 +124,8 @@ def test_psb2_objective_vector_rejects_wrong_runtime_length():
     d = driver(check=False)
     src = """import PSB2; import Array;
 def main (_:Int) : Int :=
-    let 1 xs := PSB2.objective_errors #[1] 2 in Array.length xs;"""
+    let 1 xs := PSB2.objective_errors #[1] 2 in
+    let n := Array.length xs in let _ := Array.dispose xs in n;"""
     assert not d.parse(aeon_code=src)
     with pytest.raises(ValueError, match="unexpected PSB2 objective count"):
         d.run()

@@ -37,7 +37,9 @@ def expectMostlyBelow7
          | Array.size ys > 0
            && fracBelow ys 7.0 >= 0.99})
     : Unit
-    := print (Array.length xs)
+    := let n := Array.length xs in
+       let _ := Array.dispose xs in
+       print n
 
 # ─── Driver: GOOD case  (a=2, b=1  ⇒  threshold=4.33 <= 7) ─────────────
 

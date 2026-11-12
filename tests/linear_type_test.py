@@ -213,16 +213,7 @@ def lifecycle (port: { p: Int | (p >= 0) && (p <= 65535) }) : Unit :=
 READER = """
 open Array
 
-type ArrayGet a
-
-def got_size : (g: (ArrayGet a)) -> Int := uninterpreted
-
-def get_at (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) :
-    {g: (ArrayGet a<p>) | got_size g = size arr} := native "(arr[i], arr)";
-def got_value (g: (ArrayGet a<p>)) : a<p> := native "g[0]";
-def got_array (g: (ArrayGet a<p>)) : {r: (Array a<p>) | size r = got_size g} := native "g[1]";
-
-def use_positive (v: {x:Int | x > 0}) : Int := v;
+def use_positive (1 v: {x:Int | x > 0}) : Int := v;
 """
 
 
@@ -233,7 +224,7 @@ def test_reader_preserves_the_element_refinement():
         READER
         + """
 def read (1 arr: {r: (Array {x:Int | x > 0}) | size r = 3}) : Int :=
-    let g := get_at arr 0 in
+    let 1 g := get_at arr 0 in
     use_positive (got_value g);"""
         + MAIN
     )
@@ -247,11 +238,8 @@ def test_reader_preserves_the_length_measure():
         READER
         + """
 def read_twice (1 arr: {r: (Array {x:Int | x > 0}) | size r = 3}) : Int :=
-    let g := get_at arr 0 in
-    let a := use_positive (got_value g) in
-    let 1 back := got_array g in
-    let g2 := get_at back 2 in
-    a + use_positive (got_value g2);"""
+    with_get (get_at arr 0) (fun first => fun back =>
+        use_positive first + use_positive (get back 2));"""
         + MAIN
     )
     assert _parse(src) == []
@@ -262,7 +250,7 @@ def test_reader_rejects_an_out_of_range_index():
         READER
         + """
 def read (1 arr: {r: (Array {x:Int | x > 0}) | size r = 3}) : Int :=
-    let g := get_at arr 7 in
+    let 1 g := get_at arr 7 in
     use_positive (got_value g);"""
         + MAIN
     )
@@ -275,7 +263,7 @@ def test_reader_does_not_invent_a_refinement():
         READER
         + """
 def read (1 arr: {r: (Array Int) | size r = 3}) : Int :=
-    let g := get_at arr 0 in
+    let 1 g := get_at arr 0 in
     use_positive (got_value g);"""
         + MAIN
     )

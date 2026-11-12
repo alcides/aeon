@@ -21,5 +21,6 @@ def main (_: Int) : Unit :=
     let 1 xs1 := Array.mk_concat xs0 (Array.mk_1 3) in
     let 1 ys := ForkJoin.par_map 2 inc xs1 in
     let n := Array.length ys in
+    let _ := Array.dispose ys in
     let _ := print sum in
     print n;

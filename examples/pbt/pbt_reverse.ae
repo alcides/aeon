@@ -5,8 +5,11 @@ def reverse (1 xs: (Array Int)) : (Array Int) := xs.reversed
 
 
 def prop_reversed_lists_same_size (1 xs:(Array Int)) : Bool :=
-    with_pair (copy xs) (fun a => fun b =>
-        (length a) = (length (reverse b)));
+    let before := length xs in
+    let 1 reversed := reverse xs in
+    let after := length reversed in
+    let _ := dispose reversed in
+    before = after;
 
 def list_property_testing (y: Int) : Float := forAllLists prop_reversed_lists_same_size
 
