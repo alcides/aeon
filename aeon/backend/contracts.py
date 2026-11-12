@@ -101,6 +101,7 @@ def check_param_refinement(
     callee: Name,
     loc: Location | None,
     env: dict[Name, Any] | None = None,
+    blame: str = "caller",
 ) -> None:
     param_type = _strip_type_wrappers(param_type)
     if not isinstance(param_type, RefinedType):
@@ -109,7 +110,7 @@ def check_param_refinement(
     if opened is None:
         return
     env = {**(env or {}), param_name: value}
-    _check_liquid(opened, env, state, blame="caller", callee=callee, loc=loc)
+    _check_liquid(opened, env, state, blame=blame, callee=callee, loc=loc)
 
 
 def check_return_refinement(
@@ -120,12 +121,13 @@ def check_return_refinement(
     callee: Name,
     loc: Location | None,
     env: dict[Name, Any] | None = None,
+    blame: str = "callee",
 ) -> None:
     return_type = _strip_type_wrappers(return_type)
     if not isinstance(return_type, RefinedType):
         return
     env = {**(env or {}), return_type.name: value}
-    _check_liquid(return_type.refinement, env, state, blame="callee", callee=callee, loc=loc)
+    _check_liquid(return_type.refinement, env, state, blame=blame, callee=callee, loc=loc)
 
 
 @dataclass
@@ -138,20 +140,71 @@ class ContractClosure:
     state: ContractState
     loc: Location | None = None
     env: dict[Name, Any] = field(default_factory=dict)
+    positive_blame: str = "callee"
+    negative_blame: str = "caller"
 
     def __call__(self, arg: Any) -> Any:
         ty = _strip_type_wrappers(self.arrow_type)
         if isinstance(ty, AbstractionType):
             env = {**self.env, ty.var_name: arg}
-            check_param_refinement(ty.var_type, ty.var_name, arg, self.state, callee=self.callee, loc=self.loc, env=env)
+            check_param_refinement(
+                ty.var_type,
+                ty.var_name,
+                arg,
+                self.state,
+                callee=self.callee,
+                loc=self.loc,
+                env=env,
+                blame=self.negative_blame,
+            )
+            argument_type = _strip_type_wrappers(ty.var_type)
+            if isinstance(argument_type, AbstractionType):
+                # A function argument crosses the boundary in the opposite
+                # direction: this callee becomes the callback's caller.
+                arg = ContractClosure(
+                    arg,
+                    argument_type,
+                    self.callee,
+                    self.state,
+                    loc=self.loc,
+                    env=env,
+                    positive_blame=self.negative_blame,
+                    negative_blame=self.positive_blame,
+                )
+                env = {**env, ty.var_name: arg}
             result = self.fn(arg)
             rest = _strip_type_wrappers(ty.type)
             if isinstance(rest, AbstractionType):
-                return ContractClosure(result, rest, self.callee, self.state, loc=self.loc, env=env)
-            check_return_refinement(rest, result, self.state, callee=self.callee, loc=self.loc, env=env)
+                return ContractClosure(
+                    result,
+                    rest,
+                    self.callee,
+                    self.state,
+                    loc=self.loc,
+                    env=env,
+                    positive_blame=self.positive_blame,
+                    negative_blame=self.negative_blame,
+                )
+            check_return_refinement(
+                rest,
+                result,
+                self.state,
+                callee=self.callee,
+                loc=self.loc,
+                env=env,
+                blame=self.positive_blame,
+            )
             return result
         result = self.fn(arg)
-        check_return_refinement(ty, result, self.state, callee=self.callee, loc=self.loc, env=self.env)
+        check_return_refinement(
+            ty,
+            result,
+            self.state,
+            callee=self.callee,
+            loc=self.loc,
+            env=self.env,
+            blame=self.positive_blame,
+        )
         return result
 
 
