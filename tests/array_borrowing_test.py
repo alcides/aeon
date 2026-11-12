@@ -33,6 +33,10 @@ def compile_source(source):
         ("let n := Array.length arr in let done := Array.dispose arr in n", 2),
         ("let reader := Array.length in let n := reader arr in n + (Array.consume Array.sum) arr", 16),
         ("let 1 other := arr in let n := Array.length arr in n + (Array.consume Array.sum) other", 16),
+        ("Array.consume Array.sum (Array.set arr (Array.length arr - 1) 7)", 12),
+        ("Array.consume Array.sum (Array.set arr 0 (Array.get arr 1))", 18),
+        ("let update := Array.set in Array.consume Array.sum (update arr (Array.length arr - 1) 7)", 12),
+        ("let 1 other := arr in Array.consume Array.sum (Array.set other (Array.length arr - 1) 7)", 12),
     ],
 )
 def test_borrow_then_consume(body, expected):
@@ -51,7 +55,6 @@ def test_borrow_then_consume(body, expected):
         "let n := if true then (Array.consume Array.sum) arr else (Array.consume Array.sum) arr in Array.length arr",
         "let reader:(x:Int) -> Int := fun x => Array.length arr in let n := (Array.consume Array.sum) arr in reader 0",
         "let reader:(x:Int) -> Int := fun x => Array.length arr in reader 0",
-        "(Array.consume Array.sum) (Array.set arr (Array.length arr - 1) 7)",
     ],
 )
 def test_read_after_move_or_escaping_capture_is_rejected(body):
@@ -179,6 +182,7 @@ def test_two_borrowed_arguments_and_repeated_element_reads():
     [
         "let at := Array.get arr in let _ := Array.dispose arr in at 0",
         "let update := Array.set arr in Array.consume Array.sum (update 0 3)",
+        "let update := Array.set arr (Array.length arr - 1) in Array.consume Array.sum (update 3)",
         "let f:(x:Int) -> Int := fun x => Array.consume Array.sum arr in f 0 + f 1",
         "read arr (let _ := Array.dispose arr in 0)",
     ],
@@ -189,6 +193,113 @@ def test_retained_partial_calls_and_moves_during_later_arguments_are_rejected(bo
         def main (_:Int):Int := let 1 arr := #[5,9] in {body};
     """)
     assert any(isinstance(error, LinearityError) for error in errors), errors
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "own_then_read arr arr",
+        "read_then_own arr arr",
+        "own_then_read arr (Array.set arr 0 7)",
+        "Array.consume Array.sum (Array.set arr (let _ := Array.dispose arr in 0) 7)",
+    ],
+)
+def test_complete_call_cannot_move_a_reserved_owner_or_pass_an_alias(body):
+    _, errors = compile_source(f"""
+        def own_then_read (1 left:(Array Int)) (borrow right:(Array Int)):Int :=
+            let n := Array.length right in let _ := Array.dispose left in n;
+        def read_then_own (borrow left:(Array Int)) (1 right:(Array Int)):Int :=
+            let n := Array.length left in let _ := Array.dispose right in n;
+        def main (_:Int):Int := let 1 arr := #[5,9] in {body};
+    """)
+    assert any(isinstance(error, LinearityError) for error in errors), errors
+
+
+def test_curried_resource_body_cannot_execute_before_later_arguments():
+    _, errors = compile_source("""
+        def early (1 arr:(Array Int)):(index:Int) -> Int :=
+            let _ := Array.dispose arr in fun index => index;
+        def main (_:Int):Int := let 1 arr := #[5,9] in early arr (Array.length arr);
+    """)
+    assert any(isinstance(error, BorrowingError) and "remaining parameters" in str(error) for error in errors), errors
+
+
+def test_generic_owning_function_cannot_execute_before_later_arguments():
+    _, errors = compile_source("""
+        def early (1 value:a):(index:Int) -> Int :=
+            let _ := print value in fun index => index;
+        def main (_:Int):Int := let 1 arr := #[5,9] in early arr (Array.length arr);
+    """)
+    assert any(isinstance(error, BorrowingError) and "remaining parameters" in str(error) for error in errors), errors
+
+
+@pytest.mark.parametrize("opaque", [True, False])
+def test_abstract_resource_types_cannot_hide_early_consumption(opaque):
+    from aeon.core.terms import Abstraction, Annotation, Application, Let, Var
+    from aeon.core.types import ArrowKind, Kind, top, t_unit
+
+    ty = top if opaque else TypeConstructor(Name("f"), [t_int])
+    xs, n, consume, done = (Name(name) for name in ("xs", "n", "consume", "done"))
+    signature = AbstractionType(xs, ty, AbstractionType(n, t_int, t_int), multiplicity=M1)
+    body = Abstraction(xs, Let(done, Application(Var(consume), Var(xs)), Abstraction(n, Var(n))))
+    ctx = TypingContext().with_var(consume, AbstractionType(xs, ty, t_unit, multiplicity=M1))
+    if not opaque:
+        ctx = ctx.with_typevar(Name("f"), ArrowKind(Kind.BASE, Kind.BASE))
+    errors = check_linearity(Annotation(body, signature), ctx)
+    assert any(isinstance(error, BorrowingError) and "remaining parameters" in str(error) for error in errors), errors
+
+
+def test_ordinary_linear_scalar_function_can_still_compute_between_arguments():
+    driver, errors = compile_source("""
+        def early (1 value:Int):(index:Int) -> Int :=
+            let n := value + 1 in fun index => n + index;
+        def main (_:Int):Int := early 3 4;
+    """)
+    assert not errors, errors
+    assert driver.run() == 8
+
+
+def test_owned_curried_call_through_a_function_parameter():
+    driver, errors = compile_source("""
+        def finish (1 xs:(Array Int)) (n:Int):Int :=
+            let _ := Array.dispose xs in n;
+        def invoke (f:(1 xs:(Array Int)) -> (n:Int) -> Int) (1 xs:(Array Int)):Int :=
+            f xs (Array.length xs);
+        def main (_:Int):Int := invoke finish #[5,9];
+    """)
+    assert not errors, errors
+    assert driver.run() == 2
+
+
+def test_partial_application_before_supplying_an_owner_remains_available():
+    driver, errors = compile_source("""
+        def finish (extra:Int) (1 xs:(Array Int)) (n:Int):Int :=
+            let _ := Array.dispose xs in extra + n;
+        def main (_:Int):Int :=
+            let add_ten := finish 10 in
+            let 1 xs := #[5,9] in
+            add_ten xs (Array.length xs);
+    """)
+    assert not errors, errors
+    assert driver.run() == 12
+
+
+@pytest.mark.parametrize("contracts", [False, True])
+def test_complete_update_observes_later_arguments_before_mutation(contracts):
+    driver = AeonDriver(AeonConfig("none", SilentSynthesisUI(), 0, contracts=contracts))
+    errors = list(
+        driver.parse(
+            aeon_code="""
+        import Array;
+        def main (_:Int):Int :=
+            let 1 xs := #[5,9] in
+            let 1 updated := Array.set xs (Array.length xs - 1) (Array.get xs 0) in
+            Array.take updated 1;
+    """
+        )
+    )
+    assert not errors, errors
+    assert driver.run() == 5
 
 
 def test_pure_borrower_can_allocate_independent_owned_result():

@@ -56,24 +56,27 @@ let at := Array.get xs in ...                  # retained partial borrow
 read xs (let _ := Array.dispose xs in 0)       # move during an active borrow
 ```
 
-The full application rule avoids implicit, untracked lifetimes for partial
-applications. An argument expression is evaluated from left to right; compute
-any observation needed for a consuming update before supplying its owner.
-
-For example, `Array.set xs (Array.length xs - 1) value` is rejected: supplying
-the first argument moves `xs`, so the second argument cannot borrow it. Write:
+Partial applications that retain a resource are rejected; partial applications
+of ordinary values remain available. A fully applied call may observe an owned
+variable while evaluating its later arguments:
 
 ```aeon
-let last := Array.length xs - 1 in
-let 1 updated := Array.set xs last value in ...
+let 1 updated := Array.set xs (Array.length xs - 1) value in ...
 ```
 
-A future two-phase rule could reserve the owner at the first argument and move
-it only when the complete call starts. While reserved, later arguments could
-read it but could neither move nor mutate it. Such a rule must also define
-which curried functions defer effects until full application; applying an
-arbitrary function to its first argument can itself perform work. It is not
-enough to postpone the check while keeping those evaluation semantics.
+Supplying `xs` reserves it, and ownership transfers when the function body
+starts. Later argument expressions may read it but cannot move or mutate it.
+The call cannot also receive a borrowed alias of its owned argument: that borrow
+would remain active during mutation. Only direct owned variables (including
+annotations and simple aliases) receive this treatment; expressions that produce
+an owner perform their own consuming operations as they are evaluated.
+
+To keep ordinary curried evaluation safe, functions taking resources must bind
+all remaining parameters before executing their body. `def f (1 xs:...) (n:Int)`
+does this naturally. An implementation that consumes `xs` and only then returns
+`fun n => ...` is rejected. This also applies to generic owning parameters, which
+can be instantiated with a linear type. Computation inside ordinary functions
+retains its existing evaluation order.
 
 To support retained partial applications later, function values need a way to
 express captured ownership or a borrow lifetime. A borrowed closure would freeze
@@ -83,7 +86,8 @@ Reordering a function's arguments helps particular call sites but does not solve
 this general lifetime problem.
 
 Native FFI bodies remain trusted. They must neither mutate borrowed inputs nor
-return references to their owned storage. The checker cannot inspect arbitrary
+return references to their owned storage; native function values must also defer
+resource access until all their arguments are supplied. The checker cannot inspect arbitrary
 Python code to prove those obligations. ReadOnly views supplied to NDArray
 callbacks additionally enforce expiration at runtime; they do not provide a
 general static lifetime system.
