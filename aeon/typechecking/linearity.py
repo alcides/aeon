@@ -68,6 +68,9 @@ from aeon.core.types import (
     Type,
     TypeConstructor,
     TypePolymorphism,
+    TypeVar,
+    Top,
+    builtin_core_types,
 )
 from aeon.errors import (
     BorrowingError,
@@ -434,15 +437,29 @@ class _Walker:
                 head, applications = _application_spine(term)
                 ft, fc = self.tally(head)
                 active: Tally = {}
+                reserved: Tally = {}
+                result_type = self.term_type(term)
+                complete = result_type is not None and not isinstance(_peel_existential(result_type), AbstractionType)
                 for application in applications:
                     arg = application.arg
                     fun_ty = _peel_existential(self.term_type(application.fun))
                     pmult = fun_ty.multiplicity if isinstance(fun_ty, AbstractionType) else M1
                     at: Tally
-                    if pmult is MBorrow:
-                        borrowed = arg
-                        while isinstance(borrowed, Annotation):
-                            borrowed = borrowed.expr
+                    borrowed = arg
+                    while isinstance(borrowed, Annotation):
+                        borrowed = borrowed.expr
+                    if (
+                        complete
+                        and pmult is M1
+                        and isinstance(borrowed, Var)
+                        and _linear_type_head(self.term_type(arg), self.linear_types)
+                    ):
+                        # A complete resource call's curried prefixes only
+                        # bind arguments. Transfer the owner when its body
+                        # starts, after later argument expressions have run.
+                        reserved = _tally_add(reserved, {borrowed.name: M1})
+                        at, ac = {}, {borrowed.name: 1}
+                    elif pmult is MBorrow:
                         if isinstance(borrowed, Var):
                             at, ac = {borrowed.name: _BorrowAccess()}, {borrowed.name: 1}
                             active[borrowed.name] = _BorrowAccess()
@@ -465,10 +482,10 @@ class _Walker:
                             }
                         at, ac = _tally_scale(pmult, at), _counts_scale(pmult, ac)
                     ft, fc = _tally_add(ft, at), _counts_add(fc, ac)
-                # A curried call retains its early borrows while evaluating
-                # later arguments and running the body. Moving an early
-                # borrowed owner in a later argument is therefore invalid.
-                return _tally_add(ft, active), fc
+                # A borrow passed to this call lasts through its body: it
+                # cannot alias an owner transferred to the same call. Nested
+                # observations in argument expressions have already ended.
+                return _tally_add(_tally_add(ft, reserved), active), fc
             case Abstraction(n, body):
                 inner = self.with_var(n, None)
                 bt, bc = inner.tally(body)
@@ -805,6 +822,28 @@ def _application_spine(term: Term) -> tuple[Term, list[Application]]:
             return term, list(reversed(applications))
 
 
+def _has_curried_parameters(body: Term, expected: Type | None) -> bool:
+    """Whether every remaining parameter is bound before executing any code."""
+    expected = _peel_existential(expected)
+    while isinstance(expected, AbstractionType):
+        while isinstance(body, (Annotation, TypeAbstraction, RefinementAbstraction)):
+            body = body.expr if isinstance(body, Annotation) else body.body
+        if not isinstance(body, Abstraction):
+            return False
+        body = body.body
+        expected = _peel_existential(expected.type)
+    return True
+
+
+def _may_be_resource(ty: Type | None, unrestricted_types: frozenset[Name]) -> bool:
+    ty = _peel_existential(ty)
+    while isinstance(ty, RefinedType):
+        ty = ty.type
+    # Type variables, higher-kinded constructor variables, and Top can admit
+    # linear owners. Only known unrestricted constructors rule that out.
+    return isinstance(ty, (TypeVar, Top)) or (isinstance(ty, TypeConstructor) and ty.name not in unrestricted_types)
+
+
 def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[LinearityError]:
     """Walk ``term`` and return any linearity violations. Empty list ⇔ OK.
 
@@ -821,12 +860,17 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
     errors: list[LinearityError] = []
     initial_types: dict[Name, Type] = {}
     linear_types: frozenset[Name] = frozenset()
+    unrestricted_types = frozenset(ty.name for ty in builtin_core_types)
     if ctx is not None:
         for n, t in ctx.vars():
             initial_types[n] = t
         linear_types = frozenset(
             entry.name for entry in ctx.entries if isinstance(entry, TypeConstructorBinder) and entry.linear
         )
+        unrestricted_types |= frozenset(
+            entry.name for entry in ctx.entries if isinstance(entry, TypeConstructorBinder) and not entry.linear
+        )
+        unrestricted_types -= linear_types
 
     def visit(node: Term, walker: _Walker, expected_ty: Type | None = None) -> None:
         # When ``expected_ty`` is an ``AbstractionType``, the outer
@@ -877,6 +921,16 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                     inner_ty = None
                     body_ty = None
                 inner = walker.with_var(name, inner_ty)
+                if (
+                    param_mult is MBorrow or (param_mult is M1 and _may_be_resource(inner_ty, unrestricted_types))
+                ) and not _has_curried_parameters(body, body_ty):
+                    errors.append(
+                        BorrowingError(
+                            name,
+                            "bind all remaining parameters before executing a resource-taking function body",
+                            node,
+                        )
+                    )
                 if param_mult in (M0, M1, MBorrow):
                     bt, bc = inner.function_body_tally(body, body_ty)
                     _check_binder(name, param_mult, bt, bc, node, errors)

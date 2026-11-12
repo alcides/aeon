@@ -11,7 +11,7 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 # Bump when the on-disk .aec layout or semantics change.
-AEC_FORMAT_VERSION = 10
+AEC_FORMAT_VERSION = 11
 
 
 @dataclass(frozen=True)
