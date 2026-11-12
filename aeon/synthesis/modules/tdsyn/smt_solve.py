@@ -1,7 +1,21 @@
 from __future__ import annotations
 
+from math import isfinite
 
-from z3 import BoolRef, Length, Not, Or, Solver, StrToCode, SubString, sat, unsat
+from z3 import (
+    BoolRef,
+    Length,
+    Not,
+    Or,
+    Solver,
+    StrToCode,
+    SubString,
+    is_algebraic_value,
+    is_rational_value,
+    sat,
+    simplify,
+    unsat,
+)
 from z3.z3types import Z3Exception
 from z3.z3 import ModelRef
 
@@ -125,6 +139,29 @@ def _literal_models(
     return solutions
 
 
+def _model_float(value) -> float:
+    """Convert the exact model number to a Python float without decimal truncation."""
+    if is_rational_value(value):
+        result = float(value.as_fraction())
+    elif is_algebraic_value(value):
+        # Refine rational bounds until both round to the same binary float.
+        # A fixed number of decimal places loses tiny nonzero solutions.
+        negative = simplify(-value)
+        precision = 16
+        while True:
+            upper = float(value.approx(precision).as_fraction())
+            lower = float(-negative.approx(precision).as_fraction())
+            if lower == upper:
+                result = lower
+                break
+            precision *= 2
+    else:
+        raise ValueError("model number is not a real numeral")
+    if not isfinite(result):
+        raise ValueError("model number is outside the finite Float range")
+    return result
+
+
 def _extract_solution(
     model: ModelRef,
     holes: list[TypedHole],
@@ -153,7 +190,7 @@ def _extract_solution(
                     bool_val = is_true(val)
                     solution[hole.name] = Literal(bool_val, t_bool, _loc)
                 case "Float":
-                    float_val = float(val.as_decimal(10).rstrip("?"))
+                    float_val = _model_float(val)
                     solution[hole.name] = Literal(float_val, t_float, _loc)
                 case "String":
                     # as_string() renders non-ASCII codepoints as textual
