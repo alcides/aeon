@@ -13,7 +13,7 @@ from aeon.core.terms import Term, Var
 from aeon.core.types import RefinedType, RefinementPolymorphism, Type, TypePolymorphism, t_unit
 from aeon.synthesis.grammar.nonterminals import ExpressionDomain
 from aeon.synthesis.grammar.constant_constraints import conflicting_integer_equalities
-from aeon.synthesis.modules.tdsyn.worklist import TypedHole, substitute_holes_map
+from aeon.synthesis.modules.tdsyn.worklist import TypedHole, scoped_children, substitute_holes_map
 from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.typechecking.entailment import entailment_context
 from aeon.utils.name import Name, fresh_counter
@@ -52,6 +52,22 @@ def symbolic_term(term: Term, holes: list[TypedHole]) -> LiquidTerm | None:
     return liquefy(substitute_holes_map(term, {h.name: Var(h.name) for h in holes}))
 
 
+def guarded_predicate(hole: TypedHole, predicate: LiquidTerm) -> LiquidTerm:
+    for guard in reversed(hole.guards):
+        predicate = LiquidApp(Name("-->", 0), [guard, predicate])
+    return predicate
+
+
+def add_hole_binding(hole: TypedHole, bindings: dict[Name, Type], predicates: list[LiquidTerm]) -> None:
+    """Declare the witness globally, but require its contract only on its path."""
+    ty = hole.expected_type
+    if hole.guards and isinstance(ty, RefinedType):
+        bindings[hole.name] = ty.type
+        predicates.append(guarded_predicate(hole, predicate_at(ty, LiquidVar(hole.name))))
+    else:
+        bindings[hole.name] = ty
+
+
 def obligations(
     hole: TypedHole, replacement: Term, children: list[TypedHole], actual_type: Type | None = None
 ) -> tuple[dict[Name, Type], list[LiquidTerm]]:
@@ -60,12 +76,12 @@ def obligations(
         # values. Their applications are checked at the predicate boundary.
         return {}, []
     bindings = dict(hole.bindings)
-    bindings[hole.name] = hole.expected_type
     predicates = list(hole.constraints)
-    for child in children:
+    add_hole_binding(hole, bindings, predicates)
+    for child in scoped_children(hole, replacement, children):
         bindings.update(child.bindings)
-        bindings[child.name] = child.expected_type
         predicates.extend(child.constraints)
+        add_hole_binding(child, bindings, predicates)
     # Unrefined generation needs no result relation. Keep the witness types
     # for dependent siblings, but avoid turning ordinary PBT sampling into an
     # SMT query for every constructor and every unconstrained scalar.
@@ -80,7 +96,7 @@ def obligations(
         _, actual_type = synth(hole.context, replacement)
     value = LiquidVar(hole.name)
     if actual_type is not None:
-        predicates.append(predicate_at(actual_type, value))
+        predicates.append(guarded_predicate(hole, predicate_at(actual_type, value)))
     expression = symbolic_term(replacement, children)
     # Polymorphic runtime-only functions are not declared by entailment_context.
     # Their instantiated return contract above is the sound abstraction for
@@ -94,7 +110,7 @@ def obligations(
         for entry in hole.context.entries
     )
     if expression is not None and not runtime_polymorphic:
-        predicates.append(LiquidApp(Name("==", 0), [value, expression]))
+        predicates.append(guarded_predicate(hole, LiquidApp(Name("==", 0), [value, expression])))
     return bindings, list(dict.fromkeys(p for p in predicates if p != LiquidLiteralBool(True)))
 
 
