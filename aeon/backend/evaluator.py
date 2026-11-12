@@ -122,6 +122,13 @@ def _wrap_if_contract(
     return wrap_callable(fn, fn_type, callee, ctx.contract_state, loc=loc, env=ctx.variables)
 
 
+def _check_binding_contract(value: Any, ty: Type, name: Name, ctx: EvaluationContext, *, loc) -> None:
+    if ctx.contract_state is not None:
+        from aeon.backend.contracts import check_return_refinement
+
+        check_return_refinement(ty, value, ctx.contract_state, callee=name, loc=loc, env=ctx.variables)
+
+
 # pattern match term
 def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
     match t:
@@ -211,6 +218,9 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                     # (closures resolve siblings lazily) and patch the cell.
                     group_ctx.variables[m.var_name] = None
                     group_ctx.variables[m.var_name] = eval(m.var_value, group_ctx)
+                    _check_binding_contract(
+                        group_ctx.variables[m.var_name], m.var_type, m.var_name, group_ctx, loc=m.loc
+                    )
             return eval(final_body, group_ctx)
         case Rec(var_name, var_type, var_value, body, _, _):
             found_llvm = False
@@ -233,6 +243,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                         if callable(compiled)
                         else compiled
                     )
+                    _check_binding_contract(v, var_type, var_name, ctx, loc=t.loc)
                     try:
                         return eval(body, ctx.with_var(var_name, v))
                     except LLVMBackendError:
@@ -279,6 +290,7 @@ def eval(t: Term, ctx: EvaluationContext = EvaluationContext()) -> Any:
                 rec_ctx = ctx.with_var(var_name, None)
                 v = eval(var_value, rec_ctx)
                 rec_ctx.variables[var_name] = v
+                _check_binding_contract(v, var_type, var_name, rec_ctx, loc=t.loc)
             return eval(body, ctx.with_var(var_name, v))
         case If(cond, then, otherwise):
             c = eval(cond, ctx)
