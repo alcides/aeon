@@ -15,6 +15,12 @@ def build (n: Int) : Int :=
     let 1 a2 := set a1 0 n in
     sum a2;
 
+# Update an element, then consume the resulting array to read its length.
+def length_after_update (n: Int) : {count:Int | count = 2} :=
+    let 1 arr := #[5, 9] in
+    let 1 updated := Array.set arr 0 n in
+    Array.length updated;
+
 def fork (n: Int) : Int :=
     let 1 a := Array.mk_2 n 7 in
     with_pair (copy a) (fun left => fun right =>
@@ -23,4 +29,5 @@ def fork (n: Int) : Int :=
 def main (args: Int) : Unit :=
     let total := build 10 in
     let forked := fork 3 in
-    print (total + forked);
+    let count := length_after_update 7 in
+    print (total + forked + count);

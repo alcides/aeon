@@ -32,11 +32,10 @@
 #     ``empty``) also consume the array, because reading it uses up the one
 #     reference. Terminal reads therefore need nothing special:
 #     ``length #[5, 6, 7]`` is fine. To read a value *and carry on* with the
-#     array, use ``get_at`` / ``len_of``: they hand back an opaque result
-#     carrying both the value read and the array itself, which
-#     ``with_get`` / ``with_len`` consume together. Both wrappers are
-#     refinement-parametric and thread the
-#     ``size`` measure, so nothing is lost by the round trip.
+#     array, use ``get_at`` with ``with_get``. For length checks, first
+#     perform updates with ``set`` and then call ``length`` on the result.
+#     These operations preserve the element predicate and the ``size``
+#     measure.
 #
 # When you need two genuinely independent arrays — to branch a computation
 # in two — call ``copy``: it consumes the array once and hands back two
@@ -56,26 +55,22 @@ linear type ArrayPair a
 # Result of ``get_at``: the element read, plus the array it was read from.
 linear type ArrayGet a
 
-# Result of ``len_of``: the length, plus the array it was measured from.
-linear type ArrayLen a
-
 def functools : Unit := native_import "functools"
 
 
 # Abstract length measure.
 def size : (arr: (Array a)) -> Int := uninterpreted
 
-# Length carried by an ``ArrayGet`` / ``ArrayLen`` wrapper — the ``size`` of
-# the array inside it. Lets the projections restate the length they were
-# built with, so threading an array through a read loses nothing.
+# Length carried by an ``ArrayGet`` wrapper — the ``size`` of the array
+# inside it. Lets the projections restate the length they were built with,
+# so threading an array through a read loses nothing.
 def got_size : (g: (ArrayGet a)) -> Int := uninterpreted
-def held_size : (l: (ArrayLen a)) -> Int := uninterpreted
 
 # Common length of the two arrays inside an ``ArrayPair``.
 def pair_size : (pr: (ArrayPair a)) -> Int := uninterpreted
 
 
-# Length of the array. Consumes it; use ``len_of`` to keep the array.
+# Length of the array. Consumes it; perform array updates before this read.
 def length (1 arr: (Array a)) : {n:Int | n = size arr} :=
     native "len(arr)"
 
@@ -161,9 +156,9 @@ def snd_array (1 pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size p
 
 # ── Reading without giving up the array ─────────────────────────────────
 #
-# ``get_at`` / ``len_of`` consume the array and return a wrapper holding
-# both the answer and the array, so a read can be threaded through a linear
-# chain. Use ``with_get`` / ``with_len`` to recover both fields. A terminal
+# ``get_at`` consumes the array and returns a wrapper holding both the
+# answer and the array, so a read can be threaded through a linear chain.
+# Use ``with_get`` to recover both fields. A terminal
 # projection consumes the wrapper and discards the other field.
 
 def get_at (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) :
@@ -181,20 +176,6 @@ def got_array (1 g: (ArrayGet a<p>)) : {r: (Array a<p>) | size r = got_size g} :
     native "g[1]"
 
 
-def len_of (1 arr: (Array a<p>)) : {l: (ArrayLen a<p>) | held_size l = size arr} :=
-    native "(len(arr), arr)"
-
-
-# The length measured by ``len_of``.
-def len_value (1 l: (ArrayLen a<p>)) : {n:Int | n = held_size l} :=
-    native "l[0]"
-
-
-# The array ``len_of`` measured, with its length intact.
-def len_array (1 l: (ArrayLen a<p>)) : {r: (Array a<p>) | size r = held_size l} :=
-    native "l[1]"
-
-
 # Consume a copied pair once; both buffers have independent storage.
 def with_pair (1 token:(ArrayPair a<p>))
     (1 consume:(1 left:{r:(Array a<p>) | size r = pair_size token}) ->
@@ -205,13 +186,6 @@ def with_pair (1 token:(ArrayPair a<p>))
 # Reading an element and continuing with the array uses one wrapper.
 def with_get (1 token:(ArrayGet a<p>))
     (1 consume:(value:a<p>) -> (1 arr:{r:(Array a<p>) | size r = got_size token}) -> b<q>) : b<q> :=
-    native "consume(token[0])(token[1])"
-
-
-# Recover the measured length and the unique array together.
-def with_len (1 token:(ArrayLen a<p>))
-    (1 consume:(value:{n:Int | n = held_size token}) ->
-        (1 arr:{r:(Array a<p>) | size r = held_size token}) -> b<q>) : b<q> :=
     native "consume(token[0])(token[1])"
 
 

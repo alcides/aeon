@@ -26,8 +26,32 @@ triggers `LinearUnusedError`.
 |---------|-----|
 | Transform (consume → new array) | `mk_concat`, `set`, `reversed`, `map`, `filter` |
 | Terminal read (consume array) | `length`, `get`, `head`, `sum`, `reduce`, `empty` |
-| Read and keep array | `get_at` + `with_get`; `len_of` + `with_len` |
+| Read element and keep array | `get_at` + `with_get` |
 | Split into two independent arrays | `copy` → `with_pair` |
+
+### Updating an array and reading its length
+
+Use `Array.set` to update an element and bind the returned array. Then call
+`Array.length` to read its size:
+
+```aeon
+import Array;
+
+def main (_:Int) : {n:Int | n = 2} :=
+    let 1 arr := #[5,9] in
+    let 1 updated := Array.set arr 0 7 in
+    Array.length updated;
+```
+
+The result is `2`: `set` changes the element at index zero and preserves the
+array's size. `length` consumes the resulting array, so it cannot be used
+afterwards. Aeon expresses updates by binding the array returned by `set`;
+there is no assignment syntax.
+
+Length checks use `Array.length` directly. The length-wrapper API
+(`len_of`, `len_value`, `len_array`, `with_len`, `ArrayLen`, and `held_size`)
+has been removed. When testing both length and contents, use separate test
+cases, as in [`examples/testing/array_tests.ae`](https://github.com/alcides/aeon/blob/master/examples/testing/array_tests.ae).
 
 ## Constructors
 
@@ -84,21 +108,19 @@ used wherever an array with that element refinement is required. The measure
 |------|---------|
 | `ArrayPair a` | Two arrays from `copy` (consume together with `with_pair`) |
 | `ArrayGet a` | Element + array from `get_at` |
-| `ArrayLen a` | Length + array from `len_of` |
 
 Wrappers are linear: bind them with `let 1` and consume each exactly once.
-The terminal projections (`fst_array`, `snd_array`, `got_value`, `got_array`,
-`len_value`, `len_array`) consume the wrapper and discard its other field.
+The terminal projections (`fst_array`, `snd_array`, `got_value`, `got_array`)
+consume the wrapper and discard its other field.
 To recover both fields, use a continuation:
 
 ```aeon
-let 1 measured := Array.len_of #[5,9] in
-Array.with_len measured (fun count => fun arr =>
-    count + Array.sum arr)
+let 1 read := Array.get_at #[5,9] 0 in
+Array.with_get read (fun value => fun arr =>
+    value + Array.sum arr)
 ```
 
-Similarly, `Array.with_get token (fun value => fun arr => ...)` threads an
-indexed read, and `Array.with_pair pair (fun left => fun right => ...)` exposes
+`Array.with_pair pair (fun left => fun right => ...)` exposes
 both independent buffers returned by `copy`.
 
 This replaces the old pattern of projecting the same wrapper twice. Repeated

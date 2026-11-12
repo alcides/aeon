@@ -1,7 +1,7 @@
 # Tests for the Array library (flat, native-backed sequence). Arrays are a
 # ``linear type``: every binder is at multiplicity 1, and readers like
 # ``get`` / ``length`` / ``sum`` consume their argument. Mid-test reads that
-# need the array afterwards use ``get_at`` / ``len_of`` / ``copy``.
+# need the array afterwards use ``get_at`` / ``copy``.
 #
 # Run with:  aeon --test examples/testing/array_tests.ae
 
@@ -18,9 +18,11 @@ def test_mk_empty : Bool :=
 @property(1)
 def test_mk_2_length : Bool :=
     let 1 arr := Array.mk_2 5 9 in
-    with_len (len_of arr) (fun n => fun arr2 =>
-    both (assertEqual n 2)
-         (assertEqual (sum arr2) 14));
+    assertEqual (Array.length arr) 2;
+
+@property(1)
+def test_mk_2_sum : Bool :=
+    assertEqual (sum (Array.mk_2 5 9)) 14;
 
 @property(1)
 def test_get : Bool :=
@@ -42,10 +44,14 @@ def test_head : Bool := assertEqual (head (mk_concat (mk_1 5) (mk_1 9))) 5;
 
 @property(1)
 def test_set_preserves_length : Bool :=
-    let 1 arr := set (Array.mk_2 5 9) 0 7 in
-    with_len (len_of arr) (fun n => fun arr2 =>
-    both (assertEqual n 2)
-         (assertEqual (get arr2 0) 7));
+    let 1 arr := Array.mk_2 5 9 in
+    let 1 updated := Array.set arr 0 7 in
+    assertEqual (Array.length updated) 2;
+
+@property(1)
+def test_set_updates_element : Bool :=
+    let 1 updated := Array.set (Array.mk_2 5 9) 0 7 in
+    assertEqual (Array.get updated 0) 7;
 
 @property(1)
 def test_reversed : Bool :=
