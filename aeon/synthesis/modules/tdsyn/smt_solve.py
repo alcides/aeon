@@ -32,7 +32,7 @@ from aeon.core.types import (
 )
 from aeon.synthesis.modules.tdsyn.helpers import base_type_of
 from aeon.synthesis.grammar.nonterminals import ExpressionDomain
-from aeon.synthesis.modules.tdsyn.constraints import configure_solver, has_refinement
+from aeon.synthesis.modules.tdsyn.constraints import add_hole_binding, configure_solver, has_refinement
 from aeon.synthesis.modules.tdsyn.incremental import solver_query
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole
 from aeon.utils.location import SynthesizedLocation
@@ -95,8 +95,8 @@ def solve_literals(
     predicates: list[LiquidTerm] = []
     for hole in holes:
         bindings.update(hole.bindings)
-        bindings[hole.name] = hole.expected_type
         predicates.extend(hole.constraints)
+        add_hole_binding(hole, bindings, predicates)
     if not predicates and not any(has_refinement(ty) for ty in bindings.values()):
         return []
     try:

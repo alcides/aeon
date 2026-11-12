@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 
-from aeon.core.liquid import LiquidTerm
+from aeon.core.liquid import LiquidApp, LiquidTerm, LiquidVar
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -62,6 +62,7 @@ class TypedHole:
     path: Path = ()
     bindings: dict[Name, Type] = field(default_factory=dict)
     domain: ExpressionDomain = ExpressionDomain.TERM
+    guards: tuple[LiquidTerm, ...] = ()
 
     @property
     def nonterminal(self) -> Nonterminal:
@@ -251,6 +252,30 @@ def substitute_hole(term: Term, hole_name: Name, replacement: Term) -> Term:
     return substitute_holes_map(term, {hole_name: replacement})
 
 
+def scoped_children(hole: TypedHole, replacement: Term, children: list[TypedHole]) -> list[TypedHole]:
+    """Carry the conditions under which each child is actually evaluated."""
+    from aeon.synthesis.modules.tdsyn.constraints import symbolic_term
+
+    paths = locate_holes(replacement)
+    result = []
+    for child in children:
+        guards = list(hole.guards)
+        term = replacement
+        for step in paths.get(child.name, ()):
+            if isinstance(term, If) and step in (Child.THEN, Child.OTHERWISE):
+                condition = symbolic_term(term.cond, children)
+                if condition is None:
+                    # Keep unsupported conditions symbolic. The full solver
+                    # will defer them instead of asserting both arms at once.
+                    condition = LiquidVar(Name("tdsyn_guard", fresh_counter.fresh()))
+                if step is Child.OTHERWISE:
+                    condition = LiquidApp(Name("!", 0), [condition])
+                guards.append(condition)
+            term = term_at(term, (step,))
+        result.append(replace(child, guards=tuple(guards)))
+    return result
+
+
 def expand_at_hole(
     partial: PartialAST,
     hole: TypedHole,
@@ -262,7 +287,7 @@ def expand_at_hole(
     new_term = substitute_at(partial.term, hole.path, replacement)
     relative = locate_holes(replacement)
     placed: list[TypedHole] = []
-    for h in new_holes:
+    for h in scoped_children(hole, replacement, new_holes):
         rel = relative.get(h.name, ())
         placed.append(replace(h, path=hole.path + rel))
     from aeon.synthesis.modules.tdsyn.constraints import obligations
