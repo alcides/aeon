@@ -17,10 +17,8 @@ def build (n: Int) : Int :=
 
 def fork (n: Int) : Int :=
     let 1 a := Array.mk_2 n 7 in
-    let p := copy a in
-    let 1 left := fst_array p in
-    let 1 right := snd_array p in
-    sum left + length right;
+    with_pair (copy a) (fun left => fun right =>
+        sum left + length right);
 
 def main (args: Int) : Unit :=
     let total := build 10 in

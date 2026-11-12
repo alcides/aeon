@@ -105,10 +105,8 @@ open Array
 
 def fork (n: Int) : Int :=
     let 1 a := Array.mk_2 n 7 in
-    let p := copy a in
-    let 1 left := fst_array p in
-    let 1 right := snd_array p in
-    sum left + length right;
+    with_pair (copy a) (fun left => fun right =>
+        sum left + length right);
 
 def main (args: Int) : Unit := print "ok";
 """
@@ -125,7 +123,7 @@ open Array
 def needs_pos (1 arr: (Array {v:Int | v > 0})) : Int := sum arr;
 
 def keeps_refinement (1 a: (Array {v:Int | v > 0})) : Int :=
-    let p := copy a in
+    let 1 p := copy a in
     let 1 left := fst_array p in
     needs_pos left;
 

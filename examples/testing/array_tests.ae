@@ -18,30 +18,24 @@ def test_mk_empty : Bool :=
 @property(1)
 def test_mk_2_length : Bool :=
     let 1 arr := Array.mk_2 5 9 in
-    let lo := len_of arr in
-    let n := len_value lo in
-    let 1 arr2 := len_array lo in
+    with_len (len_of arr) (fun n => fun arr2 =>
     both (assertEqual n 2)
-         (assertEqual (sum arr2) 14);
+         (assertEqual (sum arr2) 14));
 
 @property(1)
 def test_get : Bool :=
     let 1 arr := Array.mk_2 5 9 in
-    let g0 := get_at arr 0 in
-    let v0 := got_value g0 in
-    let 1 arr2 := got_array g0 in
-    let g1 := get_at arr2 1 in
+    with_get (get_at arr 0) (fun v0 => fun arr2 =>
+    let 1 g1 := get_at arr2 1 in
     both (assertEqual v0 5)
-         (assertEqual (got_value g1) 9);
+         (assertEqual (got_value g1) 9));
 
 @property(1)
 def test_mk_concat_order : Bool :=
     let 1 arr := mk_concat (mk_1 5) (mk_1 9) in
-    let g0 := get_at arr 0 in
-    let v0 := got_value g0 in
-    let 1 arr2 := got_array g0 in
+    with_get (get_at arr 0) (fun v0 => fun arr2 =>
     both (assertEqual v0 5)
-         (assertEqual (get arr2 1) 9);
+         (assertEqual (get arr2 1) 9));
 
 @property(1)
 def test_head : Bool := assertEqual (head (mk_concat (mk_1 5) (mk_1 9))) 5;
@@ -49,20 +43,16 @@ def test_head : Bool := assertEqual (head (mk_concat (mk_1 5) (mk_1 9))) 5;
 @property(1)
 def test_set_preserves_length : Bool :=
     let 1 arr := set (Array.mk_2 5 9) 0 7 in
-    let lo := len_of arr in
-    let n := len_value lo in
-    let 1 arr2 := len_array lo in
+    with_len (len_of arr) (fun n => fun arr2 =>
     both (assertEqual n 2)
-         (assertEqual (get arr2 0) 7);
+         (assertEqual (get arr2 0) 7));
 
 @property(1)
 def test_reversed : Bool :=
     let 1 arr := reversed (Array.mk_2 5 9) in
-    let g0 := get_at arr 0 in
-    let v0 := got_value g0 in
-    let 1 arr2 := got_array g0 in
+    with_get (get_at arr 0) (fun v0 => fun arr2 =>
     both (assertEqual v0 9)
-         (assertEqual (get arr2 1) 5);
+         (assertEqual (get arr2 1) 5));
 
 @property(1)
 def test_map : Bool :=
@@ -76,23 +66,19 @@ def test_sum : Bool := assertEqual (sum (Array.mk_2 2 3)) 5;
 @property(1)
 def test_copy_duplicates : Bool :=
     let 1 a := Array.mk_2 5 9 in
-    let p := copy a in
-    let 1 left := fst_array p in
-    let 1 right := snd_array p in
+    with_pair (copy a) (fun left => fun right =>
     both (assertEqual (sum left) 14)
-         (assertEqual (length right) 2);
+         (assertEqual (length right) 2));
 
 # The two halves of a copy are independent: extending one leaves the other
 # untouched.
 @property(1)
 def test_copy_independent : Bool :=
     let 1 a := Array.mk_2 1 2 in
-    let p := copy a in
-    let 1 left := fst_array p in
-    let 1 right := snd_array p in
+    with_pair (copy a) (fun left => fun right =>
     let 1 l2 := Array.mk_concat left (Array.mk_1 9) in
     both (assertEqual (length l2) 3)
-         (assertEqual (length right) 2);
+         (assertEqual (length right) 2));
 
 # ── Property-based tests (Int elements generated) ─────────────────────────────
 
@@ -107,11 +93,9 @@ def prop_mk_2_length (x : Int) (y : Int) : Bool :=
 @property
 def prop_set_overwrites (x : Int) (y : Int) : Bool :=
     let 1 arr := set (Array.mk_1 x) 0 y in
-    let g := get_at arr 0 in
-    let v := got_value g in
-    let 1 arr2 := got_array g in
+    with_get (get_at arr 0) (fun v => fun arr2 =>
     both (assertEqual v y)
-         (assertEqual (length arr2) 1);
+         (assertEqual (length arr2) 1));
 
 @property
 def prop_sum_two (x : Int) (y : Int) : Bool :=

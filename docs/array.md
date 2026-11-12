@@ -26,8 +26,8 @@ triggers `LinearUnusedError`.
 |---------|-----|
 | Transform (consume → new array) | `mk_concat`, `set`, `reversed`, `map`, `filter` |
 | Terminal read (consume array) | `length`, `get`, `head`, `sum`, `reduce`, `empty` |
-| Read and keep array | `get_at` + `got_value` / `got_array`; `len_of` + `len_value` / `len_array` |
-| Split into two independent arrays | `copy` → `fst_array` / `snd_array` |
+| Read and keep array | `get_at` + `with_get`; `len_of` + `with_len` |
+| Split into two independent arrays | `copy` → `with_pair` |
 
 ## Constructors
 
@@ -82,12 +82,28 @@ used wherever an array with that element refinement is required. The measure
 
 | Type | Purpose |
 |------|---------|
-| `ArrayPair a` | Two arrays from `copy` (project with `fst_array`, `snd_array`) |
+| `ArrayPair a` | Two arrays from `copy` (consume together with `with_pair`) |
 | `ArrayGet a` | Element + array from `get_at` |
 | `ArrayLen a` | Length + array from `len_of` |
 
-Wrapper projections are unrestricted; re-enter linear discipline by binding
-projected arrays with `let 1`.
+Wrappers are linear: bind them with `let 1` and consume each exactly once.
+The terminal projections (`fst_array`, `snd_array`, `got_value`, `got_array`,
+`len_value`, `len_array`) consume the wrapper and discard its other field.
+To recover both fields, use a continuation:
+
+```aeon
+let 1 measured := Array.len_of #[5,9] in
+Array.with_len measured (fun count => fun arr =>
+    count + Array.sum arr)
+```
+
+Similarly, `Array.with_get token (fun value => fun arr => ...)` threads an
+indexed read, and `Array.with_pair pair (fun left => fun right => ...)` exposes
+both independent buffers returned by `copy`.
+
+This replaces the old pattern of projecting the same wrapper twice. Repeated
+array projections returned aliases to one buffer, allowing a native operation
+that legitimately mutated its unique input to change another live reference.
 
 ---
 

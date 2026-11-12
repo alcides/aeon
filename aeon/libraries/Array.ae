@@ -34,14 +34,14 @@
 #     ``length #[5, 6, 7]`` is fine. To read a value *and carry on* with the
 #     array, use ``get_at`` / ``len_of``: they hand back an opaque result
 #     carrying both the value read and the array itself, which
-#     ``got_value`` / ``got_array`` (resp. ``len_value`` / ``len_array``)
-#     project. Both wrappers are refinement-parametric and thread the
+#     ``with_get`` / ``with_len`` consume together. Both wrappers are
+#     refinement-parametric and thread the
 #     ``size`` measure, so nothing is lost by the round trip.
 #
 # When you need two genuinely independent arrays — to branch a computation
 # in two — call ``copy``: it consumes the array once and hands back two
-# arrays packaged in an ``ArrayPair`` (projected with ``fst_array`` /
-# ``snd_array``), each with the element refinement and length preserved.
+# arrays packaged in an ``ArrayPair`` (consumed with ``with_pair``), each
+# with the element refinement and length preserved.
 
 linear type Array a forall <p : a -> Bool>
 
@@ -49,16 +49,15 @@ linear type Array a forall <p : a -> Bool>
 # kept self-contained (rather than reusing the ``Pair`` library) so that
 # ``Array`` has no further imports to drag through every ``open Array``.
 #
-# The wrappers below are deliberately *not* linear: they are inert values
-# whose only purpose is to be projected. The arrays they carry re-enter the
-# linear discipline as soon as a projection is bound to a ``let 1``.
-type ArrayPair a
+# Wrappers own their arrays and must themselves be consumed exactly once.
+# Use the continuation helpers to recover both fields in one consumption.
+linear type ArrayPair a
 
 # Result of ``get_at``: the element read, plus the array it was read from.
-type ArrayGet a
+linear type ArrayGet a
 
 # Result of ``len_of``: the length, plus the array it was measured from.
-type ArrayLen a
+linear type ArrayLen a
 
 def functools : Unit := native_import "functools"
 
@@ -151,12 +150,12 @@ def copy (1 arr: (Array a<p>)) : {pr: (ArrayPair a<p>) | pair_size pr = size arr
 
 
 # Left projection of a ``copy`` — the original buffer.
-def fst_array (pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size pr} :=
+def fst_array (1 pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size pr} :=
     native "pr[0]"
 
 
 # Right projection of a ``copy`` — the fresh duplicate.
-def snd_array (pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size pr} :=
+def snd_array (1 pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size pr} :=
     native "pr[1]"
 
 
@@ -164,8 +163,8 @@ def snd_array (pr: (ArrayPair a<p>)) : {r: (Array a<p>) | size r = pair_size pr}
 #
 # ``get_at`` / ``len_of`` consume the array and return a wrapper holding
 # both the answer and the array, so a read can be threaded through a linear
-# chain. Project the answer with ``got_value`` / ``len_value`` and the array
-# with ``got_array`` / ``len_array`` (bound to a ``let 1``).
+# chain. Use ``with_get`` / ``with_len`` to recover both fields. A terminal
+# projection consumes the wrapper and discards the other field.
 
 def get_at (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) :
     {g: (ArrayGet a<p>) | got_size g = size arr} :=
@@ -173,12 +172,12 @@ def get_at (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) :
 
 
 # The element read by ``get_at``; still known to satisfy ``p``.
-def got_value (g: (ArrayGet a<p>)) : a<p> :=
+def got_value (1 g: (ArrayGet a<p>)) : a<p> :=
     native "g[0]"
 
 
 # The array ``get_at`` read from, with its length intact.
-def got_array (g: (ArrayGet a<p>)) : {r: (Array a<p>) | size r = got_size g} :=
+def got_array (1 g: (ArrayGet a<p>)) : {r: (Array a<p>) | size r = got_size g} :=
     native "g[1]"
 
 
@@ -187,13 +186,33 @@ def len_of (1 arr: (Array a<p>)) : {l: (ArrayLen a<p>) | held_size l = size arr}
 
 
 # The length measured by ``len_of``.
-def len_value (l: (ArrayLen a<p>)) : {n:Int | n = held_size l} :=
+def len_value (1 l: (ArrayLen a<p>)) : {n:Int | n = held_size l} :=
     native "l[0]"
 
 
 # The array ``len_of`` measured, with its length intact.
-def len_array (l: (ArrayLen a<p>)) : {r: (Array a<p>) | size r = held_size l} :=
+def len_array (1 l: (ArrayLen a<p>)) : {r: (Array a<p>) | size r = held_size l} :=
     native "l[1]"
+
+
+# Consume a copied pair once; both buffers have independent storage.
+def with_pair (1 token:(ArrayPair a<p>))
+    (1 consume:(1 left:{r:(Array a<p>) | size r = pair_size token}) ->
+        (1 right:{r:(Array a<p>) | size r = pair_size token}) -> b<q>) : b<q> :=
+    native "consume(token[0])(token[1])"
+
+
+# Reading an element and continuing with the array uses one wrapper.
+def with_get (1 token:(ArrayGet a<p>))
+    (1 consume:(value:a<p>) -> (1 arr:{r:(Array a<p>) | size r = got_size token}) -> b<q>) : b<q> :=
+    native "consume(token[0])(token[1])"
+
+
+# Recover the measured length and the unique array together.
+def with_len (1 token:(ArrayLen a<p>))
+    (1 consume:(value:{n:Int | n = held_size token}) ->
+        (1 arr:{r:(Array a<p>) | size r = held_size token}) -> b<q>) : b<q> :=
+    native "consume(token[0])(token[1])"
 
 
 # Indexed read; the result is known to satisfy ``p``. Consumes the array —
