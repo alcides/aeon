@@ -156,3 +156,14 @@ def test_oversized_query_does_not_leave_unbounded_solver_assertions():
         assert query.state.solver is solver
         assert len(solver.assertions()) == 1
         assert query.valid(obligation(1, 2)) == Status.INVALID
+
+
+@pytest.mark.parametrize("left,right,expected", [(1, 1, Status.VALID), (1, 2, Status.INVALID)])
+def test_search_forks_reuse_definitive_answers(left, right, expected):
+    with CompilationSession().activate():
+        state = ConstraintState(built_std_context())
+        assert state.query.valid(obligation(left, right)) == expected
+        calls = state.stats.solver_queries
+        for ident in range(200, 210):
+            assert state.fork().query.valid(obligation(left, right, ident=ident)) == expected
+        assert state.stats.solver_queries == calls

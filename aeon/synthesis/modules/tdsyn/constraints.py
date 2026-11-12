@@ -12,6 +12,7 @@ from aeon.core.substitutions import liquefy, substitution_in_liquid
 from aeon.core.terms import Term, Var
 from aeon.core.types import RefinedType, RefinementPolymorphism, Type, TypePolymorphism, t_unit
 from aeon.synthesis.grammar.nonterminals import ExpressionDomain
+from aeon.synthesis.grammar.constant_constraints import conflicting_integer_equalities
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, substitute_holes_map
 from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.typechecking.entailment import entailment_context
@@ -137,7 +138,12 @@ def feasible(ctx: TypingContext, bindings: dict[Name, Type], predicates: list[Li
 def candidate_feasible(
     hole: TypedHole, replacement: Term, children: list[TypedHole], actual_type: Type | None = None
 ) -> bool:
-    if hole.domain is ExpressionDomain.REFINEMENT or not eager_pruning.get():
+    if hole.domain is ExpressionDomain.REFINEMENT:
         return True
     bindings, predicates = obligations(hole, replacement, children, actual_type)
-    return feasible(hole.context, bindings, predicates)
+    # Random search and GP disable expensive eager SMT queries, not the
+    # elementary consistency checks that keep wrong-sized arrays out of walks.
+    facts = [predicate_at(ty, LiquidVar(name)) for name, ty in bindings.items()]
+    if conflicting_integer_equalities([*facts, *predicates]):
+        return False
+    return not eager_pruning.get() or feasible(hole.context, bindings, predicates)
