@@ -204,7 +204,7 @@ def get (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) : {v:a | p v
 
 # Indexed write; preserves length, and the written value must satisfy ``p``.
 # Consumes the array linearly and returns the fresh, updated array.
-def set (1 arr: (Array a)) (i: {n:Int | n >= 0 && n < size arr}) (1 x: {v:a | p v}) : {r:(Array a) | size r = size arr} :=
+def set (1 arr: (Array a<p>)) (i: {n:Int | n >= 0 && n < size arr}) (1 x: {v:a | p v}) : {r:(Array a<p>) | size r = size arr} :=
     native "arr[:i] + [x] + arr[i+1:]"
 
 
@@ -215,7 +215,7 @@ def head (1 arr: {arr:(Array a<p>) | size arr > 0}) : {v:a | p v} :=
 
 
 # Reversed copy; length is preserved. Consumes the array linearly.
-def reversed (1 arr: (Array a)) : {r:(Array a) | size r = size arr} :=
+def reversed (1 arr: (Array a<p>)) : {r:(Array a<p>) | size r = size arr} :=
     native "arr[::-1]"
 
 
