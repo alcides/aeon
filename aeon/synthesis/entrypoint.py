@@ -27,12 +27,14 @@ from aeon.core.types import Top
 from aeon.core.types import top, Type, t_float, t_int, t_string
 from aeon.decorators import Metadata
 from aeon.synthesis.joint import HoleSpec, JointCandidate, JointSynthesizer
+from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.scope import shadow_fitness_helpers, without_excluded_names
 from aeon.backend.evaluator import eval
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.synthesis.identification import get_holes_info, get_holes, term_has_holes
 from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_target, property_corpora_for_targets
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.linearity import check_linearity
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
@@ -113,6 +115,8 @@ def make_validator(
 
             if not check_program(prog, metadata):
                 return False
+        if check_linearity(prog, ctx):
+            return False
         if not check_types:
             return True
         prepared = prepare_candidate(candidate)
@@ -583,7 +587,7 @@ def _synthesize_one(
         t = syn_impl.synthesize(
             ctx=components.context,
             type=ty,
-            validate=validator,
+            validate=QTTValidator(validator, lambda candidate: replace(components.expand(candidate)), ctx),
             evaluate=evaluator,
             fun_name=fun_name,
             metadata=synthesis_metadata,
@@ -666,15 +670,16 @@ def _synthesize_joint(
 
     components: dict[Name, TypeclassComponents] = {}
 
-    def replace(candidate: Term) -> Term:
+    def replace_partial(candidate: Term) -> Term:
         if not isinstance(candidate, JointCandidate) or len(candidate.terms) != len(names):
             raise InvalidIndividualException()
         result = prog
         for name, value in zip(names, candidate.terms):
-            value = components[name].expand(value)
-            if term_has_holes(value):
-                raise InvalidIndividualException()
-            result = substitution(result, value, name)
+            result = substitution(result, components[name].expand(value), name)
+        return result
+
+    def replace(candidate: Term) -> Term:
+        result = replace_partial(candidate)
         if term_has_holes(result):
             raise InvalidIndividualException()
         return result
@@ -685,6 +690,8 @@ def _synthesize_joint(
         try:
             completed = replace(candidate)
         except InvalidIndividualException:
+            return False
+        if check_linearity(completed, ctx):
             return False
         if not check_program(completed, metadata):
             return False
@@ -796,7 +803,7 @@ def _synthesize_joint(
     try:
         result = synthesizer.synthesize_joint(
             holes,
-            validate,
+            QTTValidator(validate, replace_partial, ctx),
             evaluator,
             joint_name,
             synthesis_metadata,

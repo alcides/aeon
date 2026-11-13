@@ -24,6 +24,7 @@ from aeon.synthesis.modules.native_search import (
     make_skip,
     sample_one,
 )
+from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -41,11 +42,17 @@ def iter_random_candidates(
     max_depth: int = MAX_DEPTH,
     *,
     deadline: float = float("inf"),
+    check_sketch: Callable[[Term], bool] | None = None,
+    max_attempts: int | None = None,
 ) -> Iterator[Term]:
     """Yield complete core terms by independent random walks over the grammar."""
-    initial = initial_partial(ctx, target)
+    initial = initial_partial(ctx, target, check_sketch=check_sketch)
+    if not initial.qtt_feasible():
+        return
     skip = make_skip(fun_name, metadata)
-    while monotonic() < deadline:
+    attempts = 0
+    while monotonic() < deadline and (max_attempts is None or attempts < max_attempts):
+        attempts += 1
         sample = sample_one(initial, skip, rng, max_depth)
         if sample is not None:
             yield sample
@@ -75,7 +82,15 @@ class RandomSearchSynthesizer(JointSynthesizer):
         assert isinstance(type, Type)
         rng = random.Random(self.seed)
         return drive_candidates(
-            iter_random_candidates(ctx, type, fun_name, metadata, rng, deadline=monotonic() + max(0.0, budget)),
+            iter_random_candidates(
+                ctx,
+                type,
+                fun_name,
+                metadata,
+                rng,
+                deadline=monotonic() + max(0.0, budget),
+                check_sketch=validate.feasible if isinstance(validate, QTTValidator) else None,
+            ),
             validate,
             evaluate,
             fun_name,
@@ -98,11 +113,39 @@ class RandomSearchSynthesizer(JointSynthesizer):
     ) -> JointCandidate | None:
         rng = random.Random(self.seed)
         deadline = monotonic() + max(0.0, budget)
-        streams = [iter_random_candidates(h.ctx, h.type, h.function, metadata, rng, deadline=deadline) for h in holes]
+        initials = [initial_partial(h.ctx, h.type) for h in holes]
 
         def candidates() -> Iterator[Term]:
-            for terms in zip(*streams):
-                yield JointCandidate(terms)
+            first = True
+            while first or monotonic() < deadline:
+                first = False
+                # Restart the entire product after a failed walk: retaining
+                # previous siblings would lock search into their allocation.
+                terms = [initial.term for initial in initials]
+                for i, hole in enumerate(holes):
+                    check_sketch = None
+                    if isinstance(validate, QTTValidator):
+
+                        def check_sketch(candidate: Term) -> bool:
+                            product = tuple(candidate if j == i else term for j, term in enumerate(terms))
+                            return validate.feasible(JointCandidate(product))
+
+                    stream = iter_random_candidates(
+                        hole.ctx,
+                        hole.type,
+                        hole.function,
+                        metadata,
+                        rng,
+                        deadline=deadline,
+                        check_sketch=check_sketch,
+                        max_attempts=1,
+                    )
+                    term = next(stream, None)
+                    if term is None:
+                        break
+                    terms[i] = term
+                else:
+                    yield JointCandidate(tuple(terms))
 
         result = drive_candidates(
             candidates(), validate, evaluate, fun_name, metadata, budget, ui, self.seed, backend=self

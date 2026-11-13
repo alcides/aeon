@@ -46,6 +46,14 @@ results and remaining limitations across ten backends.
 
 Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
 
+GP retains the expected function signature and checks QTT usage while decoding
+each genome. Invalid literal completions and grammar choices are removed before
+codon selection, so linear resources cannot be duplicated and erased parameters
+cannot be used at runtime. The surrounding sketch participates in these checks;
+for joint search, earlier hole replacements share their resource budget with
+the remaining holes. Mutation and crossover decode through the same checks,
+and completed candidates are validated before fitness evaluation.
+
 GP decodes executable candidates through the term nonterminal. It uses ordinary
 grammar expansion for lists, including goals whose refinements fix their length.
 
@@ -74,6 +82,14 @@ Native random walks over Aeon's core term grammar (the same backward and forward
 ### `enumerative` — Enumerative Search
 
 Native breadth-first enumeration over Aeon's core term grammar (backward and forward actions, plus SMT completion of refinement-constrained leaves). A generator yields complete terms; the driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Works well for small, tightly-constrained holes.
+
+Both native engines preserve function-parameter multiplicities and prune QTT
+violations during grammar expansion and literal completion. Driver searches
+also check partial candidates in the surrounding sketch, counting uses outside
+the hole. Random search shares this budget across joint hole replacements and
+restarts the entire product when a walk fails. Enumeration retains its existing
+single-hole search interface. These checks reuse the same partial-program usage
+checker as TDSyn and GP.
 
 ---
 
@@ -612,6 +628,17 @@ Python callers can use `AeonConfig(..., tdsyn_expansion="lazy")` or
 `TDSynSynthesizer(..., expansion="lazy")`.
 
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
+
+QTT usage is checked during search as well as final validation. Partial programs
+retain the original function signature, including parameter multiplicities.
+Known duplicate linear uses, erased runtime uses, branch mismatches, and invalid
+application scaling are pruned; holes may still supply missing uses. The driver
+checks each partial replacement inside its surrounding sketch, so uses outside
+the hole count toward the same resource budget. Completed candidates must pass
+the ordinary linearity checker, including when a backend supplies its own type
+proof. These checks apply to eager and lazy expansion, BFS, random walks, and
+the one-step tactics. Resource allocation is checked on partial programs rather
+than enumerated as explicit splits of the typing context.
 
 Property-test input generation has a separate, explicitly bounded sampling API; its caller-supplied limits do not limit full synthesis.
 

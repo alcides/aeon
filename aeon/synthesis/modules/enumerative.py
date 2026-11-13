@@ -25,6 +25,7 @@ from aeon.synthesis.modules.native_search import (
     make_skip,
 )
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST
+from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -41,6 +42,7 @@ def iter_candidates(
     skip: Callable[[Name], bool] | None = None,
     max_expansions: int | None = None,
     max_worklist: int | None = None,
+    check_sketch: Callable[[Term], bool] | None = None,
 ) -> Iterator[Term]:
     """Yield complete core terms breadth-first from Aeon's grammar actions.
 
@@ -48,7 +50,10 @@ def iter_candidates(
     conditionals. Forward actions cover applications grown from in-scope
     variables. Refinement-constrained leaves are also completed from SMT models.
     """
-    worklist: deque[PartialAST] = deque([initial_partial(ctx, target)])
+    initial = initial_partial(ctx, target, check_sketch=check_sketch)
+    if not initial.qtt_feasible():
+        return
+    worklist: deque[PartialAST] = deque([initial])
     skip = make_skip(fun_name, metadata) if skip is None else skip
     yielded: set[Term] = set()
     deadline = None if budget is None else monotonic() + max(0.0, budget)
@@ -119,7 +124,14 @@ class EnumerativeSynthesizer(Synthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
         return drive_candidates(
-            iter_candidates(ctx, type, fun_name, metadata, budget=budget),
+            iter_candidates(
+                ctx,
+                type,
+                fun_name,
+                metadata,
+                budget=budget,
+                check_sketch=validate.feasible if isinstance(validate, QTTValidator) else None,
+            ),
             validate,
             evaluate,
             fun_name,
