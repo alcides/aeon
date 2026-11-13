@@ -18,6 +18,7 @@ from aeon.core.bind import bind_ids
 from aeon.core.types import top
 from aeon.elaboration import elaborate
 from aeon.facade.api import (
+    ErasedBindingInTermError,
     ErasedUsedAtRuntimeError,
     LinearBranchMismatchError,
     LinearUnusedError,
@@ -132,14 +133,14 @@ def main (i: Int) : Int :=
 # ---------------------------------------------------------------------------
 
 
-def test_erased_unused_ok():
+def test_erased_let_is_rejected_even_when_unused():
     src = """
 def main (i: Int) : Int :=
     let 0 a := 5 in
     42;
 """
     errs = _linearity(src)
-    assert errs == [], f"expected no errors, got {errs}"
+    assert any(isinstance(e, ErasedBindingInTermError) for e in errs), errs
 
 
 def test_erased_used_errors():
@@ -336,8 +337,7 @@ def test_erased_scaled_through_zero_param_ok():
     src = """
 def ignore (0 x: Int) : Int := 0;
 
-def main (i: Int) : Int :=
-    let 0 a := 5 in
+def main (0 a: Int) : Int :=
     ignore a;
 """
     errs = _linearity(src)
@@ -578,31 +578,28 @@ def main (i: Int) : Int :=
 
 
 # ---------------------------------------------------------------------------
-# Phase 4 — runtime erasure: M0 bindings are not evaluated
+# Erased local definitions are predicate-only
 # ---------------------------------------------------------------------------
 
 
-def test_m0_let_val_is_not_evaluated_at_runtime():
-    """A ``0``-bound let's value is skipped at runtime — even a value
-    that would crash if executed is harmless because the binding is
-    purely compile-time."""
+def test_m0_typed_let_is_rejected_in_terms():
+    """A typed erased binding is forbidden even if its initializer is opaque."""
     src = """
 def main (i: Int) : Int :=
     let 0 ghost : Int := native "1/0" in
     42;
 """
-    assert _evaluate(src) == 42
+    assert any(isinstance(e, ErasedBindingInTermError) for e in _typecheck(src))
 
 
-def test_m0_rec_val_is_not_evaluated_at_runtime():
-    """Same erasure for ``Rec``: an erased recursive definition's body
-    is never evaluated."""
+def test_m0_recursive_let_is_rejected_in_terms():
+    """Typed/recursive local definitions cannot introduce erased term binders."""
     src = """
 def main (i: Int) : Int :=
     let 0 ghost : Int := native "(_ for _ in iter(int, 1))[0]" in
     7;
 """
-    assert _evaluate(src) == 7
+    assert any(isinstance(e, ErasedBindingInTermError) for e in _typecheck(src))
 
 
 def test_omega_let_val_is_evaluated():

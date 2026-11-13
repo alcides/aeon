@@ -55,6 +55,22 @@ started fitness workers on the same cases without resetting search randomness.
 `TrainData`, `TestData`, and their unpacked `Tuple` are linear. Use `with_lists`
 to consume a training snapshot once and obtain both owned input/output arrays.
 
+## Function quantities and predicate-only locals
+
+Function subtyping preserves usage guarantees. An unrestricted implementation
+cannot be assigned a linear or erased parameter signature, and a consuming
+implementation cannot masquerade as erased or borrowing. A linear or erased
+implementation may be exposed through an unrestricted parameter signature;
+trusted multiplicity-polymorphic primitives may instantiate ordinary quantities.
+
+`let 0` is only allowed inside predicates, including refinement expressions.
+Executable terms reject erased local definitions, whether inferred, explicitly
+typed, or recursive. Erased function parameters remain supported. For example:
+
+```aeon
+def keep (x:Int):{v:Int | let 0 expected := x in v = expected} := x;
+```
+
 ## Curried calls and the second argument
 
 A borrow remains active while later arguments are evaluated and until the full

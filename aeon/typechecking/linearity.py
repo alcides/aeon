@@ -76,6 +76,7 @@ from aeon.core.types import (
 from aeon.errors import (
     BorrowingError,
     ClosureOwnershipError,
+    ErasedBindingInTermError,
     ErasedUsedAtRuntimeError,
     LinearBranchMismatchError,
     LinearityError,
@@ -1044,6 +1045,8 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 _check_linear_type_binder(name, inner_ty, param_mult, node, linear_types, errors)
                 visit(body, inner, body_ty)
             case Let(name, val, body, _, mult):
+                if mult is M0:
+                    errors.append(ErasedBindingInTermError(name, node))
                 check_owned_binding(name, val, mult, node)
                 if mult is MBorrow:
                     errors.append(BorrowingError(name, "borrow is only supported on function parameters", node))
@@ -1059,8 +1062,10 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                     _check_binder(name, mult, bt, bc, node, errors)
                 _check_linear_type_binder(name, val_ty, mult, node, linear_types, errors)
                 visit(val, walker)
-                visit(body, inner)
+                visit(body, inner, expected_ty)
             case Rec(name, var_type, val, body, _, _, mult):
+                if mult is M0:
+                    errors.append(ErasedBindingInTermError(name, node))
                 check_owned_binding(name, val, mult, node)
                 recursive_names = {name} | {companion.name for companion in node.companions}
                 actual = ownership.values[id(val)]
@@ -1082,7 +1087,7 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 # parameter multiplicities (curried funs / match handlers)
                 # are checked against their declared types.
                 visit(val, inner, var_type)
-                visit(body, inner)
+                visit(body, inner, expected_ty)
             case If(cond, then_t, else_t):
                 visit(cond, walker)
                 visit(then_t, walker, expected_ty)

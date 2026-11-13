@@ -1612,5 +1612,5 @@ def check_type_errors(
     except CoreTypeCheckingError as e:
         return [e]
 
-    linearity_errors = check_linearity(term, ctx)
+    linearity_errors = check_linearity(Annotation(term, expected_type), ctx)
     return type_errors + list(linearity_errors)

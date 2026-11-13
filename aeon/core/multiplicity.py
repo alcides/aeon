@@ -149,3 +149,15 @@ def from_token(tok: str) -> Multiplicity:
             return MBorrow
         case _:
             raise ValueError(f"Not a multiplicity token: {tok!r}")
+
+
+def usage_subtype(actual: Multiplicity, expected: Multiplicity) -> bool:
+    """A function may expose a weaker usage guarantee, never a stronger one.
+
+    Unrestricted parameters impose no exact-use obligation. A trusted
+    multiplicity-polymorphic implementation can instantiate any ordinary
+    quantity; borrowing remains a distinct access discipline.
+    """
+    if actual is MBorrow or expected is MBorrow:
+        return actual is expected
+    return actual is expected or actual is MN or expected is MOmega
