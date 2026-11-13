@@ -34,6 +34,8 @@ def tactic_by_cases(state: TacticState, hole_name: Name) -> TacticState | None:
         br_then: Term = Annotation(Hole(hthen), goal_ty, loc=_loc)
         br_else: Term = Annotation(Hole(helse), goal_ty, loc=_loc)
         ite = If(Var(b, _loc), br_then, br_else, loc=_loc)
-        return TacticState(state.ctx, replace_hole(state.term, hole_name, ite), state.goal)
+        nxt = state.transition(replace_hole(state.term, hole_name, ite))
+        if nxt is not None:
+            return nxt
 
     return None

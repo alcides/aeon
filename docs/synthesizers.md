@@ -748,6 +748,14 @@ A Lean-style tactic synthesizer. The proof obligation (the hole's goal type in i
 
 Each iteration starts a fresh walk (up to 20 tactic steps); walks that fail to close all holes are abandoned. When optimization goals are present, the best-scoring closed walk across the budget is returned.
 
+Every tactic proposes its replacement through `TacticState.transition`, which
+checks QTT feasibility against the root goal and the surrounding program sketch.
+Unfilled holes may supply missing linear uses; known duplication, erased runtime
+uses, and incompatible branch usage reject the transition. Tactics that select
+hypotheses or constructors try the next choice after a rejection. The check is
+shared by explicit `by` scripts and random tactic walks.
+
+
 ---
 
 ### `lta` — Liquid Tree Automata

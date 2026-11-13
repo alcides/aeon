@@ -32,7 +32,9 @@ def tactic_apply_question(state: TacticState, hole_name: Name) -> TacticState | 
         if x.name in TACTIC_CONTEXT_EXCLUDED_NAMES:
             continue
         if fits(hole_ctx, xty, goal_ty):
-            return TacticState(state.ctx, replace_hole(state.term, hole_name, Var(x, _loc)), state.goal)
+            nxt = state.transition(replace_hole(state.term, hole_name, Var(x, _loc)))
+            if nxt is not None:
+                return nxt
     return None
 
 
@@ -50,7 +52,7 @@ def tactic_constructor(state: TacticState, hole_name: Name) -> TacticState | Non
             hn = Name("_h", fresh_counter.fresh())
             body = Annotation(Hole(hn), body_ty, loc=_loc)
             lam = Abstraction(vn, body, loc=_loc)
-            return TacticState(state.ctx, replace_hole(state.term, hole_name, lam), state.goal)
+            return state.transition(replace_hole(state.term, hole_name, lam))
 
     for f, fty in hole_ctx.concrete_vars():
         if f.name in TACTIC_CONTEXT_EXCLUDED_NAMES:
@@ -64,6 +66,8 @@ def tactic_constructor(state: TacticState, hole_name: Name) -> TacticState | Non
         for pt in params:
             hn = Name("_h", fresh_counter.fresh())
             app = Application(app, Annotation(Hole(hn), pt, loc=_loc), loc=_loc)
-        return TacticState(state.ctx, replace_hole(state.term, hole_name, app), state.goal)
+        nxt = state.transition(replace_hole(state.term, hole_name, app))
+        if nxt is not None:
+            return nxt
 
     return None
