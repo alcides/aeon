@@ -613,6 +613,17 @@ Python callers can use `AeonConfig(..., tdsyn_expansion="lazy")` or
 
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
 
+QTT usage is checked during search as well as final validation. Partial programs
+retain the original function signature, including parameter multiplicities.
+Known duplicate linear uses, erased runtime uses, branch mismatches, and invalid
+application scaling are pruned; holes may still supply missing uses. The driver
+checks each partial replacement inside its surrounding sketch, so uses outside
+the hole count toward the same resource budget. Completed candidates must pass
+the ordinary linearity checker, including when a backend supplies its own type
+proof. These checks apply to eager and lazy expansion, BFS, random walks, and
+the one-step tactics. Resource allocation is checked on partial programs rather
+than enumerated as explicit splits of the typing context.
+
 Property-test input generation has a separate, explicitly bounded sampling API; its caller-supplied limits do not limit full synthesis.
 
 Constructor relations retained in the result type are instantiated from the

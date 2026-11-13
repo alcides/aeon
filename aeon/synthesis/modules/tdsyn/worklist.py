@@ -7,6 +7,7 @@ literal in one tree walk.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 
@@ -77,6 +78,20 @@ class PartialAST:
     holes: list[TypedHole]
     depth: int
     constraints: list[LiquidTerm] = field(default_factory=list)
+    # Keep the original signature: peeled lambdas carry their QTT obligations
+    # here, rather than in the value-only typing contexts of individual holes.
+    expected_type: Type | None = None
+    context: TypingContext | None = None
+    check_sketch: Callable[[Term], bool] | None = None
+
+    def qtt_feasible(self) -> bool:
+        from aeon.typechecking.linearity import check_linearity
+
+        if self.check_sketch is not None and not self.check_sketch(self.term):
+            return False
+        if self.expected_type is None:
+            return True
+        return not check_linearity(Annotation(self.term, self.expected_type), self.context)
 
     def is_complete(self) -> bool:
         return len(self.holes) == 0
@@ -304,4 +319,4 @@ def expand_at_hole(
         )
         for h in remaining + placed
     ]
-    return PartialAST(new_term, updated, depth, list(partial.constraints))
+    return replace(partial, term=new_term, holes=updated, depth=depth, constraints=list(partial.constraints))
