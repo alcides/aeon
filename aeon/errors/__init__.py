@@ -520,6 +520,20 @@ class LinearUsedTooManyTimesError(LinearityError):
 
 
 @dataclass
+class ErasedBindingInTermError(LinearityError):
+    """An erased local definition was placed in executable code."""
+
+    name: object
+    term: Term
+
+    def __str__(self) -> str:
+        return f"Erased let binding {self.name} is only allowed in predicates, not executable terms."
+
+    def position(self) -> Location:
+        return self.term.loc
+
+
+@dataclass
 class ErasedUsedAtRuntimeError(LinearityError):
     """A ``0``-bound name was referenced from a runtime position. ``0`` is
     intended for proof-only / ghost bindings — referencing it here would

@@ -244,9 +244,12 @@ def test_exported_python_matches_aeon(filename: str, fun_name: str, args: list[i
 @pytest.mark.parametrize(
     "binding", ['let 0 ignored := (native "1 // 0" : Int)', 'let 0 ignored:Int := native "1 // 0"']
 )
-def test_export_skips_erased_bindings(binding):
+def test_export_input_rejects_erased_term_bindings(binding):
     source = f"def f(x:Int):Int := {binding} in x;"
-    assert _run(source, "f")(5) == 5
+    from aeon.errors import ErasedBindingInTermError
+
+    errors = list(_driver().parse(aeon_code=source))
+    assert any(isinstance(error, ErasedBindingInTermError) for error in errors)
 
 
 def test_export_native_import_preserves_dotted_module():

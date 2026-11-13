@@ -150,6 +150,11 @@ def ignore (0 f:(u:Int) -> Int):Int := 0;
 def main (_:Int):Int := let 1 arr := #[5,9] in {erased}
     ignore (fun u => Array.consume Array.sum arr) + Array.consume Array.sum arr;
 """)
+    if erased:
+        from aeon.errors import ErasedBindingInTermError
+
+        assert any(isinstance(error, ErasedBindingInTermError) for error in errors), errors
+        return
     assert not errors, errors
     assert driver.run() == 14
 

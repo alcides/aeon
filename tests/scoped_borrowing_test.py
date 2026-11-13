@@ -151,13 +151,14 @@ def main (_:Int):Int := let 1 arr := #[5,9] in
     assert any(isinstance(error, BorrowingError) for error in errors), errors
 
 
-def test_erased_borrowed_closure_does_not_freeze_owner():
+def test_erased_borrowed_closure_is_rejected_in_terms():
     driver, errors = compile_source("""
 def main (_:Int):Int := let 1 arr := #[5,9] in
     let 0 read := Array.get arr in Array.consume Array.sum arr;
 """)
-    assert not errors, errors
-    assert driver.run() == 14
+    from aeon.errors import ErasedBindingInTermError
+
+    assert any(isinstance(error, ErasedBindingInTermError) for error in errors), errors
 
 
 def test_partial_user_defined_borrower_keeps_dependency():
