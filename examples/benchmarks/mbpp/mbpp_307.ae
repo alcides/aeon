@@ -1,14 +1,12 @@
 # MBPP task 307
-# Write a function to get a colon of a tuple.
-#
-# Synthesis target: colon_tuplex : Tuple -> Int -> Int -> Tuple
 
-type List
+import List
 
-inductive Tuple
-| mk (a0:String) (a1:Int) (a2:List) (a3:Bool) : Tuple
+inductive Tuple4 a0 a1 a2 a3
+| mk (item0:a0) (item1:a1) (item2:a2) (item3:a3) : (Tuple4 a0 a1 a2 a3)
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> (x2:Int) -> Tuple) : Float := native "float((0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(50) == ('Tuple_mk', 'HELLO', 5, [50], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(100) == ('Tuple_mk', 'HELLO', 5, [100], True)) else 1) + (0 if (f(('Tuple_mk', 'HELLO', 5, [], True))(2)(500) == ('Tuple_mk', 'HELLO', 5, [500], True)) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (tuplex:Tuple) (m:Int) (n:Int) : Tuple := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to get a colon of a tuple.")
+@example(colon_tuplex (Tuple4.mk "HELLO" 5 ([] : (List Int)) true) 2 50 = (Tuple4.mk "HELLO" 5 [50] true))
+@example(colon_tuplex (Tuple4.mk "HELLO" 5 ([] : (List Int)) true) 2 100 = (Tuple4.mk "HELLO" 5 [100] true))
+@example(colon_tuplex (Tuple4.mk "HELLO" 5 ([] : (List Int)) true) 2 500 = (Tuple4.mk "HELLO" 5 [500] true))
+def colon_tuplex (tuplex:(Tuple4 String Int (List Int) Bool)) (m:{v:Int | v = 2}) (n:Int) : (Tuple4 String Int (List Int) Bool) := ?hole

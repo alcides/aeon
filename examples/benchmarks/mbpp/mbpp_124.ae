@@ -1,9 +1,22 @@
 # MBPP task 124
-# Write a function to get the angle of a complex number.
-#
-# Synthesis target: angle_complex : Int -> Int -> Float
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Float) : Float := native "float((0 if (__import__('math').isclose(f(0)(1j), 1.5707963267948966, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(2)(1j), 0.4636476090008061, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(0)(2j), 1.5707963267948966, rel_tol=0.001)) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (a:Int) (b:Int) : Float := (let mbpp_fitness := unit in ?hole)
+inductive Complex
+| mk (real:Float) (imag:Float) : Complex
+
+# Relative/absolute tolerance, preserving Python math.isclose semantics.
+def close (actual:Float) (expected:Float) (relative:Float) (absolute:Float) : Bool :=
+    let difference := if actual < expected then expected - actual else actual - expected in
+    let actual_magnitude := if actual < 0.0 then 0.0 - actual else actual in
+    let expected_magnitude := if expected < 0.0 then 0.0 - expected else expected in
+    let magnitude := if actual_magnitude < expected_magnitude then expected_magnitude else actual_magnitude in
+    let relative_bound := relative * magnitude in
+    # Equal infinities compare equal; self-subtraction rejects other infinities and NaN.
+    actual = expected || (actual - actual = 0.0 && expected - expected = 0.0 &&
+        difference <= (if relative_bound < absolute then absolute else relative_bound))
+
+@doc("Write a function to get the angle of a complex number.")
+@example(close (angle_complex 0 (Complex.mk 0.0 1.0)) 1.5707963267948966 0.001 0.0)
+@example(close (angle_complex 2 (Complex.mk 0.0 1.0)) 0.4636476090008061 0.001 0.0)
+@example(close (angle_complex 0 (Complex.mk 0.0 2.0)) 1.5707963267948966 0.001 0.0)
+def angle_complex (a:Int) (b:Complex) : {v:Float | -3.141592653589793 <= v && v <= 3.141592653589793} := (let close := unit in ?hole)

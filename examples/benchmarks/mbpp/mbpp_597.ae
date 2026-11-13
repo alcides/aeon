@@ -1,11 +1,9 @@
 # MBPP task 597
-# Write a function to find kth element from the given two sorted arrays.
-#
-# Synthesis target: find_kth : List -> List -> Int -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> (x1:List) -> (x2:Int) -> Int) : Float := native "float((0 if (f([2, 3, 6, 7, 9])([1, 4, 8, 10])(5) == 6) else 1) + (0 if (f([100, 112, 256, 349, 770])([72, 86, 113, 119, 265, 445, 892])(7) == 256) else 1) + (0 if (f([3, 4, 7, 8, 10])([2, 5, 9, 11])(6) == 8) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (arr1:List) (arr2:List) (k:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find kth element from the given two sorted arrays.")
+@example(find_kth [2, 3, 6, 7, 9] [1, 4, 8, 10] 5 = 6)
+@example(find_kth [100, 112, 256, 349, 770] [72, 86, 113, 119, 265, 445, 892] 7 = 256)
+@example(find_kth [3, 4, 7, 8, 10] [2, 5, 9, 11] 6 = 8)
+def find_kth (arr1:(List Int)) (arr2:(List Int)) (k:{v:Int | 1 <= v && v <= List.size arr1 + List.size arr2}) : Int := ?hole

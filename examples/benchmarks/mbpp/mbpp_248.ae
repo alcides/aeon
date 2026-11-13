@@ -1,9 +1,19 @@
 # MBPP task 248
-# Write a function that takes in an integer n and calculates the harmonic sum of n-1.
-#
-# Synthesis target: harmonic_sum : Int -> Float
 
-def mbpp_fitness (f:(x0:Int) -> Float) : Float := native "float((0 if (__import__('math').isclose(f(7), 2.5928571428571425, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(4), 2.083333333333333, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(19), 3.547739657143682, rel_tol=0.001)) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Float := (let mbpp_fitness := unit in ?hole)
+# Relative/absolute tolerance, preserving Python math.isclose semantics.
+def close (actual:Float) (expected:Float) (relative:Float) (absolute:Float) : Bool :=
+    let difference := if actual < expected then expected - actual else actual - expected in
+    let actual_magnitude := if actual < 0.0 then 0.0 - actual else actual in
+    let expected_magnitude := if expected < 0.0 then 0.0 - expected else expected in
+    let magnitude := if actual_magnitude < expected_magnitude then expected_magnitude else actual_magnitude in
+    let relative_bound := relative * magnitude in
+    # Equal infinities compare equal; self-subtraction rejects other infinities and NaN.
+    actual = expected || (actual - actual = 0.0 && expected - expected = 0.0 &&
+        difference <= (if relative_bound < absolute then absolute else relative_bound))
+
+@doc("Write a function that takes in an integer n and calculates the harmonic sum of n-1.")
+@example(close (harmonic_sum 7) 2.5928571428571425 0.001 0.0)
+@example(close (harmonic_sum 4) 2.083333333333333 0.001 0.0)
+@example(close (harmonic_sum 19) 3.547739657143682 0.001 0.0)
+def harmonic_sum (n:{v:Int | v > 0}) : {v:Float | v >= 1.0} := (let close := unit in ?hole)

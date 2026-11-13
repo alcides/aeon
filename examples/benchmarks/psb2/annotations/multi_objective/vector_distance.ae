@@ -1,33 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset, get_input_list, get_output_list, unpack_train_data)
-import Array
-def math : Unit := native_import "math"
-def Math_sqrt_Float : (i:Float) -> Float := fun i => native "math.sqrt(i)"
-def Math_pow : (i:Int) -> (j:Int) -> Int := fun i => fun j => native "i ** j"
-def Math_pow_Float : (i:Float) -> (j:Float) -> Float := fun i => fun j => native "i ** j"
+# PSB2: vector-distance
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/vector_distance.clj
 
-def Map_Float_Float_Float_List_List: (function: (a: Float) -> (b: Float) -> Float) ->
-                               (1 l: (Array Int)) ->
-                               (1 l2: (Array Int)) ->
-                               (Array Int) :=
-    fun f => fun xs => fun ys => native "list(map(lambda x, y: f(x)(y), xs, ys))";
+import List
+import Math
+import String
+import PSB2Fitness
 
-def List_sum_Float : (1 l:(Array Int)) -> Float := fun xs => native "sum(xs)"
+def train : Cases := PSB2Fitness.cases "vector-distance" 200;
 
-def List_size: (1 l:(Array Int)) -> Int := uninterpreted
+def score (cases:Cases) (candidate:(vector1:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | 1 <= List.size v && List.size v <= 20}) -> (vector2:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | List.size v = List.size vector1}) -> {r:Float | 0.0 <= r && r <= 1000.0}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('vector-distance', cases(None), candidate)";
 
-def List_new (_: Unit) : {x:(Array Int) | List_size x = 0} := native "[]" ;
-
-def List_append_float (1 l:(Array Int)) (i: Float) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
-
-
-def train : TrainingCases := training_data "vector-distance" 200 200
-
-
-def flatten_list : (1 t:(Array Int)) -> (Array Int) := fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"
-
-def calculate_vector_distance_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> (1 b: (Array Int)) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0])(x[1]) - y[0]) for x , y in data]"
-
-
-@multi_minimize_float(per_example_errors (calculate_vector_distance_errors (fresh_train_data train) synth), 200)
-def synth  (1 vector1: (Array Int)) (1 vector2: (Array Int)) : Float := (let extract_train_data := unit in let load_dataset := unit in let calculate_vector_distance_errors := unit in let train := unit in ?hole)
+@doc("Compute Euclidean distance between equally sized floating-point vectors.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (vector1:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | 1 <= List.size v && List.size v <= 20}) (vector2:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | List.size v = List.size vector1}) : {r:Float | 0.0 <= r && r <= 1000.0} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

@@ -1,13 +1,10 @@
-import Array
-def math : Unit := native_import "math"
+# PSB2: vector-distance
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/vector_distance.clj
 
-def List_new (_: Unit) : (Array Int) := native "[]"
-def List_append_float (1 l:(Array Int)) (i: Float) : (Array Int) := native "l + [i]"
+import List
+import Math
+import String
 
-def vector_distance (1 vector1: (Array Int)) (1 vector2: (Array Int)) : Float :=
-    native "math.sqrt(sum((x - y) ** 2 for x, y in zip(vector1, vector2)))"
-
-def main (args:Int) : Unit :=
-    let 1 v1: (Array Int) := List_append_float (List_new unit) 42.91283;
-    let 1 v2: (Array Int) := List_append_float (List_new unit) (-22.134);
-    print (vector_distance v1 v2);
+@doc("Compute Euclidean distance between equally sized floating-point vectors.")
+def vector_distance (vector1:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | 1 <= List.size v && List.size v <= 20}) (vector2:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | List.size v = List.size vector1}) : Float :=
+    Math.sqrtf (Math.absf (List.sumFloat (List.zipWith (fun a => fun b => (a - b) * (a - b)) vector1 vector2)));

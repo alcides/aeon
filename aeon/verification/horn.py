@@ -708,10 +708,30 @@ def horn_assignment(
         atoms = extract_qualifier_atoms(typing_ctx) if typing_ctx is not None else frozenset()
     else:
         atoms = qualifier_atoms
-    csk = [cp for cp in flat(c) if has_k_head(cp)]
     from aeon.verification.trace import suspend_verification
 
     with suspend_verification():
+        # Most constructor literals only need their declared element types:
+        # no consumer demands an additional inferred predicate. Trying every
+        # qualifier and repeatedly weakening it is expensive for these cases.
+        # An empty qualifier set means True for an *inference variable*, not
+        # for a declared refinement. Validate the entire constraint with this
+        # assignment before accepting it; explicit contracts and dependencies
+        # must still hold. If they need stronger predicates, infer as usual.
+        unconstrained: Assignment = {hole.name: [] for hole in obtain_holes_constraint(c)}
+        if smt_valid(apply_constraint(unconstrained, c)):
+            return unconstrained
+        clauses = flat(c)
+        # Inference cannot repair an obligation that contains no unknown
+        # predicates. Reject it before enumerating qualifiers for unrelated
+        # constructor literals (for example, lists of unequal lengths).
+        independent: Constraint = LiquidConstraint(LiquidLiteralBool(True))
+        for clause in clauses:
+            if not contains_horn_constraint(clause):
+                independent = Conjunction(independent, clause)
+        if not smt_valid(independent):
+            return unconstrained
+        csk = [cp for cp in clauses if has_k_head(cp)]
         return fixpoint(csk, build_initial_assignment(c, typing_ctx, atoms))
 
 

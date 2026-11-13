@@ -1,20 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
+# PSB2: fizz-buzz
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/fizz_buzz.clj
 
-import Array
-def div3 (n:Int) : Bool := if ((n % 3) = 0) then true else false;
-def div5 (n:Int) : Bool := if ((n % 5) = 0) then true else false;
-def div15 (n:Int) : Bool := if ((n % 15) = 0) then true else false;
+import List
+import Math
+import String
+import PSB2Fitness
 
-def toString : (n:Int) -> String := fun n => native "str(n)"
+def train : Cases := PSB2Fitness.cases "fizz-buzz" 200;
 
-def const1 : String := "Fizz"
-def const2 : String := "Buzz"
-def const3 : String := "FizzBuzz"
+def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000000}) -> {r:String | 1 <= String.len r && String.len r <= 8}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('fizz-buzz', cases(None), candidate)";
 
-def train : TrainingCases := training_data "fizz-buzz" 200 200
-
-def calculate_fizzbuzz_errors : (1 train:TrainData) -> (f:(a: Int) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
-
-@multi_minimize_float(per_example_errors (calculate_fizzbuzz_errors (fresh_train_data train) synth), 200)
-def synth (n:Int) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_fizzbuzz_errors := unit in let train := unit in ?hole)
+@doc("Return Fizz, Buzz, FizzBuzz, or the decimal input according to divisibility by three and five.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (n:{v:Int | 1 <= v && v <= 1000000}) : {r:String | 1 <= String.len r && String.len r <= 8} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

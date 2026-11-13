@@ -1,9 +1,8 @@
 # MBPP task 113
-# Write a function to check if a string represents an integer or not.
-#
-# Synthesis target: check_integer : String -> Bool
 
-def mbpp_fitness (f:(x0:String) -> Bool) : Float := native "float((0 if (f('python') == False) else 1) + (0 if (f('1') == True) else 1) + (0 if (f('12345') == True) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (text:String) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to check if a string represents an integer or not.")
+@example(check_integer "python" = false)
+@example(check_integer "1" = true)
+@example(check_integer "12345" = true)
+def check_integer (text:String) : Bool := ?hole

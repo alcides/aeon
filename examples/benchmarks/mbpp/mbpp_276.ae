@@ -1,9 +1,19 @@
 # MBPP task 276
-# Write a function that takes in the radius and height of a cylinder and returns the the volume.
-#
-# Synthesis target: volume_cylinder : Int -> Int -> Float
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Float) : Float := native "float((0 if (__import__('math').isclose(f(10)(5), 1570.7500000000002, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(4)(5), 251.32000000000002, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(4)(10), 502.64000000000004, rel_tol=0.001)) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (r:Int) (h:Int) : Float := (let mbpp_fitness := unit in ?hole)
+# Relative/absolute tolerance, preserving Python math.isclose semantics.
+def close (actual:Float) (expected:Float) (relative:Float) (absolute:Float) : Bool :=
+    let difference := if actual < expected then expected - actual else actual - expected in
+    let actual_magnitude := if actual < 0.0 then 0.0 - actual else actual in
+    let expected_magnitude := if expected < 0.0 then 0.0 - expected else expected in
+    let magnitude := if actual_magnitude < expected_magnitude then expected_magnitude else actual_magnitude in
+    let relative_bound := relative * magnitude in
+    # Equal infinities compare equal; self-subtraction rejects other infinities and NaN.
+    actual = expected || (actual - actual = 0.0 && expected - expected = 0.0 &&
+        difference <= (if relative_bound < absolute then absolute else relative_bound))
+
+@doc("Write a function that takes in the radius and height of a cylinder and returns the the volume.")
+@example(close (volume_cylinder 10 5) 1570.7500000000002 0.001 0.0)
+@example(close (volume_cylinder 4 5) 251.32000000000002 0.001 0.0)
+@example(close (volume_cylinder 4 10) 502.64000000000004 0.001 0.0)
+def volume_cylinder (r:{v:Int | v >= 0}) (h:{v:Int | v >= 0}) : {v:Float | v >= 0.0} := (let close := unit in ?hole)

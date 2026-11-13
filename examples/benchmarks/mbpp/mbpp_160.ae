@@ -1,17 +1,10 @@
 # MBPP task 160
-# Write a function that returns integers x and y that satisfy ax + by = n as a tuple, or return None if no solution exists.
-#
-# Synthesis target: find_solution : Int -> Int -> Int -> (Maybe Tuple)
 
-inductive Maybe a
-| none : (Maybe a)
-| just (v:a) : (Maybe a)
+import Maybe
+import Pair
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
-
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> (x2:Int) -> (Maybe Tuple)) : Float := native "float((0 if (f(2)(3)(7) == ('Maybe_just', ('Tuple_tcons', 2, ('Tuple_tcons', 1, ('Tuple_tnil',))))) else 1) + (0 if (f(4)(2)(7) == ('Maybe_none',)) else 1) + (0 if (f(1)(13)(17) == ('Maybe_just', ('Tuple_tcons', 4, ('Tuple_tcons', 1, ('Tuple_tnil',))))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (a:Int) (b:Int) (n:Int) : (Maybe Tuple) := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that returns integers x and y that satisfy ax + by = n as a tuple, or return None if no solution exists.")
+@example(find_solution 2 3 7 = (Maybe.just (Pair.mk 2 1)))
+@example(find_solution 4 2 7 = (Maybe.none : (Maybe (Pair Int Int))))
+@example(find_solution 1 13 17 = (Maybe.just (Pair.mk 4 1)))
+def find_solution (a:{v:Int | v > 0}) (b:{v:Int | v > 0}) (n:{v:Int | v >= 0}) : {value:(Maybe (Pair Int Int)) | (!(Maybe.present value) || (((Pair.first (Maybe.value value)) >= 0) && ((Pair.second (Maybe.value value)) >= 0)))} := ?hole

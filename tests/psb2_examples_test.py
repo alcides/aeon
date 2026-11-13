@@ -16,14 +16,14 @@ from aeon.synthesis.uis.api import SilentSynthesisUI
 setup_logger()
 
 PSB2_DIR = Path(__file__).parent.parent / "examples/benchmarks/psb2"
-PSB2_FILES = sorted(p for p in PSB2_DIR.rglob("*.ae") if "solved" not in p.parts)
+PSB2_FILES = sorted(PSB2_DIR.rglob("*.ae"))
 
 
 def test_psb2_directory_is_populated():
-    assert PSB2_FILES, f"no PSB2 example files found in {PSB2_DIR}"
+    assert len(PSB2_FILES) == 65
 
 
-@pytest.mark.parametrize("path", PSB2_FILES, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", PSB2_FILES, ids=lambda p: str(p.relative_to(PSB2_DIR)))
 def test_psb2_example_parses_and_typechecks(path: Path):
     cfg = AeonConfig(
         synthesizer="random_search",
@@ -35,4 +35,4 @@ def test_psb2_example_parses_and_typechecks(path: Path):
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         errors = driver.parse(str(path))
     assert not errors, f"{path.name} failed to typecheck: {errors}"
-    assert driver.has_synth(), f"{path.name} has no synthesis hole"
+    assert driver.has_synth() == ("solved" not in path.parts)

@@ -1,9 +1,8 @@
 # MBPP task 20
-# Write a function to check if the given number is woodball or not.
-#
-# Synthesis target: is_woodall : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (f(383) == True) else 1) + (0 if (f(254) == False) else 1) + (0 if (f(200) == False) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (x:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to check if the given number is woodball or not.")
+@example(is_woodall 383 = true)
+@example(is_woodall 254 = false)
+@example(is_woodall 200 = false)
+def is_woodall (x:{v:Int | v >= 0}) : Bool := ?hole

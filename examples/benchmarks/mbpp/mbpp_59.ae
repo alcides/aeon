@@ -1,9 +1,8 @@
 # MBPP task 59
-# Write a function to find the nth octagonal number.
-#
-# Synthesis target: is_octagonal : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(5) == 65) else 1) + (0 if (f(10) == 280) else 1) + (0 if (f(15) == 645) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the nth octagonal number.")
+@example(is_octagonal 5 = 65)
+@example(is_octagonal 10 = 280)
+@example(is_octagonal 15 = 645)
+def is_octagonal (n:{v:Int | v > 0}) : {v:Int | v >= 0} := ?hole

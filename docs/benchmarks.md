@@ -371,11 +371,20 @@ vs gate count (`grover_circuits.ae`).
 **Layout.** Root tasks + `solved/` (**25**) + `annotations/` (single/multi-
 objective variants).
 
+**Representations.** Native immutable `List` values, with element and length
+refinements; floating-point shopping/vector inputs; standard `String`, `Math`,
+and `Map` operations. Direct solutions and dataset scorers are hidden at holes.
+All 25 references execute against offline conformance cases. See the
+[PSB2 port notes](../examples/benchmarks/psb2/README.md) for contracts and upstream details.
+
 **Timeout.** Check-only CI covers all variants; research runs typically **60s+**.
 
 ### MBPP — `examples/benchmarks/mbpp/` (427)
 
-**Origin.** Mostly Basic Python Problems as fitness + hole.
+**Origin.** The 427 sanitized Mostly Basic Python Problems, maintained directly
+as Aeon programs with holes and 1,324 `@example` assertions. Python lists use
+standard `List`; pairs, optional results, maps and sets use the corresponding
+standard libraries. See the suite's [representation notes](../examples/benchmarks/mbpp/README.md).
 
 **Timeout.** Not specified → **30–60s** `gp`. Parse-only tests use budget **0**.
 

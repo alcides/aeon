@@ -1,9 +1,8 @@
 # MBPP task 86
-# Write a function to find nth centered hexagonal number.
-#
-# Synthesis target: centered_hexagonal_number : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(10) == 271) else 1) + (0 if (f(2) == 7) else 1) + (0 if (f(9) == 217) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find nth centered hexagonal number.")
+@example(centered_hexagonal_number 10 = 271)
+@example(centered_hexagonal_number 2 = 7)
+@example(centered_hexagonal_number 9 = 217)
+def centered_hexagonal_number (n:{v:Int | v > 0}) : {v:Int | v >= 1} := ?hole

@@ -1,19 +1,10 @@
-import Array
-def String_len : (i:String) -> Int := fun i => native "len(i)"
+# PSB2: indices-of-substring
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/indices_of_substring.clj
 
-def Range: (start : Int) -> (stop : Int) -> (step : Int) -> (Array Int) := fun start => fun stop => fun step => native "list(range(start, stop, step ))"
+import List
+import Math
+import String
 
-def Filter :  (f: (s:Int) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-
-def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
-
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
-
-def indices_of_substring ( text :String) (target: String) : (Array Int) := start: Int := 0;
-    stop: Int := ((text.len) - (target.len)) + 1 ;
-    step: Int := 1;
-    let 1 indices: (Array Int)  := Range start stop step;
-    let 1 matching_indices: (Array Int)  := Filter ((fun i => (text.slice i (i + (target.len))).equal target):(s:Int) -> Bool)  indices;
-    matching_indices;
-
-def main (args:Int) : Unit := print(indices_of_substring "hello world" "lo" )
+@doc("Return all starting indices of a substring, including overlapping matches.")
+def indices_of_substring (text:{v:String | 1 <= String.len v && String.len v <= 20}) (target:{v:String | 1 <= String.len v && String.len v <= 20}) : (List Int) :=
+    List.filter (fun i => String.substr text i (String.len target) = target) (List.range 0 (String.len text));

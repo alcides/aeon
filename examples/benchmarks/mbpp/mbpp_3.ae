@@ -1,9 +1,9 @@
 # MBPP task 3
-# Write a python function to identify non-prime numbers.
-#
-# Synthesis target: is_not_prime : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (f(2) == False) else 1) + (0 if (f(10) == True) else 1) + (0 if (f(35) == True) else 1) + (0 if (f(37) == False) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to identify non-prime numbers.")
+@example(is_not_prime 2 = false)
+@example(is_not_prime 10 = true)
+@example(is_not_prime 35 = true)
+@example(is_not_prime 37 = false)
+def is_not_prime (n:{v:Int | v >= 0}) : Bool := ?hole

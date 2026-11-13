@@ -1,14 +1,12 @@
-import Array
-def math : Unit := native_import "math"
-def Math_toFloat : (i:Int) -> Float := fun i => native "float(i)"
-def Math_max : (i:Int) -> (j:Int) -> Int := fun i => fun j => native "max(i,j)"
+# PSB2: dice-game
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/dice_game.clj
 
-def peter_wins (n:Int) (m:Int) : Int := if m = 0 then 0 else Math_max 0 (n - m) + peter_wins n (m - 1);
+import List
+import Math
+import String
 
-def dice_game (n:Int | 1 <= n && n <= 10000) (m:Int | 1 <= m && m <= 10000) : Float := a : Float := Math_toFloat (peter_wins n m);
-     b : Float := Math_toFloat (n * m);
-     c : Float := if b != 0.0 then a / b else 0.0;
-     c;
-
-
-def main (args:Int) : Unit := print (dice_game 100 99)
+@doc("Return the probability that an n-sided die rolls strictly above an m-sided die.")
+def dice_game (n:{v:Int | 1 <= v && v <= 1000}) (m:{v:Int | 1 <= v && v <= 1000}) : Float :=
+    if n <= m then
+        let denominator := Math.toFloat (2 * m) in if denominator = 0.0 then 0.0 else Math.toFloat (n - 1) / denominator
+    else let denominator := Math.toFloat (2 * n) in if denominator = 0.0 then 0.0 else 1.0 - Math.toFloat (m + 1) / denominator;

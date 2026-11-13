@@ -1,9 +1,8 @@
 # MBPP task 274
-# Write a python function that takes in a positive integer n and finds the sum of even index binomial coefficients.
-#
-# Synthesis target: even_binomial_Coeff_Sum : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(4) == 8) else 1) + (0 if (f(6) == 32) else 1) + (0 if (f(2) == 2) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function that takes in a positive integer n and finds the sum of even index binomial coefficients.")
+@example(even_binomial_Coeff_Sum 4 = 8)
+@example(even_binomial_Coeff_Sum 6 = 32)
+@example(even_binomial_Coeff_Sum 2 = 2)
+def even_binomial_Coeff_Sum (n:{v:Int | v > 0}) : {v:Int | v >= 1} := ?hole

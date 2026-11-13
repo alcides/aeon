@@ -1,11 +1,20 @@
 # MBPP task 137
-# Write a function to find the ratio of zeroes to non-zeroes in an array of integers.
-#
-# Synthesis target: zero_count : List -> Float
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Float) : Float := native "float((0 if (__import__('math').isclose(f([0, 1, 2, -1, -5, 6, 0, -3, -2, 3, 4, 6, 8]), 0.181818, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f([2, 1, 2, -1, -5, 6, 4, -3, -2, 3, 4, 6, 8]), 0.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f([2, 4, -6, -9, 11, -12, 14, -5, 17]), 0.0, rel_tol=0.001)) else 1))"
+# Relative/absolute tolerance, preserving Python math.isclose semantics.
+def close (actual:Float) (expected:Float) (relative:Float) (absolute:Float) : Bool :=
+    let difference := if actual < expected then expected - actual else actual - expected in
+    let actual_magnitude := if actual < 0.0 then 0.0 - actual else actual in
+    let expected_magnitude := if expected < 0.0 then 0.0 - expected else expected in
+    let magnitude := if actual_magnitude < expected_magnitude then expected_magnitude else actual_magnitude in
+    let relative_bound := relative * magnitude in
+    # Equal infinities compare equal; self-subtraction rejects other infinities and NaN.
+    actual = expected || (actual - actual = 0.0 && expected - expected = 0.0 &&
+        difference <= (if relative_bound < absolute then absolute else relative_bound))
 
-@minimize_float(mbpp_fitness synth)
-def synth (nums:List) : Float := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the ratio of zeroes to non-zeroes in an array of integers.")
+@example(close (zero_count [0, 1, 2, (-1), (-5), 6, 0, (-3), (-2), 3, 4, 6, 8]) 0.181818 0.001 0.0)
+@example(close (zero_count [2, 1, 2, (-1), (-5), 6, 4, (-3), (-2), 3, 4, 6, 8]) 0.0 0.001 0.0)
+@example(close (zero_count [2, 4, (-6), (-9), 11, (-12), 14, (-5), 17]) 0.0 0.001 0.0)
+def zero_count (nums:{v:(List Int) | List.size v > 0}) : {v:Float | v >= 0.0} := (let close := unit in ?hole)

@@ -1,23 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
-import Array
-def math : Unit := native_import "math"
-def Math_floor : (i:Float) -> Int := fun i => native "math.floor(i)"
-def Math_toFloat : (i:Int) -> Float := fun i => native "float(i)"
-def Math_toInt : (i:Float) -> Int := fun i => native "int(i)"
+# PSB2: middle-character
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/middle_character.clj
 
-def String_len : (i:String) -> Int := fun i => native "len(i)"
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
+import List
+import Math
+import String
+import PSB2Fitness
 
+def train : Cases := PSB2Fitness.cases "middle-character" 200;
 
-def equal_int : (a: Int) -> (b: Int) -> Bool := fun x => fun y => native "x == y";
+def score (cases:Cases) (candidate:(s:{v:String | 1 <= String.len v && String.len v <= 100}) -> {r:String | (String.len s % 2 = 0 && String.len r = 2) || (String.len s % 2 != 0 && String.len r = 1)}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('middle-character', cases(None), candidate)";
 
-
-def train : TrainingCases := training_data "middle-character" 200 200
-
-
-def calculate_middle_char_errors : (1 train:TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0]), y[0]) for x , y in data]"
-
-
-@multi_minimize_float(per_example_errors (calculate_middle_char_errors (fresh_train_data train) synth), 200)
-def synth(s: String) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_middle_char_errors := unit in let train := unit in ?hole)
+@doc("Return the central character, or the central two characters for even lengths.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (s:{v:String | 1 <= String.len v && String.len v <= 100}) : {r:String | (String.len s % 2 = 0 && String.len r = 2) || (String.len s % 2 != 0 && String.len r = 1)} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

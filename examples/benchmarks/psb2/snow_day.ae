@@ -1,29 +1,20 @@
-import PSB2Fitness (per_example_errors)
-# Snow Day (HW): Given an integer number of hours and 3 floats
-# representing the snow currently on the ground, the rate of
-# snowfall, and the proportion of snow melting per hour, return
-# the amount of snow on the ground after the given number of hours.
-# Each hour is a discrete add-then-melt event, not continuous.
-# input  : integer in [0, 20],
-#          float   in [0.0, 20.0],
-#          float   in [0.0, 10.0],
-#          float   in [0.0, 1.0]
-# output : float
+# PSB2: snow-day
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/snow_day.clj
 
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
-import Array
+import List
+import Math
+import String
+import PSB2Fitness
 
-def train : TrainingCases := training_data "snow-day" 200 200
+def train : Cases := PSB2Fitness.cases "snow-day" 200;
 
-def calculate_snow_day_errors : (1 train:TrainData) -> (f: (a: {x:Int   |  0   <= x && x <= 20})
-                                                       -> (b: {y:Float |  0.0 <= y && y <= 20.0})
-                                                       -> (c: {z:Float |  0.0 <= z && z <= 10.0})
-                                                       -> (d: {w:Float |  0.0 <= w && w <= 1.0})
-						       -> Float) -> (Array Float) :=
-    fun data => fun func => native "[abs(func(x[0][0])(x[0][1])(x[0][2])(x[0][3]) - x[1][0]) for x in data]"
+def score (cases:Cases) (candidate:(hours:{v:Int | 0 <= v && v <= 20}) -> (snow:{v:Float | 0.0 <= v && v <= 20.0}) -> (snowfall:{v:Float | 0.0 <= v}) -> (melt:{v:Float | 0.0 <= v && v <= 1.0}) -> {r:Float | 0.0 <= r && (hours != 0 || r = snow)}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('snow-day', cases(None), candidate)";
 
-@multi_minimize_float(per_example_errors (calculate_snow_day_errors (fresh_train_data train) synth), 200)
-def synth (n : {x:Int   |  0   <= x && x <= 20})
-          (m : {a:Float |  0.0 <= a && a <= 20.0})
-          (t : {b:Float |  0.0 <= b && b <= 10.0})
-          (p : {c:Float |  0.0 <= c && c <= 1.0}) : {r:Float | 0.0 <= r} := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_snow_day_errors := unit in ?hole);
+@doc("Each hour, melt the given fraction of existing snow and then add fresh snowfall.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (hours:{v:Int | 0 <= v && v <= 20}) (snow:{v:Float | 0.0 <= v && v <= 20.0}) (snowfall:{v:Float | 0.0 <= v}) (melt:{v:Float | 0.0 <= v && v <= 1.0}) : {r:Float | 0.0 <= r && (hours != 0 || r = snow)} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

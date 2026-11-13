@@ -1,11 +1,9 @@
 # MBPP task 95
-# Write a python function to find the length of the smallest list in a list of lists.
-#
-# Synthesis target: Find_Min_Length : List -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Int) : Float := native "float((0 if (f([[1], [1, 2]]) == 1) else 1) + (0 if (f([[1, 2], [1, 2, 3], [1, 2, 3, 4]]) == 2) else 1) + (0 if (f([[3, 3, 3], [4, 4, 4, 4]]) == 3) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (lst:List) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the length of the smallest list in a list of lists.")
+@example(Find_Min_Length [[1], [1, 2]] = 1)
+@example(Find_Min_Length [[1, 2], [1, 2, 3], [1, 2, 3, 4]] = 2)
+@example(Find_Min_Length [[3, 3, 3], [4, 4, 4, 4]] = 3)
+def Find_Min_Length (lst:{v:(List (List Int)) | List.size v > 0}) : {v:Int | v >= 0} := ?hole

@@ -1,9 +1,8 @@
 # MBPP task 268
-# Write a function to find the n'th star number.
-#
-# Synthesis target: find_star_num : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(3) == 37) else 1) + (0 if (f(4) == 73) else 1) + (0 if (f(5) == 121) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the n'th star number.")
+@example(find_star_num 3 = 37)
+@example(find_star_num 4 = 73)
+@example(find_star_num 5 = 121)
+def find_star_num (n:{v:Int | v > 0}) : {v:Int | v >= 1} := ?hole

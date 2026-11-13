@@ -1,7 +1,18 @@
-import Array
+# PSB2: mastermind
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/mastermind.clj
 
-# Black pegs = exact matches; white pegs = colour matches among the rest.
-def mastermind (code : String) (guess: String) : (Array Int) :=
-    native "(lambda c, g: (lambda black, unmatched_c, unmatched_g: [sum((__import__('collections').Counter(unmatched_c) & __import__('collections').Counter(unmatched_g)).values()), black])(sum(1 for a, b in zip(c, g) if a == b), [a for a, b in zip(c, g) if a != b], [b for a, b in zip(c, g) if a != b]))(code, guess)"
+import List
+import Math
+import String
 
-def main (args:Int) : Unit := print (mastermind "GGGB" "BGGG")
+def white_pegs (code:(List String)) (guess:(List String)) : Int :=
+    match code with | List.nil => 0 | List.cons x rest =>
+        if List.all (fun y => x != y) guess then white_pegs rest guess else 1 + white_pegs rest (List.removeFirst x guess);
+
+@doc("Return white then black peg counts, counting duplicate colors only as many times as they occur.")
+def mastermind (code:{v:String | String.len v = 4}) (guess:{v:String | String.len v = 4}) : (List Int) :=
+    let cs := String.characters code in let gs := String.characters guess in
+    let black := List.sum (List.zipWith (fun a => fun b => if a = b then 1 else 0) cs gs) in
+    let uc := List.filter (fun s => s != "") (List.zipWith (fun a => fun b => if a = b then "" else a) cs gs) in
+    let ug := List.filter (fun s => s != "") (List.zipWith (fun a => fun b => if a = b then "" else b) cs gs) in
+    [white_pegs uc ug, black];

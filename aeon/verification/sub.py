@@ -382,7 +382,10 @@ def sub(ctx: TypingContext, t1: Type, t2: Type, loc: Location | None = None) -> 
             c0 = sub(ctx, t2, t1, loc)
             rt1_ = substitution_in_type(rt1, Var(new_name_a), a1)
             rt2_ = substitution_in_type(rt2, Var(new_name_a), a2)
-            c1 = sub(ctx, rt1_, rt2_, loc)
+            # Dependent datatype predicates in the result may mention this
+            # argument. Keep its type in scope while validating those predicates,
+            # as well as in the implication that encloses their obligations.
+            c1 = sub(ctx.with_var(new_name_a, t2), rt1_, rt2_, loc)
             return conjoin(c0, implication_constraint(new_name_a, t2, c1, loc))
         case TypeConstructor(_, _) as tc1, TypeConstructor(_, _) as tc2:
             # Defensive: ``ensure_refined`` normally wraps bare type

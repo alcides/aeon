@@ -1,11 +1,13 @@
 # MBPP task 418
-# Write a python function to find the element of a list having maximum length.
-#
-# Synthesis target: Find_Max : List -> List
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f([['A'], ['A', 'B'], ['A', 'B', 'C']]) == ['A', 'B', 'C']) else 1) + (0 if (f([[1], [1, 2], [1, 2, 3]]) == [1, 2, 3]) else 1) + (0 if (f([[1, 1], [1, 2, 3], [1, 5, 6, 1]]) == [1, 5, 6, 1]) else 1))"
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (lst:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the element of a list having maximum length.")
+@example(Find_Max [[(Value1.asString "A")], [(Value1.asString "A"), (Value1.asString "B")], [(Value1.asString "A"), (Value1.asString "B"), (Value1.asString "C")]] = [(Value1.asString "A"), (Value1.asString "B"), (Value1.asString "C")])
+@example(Find_Max [[(Value1.asInt 1)], [(Value1.asInt 1), (Value1.asInt 2)], [(Value1.asInt 1), (Value1.asInt 2), (Value1.asInt 3)]] = [(Value1.asInt 1), (Value1.asInt 2), (Value1.asInt 3)])
+@example(Find_Max [[(Value1.asInt 1), (Value1.asInt 1)], [(Value1.asInt 1), (Value1.asInt 2), (Value1.asInt 3)], [(Value1.asInt 1), (Value1.asInt 5), (Value1.asInt 6), (Value1.asInt 1)]] = [(Value1.asInt 1), (Value1.asInt 5), (Value1.asInt 6), (Value1.asInt 1)])
+def Find_Max (lst:{v:(List (List Value1)) | List.size v > 0}) : (List Value1) := ?hole

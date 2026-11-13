@@ -1,9 +1,8 @@
 # MBPP task 577
-# Write a python function to find the last digit in factorial of a given number.
-#
-# Synthesis target: last_Digit_Factorial : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(4) == 4) else 1) + (0 if (f(21) == 0) else 1) + (0 if (f(30) == 0) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the last digit in factorial of a given number.")
+@example(last_Digit_Factorial 4 = 4)
+@example(last_Digit_Factorial 21 = 0)
+@example(last_Digit_Factorial 30 = 0)
+def last_Digit_Factorial (n:{v:Int | v >= 0}) : {v:Int | 0 <= v && v <= 9} := ?hole

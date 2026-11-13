@@ -1,9 +1,9 @@
 # MBPP task 748
-# Write a function to put spaces between words starting with capital letters in a given string.
-#
-# Synthesis target: capital_words_spaces : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f('Python') == 'Python') else 1) + (0 if (f('PythonProgrammingExamples') == 'Python Programming Examples') else 1) + (0 if (f('GetReadyToBeCodingFreak') == 'Get Ready To Be Coding Freak') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (str1:String) : String := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to put spaces between words starting with capital letters in a given string.")
+@example(capital_words_spaces "Python" = "Python")
+@example(capital_words_spaces "PythonProgrammingExamples" = "Python Programming Examples")
+@example(capital_words_spaces "GetReadyToBeCodingFreak" = "Get Ready To Be Coding Freak")
+def capital_words_spaces (str1:String) : {v:String | String.len v >= String.len str1} := ?hole

@@ -1,11 +1,9 @@
 # MBPP task 101
-# Write a function to find the kth element in the given array using 1-based indexing.
-#
-# Synthesis target: kth_element : List -> Int -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Int) : Float := native "float((0 if (f([12, 3, 5, 7, 19])(2) == 3) else 1) + (0 if (f([17, 24, 8, 23])(3) == 8) else 1) + (0 if (f([16, 21, 25, 36, 4])(4) == 36) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (arr:List) (k:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the kth element in the given array using 1-based indexing.")
+@example(kth_element [12, 3, 5, 7, 19] 2 = 3)
+@example(kth_element [17, 24, 8, 23] 3 = 8)
+@example(kth_element [16, 21, 25, 36, 4] 4 = 36)
+def kth_element (arr:(List Int)) (k:{v:Int | 1 <= v && v <= List.size arr}) : Int decreasing_by [k] := ?hole

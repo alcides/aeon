@@ -1,24 +1,11 @@
-import Array
-def get_fst: (l:String) -> String := fun xs => native "xs[0]"
-def get_snd: (l:String) -> String := fun xs => native "xs[1]"
+# PSB2: paired-digits
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/paired_digits.clj
 
-def String_len : (i:String) -> Int := fun i => native "len(i)"
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
-def String_zip : (i:String) -> (j:String) -> String := fun i => fun j => native "zip(i,j)"
-def String_to_List : (i:String) -> (Array Int) := fun i => native "list(i)"
-def String_to_Int : (i:String) -> Int := fun i => native "int(i)"
+import List
+import Math
+import String
 
-def filter :  (f: (s:String) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-# def filter2 :  (f: (s:String) -> Bool) -> (1 l:(Array Int)) -> (Array Int) = fun f => fun xs => native "filter(f, xs)"
-
-def List_sum: (1 l:(Array Int)) -> Int := fun xs => native "sum(xs)"
-def List_map_String_Int: (function:(a: String) -> Int) -> (1 l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
-
-def paired_digits (nums: String) : Int := let 1 pairs: (Array Int) := (nums.zip (nums.slice 1 (nums.len))).to_List;
-    pred : (x:String) -> Bool := fun x => (get_fst x) = (get_snd x);
-    let 1 matching_pairs: (Array Int)  := filter pred pairs;
-    mapper : (x: String) -> Int := fun x => (get_fst x).to_Int;
-    total_sum : Int := List_sum (List_map_String_Int mapper matching_pairs);
-    total_sum;
-
-def main (args:Int) : Unit := print (paired_digits "99")
+@doc("Sum each decimal digit that equals the following digit; there is no wraparound.")
+def paired_digits (nums:{v:String | 2 <= String.len v && String.len v <= 20}) : Int :=
+    let digits := String.characters nums in
+    List.sum (List.zipWith (fun a => fun b => if a = b then String.stringToInt a else 0) digits (List.drop 1 digits));

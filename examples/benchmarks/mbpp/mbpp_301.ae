@@ -1,11 +1,20 @@
 # MBPP task 301
-# Write a function to find the depth of a dictionary.
-#
-# Synthesis target: dict_depth : Dict -> Int
 
-type Dict
+import List
+import Pair
 
-def mbpp_fitness (f:(x0:Dict) -> Int) : Float := native "float((0 if (f({'a': 1, 'b': {'c': {'d': {}}}}) == 4) else 1) + (0 if (f({'a': 1, 'b': {'c': 'python'}}) == 2) else 1) + (0 if (f({1: 'Sun', 2: {3: {4: 'Mon'}}}) == 3) else 1))"
+inductive Key
+| integer (value:Int) : Key
+| text (value:String) : Key
 
-@minimize_float(mbpp_fitness synth)
-def synth (d:Dict) : Int := (let mbpp_fitness := unit in ?hole)
+# A recursive dictionary value, so the task supports arbitrary nesting depths.
+inductive Value
+| integer (value:Int) : Value
+| text (value:String) : Value
+| dictionary (entries:(List (Pair Key Value))) : Value
+
+@doc("Find the depth of a nested dictionary; an empty dictionary has depth one.")
+@example(dict_depth [(Pair.mk (Key.text "a") (Value.integer 1)), (Pair.mk (Key.text "b") (Value.dictionary [(Pair.mk (Key.text "c") (Value.dictionary [(Pair.mk (Key.text "d") (Value.dictionary []))]))]))] = 4)
+@example(dict_depth [(Pair.mk (Key.text "a") (Value.integer 1)), (Pair.mk (Key.text "b") (Value.dictionary [(Pair.mk (Key.text "c") (Value.text "python"))]))] = 2)
+@example(dict_depth [(Pair.mk (Key.integer 1) (Value.text "Sun")), (Pair.mk (Key.integer 2) (Value.dictionary [(Pair.mk (Key.integer 3) (Value.dictionary [(Pair.mk (Key.integer 4) (Value.text "Mon"))]))]))] = 3)
+def dict_depth (entries:(List (Pair Key Value))) : {v:Int | v >= 1} := ?hole

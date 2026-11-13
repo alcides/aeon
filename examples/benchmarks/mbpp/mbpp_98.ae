@@ -1,13 +1,20 @@
 # MBPP task 98
-# Write a function to multiply all the numbers in a list and divide with the length of the list.
-#
-# Synthesis target: multiply_num : Tuple -> Float
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+import List
 
-def mbpp_fitness (f:(x0:Tuple) -> Float) : Float := native "float((0 if (__import__('math').isclose(f(('Tuple_tcons', 8, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tcons', -1, ('Tuple_tcons', 7, ('Tuple_tnil',))))))), -67.2, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(('Tuple_tcons', -10, ('Tuple_tcons', -20, ('Tuple_tcons', -30, ('Tuple_tnil',))))), -2000.0, rel_tol=0.001)) else 1) + (0 if (__import__('math').isclose(f(('Tuple_tcons', 19, ('Tuple_tcons', 15, ('Tuple_tcons', 18, ('Tuple_tnil',))))), 1710.0, rel_tol=0.001)) else 1))"
+# Relative/absolute tolerance, preserving Python math.isclose semantics.
+def close (actual:Float) (expected:Float) (relative:Float) (absolute:Float) : Bool :=
+    let difference := if actual < expected then expected - actual else actual - expected in
+    let actual_magnitude := if actual < 0.0 then 0.0 - actual else actual in
+    let expected_magnitude := if expected < 0.0 then 0.0 - expected else expected in
+    let magnitude := if actual_magnitude < expected_magnitude then expected_magnitude else actual_magnitude in
+    let relative_bound := relative * magnitude in
+    # Equal infinities compare equal; self-subtraction rejects other infinities and NaN.
+    actual = expected || (actual - actual = 0.0 && expected - expected = 0.0 &&
+        difference <= (if relative_bound < absolute then absolute else relative_bound))
 
-@minimize_float(mbpp_fitness synth)
-def synth (numbers:Tuple) : Float := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to multiply all the numbers in a list and divide with the length of the list.")
+@example(close (multiply_num [8, 2, 3, (-1), 7]) (-67.2) 0.001 0.0)
+@example(close (multiply_num [(-10), (-20), (-30)]) (-2000.0) 0.001 0.0)
+@example(close (multiply_num [19, 15, 18]) 1710.0 0.001 0.0)
+def multiply_num (numbers:{v:(List Int) | List.size v > 0}) : Float := (let close := unit in ?hole)
