@@ -32,12 +32,28 @@ requires it; an `Array (Array Int)` must move its elements with `take` or
 | DataFrame / LearningCore | shape, column names, scalar predicates; numeric column extraction allocates | updates, fitting, copying, scoring, disposal |
 | Reader / Iterator / Random | byte, availability flag, copyable next value, drawn scalar | successor extraction consumes its linear result token |
 | ForkJoin / CUDA | immutable metadata | linear result wrappers unpack once into all their owned fields |
+| Args / Subprocess | parsed values, exit status, captured output | parsing/running transfers argv; dispose the result after reading it |
+| Learning / Models | fitted-model metadata, prediction, scoring, typeclass observations | fit consumes training data; dispose the fitted model after its last read |
 
 `with_pair`, `with_datasets`, `with_halves`, `with_forked`, `with_joined`, and the
 CUDA `with_*_download` helpers consume a wrapper once and pass its fields to a
 one-use continuation. Repeated owned projections are rejected. Scalar random
 draws and batch samples require explicit disposal at the end of a chain. A
 borrowed batch-sample observation returns a fresh Float array.
+
+Fitted models and parsed/process results can retain storage transferred by their
+input arguments. Bind these results with `let 1`, use their borrowed readers,
+then call `dispose_classifier`, `dispose_regressor`, `Args.dispose`, or
+`Subprocess.dispose_result`. Generated typeclass methods preserve their declared
+`borrow`, `1`, and erased parameter quantities, so `Models.classify` and
+`Models.cls_classes` may observe the same fitted model before it is disposed of.
+
+PSB2 benchmarks keep a reusable `TrainingCases` fixture created with
+`training_data`. `fresh_train_data` supplies an owned deep copy for one fitness
+evaluation. The fixture samples once with seed 0, also keeping independently
+started fitness workers on the same cases without resetting search randomness.
+`TrainData`, `TestData`, and their unpacked `Tuple` are linear. Use `with_lists`
+to consume a training snapshot once and obtain both owned input/output arrays.
 
 ## Curried calls and the second argument
 

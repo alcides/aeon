@@ -47,14 +47,18 @@ def singleton (x : String) : (Array String) := native "[x]"
 @property
 def prop_int_option_default_roundtrips (d : Int) : Bool :=
     p : Parser := Args.addIntOption (Args.newParser "t") "num" d "";
-    a : ParsedArgs := Args.parseList p (argvEmpty unit);
-    Args.getInt a "num" = d;
+    let 1 a : ParsedArgs := Args.parseList p (argvEmpty unit) in
+    let result := Args.getInt a "num" = d in
+    let _ := Args.dispose a in
+    result;
 
 @property
 def prop_float_option_default_roundtrips (d : Float) : Bool :=
     p : Parser := Args.addFloatOption (Args.newParser "t") "x" d "";
-    a : ParsedArgs := Args.parseList p (argvEmpty unit);
-    Args.getFloat a "x" = d;
+    let 1 a : ParsedArgs := Args.parseList p (argvEmpty unit) in
+    let result := Args.getFloat a "x" = d in
+    let _ := Args.dispose a in
+    result;
 
 # (String inputs are exercised by the @example unit tests below rather than a
 # @property: random String generation is not supported as a quantified input.)
@@ -65,8 +69,10 @@ def prop_float_option_default_roundtrips (d : Float) : Bool :=
 @property
 def prop_int_positional_roundtrips (d : {v : Int | v >= 0}) : Bool :=
     p : Parser := Args.addIntArg (Args.newParser "t") "count" "";
-    a : ParsedArgs := Args.parseList p (singleton (String.intToString d));
-    Args.getInt a "count" = d;
+    let 1 a : ParsedArgs := Args.parseList p (singleton (String.intToString d)) in
+    let result := Args.getInt a "count" = d in
+    let _ := Args.dispose a in
+    result;
 
 # ── Unit tests: argv parsing for each accessor / argument kind ────────────
 
@@ -74,51 +80,65 @@ def prop_int_positional_roundtrips (d : {v : Int | v >= 0}) : Bool :=
 @example(getName (argvAlice unit))
 def getName (1 argv : (Array String)) : Bool :=
     p : Parser := Args.addArg (Args.newParser "t") "name" "";
-    a : ParsedArgs := Args.parseList p argv;
-    (Args.getString a "name").equal "alice";
+    let 1 a : ParsedArgs := Args.parseList p argv in
+    let result := (Args.getString a "name").equal "alice" in
+    let _ := Args.dispose a in
+    result;
 
 # Required int positional.
 @example(getCount (argv42 unit) = 42)
 def getCount (1 argv : (Array String)) : Int :=
     p : Parser := Args.addIntArg (Args.newParser "t") "count" "";
-    a : ParsedArgs := Args.parseList p argv;
-    Args.getInt a "count";
+    let 1 a : ParsedArgs := Args.parseList p argv in
+    let result := Args.getInt a "count" in
+    let _ := Args.dispose a in
+    result;
 
 # Required float positional.
 @example(getRatio (argvRatio unit) = 1.5)
 def getRatio (1 argv : (Array String)) : Float :=
     p : Parser := Args.addFloatArg (Args.newParser "t") "ratio" "";
-    a : ParsedArgs := Args.parseList p argv;
-    Args.getFloat a "ratio";
+    let 1 a : ParsedArgs := Args.parseList p argv in
+    let result := Args.getFloat a "ratio" in
+    let _ := Args.dispose a in
+    result;
 
 # Boolean flag: true when present, false (the default) when absent.
 @example(getVerbose (argvVerbose unit) = true)
 @example(getVerbose (argvEmpty unit) = false)
 def getVerbose (1 argv : (Array String)) : Bool :=
     p : Parser := Args.addFlag (Args.newParser "t") "verbose" "";
-    a : ParsedArgs := Args.parseList p argv;
-    Args.getBool a "verbose";
+    let 1 a : ParsedArgs := Args.parseList p argv in
+    let result := Args.getBool a "verbose" in
+    let _ := Args.dispose a in
+    result;
 
 # String option: default when absent, supplied value when present.
 @example(String.equal (getOut (argvEmpty unit)) "stdout")
 @example(String.equal (getOut (argvOutFile unit)) "file.txt")
 def getOut (1 argv : (Array String)) : String :=
     p : Parser := Args.addOption (Args.newParser "t") "out" "stdout" "";
-    a : ParsedArgs := Args.parseList p argv;
-    Args.getString a "out";
+    let 1 a : ParsedArgs := Args.parseList p argv in
+    let result := Args.getString a "out" in
+    let _ := Args.dispose a in
+    result;
 
 # Int option: default when absent, supplied value when present.
 @example(getNum (argvEmpty unit) = 10)
 @example(getNum (argvNum99 unit) = 99)
 def getNum (1 argv : (Array String)) : Int :=
     p : Parser := Args.addIntOption (Args.newParser "t") "num" 10 "";
-    a : ParsedArgs := Args.parseList p argv;
-    Args.getInt a "num";
+    let 1 a : ParsedArgs := Args.parseList p argv in
+    let result := Args.getInt a "num" in
+    let _ := Args.dispose a in
+    result;
 
 # Choice option restricted to a fixed set: default and a valid override.
 @example(String.equal (getMode (argvEmpty unit)) "fast")
 @example(String.equal (getMode (argvModeSlow unit)) "slow")
 def getMode (1 argv : (Array String)) : String :=
-    p : Parser := Args.addChoice (Args.newParser "t") "mode" (choicesModes unit) "fast" "";
-    a : ParsedArgs := Args.parseList p argv;
-    Args.getString a "mode";
+    let 1 p : Parser := Args.addChoice (Args.newParser "t") "mode" (choicesModes unit) "fast" "" in
+    let 1 a : ParsedArgs := Args.parseList p argv in
+    let result := Args.getString a "mode" in
+    let _ := Args.dispose a in
+    result;

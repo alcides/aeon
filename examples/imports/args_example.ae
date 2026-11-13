@@ -13,6 +13,7 @@ def parser : Parser :=
 def emptyArgs (_: Unit) : (Array String)  := native "[]"
 
 def main (_:Int) : Unit :=
-    a : ParsedArgs := Args.parseList parser (emptyArgs unit);
+    let 1 a : ParsedArgs := Args.parseList parser (emptyArgs unit) in
     g : String := Args.getString a "greeting";
+    let _ := Args.dispose a in
     print g

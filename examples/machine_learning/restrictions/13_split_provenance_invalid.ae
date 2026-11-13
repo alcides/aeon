@@ -2,7 +2,7 @@ open ML
 
 # WRONG: a model cannot evaluate test data from another logical split.
 def incompatible_split
-    (model: {m: DecisionTreeClassifier
+    (borrow model: {m: DecisionTreeClassifier
         | classifier_features m = 4
        && classifier_split_id m = 7})
     (1 testing: {test: TestingDataset

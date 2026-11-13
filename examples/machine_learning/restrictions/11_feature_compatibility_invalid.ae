@@ -2,7 +2,7 @@ open ML
 
 # WRONG: a four-feature model cannot evaluate five-feature test data.
 def incompatible_features
-    (model: {m: DecisionTreeClassifier
+    (borrow model: {m: DecisionTreeClassifier
         | classifier_features m = 4
        && classifier_split_id m = 7})
     (1 testing: {test: TestingDataset

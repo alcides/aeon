@@ -12,8 +12,7 @@ def echoArgs (_: Unit) : {a: (Array String) | Array.size a >= 1} :=
 # boolean to the `exitCode` measure, so the branch reads cleanly.
 def main (_:Int) : Unit :=
     let 1 args := echoArgs unit in
-    p : CompletedProcess := Subprocess.run args;
-    if Subprocess.succeeded p then
-        print (Subprocess.stdout p)
-    else
-        print (Subprocess.stderr p)
+    let 1 p : CompletedProcess := Subprocess.run args in
+    let output := if Subprocess.succeeded p then Subprocess.stdout p else Subprocess.stderr p in
+    let _ := Subprocess.dispose_result p in
+    print output

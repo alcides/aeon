@@ -1,5 +1,5 @@
 import PSB2Fitness (per_example_errors)
-import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_fc_synth_values, unpack_train_data, load_dataset)
+import PSB2 (training_data, fresh_train_data, extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_fc_synth_values, unpack_train_data, load_dataset)
 
 import Array
 def List_size: (1 l:(Array Int)) -> Int := uninterpreted
@@ -13,15 +13,15 @@ def Math_floor_division : (i:Int) -> (j:Int)-> Int := fun i => fun j => native "
 
 def List_map_Int_Int: (function:(a: Int) -> Int) -> (1 l: (Array Int)) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
 
-def train: TrainData := extract_train_data (load_dataset "fuel-cost" 200 200)
+def train : TrainingCases := training_data "fuel-cost" 200 200
 
 
 def flatten_list : (1 t:(Array Int)) -> (Array Int) := fun l => native "__import__('functools').reduce(lambda x, y: x + y, l)"
 
 
-def calculate_fuel_cost_errors : (train : TrainData) -> (f:(1 a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+def calculate_fuel_cost_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
 
-@multi_minimize_float(per_example_errors (calculate_fuel_cost_errors train synth), 200)
+@multi_minimize_float(per_example_errors (calculate_fuel_cost_errors (fresh_train_data train) synth), 200)
 def synth  (1 xs: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let calculate_fuel_cost_errors := unit in let train := unit in ?hole)

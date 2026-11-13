@@ -448,17 +448,17 @@ def fill_constant (value: Float) (1 ds: Dataset) :
 # it is leakage-neutral (no held-out guarantee is consumed).
 
 def predict
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d}) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
 def predict_proba
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d}) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict_proba(model, ds)"
 
 def predict_value
-    (model: SklearnRegressor)
+    (borrow model: SklearnRegressor)
     (1 ds: {d: Dataset | reg_features model = ds_features d}) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
@@ -469,72 +469,72 @@ def predict_value
 # require a balanced test set — discharge with the ``balanced`` witness.
 
 def accuracy
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d && clean_test d = true && is_balanced d = true}) :
     {f: Float | 0.0 <= f && f <= 1.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_accuracy(model, ds)"
 
 def precision
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d && clean_test d = true && is_balanced d = true}) :
     {f: Float | 0.0 <= f && f <= 1.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_precision(model, ds)"
 
 def recall
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d && clean_test d = true && is_balanced d = true}) :
     {f: Float | 0.0 <= f && f <= 1.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_recall(model, ds)"
 
 def f1
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d && clean_test d = true}) :
     {f: Float | 0.0 <= f && f <= 1.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_f1(model, ds)"
 
 def roc_auc
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d && clean_test d = true}) :
     {f: Float | 0.0 <= f && f <= 1.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_roc_auc(model, ds)"
 
 def confusion_matrix
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d && clean_test d = true}) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_confusion_matrix(model, ds)"
 
 def classification_report
-    (model: SklearnClassifier)
+    (borrow model: SklearnClassifier)
     (1 ds: {d: Dataset | clf_features model = ds_features d && clean_test d = true}) : String :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_classification_report(model, ds)"
 
 # ─── Regression metrics ────────────────────────────────────────────────
 
 def mse
-    (model: SklearnRegressor)
+    (borrow model: SklearnRegressor)
     (1 ds: {d: Dataset | reg_features model = ds_features d && clean_test d = true}) :
     {f: Float | f >= 0.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mse(model, ds)"
 
 def rmse
-    (model: SklearnRegressor)
+    (borrow model: SklearnRegressor)
     (1 ds: {d: Dataset | reg_features model = ds_features d && clean_test d = true}) :
     {f: Float | f >= 0.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_rmse(model, ds)"
 
 def mae
-    (model: SklearnRegressor)
+    (borrow model: SklearnRegressor)
     (1 ds: {d: Dataset | reg_features model = ds_features d && clean_test d = true}) :
     {f: Float | f >= 0.0} :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_mae(model, ds)"
 
 def r2
-    (model: SklearnRegressor)
+    (borrow model: SklearnRegressor)
     (1 ds: {d: Dataset | reg_features model = ds_features d && clean_test d = true}) : Float :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_r2(model, ds)"
 
 def explained_variance
-    (model: SklearnRegressor)
+    (borrow model: SklearnRegressor)
     (1 ds: {d: Dataset | reg_features model = ds_features d && clean_test d = true}) : Float :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_explained_variance(model, ds)"
 
@@ -548,21 +548,21 @@ def explained_variance
 # estimator provides it, otherwise a one-hot of the hard prediction (so even
 # non-probabilistic classifiers — LinearSVC, RidgeClassifier, Perceptron … —
 # satisfy the ``Models.Classifier`` interface).
-def classify_one (model: SklearnClassifier) (x: Vector) : Vector :=
+def classify_one (borrow model: SklearnClassifier) (x: Vector) : Vector :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_classify_one(model, x)"
 
 # Predicted value for one feature vector.
-def regress_one (model: SklearnRegressor) (x: Vector) : Float :=
+def regress_one (borrow model: SklearnRegressor) (x: Vector) : Float :=
     native "float(model.predict([x])[0])"
 
 # Runtime model introspection, refined against the shape measures.
-def clf_n_features (model: SklearnClassifier) : {n: Int | n = clf_features model && n >= 0} :=
+def clf_n_features (borrow model: SklearnClassifier) : {n: Int | n = clf_features model && n >= 0} :=
     native "int(model.n_features_in_)"
 
-def clf_n_classes (model: SklearnClassifier) : {n: Int | n = clf_classes model && n >= 0} :=
+def clf_n_classes (borrow model: SklearnClassifier) : {n: Int | n = clf_classes model && n >= 0} :=
     native "int(len(model.classes_))"
 
-def reg_n_features (model: SklearnRegressor) : {n: Int | n = reg_features model && n >= 0} :=
+def reg_n_features (borrow model: SklearnRegressor) : {n: Int | n = reg_features model && n >= 0} :=
     native "int(model.n_features_in_)"
 
 def dispose_dataset (1 ds:Dataset) : Unit := native "None"
@@ -572,3 +572,7 @@ def with_datasets (1 token:DatasetPair)
     (1 consume:(1 left:{d:Dataset | d = dataset_left token}) ->
         (1 right:{d:Dataset | d = dataset_right token}) -> b) : b :=
     native "consume(token[1])(token[2])"
+
+# Fitted models may retain training storage; release them after borrowed reads.
+def dispose_classifier (1 model:SklearnClassifier) : Unit := native "None"
+def dispose_regressor (1 model:SklearnRegressor) : Unit := native "None"

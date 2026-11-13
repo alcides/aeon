@@ -27,12 +27,10 @@ def synth_sd ( n : Int) : String := ?hole
 
 def fitness : Float :=
     let 1 ds := load_dataset "square-digits" 200 200;
-    train := extract_train_data ds;
-    unpacked_data := unpack_train_data train;
-    let 1 input_list := get_input_list unpacked_data;
-    let 1 expected_values := get_output_list unpacked_data;
-    let 1 actual_values : (Array Int) := native "[synth_sd(x) for x in input_list]";
-    expected_values_str := join_string_list expected_values;
-    actual_values_str := join_string_list actual_values;
-    str_distance := String_distance expected_values_str actual_values_str;
-    str_distance;
+    let 1 train := extract_train_data ds in
+    with_lists train (fun input_list => fun expected_values =>
+        let 1 actual_values : (Array Int) := native "[synth_sd(x) for x in input_list]";
+        expected_values_str := join_string_list expected_values;
+        actual_values_str := join_string_list actual_values;
+        str_distance := String_distance expected_values_str actual_values_str;
+        str_distance);

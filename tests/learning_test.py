@@ -38,8 +38,9 @@ def test_clean_static_pipeline():
         let 1 ds := create_dataset 1000 4 true false false in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        accuracy model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := accuracy model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert _typechecks(src)
 
@@ -53,8 +54,9 @@ def test_clean_timeseries_unshuffled_with_f1():
         let 1 ds := create_dataset 1000 4 true true false in
         let 1 parts := split ds 0.8 false in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert _typechecks(src)
 
@@ -66,8 +68,9 @@ def test_clean_imbalanced_with_f1():
         let 1 ds := create_dataset 1000 4 false false false in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert _typechecks(src)
 
@@ -79,10 +82,11 @@ def test_clean_accuracy_discharged_by_balanced_witness():
         let 1 ds := create_dataset 1000 4 false false false in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
+        let 1 model := random_forest_classifier (owned_left_parts) in
         let 1 test := owned_right_parts in
-        if balanced test then accuracy model test
-        else f1 model test );
+        let score := if balanced test then accuracy model test
+        else f1 model test in
+        let _ := dispose_classifier model in score );
     """
     assert _typechecks(src)
 
@@ -96,8 +100,9 @@ def test_clean_regression_per_split_imputation():
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
         let 1 train := fill_median (owned_left_parts) in
         let 1 test := fill_median (owned_right_parts) in
-        let model := ridge train in
-        r2 model test );
+        let 1 model := ridge train in
+        let score := r2 model test in
+        let _ := dispose_regressor model in score );
     """
     assert _typechecks(src)
 
@@ -111,8 +116,9 @@ def test_clean_csv_path_with_require_enough_data():
         let 1 ds := require_enough_data ds0 in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert _typechecks(src)
 
@@ -128,8 +134,9 @@ def test_defect_temporal_leakage():
         let 1 ds := create_dataset 1000 4 true true false in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)
 
@@ -142,8 +149,9 @@ def test_defect_scale_before_split():
         let 1 scaled := standard_scale ds in
         let 1 parts := split scaled 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)
 
@@ -156,8 +164,9 @@ def test_defect_smote_before_split():
         let 1 bds := smote ds in
         let 1 parts := split bds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)
 
@@ -170,8 +179,9 @@ def test_defect_impute_before_split():
         let 1 filled := fill_median ds in
         let 1 parts := split filled 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)
 
@@ -183,8 +193,9 @@ def test_defect_evaluate_on_training_set():
         let 1 ds := create_dataset 1000 4 true false false in
         let 1 parts := split ds 0.8 true in
         let 1 train := train_of parts in
-        let model := random_forest_classifier train in
-        f1 model train ;
+        let 1 model := random_forest_classifier train in
+        let score := f1 model train in
+        let _ := dispose_classifier model in score ;
     """
     assert not _typechecks(src)
 
@@ -196,8 +207,9 @@ def test_defect_missing_values_to_estimator():
         let 1 ds := create_dataset 1000 4 true false true in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)
 
@@ -209,8 +221,9 @@ def test_defect_lack_of_data():
         let 1 ds := create_dataset 20 4 true false false in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)
 
@@ -222,8 +235,9 @@ def test_defect_balance_sensitive_metric_on_imbalanced():
         let 1 ds := create_dataset 1000 4 false false false in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        accuracy model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := accuracy model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)
 
@@ -238,7 +252,8 @@ def test_defect_csv_path_without_require_enough_data():
         let 1 ds := target df col false false in
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
-        let model := random_forest_classifier (owned_left_parts) in
-        f1 model (owned_right_parts) );
+        let 1 model := random_forest_classifier (owned_left_parts) in
+        let score := f1 model (owned_right_parts) in
+        let _ := dispose_classifier model in score );
     """
     assert not _typechecks(src)

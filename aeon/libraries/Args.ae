@@ -47,11 +47,11 @@ def addChoice (p: Parser) (name: {s:String | s != ""}) (1 options: {l: (Array St
 
 # Parses sys.argv[1:] using the configured parser. argparse will call
 # sys.exit on parse error or when --help is passed.
-def parse (p: Parser) : ParsedArgs :=
+def parse (1 p: Parser) : ParsedArgs :=
     native "p.parse_args()"
 
 # Parses an explicit list of strings. Useful for tests and embedding.
-def parseList (p: Parser) (1 xs: (Array String)) : ParsedArgs :=
+def parseList (1 p: Parser) (1 xs: (Array String)) : ParsedArgs :=
     native "p.parse_args(xs)"
 
 # ── Reading parsed values ──────────────────────────────────────────────
@@ -60,17 +60,20 @@ def parseList (p: Parser) (1 xs: (Array String)) : ParsedArgs :=
 # their underscored form.
 
 # Reads a string value by name.
-def getString (a: ParsedArgs) (name: {s:String | s != ""}) : String :=
+def getString (borrow a: ParsedArgs) (name: {s:String | s != ""}) : String :=
     native "getattr(a, name)"
 
 # Reads an integer value by name.
-def getInt (a: ParsedArgs) (name: {s:String | s != ""}) : Int :=
+def getInt (borrow a: ParsedArgs) (name: {s:String | s != ""}) : Int :=
     native "getattr(a, name)"
 
 # Reads a float value by name.
-def getFloat (a: ParsedArgs) (name: {s:String | s != ""}) : Float :=
+def getFloat (borrow a: ParsedArgs) (name: {s:String | s != ""}) : Float :=
     native "getattr(a, name)"
 
 # Reads a boolean flag value by name.
-def getBool (a: ParsedArgs) (name: {s:String | s != ""}) : Bool :=
+def getBool (borrow a: ParsedArgs) (name: {s:String | s != ""}) : Bool :=
     native "getattr(a, name)"
+
+# Release the parsed namespace after its borrowed observations.
+def dispose (1 a: ParsedArgs) : Unit := native "None"

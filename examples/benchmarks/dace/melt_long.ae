@@ -6,8 +6,11 @@ def wide : Table := native "[{'id':1,'x':7,'y':8}]";
 def ids (_: Unit) : (Array String) := native "['id']";
 def vals (_: Unit) : (Array String) := native "['x','y']";
 
-def long : Table := wide.melt (ids unit) (vals unit) "k" "v";
+def long (_:Unit) : Table := wide.melt (ids unit) (vals unit) "k" "v";
 
-def v1 : Int := long.cell 1 "v";  # second melted row (y) -> 8
+def v1 : Int :=
+    let 1 table := long unit in
+    let value := table.cell 1 "v" in  # second melted row (y) -> 8
+    let _ := Table.dispose table in value;
 
 def main (x:Int) : Unit := print v1;

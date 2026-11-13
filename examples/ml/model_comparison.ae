@@ -40,14 +40,18 @@ def best_f1 (path: String) : Float :=
                         with_datasets ep2 (fun owned_left_ep2 => fun owned_right_ep2 =>
                             let 1 ep3 := copy_dataset (owned_right_ep2) in
                             with_datasets ep3 (fun owned_left_ep3 => fun owned_right_ep3 =>
-                                let forest_model := random_forest_classifier owned_left_tp1 in
+                                let 1 forest_model := random_forest_classifier owned_left_tp1 in
                                 let forest := f1 forest_model owned_left_ep1 in
-                                let tree_model := decision_tree_classifier owned_left_tp2 in
+                                let _ := dispose_classifier forest_model in
+                                let 1 tree_model := decision_tree_classifier owned_left_tp2 in
                                 let tree := f1 tree_model owned_left_ep2 in
-                                let svc_f_model := svc owned_left_tp3 in
+                                let _ := dispose_classifier tree_model in
+                                let 1 svc_f_model := svc owned_left_tp3 in
                                 let svc_f := f1 svc_f_model owned_left_ep3 in
-                                let lda_model := linear_discriminant_analysis owned_right_tp3 in
+                                let _ := dispose_classifier svc_f_model in
+                                let 1 lda_model := linear_discriminant_analysis owned_right_tp3 in
                                 let lda := f1 lda_model owned_right_ep3 in
+                                let _ := dispose_classifier lda_model in
                                 maxf (maxf forest tree) (maxf svc_f lda) )))))));
 
 

@@ -19,8 +19,9 @@ def score_ridge (path: String) (target_col: String) : Float :=
         # Impute (and could scale) each half independently — no leakage.
         let 1 train := fill_median (owned_left_parts) in
         let 1 test := fill_median (owned_right_parts) in
-        let model := ridge_alpha 0.5 train in
-        r2 model test );
+        let 1 model := ridge_alpha 0.5 train in
+        let score := r2 model test in
+        let _ := dispose_regressor model in score );
 
 
 def train_ridge (path: String) (target_col: String) : SklearnRegressor :=

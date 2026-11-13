@@ -84,7 +84,7 @@ from aeon.errors import (
     LinearUsedTooManyTimesError,
 )
 from aeon.typechecking.context import TypeConstructorBinder, TypingContext
-from aeon.typechecking.ownership import OwnershipFacts
+from aeon.typechecking.ownership import OwnershipFacts, can_retain
 from aeon.utils.location import Location
 from aeon.utils.name import Name
 
@@ -915,6 +915,7 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
     def check_owned_binding(name: Name, value: Term, mult: Multiplicity, node: Term) -> None:
         if (
             ownership.values[id(value)].owned
+            and can_retain(ownership.types.get(id(value)))
             and mult not in (M0, M1, MN)
             and _linear_type_head(ownership.types.get(id(value)), linear_types) is None
         ):

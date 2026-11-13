@@ -241,7 +241,16 @@ class OwnershipFacts:
                 if not can_retain(result_ty):
                     result = Ownership()
                 refs = body_refs - {name}
-                reads = self.read_captures(body) - {name} if self.read_captures is not None else frozenset()
+                captures_resource = any(
+                    ref in env
+                    and (env[ref].ownership.owned or env[ref].ownership.borrows or env[ref].quantity in (M1, MBorrow))
+                    for ref in refs
+                )
+                reads = (
+                    self.read_captures(body) - {name}
+                    if captures_resource and self.read_captures is not None
+                    else frozenset()
+                )
                 owned = any(
                     ref in env and ref not in reads and (env[ref].ownership.owned or env[ref].quantity is M1)
                     for ref in refs
