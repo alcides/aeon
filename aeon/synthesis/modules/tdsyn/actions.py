@@ -238,17 +238,25 @@ def iter_backward_candidates(
     hole: TypedHole, skip: Callable[[Name], bool], rng: Random | None = None, *, constructors_only: bool = False
 ) -> Iterator[Candidate]:
     if constructors_only:
-        yield from iter_forward_close_candidates(hole, skip, rng, constructors_only=True)
-        yield from iter_backward_app_candidates(hole, skip, rng, constructors_only=True)
+        actions = [
+            iter_forward_close_candidates(hole, skip, rng, constructors_only=True),
+            iter_backward_app_candidates(hole, skip, rng, constructors_only=True),
+        ]
+        for candidates in _ordered(actions, rng):
+            yield from candidates
         return
     abstractions = backward_abs_candidates(hole, skip)
     if abstractions:
         yield from abstractions
         return
-    yield from iter_backward_lit_candidates(hole, skip, rng)
-    yield from iter_forward_close_candidates(hole, skip, rng)
-    yield from iter_backward_app_candidates(hole, skip, rng)
-    yield from backward_if_candidates(hole, skip)
+    actions = [
+        iter_backward_lit_candidates(hole, skip, rng),
+        iter_forward_close_candidates(hole, skip, rng),
+        iter_backward_app_candidates(hole, skip, rng),
+        iter(backward_if_candidates(hole, skip)),
+    ]
+    for candidates in _ordered(actions, rng):
+        yield from candidates
 
 
 def _forward_applications(

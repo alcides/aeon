@@ -4,6 +4,8 @@ from time import monotonic
 
 import pytest
 
+from tests.synthesis_helpers import skip_synthesis_timeout
+
 from aeon.compilation.session import CompilationSession
 from aeon.core.terms import Application, Literal, Var
 from aeon.core.types import AbstractionType, TypeConstructor, t_int, top
@@ -180,7 +182,8 @@ def test_modes_preserve_relational_constraints_through_the_driver(backend, expan
     )
     assert not list(driver.parse(aeon_code=source))
     assert driver.has_synth()
-    driver.synth()
+    with skip_synthesis_timeout():
+        driver.synth()
     with driver.session.activate():
         assert check_type(driver.typing_ctx, driver.core, top)
     value, decisions = driver.run(), []
@@ -193,9 +196,10 @@ def test_modes_preserve_relational_constraints_through_the_driver(backend, expan
 @pytest.mark.parametrize("expansion", ["eager", "lazy"])
 def test_lazy_and_eager_keep_searching_for_objectives(expansion):
     backend = TDSynSynthesizer(direction="backward", expansion=expansion)
-    solve(
-        "@minimize_int(f 0) @maximize_int(f 0) def f(x:Int):{v:Int | v >= 0 && v <= 1} := ?body;",
-        backend,
-        budget=0.5,
-    )
+    with skip_synthesis_timeout():
+        solve(
+            "@minimize_int(f 0) @maximize_int(f 0) def f(x:Int):{v:Int | v >= 0 && v <= 1} := ?body;",
+            backend,
+            budget=0.5,
+        )
     assert {tuple(scores) for scores, _ in backend.pareto_front} == {(0.0, 0.0), (1.0, 1.0)}

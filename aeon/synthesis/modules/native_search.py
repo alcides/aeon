@@ -144,6 +144,8 @@ def sample_one(
     rng: random.Random,
     max_depth: int = MAX_DEPTH,
     prefer_closed: bool = True,
+    *,
+    lazy: bool = False,
 ) -> Term | None:
     """Grow one complete term by a random walk, or ``None`` if stuck.
 
@@ -153,6 +155,11 @@ def sample_one(
     off so recursive constructors are not starved by nullary ones.
     """
     partial = PartialAST(initial.term, list(initial.holes), initial.depth)
+    lazy_search = None
+    if lazy:
+        from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
+
+        lazy_search = TDSynSynthesizer(mode="random", expansion="lazy")
     for _ in range(max_depth * 2):
         if partial.is_complete():
             return partial.term
@@ -162,6 +169,12 @@ def sample_one(
             return rng.choice(completions)
 
         hole = rng.choice(partial.holes)
+        if lazy_search is not None:
+            selected = next(lazy_search._walk_expansions(partial, hole, skip, rng, max_depth), None)
+            if selected is None:
+                return None
+            partial = selected
+            continue
         options = expansions_for_hole(partial, hole, skip, max_depth, prune=False)
         if not options:
             return None

@@ -9,7 +9,7 @@ from aeon.synthesis.pbt.generators import TypeSampler, build_adt_context, build_
 from aeon.synthesis.pbt.runner import _collect_properties, _iter_top_level, _top_level_values, run_properties
 from aeon.synthesis.pbt.shrink import minimize
 from aeon.synthesis.uis.api import SilentSynthesisUI
-from aeon.typechecking.context import VariableBinder
+from aeon.typechecking.context import TypingContext, VariableBinder
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
@@ -249,3 +249,21 @@ def test_input_validation_preserves_mutual_group_environment(function):
     names = {name.name: name for name, _ in _iter_top_level(driver.core)}
     term = Application(Var(names[function]), Literal(4, t_int))
     assert _input_validator(driver.core, driver.evaluation_ctx, 1)(term)
+
+
+def test_lazy_input_walk_does_not_evaluate_unchosen_productions(monkeypatch):
+    import random
+
+    from aeon.synthesis.modules import native_search
+    from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
+    from aeon.synthesis.modules.tdsyn.worklist import PartialAST
+
+    initial = native_search.initial_partial(TypingContext(), t_int)
+    monkeypatch.setattr(native_search, "literal_completions", lambda _: [])
+
+    def expansions(*args, **kwargs):
+        yield PartialAST(Literal(3, t_int), [], 1)
+        pytest.fail("random input generation evaluated an unchosen production")
+
+    monkeypatch.setattr(TDSynSynthesizer, "_walk_expansions", expansions)
+    assert native_search.sample_one(initial, lambda _: False, random.Random(0), lazy=True) == Literal(3, t_int)
