@@ -46,6 +46,14 @@ results and remaining limitations across ten backends.
 
 Native genetic programming with a **linear genome**: each individual is a sequence of integer codons that select among Aeon's grammar expansions when mapped to a core term. There is no fixed max depth — choice budgets grow with the generation index and mutation can lengthen genomes, so trees deepen as evolution advances.
 
+GP retains the expected function signature and checks QTT usage while decoding
+each genome. Invalid literal completions and grammar choices are removed before
+codon selection, so linear resources cannot be duplicated and erased parameters
+cannot be used at runtime. The surrounding sketch participates in these checks;
+for joint search, earlier hole replacements share their resource budget with
+the remaining holes. Mutation and crossover decode through the same checks,
+and completed candidates are validated before fitness evaluation.
+
 GP decodes executable candidates through the term nonterminal. It uses ordinary
 grammar expansion for lists, including goals whose refinements fix their length.
 

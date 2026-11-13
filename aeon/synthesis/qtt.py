@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from aeon.core.terms import Term
+from aeon.synthesis.api import InvalidIndividualException
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.linearity import check_linearity
 
@@ -22,7 +23,10 @@ class QTTValidator:
     context: TypingContext
 
     def feasible(self, candidate: Term) -> bool:
-        return not check_linearity(self.replace(candidate), self.context)
+        try:
+            return not check_linearity(self.replace(candidate), self.context)
+        except InvalidIndividualException:
+            return False
 
     def __call__(self, candidate: Term) -> bool:
         return self.feasible(candidate) and self.validate(candidate)

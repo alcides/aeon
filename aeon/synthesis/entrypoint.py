@@ -670,15 +670,16 @@ def _synthesize_joint(
 
     components: dict[Name, TypeclassComponents] = {}
 
-    def replace(candidate: Term) -> Term:
+    def replace_partial(candidate: Term) -> Term:
         if not isinstance(candidate, JointCandidate) or len(candidate.terms) != len(names):
             raise InvalidIndividualException()
         result = prog
         for name, value in zip(names, candidate.terms):
-            value = components[name].expand(value)
-            if term_has_holes(value):
-                raise InvalidIndividualException()
-            result = substitution(result, value, name)
+            result = substitution(result, components[name].expand(value), name)
+        return result
+
+    def replace(candidate: Term) -> Term:
+        result = replace_partial(candidate)
         if term_has_holes(result):
             raise InvalidIndividualException()
         return result
@@ -802,7 +803,7 @@ def _synthesize_joint(
     try:
         result = synthesizer.synthesize_joint(
             holes,
-            validate,
+            QTTValidator(validate, replace_partial, ctx),
             evaluator,
             joint_name,
             synthesis_metadata,
