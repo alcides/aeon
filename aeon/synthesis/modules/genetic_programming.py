@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 import random
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from time import monotonic
 
 from aeon.core.terms import Term
@@ -35,6 +35,7 @@ from aeon.synthesis.modules.native_search import (
 from aeon.synthesis.modules.tdsyn.helpers import clear_tdsyn_caches
 from aeon.synthesis.pareto import dominates, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST
+from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
@@ -97,14 +98,18 @@ def map_genome(
     if not genome:
         return None
 
-    partial = PartialAST(initial.term, list(initial.holes), initial.depth)
+    partial = replace(initial, holes=list(initial.holes))
+    if not partial.qtt_feasible():
+        return None
     gene_i = 0
     wraps = 0
     choices_used = 0
     choice_budget = BASE_CHOICE_BUDGET * (1 + generation)
 
     while not partial.is_complete():
-        completions = literal_completions(partial)
+        completions = [
+            term for term in literal_completions(partial) if replace(partial, term=term, holes=[]).qtt_feasible()
+        ]
         if completions:
             codon = genome[gene_i % len(genome)]
             gene_i += 1
@@ -113,7 +118,11 @@ def map_genome(
             return completions[codon % len(completions)]
 
         hole = partial.holes[0]
-        options = expansions_for_hole(partial, hole, skip, max_depth=None, prune=False)
+        options = [
+            option
+            for option in expansions_for_hole(partial, hole, skip, max_depth=None, prune=False)
+            if option.qtt_feasible()
+        ]
         if not options:
             return None
 
@@ -136,7 +145,7 @@ def map_genome(
         choices_used += 1
         partial = options[codon % len(options)]
 
-    return partial.term
+    return partial.term if partial.qtt_feasible() else None
 
 
 def one_point_crossover(rng: random.Random, a: Genome, b: Genome) -> tuple[Genome, Genome]:
@@ -306,7 +315,7 @@ def _assess(
         ui.progress(state.assessed, state.assessed, elapsed)
         return None
 
-    valid = validate(term)
+    valid = (decode is not None or replace(initial, term=term, holes=[]).qtt_feasible()) and validate(term)
     if valid and not state.minimize:
         elapsed = monotonic() - started
         ui.register(term, [], elapsed, True)
@@ -368,8 +377,14 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
-        return self._search(
+        initial = replace(
             initial_partial(ctx, type),
+            expected_type=type,
+            context=ctx,
+            check_sketch=validate.feasible if isinstance(validate, QTTValidator) else None,
+        )
+        return self._search(
+            initial,
             make_skip(fun_name, metadata),
             validate,
             evaluate,
@@ -389,7 +404,7 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
         budget: float = 60,
         ui: SynthesisUI = SynthesisUI(),
     ) -> JointCandidate | None:
-        initials = [initial_partial(h.ctx, h.type) for h in holes]
+        initials = [replace(initial_partial(h.ctx, h.type), expected_type=h.type, context=h.ctx) for h in holes]
         skips = [make_skip(h.function, metadata) for h in holes]
         width = len(holes)
 
@@ -399,12 +414,20 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
             # isolated element or substitutes placeholder siblings.
             if len(genome) < width:
                 return None
-            terms = []
+            terms = [initial.term for initial in initials]
             for i, (initial, skip) in enumerate(zip(initials, skips)):
+                if isinstance(validate, QTTValidator):
+                    # Earlier elements are fixed; later ones remain holes. Every
+                    # codon choice shares the surrounding sketch's QTT budget.
+                    def check_sketch(candidate: Term) -> bool:
+                        product = tuple(candidate if j == i else term for j, term in enumerate(terms))
+                        return validate.feasible(JointCandidate(product))
+
+                    initial = replace(initial, check_sketch=check_sketch)
                 term = map_genome(genome[i::width], initial, skip, generation=generation)
                 if term is None:
                     return None
-                terms.append(term)
+                terms[i] = term
             return JointCandidate(tuple(terms))
 
         result = self._search(

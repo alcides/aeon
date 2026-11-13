@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import random
 from math import isfinite
+from dataclasses import replace
 from collections.abc import Callable, Iterator
 from time import monotonic
 
@@ -97,7 +98,9 @@ def literal_completions(partial: PartialAST) -> list[Term]:
         return []
     completed: list[Term] = []
     for solution in solve_literals(partial.holes):
-        completed.append(substitute_holes_map(partial.term, solution))
+        term = substitute_holes_map(partial.term, solution)
+        if replace(partial, term=term, holes=[]).qtt_feasible():
+            completed.append(term)
     return completed
 
 
@@ -130,7 +133,9 @@ def expansions_for_hole(
             if max_depth is not None and depth > max_depth:
                 continue
             try:
-                results.append(expand_at_hole(partial, hole, replacement, new_holes, depth))
+                expanded = expand_at_hole(partial, hole, replacement, new_holes, depth)
+                if expanded.qtt_feasible():
+                    results.append(expanded)
             except CoreTypeCheckingError:
                 # A failed production is not a failure of the whole search.
                 # In particular, deferred refinement checks may reject it.
@@ -154,7 +159,9 @@ def sample_one(
     walks often finish with a literal or variable; PBT ADT sampling turns this
     off so recursive constructors are not starved by nullary ones.
     """
-    partial = PartialAST(initial.term, list(initial.holes), initial.depth)
+    partial = replace(initial, holes=list(initial.holes))
+    if not partial.qtt_feasible():
+        return None
     lazy_search = None
     if lazy:
         from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
@@ -184,12 +191,18 @@ def sample_one(
                 options = closed
         partial = rng.choice(options)
 
-    return partial.term if partial.is_complete() else None
+    return partial.term if partial.is_complete() and partial.qtt_feasible() else None
 
 
-def initial_partial(ctx: TypingContext, target: Type, domain: ExpressionDomain = ExpressionDomain.TERM) -> PartialAST:
+def initial_partial(
+    ctx: TypingContext,
+    target: Type,
+    domain: ExpressionDomain = ExpressionDomain.TERM,
+    *,
+    check_sketch: Callable[[Term], bool] | None = None,
+) -> PartialAST:
     root, holes = peel_abstractions(target, ctx, domain)
-    return PartialAST(root, holes, depth=0)
+    return PartialAST(root, holes, depth=0, expected_type=target, context=ctx, check_sketch=check_sketch)
 
 
 def make_skip(fun_name: Name, metadata: Metadata) -> Callable[[Name], bool]:

@@ -28,6 +28,7 @@ from aeon.synthesis.joint import JointCandidate
 from aeon.synthesis.modules.tdsyn.worklist import substitute_holes_map
 from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_targets
 from aeon.typechecking.context import TypingContext
+from aeon.typechecking.linearity import check_linearity
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 
@@ -185,6 +186,8 @@ class ProgramSpecifications:
     def validate(self, candidate: Term) -> bool:
         try:
             program = self.replace(candidate)
+            if check_linearity(program, self.ctx):
+                return False
             if not check_program(program, self.source_metadata):
                 return False
             prepared = prepare_candidate(candidate)

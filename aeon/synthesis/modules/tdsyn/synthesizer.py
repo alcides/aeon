@@ -5,13 +5,13 @@ from itertools import count
 from heapq import heappop, heappush
 from collections import deque
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from time import monotonic_ns
 from typing import Callable
 
 from loguru import logger
 
-from aeon.core.terms import Abstraction, Hole, Term
+from aeon.core.terms import Abstraction, Annotation, Hole, Term
 from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
@@ -52,8 +52,10 @@ from aeon.synthesis.modules.tdsyn.worklist import (
     substitute_holes_map,
     term_at,
 )
+from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
+from aeon.typechecking.linearity import check_linearity
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
@@ -150,7 +152,14 @@ class TDSynSynthesizer(Synthesizer):
         # Peel abstractions from the target type
         initial_term, inner_type, inner_ctx, initial_holes = _peel_abstractions(type, ctx)
 
-        initial_partial = PartialAST(term=initial_term, holes=initial_holes, depth=0)
+        initial_partial = PartialAST(
+            term=initial_term,
+            holes=initial_holes,
+            depth=0,
+            expected_type=type,
+            context=ctx,
+            check_sketch=validate.feasible if isinstance(validate, QTTValidator) else None,
+        )
 
         token = deadline.set(start_time * 1e-9 + budget)
         try:
@@ -189,9 +198,11 @@ class TDSynSynthesizer(Synthesizer):
         Returns ``(front, early)`` where ``early`` is a no-objective solution
         that should stop the search immediately.
         """
-        if not partial.is_complete():
+        if not partial.is_complete() or not partial.qtt_feasible():
             return front, None
         term = bind_constructor_arguments(partial.term)
+        if term is not partial.term and not replace(partial, term=term).qtt_feasible():
+            return front, None
         try:
             if validate(term):
                 if not self._has_goals:
@@ -236,7 +247,7 @@ class TDSynSynthesizer(Synthesizer):
             if monotonic_ns() * 1e-9 >= deadline.get():
                 break
             term = substitute_holes_map(partial.term, solution)
-            complete = PartialAST(term=term, holes=[], depth=partial.depth)
+            complete = replace(partial, term=term, holes=[])
             front, early = self._try_complete(complete, validate, evaluate, start_time, ui, front)
             if early is not None:
                 return front, early, True
@@ -266,7 +277,9 @@ class TDSynSynthesizer(Synthesizer):
             for replacement, new_holes in candidates:
                 new_depth = partial.depth + (1 if new_holes else 0)
                 if max_depth is None or new_depth <= max_depth:
-                    results.append(expand_at_hole(partial, hole, replacement, new_holes, new_depth))
+                    expanded = expand_at_hole(partial, hole, replacement, new_holes, new_depth)
+                    if expanded.qtt_feasible():
+                        results.append(expanded)
 
         # Shuffle on non-first iterations to explore different orderings
         if self._iteration > 0 and results:
@@ -297,7 +310,9 @@ class TDSynSynthesizer(Synthesizer):
                     replacement, new_holes = candidate
                     new_depth = partial.depth + (1 if new_holes else 0)
                     if max_depth is None or new_depth <= max_depth:
-                        yield expand_at_hole(partial, hole, replacement, new_holes, new_depth)
+                        expanded = expand_at_hole(partial, hole, replacement, new_holes, new_depth)
+                        if expanded.qtt_feasible():
+                            yield expanded
             except Exception as error:
                 logger.debug(f"tdsyn: lazy action failed: {error}")
 
@@ -330,22 +345,27 @@ class TDSynSynthesizer(Synthesizer):
         """
         if initial is None:
             term, _, _, holes = _peel_abstractions(target, ctx)
-            initial = PartialAST(term, holes, 0)
+            initial = PartialAST(term, holes, 0, expected_type=target, context=ctx)
+        else:
+            initial = replace(initial, expected_type=target, context=ctx)
+        if not initial.qtt_feasible():
+            return
 
         def completions(partial: PartialAST) -> list[Term]:
             if not partial.holes or not all_leaf_holes(partial.holes):
                 return []
-            return [substitute_holes_map(partial.term, solution) for solution in solve_literals(partial.holes)]
+            terms = [substitute_holes_map(partial.term, solution) for solution in solve_literals(partial.holes)]
+            return [term for term in terms if replace(partial, term=term, holes=[]).qtt_feasible()]
 
         if self.mode == "random":
             for _ in range(max_expansions):
-                partial = PartialAST(initial.term, list(initial.holes), 0)
+                partial = replace(initial, holes=list(initial.holes), depth=0)
                 for _step in range(max_depth * 2):
                     if partial.is_complete():
                         break
                     solved = completions(partial)
                     if solved:
-                        partial = PartialAST(self._rng.choice(solved), [], partial.depth)
+                        partial = replace(partial, term=self._rng.choice(solved), holes=[])
                         break
                     hole = self._rng.choice(partial.holes)
                     if self.expansion == "lazy":
@@ -358,7 +378,7 @@ class TDSynSynthesizer(Synthesizer):
                         if not options:
                             break
                         partial = self._rng.choice(options)
-                yield partial.term if partial.is_complete() else None
+                yield partial.term if partial.is_complete() and partial.qtt_feasible() else None
             return
 
         worklist = deque([initial])
@@ -496,7 +516,7 @@ class TDSynSynthesizer(Synthesizer):
 
         while _get_elapsed_time(start_time) < budget:
             # Start fresh from initial each time for random search
-            partial = PartialAST(term=initial.term, holes=list(initial.holes), depth=initial.depth)
+            partial = replace(initial, holes=list(initial.holes))
 
             # Probabilistic restarts have no maximum walk length. Every finite
             # constructor depth remains reachable, while bad walks do not
@@ -663,6 +683,10 @@ class TDSynOneStepSynthesizer(Synthesizer):
         partial: Term | None = None
         for replacement, new_holes in candidates:
             term = substitute_hole(initial_term, hole.name, replacement)
+            if check_linearity(Annotation(term, type), ctx) or (
+                isinstance(validate, QTTValidator) and not validate.feasible(term)
+            ):
+                continue
             if not new_holes:
                 try:
                     if validate(term):
