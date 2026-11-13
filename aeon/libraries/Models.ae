@@ -29,14 +29,14 @@ open LearningCore
 
 # The classifier typeclass: discrete target, vector of class scores.
 class Classifier (m : B) where
-    cls_inputs  : (model: m) -> Int;
-    cls_classes : (model: m) -> Int;
-    classify    : (model: m) -> (x: Vector) -> Vector;
+    cls_inputs  : (borrow model: m) -> Int;
+    cls_classes : (borrow model: m) -> Int;
+    classify    : (borrow model: m) -> (x: Vector) -> Vector;
 
 # The regressor typeclass: continuous target, a single predicted value.
 class Regressor (m : B) where
-    reg_inputs : (model: m) -> Int;
-    regress    : (model: m) -> (x: Vector) -> Float;
+    reg_inputs : (borrow model: m) -> Int;
+    regress    : (borrow model: m) -> (x: Vector) -> Float;
 
 # ── Instances: NN.Network ──────────────────────────────────────────────
 # A network used as a classifier returns its output logits as class scores;

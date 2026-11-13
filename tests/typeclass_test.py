@@ -19,6 +19,22 @@ def _errors(source: str):
     return list(driver.parse(aeon_code=source))
 
 
+def test_method_projection_preserves_borrow_and_linear_parameters():
+    source = """
+    linear type Token
+    def make (n:Int):Token := native "n";
+    class Resource (a:B) where
+        observe : (borrow token:a) -> Int;
+        finish : (1 token:a) -> Int;
+    instance : Resource Token where
+        observe token := native "token";
+        finish token := native "token";
+    def main (_:Int):Int := let 1 token := make 7 in
+        observe token + observe token + finish token;
+    """
+    assert _run(source) == 21
+
+
 def test_instance_resolution_eq_int():
     source = r"""
     class Eq (a : B) where

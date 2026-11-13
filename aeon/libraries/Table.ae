@@ -118,7 +118,7 @@ def ncol(table: Table): Int := native "(len(table[0]) if len(table) > 0 else 0)"
 
 # The integer cell at row `r` (0-based) of column `col` -- DACE's spatial
 # cell reference.
-def cell(table: Table) (r: Int) (col: String): Int := native "table[r][col]"
+def cell(borrow table: Table) (r: Int) (col: String): Int := native "table[r][col]"
 
 # --- deriving a column (mutate) ---------------------------------------------
 
@@ -176,3 +176,6 @@ def spread(table: Table) (index: String) (columns: String) (values: String): Tab
 # `gather` is `melt`: wide -> long.
 def gather(table: Table) (1 id_vars: (Array String)) (1 value_vars: (Array String)) (var_name: String) (value_name: String): Table :=
     native "__import__('aeon.bindings.table').bindings.table.melt(table, id_vars, value_vars, var_name, value_name)"
+
+# Release a table that retains transferred array storage.
+def dispose (1 table:Table): Unit := native "None"

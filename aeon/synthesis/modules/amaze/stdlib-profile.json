@@ -126,6 +126,13 @@
         "status": "skipped"
       },
       {
+        "function": "dispose",
+        "id": "Args.ae:dispose",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Args.ae",
+        "status": "skipped"
+      },
+      {
         "function": "functools",
         "id": "Array.ae:functools",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -4620,6 +4627,20 @@
         "status": "skipped"
       },
       {
+        "function": "dispose_classifier",
+        "id": "LearningCore.ae:dispose_classifier",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "LearningCore.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "dispose_regressor",
+        "id": "LearningCore.ae:dispose_regressor",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "LearningCore.ae",
+        "status": "skipped"
+      },
+      {
         "function": "linear_discriminant_analysis",
         "id": "LearningDiscriminant.ae:linear_discriminant_analysis",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -5462,6 +5483,13 @@
       {
         "function": "accuracy",
         "id": "MLCore.ae:accuracy",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "MLCore.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "dispose_classifier",
+        "id": "MLCore.ae:dispose_classifier",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "MLCore.ae",
         "status": "skipped"
@@ -6785,6 +6813,27 @@
       {
         "function": "objective_errors_int",
         "id": "PSB2.ae:objective_errors_int",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "PSB2.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "training_data",
+        "id": "PSB2.ae:training_data",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "PSB2.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "fresh_train_data",
+        "id": "PSB2.ae:fresh_train_data",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "PSB2.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "with_lists",
+        "id": "PSB2.ae:with_lists",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "PSB2.ae",
         "status": "skipped"
@@ -8813,6 +8862,13 @@
         "status": "skipped"
       },
       {
+        "function": "dispose_result",
+        "id": "Subprocess.ae:dispose_result",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Subprocess.ae",
+        "status": "skipped"
+      },
+      {
         "function": "spawn",
         "id": "Subprocess.ae:spawn",
         "reason": "outside first-order scalar functions with one to three inputs",
@@ -9144,6 +9200,13 @@
       {
         "function": "gather",
         "id": "Table.ae:gather",
+        "reason": "outside first-order scalar functions with one to three inputs",
+        "source": "Table.ae",
+        "status": "skipped"
+      },
+      {
+        "function": "dispose",
+        "id": "Table.ae:dispose",
         "reason": "outside first-order scalar functions with one to three inputs",
         "source": "Table.ae",
         "status": "skipped"
@@ -9957,7 +10020,7 @@
       "Learning.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "LearningDiscriminant.ae": "d90c11d722dcba1513baf7445e6a0e58e9131b9a8d47592ce2c3713632a7d046",
         "LearningDummy.ae": "8b193b5ea3110cf6a7e2431c0574c60b23787ab32154abdc42cec355d94712f3",
         "LearningEnsembles.ae": "70d6b2c81e8ded47354ca7b689c8f01b83b2208b29fde7d851ed2eb3d907d809",
@@ -9989,7 +10052,7 @@
       "LearningDiscriminant.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10000,7 +10063,7 @@
       "LearningDummy.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10011,7 +10074,7 @@
       "LearningEnsembles.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10022,7 +10085,7 @@
       "LearningGaussianProcess.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10033,7 +10096,7 @@
       "LearningKernel.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10044,7 +10107,7 @@
       "LearningLinear.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10056,7 +10119,7 @@
       "LearningNaiveBayes.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10067,7 +10130,7 @@
       "LearningNeighbors.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10078,7 +10141,7 @@
       "LearningNeural.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10089,7 +10152,7 @@
       "LearningSVM.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10100,7 +10163,7 @@
       "LearningTrees.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
@@ -10114,7 +10177,7 @@
       "Lock.ae": {},
       "LoopKernels.ae": {},
       "ML.ae": {
-        "MLCore.ae": "90205f0ab4e361f2f68526b3c39d4757a1ce5ef54021dc66e31f0bcc6ceb636e"
+        "MLCore.ae": "f95e59bdc382173e3993b29d4d850fdb09aeba99d8fde9ed3665a87e97821c73"
       },
       "MLCore.ae": {},
       "Map.ae": {
@@ -10136,10 +10199,10 @@
       "Models.ae": {
         "Array.ae": "22f453b3c566d0006144e07465c852641aac531ef23e9abc2ebfdc8b694070d0",
         "Copy.ae": "9b1e46c039785b29ee0a5449f128a0436618355a96aef380b830b314f69ca6e7",
-        "LearningCore.ae": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5",
+        "LearningCore.ae": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069",
         "List.ae": "2b6293c156783cd0a900bd0c352d84cb635c18ae076b46a633544357199a8376",
         "Math.ae": "ae056d2d46c99e6d3c28db24d446b02ba29f6773e61d452505c39b53ea87aa01",
-        "NN.ae": "559c15e70780607d8e9caa5ef4ac1bf1a1941588ac38c5038370663c33865a49",
+        "NN.ae": "59226f0e28f01be4d2df923c2b116b773526a0e3c88d741a2eb3c2062445c52b",
         "Pair.ae": "5e5b5fe178107ae7fc458a5da526037613670701fa668ba32dc522931142a60c",
         "Refinement.ae": "857b6add07805df918091751dda9894f00dd6b3d4bd57062bd9f2e6dd23a8e84",
         "Tensor.ae": "d0723f4c1b8169b71d2041213c0cbf221e4cf7964823b268e637fdfce58c2474",
@@ -10260,7 +10323,7 @@
     "files": {
       "Args.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Args.ae",
-        "sha256": "b274848cfd2fa2c51054f3716aee97473700bf0d840cae75bb222b3cfd87fa71"
+        "sha256": "b8494a8c896296090237bc2d86dff847500c6161795bfa0d391a9ff85fe2c152"
       },
       "Array.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Array.ae",
@@ -10428,7 +10491,7 @@
       },
       "LearningCore.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/LearningCore.ae",
-        "sha256": "05d8947685dcee44e459e7d6883d38869b659f35ba3d366ccb3edfca7321b3f5"
+        "sha256": "f930038f07251adbbc224ba22b7e2ee6830cdf16f1b12c5d06fe94486ec76069"
       },
       "LearningDiscriminant.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/LearningDiscriminant.ae",
@@ -10496,7 +10559,7 @@
       },
       "MLCore.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/MLCore.ae",
-        "sha256": "90205f0ab4e361f2f68526b3c39d4757a1ce5ef54021dc66e31f0bcc6ceb636e"
+        "sha256": "f95e59bdc382173e3993b29d4d850fdb09aeba99d8fde9ed3665a87e97821c73"
       },
       "Map.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Map.ae",
@@ -10520,7 +10583,7 @@
       },
       "Models.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Models.ae",
-        "sha256": "7ca3827c51880ea4f7570a8c0f5c0e70412fbdf61515d0fce4d8ef8a1d08dede"
+        "sha256": "4a3be0564f880e74638a2d6a83500cab9b8b6cf1cf0d98f68aee9f2f5d67c1d3"
       },
       "NDArray.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/NDArray.ae",
@@ -10528,7 +10591,7 @@
       },
       "NN.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/NN.ae",
-        "sha256": "559c15e70780607d8e9caa5ef4ac1bf1a1941588ac38c5038370663c33865a49"
+        "sha256": "59226f0e28f01be4d2df923c2b116b773526a0e3c88d741a2eb3c2062445c52b"
       },
       "Num.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Num.ae",
@@ -10548,7 +10611,7 @@
       },
       "PSB2.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/PSB2.ae",
-        "sha256": "6ea264613212d50017b8aec394e4376de9a8c8a072654bb3e0f7180b057ff5d6"
+        "sha256": "1c02ed7022f9533bee05f7a9148932698ec278496e9543e362445aedec7bbc35"
       },
       "PSB2Fitness.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/PSB2Fitness.ae",
@@ -10632,7 +10695,7 @@
       },
       "Subprocess.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Subprocess.ae",
-        "sha256": "8df65e9685ecddd3997f841a1b5f3d708eaa86084ffc1c6c171cefe70187e7d5"
+        "sha256": "d44094d7464050405bd0fa23ff42c09f4be98db11a57bcef5f11532591beed95"
       },
       "Sys.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Sys.ae",
@@ -10640,7 +10703,7 @@
       },
       "Table.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Table.ae",
-        "sha256": "7018e374bde8b1e4dcc7d783227e53324f6527f4b36c64e946cea6a276b3d0b9"
+        "sha256": "e3b9620fb35eed331532f9b455e6927cf2c3a4e6571d818027e15e10dbca9d25"
       },
       "Tensor.ae": {
         "canonical_path": "/tmp/aeon-fix-array-ownership/aeon/libraries/Tensor.ae",
@@ -10669,7 +10732,7 @@
     },
     "parse_errors": {},
     "root": "/tmp/aeon-fix-array-ownership/aeon/libraries",
-    "skipped": 1392,
+    "skipped": 1401,
     "split_counts": {
       "held_out": 2,
       "train": 5,
@@ -13460,7 +13523,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.0033869780600070953,
+        "elapsed": 0.003324040211737156,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13496,7 +13559,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.004419689066708088,
+        "elapsed": 0.004456860013306141,
         "phase": "held_out_baseline",
         "productions": [],
         "rank_bound": 80,
@@ -13535,7 +13598,7 @@
         "candidates": 39,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.009767882991582155,
+        "elapsed": 0.012155494652688503,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13573,7 +13636,7 @@
         "candidates": 35,
         "censored": false,
         "cost": 3,
-        "elapsed": 0.004066342022269964,
+        "elapsed": 0.004359796177595854,
         "phase": "held_out_optimized",
         "productions": [
           "macro:ca99c8cd3473ada7"
@@ -13608,7 +13671,7 @@
         "verification_unknown": 0
       }
     ],
-    "runtime_model_log_mse": 0.21577058309688582
+    "runtime_model_log_mse": 0.26303844681079525
   },
   "known_solutions": {
     "Refinement.ae:bounded": [
@@ -13844,7 +13907,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009718180168420076,
+      "elapsed": 0.009913899935781956,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13879,7 +13942,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.8373854020610452,
+      "elapsed": 0.8544248295947909,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13893,7 +13956,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.7155850632116199,
+      "elapsed": 0.7240763599984348,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 545790,
@@ -13908,7 +13971,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009402763098478317,
+      "elapsed": 0.009338923264294863,
       "phase": "initial",
       "productions": [],
       "rank_bound": 80,
@@ -13943,7 +14006,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.6980904429219663,
+      "elapsed": 0.6927024172618985,
       "phase": "initial",
       "productions": [],
       "reference_rank_bound": 85665,
@@ -13958,7 +14021,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.00896922405809164,
+      "elapsed": 0.008988201152533293,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -13996,7 +14059,7 @@
       "candidates": 11221,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.4733598749153316,
+      "elapsed": 0.4847034150734544,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -14062,7 +14125,7 @@
       "candidates": 11246,
       "censored": false,
       "cost": 6,
-      "elapsed": 0.40681831911206245,
+      "elapsed": 0.4074161103926599,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -14128,7 +14191,7 @@
       "candidates": 30,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.0032084621489048004,
+      "elapsed": 0.0032129697501659393,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -14165,7 +14228,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 0.6893606018275023,
+      "elapsed": 0.6926018348895013,
       "phase": "refresh_0",
       "productions": [
         "macro:ca99c8cd3473ada7"
@@ -14233,7 +14296,7 @@
     }
   ],
   "model_loss": "log-cost ridge regression; one-sided squared loss for measured censored lower bounds",
-  "offline_seconds": 6.236917474772781,
+  "offline_seconds": 6.310809889808297,
   "primitive_signatures": {
     "!": [
       [
@@ -14357,9 +14420,9 @@
     ]
   },
   "runtime_model": {
-    "intercept": -7.808867437548283,
+    "intercept": -7.810392435069856,
     "ridge": 1.0,
-    "slope": 0.6590612835283369,
+    "slope": 0.6603495733086033,
     "target": "elapsed"
   },
   "schema": 1,
@@ -14392,7 +14455,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.00896922405809164,
+          "elapsed": 0.008988201152533293,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14430,7 +14493,7 @@
           "candidates": 11221,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.4733598749153316,
+          "elapsed": 0.4847034150734544,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14496,7 +14559,7 @@
           "candidates": 11246,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.40681831911206245,
+          "elapsed": 0.4074161103926599,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14562,7 +14625,7 @@
           "candidates": 30,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.0032084621489048004,
+          "elapsed": 0.0032129697501659393,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14599,7 +14662,7 @@
         {
           "candidates": 20000,
           "censored": true,
-          "elapsed": 0.6893606018275023,
+          "elapsed": 0.6926018348895013,
           "phase": "refresh_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14619,7 +14682,7 @@
           "candidates": 34,
           "censored": false,
           "cost": 3,
-          "elapsed": 0.003218729980289936,
+          "elapsed": 0.0032644281163811684,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14657,7 +14720,7 @@
           "candidates": 5657,
           "censored": false,
           "cost": 6,
-          "elapsed": 0.2833660589531064,
+          "elapsed": 0.2839565840549767,
           "phase": "validation_0",
           "productions": [
             "macro:ca99c8cd3473ada7"
@@ -14732,7 +14795,7 @@
       "candidates": 34,
       "censored": false,
       "cost": 3,
-      "elapsed": 0.009470300748944283,
+      "elapsed": 0.008918870240449905,
       "phase": "validation_baseline",
       "productions": [],
       "rank_bound": 80,
@@ -14767,7 +14830,7 @@
     {
       "candidates": 20000,
       "censored": true,
-      "elapsed": 1.1490509426221251,
+      "elapsed": 1.1510915770195425,
       "phase": "validation_baseline",
       "productions": [],
       "reference_rank_bound": 278130,

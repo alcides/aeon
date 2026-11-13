@@ -27,11 +27,12 @@ def pipeline (path: String) (target_col: String) : Float :=
         let 1 test := owned_right_parts in
         # Balance the *training* half only, after the split.
         let 1 train := if is_multiclass train0 then smote train0 else train0 in
-        let model := random_forest_classifier train in
-        if balanced test then
+        let 1 model := random_forest_classifier train in
+        let score := if balanced test then
             accuracy model test
         else
-            f1 model test );
+            f1 model test in
+        let _ := dispose_classifier model in score );
 
 
 # ComplementNB requires imbalanced data — discharged via an inline

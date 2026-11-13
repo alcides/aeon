@@ -1,5 +1,5 @@
 import PSB2Fitness (per_example_errors)
-import PSB2 (extract_train_data, load_dataset)
+import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
 
 import Array
 type Range
@@ -31,10 +31,10 @@ def map_digit (x:Int) (i:Int) : Int := if (i % 2) = 0 then ( if (x * 2) > 9 then
 
 
 #PSB2
-def train: TrainData := extract_train_data (load_dataset "luhn" 200 200)
+def train : TrainingCases := training_data "luhn" 200 200
 
-def calculate_luhn_errors : (train : TrainData) -> (f:(1 a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0]) - y[0]) for x , y  in data]"
+def calculate_luhn_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0]) - y[0]) for x , y  in data]"
 
 
-@multi_minimize_float(per_example_errors (calculate_luhn_errors train synth), 200)
+@multi_minimize_float(per_example_errors (calculate_luhn_errors (fresh_train_data train) synth), 200)
 def synth (1 digits: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let calculate_luhn_errors := unit in let train := unit in ?hole)

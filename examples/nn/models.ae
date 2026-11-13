@@ -24,7 +24,7 @@ def main (_: Int) : Unit :=
     # A scikit-learn classifier trained on the same 4-feature, 3-class data.
     let 1 df := read_csv "examples/nn/data/iris2.csv" in
     let 1 ds := target df "species" false false in
-    let tree := decision_tree_classifier ds in
+    let 1 tree := decision_tree_classifier ds in
 
     # One feature vector, fed to both through the SAME typeclass method.
     let x := from_list (List.cons 5.1 (List.cons 3.5 (List.cons 1.4 (List.cons 0.2 List.nil)))) in
@@ -32,4 +32,6 @@ def main (_: Int) : Unit :=
     let tree_scores := classify tree x in   # Classifier SklearnClassifier
 
     # Shape accessors dispatch by model type too: both report 3 classes.
-    print ((cls_classes net) + (cls_classes tree))
+    let classes := cls_classes net + cls_classes tree in
+    let _ := dispose_classifier tree in
+    print classes

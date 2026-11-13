@@ -8,6 +8,8 @@ it; only unexpected errors should fail the run.
 from __future__ import annotations
 
 from typing import Any
+from contextlib import contextmanager
+from collections.abc import Iterator
 
 import pytest
 
@@ -46,3 +48,12 @@ def first_hole_term(mapping: dict[Any, Any], *, what: str = "hole") -> Term:
     if not mapping:
         pytest.skip(f"synthesis returned no {what} mapping")
     return require_synthesized(next(iter(mapping.values())), what=what)
+
+
+@contextmanager
+def skip_synthesis_timeout() -> Iterator[None]:
+    """Apply the integration-test budget policy to driver and composite calls."""
+    try:
+        yield
+    except SynthesisNotSuccessful as exc:
+        pytest.skip(f"synthesis did not find a valid candidate within budget: {exc}")

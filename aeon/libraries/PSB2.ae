@@ -1,9 +1,10 @@
 import Array
 
+type TrainingCases
 linear type Dataset
-type TrainData
-type TestData
-type Tuple
+linear type TrainData
+linear type TestData
+linear type Tuple
 
 # Convert per-case errors to a fixed-width objective vector. The runtime check
 # makes the native length contract explicit instead of assuming dataset size.
@@ -16,6 +17,19 @@ def objective_errors_int (1 errors:(Array Int)) (count:{n:Int | n > 0}) :
     native "errors if len(errors) == count else (_ for _ in ()).throw(ValueError('unexpected PSB2 objective count'))"
 
 
+# A reusable fixture factory: each call receives an owned copy of the same
+# training cases. Loading and sampling happen only once, on the first call.
+def training_data (name:String) (nTrain:Int) (nTest:Int) : TrainingCases :=
+    native "__import__('aeon.bindings.psb2').bindings.psb2.training_data(name, nTrain, nTest)"
+
+# Each copy transfers a fresh owner, while the fixture remains reusable.
+def fresh_train_data (cases:TrainingCases) : TrainData := native "cases(None)"
+
+# Consume a training snapshot once and expose both input and output arrays.
+def with_lists (1 td:TrainData)
+    (1 consume:(1 inputs:(Array Int)) -> (1 outputs:(Array Int)) -> a) : a :=
+    native "(lambda columns: consume(__import__('copy').deepcopy(columns[0]))(sum(columns[1], [])))(list(map(list, zip(*td))))"
+
 def load_dataset (name:String) (nTrain:Int) (nTest:Int) : Dataset :=
     native "__import__('psb2').fetch_examples('path/to/PSB2/datasets/', name, nTrain, nTest, format='lists')"
 
@@ -24,16 +38,16 @@ def load_dataset (name:String) (nTrain:Int) (nTest:Int) : Dataset :=
 def extract_train_data : (1 ds:Dataset) -> TrainData := fun ds => native "ds[0]"
 
 
-def unpack_train_data : (td:TrainData) -> Tuple := fun td => native "list(map(list, zip(*td)))"
+def unpack_train_data : (1 td:TrainData) -> Tuple := fun td => native "list(map(list, zip(*td)))"
 
 
-def get_input_list : (t:Tuple) -> (Array Int) := fun t => native "__import__('copy').deepcopy(t[0])"
+def get_input_list : (1 t:Tuple) -> (Array Int) := fun t => native "__import__('copy').deepcopy(t[0])"
 
 
-def get_output_list : (t:Tuple) -> (Array Int) := fun t => native "sum(t[1], [])"
+def get_output_list : (1 t:Tuple) -> (Array Int) := fun t => native "sum(t[1], [])"
 
 
-def get_output_list2 : (t:Tuple) -> (Array Int) := fun t => native "__import__('copy').deepcopy(t[1])"
+def get_output_list2 : (1 t:Tuple) -> (Array Int) := fun t => native "__import__('copy').deepcopy(t[1])"
 
 
 def extract_test_data : (1 ds:Dataset) -> TestData := fun ds => native "ds[1]"
@@ -130,28 +144,28 @@ def get_tt_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> String ) 
 def get_vd_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> (1 b: (Array Int)) -> Float ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y) for x, y in inputs]"
 
 
-def calculate_basement_errors : (train : TrainData) -> (f:(1 a: (Array Int)) -> Int ) -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+def calculate_basement_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> Int ) -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
-def calculate_bouncing_balls_psb2_errors : (train : TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0])(x[1])(x[2]) - y[0]) for x , y in data]"
+def calculate_bouncing_balls_psb2_errors : (1 train:TrainData) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0])(x[1])(x[2]) - y[0]) for x , y in data]"
 
 
-def calculate_bowling_errors : (train : TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+def calculate_bowling_errors : (1 train:TrainData) -> (f:(a: String) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
 
 
-def calculate_camel_case_errors : (train : TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]) , x[1][0]) for x in data]"
+def calculate_camel_case_errors : (1 train:TrainData) -> (f:(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]) , x[1][0]) for x in data]"
 
 
-def calculate_coin_sum_errors : (train : TrainData) -> (f:(a: Int) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]"
+def calculate_coin_sum_errors : (1 train:TrainData) -> (f:(a: Int) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]"
 
 
-def calculate_cut_vector_errors : (train : TrainData) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]"
+def calculate_cut_vector_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]"
 
 
-def calculate_dice_game_errors : (train : TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]"
+def calculate_dice_game_errors : (1 train:TrainData) -> (f:(a: Int) -> (b:Int) -> Float)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0])(x[0][1]) - x[1][0]) for x in data]"
 
 
-def calculate_fizzbuzz_errors : (train : TrainData) -> (f:(a: Int) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
+def calculate_fizzbuzz_errors : (1 train:TrainData) -> (f:(a: Int) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0][0]), x[1][0]) for x in data]"
 
 
-def calculate_fuel_cost_errors : (train : TrainData) -> (f:(1 a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"
+def calculate_fuel_cost_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0][0]) - x[1][0]) for x in data]"

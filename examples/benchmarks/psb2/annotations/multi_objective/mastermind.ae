@@ -1,5 +1,5 @@
 import PSB2Fitness (per_example_errors)
-import PSB2 (extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_mm_synth_values, unpack_train_data, load_dataset)
+import PSB2 (training_data, fresh_train_data, extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_mm_synth_values, unpack_train_data, load_dataset)
 
 import Array
 type Counter
@@ -24,10 +24,10 @@ def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter := fun c1 => 
 def Counter_values : (c:Counter) -> (Array Int) := fun c => native "list(c.values())"
 def Tuple : (a:Int) -> (b:Int) -> (Array Int) := fun a => fun b => native "[a,b]"
 
-def train: TrainData := extract_train_data (load_dataset "mastermind" 200 200)
+def train : TrainingCases := training_data "mastermind" 200 200
 
-def calculate_mastermind_errors : (train : TrainData) -> (f:(a: String) -> (b:String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]"
+def calculate_mastermind_errors : (1 train:TrainData) -> (f:(a: String) -> (b:String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]"
 
 
-@multi_minimize_float(per_example_errors (calculate_mastermind_errors train synth), 200)
+@multi_minimize_float(per_example_errors (calculate_mastermind_errors (fresh_train_data train) synth), 200)
 def synth ( code : String) (guess: String ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_mastermind_errors := unit in let train := unit in ?hole)

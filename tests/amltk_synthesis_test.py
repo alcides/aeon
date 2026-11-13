@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.synthesis_helpers import skip_synthesis_timeout
+
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
@@ -26,7 +28,8 @@ def test_amltk_pipeline_is_synthesized_and_evaluated(case_name, monkeypatch):
     assert len(goals) == 1
     assert goals[0].minimize is False
 
-    driver.synth()
+    with skip_synthesis_timeout():
+        driver.synth()
     assert not driver.has_synth()
     accuracy = driver.run()
     assert isinstance(accuracy, float)

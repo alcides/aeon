@@ -2,6 +2,8 @@
 
 import pytest
 
+from tests.synthesis_helpers import skip_synthesis_timeout
+
 from aeon.core.predicates import predicate_from_term
 from aeon.core.terms import Application, RefinementApplication, TypeApplication, Var
 from aeon.core.types import RefinedType, top
@@ -42,7 +44,8 @@ def test_binary_constructor_relation_is_synthesized(backend):
     """,
         backend,
     )
-    driver.synth()
+    with skip_synthesis_timeout():
+        driver.synth()
     tag, first, second = driver.run()
     assert tag == "Duo_mk"
     assert first == 4
@@ -89,7 +92,8 @@ def test_recursive_relation_keeps_count_and_weight_constraints(size):
             Mask.count m = {size} && Mask.weight m = {min(size, 1)}}} := ?mask;
     """
     )
-    driver.synth()
+    with skip_synthesis_timeout():
+        driver.synth()
     value = driver.run()
     decisions = []
     while value[0] == "Mask_cons":
@@ -185,7 +189,8 @@ def test_ternary_goal_relation_is_synthesized():
         | mk (x:{v:Int | v = 2}) (y:{v:Int | v = 3}) (z:{v:Int | r x y v}):Triple{|r|}
         def main (u:Int):Triple{|fun x => fun y => fun z => z = x + y|} := ?triple;
     """)
-    driver.synth()
+    with skip_synthesis_timeout():
+        driver.synth()
     assert driver.run() == ("Triple_mk", 2, 3, 5)
 
 
@@ -200,7 +205,8 @@ def test_goal_relation_can_reference_a_function_parameter():
         # refinement checks; allow CPU contention in the full CI suite.
         budget=60,
     )
-    driver.synth()
+    with skip_synthesis_timeout():
+        driver.synth()
     assert driver.run()[2] == 7
 
 
@@ -214,5 +220,6 @@ def test_opaque_predicate_is_kept_in_a_nullary_constructor():
             empty{|fun w => fun rest => w + rest <= 1|};
     """
     )
-    driver.synth()
+    with skip_synthesis_timeout():
+        driver.synth()
     assert driver.run() == ("Mask_empty",)

@@ -5,8 +5,9 @@ def train_and_score
     (1 testing: {test: TestingDataset
         | testing_features test = training_features training
        && testing_split_id test = training_split_id training}) : Float :=
-    let model := decision_tree_classifier training in
-    accuracy model testing
+    let 1 model := decision_tree_classifier training in
+    let score := accuracy model testing in
+    let _ := dispose_classifier model in score
 
 
 # CORRECT: target consumes the DataFrame exactly once.

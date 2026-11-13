@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from aeon.core.multiplicity import MOmega, Multiplicity
 from aeon.core.types import Kinding
 from aeon.core.types import Kind
 from aeon.errors import TypeClassError
@@ -181,6 +182,7 @@ def expand_typeclasses(p: Program) -> Program:
             # type, which cannot carry the inserted refinement). Applying the
             # dictionary field to the peeled binders sidesteps that entirely.
             peeled: list[tuple[Name, SType]] = []
+            quantities: list[Multiplicity] = []
             ret_t: SType = m.type
             method_foralls: list[tuple[Name, Kinding]] = []
             while isinstance(ret_t, STypePolymorphism):
@@ -188,6 +190,7 @@ def expand_typeclasses(p: Program) -> Program:
                 ret_t = ret_t.body
             while isinstance(ret_t, SAbstractionType):
                 peeled.append((ret_t.var_name, ret_t.var_type))
+                quantities.append(ret_t.multiplicity)
                 ret_t = ret_t.type
             call = f"{dict_name.name}[{i + 1}]" + "".join(f"({pn.name})" for (pn, _) in peeled)
             gen_defs.append(
@@ -202,6 +205,7 @@ def expand_typeclasses(p: Program) -> Program:
                     ),
                     loc=m.loc,
                     instance_flags=(True, *(False for _ in peeled)),
+                    arg_multiplicities=(MOmega, *quantities),
                 )
             )
 

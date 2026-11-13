@@ -1,0 +1,13 @@
+import Array;
+
+# A borrowed callback may be called repeatedly but cannot escape this call.
+def twice (borrow read:(i:Int) -> Int):Int := read 0 + read 1;
+
+def main (_:Int):Int :=
+    let 1 values := #[5,9] in
+    # The partial application's loan ends at the closing parenthesis.
+    let total := (let read := Array.get values in read 0 + read 1) in
+    let shape := twice (fun i => Array.length values + i) in
+    # Both loans have ended, so the owner can now be updated and consumed.
+    let 1 changed := Array.set values 0 total in
+    Array.consume Array.sum changed + shape;

@@ -137,6 +137,7 @@ class TypeSampler:
                         self.rng,
                         self.max_depth,
                         prefer_closed=prefer_closed,
+                        lazy=not prefer_closed,
                     )
                 else:
                     if backend not in self._streams:

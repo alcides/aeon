@@ -150,10 +150,10 @@ def stack
 
 # ─── Network inspection — runtime witnesses ────────────────────────────
 
-def net_in_of (net: Network) : {n: Int | n = net_in net && n >= 0} :=
+def net_in_of (borrow net: Network) : {n: Int | n = net_in net && n >= 0} :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_net_in(net)"
 
-def net_out_of (net: Network) : {n: Int | n = net_out net && n >= 0} :=
+def net_out_of (borrow net: Network) : {n: Int | n = net_out net && n >= 0} :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_net_out(net)"
 
 # ─── Network forward pass ──────────────────────────────────────────────
@@ -171,13 +171,13 @@ def predict
 # the ``Models`` typeclasses dispatch to: a typeclass method is generic over
 # the model type, so it cannot carry a per-model dimension refinement.
 # Prefer ``predict`` whenever the input width is statically known.
-def predict_unchecked (net: Network) (x: Vector) : Vector :=
+def predict_unchecked (borrow net: Network) (x: Vector) : Vector :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_predict(net, x)"
 
 # Single scalar forward: output component 0, for a one-unit regression head.
 # Unchecked like ``predict_unchecked``; the ``Models`` ``Regressor`` instance
 # dispatches here.
-def predict_scalar (net: Network) (x: Vector) : Float :=
+def predict_scalar (borrow net: Network) (x: Vector) : Float :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_predict_scalar(net, x)"
 
 # ─── Loss functions (refined non-negative) ─────────────────────────────

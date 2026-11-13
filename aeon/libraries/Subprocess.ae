@@ -66,20 +66,23 @@ def checkOutput (1 argv: {a: (Array String) | Array.size a >= 1}) : String :=
 
 # The exit code as a value, pinned to the ``exitCode`` measure so it can be
 # threaded into later refinements.
-def getExitCode (p: CompletedProcess) : {n:Int | n = exitCode p} :=
+def getExitCode (borrow p: CompletedProcess) : {n:Int | n = exitCode p} :=
     native "p.returncode"
 
 # True exactly when the command succeeded (exit code 0). The result is tied to
 # the ``exitCode`` measure, so the ``then`` branch of a test on it can satisfy
 # preconditions phrased as ``exitCode p = 0``.
-def succeeded (p: CompletedProcess) : {b:Bool | b = (exitCode p = 0)} :=
+def succeeded (borrow p: CompletedProcess) : {b:Bool | b = (exitCode p = 0)} :=
     native "p.returncode == 0"
 
 # Captured standard output (decoded text).
-def stdout (p: CompletedProcess) : String := native "p.stdout"
+def stdout (borrow p: CompletedProcess) : String := native "p.stdout"
 
 # Captured standard error (decoded text).
-def stderr (p: CompletedProcess) : String := native "p.stderr"
+def stderr (borrow p: CompletedProcess) : String := native "p.stderr"
+
+# CompletedProcess retains argv; release that owner after reading its results.
+def dispose_result (1 p: CompletedProcess) : Unit := native "None"
 
 # ── Linear (QTT) process handles ───────────────────────────────────────
 #

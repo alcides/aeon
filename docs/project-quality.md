@@ -81,6 +81,10 @@ for `leaders`), rather than confusing output-vector arity with objective count.
 Their native objective-vector conversion checks the actual length before
 returning its refined array. Single-objective array getters are functions so
 that every invocation produces a fresh linear array.
+Reusable PSB2 fixtures sample lazily once with seed 0 and deep-copy their cases
+for each evaluation. This keeps the benchmark stable even when a synthesized
+candidate mutates an input or fitness workers start independently. Training
+snapshots and their unpacked tuples are consumed exactly once.
 
 ## Compilation sessions
 

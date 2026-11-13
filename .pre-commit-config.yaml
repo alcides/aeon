@@ -1,6 +1,15 @@
 # Preserve byte-for-byte, checksum-pinned upstream benchmark sources.
 exclude: ^examples/benchmarks/(bnsynth|synquid)/upstream/
 repos:
+  - repo: local
+    hooks:
+      - id: amaze-profile
+        name: Check AMAZE stdlib profile
+        entry: uv run --no-sync python -m aeon.synthesis.modules.amaze inspect aeon/synthesis/modules/amaze/stdlib-profile.json
+        language: system
+        pass_filenames: false
+        # Compare the full inventory even when the last matching file is deleted.
+        always_run: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

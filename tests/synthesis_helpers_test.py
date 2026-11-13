@@ -27,3 +27,14 @@ def test_synthesize_holes_or_skip_skips_on_budget(monkeypatch):
     monkeypatch.setattr("tests.synthesis_helpers._synthesize_holes", boom)
     with pytest.raises(pytest.skip.Exception, match="within budget"):
         synthesize_holes_or_skip()
+
+
+def test_timeout_context_skips_only_search_exhaustion():
+    from tests.synthesis_helpers import skip_synthesis_timeout
+
+    with pytest.raises(pytest.skip.Exception):
+        with skip_synthesis_timeout():
+            raise SynthesisNotSuccessful("budget exhausted")
+    with pytest.raises(ValueError, match="unexpected"):
+        with skip_synthesis_timeout():
+            raise ValueError("unexpected")

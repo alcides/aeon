@@ -91,9 +91,12 @@ def decision_tree_classifier (1 training: TrainingDataset) :
 # provenance are checked statically; the result contract proves that accuracy
 # is bounded without a Python range check.
 def accuracy
-    (model: DecisionTreeClassifier)
+    (borrow model: DecisionTreeClassifier)
     (1 testing: {test: TestingDataset
         | testing_features test = classifier_features model
        && testing_split_id test = classifier_split_id model}) :
     {score: Float | 0.0 <= score && score <= 1.0} :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.accuracy(model, testing)"
+
+# Release a fitted model after observing its predictions or metrics.
+def dispose_classifier (1 model:DecisionTreeClassifier) : Unit := native "None"

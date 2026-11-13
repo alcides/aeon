@@ -40,6 +40,22 @@ selected-production limits. Budgets/limits and censored runs are recorded in the
 profile. Failed collection/training cannot silently produce random model weights
 or use an external corpus.
 
+The `amaze-profile` pre-commit hook runs the same read-only `inspect` validation
+against the bundled profile on every commit, including commits that delete
+library sources. It rejects stale source inventories/hashes and incompatible or
+malformed profiles. It uses the project's installed environment through
+`uv run --no-sync`; install the development dependencies before running hooks.
+The CI lint job runs this hook too via `pre-commit run --all-files`.
+
+After changing the standard library, explicitly retrain and commit the updated
+profile alongside the source changes:
+
+```bash
+uv run python -m aeon.synthesis.modules.amaze train-stdlib \
+  --output aeon/synthesis/modules/amaze/stdlib-profile.json --seed 0
+uvx pre-commit run amaze-profile --all-files
+```
+
 ## Learning boundary and supported subset
 
 The canonical corpus is the installed package's `aeon/libraries/**/*.ae`.
@@ -57,8 +73,8 @@ pure lets are supported. Native wrappers, effects, recursion, opaque helper
 calls, ADTs, float/string functions, polymorphism, abstract refinements, refined
 training signatures and non-default multiplicities are explicitly skipped.
 This is a small-corpus pilot: the current library supplies **9 eligible functions
-(8 alpha-distinct groups)** from `Refinement` and `Vec`, out of 1,371 source
-definitions. The remaining 1,362 definitions have recorded skip reasons.
+(8 alpha-distinct groups)** from `Refinement` and `Vec`, out of 1,410 source
+definitions. The remaining 1,401 definitions have recorded skip reasons.
 
 Eligible original AST/source spans are compiled in isolated compiler sessions.
 Only a preflight-audited pure definition is compiled; unrelated module code,

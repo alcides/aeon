@@ -1,5 +1,5 @@
 import PSB2Fitness (per_example_errors)
-import PSB2 (extract_train_data, load_dataset, calculate_coin_sum_errors)
+import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset, calculate_coin_sum_errors)
 
 import Array
 def Math_floor_division : (i:Int) -> (j:Int) -> Int := fun i => fun j => native "i // j"
@@ -10,7 +10,7 @@ def List_new (_: Unit) : {x:(Array Int) | List_size x = 0} := native "[]" ;
 
 def List_append (1 l:(Array Int)) (i:Int) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
 
-def train: TrainData := extract_train_data (load_dataset "coin-sums" 200 200)
+def train : TrainingCases := training_data "coin-sums" 200 200
 
-@multi_minimize_float(per_example_errors (calculate_coin_sum_errors train synth), 200)
+@multi_minimize_float(per_example_errors (calculate_coin_sum_errors (fresh_train_data train) synth), 200)
 def synth (cents: Int) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_coin_sum_errors := unit in ?hole)
