@@ -773,7 +773,9 @@ def uncurry(t: Term, args: list[LiquidTerm]) -> LiquidTerm | None:
                 case LiquidVar(name, loc):
                     return LiquidApp(name, args, loc=loc)
                 case _:
-                    assert False, f"Unknown term {t} {type(t)} in uncurry: {liquid_t}"
+                    # A conditional function value is valid core code, but
+                    # first-order liquid terms cannot apply its result.
+                    return None
 
 
 def liquefy_app(app: Application) -> LiquidApp | None:

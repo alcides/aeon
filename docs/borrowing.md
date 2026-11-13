@@ -49,16 +49,15 @@ def same_length (borrow a:(Array Int)) (borrow b:(Array Int)):Bool :=
     Array.length a = Array.length b;
 ```
 
-`same_length xs xs` is valid. These forms are rejected:
+`same_length xs xs` is valid. Moving an owner during a borrowed call is rejected:
 
 ```aeon
-let at := Array.get xs in ...                  # retained partial borrow
 read xs (let _ := Array.dispose xs in 0)       # move during an active borrow
 ```
 
 Partial applications may retain ownership when their resulting closure is used
-linearly, as described below. Partial applications retaining a read borrow are
-still rejected. A fully applied call may observe an owned variable while
+linearly, as described below. Partial applications retaining a read borrow use
+the lexical scope rules below. A fully applied call may observe an owned variable while
 evaluating its later arguments:
 
 ```aeon
@@ -111,8 +110,7 @@ def main (_:Int):Int :=
 ```
 
 An owning closure may read its captures before consuming them. A closure which
-only borrows an external owner remains unsupported: it would need a lifetime
-that prevents moving or mutating that owner until the closure's final use.
+only reads an external owner instead holds a scoped borrow, described below.
 Erased captures have no runtime ownership cost. Captures of unrestricted values
 leave ordinary closures and scalar partial applications reusable.
 
@@ -131,7 +129,9 @@ The checker infers these facts from the linked definitions, including imported
 and cached modules. A type annotation cannot erase them. Passing a factory to
 an unrestricted higher-order parameter cannot hide an owning result; use a `1`
 callback parameter and bind its potentially owning results with `let 1`.
-Analysis of opaque results and recursive calls is conservative. In particular,
+Recursive definitions propagate ownership obligations until they stabilize;
+ordinary recursive list operations still return reusable lists.
+Analysis of opaque results is conservative. In particular,
 a non-scalar result of a consuming call may retain ownership even when its
 implementation happens to return independent data.
 
@@ -141,6 +141,56 @@ recursive calls. Owning closures must be consumed once on every branch; copying
 them, dropping them, or putting them through unrestricted storage is rejected.
 These are static checks and apply with runtime contracts both enabled and
 disabled. See `examples/syntax/owning_closures.ae` for a runnable example.
+
+## Scoped borrowed closures
+
+A local closure may retain read borrows without lifetime annotations. The
+checker infers its borrowed owners, including through aliases, nested closures,
+and partial applications. Such closures are reusable:
+
+```aeon
+let 1 xs := #[5,9] in
+let total :=
+    (let read := Array.get xs in
+     read 0 + read 1)
+in
+let 1 changed := Array.set xs 0 total in
+Array.consume Array.sum changed
+```
+
+The borrow lasts for the **entire body of the binding** holding the closure.
+Within that scope, neither the owner nor an alias may be moved, disposed of,
+mutated, or captured by an owning closure. Other reads remain valid. Leaving the
+inner scope above ends the loan and allows `Array.set`. A move after the last
+call to `read` but still inside its binding's body is rejected; this is lexical
+scoping, not inference of the last-use point. Bind an owner explicitly before
+partially applying an operation that borrows it.
+
+Borrowed closures cannot escape their scope by being returned or stored in a
+container. Returning an independent scalar snapshot or newly allocated data is
+allowed. A closure may own one resource and borrow another; it then needs a `1`
+binding as well as a scope that preserves its borrowed owner. Erased closures
+create no runtime loan. Recursive closures must take resources as parameters
+instead of capturing owners or loans.
+
+Use a `borrow` function parameter for a callback that may read its environment:
+
+```aeon
+def twice (borrow read:(i:Int) -> Int):Int := read 0 + read 1;
+
+def observe (1 xs:(Array Int)):Int :=
+    let total := twice (fun i => Array.length xs + i) in
+    let _ := Array.dispose xs in total;
+```
+
+The callback may be invoked repeatedly, aliased locally, or passed to another
+`borrow` callback parameter. Its loan lasts through later argument evaluation
+and the call body. It cannot be returned, stored, or passed to an unrestricted
+or `1` parameter, whose signature permits retention. An owning closure, or a
+factory returning one, still needs a `1` callback parameter: invoking such a
+closure through a reusable borrow could duplicate its ownership obligations.
+This uses the existing `borrow` qualifier; no lifetime or region syntax is
+required. See `examples/syntax/borrowed_closures.ae` for a runnable example.
 
 ## Native implementations
 

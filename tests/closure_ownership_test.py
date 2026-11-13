@@ -221,6 +221,45 @@ def main (_:Int):Int := let 1 f := make 1 in f 0;
     assert any(isinstance(error, LinearityError) for error in errors), errors
 
 
+def test_recursive_opaque_result_analysis_converges():
+    from aeon.core.terms import Abstraction, Literal, Rec, Var
+    from aeon.core.types import AbstractionType, Top, t_int
+    from aeon.typechecking.linearity import check_linearity
+    from aeon.utils.name import Name
+
+    name, parameter = Name("self", 1), Name("x", 2)
+    term = Rec(name, AbstractionType(parameter, t_int, Top()), Abstraction(parameter, Var(name)), Literal(0, t_int))
+    assert check_linearity(term) == []
+
+
+def test_recursive_list_results_remain_reusable():
+    driver, errors = compile_source("""
+import List;
+def main (_:Int):Int :=
+    let values := List.append [1,2] [3] in List.length values + List.length values;
+""")
+    assert not errors, errors
+    assert driver.run() == 6
+
+
+@pytest.mark.parametrize("quantity", ["1 ", ""])
+def test_mutually_recursive_factories_preserve_owned_results(quantity):
+    driver, errors = compile_source(f"""
+mutual
+    def first (n:Int):(i:Int) -> Int := second n;
+    def second (n:Int):(i:Int) -> Int :=
+        if n > 0 then first (n - 1) else
+        let 1 arr := #[5,9] in fun i => Array.consume Array.sum arr;
+end
+def main (_:Int):Int := let {quantity}f := first 1 in f 0;
+""")
+    if quantity:
+        assert not errors, errors
+        assert driver.run() == 14
+    else:
+        assert any(isinstance(error, LinearityError) for error in errors), errors
+
+
 @pytest.mark.parametrize("quantity", ["1 ", ""])
 def test_imported_factory_preserves_ownership_with_cached_modules(tmp_path, monkeypatch, quantity):
     from aeon.compilation.compile import clear_unit_cache, compile_file

@@ -234,6 +234,7 @@ def check_refinement_calls(term: STerm, ctx, *, source_path=None):
         from aeon.sugar.lowering import lower_to_core
         from aeon.sugar.lifting import lift_type
         from aeon.typechecking.typeinfer import synth
+        from aeon.core.bind import bind_ids
         from aeon.core.types import ExistentialType, t_unit
         from aeon.utils.name import fresh_counter
 
@@ -244,20 +245,27 @@ def check_refinement_calls(term: STerm, ctx, *, source_path=None):
                 ty = ty.body
             return ty, context
 
+        def infer(expr):
+            # Elaboration may insert instance dictionary references by name.
+            # Resolve them against the visible binders just as the later core
+            # pass does, before inspecting a local binding's refined type.
+            bound_ctx, core = bind_ids(local, lower_to_core(expr))
+            return synth(bound_ctx, core)
+
         if isinstance(node, SAnnotation):
             check_type(node.type, local)
             visit(node.expr, local, node.type)
             return
         if isinstance(node, SLet):
             visit(node.var_value, local)
-            _, ty = synth(local, lower_to_core(node.var_value))
+            _, ty = infer(node.var_value)
             ty, inner = open_type(ty, local)
             visit(node.body, inner.with_var(node.var_name, ty), expected)
             return
         if isinstance(node, SApplication):
             visit(node.fun, local)
             if isinstance(node.arg, SAbstraction):
-                _, fun_ty = synth(local, lower_to_core(node.fun))
+                _, fun_ty = infer(node.fun)
                 fun_ty, inner = open_type(fun_ty, local)
                 domain = lift_type(fun_ty.var_type) if isinstance(fun_ty, AbstractionType) else None
                 visit(node.arg, inner, domain)

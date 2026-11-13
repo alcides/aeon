@@ -34,7 +34,8 @@ Closures capturing unrestricted values remain reusable.
 ``borrow`` parameters add scoped read accesses alongside the consumption
 tally. Sequential composition checks that a read precedes every move;
 branches may read differently but must still agree on consumption. Read
-accesses neither discharge a linear obligation nor escape into closures.
+accesses do not discharge a linear obligation. Closures may retain them inside
+a checked lexical scope, during which their owners cannot be consumed.
 """
 
 from __future__ import annotations
@@ -376,7 +377,8 @@ class _Walker:
             return self.ownership.types[id(term)]
         match term:
             case Var(n):
-                return self.var_types.get(n)
+                binding = self.ownership.bindings.get(n) if self.ownership is not None else None
+                return self.var_types.get(n) or (binding.ty if binding is not None else None)
             case Annotation(_, ty):
                 return ty
             case Literal(_, ty):
@@ -418,8 +420,7 @@ class _Walker:
         """A definition's remaining curried parameters share one call scope.
 
         Resource-taking functions bind their remaining parameters before any
-        computation. Retained prefixes carry ownership; borrowed prefixes
-        must be saturated. Lambdas in the body undergo normal capture checks.
+        computation. Retained prefixes carry ownership or scoped loans.
         """
         expected = _peel_existential(expected)
         if isinstance(body, Abstraction) and isinstance(expected, AbstractionType):
@@ -433,7 +434,11 @@ class _Walker:
             return self._native_bottom_tally()
         match term:
             case Var(n):
-                return ({n: M1}, {n: 1})
+                if self.ownership is None:
+                    return ({n: M1}, {n: 1})
+                reads: Tally = {root: _BorrowAccess() for root in self.ownership.value(term).borrows}
+                use: _Usage = _BorrowAccess() if n in self.ownership.borrowed_functions else M1
+                return (_tally_add(reads, {n: use}), {n: 1})
             case Hole():
                 return ({n: _Deferred() for n in self.in_scope}, {})
             case Literal():
@@ -444,6 +449,12 @@ class _Walker:
                 head, applications = _application_spine(term)
                 ft, fc = self.tally(head)
                 active: Tally = {}
+                if self.ownership is not None:
+                    active = {name: _BorrowAccess() for name in self.ownership.value(head).borrows}
+                    if isinstance(head, Abstraction) and id(head) not in self.ownership.values:
+                        active.update(
+                            {name: _BorrowAccess() for name, use in ft.items() if isinstance(use, _BorrowAccess)}
+                        )
                 reserved: Tally = {}
                 result_type = self.term_type(term)
                 complete = result_type is not None and not isinstance(_peel_existential(result_type), AbstractionType)
@@ -472,6 +483,14 @@ class _Walker:
                             active[borrowed.name] = _BorrowAccess()
                         else:
                             at, ac = self.tally(arg)
+                        if self.ownership is not None:
+                            roots = self.ownership.borrow_roots(arg)
+                            # Alias substitution can rebuild an inline lambda
+                            # without an entry in the inferred fact table.
+                            roots |= frozenset(n for n, use in at.items() if isinstance(use, _BorrowAccess))
+                            reads = {root: _BorrowAccess() for root in roots}
+                            at = _tally_add(at, reads)
+                            active.update(reads)
                     else:
                         at, ac = self.tally(arg)
                         at, ac = _tally_scale(pmult, at), _counts_scale(pmult, ac)
@@ -484,15 +503,13 @@ class _Walker:
                 inner = self.with_var(n, None)
                 bt, bc = inner.tally(body)
                 bt, bc = _drop(bt, bc, n)
-                # Reads followed by exactly one move belong to an owning
-                # closure. A retained read alone still needs a lifetime.
-                # Preserve errors from nested borrowed closures and from
-                # reads after a move; owning the environment cannot fix them.
+                # A read-only capture is a scoped loan. Reads followed by
+                # exactly one move instead belong to an owning environment.
                 for name, use in bt.items():
                     if isinstance(use, _BorrowAccess):
                         if use.moves is M1 and not use.captured and not use.after_move:
                             bt[name] = M1
-                        else:
+                        elif use.moves is not M0 or use.after_move:
                             bt[name] = _BorrowAccess(use.moves, use.after_move, captured=True)
                 return bt, bc
             case Let(n, val, body, _, _):
@@ -505,6 +522,10 @@ class _Walker:
                 inner = self.with_var(n, val_ty)
                 bt, bc = inner.tally(body)
                 if isinstance(val, Var) and val.name != n:
+                    if self.ownership is not None and val.name in self.ownership.borrowed_functions:
+                        bt, bc = _drop(bt, bc, n)
+                        vt, vc = self.tally(val)
+                        return _tally_add(vt, bt), _counts_add(vc, bc)
                     if isinstance(bt.get(n), _BorrowAccess) or isinstance(bt.get(val.name), _BorrowAccess):
                         # Preserve evaluation order across aliases. Aggregated
                         # per-alias tallies cannot order a move against a read.
@@ -648,11 +669,11 @@ def _check_binder(
     count = body_counts.get(name, 0)
 
     if isinstance(use, _BorrowAccess):
-        if use.captured:
-            errors.append(BorrowingError(name, "read borrows cannot be captured by closures", term))
-            return
         if use.after_move:
             errors.append(BorrowingError(name, "the owner has already been consumed", term))
+            return
+        if use.captured:
+            errors.append(BorrowingError(name, "a closure capture must be read-only or consumed exactly once", term))
             return
         if multiplicity is M0:
             errors.append(ErasedUsedAtRuntimeError(name=name, term=term))
@@ -662,7 +683,9 @@ def _check_binder(
     if multiplicity is MBorrow:
         if use is M0 or isinstance(use, _Bottom) or (isinstance(use, _Deferred) and use.minimum is M0):
             return
-        errors.append(BorrowingError(name, "a borrowed parameter cannot be consumed, returned, or captured", term))
+        errors.append(
+            BorrowingError(name, "a borrowed parameter cannot be consumed or transferred as an owned value", term)
+        )
         return
 
     # ``_Bottom`` (native FFI body) satisfies any required multiplicity —
@@ -874,6 +897,19 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
         unrestricted_types -= linear_types
 
     ownership = OwnershipFacts(linear_types, _is_native_ffi_call)
+    root = _Walker(
+        var_types=initial_types,
+        errors=errors,
+        in_scope=frozenset(initial_types),
+        linear_types=linear_types,
+        ownership=ownership,
+    )
+
+    def read_captures(body: Term) -> frozenset[Name]:
+        tally, _ = root.tally(body)
+        return frozenset(name for name, use in tally.items() if isinstance(use, _BorrowAccess) and use.moves is M0)
+
+    ownership.read_captures = read_captures
     ownership.infer(term, initial_types)
 
     def check_owned_binding(name: Name, value: Term, mult: Multiplicity, node: Term) -> None:
@@ -883,6 +919,25 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
             and _linear_type_head(ownership.types.get(id(value)), linear_types) is None
         ):
             errors.append(ClosureOwnershipError(name, "a value retaining ownership requires a 1 binding", node))
+
+    def check_loan_scope(name: Name, value: Term, body: Term, mult: Multiplicity, node: Term, walker: _Walker) -> None:
+        if mult is M0:
+            return
+        loans = ownership.values[id(value)].borrows
+        result_loans = ownership.values[id(body)].borrows
+        if result_loans & (loans | {ownership.origin(name)}):
+            errors.append(BorrowingError(name, "a borrowed value cannot escape its lexical scope", node))
+        if not loans:
+            return
+        tally, _ = walker.tally(body)
+        for used, use in tally.items():
+            moves = use.moves if isinstance(use, _BorrowAccess) else use
+            if isinstance(moves, _Deferred):
+                moves = moves.minimum
+            if ownership.origin(used) in loans and moves is not M0 and not isinstance(moves, _Bottom):
+                errors.append(
+                    BorrowingError(used, "cannot move or mutate an owner while a borrowed closure is in scope", node)
+                )
 
     def visit(node: Term, walker: _Walker, expected_ty: Type | None = None) -> None:
         # When ``expected_ty`` is an ``AbstractionType``, the outer
@@ -898,13 +953,43 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
             case Application():
                 head, applications = _application_spine(node)
                 visit(head, walker)
-                holds_borrow = False
                 for application in applications:
                     arg = application.arg
                     fun_ty = _peel_existential(walker.term_type(application.fun))
                     if isinstance(fun_ty, AbstractionType):
-                        if fun_ty.multiplicity is MBorrow:
-                            holds_borrow = True
+                        actual = ownership.values[id(arg)]
+                        borrowed = arg
+                        while isinstance(borrowed, Annotation):
+                            borrowed = borrowed.expr
+                        if (
+                            fun_ty.multiplicity is MBorrow
+                            and actual.owned
+                            and not isinstance(borrowed, Var)
+                            and isinstance(_peel_existential(walker.term_type(node)), AbstractionType)
+                        ):
+                            errors.append(
+                                BorrowingError(
+                                    fun_ty.var_name, "bind the owner before retaining a partial borrowed call", arg
+                                )
+                            )
+                        if actual.borrows and fun_ty.multiplicity not in (M0, MBorrow):
+                            errors.append(
+                                BorrowingError(
+                                    fun_ty.var_name, "a borrowed closure requires a borrow callback parameter", arg
+                                )
+                            )
+                        if (
+                            fun_ty.multiplicity is MBorrow
+                            and isinstance(_peel_existential(fun_ty.var_type), AbstractionType)
+                            and not ownership.fits(actual, fun_ty.var_type, MOmega)
+                        ):
+                            errors.append(
+                                BorrowingError(
+                                    fun_ty.var_name,
+                                    "an owning closure or a factory returning one requires a 1 callback parameter",
+                                    arg,
+                                )
+                            )
                         if fun_ty.multiplicity is not MBorrow and not ownership.fits(
                             ownership.values[id(arg)], fun_ty.var_type, fun_ty.multiplicity
                         ):
@@ -922,10 +1007,6 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                         visit(arg, walker, fun_ty.var_type)
                     else:
                         visit(arg, walker)
-                if holds_borrow and isinstance(_peel_existential(walker.term_type(node)), AbstractionType):
-                    errors.append(
-                        BorrowingError(head, "apply all remaining arguments before retaining a read borrow", node)
-                    )
             case Abstraction(name, body):
                 ety = _peel_existential(expected_ty)
                 if isinstance(ety, AbstractionType):
@@ -937,6 +1018,15 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                     inner_ty = None
                     body_ty = None
                 inner = walker.with_var(name, inner_ty)
+                prefix = body
+                while isinstance(prefix, (Annotation, TypeAbstraction, RefinementAbstraction)):
+                    prefix = prefix.expr if isinstance(prefix, Annotation) else prefix.body
+                if ownership.values[id(body)].borrows and not (
+                    isinstance(prefix, Abstraction) and isinstance(_peel_existential(body_ty), AbstractionType)
+                ):
+                    errors.append(
+                        BorrowingError(name, "a function cannot return a borrowed value from its call scope", body)
+                    )
                 if (
                     param_mult is MBorrow or (param_mult is M1 and _may_be_resource(inner_ty, unrestricted_types))
                 ) and not _has_curried_parameters(body, body_ty):
@@ -962,6 +1052,7 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
                 # falling back to ``M1``.
                 val_ty = walker.term_type(val)
                 inner = walker.with_var(name, val_ty)
+                check_loan_scope(name, val, body, mult, node, inner)
                 if mult is M0 or mult is M1:
                     bt, bc = inner.tally(body)
                     _check_binder(name, mult, bt, bc, node, errors)
@@ -971,15 +1062,17 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
             case Rec(name, var_type, val, body, _, _, mult):
                 check_owned_binding(name, val, mult, node)
                 recursive_names = {name} | {companion.name for companion in node.companions}
-                if ownership.values[id(val)].owned and recursive_names & ownership.references[id(val)]:
+                actual = ownership.values[id(val)]
+                if (actual.owned or actual.borrows) and recursive_names & ownership.references[id(val)]:
                     errors.append(
                         ClosureOwnershipError(
-                            name, "recursive closures cannot retain owners; pass them as 1 arguments", node
+                            name, "recursive closures cannot retain owners or loans; pass resources as arguments", node
                         )
                     )
                 if mult is MBorrow:
                     errors.append(BorrowingError(name, "borrow is only supported on function parameters", node))
                 inner = walker.with_var(name, var_type)
+                check_loan_scope(name, val, body, mult, node, inner)
                 if mult is M0 or mult is M1:
                     bt, bc = inner.tally(body)
                     _check_binder(name, mult, bt, bc, node, errors)
@@ -1000,12 +1093,5 @@ def check_linearity(term: Term, ctx: TypingContext | None = None) -> list[Linear
             case _:
                 return
 
-    root = _Walker(
-        var_types=initial_types,
-        errors=errors,
-        in_scope=frozenset(initial_types),
-        linear_types=linear_types,
-        ownership=ownership,
-    )
     visit(term, root)
     return errors

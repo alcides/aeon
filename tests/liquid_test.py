@@ -4,8 +4,9 @@ from aeon.core.liquid import LiquidApp
 from aeon.core.liquid import LiquidLiteralInt
 from aeon.core.liquid import LiquidVar
 from aeon.core.substitutions import liquefy
-from aeon.core.terms import Application
+from aeon.core.terms import Application, If, Literal
 from aeon.core.terms import Var
+from aeon.core.types import t_bool
 from aeon.utils.ast_helpers import i1
 from aeon.sugar.ast_helpers import st_top
 from tests.driver import check_compile
@@ -24,6 +25,11 @@ def test_liquefaction():
     assert liquefy(x) == lx
     assert liquefy(i1) == l1
     assert liquefy(x1) == lx1
+
+
+def test_conditional_callee_is_outside_first_order_liquid_terms():
+    callee = If(Literal(True, t_bool), Var(Name("f", 1)), Var(Name("g", 2)))
+    assert liquefy(Application(callee, i1)) is None
 
 
 def test_simple_eq():

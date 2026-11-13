@@ -3,6 +3,8 @@
 Argument multiplicities alone do not describe a closure's environment. These
 facts complement QTT usage counts: a value retaining an owner must itself be
 bound/passed linearly, including when obtained through an alias or factory.
+Borrowed environments carry owner identities, substituted at curried calls and
+checked against the lexical scope of each binding by the usage checker.
 No source type is rewritten, and annotations cannot erase the inferred facts.
 """
 
@@ -12,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from aeon.core.instantiation import type_substitution
-from aeon.core.multiplicity import M0, M1, MN, MOmega, Multiplicity
+from aeon.core.multiplicity import M0, M1, MN, MOmega, MBorrow, Multiplicity
 from aeon.core.terms import (
     Abstraction,
     Annotation,
@@ -63,16 +65,33 @@ def can_retain(ty: Type | None) -> bool:
 class Ownership:
     owned: bool = False
     result: Ownership | None = None
+    borrows: frozenset[Name] = frozenset()
+    parameter: Name | None = None
 
     def retaining(self) -> Ownership:
-        return Ownership(True, self.result)
+        return Ownership(True, self.result, self.borrows, self.parameter)
+
+    def substitute(self, name: Name | None, roots: frozenset[Name]) -> Ownership:
+        """Instantiate a returned closure's dependency on a formal parameter."""
+        borrows = (self.borrows - {name}) | roots if name in self.borrows else self.borrows
+        result = self.result.substitute(name, roots) if self.result is not None else None
+        return Ownership(self.owned, result, borrows, self.parameter)
+
+    def borrowing(self, roots: frozenset[Name]) -> Ownership:
+        """A curried borrowed argument lives through the remaining prefixes."""
+        result = self.result
+        if result is not None and result.result is not None:
+            result = result.borrowing(roots)
+        return Ownership(self.owned, result, self.borrows | roots, self.parameter)
 
 
 def merge(left: Ownership, right: Ownership) -> Ownership:
+    if left.parameter is not None and right.parameter is not None and left.parameter != right.parameter:
+        right = right.substitute(right.parameter, frozenset({left.parameter}))
     result = left.result or right.result
     if left.result is not None and right.result is not None:
         result = merge(left.result, right.result)
-    return Ownership(left.owned or right.owned, result)
+    return Ownership(left.owned or right.owned, result, left.borrows | right.borrows, left.parameter or right.parameter)
 
 
 @dataclass(frozen=True)
@@ -89,6 +108,33 @@ class OwnershipFacts:
     values: dict[int, Ownership] = field(default_factory=dict)
     types: dict[int, Type] = field(default_factory=dict)
     references: dict[int, frozenset[Name]] = field(default_factory=dict)
+    bindings: dict[Name, _Binding] = field(default_factory=dict)
+    origins: dict[Name, Name] = field(default_factory=dict)
+    borrowed_functions: set[Name] = field(default_factory=set)
+    read_captures: Callable[[Term], frozenset[Name]] | None = None
+    recursive: dict[Name, Ownership] = field(default_factory=dict)
+    changed: bool = False
+
+    def origin(self, name: Name) -> Name:
+        return self.origins.get(name, name)
+
+    def value(self, term: Term) -> Ownership:
+        if id(term) in self.values:
+            return self.values[id(term)]
+        if isinstance(term, Var) and term.name in self.bindings:
+            return self.bindings[term.name].ownership
+        return Ownership()
+
+    def borrow_roots(self, term: Term) -> frozenset[Name]:
+        while isinstance(term, Annotation):
+            term = term.expr
+        value = self.value(term)
+        roots = value.borrows
+        if isinstance(term, Var):
+            binding = self.bindings.get(term.name)
+            if value.owned or (binding is not None and binding.quantity is M1):
+                roots |= {self.origin(term.name)}
+        return roots
 
     def from_type(self, ty: Type | None, *, linear: bool = False) -> Ownership:
         plain = unwrapped(ty)
@@ -101,7 +147,7 @@ class OwnershipFacts:
                 plain.type,
                 linear=can_retain(plain.type) and (linear or plain.multiplicity is M1),
             )
-            return Ownership(owned, result)
+            return Ownership(owned, result, parameter=plain.var_name)
         return Ownership(owned)
 
     def infer(self, term: Term, initial: dict[Name, Type]) -> None:
@@ -109,15 +155,43 @@ class OwnershipFacts:
             name: _Binding(ty, self.from_type(ty) if name in typing_vars else self.external_type(ty))
             for name, ty in initial.items()
         }
-        self._infer(term, env)
+        self.bindings.update(env)
+        # A recursive result is not automatically owning: e.g. List.append
+        # returns ordinary reusable data. Propagate discovered obligations to
+        # recursive calls until stable, including across mutual companions.
+        while True:
+            self.changed = False
+            self._infer(term, env)
+            if not self.changed:
+                break
 
     def external_type(self, ty: Type | None) -> Ownership:
-        """An unavailable/recursive implementation may allocate in its result."""
+        """An unavailable implementation may allocate in its result."""
         shape = self.from_type(ty)
         plain = unwrapped(ty)
         if isinstance(plain, AbstractionType):
-            return Ownership(shape.owned, self.from_type(plain.type, linear=can_retain(plain.type)))
+            return Ownership(
+                shape.owned, self.from_type(plain.type, linear=can_retain(plain.type)), parameter=plain.var_name
+            )
         return shape
+
+    def recursive_shape(self, value: Ownership, ty: Type | None) -> Ownership:
+        """Keep the fixed-point lattice finite even for opaque recursive results.
+
+        A function returning Top can return itself, adding another result arrow
+        on each traversal. At opaque leaves, conservatively collapse nested
+        obligations instead of growing an unbounded profile.
+        """
+        plain = unwrapped(ty)
+        if isinstance(plain, AbstractionType):
+            result = self.recursive_shape(value.result or self.from_type(plain.type), plain.type)
+            return Ownership(value.owned, result, value.borrows, value.parameter or plain.var_name)
+        borrows = value.borrows
+        nested = value.result
+        while nested is not None:
+            borrows |= nested.borrows
+            nested = nested.result
+        return Ownership(self.has_ownership(value), borrows=borrows)
 
     def specialize(self, value: Ownership, ty: Type | None) -> Ownership:
         """Instantiation may reveal scalar results or additional arrows."""
@@ -125,7 +199,7 @@ class OwnershipFacts:
         if isinstance(plain, AbstractionType):
             result = value.result or self.from_type(plain.type, linear=value.owned and can_retain(plain.type))
             result = self.specialize(result, plain.type) if can_retain(plain.type) else Ownership()
-            return Ownership(value.owned, result)
+            return Ownership(value.owned, result, value.borrows, value.parameter or plain.var_name)
         return value
 
     def _infer(
@@ -154,13 +228,33 @@ class OwnershipFacts:
                 arg_ty = arrow.var_type if isinstance(arrow, AbstractionType) else None
                 result_ty = arrow.type if isinstance(arrow, AbstractionType) else None
                 quantity = arrow.multiplicity if isinstance(arrow, AbstractionType) else MOmega
-                binding = _Binding(arg_ty, self.from_type(arg_ty, linear=quantity is M1), quantity)
+                argument = self.from_type(arg_ty, linear=quantity is M1)
+                if quantity is MBorrow:
+                    argument = Ownership(False, argument.result, parameter=argument.parameter).borrowing(
+                        frozenset({name})
+                    )
+                    if isinstance(unwrapped(arg_ty), AbstractionType):
+                        self.borrowed_functions.add(name)
+                binding = _Binding(arg_ty, argument, quantity)
+                self.bindings[name] = binding
                 result, _, body_refs = self._infer(body, {**env, name: binding}, result_ty)
                 if not can_retain(result_ty):
                     result = Ownership()
                 refs = body_refs - {name}
-                owned = any(name in env and (env[name].ownership.owned or env[name].quantity is M1) for name in refs)
-                value = Ownership(owned, result)
+                reads = self.read_captures(body) - {name} if self.read_captures is not None else frozenset()
+                owned = any(
+                    ref in env and ref not in reads and (env[ref].ownership.owned or env[ref].quantity is M1)
+                    for ref in refs
+                )
+                loans = frozenset(
+                    self.origin(ref)
+                    for ref in reads
+                    if ref in env and (env[ref].ownership.owned or env[ref].quantity in (M1, MBorrow))
+                )
+                for ref in refs:
+                    if ref in env:
+                        loans |= env[ref].ownership.borrows
+                value = Ownership(owned, result, loans, name)
             case Application(fun, arg):
                 fn, fun_ty, fn_refs = self._infer(fun, env)
                 arrow = unwrapped(fun_ty)
@@ -170,27 +264,40 @@ class OwnershipFacts:
                 if isinstance(arrow, AbstractionType):
                     ty = arrow.type
                 refs = fn_refs | (arg_refs if quantity is not M0 else frozenset())
-                value = fn.result or self.from_type(ty)
+                value = (fn.result or self.from_type(ty)).substitute(fn.parameter, self.borrow_roots(arg))
                 if can_retain(ty):
                     if fn.owned or (self.has_ownership(actual) and quantity in (M1, MN)):
                         value = value.retaining()
                     # Instantiating a polymorphic result can reveal arrows
                     # which were absent from its original ownership shape.
                     value = merge(value, self.from_type(ty, linear=value.owned))
+                    if quantity is MBorrow and isinstance(unwrapped(ty), AbstractionType):
+                        value = value.borrowing(self.borrow_roots(arg))
                 else:
                     value = Ownership()
             case Let(name, val, body, _, quantity) | Rec(name, _, val, body, multiplicity=quantity):
                 declared = term.var_type if isinstance(term, Rec) else None
                 local = dict(env)
                 if isinstance(term, Rec):
-                    # Recursive results must be conservative before their
-                    # body has been checked. No recursive closure may capture
-                    # an owner (enforced by the usage checker).
-                    local[name] = _Binding(declared, self.external_type(declared), quantity)
+                    local[name] = _Binding(declared, self.recursive.get(name, self.from_type(declared)), quantity)
                     for companion in term.companions:
-                        local[companion.name] = _Binding(companion.type, self.external_type(companion.type))
+                        local[companion.name] = _Binding(
+                            companion.type, self.recursive.get(companion.name, self.from_type(companion.type))
+                        )
                 actual, val_ty, val_refs = self._infer(val, local, declared)
+                if isinstance(term, Rec) and val_refs & ({name} | {c.name for c in term.companions}):
+                    previous = self.recursive.get(name, self.from_type(declared))
+                    inferred = merge(previous, self.recursive_shape(actual, declared))
+                    if inferred != previous:
+                        self.recursive[name] = inferred
+                        self.changed = True
                 local[name] = _Binding(val_ty, actual, quantity)
+                self.bindings[name] = local[name]
+                alias = val
+                while isinstance(alias, Annotation):
+                    alias = alias.expr
+                if isinstance(alias, Var) and (actual.owned or not isinstance(unwrapped(val_ty), AbstractionType)):
+                    self.origins[name] = self.origin(alias.name)
                 value, ty, body_refs = self._infer(body, local, expected)
                 refs = (body_refs - {name}) | (val_refs - {name} if quantity is not M0 else frozenset())
             case If(cond, then, otherwise):
