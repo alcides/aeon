@@ -83,6 +83,14 @@ Native random walks over Aeon's core term grammar (the same backward and forward
 
 Native breadth-first enumeration over Aeon's core term grammar (backward and forward actions, plus SMT completion of refinement-constrained leaves). A generator yields complete terms; the driver rejects those that fail typechecking, evaluates the rest, and keeps a Pareto front — returning a random non-dominated candidate when objectives are present, or the first well-typed term otherwise. No GeneticEngine dependency. Works well for small, tightly-constrained holes.
 
+Both native engines preserve function-parameter multiplicities and prune QTT
+violations during grammar expansion and literal completion. Driver searches
+also check partial candidates in the surrounding sketch, counting uses outside
+the hole. Random search shares this budget across joint hole replacements and
+restarts the entire product when a walk fails. Enumeration retains its existing
+single-hole search interface. These checks reuse the same partial-program usage
+checker as TDSyn and GP.
+
 ---
 
 ### `amaze` — Standard-Library-Trained Grammar Optimization
