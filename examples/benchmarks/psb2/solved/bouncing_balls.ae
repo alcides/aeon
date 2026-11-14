@@ -1,21 +1,14 @@
+# PSB2: bouncing-balls
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/bouncing_balls.clj
 
-def isZero (n: Int) : Bool := n = 0;
+import List
+import Math
+import String
 
-def calculate_distance_helper (b_index: Float) (h: Float) (n: Int) (distance: Float) : Float :=
-if isZero n then
-    distance
-else
-    a: Float := if b_index != 0.0 then h / b_index else 0.0;
-    n1: Int := n - 1;
-    d1: Float := (distance + h) + a;
-    calculate_distance_helper b_index a n1 d1
+def bounce_go (height:Float) (bounce:Float) (ratio:Float) (remaining:Int) (distance:Float) : Float :=
+    if remaining <= 0 then distance else
+        bounce_go bounce (bounce * ratio) ratio (remaining - 1) (distance + height + bounce);
 
-
-def bouncing_balls (s_height: Float) (b_height:Float) (b:Int) : Float:=
-    bounciness_index : Float := if b_height != 0.0 then s_height / b_height else 0.0;
-    calculate_distance_helper bounciness_index s_height b 0.0
-
-
-
-def main (x: Int) : Unit :=
-    print(bouncing_balls 15.319 5.635 1) # 20.954
+@doc("Accumulate the downward and upward travel for the requested number of bounces.")
+def bouncing_balls (starting_height:{v:Float | 1.0 <= v && v <= 100.0}) (bounce_height:{v:Float | 1.0 <= v && v < starting_height}) (bounces:{v:Int | 1 <= v && v <= 20}) : Float :=
+    bounce_go starting_height bounce_height (bounce_height / starting_height) bounces 0.0;

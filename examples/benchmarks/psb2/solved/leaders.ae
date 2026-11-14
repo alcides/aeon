@@ -1,14 +1,14 @@
-import Array
-def itertools : Unit := native_import "itertools"
+# PSB2: leaders
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/leaders.clj
 
-def List_new (_: Unit) : (Array Int) := native "[]"
-def List_append (1 l:(Array Int)) (i: Int) : (Array Int) := native "l + [i]"
+import List
+import Math
+import String
 
-# Leaders of a vector: values greater than every element to their right.
-# Implemented natively so the linear array is consumed exactly once.
-def cut_vector (1 vector : (Array Int)) : (Array Int) :=
-    native "(lambda xs: (lambda r: list(reversed([x for x, m in zip(r, __import__('itertools').accumulate(r, max)) if x == m])))(list(reversed(xs))))(vector)"
+def leaders_go (xs:(List Int)) : (List Int) :=
+    match xs with | List.nil => [] | List.cons x rest =>
+        if List.all (fun y => x >= y) rest then List.cons x (leaders_go rest) else leaders_go rest;
 
-def main (args:Int) : Unit :=
-    let 1 vec: (Array Int) := List_append (List_append (List_append (List_append (List_new unit) 47) 87) 43) 44;
-    print (cut_vector vec);
+@doc("Keep values at least as large as every value to their right, including equal maxima.")
+def leaders (vector:{v:(List Int){|fun x => 0 <= x && x <= 1000|} | 0 <= List.size v && List.size v <= 20}) : (List Int) :=
+    leaders_go vector;

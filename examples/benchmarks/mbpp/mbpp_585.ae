@@ -1,11 +1,12 @@
 # MBPP task 585
-# Write a function to find the n most expensive items in a given dataset.
-#
-# Synthesis target: expensive_items : List -> Int -> List
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> (x1:Int) -> List) : Float := native "float((0 if (f([{'name': 'Item-1', 'price': 101.1}, {'name': 'Item-2', 'price': 555.22}])(1) == [{'name': 'Item-2', 'price': 555.22}]) else 1) + (0 if (f([{'name': 'Item-1', 'price': 101.1}, {'name': 'Item-2', 'price': 555.22}, {'name': 'Item-3', 'price': 45.09}])(2) == [{'name': 'Item-2', 'price': 555.22}, {'name': 'Item-1', 'price': 101.1}]) else 1) + (0 if (f([{'name': 'Item-1', 'price': 101.1}, {'name': 'Item-2', 'price': 555.22}, {'name': 'Item-3', 'price': 45.09}, {'name': 'Item-4', 'price': 22.75}])(1) == [{'name': 'Item-2', 'price': 555.22}]) else 1))"
+inductive Item
+| mk (name:String) (price:Float) : Item
 
-@minimize_float(mbpp_fitness synth)
-def synth (items:List) (n:Int) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Find the n most expensive items in a dataset, in descending price order.")
+@example(expensive_items [(Item.mk "Item-1" 101.1), (Item.mk "Item-2" 555.22)] 1 = [(Item.mk "Item-2" 555.22)])
+@example(expensive_items [(Item.mk "Item-1" 101.1), (Item.mk "Item-2" 555.22), (Item.mk "Item-3" 45.09)] 2 = [(Item.mk "Item-2" 555.22), (Item.mk "Item-1" 101.1)])
+@example(expensive_items [(Item.mk "Item-1" 101.1), (Item.mk "Item-2" 555.22), (Item.mk "Item-3" 45.09), (Item.mk "Item-4" 22.75)] 1 = [(Item.mk "Item-2" 555.22)])
+def expensive_items (items:(List Item)) (n:{v:Int | v >= 0}) : {v:(List Item) | List.size v <= List.size items && List.size v <= n && (List.size v = List.size items || List.size v = n)} := ?hole

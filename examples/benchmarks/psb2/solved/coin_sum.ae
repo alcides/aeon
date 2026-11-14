@@ -1,17 +1,10 @@
-import Array
-def Math_floor_division : (i:Int) -> (j:Int) -> Int := fun i => fun j => native "i // j"
+# PSB2: coin-sums
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/coin_sums.clj
 
-def List_size : (1 l:(Array Int)) -> Int := uninterpreted
+import List
+import Math
+import String
 
-def List_new (_: Unit) : {x:(Array Int) | List_size x = 0} := native "[]" ;
-
-def List_append (1 l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
-
-
-def coin_sum (cents: Int) : (Array Int) := quarters:Int := Math_floor_division cents 25;
-  dimes:Int := Math_floor_division (cents % 25) 10;
-  nickels:Int := Math_floor_division ((cents % 25) % 10) 5;
-  pennies:Int := ((cents % 25) % 10) % 5;
-  List_append (List_append (List_append ( List_append (List_new unit) pennies) nickels) dimes) quarters;
-
-def main (args:Int): Unit := print (coin_sum 5)
+@doc("Return minimal coin counts in penny, nickel, dime, quarter order.")
+def coin_sum (cents:{v:Int | 1 <= v && v <= 10000}) : (List Int) :=
+    [cents % 5, Math.floor_division (cents % 25 % 10) 5, Math.floor_division (cents % 25) 10, Math.floor_division cents 25];

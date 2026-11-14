@@ -1,25 +1,20 @@
-import Array
-# --not working properly--
-open PSB2
+# PSB2: fizz-buzz
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/fizz_buzz.clj
 
-def constant_i : Int := 0
-def constant_i3 : Int := 3
-def constant_i5 : Int := 5
-def constant_FizzBuzz : String := "FizzBuzz"
-def constant_Buzz : String := "Buzz"
-def constant_Fizz : String := "Fizz"
+import List
+import Math
+import String
+import PSB2Fitness
 
-def div3 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool := if ((n % 3) = 0) then true else false;
-def div5 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool := if ((n % 5) = 0) then true else false;
-def div15 ( n :{x:Int | 1 <= x && x <= 1000000}) : Bool := if ((n % 15) = 0) then true else false;
+def train : Cases := PSB2Fitness.cases "fizz-buzz" 200;
 
-def FizzBuzz ( n :{x:Int | 1 <= x && x <= 1000000}) : String := if div15 n then "FizzBuzz" else (if ((n % 3) = 0) then "Fizz" else (if ((n % 5) = 0)  then "Buzz" else native "str(n)"));
+def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000000}) -> {r:String | 1 <= String.len r && String.len r <= 8}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('fizz-buzz', cases(None), candidate)";
 
-def train : TrainingCases := training_data "fizz-buzz" 200 200
-
-def  input_list (_: Unit) : (Array Int) :=  get_input_list ( unpack_train_data  (fresh_train_data train))
-
-def  expected_values (_: Unit) : (Array Int) :=  get_output_list ( unpack_train_data  (fresh_train_data train))
-
-@minimize_float(String_distance ( join_string_list( get_fb_synth_values (input_list unit) synth)) ( join_string_list( (expected_values unit))))
-def synth (n : Int) : String := ?hole
+@doc("Return Fizz, Buzz, FizzBuzz, or the decimal input according to divisibility by three and five.")
+@minimize_float(PSB2Fitness.meanError (score train synth))
+def synth (n:{v:Int | 1 <= v && v <= 1000000}) : {r:String | 1 <= String.len r && String.len r <= 8} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

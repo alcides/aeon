@@ -1,10 +1,10 @@
-import Array
-def div3 (n:Int) : Bool := if ((n % 3) = 0) then true else false;
-def div5 (n:Int) : Bool := if ((n % 5) = 0) then true else false;
-def div15 (n:Int) : Bool := if ((n % 15) = 0) then true else false;
+# PSB2: fizz-buzz
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/fizz_buzz.clj
 
-def toString (i:Int) : String := native "str(i)"
+import List
+import Math
+import String
 
-def fizzbuzz (n:Int) : String := if div15 n then "FizzBuzz" else (if ((n % 3) = 0) then "Fizz" else (if ((n % 5) = 0) then "Buzz" else toString n));
-
-def main (args:Int) : Unit := print (fizzbuzz 15)
+@doc("Return Fizz, Buzz, FizzBuzz, or the decimal input according to divisibility by three and five.")
+def fizzbuzz (n:{v:Int | 1 <= v && v <= 1000000}) : String :=
+    if n % 15 = 0 then "FizzBuzz" else if n % 3 = 0 then "Fizz" else if n % 5 = 0 then "Buzz" else String.intToString n;

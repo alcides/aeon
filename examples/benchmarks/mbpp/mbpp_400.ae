@@ -1,15 +1,10 @@
 # MBPP task 400
-# Write a function to extract the number of unique tuples in the given list.
-#
-# Synthesis target: extract_freq : List -> Int
 
-type List
+import List
+import Pair
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
-
-def mbpp_fitness (f:(x0:List) -> Int) : Float := native "float((0 if (f([(3, 4), (1, 2), (4, 3), (5, 6)]) == 3) else 1) + (0 if (f([(4, 15), (2, 3), (5, 4), (6, 7)]) == 4) else 1) + (0 if (f([(5, 16), (2, 3), (6, 5), (6, 9)]) == 4) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_list:List) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to extract the number of unique tuples in the given list.")
+@example(extract_freq [(Pair.mk 3 4), (Pair.mk 1 2), (Pair.mk 4 3), (Pair.mk 5 6)] = 3)
+@example(extract_freq [(Pair.mk 4 15), (Pair.mk 2 3), (Pair.mk 5 4), (Pair.mk 6 7)] = 4)
+@example(extract_freq [(Pair.mk 5 16), (Pair.mk 2 3), (Pair.mk 6 5), (Pair.mk 6 9)] = 4)
+def extract_freq (test_list:(List (Pair Int Int))) : {v:Int | 0 <= v && v <= List.size test_list} := ?hole

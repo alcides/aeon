@@ -1,24 +1,20 @@
-import PSB2Fitness (per_example_errors_50)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
-import Array
-def itertools : Unit := native_import "itertools"
+# PSB2: leaders
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/leaders.clj
 
-def List_reversed: (1 l: (Array Int))-> (Array Int) := fun xs => native "xs[::-1]"
-def List_new (_: Unit) : (Array Int)  := native "[]"
-def List_append: (1 l:(Array Int)) -> (i: Int) -> (Array Int) := fun xs => fun x => native "xs + [x]"
-def List_get: (1 l:(Array Int)) -> (i:Int) -> Int := fun xs => fun i => native "xs[i]"
+import List
+import Math
+import String
+import PSB2Fitness
 
-def Scanl_max : (1 xs:(Array Int)) -> (Array Int) := fun xs => native "list(itertools.accumulate(xs, max))"
-def Filter :  (f: (1 s:(Array Int)) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-def Zip : (1 xs:(Array Int)) -> (1 ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
-def Map : (f: (1 s:(Array Int)) -> Int) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
+def train : Cases := PSB2Fitness.cases "leaders" 50;
 
-#PSB2 functions
-def train : TrainingCases := training_data "leaders" 50 50
+def score (cases:Cases) (candidate:(vector:{v:(List Int){|fun x => 0 <= x && x <= 1000|} | 0 <= List.size v && List.size v <= 20}) -> {r:(List Int){|fun x => 0 <= x && x <= 1000|} | List.size r <= List.size vector && (List.size vector = 0 || List.size r > 0)}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('leaders', cases(None), candidate)";
 
-
-def calculate_leaders_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0]), y[0]) for x, y in data ]"
-
-
-@multi_minimize_float(per_example_errors_50 (calculate_leaders_errors (fresh_train_data train) synth), 50)
-def synth ( 1 vector : (Array Int) ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_leaders_errors := unit in let train := unit in ?hole)
+@doc("Keep values at least as large as every value to their right, including equal maxima.")
+@multi_minimize_float(PSB2Fitness.per_example_errors_50 (score train synth), 50)
+def synth (vector:{v:(List Int){|fun x => 0 <= x && x <= 1000|} | 0 <= List.size v && List.size v <= 20}) : {r:(List Int){|fun x => 0 <= x && x <= 1000|} | List.size r <= List.size vector && (List.size vector = 0 || List.size r > 0)} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

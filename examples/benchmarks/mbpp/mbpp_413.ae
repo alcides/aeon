@@ -1,14 +1,16 @@
 # MBPP task 413
-# Write a function to extract the nth element from a given list of tuples.
-#
-# Synthesis target: extract_nth_element : List -> Int -> List
 
-type List
+import List
 
-inductive Tuple
-| mk (a0:String) (a1:Int) (a2:Int) : Tuple
+inductive Tuple3 a0 a1 a2
+| mk (item0:a0) (item1:a1) (item2:a2) : (Tuple3 a0 a1 a2)
 
-def mbpp_fitness (f:(x0:List) -> (x1:Int) -> List) : Float := native "float((0 if (f([('Greyson Fulton', 98, 99), ('Brady Kent', 97, 96), ('Wyatt Knott', 91, 94), ('Beau Turnbull', 94, 98)])(0) == ['Greyson Fulton', 'Brady Kent', 'Wyatt Knott', 'Beau Turnbull']) else 1) + (0 if (f([('Greyson Fulton', 98, 99), ('Brady Kent', 97, 96), ('Wyatt Knott', 91, 94), ('Beau Turnbull', 94, 98)])(2) == [99, 96, 94, 98]) else 1) + (0 if (f([('Greyson Fulton', 98, 99), ('Brady Kent', 97, 96), ('Wyatt Knott', 91, 94), ('Beau Turnbull', 94, 98)])(1) == [98, 97, 91, 94]) else 1))"
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (list1:List) (n:Int) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to extract the nth element from a given list of tuples.")
+@example(extract_nth_element [(Tuple3.mk "Greyson Fulton" 98 99), (Tuple3.mk "Brady Kent" 97 96), (Tuple3.mk "Wyatt Knott" 91 94), (Tuple3.mk "Beau Turnbull" 94 98)] 0 = [(Value1.asString "Greyson Fulton"), (Value1.asString "Brady Kent"), (Value1.asString "Wyatt Knott"), (Value1.asString "Beau Turnbull")])
+@example(extract_nth_element [(Tuple3.mk "Greyson Fulton" 98 99), (Tuple3.mk "Brady Kent" 97 96), (Tuple3.mk "Wyatt Knott" 91 94), (Tuple3.mk "Beau Turnbull" 94 98)] 2 = [(Value1.asInt 99), (Value1.asInt 96), (Value1.asInt 94), (Value1.asInt 98)])
+@example(extract_nth_element [(Tuple3.mk "Greyson Fulton" 98 99), (Tuple3.mk "Brady Kent" 97 96), (Tuple3.mk "Wyatt Knott" 91 94), (Tuple3.mk "Beau Turnbull" 94 98)] 1 = [(Value1.asInt 98), (Value1.asInt 97), (Value1.asInt 91), (Value1.asInt 94)])
+def extract_nth_element (list1:(List (Tuple3 String Int Int))) (n:{v:Int | 0 <= v && v < 3}) : {v:(List Value1) | List.size v = List.size list1} := ?hole

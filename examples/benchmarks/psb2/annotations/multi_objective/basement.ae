@@ -1,17 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset, calculate_basement_errors)
+# PSB2: basement
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/basement.clj
 
-import Array
-def List_size: (1 l:(Array Int)) -> Int := uninterpreted
-def List_len (1 l:(Array Int)) : Int  := native "len(l)"
-def List_new (_: Unit) : {x:(Array Int) | List_size x = 0} := native "[]" ;
-def List_append (1 l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
-def List_get (1 l:(Array Int)) (i: Int) : Int := native "l[i]"
+import List
+import Math
+import String
+import PSB2Fitness
 
-#PSB2 functions
+def train : Cases := PSB2Fitness.cases "basement" 200;
 
-def train : TrainingCases := training_data "basement" 200 200
+def score (cases:Cases) (candidate:(nums:{v:(List Int){|fun x => (-100) <= x && x <= 100|} | 1 <= List.size v && List.size v <= 20}) -> {r:Int | 0 <= r && r < List.size nums}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('basement', cases(None), candidate)";
 
-@allow_recursion
-@multi_minimize_float(per_example_errors (calculate_basement_errors (fresh_train_data train) synth), 200)
-def synth (1 nums: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_basement_errors := unit in ?hole)
+@doc("Find the first index whose inclusive prefix sum is negative; PSB2 inputs guarantee such an index.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (nums:{v:(List Int){|fun x => (-100) <= x && x <= 100|} | 1 <= List.size v && List.size v <= 20}) : {r:Int | 0 <= r && r < List.size nums} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

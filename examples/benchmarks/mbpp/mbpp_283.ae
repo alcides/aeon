@@ -1,9 +1,8 @@
 # MBPP task 283
-# Write a python function takes in an integer and check whether the frequency of each digit in the integer is less than or equal to the digit itself.
-#
-# Synthesis target: validate : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (f(1234) == True) else 1) + (0 if (f(51241) == False) else 1) + (0 if (f(321) == True) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function takes in an integer and check whether the frequency of each digit in the integer is less than or equal to the digit itself.")
+@example(validate 1234 = true)
+@example(validate 51241 = false)
+@example(validate 321 = true)
+def validate (n:{v:Int | v >= 0}) : Bool := ?hole

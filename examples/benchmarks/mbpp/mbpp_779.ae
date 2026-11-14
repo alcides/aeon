@@ -1,15 +1,14 @@
 # MBPP task 779
-# Write a function to count the number of lists within a list. The function should return a dictionary, where every list is turned to a tuple, and the value of the tuple is the number of its occurrences.
-#
-# Synthesis target: unique_sublists : List -> Dict
 
-type List
+import List
+import Map
 
-inductive Dict
-| dnil : Dict
-| dcons (key:Tuple) (val:Int) (rest:Dict) : Dict
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
 
-def mbpp_fitness (f:(x0:List) -> Dict) : Float := native "float((0 if (f([[1, 3], [5, 7], [1, 3], [13, 15, 17], [5, 7], [9, 11]]) == ('Dict_dcons', (1, 3), 2, ('Dict_dcons', (5, 7), 2, ('Dict_dcons', (13, 15, 17), 1, ('Dict_dcons', (9, 11), 1, ('Dict_dnil',)))))) else 1) + (0 if (f([['green', 'orange'], ['black'], ['green', 'orange'], ['white']]) == ('Dict_dcons', ('green', 'orange'), 2, ('Dict_dcons', ('black',), 1, ('Dict_dcons', ('white',), 1, ('Dict_dnil',))))) else 1) + (0 if (f([[1, 2], [3, 4], [4, 5], [6, 7]]) == ('Dict_dcons', (1, 2), 1, ('Dict_dcons', (3, 4), 1, ('Dict_dcons', (4, 5), 1, ('Dict_dcons', (6, 7), 1, ('Dict_dnil',)))))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (list1:List) : Dict := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to count the number of lists within a list. The function should return a dictionary, where every list is turned to a tuple, and the value of the tuple is the number of its occurrences.")
+@example(unique_sublists [[(Value1.asInt 1), (Value1.asInt 3)], [(Value1.asInt 5), (Value1.asInt 7)], [(Value1.asInt 1), (Value1.asInt 3)], [(Value1.asInt 13), (Value1.asInt 15), (Value1.asInt 17)], [(Value1.asInt 5), (Value1.asInt 7)], [(Value1.asInt 9), (Value1.asInt 11)]] = (Map.set (Map.set (Map.set (Map.set (Map.new : (Map (List Value1) Int)) [(Value1.asInt 1), (Value1.asInt 3)] 2) [(Value1.asInt 5), (Value1.asInt 7)] 2) [(Value1.asInt 13), (Value1.asInt 15), (Value1.asInt 17)] 1) [(Value1.asInt 9), (Value1.asInt 11)] 1))
+@example(unique_sublists [[(Value1.asString "green"), (Value1.asString "orange")], [(Value1.asString "black")], [(Value1.asString "green"), (Value1.asString "orange")], [(Value1.asString "white")]] = (Map.set (Map.set (Map.set (Map.new : (Map (List Value1) Int)) [(Value1.asString "green"), (Value1.asString "orange")] 2) [(Value1.asString "black")] 1) [(Value1.asString "white")] 1))
+@example(unique_sublists [[(Value1.asInt 1), (Value1.asInt 2)], [(Value1.asInt 3), (Value1.asInt 4)], [(Value1.asInt 4), (Value1.asInt 5)], [(Value1.asInt 6), (Value1.asInt 7)]] = (Map.set (Map.set (Map.set (Map.set (Map.new : (Map (List Value1) Int)) [(Value1.asInt 1), (Value1.asInt 2)] 1) [(Value1.asInt 3), (Value1.asInt 4)] 1) [(Value1.asInt 4), (Value1.asInt 5)] 1) [(Value1.asInt 6), (Value1.asInt 7)] 1))
+def unique_sublists (list1:(List (List Value1))) : {v:(Map (List Value1) Int) | 0 <= Map.size v && Map.size v <= List.size list1} := ?hole

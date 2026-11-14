@@ -1,12 +1,10 @@
-import Array
-def List_size: (1 l:(Array Int)) -> Int := uninterpreted
-def List_length: (1 l:(Array Int)) -> Int := fun list => native "len(list)"
-def List_new (_: Unit) : {x:(Array Int) | List_size x = 0} := native "[]" ;
-def List_append (1 l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
+# PSB2: fuel-cost
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/fuel_cost.clj
 
-def fuel_cost (1 xs: (Array Int)) : Int :=
-    native "sum(max(x // 3 - 2, 0) for x in xs)";
+import List
+import Math
+import String
 
-def main (args:Int) : Unit :=
-    let 1 l := (List_append (List_append (List_new unit) 1) 9);
-    print (fuel_cost l);
+@doc("Sum floor(mass / 3) - 2 over the input masses.")
+def fuel_cost (xs:{v:(List Int){|fun x => 6 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) : Int :=
+    List.sum (List.map (fun mass => Math.floor_division mass 3 - 2) xs);

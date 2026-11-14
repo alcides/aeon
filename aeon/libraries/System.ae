@@ -1,0 +1,5 @@
+# Size in bytes of a value's immediate Python runtime object.
+# This is a shallow measurement: objects referenced by the value are excluded.
+# Results depend on the Python implementation and platform.
+@doc("Return the shallow size in bytes of the value's Python runtime object, using sys.getsizeof.")
+def getSizeOf (value:a) : Int := native "__import__('sys').getsizeof(value)"

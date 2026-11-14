@@ -1,11 +1,13 @@
 # MBPP task 410
-# Write a function to find the minimum value in a given heterogeneous list.
-#
-# Synthesis target: min_val : List -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Int) : Float := native "float((0 if (f(['Python', 3, 2, 4, 5, 'version']) == 2) else 1) + (0 if (f(['Python', 15, 20, 25]) == 15) else 1) + (0 if (f(['Python', 30, 20, 40, 50, 'version']) == 20) else 1))"
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (listval:List) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the minimum value in a given heterogeneous list.")
+@example(min_val [(Value1.asString "Python"), (Value1.asInt 3), (Value1.asInt 2), (Value1.asInt 4), (Value1.asInt 5), (Value1.asString "version")] = 2)
+@example(min_val [(Value1.asString "Python"), (Value1.asInt 15), (Value1.asInt 20), (Value1.asInt 25)] = 15)
+@example(min_val [(Value1.asString "Python"), (Value1.asInt 30), (Value1.asInt 20), (Value1.asInt 40), (Value1.asInt 50), (Value1.asString "version")] = 20)
+def min_val (listval:{v:(List Value1) | List.size v > 0}) : Int := ?hole

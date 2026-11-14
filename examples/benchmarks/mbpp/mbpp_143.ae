@@ -1,13 +1,13 @@
 # MBPP task 143
-# Write a function to find number of lists present in the given tuple.
-#
-# Synthesis target: find_lists : Tuple -> Int
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:List) (tl:Tuple) : Tuple
+import List
 
-def mbpp_fitness (f:(x0:Tuple) -> Int) : Float := native "float((0 if (f(('Tuple_tcons', [1, 2, 3, 4], ('Tuple_tcons', [5, 6, 7, 8], ('Tuple_tnil',)))) == 2) else 1) + (0 if (f(('Tuple_tcons', [1, 2], ('Tuple_tcons', [3, 4], ('Tuple_tcons', [5, 6], ('Tuple_tnil',))))) == 3) else 1) + (0 if (f([9, 8, 7, 6, 5, 4, 3, 2, 1]) == 1) else 1))"
+inductive Value1
+| asList (value:(List Int)) : Value1
+| asLists (value:(List (List Int))) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (Input:Tuple) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find number of lists present in the given tuple.")
+@example(find_lists (Value1.asLists [[1, 2, 3, 4], [5, 6, 7, 8]]) = 2)
+@example(find_lists (Value1.asLists [[1, 2], [3, 4], [5, 6]]) = 3)
+@example(find_lists (Value1.asList [9, 8, 7, 6, 5, 4, 3, 2, 1]) = 1)
+def find_lists (Input:Value1) : {v:Int | v >= 0} := ?hole

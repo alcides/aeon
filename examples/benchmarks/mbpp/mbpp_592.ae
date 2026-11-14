@@ -1,9 +1,8 @@
 # MBPP task 592
-# Write a python function to find the sum of the product of consecutive binomial co-efficients.
-#
-# Synthesis target: sum_Of_product : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(3) == 15) else 1) + (0 if (f(4) == 56) else 1) + (0 if (f(1) == 1) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the sum of the product of consecutive binomial co-efficients.")
+@example(sum_Of_product 3 = 15)
+@example(sum_Of_product 4 = 56)
+@example(sum_Of_product 1 = 1)
+def sum_Of_product (n:{v:Int | v >= 0}) : {v:Int | v >= 0} := ?hole

@@ -1,13 +1,9 @@
 # MBPP task 257
-# Write a function that takes in two numbers and returns a tuple with the second number and then the first number.
-#
-# Synthesis target: swap_numbers : Int -> Int -> Tuple
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+import Pair
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Tuple) : Float := native "float((0 if (f(10)(20) == ('Tuple_tcons', 20, ('Tuple_tcons', 10, ('Tuple_tnil',)))) else 1) + (0 if (f(15)(17) == ('Tuple_tcons', 17, ('Tuple_tcons', 15, ('Tuple_tnil',)))) else 1) + (0 if (f(100)(200) == ('Tuple_tcons', 200, ('Tuple_tcons', 100, ('Tuple_tnil',)))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (a:Int) (b:Int) : Tuple := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that takes in two numbers and returns a tuple with the second number and then the first number.")
+@example(swap_numbers 10 20 = (Pair.mk 20 10))
+@example(swap_numbers 15 17 = (Pair.mk 17 15))
+@example(swap_numbers 100 200 = (Pair.mk 200 100))
+def swap_numbers (a:Int) (b:Int) : {v:(Pair Int Int) | Pair.first v = b && Pair.second v = a} := ?hole

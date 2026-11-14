@@ -1,11 +1,30 @@
 # MBPP task 596
-# Write a function to find the size in bytes of the given tuple.
-#
-# Synthesis target: tuple_size : Tuple -> Int
 
-type Tuple
+import Pair
+import System
 
-def mbpp_fitness (f:(x0:Tuple) -> Int) : Float := native "float((0 if (f(('A', 1, 'B', 2, 'C', 3)) == sys.getsizeof(('A', 1, 'B', 2, 'C', 3))) else 1) + (0 if (f((1, 'Raju', 2, 'Nikhil', 3, 'Deepanshu')) == sys.getsizeof((1, 'Raju', 2, 'Nikhil', 3, 'Deepanshu'))) else 1) + (0 if (f(((1, 'Lion'), (2, 'Tiger'), (3, 'Fox'), (4, 'Wolf'))) == sys.getsizeof(((1, 'Lion'), (2, 'Tiger'), (3, 'Fox'), (4, 'Wolf')))) else 1))"
+inductive Value
+| integer (value:Int) : Value
+| text (value:String) : Value
 
-@minimize_float(mbpp_fitness synth)
-def synth (tuple_list:Tuple) : Int := (let mbpp_fitness := unit in ?hole)
+# Distinct record layouts preserve the different tuple arities in the examples.
+inductive Tuple
+| six (a:Value) (b:Value) (c:Value) (d:Value) (e:Value) (f:Value) : Tuple
+| four (a:(Pair Int String)) (b:(Pair Int String)) (c:(Pair Int String)) (d:(Pair Int String)) : Tuple
+
+def mixed : Tuple := Tuple.six (Value.text "A") (Value.integer 1) (Value.text "B") (Value.integer 2) (Value.text "C") (Value.integer 3)
+def names : Tuple := Tuple.six (Value.integer 1) (Value.text "Raju") (Value.integer 2) (Value.text "Nikhil") (Value.integer 3) (Value.text "Deepanshu")
+def animals : Tuple := Tuple.four (Pair.mk 1 "Lion") (Pair.mk 2 "Tiger") (Pair.mk 3 "Fox") (Pair.mk 4 "Wolf")
+
+# Measure the actual Aeon runtime representation, without hard-coded Python ABI sizes.
+# This is shallow memory usage in bytes; referenced values are not counted.
+@doc("Find the shallow memory size in bytes of the tuple's runtime object, not its number of elements.")
+@example(tuple_size mixed = System.getSizeOf mixed)
+@example(tuple_size names = System.getSizeOf names)
+@example(tuple_size animals = System.getSizeOf animals)
+def tuple_size (value:Tuple) : {v:Int | v > 0} :=
+    let System_getSizeOf := unit in
+    let mixed := unit in
+    let names := unit in
+    let animals := unit in
+    ?hole

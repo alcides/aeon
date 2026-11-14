@@ -1,11 +1,13 @@
 # MBPP task 65
-# Write a function to flatten a list and sum all of its elements.
-#
-# Synthesis target: recursive_list_sum : List -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Int) : Float := native "float((0 if (f([1, 2, [3, 4], [5, 6]]) == 21) else 1) + (0 if (f([7, 10, [15, 14], [19, 41]]) == 106) else 1) + (0 if (f([10, 20, [30, 40], [50, 60]]) == 210) else 1))"
+inductive Value1
+| asInt (value:Int) : Value1
+| asList (value:(List Int)) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (data_list:List) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to flatten a list and sum all of its elements.")
+@example(recursive_list_sum [(Value1.asInt 1), (Value1.asInt 2), (Value1.asList [3, 4]), (Value1.asList [5, 6])] = 21)
+@example(recursive_list_sum [(Value1.asInt 7), (Value1.asInt 10), (Value1.asList [15, 14]), (Value1.asList [19, 41])] = 106)
+@example(recursive_list_sum [(Value1.asInt 10), (Value1.asInt 20), (Value1.asList [30, 40]), (Value1.asList [50, 60])] = 210)
+def recursive_list_sum (data_list:(List Value1)) : Int := ?hole

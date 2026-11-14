@@ -2,6 +2,15 @@
 # Keep one objective per example; convert integer/float errors consistently.
 import Array
 
+# Lazy, deterministic dataset fixture. Only this boundary owns Python values;
+# benchmark functions receive native Aeon List values and correctly typed scalars.
+type Cases
+def cases (problem:String) (count:{n:Int | n > 0}) : Cases :=
+    native "__import__('aeon.bindings.psb2', fromlist=['training_data']).training_data(problem, count, 0)"
+
+def meanError (1 errors:(Array Float)) : Float :=
+    native "sum(errors) / len(errors) if errors else 0.0"
+
 def per_example_errors (1 values: (Array a)) : {errors: (Array Float) | Array.size errors = 200} :=
     native "([float(error) for error in values] if len(values) == 200 else (_ for _ in ()).throw(ValueError('PSB2 fitness requires 200 per-example errors')))";
 

@@ -1,18 +1,11 @@
 # MBPP task 475
-# Write a function to sort a dictionary by value.
-#
-# Synthesis target: sort_counter : Dict -> List
 
-type List
+import List
+import Map
+import Pair
 
-inductive Tuple
-| mk (a0:String) (a1:Int) : Tuple
-
-inductive Dict
-| dnil : Dict
-| dcons (key:String) (val:Int) (rest:Dict) : Dict
-
-def mbpp_fitness (f:(x0:Dict) -> List) : Float := native "float((0 if (f(('Dict_dcons', 'Math', 81, ('Dict_dcons', 'Physics', 83, ('Dict_dcons', 'Chemistry', 87, ('Dict_dnil',))))) == [('Chemistry', 87), ('Physics', 83), ('Math', 81)]) else 1) + (0 if (f(('Dict_dcons', 'Math', 400, ('Dict_dcons', 'Physics', 300, ('Dict_dcons', 'Chemistry', 250, ('Dict_dnil',))))) == [('Math', 400), ('Physics', 300), ('Chemistry', 250)]) else 1) + (0 if (f(('Dict_dcons', 'Math', 900, ('Dict_dcons', 'Physics', 1000, ('Dict_dcons', 'Chemistry', 1250, ('Dict_dnil',))))) == [('Chemistry', 1250), ('Physics', 1000), ('Math', 900)]) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (dict1:Dict) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to sort a dictionary by value.")
+@example(sort_counter (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "Math" 81) "Physics" 83) "Chemistry" 87) = [(Pair.mk "Chemistry" 87), (Pair.mk "Physics" 83), (Pair.mk "Math" 81)])
+@example(sort_counter (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "Math" 400) "Physics" 300) "Chemistry" 250) = [(Pair.mk "Math" 400), (Pair.mk "Physics" 300), (Pair.mk "Chemistry" 250)])
+@example(sort_counter (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "Math" 900) "Physics" 1000) "Chemistry" 1250) = [(Pair.mk "Chemistry" 1250), (Pair.mk "Physics" 1000), (Pair.mk "Math" 900)])
+def sort_counter (dict1:(Map String Int)) : {v:(List (Pair String Int)) | List.size v = Map.size dict1} := ?hole

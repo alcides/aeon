@@ -16,6 +16,33 @@ from aeon.typechecking.context import TypingContext
 from aeon.utils.name import Name
 
 
+def test_base_lookup_does_not_traverse_function_signatures():
+    from aeon.synthesis.modules.tdsyn.helpers import base_type_of, bases_match
+
+    signature = t_int
+    for i in range(2000):
+        signature = AbstractionType(Name("x", i), t_int, signature)
+    assert base_type_of(signature) is None
+    assert not bases_match(signature, t_int)
+    assert not bases_match(t_int, signature)
+
+
+def test_base_lookup_preserves_datatype_arguments_and_predicates():
+    from aeon.core.liquid import LiquidLiteralBool, LiquidPredicate
+    from aeon.core.types import RefinedType, TypeConstructor, TypeVar
+    from aeon.synthesis.modules.tdsyn.helpers import base_type_of, bases_match
+
+    predicate = LiquidPredicate((Name("x", 0),), LiquidLiteralBool(True))
+    datatype = TypeConstructor(Name("List", 0), [t_int], refinements=[predicate])
+    refined = RefinedType(Name("xs", 0), datatype, LiquidLiteralBool(True))
+    assert base_type_of(refined) is datatype
+    assert bases_match(refined, datatype)
+    assert not bases_match(refined, t_int)
+    variable = TypeVar(Name("a", 0))
+    assert bases_match(variable, variable)
+    assert not bases_match(variable, TypeVar(Name("b", 0)))
+
+
 def test_locate_and_substitute_at_rebuilds_only_spine():
     h1 = Hole(Name("h1", 1))
     h2 = Hole(Name("h2", 2))

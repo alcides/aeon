@@ -1,23 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
+# PSB2: indices-of-substring
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/indices_of_substring.clj
 
-import Array
-def String_len : (i:String) -> Int := fun i => native "len(i)"
+import List
+import Math
+import String
+import PSB2Fitness
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) := fun start => fun end => fun step => native "list(range(start, end, step ))"
+def train : Cases := PSB2Fitness.cases "indices-of-substring" 200;
 
-def Filter :  (f: (s:Int) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
+def score (cases:Cases) (candidate:(text:{v:String | 1 <= String.len v && String.len v <= 20}) -> (target:{v:String | 1 <= String.len v && String.len v <= 20}) -> {r:(List Int){|fun i => 0 <= i && i + String.len target <= String.len text|} | List.size r <= String.len text}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('indices-of-substring', cases(None), candidate)";
 
-def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
-
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
-
-
-def train : TrainingCases := training_data "indices-of-substring" 200 200
-
-
-def calculate_indices_of_substring_errors : (1 train:TrainData) -> (f:(a: String) -> (b: String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(str(x[0]))(str(x[1])), y[0]) for x, y in data ]"
-
-
-@multi_minimize_float(per_example_errors (calculate_indices_of_substring_errors (fresh_train_data train) synth), 200)
-def synth ( text :String) (target: String) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_indices_of_substring_errors := unit in let train := unit in ?hole)
+@doc("Return all starting indices of a substring, including overlapping matches.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (text:{v:String | 1 <= String.len v && String.len v <= 20}) (target:{v:String | 1 <= String.len v && String.len v <= 20}) : {r:(List Int){|fun i => 0 <= i && i + String.len target <= String.len text|} | List.size r <= String.len text} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

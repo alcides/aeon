@@ -1,9 +1,8 @@
 # MBPP task 264
-# Write a function to calculate a dog's age in dog's years.
-#
-# Synthesis target: dog_age : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(12) == 61) else 1) + (0 if (f(15) == 73) else 1) + (0 if (f(24) == 109) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (h_age:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to calculate a dog's age in dog's years.")
+@example(dog_age 12 = 61.0)
+@example(dog_age 15 = 73.0)
+@example(dog_age 24 = 109.0)
+def dog_age (h_age:{v:Int | v >= 0}) : {v:Float | v >= 0.0} decreasing_by [h_age] := ?hole

@@ -1,13 +1,9 @@
 # MBPP task 250
-# Write a python function that takes in a tuple and an element and counts the occcurences of the element in the tuple.
-#
-# Synthesis target: count_X : Tuple -> Int -> Int
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+import List
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> Int) : Float := native "float((0 if (f(('Tuple_tcons', 10, ('Tuple_tcons', 8, ('Tuple_tcons', 5, ('Tuple_tcons', 2, ('Tuple_tcons', 10, ('Tuple_tcons', 15, ('Tuple_tcons', 10, ('Tuple_tcons', 8, ('Tuple_tcons', 5, ('Tuple_tcons', 8, ('Tuple_tcons', 8, ('Tuple_tcons', 2, ('Tuple_tnil',))))))))))))))(4) == 0) else 1) + (0 if (f(('Tuple_tcons', 10, ('Tuple_tcons', 8, ('Tuple_tcons', 5, ('Tuple_tcons', 2, ('Tuple_tcons', 10, ('Tuple_tcons', 15, ('Tuple_tcons', 10, ('Tuple_tcons', 8, ('Tuple_tcons', 5, ('Tuple_tcons', 8, ('Tuple_tcons', 8, ('Tuple_tcons', 2, ('Tuple_tnil',))))))))))))))(10) == 3) else 1) + (0 if (f(('Tuple_tcons', 10, ('Tuple_tcons', 8, ('Tuple_tcons', 5, ('Tuple_tcons', 2, ('Tuple_tcons', 10, ('Tuple_tcons', 15, ('Tuple_tcons', 10, ('Tuple_tcons', 8, ('Tuple_tcons', 5, ('Tuple_tcons', 8, ('Tuple_tcons', 8, ('Tuple_tcons', 2, ('Tuple_tnil',))))))))))))))(8) == 4) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (tup:Tuple) (x:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function that takes in a tuple and an element and counts the occcurences of the element in the tuple.")
+@example(count_X [10, 8, 5, 2, 10, 15, 10, 8, 5, 8, 8, 2] 4 = 0)
+@example(count_X [10, 8, 5, 2, 10, 15, 10, 8, 5, 8, 8, 2] 10 = 3)
+@example(count_X [10, 8, 5, 2, 10, 15, 10, 8, 5, 8, 8, 2] 8 = 4)
+def count_X (tup:(List Int)) (x:Int) : {v:Int | 0 <= v && v <= List.size tup} decreasing_by [List.size tup] := ?hole

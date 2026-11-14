@@ -1,9 +1,9 @@
 # MBPP task 131
-# Write a python function to reverse only the vowels of a given string (where y is not a vowel).
-#
-# Synthesis target: reverse_vowels : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f('Python') == 'Python') else 1) + (0 if (f('USA') == 'ASU') else 1) + (0 if (f('ab') == 'ab') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (str1:String) : String := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to reverse only the vowels of a given string (where y is not a vowel).")
+@example(reverse_vowels "Python" = "Python")
+@example(reverse_vowels "USA" = "ASU")
+@example(reverse_vowels "ab" = "ab")
+def reverse_vowels (str1:String) : {v:String | String.len v = String.len str1} := ?hole

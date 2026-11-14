@@ -1,9 +1,9 @@
 # MBPP task 125
-# Write a function to find the maximum difference between the number of 0s and number of 1s in any sub-string of the given binary string.
-#
-# Synthesis target: find_length : String -> Int
 
-def mbpp_fitness (f:(x0:String) -> Int) : Float := native "float((0 if (f('11000010001') == 6) else 1) + (0 if (f('10111') == 1) else 1) + (0 if (f('11011101100101') == 2) else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (string:String) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the maximum difference between the number of 0s and number of 1s in any sub-string of the given binary string.")
+@example(find_length "11000010001" = 6)
+@example(find_length "10111" = 1)
+@example(find_length "11011101100101" = 2)
+def find_length (string:String) : {v:Int | 0 <= v && v <= String.len string} := ?hole

@@ -1,11 +1,10 @@
 # MBPP task 117
-# Write a function to convert all possible convertible elements in a list of lists to floats.
-#
-# Synthesis target: list_to_float : List -> List
 
-type List
+import List
+import Pair
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f([('3', '4'), ('1', '26.45'), ('7.32', '8'), ('4', '8')]) == [(3.0, 4.0), (1.0, 26.45), (7.32, 8.0), (4.0, 8.0)]) else 1) + (0 if (f([('4', '4'), ('2', '27'), ('4.12', '9'), ('7', '11')]) == [(4.0, 4.0), (2.0, 27.0), (4.12, 9.0), (7.0, 11.0)]) else 1) + (0 if (f([('6', '78'), ('5', '26.45'), ('1.33', '4'), ('82', '13')]) == [(6.0, 78.0), (5.0, 26.45), (1.33, 4.0), (82.0, 13.0)]) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_list:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to convert all possible convertible elements in a list of lists to floats.")
+@example(list_to_float [(Pair.mk "3" "4"), (Pair.mk "1" "26.45"), (Pair.mk "7.32" "8"), (Pair.mk "4" "8")] = [(Pair.mk 3.0 4.0), (Pair.mk 1.0 26.45), (Pair.mk 7.32 8.0), (Pair.mk 4.0 8.0)])
+@example(list_to_float [(Pair.mk "4" "4"), (Pair.mk "2" "27"), (Pair.mk "4.12" "9"), (Pair.mk "7" "11")] = [(Pair.mk 4.0 4.0), (Pair.mk 2.0 27.0), (Pair.mk 4.12 9.0), (Pair.mk 7.0 11.0)])
+@example(list_to_float [(Pair.mk "6" "78"), (Pair.mk "5" "26.45"), (Pair.mk "1.33" "4"), (Pair.mk "82" "13")] = [(Pair.mk 6.0 78.0), (Pair.mk 5.0 26.45), (Pair.mk 1.33 4.0), (Pair.mk 82.0 13.0)])
+def list_to_float (test_list:(List (Pair String String))) : {v:(List (Pair Float Float)) | List.size v = List.size test_list} := ?hole

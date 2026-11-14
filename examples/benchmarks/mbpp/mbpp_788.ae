@@ -1,15 +1,9 @@
 # MBPP task 788
-# Write a function to create a new tuple from the given string and list.
-#
-# Synthesis target: new_tuple : List -> String -> Tuple
 
-type List
+import List
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:String) (tl:Tuple) : Tuple
-
-def mbpp_fitness (f:(x0:List) -> (x1:String) -> Tuple) : Float := native "float((0 if (f(['WEB', 'is'])('best') == ('Tuple_tcons', 'WEB', ('Tuple_tcons', 'is', ('Tuple_tcons', 'best', ('Tuple_tnil',))))) else 1) + (0 if (f(['We', 'are'])('Developers') == ('Tuple_tcons', 'We', ('Tuple_tcons', 'are', ('Tuple_tcons', 'Developers', ('Tuple_tnil',))))) else 1) + (0 if (f(['Part', 'is'])('Wrong') == ('Tuple_tcons', 'Part', ('Tuple_tcons', 'is', ('Tuple_tcons', 'Wrong', ('Tuple_tnil',))))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_list:List) (test_str:String) : Tuple := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to create a new tuple from the given string and list.")
+@example(new_tuple ["WEB", "is"] "best" = ["WEB", "is", "best"])
+@example(new_tuple ["We", "are"] "Developers" = ["We", "are", "Developers"])
+@example(new_tuple ["Part", "is"] "Wrong" = ["Part", "is", "Wrong"])
+def new_tuple (test_list:(List String)) (test_str:String) : {v:(List String) | List.size v = List.size test_list + 1} := (let List_snoc := unit in ?hole)

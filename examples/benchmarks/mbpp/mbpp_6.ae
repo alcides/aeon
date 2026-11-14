@@ -1,9 +1,11 @@
 # MBPP task 6
-# Write a python function to check whether the two numbers differ at one bit position only or not.
-#
-# Synthesis target: differ_At_One_Bit_Pos : Int -> Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Bool) : Float := native "float((0 if (f(13)(9) == True) else 1) + (0 if (f(15)(8) == False) else 1) + (0 if (f(2)(4) == False) else 1) + (0 if (f(2)(3) == True) else 1) + (0 if (f(5)(1) == True) else 1) + (0 if (f(1)(5) == True) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (a:Int) (b:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to check whether the two numbers differ at one bit position only or not.")
+@example(differ_At_One_Bit_Pos 13 9 = true)
+@example(differ_At_One_Bit_Pos 15 8 = false)
+@example(differ_At_One_Bit_Pos 2 4 = false)
+@example(differ_At_One_Bit_Pos 2 3 = true)
+@example(differ_At_One_Bit_Pos 5 1 = true)
+@example(differ_At_One_Bit_Pos 1 5 = true)
+def differ_At_One_Bit_Pos (a:{v:Int | v >= 0}) (b:{v:Int | v >= 0}) : Bool := ?hole

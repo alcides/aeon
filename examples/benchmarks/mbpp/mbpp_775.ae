@@ -1,11 +1,9 @@
 # MBPP task 775
-# Write a python function to check whether every odd index contains odd numbers of a given list.
-#
-# Synthesis target: odd_position : List -> Bool
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Bool) : Float := native "float((0 if (f([2, 1, 4, 3, 6, 7, 6, 3]) == True) else 1) + (0 if (f([4, 1, 2]) == True) else 1) + (0 if (f([1, 2, 3]) == False) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (nums:List) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to check whether every odd index contains odd numbers of a given list.")
+@example(odd_position [2, 1, 4, 3, 6, 7, 6, 3] = true)
+@example(odd_position [4, 1, 2] = true)
+@example(odd_position [1, 2, 3] = false)
+def odd_position (nums:(List Int)) : Bool := ?hole

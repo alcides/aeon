@@ -1,11 +1,13 @@
 # MBPP task 297
-# Write a function to flatten a given nested list structure.
-#
-# Synthesis target: flatten_list : List -> List
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f([0, 10, [20, 30], 40, 50, [60, 70, 80], [90, 100, 110, 120]]) == [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]) else 1) + (0 if (f([[10, 20], [40], [30, 56, 25], [10, 20], [33], [40]]) == [10, 20, 40, 30, 56, 25, 10, 20, 33, 40]) else 1) + (0 if (f([[1, 2, 3], [4, 5, 6], [10, 11, 12], [7, 8, 9]]) == [1, 2, 3, 4, 5, 6, 10, 11, 12, 7, 8, 9]) else 1))"
+inductive Value1
+| asInt (value:Int) : Value1
+| asList (value:(List Int)) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (list1:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to flatten a given nested list structure.")
+@example(flatten_list [(Value1.asInt 0), (Value1.asInt 10), (Value1.asList [20, 30]), (Value1.asInt 40), (Value1.asInt 50), (Value1.asList [60, 70, 80]), (Value1.asList [90, 100, 110, 120])] = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120])
+@example(flatten_list [(Value1.asList [10, 20]), (Value1.asList [40]), (Value1.asList [30, 56, 25]), (Value1.asList [10, 20]), (Value1.asList [33]), (Value1.asList [40])] = [10, 20, 40, 30, 56, 25, 10, 20, 33, 40])
+@example(flatten_list [(Value1.asList [1, 2, 3]), (Value1.asList [4, 5, 6]), (Value1.asList [10, 11, 12]), (Value1.asList [7, 8, 9])] = [1, 2, 3, 4, 5, 6, 10, 11, 12, 7, 8, 9])
+def flatten_list (list1:(List Value1)) : (List Int) := ?hole

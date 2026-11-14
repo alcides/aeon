@@ -1,4 +1,5 @@
 open Array
+import List
 
 type String
 
@@ -135,3 +136,17 @@ def indexOfFrom(s: String) (sub: String) (start: Int): Int := native "s.find(sub
 # Parse the string as an integer, or -1 when it is not a non-negative integer
 # literal (str.to.int).
 def stringToInt(s: String): Int := native "int(s) if s.isdigit() else -1"
+
+# Persistent-list counterparts of the array APIs, for functional programs.
+def characters (s:String) : {xs:(List String) | List.size xs = len s} :=
+    native "__import__('aeon.bindings.lists', fromlist=['from_iterable']).from_iterable(s)"
+
+def splitList (s:String) (separator:{v:String | len v > 0}) : {xs:(List String) | List.size xs > 0} :=
+    native "__import__('aeon.bindings.lists', fromlist=['from_iterable']).from_iterable(s.split(separator))"
+
+def joinList (separator:String) (parts:(List String)) : String :=
+    native "separator.join(__import__('aeon.bindings.lists', fromlist=['iter_list']).iter_list(parts))"
+
+def reverse (s:String) : {v:String | len v = len s} := native "s[::-1]"
+
+def capitalize (s:String) : String := native "s.capitalize()"

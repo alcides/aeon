@@ -1,15 +1,18 @@
 # MBPP task 2
-# Write a function to find the shared elements from the given two lists.
-#
-# Synthesis target: similar_elements : Tuple -> Tuple -> List
 
-type List
+import List
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+def contains (needle:a) (xs:(List a)) : Bool :=
+    match xs with
+    | List.nil => false
+    | List.cons x rest => x = needle || contains needle rest;
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> List) : Float := native "float((0 if (set(f(('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tnil',))))))(('Tuple_tcons', 5, ('Tuple_tcons', 7, ('Tuple_tcons', 4, ('Tuple_tcons', 10, ('Tuple_tnil',))))))) == set((4, 5))) else 1) + (0 if (set(f(('Tuple_tcons', 1, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tnil',))))))(('Tuple_tcons', 5, ('Tuple_tcons', 4, ('Tuple_tcons', 3, ('Tuple_tcons', 7, ('Tuple_tnil',))))))) == set((3, 4))) else 1) + (0 if (set(f(('Tuple_tcons', 11, ('Tuple_tcons', 12, ('Tuple_tcons', 14, ('Tuple_tcons', 13, ('Tuple_tnil',))))))(('Tuple_tcons', 17, ('Tuple_tcons', 15, ('Tuple_tcons', 14, ('Tuple_tcons', 13, ('Tuple_tnil',))))))) == set((13, 14))) else 1))"
+# Ignore order and multiplicity, as in the original set-based assertions.
+def same_elements (xs:(List a)) (ys:(List a)) : Bool :=
+    List.all (fun x => contains x ys) xs && List.all (fun y => contains y xs) ys
 
-@minimize_float(mbpp_fitness synth)
-def synth (test_tup1:Tuple) (test_tup2:Tuple) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the shared elements from the given two lists.")
+@example(same_elements (similar_elements [3, 4, 5, 6] [5, 7, 4, 10]) [4, 5])
+@example(same_elements (similar_elements [1, 2, 3, 4] [5, 4, 3, 7]) [3, 4])
+@example(same_elements (similar_elements [11, 12, 14, 13] [17, 15, 14, 13]) [13, 14])
+def similar_elements (test_tup1:(List Int)) (test_tup2:(List Int)) : {v:(List Int) | List.size v <= List.size test_tup1 && List.size v <= List.size test_tup2} := (let contains := unit in let same_elements := unit in ?hole)

@@ -1,23 +1,21 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
-import Array
-type Zip
-type Dict
+# PSB2: substitution-cipher
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/substitution_cipher.clj
 
-def Zip_String_String : (l1: String) -> (l2: String) -> Zip := fun xs => fun ys => native "zip(xs, ys)"
-def Dict_zip : (l: Zip) -> Dict := fun xs => native "dict(xs)"
-def String_list_to_String : (1 l:(Array Int)) -> String := fun l => native "''.join(l)"
-def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String := fun d => fun k => fun y => native "d.get(k, y)"
+import List
+import Math
+import String
+import Map
+import PSB2Fitness
 
+def train : Cases := PSB2Fitness.cases "substitution-cipher" 200;
 
-def Map_String_String: (function: (a:String) -> String) -> (l: String) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
+def score (cases:Cases) (candidate:(cipher_from:{v:String | String.len v <= 26}) -> (cipher_to:{v:String | String.len v = String.len cipher_from}) -> (message:{v:String | String.len v <= 26}) -> {r:String | String.len r = String.len message}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('substitution-cipher', cases(None), candidate)";
 
-
-def train : TrainingCases := training_data "substitution-cipher" 200 200
-
-def calculate_cipher_errors : (1 train:TrainData) -> (f:(a: String) ->(a: String) ->(a: String) -> String)  -> (Array Int)  :=  fun data => fun func => native "[__import__('textdistance').levenshtein(func(x[0])(x[1])(x[2]), y[0]) for x , y in data]"
-
-
-
-@multi_minimize_float(per_example_errors (calculate_cipher_errors (fresh_train_data train) synth), 200)
-def synth (cipher_from: String) (cypher_to: String) (msg: String) : String := (let extract_train_data := unit in let load_dataset := unit in let calculate_square_digits_errors := unit in let train := unit in ?hole)
+@doc("Substitute message characters using the equally sized source and destination alphabets; message characters belong to the source alphabet.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (cipher_from:{v:String | String.len v <= 26}) (cipher_to:{v:String | String.len v = String.len cipher_from}) (message:{v:String | String.len v <= 26}) : {r:String | String.len r = String.len message} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

@@ -1,11 +1,13 @@
 # MBPP task 222
-# Write a function to check if all the elements in tuple have same data type or not.
-#
-# Synthesis target: check_type : Tuple -> Bool
 
-type Tuple
+import List
 
-def mbpp_fitness (f:(x0:Tuple) -> Bool) : Float := native "float((0 if (f((5, 6, 7, 3, 5, 6)) == True) else 1) + (0 if (f((1, 2, '4')) == False) else 1) + (0 if (f((3, 2, 1, 4, 5)) == True) else 1))"
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (test_tuple:Tuple) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to check if all the elements in tuple have same data type or not.")
+@example(check_type [(Value1.asInt 5), (Value1.asInt 6), (Value1.asInt 7), (Value1.asInt 3), (Value1.asInt 5), (Value1.asInt 6)] = true)
+@example(check_type [(Value1.asInt 1), (Value1.asInt 2), (Value1.asString "4")] = false)
+@example(check_type [(Value1.asInt 3), (Value1.asInt 2), (Value1.asInt 1), (Value1.asInt 4), (Value1.asInt 5)] = true)
+def check_type (test_tuple:(List Value1)) : Bool := ?hole
