@@ -181,3 +181,14 @@ def test_guarded_planet_calculation_preserves_the_numerical_result(start, end, e
     d = driver(check=False)
     assert not d.parse(aeon_code=source, filename=str(path))
     assert d.run() == pytest.approx(expected)
+
+
+def test_stable_matching_example_compiles_and_checks_all_fixtures():
+    from aeon.synthesis.pbt import run_properties
+
+    path = ROOT / "examples/benchmarks/property_testing/matcher.ae"
+    d = driver(check=False)
+    assert not d.parse(aeon_code=path.read_text(), filename=str(path))
+    results = run_properties(d.typing_ctx, d.evaluation_ctx, d.core, d.metadata, seed=0)
+    assert len(results) == 5
+    assert all(result.passed for result in results), results
