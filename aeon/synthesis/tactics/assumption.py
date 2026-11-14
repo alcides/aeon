@@ -27,6 +27,8 @@ def tactic_assumption(state: TacticState, hole_name: Name) -> TacticState | None
         if x.name in TACTIC_CONTEXT_EXCLUDED_NAMES:
             continue
         if fits(hole_ctx, xty, goal_ty) and fits(hole_ctx, goal_ty, xty):
-            return TacticState(state.ctx, replace_hole(state.term, hole_name, Var(x, _loc)), state.goal)
+            nxt = state.transition(replace_hole(state.term, hole_name, Var(x, _loc)))
+            if nxt is not None:
+                return nxt
 
     return None

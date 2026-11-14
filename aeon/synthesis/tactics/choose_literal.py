@@ -72,4 +72,4 @@ def tactic_choose_literal(state: TacticState, hole_name: Name) -> TacticState | 
         case Annotation(expr=e, type=_):
             lit = e
 
-    return TacticState(state.ctx, replace_hole(state.term, hole_name, lit), state.goal)
+    return state.transition(replace_hole(state.term, hole_name, lit))

@@ -44,6 +44,8 @@ def tactic_inst(state: TacticState, hole_name: Name) -> TacticState | None:
         wrapped = TypeApplication(inner, tau, loc=_loc)
         new_term = replace_focal_hole(state.term, hole_name, wrapped)
         new_goal = inst_ty if goal_ty == state.goal else state.goal
-        return TacticState(state.ctx, new_term, new_goal)
+        nxt = state.transition(new_term, goal=new_goal)
+        if nxt is not None:
+            return nxt
 
     return None

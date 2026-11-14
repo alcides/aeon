@@ -17,6 +17,7 @@ from aeon.synthesis.tactics.inst import tactic_inst
 from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.holes import collect_hole_judgments
 from aeon.synthesis.tactics.state import TacticState
+from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -69,7 +70,9 @@ class TacticRandomSynthesizer(Synthesizer):
         while time.time() < deadline:
             # Start a fresh random tactic walk each iteration
             root = Name("_root", fresh_counter.fresh())
-            state = TacticState(ctx, Hole(root, loc=_loc), type)
+            state = TacticState(
+                ctx, Hole(root, loc=_loc), type, validate.feasible if isinstance(validate, QTTValidator) else None
+            )
 
             steps = 0
             stuck = False
@@ -109,7 +112,7 @@ class TacticRandomSynthesizer(Synthesizer):
 
             elapsed = time.time() - start
             try:
-                if not validate(state.term):
+                if not state.qtt_feasible() or not validate(state.term):
                     ui.register(state.term, "Invalid", elapsed, False)
                     continue
             except Exception:

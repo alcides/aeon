@@ -16,6 +16,7 @@ from aeon.synthesis.tactics.holes import collect_hole_judgments
 from aeon.synthesis.tactics.inst import tactic_inst
 from aeon.synthesis.tactics.split import tactic_split
 from aeon.synthesis.tactics.state import TacticState
+from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
@@ -66,7 +67,7 @@ class ExplicitTacticSynthesizer(Synthesizer):
 
         root = Name("_root", fresh_counter.fresh())
         term = Hole(root, loc=_loc)
-        state = TacticState(ctx, term, type)
+        state = TacticState(ctx, term, type, validate.feasible if isinstance(validate, QTTValidator) else None)
         start = time.time()
         ui.register(None, None, 0.0, True)
 
@@ -87,7 +88,7 @@ class ExplicitTacticSynthesizer(Synthesizer):
             ui.register(state.term, None, time.time() - start, False)
             return None
 
-        if not validate(state.term):
+        if not state.qtt_feasible() or not validate(state.term):
             ui.register(state.term, None, time.time() - start, False)
             return None
 

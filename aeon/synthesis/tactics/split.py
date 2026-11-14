@@ -26,6 +26,6 @@ def tactic_split(state: TacticState, hole_name: Name) -> TacticState | None:
         case RefinedType(n, base, LiquidApp(fun, [p, _]), loc=rloc) if fun == _and:
             new_ty = RefinedType(n, base, p, loc=rloc)
             new_term = replace_hole_expected_annotation(state.term, hole_name, new_ty)
-            return TacticState(state.ctx, new_term, state.goal)
+            return state.transition(new_term)
         case _:
             return None
