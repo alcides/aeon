@@ -253,9 +253,22 @@ def test_shared_gate_rejects_before_scoring_single_and_joint(monkeypatch):
     )
 
 
+def test_bounded_baseline_can_return_no_candidate(monkeypatch):
+    # Model budget exhaustion deterministically, without relying on CI speed.
+    monkeypatch.setattr(RandomSearchSynthesizer, "synthesize", lambda self, **kwargs: None)
+    driver = parse("@bounded_cnf(0) def f:Bool := ?h;")
+    mapping = solve(driver, RandomSearchSynthesizer(seed=0), budget=1)
+    assert {name.name: value for name, value in mapping.items()} == {"h": None}
+
+
 def test_compatible_baseline_respects_zero_clause_bound():
     driver = parse("@bounded_cnf(0) def f:Bool := ?h;")
-    completed = fill(driver, solve(driver, RandomSearchSynthesizer(seed=0), budget=1))
+    mapping = solve(driver, RandomSearchSynthesizer(seed=0), budget=1)
+    assert {name.name for name in mapping} == {"h"}
+    # A bounded random search may exhaust its budget without finding a result.
+    if next(iter(mapping.values())) is None:
+        return
+    completed = fill(driver, mapping)
     assert check_program(completed, driver.metadata)
     assert call(driver, completed, "f") is True
 

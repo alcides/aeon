@@ -595,7 +595,7 @@ def _synthesize_one(
             ui=ui,
             output_value=output_evaluator,
         )
-        if bounded and not validator(t):
+        if bounded and t is not None and not validator(t):
             raise SynthesisNotSuccessful("returned candidate violates its type, @bounded_cnf or @require")
         # Interactive one-step tactics may intentionally leave subgoals. Every
         # complete result must pass the same oracle even if a backend skipped it.
