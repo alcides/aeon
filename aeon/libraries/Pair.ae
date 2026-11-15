@@ -2,16 +2,13 @@ open Copy
 
 # Polymorphic product type. Eliminate with ``match`` over the single
 # ``mk`` constructor (the generated recursor ``Pair_rec`` is also
-# available). For SMT-level reasoning about specific projections in
-# refinements, declare monomorphic uninterpreted helpers per concrete
-# instantiation, e.g.
-#
-#     def split_fst : (p: (Pair Dataset Dataset)) -> Dataset = uninterpreted
-#
-# and link them to the runtime values via refined accessors.
+# available). The field measures also expose the constructor's values
+# to refinements, including dependent contracts over either component.
 
 inductive Pair a b
-| mk (fst:a) (snd:b) : (Pair a b)
+| mk (fst:a) (snd:b) : {p:(Pair a b) | first p = fst && second p = snd}
++ first (p:(Pair a b)) : a
++ second (p:(Pair a b)) : b
 
 # Immutable values are copyable when their elements are copyable.
 instance [Copy a] [Copy b] : Copy (Pair a b) where

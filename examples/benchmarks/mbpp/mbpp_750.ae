@@ -1,15 +1,10 @@
 # MBPP task 750
-# Write a function to add the given tuple to the given list.
-#
-# Synthesis target: add_tuple : List -> Tuple -> List
 
-type List
+import List
+import Pair
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
-
-def mbpp_fitness (f:(x0:List) -> (x1:Tuple) -> List) : Float := native "float((0 if (f([5, 6, 7])(('Tuple_tcons', 9, ('Tuple_tcons', 10, ('Tuple_tnil',)))) == [5, 6, 7, 9, 10]) else 1) + (0 if (f([6, 7, 8])(('Tuple_tcons', 10, ('Tuple_tcons', 11, ('Tuple_tnil',)))) == [6, 7, 8, 10, 11]) else 1) + (0 if (f([7, 8, 9])(('Tuple_tcons', 11, ('Tuple_tcons', 12, ('Tuple_tnil',)))) == [7, 8, 9, 11, 12]) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_list:List) (test_tup:Tuple) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to add the given tuple to the given list.")
+@example(add_tuple [5, 6, 7] (Pair.mk 9 10) = [5, 6, 7, 9, 10])
+@example(add_tuple [6, 7, 8] (Pair.mk 10 11) = [6, 7, 8, 10, 11])
+@example(add_tuple [7, 8, 9] (Pair.mk 11 12) = [7, 8, 9, 11, 12])
+def add_tuple (test_list:(List Int)) (test_tup:(Pair Int Int)) : {v:(List Int) | List.size v = List.size test_list + 2} := ?hole

@@ -1,9 +1,8 @@
 # MBPP task 422
-# Write a python function to find the average of cubes of first n natural numbers.
-#
-# Synthesis target: find_Average_Of_Cube : Int -> Float
 
-def mbpp_fitness (f:(x0:Int) -> Float) : Float := native "float((0 if (f(2) == 4.5) else 1) + (0 if (f(3) == 12) else 1) + (0 if (f(1) == 1) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Float := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the average of cubes of first n natural numbers.")
+@example(find_Average_Of_Cube 2 = 4.5)
+@example(find_Average_Of_Cube 3 = 12.0)
+@example(find_Average_Of_Cube 1 = 1.0)
+def find_Average_Of_Cube (n:{v:Int | v > 0}) : {v:Float | v >= 0.0} := ?hole

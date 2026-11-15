@@ -1,9 +1,9 @@
 # MBPP task 437
-# Write a function to remove odd characters in a string.
-#
-# Synthesis target: remove_odd : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f('python') == 'yhn') else 1) + (0 if (f('program') == 'rga') else 1) + (0 if (f('language') == 'agae') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (str1:String) : String := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to remove odd characters in a string.")
+@example(remove_odd "python" = "yhn")
+@example(remove_odd "program" = "rga")
+@example(remove_odd "language" = "agae")
+def remove_odd (str1:String) : {v:String | 2 * String.len v <= String.len str1 && 2 * String.len v >= String.len str1 - 1} := ?hole

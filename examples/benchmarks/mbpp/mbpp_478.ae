@@ -1,9 +1,9 @@
 # MBPP task 478
-# Write a function to remove lowercase substrings from a given string.
-#
-# Synthesis target: remove_lowercase : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f('PYTHon') == 'PYTH') else 1) + (0 if (f('FInD') == 'FID') else 1) + (0 if (f('STRinG') == 'STRG') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (str1:String) : String := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to remove lowercase substrings from a given string.")
+@example(remove_lowercase "PYTHon" = "PYTH")
+@example(remove_lowercase "FInD" = "FID")
+@example(remove_lowercase "STRinG" = "STRG")
+def remove_lowercase (str1:String) : {v:String | String.len v <= String.len str1} := ?hole

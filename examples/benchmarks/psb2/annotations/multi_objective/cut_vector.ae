@@ -1,39 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
+# PSB2: cut-vector
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/cut_vector.clj
 
-import Array
-def itertools : Unit := native_import "itertools"
+import List
+import Math
+import String
+import PSB2Fitness
 
-def Range: (start : Int) -> (end : Int) -> (step : Int) -> (Array Int) := fun start => fun end => fun step => native "list(range(start, end, step ))"
+def train : Cases := PSB2Fitness.cases "cut-vector" 200;
 
-def List_slice : (1 i:(Array Int)) -> (j:Int) -> (l:Int)-> (Array Int) := fun i => fun j => fun l => native "i[j:l]"
-def List_remove_last : (1 i:(Array Int)) -> (Array Int) := fun i => native "i[:-1]"
-def List_remove_first : (1 i:(Array Int)) -> (Array Int) := fun i => native "i[1:]"
-def List_reversed: (1 l: (Array Int))-> (Array Int) := fun xs => native "xs[::-1]"
+def score (cases:Cases) (candidate:(xs:{v:(List Int){|fun x => 0 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) -> {r:(List (List Int)) | List.size r = 2 && List.size (List.first r) + List.size (List.first (List.rest r)) = List.size xs}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('cut-vector', cases(None), candidate)";
 
-def List_length: (1 l:(Array Int)) -> Int := fun list => native "len(list)"
-def List_new (_: Unit) : (Array Int)  := native "[]"
-def List_append: (1 l:(Array Int)) -> (i: Int) -> (Array Int) := fun xs => fun x => native "xs + [x]"
-
-def Accumulate : (1 xs:(Array Int)) -> (Array Int) := fun xs => native "list(itertools.accumulate(xs))"
-def Zip : (1 xs:(Array Int)) -> (1 ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
-def Enumerate : (1 xs:(Array Int)) -> (Array Int) := fun xs => native "list(enumerate(xs))"
-def Map : (f: (1 s:(Array Int)) -> (Array Int)) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
-def Math_abs : (i:Int) -> Int := fun i => native "abs(i)"
-def Tuple : (i:Int) -> (j:Int) -> (Array Int) := fun i => fun j => native "(i, j)"
-def Tuple_list : (1 i:(Array Int)) -> (1 j:(Array Int)) -> (Array Int) := fun i => fun j => native "[i, j]"
-def min_list : (1 i:(Array Int)) -> (key: (1 xs:(Array Int)) -> Int) -> (Array Int) := fun i => fun f => native "min(i,key=f)";
-
-def get_fst : (1 i:(Array Int)) -> Int := fun i => native "i[0]"
-def get_snd : (1 i:(Array Int)) -> Int := fun i => native "i[1] if len(i) > 1 else i[0]"
-def get_zip : (1 i:(Array Int)) -> (Array Int) := fun i => native "i[1]"
-
-#PSB2 functions
-
-def train : TrainingCases := training_data "cut-vector" 200 200
-
-def calculate_cut_vector_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(sum(a) - sum(b)) for a, b in zip(output, correct)) )(func(input_value[0]), correct_output) for input_value, correct_output in data ]"
-
-
-@multi_minimize_float(per_example_errors (calculate_cut_vector_errors (fresh_train_data train) cut_vector), 200)
-def cut_vector ( 1 ls : (Array Int) ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let train := unit in let calculate_cut_vector_errors := unit in ?hole)
+@doc("Split a vector into two parts with the closest sums; match PSB2 tie-breaking.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train cut_vector), 200)
+def cut_vector (xs:{v:(List Int){|fun x => 0 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) : {r:(List (List Int)) | List.size r = 2 && List.size (List.first r) + List.size (List.first (List.rest r)) = List.size xs} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

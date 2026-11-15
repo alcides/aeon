@@ -32,11 +32,11 @@ of the original grammar, inputs, search, or evaluation protocol; consult its pro
 | [image_selection/](image_selection/) | 6 | Synthesizing Optimal Object Selection Predicates for Image Editing using Lattices | Six scenario adaptations, including locally constructed examples. |
 | [koza/](koza/) | 3 | Koza genetic-programming benchmarks | Even-3 parity, 6-input multiplexer, and quartic regression instances. |
 | [l2/](l2/) | 44 | λ² (PLDI 2015) | Generated artifact ports; see [paper-port documentation](PAPER_PORTS.md). |
-| [mbpp/](mbpp/) | 427 | Mostly Basic Python Problems | 427 generated sanitized-dataset ports; regenerate with `scripts/generate_mbpp.py`. |
+| [mbpp/](mbpp/) | 427 | Mostly Basic Python Problems | Maintained Aeon ports with standard collections and 1,324 `@example` assertions. |
 | [pagie1/](pagie1/) | 1 | Pagie & Hogeweg symbolic regression | Pagie-1 target function; sampling/representation described in source. |
 | [para/](para/) | 52 | Para (PLDI 2024) | Generated artifact ports; see [paper-port documentation](PAPER_PORTS.md). |
 | [property_testing/](property_testing/) | 6 | Property-based testing / conceptual mutation testing papers | Six tasks; each file identifies its source paper and specification. |
-| [psb2/](psb2/) | 65 | Program Synthesis Benchmark 2 | Preserves `annotations/`, `solved/`, and top-level variants. |
+| [psb2/](psb2/) | 65 | Program Synthesis Benchmark 2 | Native lists, refined task signatures, typed dataset fitness, and 25 Aeon references; see the [port notes](psb2/README.md). |
 | [rlmcts/](rlmcts/) | 1 | RL-MCTS backend demos | One Aeon refinement-synthesis demo and one SMT-LIB training fixture. |
 | [smyth/](smyth/) | 164 | Smyth (ICFP 2020) | Generated artifact ports; see [paper-port documentation](PAPER_PORTS.md). |
 | [srbench/](srbench/) | 134 | SRBench | 120 Feynman and 14 Strogatz expressions. |

@@ -1,3 +1,10 @@
-def gcd (n:Int) (z:Int) : Int := if z = 0 then n else gcd z (n % z);
+# PSB2: gcd
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/gcd.clj
 
-def main (args:Int) : Unit := print (gcd 15 5)
+import List
+import Math
+import String
+
+@doc("Find the greatest common divisor of two positive integers.")
+def gcd (n:{v:Int | 1 <= v && v <= 1000000}) (z:{v:Int | 1 <= v && v <= 1000000}) : Int :=
+    Math.gcd n z;

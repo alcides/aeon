@@ -1,16 +1,17 @@
 # MBPP task 773
-# Write a function to find the occurrence and position of the substrings within a string. Return None if there is no match.
-#
-# Synthesis target: occurance_substring : String -> String -> (Maybe Tuple)
 
-inductive Maybe a
-| none : (Maybe a)
-| just (v:a) : (Maybe a)
+import String
+import Maybe
 
-inductive Tuple
-| mk (a0:String) (a1:Int) (a2:Int) : Tuple
+inductive Tuple3 a0 a1 a2
+| mk (item0:a0) (item1:a1) (item2:a2) : {record:(Tuple3 a0 a1 a2) | field0 record = item0 && field1 record = item1 && field2 record = item2}
++ field0 (record:(Tuple3 a0 a1 a2)) : a0
++ field1 (record:(Tuple3 a0 a1 a2)) : a1
++ field2 (record:(Tuple3 a0 a1 a2)) : a2
 
-def mbpp_fitness (f:(x0:String) -> (x1:String) -> (Maybe Tuple)) : Float := native "float((0 if (f('python programming, python language')('python') == ('Maybe_just', ('Tuple_mk', 'python', 0, 6))) else 1) + (0 if (f('python programming,programming language')('programming') == ('Maybe_just', ('Tuple_mk', 'programming', 7, 18))) else 1) + (0 if (f('python programming,programming language')('language') == ('Maybe_just', ('Tuple_mk', 'language', 31, 39))) else 1) + (0 if (f('c++ programming, c++ language')('python') == ('Maybe_none',)) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (text:String) (pattern:String) : (Maybe Tuple) := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the occurrence and position of the substrings within a string. Return None if there is no match.")
+@example(occurance_substring "python programming, python language" "python" = (Maybe.just (Tuple3.mk "python" 0 6)))
+@example(occurance_substring "python programming,programming language" "programming" = (Maybe.just (Tuple3.mk "programming" 7 18)))
+@example(occurance_substring "python programming,programming language" "language" = (Maybe.just (Tuple3.mk "language" 31 39)))
+@example(occurance_substring "c++ programming, c++ language" "python" = (Maybe.none : (Maybe (Tuple3 String Int Int))))
+def occurance_substring (text:String) (pattern:String) : {value:(Maybe (Tuple3 String Int Int)) | (!(Maybe.present value) || (((0 <= (Tuple3.field1 (Maybe.value value))) && ((Tuple3.field1 (Maybe.value value)) <= (String.len text))) && ((0 <= (Tuple3.field2 (Maybe.value value))) && ((Tuple3.field2 (Maybe.value value)) <= (String.len text)))))} := ?hole

@@ -1,9 +1,9 @@
 # MBPP task 58
-# Write a python function to check whether the given two integers have opposite sign or not.
-#
-# Synthesis target: opposite_Signs : Int -> Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Bool) : Float := native "float((0 if (f(1)(-2) == True) else 1) + (0 if (f(3)(2) == False) else 1) + (0 if (f(-10)(-10) == False) else 1) + (0 if (f(-2)(2) == True) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (x:Int) (y:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to check whether the given two integers have opposite sign or not.")
+@example(opposite_Signs 1 (-2) = true)
+@example(opposite_Signs 3 2 = false)
+@example(opposite_Signs (-10) (-10) = false)
+@example(opposite_Signs (-2) 2 = true)
+def opposite_Signs (x:Int) (y:Int) : {v:Bool | v = ((x < 0 && y >= 0) || (x >= 0 && y < 0))} := ?hole

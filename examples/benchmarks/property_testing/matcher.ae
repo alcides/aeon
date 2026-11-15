@@ -53,12 +53,6 @@ def uniqueInt (l: (List Int)) : Bool :=
     | nil => true
     | cons hd tl => (! (elemInt hd tl)) && (uniqueInt tl);
 
-# [0, 1, ..., n-1].
-def rangeAux (k: Int) (n: Int) : (List Int) :=
-    if k >= n then nil else cons k (rangeAux (k + 1) n);
-
-def range (n: Int) : (List Int) := rangeAux 0 n;
-
 # k-th element of a list of ints (0-indexed); -1 if out of range.
 def nth (l: (List Int)) (k: Int) : Int :=
     match l with
@@ -130,8 +124,8 @@ def stable
     (m: (List MPair)) : Bool :=
     n := length candPrefs;
     k := length compPrefs;
-    allInt (fun c => allInt (fun f => ! (isBlocking candPrefs compPrefs m c f)) (range k))
-           (range n);
+    allInt (fun c => allInt (fun f => ! (isBlocking candPrefs compPrefs m c f)) (List.range 0 k))
+           (List.range 0 n);
 
 # Uniqueness: no candidate and no company is matched twice.
 def uniqueMatch (m: (List MPair)) : Bool :=
@@ -144,8 +138,8 @@ def complete
     (m: (List MPair)) : Bool :=
     n := length candPrefs;
     k := length compPrefs;
-    (allInt (fun c => partnerOf m c != (0 - 1)) (range n))
-    && (allInt (fun f => partnerOfComp m f != (0 - 1)) (range k));
+    (allInt (fun c => partnerOf m c != (0 - 1)) (List.range 0 n))
+    && (allInt (fun f => partnerOfComp m f != (0 - 1)) (List.range 0 k));
 
 # The full correctness predicate students should write.
 def isValid

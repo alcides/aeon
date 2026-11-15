@@ -1,9 +1,9 @@
 # MBPP task 79
-# Write a python function to check whether the length of the word is odd or not.
-#
-# Synthesis target: word_len : String -> Bool
 
-def mbpp_fitness (f:(x0:String) -> Bool) : Float := native "float((0 if (f('Hadoop') == False) else 1) + (0 if (f('great') == True) else 1) + (0 if (f('structure') == True) else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (s:String) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to check whether the length of the word is odd or not.")
+@example(word_len "Hadoop" = false)
+@example(word_len "great" = true)
+@example(word_len "structure" = true)
+def word_len (s:String) : {v:Bool | v = (String.len s % 2 != 0)} := ?hole

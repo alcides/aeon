@@ -1,32 +1,10 @@
-import Array
-def math : Unit := native_import "math"
-def Math_floor : (i:Float) -> Int := fun i => native "math.floor(i)"
-def Math_toFloat : (i:Int) -> Float := fun i => native "float(i)"
-def Math_toInt : (i:Float) -> Int := fun i => native "int(i)"
+# PSB2: middle-character
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/middle_character.clj
 
-def String_len : (i:String) -> Int := fun i => native "len(i)"
-def String_slice : (i:String) -> (j:Int) -> (l:Int)-> String := fun i => fun j => fun l => native "i[j:l]"
+import List
+import Math
+import String
 
-
-def equal_int : (a: Int) -> (b: Int) -> Bool := fun x => fun y => native "x == y";
-
-def middle_char  (s: String) : String := str_len : Int := s.len;
-    a : Int := (str_len % 2);
-    b : Bool := equal_int a 0;
-    if (b) then
-        x: Float := Math_toFloat str_len;
-        y: Float := (x / 2.0);
-        snd_mid_char_index : Int := (Math_floor y) + 1;
-        fst_mid_char_index : Int := snd_mid_char_index - 2 ;
-        mid_chars := s.slice fst_mid_char_index snd_mid_char_index;
-        mid_chars
-    else
-        x: Float := Math_toFloat str_len;
-        y: Float := (x / 2.0);
-        mid_char_index: Int := (Math_floor y);
-        m_char := s.slice mid_char_index (mid_char_index+1);
-        m_char;
-
-
-
-def main (args:Int) : Unit := print (middle_char "ola")
+@doc("Return the central character, or the central two characters for even lengths.")
+def middle_char (s:{v:String | 1 <= String.len v && String.len v <= 100}) : String :=
+    if String.len s % 2 = 0 then String.substr s (Math.floor_division (String.len s) 2 - 1) 2 else String.charAt s (Math.floor_division (String.len s) 2);

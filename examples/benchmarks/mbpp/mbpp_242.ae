@@ -1,9 +1,9 @@
 # MBPP task 242
-# Write a function to count the total number of characters in a string.
-#
-# Synthesis target: count_charac : String -> Int
 
-def mbpp_fitness (f:(x0:String) -> Int) : Float := native "float((0 if (f('python programming') == 18) else 1) + (0 if (f('language') == 8) else 1) + (0 if (f('words') == 5) else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (str1:String) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to count the total number of characters in a string.")
+@example(count_charac "python programming" = 18)
+@example(count_charac "language" = 8)
+@example(count_charac "words" = 5)
+def count_charac (str1:String) : {v:Int | v = String.len str1} := let String_len := unit in ?hole

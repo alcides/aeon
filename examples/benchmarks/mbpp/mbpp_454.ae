@@ -1,9 +1,8 @@
 # MBPP task 454
-# Write a function that matches a word containing 'z'.
-#
-# Synthesis target: text_match_wordz : String -> Bool
 
-def mbpp_fitness (f:(x0:String) -> Bool) : Float := native "float((0 if (f('pythonz.') == True) else 1) + (0 if (f('xyz.') == True) else 1) + (0 if (f('  lang  .') == False) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (text:String) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that matches a word containing 'z'.")
+@example(text_match_wordz "pythonz." = true)
+@example(text_match_wordz "xyz." = true)
+@example(text_match_wordz "  lang  ." = false)
+def text_match_wordz (text:String) : Bool := ?hole

@@ -1,36 +1,24 @@
-import Array
-# Given a positive integer, square each digit and
-# concatenate the squares into a returned string.
-# input : integer in [0, 1000000]
-# output : string
-# --working--
+# PSB2: square-digits
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/square_digits.clj
 
-open String
-open Math
-open PSB2
+import List
+import Math
+import String
+import PSB2Fitness
 
-#def square_digit  ( n :{x:Int | 0 <= x && x <= 1000000}) : String {
-#    if n == 0 then
-#        ""
-#    else
-#        digit = n % 10
-#        square = digit * digit
-#        result = String.concat (square_digit(Math.floor_division n 10)) (String.intToString(square))
-#        result
-#}
+def train : Cases := PSB2Fitness.cases "square-digits" 200;
 
-# Native digit conversion avoids imposing an unprovable refinement on floor_division.
-def square_digit_unsafe (n: {v:Int | v >= 0}) : String :=
-    native "''.join(str(int(digit) ** 2) for digit in str(n))";
+def score (cases:Cases) (candidate:(n:{v:Int | 0 <= v && v <= 1000000}) -> {r:String | 1 <= String.len r && String.len r <= 14 && (n != 0 || r = "0")}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('square-digits', cases(None), candidate)";
 
-def synth_sd ( n : Int) : String := ?hole
+def square_digit_unsafe (n:{v:Int | 0 <= v && v <= 1000000}) : String :=
+    String.joinList "" (List.map (fun c => let digit := String.stringToInt c in String.intToString (digit * digit)) (String.characters (String.intToString n)));
 
-def fitness : Float :=
-    let 1 ds := load_dataset "square-digits" 200 200;
-    let 1 train := extract_train_data ds in
-    with_lists train (fun input_list => fun expected_values =>
-        let 1 actual_values : (Array Int) := native "[synth_sd(x) for x in input_list]";
-        expected_values_str := join_string_list expected_values;
-        actual_values_str := join_string_list actual_values;
-        str_distance := String_distance expected_values_str actual_values_str;
-        str_distance);
+@doc("Square each decimal digit and concatenate the results, including a zero input.")
+@minimize_float(PSB2Fitness.meanError (score train synth_sd))
+def synth_sd (n:{v:Int | 0 <= v && v <= 1000000}) : {r:String | 1 <= String.len r && String.len r <= 14 && (n != 0 || r = "0")} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    let square_digit_unsafe := unit in
+    ?hole;

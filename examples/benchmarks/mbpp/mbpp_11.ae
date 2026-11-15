@@ -1,9 +1,9 @@
 # MBPP task 11
-# Write a python function to remove first and last occurrence of a given character from the string.
-#
-# Synthesis target: remove_Occ : String -> String -> String
 
-def mbpp_fitness (f:(x0:String) -> (x1:String) -> String) : Float := native "float((0 if (f('hello')('l') == 'heo') else 1) + (0 if (f('abcda')('a') == 'bcd') else 1) + (0 if (f('PHP')('P') == 'H') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (s:String) (ch:String) : String := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to remove first and last occurrence of a given character from the string.")
+@example(remove_Occ "hello" "l" = "heo")
+@example(remove_Occ "abcda" "a" = "bcd")
+@example(remove_Occ "PHP" "P" = "H")
+def remove_Occ (s:String) (ch:{v:String | String.len v = 1}) : {v:String | String.len v <= String.len s && String.len v >= String.len s - 2} := let String_replace := unit in ?hole

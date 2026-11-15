@@ -1,11 +1,9 @@
 # MBPP task 433
-# Write a function to check whether the entered number is greater than the elements of the given array.
-#
-# Synthesis target: check_greater : List -> Int -> Bool
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Bool) : Float := native "float((0 if (f([1, 2, 3, 4, 5])(4) == False) else 1) + (0 if (f([2, 3, 4, 5, 6])(8) == True) else 1) + (0 if (f([9, 7, 4, 8, 6, 1])(11) == True) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (arr:List) (number:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to check whether the entered number is greater than the elements of the given array.")
+@example(check_greater [1, 2, 3, 4, 5] 4 = false)
+@example(check_greater [2, 3, 4, 5, 6] 8 = true)
+@example(check_greater [9, 7, 4, 8, 6, 1] 11 = true)
+def check_greater (arr:(List Int)) (number:Int) : Bool := ?hole

@@ -1,13 +1,14 @@
-import Array
+# PSB2: luhn
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/luhn.clj
 
-def List_new (_: Unit) : (Array Int) := native "[]"
-def List_append (1 l:(Array Int)) (i: Int) : (Array Int) := native "l + [i]"
+import List
+import Math
+import String
 
-def luhn (1 digits: (Array Int)) : Int :=
-    native "sum(((x * 2 - 9) if (x * 2) > 9 else (x * 2)) if (i % 2) == 0 else x for i, x in enumerate(digits))"
+def luhn_go (xs:(List Int)) (double:Bool) : Int :=
+    match xs with | List.nil => 0 | List.cons x rest =>
+        (if double then (if x * 2 > 9 then x * 2 - 9 else x * 2) else x) + luhn_go rest (!double);
 
-def repeated_list (n:Int) (x:Int) : (Array Int) := native "[x]*n"
-
-def main (args:Int) : Unit :=
-    let 1 l: (Array Int) := repeated_list 16 9;
-    print (luhn l);
+@doc("Sum sixteen Luhn-transformed digits, doubling the digit at index zero and every other digit.")
+def luhn (digits:{v:(List Int){|fun x => 0 <= x && x <= 9|} | 16 <= List.size v && List.size v <= 16}) : Int :=
+    luhn_go digits true;

@@ -1,13 +1,9 @@
 # MBPP task 617
-# Write a function to check for the number of jumps required of given length to reach a point of form (d, 0) from origin in a 2d plane.
-#
-# Synthesis target: min_Jumps : Tuple -> Int -> Float
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+import Pair
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Int) -> Float) : Float := native "float((0 if (f(('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tnil',))))(11) == 3.5) else 1) + (0 if (f(('Tuple_tcons', 3, ('Tuple_tcons', 4, ('Tuple_tnil',))))(0) == 0) else 1) + (0 if (f(('Tuple_tcons', 11, ('Tuple_tcons', 14, ('Tuple_tnil',))))(11) == 1) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (steps:Tuple) (d:Int) : Float := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to check for the number of jumps required of given length to reach a point of form (d, 0) from origin in a 2d plane.")
+@example(min_Jumps (Pair.mk 3 4) 11 = 3.5)
+@example(min_Jumps (Pair.mk 3 4) 0 = 0.0)
+@example(min_Jumps (Pair.mk 11 14) 11 = 1.0)
+def min_Jumps (steps:{value:(Pair Int Int) | ((Pair.first value) > 0) && ((Pair.second value) > 0)}) (d:{v:Int | v >= 0}) : {v:Float | v >= 0.0} := ?hole

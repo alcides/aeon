@@ -1,11 +1,13 @@
 # MBPP task 778
-# Write a function to pack consecutive duplicates of a given list elements into sublists.
-#
-# Synthesis target: pack_consecutive_duplicates : List -> List
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f([0, 0, 1, 2, 3, 4, 4, 5, 6, 6, 6, 7, 8, 9, 4, 4]) == [[0, 0], [1], [2], [3], [4, 4], [5], [6, 6, 6], [7], [8], [9], [4, 4]]) else 1) + (0 if (f([10, 10, 15, 19, 18, 18, 17, 26, 26, 17, 18, 10]) == [[10, 10], [15], [19], [18, 18], [17], [26, 26], [17], [18], [10]]) else 1) + (0 if (f(['a', 'a', 'b', 'c', 'd', 'd']) == [['a', 'a'], ['b'], ['c'], ['d', 'd']]) else 1))"
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
 
-@minimize_float(mbpp_fitness synth)
-def synth (list1:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to pack consecutive duplicates of a given list elements into sublists.")
+@example(pack_consecutive_duplicates [(Value1.asInt 0), (Value1.asInt 0), (Value1.asInt 1), (Value1.asInt 2), (Value1.asInt 3), (Value1.asInt 4), (Value1.asInt 4), (Value1.asInt 5), (Value1.asInt 6), (Value1.asInt 6), (Value1.asInt 6), (Value1.asInt 7), (Value1.asInt 8), (Value1.asInt 9), (Value1.asInt 4), (Value1.asInt 4)] = [[(Value1.asInt 0), (Value1.asInt 0)], [(Value1.asInt 1)], [(Value1.asInt 2)], [(Value1.asInt 3)], [(Value1.asInt 4), (Value1.asInt 4)], [(Value1.asInt 5)], [(Value1.asInt 6), (Value1.asInt 6), (Value1.asInt 6)], [(Value1.asInt 7)], [(Value1.asInt 8)], [(Value1.asInt 9)], [(Value1.asInt 4), (Value1.asInt 4)]])
+@example(pack_consecutive_duplicates [(Value1.asInt 10), (Value1.asInt 10), (Value1.asInt 15), (Value1.asInt 19), (Value1.asInt 18), (Value1.asInt 18), (Value1.asInt 17), (Value1.asInt 26), (Value1.asInt 26), (Value1.asInt 17), (Value1.asInt 18), (Value1.asInt 10)] = [[(Value1.asInt 10), (Value1.asInt 10)], [(Value1.asInt 15)], [(Value1.asInt 19)], [(Value1.asInt 18), (Value1.asInt 18)], [(Value1.asInt 17)], [(Value1.asInt 26), (Value1.asInt 26)], [(Value1.asInt 17)], [(Value1.asInt 18)], [(Value1.asInt 10)]])
+@example(pack_consecutive_duplicates [(Value1.asString "a"), (Value1.asString "a"), (Value1.asString "b"), (Value1.asString "c"), (Value1.asString "d"), (Value1.asString "d")] = [[(Value1.asString "a"), (Value1.asString "a")], [(Value1.asString "b")], [(Value1.asString "c")], [(Value1.asString "d"), (Value1.asString "d")]])
+def pack_consecutive_duplicates (list1:(List Value1)) : {v:(List (List Value1)) | List.size v <= List.size list1} := ?hole

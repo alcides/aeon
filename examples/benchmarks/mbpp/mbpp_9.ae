@@ -1,9 +1,9 @@
 # MBPP task 9
-# Write a python function to find the minimum number of rotations (greater than 0) required to get the same string.
-#
-# Synthesis target: find_Rotations : String -> Int
 
-def mbpp_fitness (f:(x0:String) -> Int) : Float := native "float((0 if (f('aaaa') == 1) else 1) + (0 if (f('ab') == 2) else 1) + (0 if (f('abc') == 3) else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (str:String) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the minimum number of rotations (greater than 0) required to get the same string.")
+@example(find_Rotations "aaaa" = 1)
+@example(find_Rotations "ab" = 2)
+@example(find_Rotations "abc" = 3)
+def find_Rotations (str:String) : {v:Int | 0 <= v && v <= String.len str && (String.len str = 0 || v > 0)} := ?hole

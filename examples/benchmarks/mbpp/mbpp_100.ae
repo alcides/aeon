@@ -1,9 +1,8 @@
 # MBPP task 100
-# Write a function to find the next smallest palindrome of a specified integer, returned as an integer.
-#
-# Synthesis target: next_smallest_palindrome : Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> Int) : Float := native "float((0 if (f(99) == 101) else 1) + (0 if (f(1221) == 1331) else 1) + (0 if (f(120) == 121) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (num:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the next smallest palindrome of a specified integer, returned as an integer.")
+@example(next_smallest_palindrome 99 = 101)
+@example(next_smallest_palindrome 1221 = 1331)
+@example(next_smallest_palindrome 120 = 121)
+def next_smallest_palindrome (num:{v:Int | v >= 0}) : {v:Int | v > num} := ?hole

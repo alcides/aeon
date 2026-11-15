@@ -1,11 +1,9 @@
 # MBPP task 426
-# Write a function to filter odd numbers.
-#
-# Synthesis target: filter_oddnumbers : List -> List
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) == [1, 3, 5, 7, 9]) else 1) + (0 if (f([10, 20, 45, 67, 84, 93]) == [45, 67, 93]) else 1) + (0 if (f([5, 7, 9, 8, 6, 4, 3]) == [5, 7, 9, 3]) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (nums:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to filter odd numbers.")
+@example(filter_oddnumbers [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] = [1, 3, 5, 7, 9])
+@example(filter_oddnumbers [10, 20, 45, 67, 84, 93] = [45, 67, 93])
+@example(filter_oddnumbers [5, 7, 9, 8, 6, 4, 3] = [5, 7, 9, 3])
+def filter_oddnumbers (nums:(List Int)) : {v:(List Int) | List.size v <= List.size nums} := ?hole

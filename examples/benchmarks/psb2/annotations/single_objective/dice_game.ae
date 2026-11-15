@@ -1,13 +1,20 @@
-import Array
-open Math
-import PSB2 (training_data, fresh_train_data, extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_dg_synth_values, unpack_train_data, load_dataset, mean_absolute_error)
+# PSB2: dice-game
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/dice_game.clj
 
-def train : TrainingCases := training_data "dice-game" 200 200
+import List
+import Math
+import String
+import PSB2Fitness
 
-def  input_list (_: Unit) : (Array Int) :=  get_input_list ( unpack_train_data  (fresh_train_data train))
+def train : Cases := PSB2Fitness.cases "dice-game" 200;
 
-def  expected_values (_: Unit) : (Array Int) :=  get_output_list ( unpack_train_data  (fresh_train_data train))
+def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000}) -> (m:{v:Int | 1 <= v && v <= 1000}) -> {r:Float | 0.0 <= r && r < 1.0}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('dice-game', cases(None), candidate)";
 
-@minimize_float(mean_absolute_error  (get_dg_synth_values (input_list unit) synth)((expected_values unit)))
-def synth (n: Int) (m: Int) : Float
-    := (let extract_train_data := unit in let get_input_list := unit in let get_output_list := unit in let unpack_train_data := unit in let load_dataset := unit in let get_dg_synth_values := unit in let calculate_list_errors := unit in ?hole);
+@doc("Return the probability that an n-sided die rolls strictly above an m-sided die.")
+@minimize_float(PSB2Fitness.meanError (score train synth))
+def synth (n:{v:Int | 1 <= v && v <= 1000}) (m:{v:Int | 1 <= v && v <= 1000}) : {r:Float | 0.0 <= r && r < 1.0} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

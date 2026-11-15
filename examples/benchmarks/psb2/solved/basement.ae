@@ -1,9 +1,14 @@
-import Array
+# PSB2: basement
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/basement.clj
 
-def List_new (_: Unit) : (Array Int) := native "[]"
-def List_append (1 l:(Array Int)) (i: Int) : (Array Int) := native "l + [i]"
+import List
+import Math
+import String
 
-def basement (1 nums: (Array Int)) : Int :=
-    native "(lambda l: (lambda d: (exec('i=0\\nu=l[0]\\nwhile i < len(l) and u >= 0:\\n i+=1\\n if i < len(l):\\n  u+=l[i]\\n', d), d['i'])[1])({'l': l}))(nums)"
+def basement_go (xs:(List Int)) (total:Int) (index:Int) : Int :=
+    match xs with | List.nil => (-1) | List.cons x rest =>
+        if total + x < 0 then index else basement_go rest (total + x) (index + 1);
 
-def main (args:Int): Unit := print (basement (List_append (List_new unit) (-100)) )
+@doc("Find the first index whose inclusive prefix sum is negative; PSB2 inputs guarantee such an index.")
+def basement (nums:{v:(List Int){|fun x => (-100) <= x && x <= 100|} | 1 <= List.size v && List.size v <= 20}) : Int :=
+    basement_go nums 0 0;

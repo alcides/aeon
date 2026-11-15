@@ -1,15 +1,14 @@
 # MBPP task 431
-# Write a function that takes two lists and returns true if they have at least one common element.
-#
-# Synthesis target: common_element : List -> List -> (Maybe Bool)
 
-type List
+import List
+import Maybe
 
-inductive Maybe a
-| none : (Maybe a)
-| just (v:a) : (Maybe a)
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
 
-def mbpp_fitness (f:(x0:List) -> (x1:List) -> (Maybe Bool)) : Float := native "float((0 if (f([1, 2, 3, 4, 5])([5, 6, 7, 8, 9]) == ('Maybe_just', True)) else 1) + (0 if (f([1, 2, 3, 4, 5])([6, 7, 8, 9]) == ('Maybe_none',)) else 1) + (0 if (f(['a', 'b', 'c'])(['d', 'b', 'e']) == ('Maybe_just', True)) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (list1:List) (list2:List) : (Maybe Bool) := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that takes two lists and returns true if they have at least one common element.")
+@example(common_element [(Value1.asInt 1), (Value1.asInt 2), (Value1.asInt 3), (Value1.asInt 4), (Value1.asInt 5)] [(Value1.asInt 5), (Value1.asInt 6), (Value1.asInt 7), (Value1.asInt 8), (Value1.asInt 9)] = (Maybe.just true))
+@example(common_element [(Value1.asInt 1), (Value1.asInt 2), (Value1.asInt 3), (Value1.asInt 4), (Value1.asInt 5)] [(Value1.asInt 6), (Value1.asInt 7), (Value1.asInt 8), (Value1.asInt 9)] = (Maybe.none : (Maybe Bool)))
+@example(common_element [(Value1.asString "a"), (Value1.asString "b"), (Value1.asString "c")] [(Value1.asString "d"), (Value1.asString "b"), (Value1.asString "e")] = (Maybe.just true))
+def common_element (list1:(List Value1)) (list2:(List Value1)) : (Maybe Bool) := ?hole

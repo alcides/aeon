@@ -23,7 +23,6 @@ from aeon.core.types import (
     TypeConstructor,
     TypePolymorphism,
     TypeVar,
-    refined_to_unrefined_type,
     t_bool,
     t_float,
     t_int,
@@ -94,12 +93,12 @@ def is_subtype(ctx: TypingContext, t1: Type, t2: Type) -> bool:
 
 def base_type_of(ty: Type) -> TypeConstructor | None:
     """Strip refinements to get the base TypeConstructor, or None if not a base type."""
-    unrefined = refined_to_unrefined_type(ty)
-    match unrefined:
-        case TypeConstructor():
-            return unrefined
-        case _:
-            return None
+    # Only the outer shape matters here. Erasing a function's refinements
+    # rebuilds every argument and result before we inevitably return None.
+    # Higher-order stdlib ingredients make that wasted traversal particularly
+    # costly during input generation and grammar expansion.
+    unrefined = ty.type if isinstance(ty, RefinedType) else ty
+    return unrefined if isinstance(unrefined, TypeConstructor) else None
 
 
 def get_return_type(ty: Type) -> Type:
@@ -122,14 +121,13 @@ def get_param_types(ty: Type) -> list[tuple[Name, Type]]:
 
 def bases_match(t1: Type, t2: Type) -> bool:
     """Fast structural pre-check: do the base type constructors match?"""
-    left, right = refined_to_unrefined_type(t1), refined_to_unrefined_type(t2)
+    left = t1.type if isinstance(t1, RefinedType) else t1
+    right = t2.type if isinstance(t2, RefinedType) else t2
     if isinstance(left, TypeVar) or isinstance(right, TypeVar):
         return left == right
-    b1 = base_type_of(t1)
-    b2 = base_type_of(t2)
-    if b1 is None or b2 is None:
-        return False
-    return b1.name.name == b2.name.name
+    return (
+        isinstance(left, TypeConstructor) and isinstance(right, TypeConstructor) and left.name.name == right.name.name
+    )
 
 
 def should_skip(name: Name, fun_name: Name, metadata: Metadata, is_recursion_allowed: bool) -> bool:

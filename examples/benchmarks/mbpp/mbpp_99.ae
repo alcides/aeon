@@ -1,9 +1,9 @@
 # MBPP task 99
-# Write a function to convert the given decimal number to its binary equivalent, represented as a string with no leading zeros.
-#
-# Synthesis target: decimal_to_binary : Int -> String
 
-def mbpp_fitness (f:(x0:Int) -> String) : Float := native "float((0 if (f(8) == '1000') else 1) + (0 if (f(18) == '10010') else 1) + (0 if (f(7) == '111') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : String := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to convert the given decimal number to its binary equivalent, represented as a string with no leading zeros.")
+@example(decimal_to_binary 8 = "1000")
+@example(decimal_to_binary 18 = "10010")
+@example(decimal_to_binary 7 = "111")
+def decimal_to_binary (n:{v:Int | v >= 0}) : {v:String | String.len v > 0} := ?hole

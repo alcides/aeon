@@ -1,61 +1,18 @@
-import Array
-def List_sum (1 l:(Array Int)) : Int := native "sum(l)"
+# PSB2: bowling
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/bowling.clj
 
-def List_map (f: (a: Int) -> Int)
-             (1 xs: (Array Int)) :
-              (Array Int) := native "list(map(f, xs))";
+import List
+import Math
+import String
 
+def pins (s:String) : Int := if s = "X" || s = "/" then 10 else if s = "-" then 0 else String.stringToInt s;
+def bowling_go (s:String) (frames:Int) : Int :=
+    if frames <= 0 then 0 else
+        let a := String.charAt s 0 in let b := String.charAt s 1 in let c := String.charAt s 2 in
+        if a = "X" then (if c = "/" then 20 else 10 + pins b + pins c) + bowling_go (String.substr s 1 (String.len s)) (frames - 1)
+        else if b = "/" then 10 + pins c + bowling_go (String.substr s 2 (String.len s)) (frames - 1)
+        else pins a + pins b + bowling_go (String.substr s 2 (String.len s)) (frames - 1);
 
-def String_replace (s:String) (t:String) (rep:String) : String := native "s.replace(t, rep)"
-def String_length (list:String) : Int := native "len(list)"
-def String_get (l:String) (i:Int) : String := native "l[i]"
-def String_to_int (s:String) : Int := native "int(s)"
-def String_eq (s:String) (s2:String) : Bool := native "s == s2";
-
-def List_range_step (start:Int) (end:Int) (step:Int) : (Array Int) := native "list(range(start, end, step))"
-
- def convert_bowling(score: String) : Int := if score.eq "X" then
-    10
- else
-    if score.eq "/" then
-        10
-    else
-        score.to_int;
-
-
-def create_mapper (scores:String) (i:Int) : Int := current : String := scores.get i;
-    next : String := scores.get (i+1);
-    if current.eq "X" then
-        next_frame1 : String := scores.get (i+2);
-        next_frame2 : String := scores.get (i+3);
-        if next_frame2.eq "/" then
-            20
-        else if next_frame1.eq "X" then
-            next_next_frame1 : String := scores.get (i+4);
-            inc : Int := if next_next_frame1.eq "X" then 10 else next_next_frame1.to_int;
-            20 + inc
-        else
-            10 + convert_bowling next_frame1 + convert_bowling next_frame2
-
-    else if next.eq "/" then
-        next_next : String := scores.get (i+2);
-        10 + (convert_bowling next_next)
-    else
-        current.to_int + convert_bowling next;
-
-
-def bowling_score (scores: String) : Int := scores_right_size := scores.replace "X" "X_";
-    scores_zero := scores_right_size.replace "-" "0";
-    let 1 r: (Array Int)  := List_range_step 0 20 2;
-    mapper : (i:Int) -> Int := create_mapper scores_zero;
-    let 1 components: (Array Int)  := List_map mapper r;
-    List_sum components;
-
-def main (args:Int) : Unit := example : String := "23232323232323232323"; # 50
-    example : String := "2/232323232323232323"; # 57
-    example : String := "X232323232323232323"; # 60
-    example : String := "X2/2323232323232323"; # 20 + 12 + 40 = 72
-    example : String := "--------------------"; # 0
-    example : String := "XXXXXXXXXXXX"; # 300
-    example : String := "2323232323232323232/1"; # 55
-    print (bowling_score example);
+@doc("Score ten valid bowling frames, including strike and spare bonuses.")
+def bowling (scores:{v:String | 12 <= String.len v && String.len v <= 21}) : Int :=
+    bowling_go scores 10;

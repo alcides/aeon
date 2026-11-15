@@ -1,15 +1,18 @@
 # MBPP task 140
-# Write a function to flatten the list of lists into a single set of numbers.
-#
-# Synthesis target: extract_singly : List -> List
 
-type List
+import List
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+def contains (needle:a) (xs:(List a)) : Bool :=
+    match xs with
+    | List.nil => false
+    | List.cons x rest => x = needle || contains needle rest;
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (set(f([(3, 4, 5), (4, 5, 7), (1, 4)])) == set([3, 4, 5, 7, 1])) else 1) + (0 if (set(f([(1, 2, 3), (4, 2, 3), (7, 8)])) == set([1, 2, 3, 4, 7, 8])) else 1) + (0 if (set(f([(7, 8, 9), (10, 11, 12), (10, 11)])) == set([7, 8, 9, 10, 11, 12])) else 1))"
+# Ignore order and multiplicity, as in the original set-based assertions.
+def same_elements (xs:(List a)) (ys:(List a)) : Bool :=
+    List.all (fun x => contains x ys) xs && List.all (fun y => contains y xs) ys
 
-@minimize_float(mbpp_fitness synth)
-def synth (test_list:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to flatten the list of lists into a single set of numbers.")
+@example(same_elements (extract_singly [[3, 4, 5], [4, 5, 7], [1, 4]]) [3, 4, 5, 7, 1])
+@example(same_elements (extract_singly [[1, 2, 3], [4, 2, 3], [7, 8]]) [1, 2, 3, 4, 7, 8])
+@example(same_elements (extract_singly [[7, 8, 9], [10, 11, 12], [10, 11]]) [7, 8, 9, 10, 11, 12])
+def extract_singly (test_list:(List (List Int))) : (List Int) := (let contains := unit in let same_elements := unit in ?hole)

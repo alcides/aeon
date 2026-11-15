@@ -1,11 +1,9 @@
 # MBPP task 456
-# Write a function to reverse each string in a given list of string values.
-#
-# Synthesis target: reverse_string_list : List -> List
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f(['Red', 'Green', 'Blue', 'White', 'Black']) == ['deR', 'neerG', 'eulB', 'etihW', 'kcalB']) else 1) + (0 if (f(['john', 'amal', 'joel', 'george']) == ['nhoj', 'lama', 'leoj', 'egroeg']) else 1) + (0 if (f(['jack', 'john', 'mary']) == ['kcaj', 'nhoj', 'yram']) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (stringlist:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to reverse each string in a given list of string values.")
+@example(reverse_string_list ["Red", "Green", "Blue", "White", "Black"] = ["deR", "neerG", "eulB", "etihW", "kcalB"])
+@example(reverse_string_list ["john", "amal", "joel", "george"] = ["nhoj", "lama", "leoj", "egroeg"])
+@example(reverse_string_list ["jack", "john", "mary"] = ["kcaj", "nhoj", "yram"])
+def reverse_string_list (stringlist:(List String)) : {v:(List String) | List.size v = List.size stringlist} := ?hole

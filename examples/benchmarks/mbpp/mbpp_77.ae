@@ -1,9 +1,8 @@
 # MBPP task 77
-# Write a python function to find whether a number is divisible by 11.
-#
-# Synthesis target: is_Diff : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (f(12345) == False) else 1) + (0 if (f(1212112) == True) else 1) + (0 if (f(1212) == False) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find whether a number is divisible by 11.")
+@example(is_Diff 12345 = false)
+@example(is_Diff 1212112 = true)
+@example(is_Diff 1212 = false)
+def is_Diff (n:Int) : {v:Bool | v = (n % 11 = 0)} := ?hole

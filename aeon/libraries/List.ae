@@ -10,7 +10,7 @@ open Copy
 #    every constructor: a value can only enter the list if it satisfies ``p``.
 inductive List a forall <p : a -> Bool>
 | nil : {l: (List a) | size l = 0 && structuralRank l = 0}
-| cons (hd: {v:a | p v}) (tl: (List a)) : {l: (List a) | size l = size tl + 1 && structuralRank l = structuralRank tl + 1 && structuralRank tl >= 0 && first l = hd && rest l = tl}
+| cons (hd: {v:a | p v}) (tl: (List a)) : {l: (List a) | size l = size tl + 1 && size tl >= 0 && structuralRank l = structuralRank tl + 1 && structuralRank tl >= 0 && first l = hd && rest l = tl}
 + size (l: (List a)) : Int
 + structuralRank (l: (List a)) : Int
 + first (l: (List a)) : a
@@ -81,6 +81,52 @@ def all (p: (x:a) -> Bool) (l: (List a)) : Bool :=
     match l with
     | nil => true
     | cons hd tl => p hd && (all p tl);
+
+# Left fold, preserving the order of accumulation.
+def foldl (f:(acc:b) -> (x:a) -> b) (initial:b) (xs:(List a)) : b :=
+    match xs with
+    | nil => initial
+    | cons x rest => foldl f (f initial x) rest;
+
+# Retain matching elements in their original order.
+def filter (predicate:(x:a) -> Bool) (xs:(List a)) : (List a) :=
+    match xs with
+    | nil => nil
+    | cons x rest => if predicate x then cons x (filter predicate rest) else filter predicate rest;
+
+# Combine corresponding elements, stopping at the shorter input.
+def zipWith (f:(x:a) -> (y:b) -> c) (xs:(List a)) (ys:(List b)) : (List c) :=
+    match xs with
+    | nil => nil
+    | cons x tail => match ys with
+        | nil => nil
+        | cons y rest => cons (f x y) (zipWith f tail rest);
+
+# Prefix/suffix operations clamp nonpositive counts to zero and stop at the end.
+def take (count:Int) (xs:(List a)) : (List a) :=
+    if count <= 0 then nil else
+        match xs with
+        | nil => nil
+        | cons x rest => cons x (take (count - 1) rest);
+
+def drop (count:Int) (xs:(List a)) : (List a) :=
+    if count <= 0 then xs else
+        match xs with
+        | nil => nil
+        | cons x rest => drop (count - 1) rest;
+
+# Half-open ascending integer range; an inverted interval is empty.
+def range (start:Int) (stop:Int) : (List Int) :=
+    if start >= stop then nil else cons start (range (start + 1) stop);
+
+def sumFloat (xs:(List Float)) : Float :=
+    foldl (fun total => fun x => total + x) 0.0 xs;
+
+# Remove one occurrence, preserving the order and any later duplicates.
+def removeFirst (value:a) (xs:(List a)) : (List a) :=
+    match xs with
+    | nil => nil
+    | cons x rest => if x = value then rest else cons x (removeFirst value rest);
 
 # Immutable values are copyable when their elements are copyable.
 instance [Copy a] : Copy (List a) where

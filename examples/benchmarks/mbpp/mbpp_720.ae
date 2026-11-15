@@ -1,15 +1,14 @@
 # MBPP task 720
-# Write a function to add a dictionary to the tuple. The output should be a tuple.
-#
-# Synthesis target: add_dict_to_tuple : Tuple -> Dict -> Tuple
 
-type Tuple
+import List
+import Map
 
-inductive Dict
-| dnil : Dict
-| dcons (key:String) (val:Int) (rest:Dict) : Dict
+inductive Value
+| integer (value:Int) : Value
+| dictionary (value:(Map String Int)) : Value
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Dict) -> Tuple) : Float := native "float((0 if (f((4, 5, 6))(('Dict_dcons', 'MSAM', 1, ('Dict_dcons', 'is', 2, ('Dict_dcons', 'best', 3, ('Dict_dnil',))))) == (4, 5, 6, {'MSAM': 1, 'is': 2, 'best': 3})) else 1) + (0 if (f((1, 2, 3))(('Dict_dcons', 'UTS', 2, ('Dict_dcons', 'is', 3, ('Dict_dcons', 'Worst', 4, ('Dict_dnil',))))) == (1, 2, 3, {'UTS': 2, 'is': 3, 'Worst': 4})) else 1) + (0 if (f((8, 9, 10))(('Dict_dcons', 'POS', 3, ('Dict_dcons', 'is', 4, ('Dict_dcons', 'Okay', 5, ('Dict_dnil',))))) == (8, 9, 10, {'POS': 3, 'is': 4, 'Okay': 5})) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_tup:Tuple) (test_dict:Dict) : Tuple := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to add a dictionary to the tuple. The output should be a tuple.")
+@example(add_dict_to_tuple [4, 5, 6] (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "MSAM" 1) "is" 2) "best" 3) = [(Value.integer 4), (Value.integer 5), (Value.integer 6), (Value.dictionary (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "MSAM" 1) "is" 2) "best" 3))])
+@example(add_dict_to_tuple [1, 2, 3] (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "UTS" 2) "is" 3) "Worst" 4) = [(Value.integer 1), (Value.integer 2), (Value.integer 3), (Value.dictionary (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "UTS" 2) "is" 3) "Worst" 4))])
+@example(add_dict_to_tuple [8, 9, 10] (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "POS" 3) "is" 4) "Okay" 5) = [(Value.integer 8), (Value.integer 9), (Value.integer 10), (Value.dictionary (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "POS" 3) "is" 4) "Okay" 5))])
+def add_dict_to_tuple (test_tup:(List Int)) (test_dict:(Map String Int)) : {v:(List Value) | List.size v = List.size test_tup + 1} := ?hole

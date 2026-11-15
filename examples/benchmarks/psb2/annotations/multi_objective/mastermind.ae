@@ -1,33 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_mm_synth_values, unpack_train_data, load_dataset)
+# PSB2: mastermind
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/mastermind.clj
 
-import Array
-type Counter
+import List
+import Math
+import String
+import PSB2Fitness
 
-def itertools : Unit := native_import "itertools"
-def collections : Unit := native_import "collections"
+def train : Cases := PSB2Fitness.cases "mastermind" 200;
 
-def Zip : (1 xs:(Array Int)) -> (1 ys:(Array Int)) -> (Array Int) := fun xs => fun ys => native "list(zip(xs, ys))"
-def Map : (f: (1 s:(Array Int)) -> String) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
-def Map_bool : (f: (1 s:(Array Int)) -> Int) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "list(map(f, xs))"
+def score (cases:Cases) (candidate:(code:{v:String | String.len v = 4}) -> (guess:{v:String | String.len v = 4}) -> {r:(List Int) | List.size r = 2 && 0 <= (List.first r) && 0 <= (List.first (List.rest r)) && (List.first r) + (List.first (List.rest r)) <= 4}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('mastermind', cases(None), candidate)";
 
-def String_eq : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
-def List_sum : (1 l:(Array Int)) -> Int := fun xs => native "sum(xs)"
-def String_toList : (s:String) -> (Array Int) := fun s => native "list(s)"
-def String_Zip : (xs:String) -> (ys:String) -> (Array Int) := fun xs => fun ys => native "(zip(xs, ys))"
-def List_get_fst : (1 s: (Array Int)) -> String := fun s => native "s[0]"
-def List_get_snd : (1 s: (Array Int)) -> String := fun s => native "s[1]"
-def String_neq : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i != j";
-def Filter :  (f: (1 s:(Array Int)) -> Bool) -> (1 l:(Array Int)) -> (Array Int) := fun f => fun xs => native "[x for x in xs if f(x)]"
-def MkCounter : (1 l:(Array Int)) -> Counter := fun xs => native "collections.Counter(xs)"
-def Counter_intersection : (c1:Counter) -> (c2:Counter) -> Counter := fun c1 => fun c2 => native "c1 & c2"
-def Counter_values : (c:Counter) -> (Array Int) := fun c => native "list(c.values())"
-def Tuple : (a:Int) -> (b:Int) -> (Array Int) := fun a => fun b => native "[a,b]"
-
-def train : TrainingCases := training_data "mastermind" 200 200
-
-def calculate_mastermind_errors : (1 train:TrainData) -> (f:(a: String) -> (b:String) -> (Array Int) ) -> (Array Int)  :=  fun data => fun func => native "[(lambda output, correct:(abs(len(output) - len(correct)) * 1000) + sum(abs(a - b) for a, b in zip(output, correct)))(func(x[0])(x[1]), y) for x, y in data ]"
-
-
-@multi_minimize_float(per_example_errors (calculate_mastermind_errors (fresh_train_data train) synth), 200)
-def synth ( code : String) (guess: String ) : (Array Int) := (let extract_train_data := unit in let load_dataset := unit in let calculate_mastermind_errors := unit in let train := unit in ?hole)
+@doc("Return white then black peg counts, counting duplicate colors only as many times as they occur.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (code:{v:String | String.len v = 4}) (guess:{v:String | String.len v = 4}) : {r:(List Int) | List.size r = 2 && 0 <= (List.first r) && 0 <= (List.first (List.rest r)) && (List.first r) + (List.first (List.rest r)) <= 4} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

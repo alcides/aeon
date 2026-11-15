@@ -1,12 +1,18 @@
-import Array
-def itertools : Unit := native_import "itertools"
+# PSB2: cut-vector
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/cut_vector.clj
 
-def List_new (_: Unit) : (Array Int) := native "[]"
-def List_append (1 l:(Array Int)) (i: Int) : (Array Int) := native "l + [i]"
+import List
+import Math
+import String
 
-def cut_vector (1 ls : (Array Int)) : (Array Int) :=
-    native "(lambda xs: (xs, []) if len(xs) <= 1 else (lambda inits, tails: (lambda diffs: (lambda cut: (xs[:cut+1], xs[cut+1:]))(min(range(len(diffs)), key=lambda i: diffs[i])))([abs(a-b) for a,b in zip(inits, tails)]))(list(itertools.accumulate(xs[:-1])), list(reversed(list(itertools.accumulate(reversed(xs)))))[1:]))(ls)"
+def choose_cut (xs:(List Int)) (i:Int) (best:Int) (difference:Int) : Int :=
+    if i >= List.length xs then best else
+        let delta := Math.abs (List.sum (List.take i xs) - List.sum (List.drop i xs)) in
+        if delta = 0 then i else
+        if delta <= difference then choose_cut xs (i + 1) i delta else choose_cut xs (i + 1) best difference;
 
-def main (args:Int) : Unit :=
-    let 1 vec: (Array Int) := List_append (List_append (List_new unit) 1) 2;
-    print (cut_vector vec);
+@doc("Split a vector into two parts with the closest sums; match PSB2 tie-breaking.")
+def cut_vector (xs:{v:(List Int){|fun x => 0 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) : (List (List Int)) :=
+    let values:(List Int) := xs in
+    if List.length values = 1 then [values, []] else
+    let cut := choose_cut values 1 0 (List.foldr Math.max 0 values) in [List.take cut values, List.drop cut values];

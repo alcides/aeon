@@ -1,18 +1,16 @@
-import Array
-type Zip
-type Dict
+# PSB2: substitution-cipher
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/substitution_cipher.clj
 
-def Zip_String_String : (l1: String) -> (l2: String) -> Zip := fun xs => fun ys => native "zip(xs, ys)"
-def Dict_zip : (l: Zip) -> Dict := fun xs => native "dict(xs)"
-def String_list_to_String : (1 l:(Array Int)) -> String := fun l => native "''.join(l)"
-def Dict_get : (d: Dict) -> (k: String) -> (default: String) -> String := fun d => fun k => fun y => native "d.get(k, y)"
+import List
+import Math
+import String
+import Map
 
+def cipher_table (xs:(List String)) (ys:(List String)) (table:(Map String String)) : (Map String String) :=
+    match xs with | List.nil => table | List.cons x rest =>
+        match ys with | List.nil => table | List.cons y tail => cipher_table rest tail (Map.set table x y);
 
-def Map_String_String: (function: (a:String) -> String) -> (l: String) -> (Array Int) := fun f => fun xs => native "map(f, xs)"
-
-def cipher (cipher_from: String) ( cypher_to: String) (msg: String) : String := cipher_dict: Dict := Dict_zip (Zip_String_String cipher_from cypher_to);
- mapper : (x:String) -> String := fun x => cipher_dict.get x x;
- let 1 deciphered_chars: (Array Int)  := Map_String_String mapper msg;
- String_list_to_String deciphered_chars;
-
-def main (args:Int) : Unit := print (cipher "e" "l" "eeeeeeeeeeee")
+@doc("Substitute message characters using the equally sized source and destination alphabets; message characters belong to the source alphabet.")
+def substitution_cipher (cipher_from:{v:String | String.len v <= 26}) (cipher_to:{v:String | String.len v = String.len cipher_from}) (message:{v:String | String.len v <= 26}) : String :=
+    let table := cipher_table (String.characters cipher_from) (String.characters cipher_to) (Map.new : (Map String String)) in
+    String.joinList "" (List.map (fun c => Map.get_or table c "") (String.characters message));

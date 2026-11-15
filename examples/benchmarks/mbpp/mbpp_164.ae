@@ -1,9 +1,8 @@
 # MBPP task 164
-# Write a function to determine if the sum of the divisors of two integers are the same.
-#
-# Synthesis target: are_equivalent : Int -> Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Bool) : Float := native "float((0 if (f(36)(57) == False) else 1) + (0 if (f(2)(4) == False) else 1) + (0 if (f(23)(47) == True) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (num1:Int) (num2:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to determine if the sum of the divisors of two integers are the same.")
+@example(are_equivalent 36 57 = false)
+@example(are_equivalent 2 4 = false)
+@example(are_equivalent 23 47 = true)
+def are_equivalent (num1:{v:Int | v > 0}) (num2:{v:Int | v > 0}) : Bool := ?hole

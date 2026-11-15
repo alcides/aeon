@@ -1,9 +1,8 @@
 # MBPP task 794
-# Write a function that matches a string that has an 'a' followed by anything, ending in 'b'.
-#
-# Synthesis target: text_starta_endb : String -> Bool
 
-def mbpp_fitness (f:(x0:String) -> Bool) : Float := native "float((0 if (f('aabbbb')) else 1) + (0 if (not f('aabAbbbc')) else 1) + (0 if (not f('accddbbjjj')) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (text:String) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that matches a string that has an 'a' followed by anything, ending in 'b'.")
+@example(text_starta_endb "aabbbb" = true)
+@example(text_starta_endb "aabAbbbc" = false)
+@example(text_starta_endb "accddbbjjj" = false)
+def text_starta_endb (text:String) : Bool := ?hole

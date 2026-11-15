@@ -1,9 +1,9 @@
 # MBPP task 83
-# Write a python function to find the character made by adding the ASCII value of all the characters of the given string modulo 26.
-#
-# Synthesis target: get_Char : String -> String
 
-def mbpp_fitness (f:(x0:String) -> String) : Float := native "float((0 if (f('abc') == 'f') else 1) + (0 if (f('gfg') == 't') else 1) + (0 if (f('ab') == 'c') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (strr:String) : String := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the character made by adding the ASCII value of all the characters of the given string modulo 26.")
+@example(get_Char "abc" = "f")
+@example(get_Char "gfg" = "t")
+@example(get_Char "ab" = "c")
+def get_Char (strr:String) : {v:String | String.len v = 1} := ?hole

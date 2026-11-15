@@ -1,11 +1,9 @@
 # MBPP task 760
-# Write a python function to check whether a list of numbers contains only one distinct element or not.
-#
-# Synthesis target: unique_Element : List -> Bool
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Bool) : Float := native "float((0 if (f([1, 1, 1]) == True) else 1) + (0 if (f([1, 2, 1, 2]) == False) else 1) + (0 if (f([1, 2, 3, 4, 5]) == False) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (arr:List) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to check whether a list of numbers contains only one distinct element or not.")
+@example(unique_Element [1, 1, 1] = true)
+@example(unique_Element [1, 2, 1, 2] = false)
+@example(unique_Element [1, 2, 3, 4, 5] = false)
+def unique_Element (arr:(List Int)) : Bool := ?hole

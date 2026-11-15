@@ -1,12 +1,9 @@
 # MBPP task 599
-# Write a function to find sum and average of first n natural numbers.
-#
-# Synthesis target: sum_average : Int -> Tuple
 
-inductive Tuple
-| mk (a0:Int) (a1:Float) : Tuple
+import Pair
 
-def mbpp_fitness (f:(x0:Int) -> Tuple) : Float := native "float((0 if (f(10) == ('Tuple_mk', 55, 5.5)) else 1) + (0 if (f(15) == ('Tuple_mk', 120, 8.0)) else 1) + (0 if (f(20) == ('Tuple_mk', 210, 10.5)) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (number:Int) : Tuple := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find sum and average of first n natural numbers.")
+@example(sum_average 10 = (Pair.mk 55 5.5))
+@example(sum_average 15 = (Pair.mk 120 8.0))
+@example(sum_average 20 = (Pair.mk 210 10.5))
+def sum_average (number:{v:Int | v > 0}) : {value:(Pair Int Float) | ((Pair.first value) >= number) && ((Pair.second value) >= 1.0)} := ?hole

@@ -1,11 +1,9 @@
 # MBPP task 757
-# Write a function to count the pairs of reverse strings in the given string list. https://www.geeksforgeeks.org/python-program-to-count-the-pairs-of-reverse-strings/
-#
-# Synthesis target: count_reverse_pairs : List -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Int) : Float := native "float((0 if (f(['julia', 'best', 'tseb', 'for', 'ailuj']) == 2) else 1) + (0 if (f(['geeks', 'best', 'for', 'skeeg']) == 1) else 1) + (0 if (f(['makes', 'best', 'sekam', 'for', 'rof']) == 2) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_list:List) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to count the pairs of reverse strings in the given string list. https://www.geeksforgeeks.org/python-program-to-count-the-pairs-of-reverse-strings/")
+@example(count_reverse_pairs ["julia", "best", "tseb", "for", "ailuj"] = 2)
+@example(count_reverse_pairs ["geeks", "best", "for", "skeeg"] = 1)
+@example(count_reverse_pairs ["makes", "best", "sekam", "for", "rof"] = 2)
+def count_reverse_pairs (test_list:(List String)) : {v:Int | 0 <= v && 2 * v <= List.size test_list * (List.size test_list - 1)} := ?hole

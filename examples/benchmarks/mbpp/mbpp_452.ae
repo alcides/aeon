@@ -1,9 +1,8 @@
 # MBPP task 452
-# Write a function that gives loss amount on a sale if the given amount has loss else return 0.
-#
-# Synthesis target: loss_amount : Int -> Int -> Int
 
-def mbpp_fitness (f:(x0:Int) -> (x1:Int) -> Int) : Float := native "float((0 if (f(1500)(1200) == 0) else 1) + (0 if (f(100)(200) == 100) else 1) + (0 if (f(2000)(5000) == 3000) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (actual_cost:Int) (sale_amount:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that gives loss amount on a sale if the given amount has loss else return 0.")
+@example(loss_amount 1500 1200 = 0)
+@example(loss_amount 100 200 = 100)
+@example(loss_amount 2000 5000 = 3000)
+def loss_amount (actual_cost:{v:Int | v >= 0}) (sale_amount:{v:Int | v >= 0}) : {v:Int | 0 <= v && v <= sale_amount} := ?hole

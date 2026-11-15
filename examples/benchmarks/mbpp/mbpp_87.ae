@@ -1,13 +1,9 @@
 # MBPP task 87
-# Write a function to merge three dictionaries into a single dictionary.
-#
-# Synthesis target: merge_dictionaries_three : Dict -> Dict -> Dict -> Dict
 
-inductive Dict
-| dnil : Dict
-| dcons (key:String) (val:String) (rest:Dict) : Dict
+import Map
 
-def mbpp_fitness (f:(x0:Dict) -> (x1:Dict) -> (x2:Dict) -> Dict) : Float := native "float((0 if (f(('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dnil',)))))(('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dnil',))))(('Dict_dcons', 'O', 'Orange', ('Dict_dcons', 'W', 'White', ('Dict_dcons', 'B', 'Black', ('Dict_dnil',))))) == ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'P', 'Pink', ('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dcons', 'O', 'Orange', ('Dict_dnil',)))))))) else 1) + (0 if (f(('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dnil',)))))(('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dnil',))))(('Dict_dcons', 'L', 'lavender', ('Dict_dcons', 'B', 'Blue', ('Dict_dnil',)))) == ('Dict_dcons', 'W', 'White', ('Dict_dcons', 'P', 'Pink', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'L', 'lavender', ('Dict_dnil',)))))))) else 1) + (0 if (f(('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dnil',)))))(('Dict_dcons', 'L', 'lavender', ('Dict_dcons', 'B', 'Blue', ('Dict_dnil',))))(('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'W', 'White', ('Dict_dnil',)))) == ('Dict_dcons', 'B', 'Black', ('Dict_dcons', 'P', 'Pink', ('Dict_dcons', 'R', 'Red', ('Dict_dcons', 'G', 'Green', ('Dict_dcons', 'L', 'lavender', ('Dict_dcons', 'W', 'White', ('Dict_dnil',)))))))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (dict1:Dict) (dict2:Dict) (dict3:Dict) : Dict := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to merge three dictionaries into a single dictionary.")
+@example(merge_dictionaries_three (Map.set (Map.set (Map.set (Map.new : (Map String String)) "R" "Red") "B" "Black") "P" "Pink") (Map.set (Map.set (Map.new : (Map String String)) "G" "Green") "W" "White") (Map.set (Map.set (Map.set (Map.new : (Map String String)) "O" "Orange") "W" "White") "B" "Black") = (Map.set (Map.set (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String String)) "B" "Black") "R" "Red") "P" "Pink") "G" "Green") "W" "White") "O" "Orange"))
+@example(merge_dictionaries_three (Map.set (Map.set (Map.set (Map.new : (Map String String)) "R" "Red") "B" "Black") "P" "Pink") (Map.set (Map.set (Map.new : (Map String String)) "G" "Green") "W" "White") (Map.set (Map.set (Map.new : (Map String String)) "L" "lavender") "B" "Blue") = (Map.set (Map.set (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String String)) "W" "White") "P" "Pink") "B" "Black") "R" "Red") "G" "Green") "L" "lavender"))
+@example(merge_dictionaries_three (Map.set (Map.set (Map.set (Map.new : (Map String String)) "R" "Red") "B" "Black") "P" "Pink") (Map.set (Map.set (Map.new : (Map String String)) "L" "lavender") "B" "Blue") (Map.set (Map.set (Map.new : (Map String String)) "G" "Green") "W" "White") = (Map.set (Map.set (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String String)) "B" "Black") "P" "Pink") "R" "Red") "G" "Green") "L" "lavender") "W" "White"))
+def merge_dictionaries_three (dict1:(Map String String)) (dict2:(Map String String)) (dict3:(Map String String)) : {v:(Map String String) | Map.size v >= Map.size dict1 && Map.size v >= Map.size dict2 && Map.size v >= Map.size dict3 && Map.size v <= Map.size dict1 + Map.size dict2 + Map.size dict3} := ?hole

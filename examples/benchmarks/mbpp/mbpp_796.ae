@@ -1,13 +1,9 @@
 # MBPP task 796
-# Write function to find the sum of all items in the given dictionary.
-#
-# Synthesis target: return_sum : Dict -> Int
 
-inductive Dict
-| dnil : Dict
-| dcons (key:String) (val:Int) (rest:Dict) : Dict
+import Map
 
-def mbpp_fitness (f:(x0:Dict) -> Int) : Float := native "float((0 if (f(('Dict_dcons', 'a', 100, ('Dict_dcons', 'b', 200, ('Dict_dcons', 'c', 300, ('Dict_dnil',))))) == 600) else 1) + (0 if (f(('Dict_dcons', 'a', 25, ('Dict_dcons', 'b', 18, ('Dict_dcons', 'c', 45, ('Dict_dnil',))))) == 88) else 1) + (0 if (f(('Dict_dcons', 'a', 36, ('Dict_dcons', 'b', 39, ('Dict_dcons', 'c', 49, ('Dict_dnil',))))) == 124) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (dict:Dict) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write function to find the sum of all items in the given dictionary.")
+@example(return_sum (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "a" 100) "b" 200) "c" 300) = 600)
+@example(return_sum (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "a" 25) "b" 18) "c" 45) = 88)
+@example(return_sum (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "a" 36) "b" 39) "c" 49) = 124)
+def return_sum (dict:(Map String Int)) : Int := ?hole

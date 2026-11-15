@@ -1,32 +1,15 @@
-import Array
-def String_split : (s:String) -> (sep:String) -> (Array Int) := fun s => fun sep => native "s.split(sep)"
-def String_concat : (i:String) -> (j:String) -> String := fun i => fun j => native "i + j"
+# PSB2: solve-boolean
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/solve_boolean.clj
 
-def Map_string : (f: (s:String) -> String) -> (l:String) -> String := fun f => fun xs => native "str(map(f, xs))"
-def String_join : (1 l:(Array Int)) -> (s:String) -> String := fun l => fun s => native "s.join(l)"
-def String_tail:(l:String) -> String := fun xs => native "xs[1:]"
-def String_contains:(s:String) -> (c:String) -> Bool := fun s => fun c => native "c in s"
-def String_equal : (i:String) -> (j:String) -> Bool := fun i => fun j => native "i == j";
-def String_get: (l:String) -> (i:Int) -> String := fun xs => fun i => native "xs[i]"
-def String_slice: (s:String) -> (start:Int) -> (end:Int) -> String := fun s => fun start => fun end => native "s[start:end]"
-def String_length: (s:String) -> Int := fun s => native "len(s)"
-def List_get: (1 l:(Array Int)) -> (i:Int) -> String := fun xs => fun i => native "xs[i]"
+import List
+import Math
+import String
 
-def solve_boolean ( s : String ) : Bool := if (s.equal "t") then
-        true
-    else
-        if (s.equal "f") then
-            false
-        else
-             if ((s.get (-2)).equal "&") then
-                operand1: String := s.slice 0 (-2);
-                operand2: String := s.slice (-1) (s.length);
-                solve_boolean operand1 && solve_boolean operand2
-             else
-                operand1: String := s.slice 0 (-2);
-                operand2: String := s.slice (-1) (s.length);
-                solve_boolean operand1 || solve_boolean operand2;
+def boolean_go (s:String) (index:Int) (value:Bool) : Bool :=
+    if index >= String.len s then value else
+        let next := String.charAt s (index + 1) = "t" in
+        boolean_go s (index + 2) (if String.charAt s index = "&" then value && next else value || next);
 
-
-
-def main (args:Int) : Unit := print (solve_boolean "f&f|t")
+@doc("Evaluate a valid t/f expression with & and | strictly from left to right.")
+def solve_boolean (s:{v:String | 1 <= String.len v && String.len v <= 39 && String.len v % 2 = 1}) : Bool :=
+    boolean_go s 1 (String.charAt s 0 = "t");

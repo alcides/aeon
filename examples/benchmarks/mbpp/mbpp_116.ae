@@ -1,13 +1,9 @@
 # MBPP task 116
-# Write a function to convert a given tuple of positive integers into a single integer.
-#
-# Synthesis target: tuple_to_int : Tuple -> Int
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+import List
 
-def mbpp_fitness (f:(x0:Tuple) -> Int) : Float := native "float((0 if (f(('Tuple_tcons', 1, ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tnil',))))) == 123) else 1) + (0 if (f(('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tnil',))))) == 456) else 1) + (0 if (f(('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tnil',))))) == 567) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (nums:Tuple) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to convert a given tuple of positive integers into a single integer.")
+@example(tuple_to_int [1, 2, 3] = 123)
+@example(tuple_to_int [4, 5, 6] = 456)
+@example(tuple_to_int [5, 6, 7] = 567)
+def tuple_to_int (nums:{value:(List Int) | List.size value = 3 && (List.first value) >= 0 && (List.first (List.rest value)) >= 0 && (List.first (List.rest (List.rest value))) >= 0}) : {v:Int | v >= 0} := ?hole

@@ -1,40 +1,20 @@
-import PSB2Fitness (per_example_errors)
-import PSB2 (training_data, fresh_train_data, extract_train_data, load_dataset)
+# PSB2: luhn
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/luhn.clj
 
-import Array
-type Range
-type Map
+import List
+import Math
+import String
+import PSB2Fitness
 
-def List_size: (1 l:(Array Int)) -> Int := uninterpreted
-def List_length: (1 l:(Array Int)) -> Int := fun list => native "len(list)"
-def List_new (_: Unit) : {x:(Array Int) | List_size x = 0} := native "[]" ;
-def List_append (1 l:(Array Int)) (i: Int) : {l2:(Array Int) | List_size l2 = List_size l + 1} := native "l + [i]";
+def train : Cases := PSB2Fitness.cases "luhn" 200;
 
+def score (cases:Cases) (candidate:(digits:{v:(List Int){|fun x => 0 <= x && x <= 9|} | 16 <= List.size v && List.size v <= 16}) -> {v:Int | 0 <= v && v <= 144}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('luhn', cases(None), candidate)";
 
-def sum : (1 l:(Array Int)) -> Int := fun xs => native "sum(xs)"
-
-def List_map_List_Range : (function:(a: Int) -> (b:Int) -> Int)
-                        -> (1 l:(Array Int))
-                        -> (r:Range)
-                        -> (Array Int) := fun f => fun xs => fun r => native "list(map(lambda x, y:f(x)(y), xs, r))";
-
-def List_map_List : (function:(a: Int) -> Int)
-                        -> (1 l:(Array Int))
-                        -> (Array Int) := fun f => fun xs => native "list(map(lambda x: f(x), xs))";
-
-
-def Range_new : (a:Int) -> (b:Int) -> Range := fun a => fun b => native "range(a,b)"
-
-def even : (n:Int) -> Bool := fun n => n % 2 = 0;
-
-def map_digit (x:Int) (i:Int) : Int := if (i % 2) = 0 then ( if (x * 2) > 9 then ((x * 2) - 9) else ( x * 2 ) : Int) else x;
-
-
-#PSB2
-def train : TrainingCases := training_data "luhn" 200 200
-
-def calculate_luhn_errors : (1 train:TrainData) -> (f:(1 a: (Array Int)) -> Int)  -> (Array Int)  :=  fun data => fun func => native "[abs(func(x[0]) - y[0]) for x , y  in data]"
-
-
-@multi_minimize_float(per_example_errors (calculate_luhn_errors (fresh_train_data train) synth), 200)
-def synth (1 digits: (Array Int)) : Int := (let extract_train_data := unit in let load_dataset := unit in let calculate_luhn_errors := unit in let train := unit in ?hole)
+@doc("Sum sixteen Luhn-transformed digits, doubling the digit at index zero and every other digit.")
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 200)
+def synth (digits:{v:(List Int){|fun x => 0 <= x && x <= 9|} | 16 <= List.size v && List.size v <= 16}) : {v:Int | 0 <= v && v <= 144} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;

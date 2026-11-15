@@ -1,9 +1,8 @@
 # MBPP task 285
-# Write a function that checks whether a string contains the 'a' character followed by two or three 'b' characters.
-#
-# Synthesis target: text_match_two_three : String -> Bool
 
-def mbpp_fitness (f:(x0:String) -> Bool) : Float := native "float((0 if (f('ac') == False) else 1) + (0 if (f('dc') == False) else 1) + (0 if (f('abbbba') == True) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (text:String) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that checks whether a string contains the 'a' character followed by two or three 'b' characters.")
+@example(text_match_two_three "ac" = false)
+@example(text_match_two_three "dc" = false)
+@example(text_match_two_three "abbbba" = true)
+def text_match_two_three (text:String) : Bool := ?hole

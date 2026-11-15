@@ -1,32 +1,26 @@
-import Array
-# Dice Game (PE) Peter has an n sided die and Colin has an m
-# sided die. If they both roll their dice at the same time, return
-# the probability that Peter rolls strictly higher than Colin.
-# input : 2 integers in [1, 1000]
-# output : float
-# -- working--
+# PSB2: dice-game
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/dice_game.clj
 
-open Math
-open PSB2
+import List
+import Math
+import String
+import PSB2Fitness
 
-#constants
-def constant_f0 : Float := 0.0
-def constant_f1 : Float := 1.0
+def train : Cases := PSB2Fitness.cases "dice-game" 200;
 
-def mult (n:Int) (m:Int ) : Int := n * m
+def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000}) -> (m:{v:Int | 1 <= v && v <= 1000}) -> {r:Float | 0.0 <= r && r < 1.0}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('dice-game', cases(None), candidate)";
 
-def peter_wins: ( n:Int ) -> ( m:Int ) -> Int := fun n => fun m => if m = 0 then 0 else (Math.max 0 (n - m)) + peter_wins n (m - 1);
+def dice_game (n:{v:Int | 1 <= v && v <= 1000}) (m:{v:Int | 1 <= v && v <= 1000}) : Float :=
+    if n <= m then
+        let denominator := Math.toFloat (2 * m) in if denominator = 0.0 then 0.0 else Math.toFloat (n - 1) / denominator
+    else let denominator := Math.toFloat (2 * n) in if denominator = 0.0 then 0.0 else 1.0 - Math.toFloat (m + 1) / denominator;
 
-def dice_game ( n : {x:Int | 1 <= x && x <= 10000}) (m : {y:Int | 1 <= y && y <= 10000}) : Float := let denominator := Math.toFloat (mult n m) in if denominator = 0.0 then 0.0 else Math.toFloat (peter_wins n m) / denominator;
-
-def synth ( n : {a:Int | 1 <= a && a <= 10000}) (m : {b:Int | 1 <= b && b <= 10000}) : Float := ?hole;
-
-def mean_square_error (1 actual: (Array Int)) (1 expected: (Array Int)) : Float := native "float(__import__('numpy').mean((__import__('numpy').array(actual) - __import__('numpy').array(expected)) ** 2))";
-
-def fitness : Float :=
-    let 1 ds := load_dataset "dice-game" 200 200;
-    let 1 train := extract_train_data ds in
-    with_lists train (fun input_list => fun expected_values =>
-        let 1 actual_values : (Array Int) := native "[synth(x)(y) for x, y in input_list]";
-        mse := mean_square_error actual_values expected_values;
-        mse);
+@doc("Return the probability that an n-sided die rolls strictly above an m-sided die.")
+@minimize_float(PSB2Fitness.meanError (score train synth))
+def synth (n:{v:Int | 1 <= v && v <= 1000}) (m:{v:Int | 1 <= v && v <= 1000}) : {r:Float | 0.0 <= r && r < 1.0} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    let dice_game := unit in
+    ?hole;

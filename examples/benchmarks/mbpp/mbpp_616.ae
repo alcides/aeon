@@ -1,13 +1,9 @@
 # MBPP task 616
-# Write a function which takes two tuples of the same length and performs the element wise modulo.
-#
-# Synthesis target: tuple_modulo : Tuple -> Tuple -> Tuple
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
+import List
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:Tuple) -> Tuple) : Float := native "float((0 if (f(('Tuple_tcons', 10, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tnil',))))))(('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tcons', 5, ('Tuple_tnil',)))))) == ('Tuple_tcons', 0, ('Tuple_tcons', 4, ('Tuple_tcons', 5, ('Tuple_tcons', 1, ('Tuple_tnil',)))))) else 1) + (0 if (f(('Tuple_tcons', 11, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tnil',))))))(('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tcons', 8, ('Tuple_tcons', 6, ('Tuple_tnil',)))))) == ('Tuple_tcons', 5, ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tcons', 1, ('Tuple_tnil',)))))) else 1) + (0 if (f(('Tuple_tcons', 12, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tcons', 8, ('Tuple_tnil',))))))(('Tuple_tcons', 7, ('Tuple_tcons', 8, ('Tuple_tcons', 9, ('Tuple_tcons', 7, ('Tuple_tnil',)))))) == ('Tuple_tcons', 5, ('Tuple_tcons', 6, ('Tuple_tcons', 7, ('Tuple_tcons', 1, ('Tuple_tnil',)))))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_tup1:Tuple) (test_tup2:Tuple) : Tuple := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function which takes two tuples of the same length and performs the element wise modulo.")
+@example(tuple_modulo [10, 4, 5, 6] [5, 6, 7, 5] = [0, 4, 5, 1])
+@example(tuple_modulo [11, 5, 6, 7] [6, 7, 8, 6] = [5, 5, 6, 1])
+@example(tuple_modulo [12, 6, 7, 8] [7, 8, 9, 7] = [5, 6, 7, 1])
+def tuple_modulo (test_tup1:{value:(List Int) | List.size value = 4}) (test_tup2:{value:(List Int) | List.size value = 4 && (List.first value) != 0 && (List.first (List.rest value)) != 0 && (List.first (List.rest (List.rest value))) != 0 && (List.first (List.rest (List.rest (List.rest value)))) != 0}) : {value:(List Int) | List.size value = 4} := ?hole

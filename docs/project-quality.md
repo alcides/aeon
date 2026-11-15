@@ -79,12 +79,15 @@ still applies; `--check` suppresses runtime execution, not refinement verificati
 PSB2 multi-objective examples use one objective per training case (200, or 50
 for `leaders`), rather than confusing output-vector arity with objective count.
 Their native objective-vector conversion checks the actual length before
-returning its refined array. Single-objective array getters are functions so
-that every invocation produces a fresh linear array.
+returning its refined array. Single-objective variants average those per-case
+errors, preserving fractional values and example boundaries.
 Reusable PSB2 fixtures sample lazily once with seed 0 and deep-copy their cases
 for each evaluation. This keeps the benchmark stable even when a synthesized
-candidate mutates an input or fitness workers start independently. Training
-snapshots and their unpacked tuples are consumed exactly once.
+candidate mutates an input or fitness workers start independently. The benchmark
+adapter validates input refinements and converts sequences to immutable Aeon
+lists before invoking candidates; only objective vectors remain linear arrays.
+All 25 reference functions and all 40 scoring adapters have offline conformance
+tests, alongside compilation checks for every PSB2 source.
 
 ## Compilation sessions
 

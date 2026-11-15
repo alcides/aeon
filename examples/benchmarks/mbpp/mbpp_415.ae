@@ -1,15 +1,10 @@
 # MBPP task 415
-# Write a python function to find a pair with highest product from a given array of integers.
-#
-# Synthesis target: max_Product : List -> Tuple
 
-type List
+import List
+import Pair
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
-
-def mbpp_fitness (f:(x0:List) -> Tuple) : Float := native "float((0 if (f([1, 2, 3, 4, 7, 0, 8, 4]) == ('Tuple_tcons', 7, ('Tuple_tcons', 8, ('Tuple_tnil',)))) else 1) + (0 if (f([0, -1, -2, -4, 5, 0, -6]) == ('Tuple_tcons', -4, ('Tuple_tcons', -6, ('Tuple_tnil',)))) else 1) + (0 if (f([1, 2, 3]) == ('Tuple_tcons', 2, ('Tuple_tcons', 3, ('Tuple_tnil',)))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (arr:List) : Tuple := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find a pair with highest product from a given array of integers.")
+@example(max_Product [1, 2, 3, 4, 7, 0, 8, 4] = (Pair.mk 7 8))
+@example(max_Product [0, (-1), (-2), (-4), 5, 0, (-6)] = (Pair.mk (-4) (-6)))
+@example(max_Product [1, 2, 3] = (Pair.mk 2 3))
+def max_Product (arr:{v:(List Int) | List.size v >= 2}) : (Pair Int Int) := ?hole

@@ -1,11 +1,10 @@
 # MBPP task 128
-# Write a function to find words that are longer than n characters from a given list of words.
-#
-# Synthesis target: long_words : Int -> String -> List
 
-type List
+import String
+import List
 
-def mbpp_fitness (f:(x0:Int) -> (x1:String) -> List) : Float := native "float((0 if (f(3)('python is a programming language') == ['python', 'programming', 'language']) else 1) + (0 if (f(2)('writing a program') == ['writing', 'program']) else 1) + (0 if (f(5)('sorting list') == ['sorting']) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (n:Int) (str:String) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find words that are longer than n characters from a given list of words.")
+@example(long_words 3 "python is a programming language" = ["python", "programming", "language"])
+@example(long_words 2 "writing a program" = ["writing", "program"])
+@example(long_words 5 "sorting list" = ["sorting"])
+def long_words (n:Int) (str:String) : {v:(List String) | List.size v <= String.len str + 1} := ?hole

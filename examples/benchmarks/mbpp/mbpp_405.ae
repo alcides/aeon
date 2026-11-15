@@ -1,12 +1,15 @@
 # MBPP task 405
-# Write a function to check whether an element exists within a tuple.
-#
-# Synthesis target: check_tuplex : Tuple -> String -> Bool
 
-inductive Tuple
-| mk (a0:String) (a1:Int) (a2:String) (a3:String) (a4:String) (a5:String) (a6:String) (a7:String) (a8:String) (a9:String) : Tuple
 
-def mbpp_fitness (f:(x0:Tuple) -> (x1:String) -> Bool) : Float := native "float((0 if (f(('Tuple_mk', 'w', 3, 'r', 'e', 's', 'o', 'u', 'r', 'c', 'e'))('r') == True) else 1) + (0 if (f(('Tuple_mk', 'w', 3, 'r', 'e', 's', 'o', 'u', 'r', 'c', 'e'))('5') == False) else 1) + (0 if (f(('Tuple_mk', 'w', 3, 'r', 'e', 's', 'o', 'u', 'r', 'c', 'e'))(3) == True) else 1))"
+inductive Tuple10 a0 a1 a2 a3 a4 a5 a6 a7 a8 a9
+| mk (item0:a0) (item1:a1) (item2:a2) (item3:a3) (item4:a4) (item5:a5) (item6:a6) (item7:a7) (item8:a8) (item9:a9) : (Tuple10 a0 a1 a2 a3 a4 a5 a6 a7 a8 a9)
 
-@minimize_float(mbpp_fitness synth)
-def synth (tuplex:Tuple) (tuple1:String) : Bool := (let mbpp_fitness := unit in ?hole)
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
+
+@doc("Write a function to check whether an element exists within a tuple.")
+@example(check_tuplex (Tuple10.mk "w" 3 "r" "e" "s" "o" "u" "r" "c" "e") (Value1.asString "r") = true)
+@example(check_tuplex (Tuple10.mk "w" 3 "r" "e" "s" "o" "u" "r" "c" "e") (Value1.asString "5") = false)
+@example(check_tuplex (Tuple10.mk "w" 3 "r" "e" "s" "o" "u" "r" "c" "e") (Value1.asInt 3) = true)
+def check_tuplex (tuplex:(Tuple10 String Int String String String String String String String String)) (tuple1:Value1) : Bool := ?hole

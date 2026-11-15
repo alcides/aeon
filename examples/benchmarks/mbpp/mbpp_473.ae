@@ -1,17 +1,11 @@
 # MBPP task 473
-# Write a function to find the tuple intersection of elements in the given tuple list irrespective of their order.
-#
-# Synthesis target: tuple_intersection : List -> List -> Set
 
-type List
+import List
+import Pair
+import Set
 
-inductive Tuple
-| tnil  : Tuple
-| tcons (hd:Int) (tl:Tuple) : Tuple
-
-type Set
-
-def mbpp_fitness (f:(x0:List) -> (x1:List) -> Set) : Float := native "float((0 if (f([(3, 4), (5, 6), (9, 10), (4, 5)])([(5, 4), (3, 4), (6, 5), (9, 11)]) == {(4, 5), (3, 4), (5, 6)}) else 1) + (0 if (f([(4, 1), (7, 4), (11, 13), (17, 14)])([(1, 4), (7, 4), (16, 12), (10, 13)]) == {(4, 7), (1, 4)}) else 1) + (0 if (f([(2, 1), (3, 2), (1, 3), (1, 4)])([(11, 2), (2, 3), (6, 2), (1, 3)]) == {(1, 3), (2, 3)}) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (test_list1:List) (test_list2:List) : Set := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to find the tuple intersection of elements in the given tuple list irrespective of their order.")
+@example(tuple_intersection [(Pair.mk 3 4), (Pair.mk 5 6), (Pair.mk 9 10), (Pair.mk 4 5)] [(Pair.mk 5 4), (Pair.mk 3 4), (Pair.mk 6 5), (Pair.mk 9 11)] = (Set.add (Set.add (Set.add (Set.new : (Set (Pair Int Int))) (Pair.mk 3 4)) (Pair.mk 4 5)) (Pair.mk 5 6)))
+@example(tuple_intersection [(Pair.mk 4 1), (Pair.mk 7 4), (Pair.mk 11 13), (Pair.mk 17 14)] [(Pair.mk 1 4), (Pair.mk 7 4), (Pair.mk 16 12), (Pair.mk 10 13)] = (Set.add (Set.add (Set.new : (Set (Pair Int Int))) (Pair.mk 1 4)) (Pair.mk 4 7)))
+@example(tuple_intersection [(Pair.mk 2 1), (Pair.mk 3 2), (Pair.mk 1 3), (Pair.mk 1 4)] [(Pair.mk 11 2), (Pair.mk 2 3), (Pair.mk 6 2), (Pair.mk 1 3)] = (Set.add (Set.add (Set.new : (Set (Pair Int Int))) (Pair.mk 1 3)) (Pair.mk 2 3)))
+def tuple_intersection (test_list1:(List (Pair Int Int))) (test_list2:(List (Pair Int Int))) : {v:(Set (Pair Int Int)) | 0 <= Set.size v && Set.size v <= List.size test_list1 && Set.size v <= List.size test_list2} := ?hole

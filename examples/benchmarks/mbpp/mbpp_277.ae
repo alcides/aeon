@@ -1,13 +1,9 @@
 # MBPP task 277
-# Write a function that takes in a dictionary and integer n and filters the dictionary to only include entries with values greater than or equal to n.
-#
-# Synthesis target: dict_filter : Dict -> Int -> Dict
 
-inductive Dict
-| dnil : Dict
-| dcons (key:String) (val:Int) (rest:Dict) : Dict
+import Map
 
-def mbpp_fitness (f:(x0:Dict) -> (x1:Int) -> Dict) : Float := native "float((0 if (f(('Dict_dcons', 'Cierra Vega', 175, ('Dict_dcons', 'Alden Cantrell', 180, ('Dict_dcons', 'Kierra Gentry', 165, ('Dict_dcons', 'Pierre Cox', 190, ('Dict_dnil',))))))(170) == ('Dict_dcons', 'Cierra Vega', 175, ('Dict_dcons', 'Alden Cantrell', 180, ('Dict_dcons', 'Pierre Cox', 190, ('Dict_dnil',))))) else 1) + (0 if (f(('Dict_dcons', 'Cierra Vega', 175, ('Dict_dcons', 'Alden Cantrell', 180, ('Dict_dcons', 'Kierra Gentry', 165, ('Dict_dcons', 'Pierre Cox', 190, ('Dict_dnil',))))))(180) == ('Dict_dcons', 'Alden Cantrell', 180, ('Dict_dcons', 'Pierre Cox', 190, ('Dict_dnil',)))) else 1) + (0 if (f(('Dict_dcons', 'Cierra Vega', 175, ('Dict_dcons', 'Alden Cantrell', 180, ('Dict_dcons', 'Kierra Gentry', 165, ('Dict_dcons', 'Pierre Cox', 190, ('Dict_dnil',))))))(190) == ('Dict_dcons', 'Pierre Cox', 190, ('Dict_dnil',))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (dict:Dict) (n:Int) : Dict := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function that takes in a dictionary and integer n and filters the dictionary to only include entries with values greater than or equal to n.")
+@example(dict_filter (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "Cierra Vega" 175) "Alden Cantrell" 180) "Kierra Gentry" 165) "Pierre Cox" 190) 170 = (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "Cierra Vega" 175) "Alden Cantrell" 180) "Pierre Cox" 190))
+@example(dict_filter (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "Cierra Vega" 175) "Alden Cantrell" 180) "Kierra Gentry" 165) "Pierre Cox" 190) 180 = (Map.set (Map.set (Map.new : (Map String Int)) "Alden Cantrell" 180) "Pierre Cox" 190))
+@example(dict_filter (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String Int)) "Cierra Vega" 175) "Alden Cantrell" 180) "Kierra Gentry" 165) "Pierre Cox" 190) 190 = (Map.set (Map.new : (Map String Int)) "Pierre Cox" 190))
+def dict_filter (dict:(Map String Int)) (n:Int) : {v:(Map String Int) | 0 <= Map.size v && Map.size v <= Map.size dict} := ?hole

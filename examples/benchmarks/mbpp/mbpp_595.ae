@@ -1,9 +1,13 @@
 # MBPP task 595
-# Write a python function to count minimum number of swaps required to convert one binary number represented as a string to another.
-#
-# Synthesis target: min_Swaps : String -> String -> Int
 
-def mbpp_fitness (f:(x0:String) -> (x1:String) -> Int) : Float := native "float((0 if (f('1101')('1110') == 1) else 1) + (0 if (f('111')('000') == 'Not Possible') else 1) + (0 if (f('111')('110') == 'Not Possible') else 1))"
+import String
 
-@minimize_float(mbpp_fitness synth)
-def synth (str1:String) (str2:String) : Int := (let mbpp_fitness := unit in ?hole)
+inductive Value1
+| asInt (value:Int) : Value1
+| asString (value:String) : Value1
+
+@doc("Write a python function to count minimum number of swaps required to convert one binary number represented as a string to another.")
+@example(min_Swaps "1101" "1110" = (Value1.asInt 1))
+@example(min_Swaps "111" "000" = (Value1.asString "Not Possible"))
+@example(min_Swaps "111" "110" = (Value1.asString "Not Possible"))
+def min_Swaps (str1:String) (str2:{v:String | String.len v = String.len str1}) : Value1 := ?hole

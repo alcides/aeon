@@ -1,16 +1,10 @@
 # MBPP task 722
-# The input is given as - a dictionary with a student name as a key and a tuple of float (student_height, student_weight) as a value, - minimal height, - minimal weight. Write a function to filter students that have height and weight above the minimum.
-#
-# Synthesis target: filter_data : Dict -> Float -> Int -> Dict
 
-inductive Tuple
-| mk (a0:Float) (a1:Int) : Tuple
+import Map
+import Pair
 
-inductive Dict
-| dnil : Dict
-| dcons (key:String) (val:Tuple) (rest:Dict) : Dict
-
-def mbpp_fitness (f:(x0:Dict) -> (x1:Float) -> (x2:Int) -> Dict) : Float := native "float((0 if (f(('Dict_dcons', 'Cierra Vega', ('Tuple_mk', 6.2, 70), ('Dict_dcons', 'Alden Cantrell', ('Tuple_mk', 5.9, 65), ('Dict_dcons', 'Kierra Gentry', ('Tuple_mk', 6.0, 68), ('Dict_dcons', 'Pierre Cox', ('Tuple_mk', 5.8, 66), ('Dict_dnil',))))))(6.0)(70) == ('Dict_dcons', 'Cierra Vega', ('Tuple_mk', 6.2, 70), ('Dict_dnil',))) else 1) + (0 if (f(('Dict_dcons', 'Cierra Vega', ('Tuple_mk', 6.2, 70), ('Dict_dcons', 'Alden Cantrell', ('Tuple_mk', 5.9, 65), ('Dict_dcons', 'Kierra Gentry', ('Tuple_mk', 6.0, 68), ('Dict_dcons', 'Pierre Cox', ('Tuple_mk', 5.8, 66), ('Dict_dnil',))))))(5.9)(67) == ('Dict_dcons', 'Cierra Vega', ('Tuple_mk', 6.2, 70), ('Dict_dcons', 'Kierra Gentry', ('Tuple_mk', 6.0, 68), ('Dict_dnil',)))) else 1) + (0 if (f(('Dict_dcons', 'Cierra Vega', ('Tuple_mk', 6.2, 70), ('Dict_dcons', 'Alden Cantrell', ('Tuple_mk', 5.9, 65), ('Dict_dcons', 'Kierra Gentry', ('Tuple_mk', 6.0, 68), ('Dict_dcons', 'Pierre Cox', ('Tuple_mk', 5.8, 66), ('Dict_dnil',))))))(5.7)(64) == ('Dict_dcons', 'Cierra Vega', ('Tuple_mk', 6.2, 70), ('Dict_dcons', 'Alden Cantrell', ('Tuple_mk', 5.9, 65), ('Dict_dcons', 'Kierra Gentry', ('Tuple_mk', 6.0, 68), ('Dict_dcons', 'Pierre Cox', ('Tuple_mk', 5.8, 66), ('Dict_dnil',)))))) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (students:Dict) (h:Float) (w:Int) : Dict := (let mbpp_fitness := unit in ?hole)
+@doc("The input is given as - a dictionary with a student name as a key and a tuple of float (student_height, student_weight) as a value, - minimal height, - minimal weight. Write a function to filter students that have height and weight above the minimum.")
+@example(filter_data (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String (Pair Float Int))) "Cierra Vega" (Pair.mk 6.2 70)) "Alden Cantrell" (Pair.mk 5.9 65)) "Kierra Gentry" (Pair.mk 6.0 68)) "Pierre Cox" (Pair.mk 5.8 66)) 6.0 70 = (Map.set (Map.new : (Map String (Pair Float Int))) "Cierra Vega" (Pair.mk 6.2 70)))
+@example(filter_data (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String (Pair Float Int))) "Cierra Vega" (Pair.mk 6.2 70)) "Alden Cantrell" (Pair.mk 5.9 65)) "Kierra Gentry" (Pair.mk 6.0 68)) "Pierre Cox" (Pair.mk 5.8 66)) 5.9 67 = (Map.set (Map.set (Map.new : (Map String (Pair Float Int))) "Cierra Vega" (Pair.mk 6.2 70)) "Kierra Gentry" (Pair.mk 6.0 68)))
+@example(filter_data (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String (Pair Float Int))) "Cierra Vega" (Pair.mk 6.2 70)) "Alden Cantrell" (Pair.mk 5.9 65)) "Kierra Gentry" (Pair.mk 6.0 68)) "Pierre Cox" (Pair.mk 5.8 66)) 5.7 64 = (Map.set (Map.set (Map.set (Map.set (Map.new : (Map String (Pair Float Int))) "Cierra Vega" (Pair.mk 6.2 70)) "Alden Cantrell" (Pair.mk 5.9 65)) "Kierra Gentry" (Pair.mk 6.0 68)) "Pierre Cox" (Pair.mk 5.8 66)))
+def filter_data (students:(Map String (Pair Float Int))) (h:Float) (w:Int) : {v:(Map String (Pair Float Int)) | 0 <= Map.size v && Map.size v <= Map.size students} := ?hole

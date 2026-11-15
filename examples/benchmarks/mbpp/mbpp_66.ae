@@ -1,11 +1,9 @@
 # MBPP task 66
-# Write a python function to count the number of positive numbers in a list.
-#
-# Synthesis target: pos_count : List -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Int) : Float := native "float((0 if (f([1, -2, 3, -4]) == 2) else 1) + (0 if (f([3, 4, 5, -1]) == 3) else 1) + (0 if (f([1, 2, 3, 4]) == 4) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (list:List) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to count the number of positive numbers in a list.")
+@example(pos_count [1, (-2), 3, (-4)] = 2)
+@example(pos_count [3, 4, 5, (-1)] = 3)
+@example(pos_count [1, 2, 3, 4] = 4)
+def pos_count (list:(List Int)) : {v:Int | 0 <= v && v <= List.size list} := ?hole

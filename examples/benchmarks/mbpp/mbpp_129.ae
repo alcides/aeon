@@ -1,11 +1,9 @@
 # MBPP task 129
-# Write a function to calculate whether the matrix is a magic square.
-#
-# Synthesis target: magic_square_test : List -> Bool
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> Bool) : Float := native "float((0 if (f([[7, 12, 1, 14], [2, 13, 8, 11], [16, 3, 10, 5], [9, 6, 15, 4]]) == True) else 1) + (0 if (f([[2, 7, 6], [9, 5, 1], [4, 3, 8]]) == True) else 1) + (0 if (f([[2, 7, 6], [9, 5, 1], [4, 3, 7]]) == False) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (my_matrix:List) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to calculate whether the matrix is a magic square.")
+@example(magic_square_test [[7, 12, 1, 14], [2, 13, 8, 11], [16, 3, 10, 5], [9, 6, 15, 4]] = true)
+@example(magic_square_test [[2, 7, 6], [9, 5, 1], [4, 3, 8]] = true)
+@example(magic_square_test [[2, 7, 6], [9, 5, 1], [4, 3, 7]] = false)
+def magic_square_test (my_matrix:{v:(List (List Int)) | List.size v > 0}) : Bool := ?hole

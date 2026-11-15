@@ -1,11 +1,9 @@
 # MBPP task 633
-# Write a python function to find the sum of xor of all pairs of numbers in the given list.
-#
-# Synthesis target: pair_xor_Sum : List -> Int -> Int
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> (x1:Int) -> Int) : Float := native "float((0 if (f([5, 9, 7, 6])(4) == 47) else 1) + (0 if (f([7, 3, 5])(3) == 12) else 1) + (0 if (f([7, 3])(2) == 4) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (arr:List) (n:Int) : Int := (let mbpp_fitness := unit in ?hole)
+@doc("Write a python function to find the sum of xor of all pairs of numbers in the given list.")
+@example(pair_xor_Sum [5, 9, 7, 6] 4 = 47)
+@example(pair_xor_Sum [7, 3, 5] 3 = 12)
+@example(pair_xor_Sum [7, 3] 2 = 4)
+def pair_xor_Sum (arr:(List Int)) (n:{v:Int | 0 <= v && v <= List.size arr}) : Int := ?hole

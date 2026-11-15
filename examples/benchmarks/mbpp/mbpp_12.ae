@@ -1,11 +1,9 @@
 # MBPP task 12
-# Write a function to sort a given matrix in ascending order according to the sum of its rows.
-#
-# Synthesis target: sort_matrix : List -> List
 
-type List
+import List
 
-def mbpp_fitness (f:(x0:List) -> List) : Float := native "float((0 if (f([[1, 2, 3], [2, 4, 5], [1, 1, 1]]) == [[1, 1, 1], [1, 2, 3], [2, 4, 5]]) else 1) + (0 if (f([[1, 2, 3], [-2, 4, -5], [1, -1, 1]]) == [[-2, 4, -5], [1, -1, 1], [1, 2, 3]]) else 1) + (0 if (f([[5, 8, 9], [6, 4, 3], [2, 1, 4]]) == [[2, 1, 4], [6, 4, 3], [5, 8, 9]]) else 1))"
-
-@minimize_float(mbpp_fitness synth)
-def synth (M:List) : List := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to sort a given matrix in ascending order according to the sum of its rows.")
+@example(sort_matrix [[1, 2, 3], [2, 4, 5], [1, 1, 1]] = [[1, 1, 1], [1, 2, 3], [2, 4, 5]])
+@example(sort_matrix [[1, 2, 3], [(-2), 4, (-5)], [1, (-1), 1]] = [[(-2), 4, (-5)], [1, (-1), 1], [1, 2, 3]])
+@example(sort_matrix [[5, 8, 9], [6, 4, 3], [2, 1, 4]] = [[2, 1, 4], [6, 4, 3], [5, 8, 9]])
+def sort_matrix (M:(List (List Int))) : {v:(List (List Int)) | List.size v = List.size M} := ?hole

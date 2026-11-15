@@ -1,9 +1,8 @@
 # MBPP task 605
-# Write a function to check if the given integer is a prime number.
-#
-# Synthesis target: prime_num : Int -> Bool
 
-def mbpp_fitness (f:(x0:Int) -> Bool) : Float := native "float((0 if (f(13) == True) else 1) + (0 if (f(7) == True) else 1) + (0 if (f(-1010) == False) else 1))"
 
-@minimize_float(mbpp_fitness synth)
-def synth (num:Int) : Bool := (let mbpp_fitness := unit in ?hole)
+@doc("Write a function to check if the given integer is a prime number.")
+@example(prime_num 13 = true)
+@example(prime_num 7 = true)
+@example(prime_num (-1010) = false)
+def prime_num (num:Int) : Bool := ?hole

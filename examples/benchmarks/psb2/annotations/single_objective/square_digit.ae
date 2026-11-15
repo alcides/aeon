@@ -1,13 +1,20 @@
-import Array
-open String
-open Math
-import PSB2 (training_data, fresh_train_data, extract_train_data, get_input_list, get_output_list, calculate_list_errors, get_sd_synth_values, unpack_train_data, load_dataset, join_string_list, String_distance)
+# PSB2: square-digits
+# Reference: thelmuth/Clojush, tag psb2-v1.0, src/clojush/problems/psb2/square_digits.clj
 
-def train : TrainingCases := training_data "square-digits" 200 200
+import List
+import Math
+import String
+import PSB2Fitness
 
-def input_list (_: Unit) : (Array Int) := get_input_list (unpack_train_data (fresh_train_data train))
+def train : Cases := PSB2Fitness.cases "square-digits" 200;
 
-def expected_values (_: Unit) : (Array Int) := get_output_list (unpack_train_data (fresh_train_data train))
+def score (cases:Cases) (candidate:(n:{v:Int | 0 <= v && v <= 1000000}) -> {r:String | 1 <= String.len r && String.len r <= 14 && (n != 0 || r = "0")}) : (Array Float) :=
+    native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('square-digits', cases(None), candidate)";
 
-@minimize_float(String_distance (join_string_list(get_sd_synth_values (input_list unit) synth)) (join_string_list(  (expected_values unit))))
-def synth ( n : Int) : String := (let extract_train_data := unit in let get_input_list := unit in let get_output_list := unit in let unpack_train_data := unit in let load_dataset := unit in let get_sd_synth_values := unit in let calculate_list_errors := unit in ?hole)
+@doc("Square each decimal digit and concatenate the results, including a zero input.")
+@minimize_float(PSB2Fitness.meanError (score train synth))
+def synth (n:{v:Int | 0 <= v && v <= 1000000}) : {r:String | 1 <= String.len r && String.len r <= 14 && (n != 0 || r = "0")} :=
+    let score := unit in
+    let train := unit in
+    let PSB2Fitness_cases := unit in
+    ?hole;
