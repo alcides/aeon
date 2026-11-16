@@ -1,0 +1,5 @@
+# The requirement remains mandatory even though the objective prefers true.
+@bounded_cnf(1)
+@require(!flag)
+@minimize_int(if flag then 0 else 1)
+def flag : Bool := ?flag;

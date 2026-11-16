@@ -58,6 +58,15 @@ class InvalidIndividualException(SynthesisError):
     """
 
 
+class SpecificationViolation(InvalidIndividualException):
+    """A completed runtime specification evaluated to false.
+
+    Distinguish an observed counterexample from an exception, timeout or invalid
+    score. Finite exhaustive backends may exclude this candidate, but cannot
+    use a failed evaluation as evidence of logical infeasibility.
+    """
+
+
 class Synthesizer(ABC):
     # Only backends that discharge typing obligations during construction may
     # skip the entrypoint's repeated whole-program type check. Non-type

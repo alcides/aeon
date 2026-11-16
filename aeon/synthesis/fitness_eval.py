@@ -15,7 +15,7 @@ from aeon.backend.evaluator import EvaluationContext, eval as aeon_eval
 from aeon.core.terms import Abstraction, Application, Hole, Let, Literal, Rec, Term, Var
 from aeon.optimization.whnf import strip_type_wrappers
 from aeon.core.types import t_int
-from aeon.synthesis.api import InvalidIndividualException
+from aeon.synthesis.api import InvalidIndividualException, SpecificationViolation
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.expression_size import make_size_evaluator
 from aeon.synthesis.identification import term_has_holes
@@ -382,7 +382,7 @@ def make_bundled_fitness_evaluator(
         # no dimensions to the Pareto vector. Exceptions are candidate rejection.
         for goal in goals:
             if goal.kind == "require" and runtime_cache.evaluate(prog, suffix, candidate_ctx, goal.function) != 0:
-                raise InvalidIndividualException("candidate violates @require")
+                raise SpecificationViolation("candidate violates @require")
         expr_values = (
             {
                 goal.function: runtime_cache.evaluate(prog, suffix, candidate_ctx, goal.function)

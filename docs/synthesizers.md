@@ -438,6 +438,8 @@ def xor (x:Bool) (y:Bool) : {r:Bool | r = (x != y)} := ?body;
 ```bash
 python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/xor.ae
 python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/partial_relation.ae
+python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/coupled_bounds.ae
+python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/pareto.ae
 ```
 
 `@bounded_cnf(K)` is a **hard maximum of K CNF clauses per completed definition**,
@@ -473,17 +475,39 @@ source, as in `partial_relation.ae`: witnesses belong to the law's quantificatio
 not the synthesized functions' parameters. Ordinary total refinements are never
 automatically weakened to a feasibility domain.
 
-The solver returns the first feasible bounded candidate. Optional objectives
-are evaluated only after structural and full Aeon validation; this release does
-**not** optimize them, minimize K, or prove global synthesis impossibility. Other
-backends may parse the same annotation, but the shared acceptance/scoring gate
+Inactive clause slots have no selected literals; active clauses form a sorted,
+duplicate-free prefix. An empty clause uses the single-clause representation of
+false. These constraints avoid repeatedly enumerating the same normalized CNF;
+they preserve the complete at-most-K family, including K=0 and nullary functions.
+Independent exhaustive tests cover all templates through two inputs and K=2.
+
+Without numerical objectives, the solver returns the first feasible bounded
+candidate. With minimize/maximize, size, CPU-time or energy goals, it enumerates
+feasible selector models under the same fixed K and retains the shared Pareto
+front. Objectives are evaluated only after structural, full Aeon and mandatory
+specification validation. The returned member follows the usual seeded Pareto
+selection. A budget-limited search does not prove optimality or minimum K;
+`report.enumeration_complete` records whether the finite template family was
+exhausted. Runtime CPU/energy measurements retain their usual measurement limits.
+
+Boolean `@csv_data`/`@csv_file` observations must match exactly. Pure Boolean
+`@require` conditions are also mandatory and add no objective dimensions; see
+`csv.ae` and `require.ae` in the same example directory. An evaluated mismatch
+rejects that model and continues finite search. Opaque/native or recursive
+requirements are unsupported. Runtime exceptions, invalid scores, type/CNF
+failures and disagreements with compiler-proved properties are errors, never
+evidence of bounded UNSAT, even when CSV observations are present.
+
+Other backends may parse the same annotation, but the shared acceptance/scoring gate
 still enforces it. Program-level adapters without that gate, and non-joint
 adapters handling multiple annotated holes, reject the annotation explicitly.
 Unannotated programs keep their existing behavior.
 
 `AEON_SEED` controls solver seeds. Each run owns fresh selectors and solvers.
 `BooleanBoundedSynthesizer.report` records status, iterations, counterexamples,
-selector count and elapsed time for the bounded operation. `BoundedBooleanFailure.category`
+selector and solver-call counts, validated candidates, rejected runtime
+observations, complete-enumeration status and elapsed time for the bounded
+operation. `BoundedBooleanFailure.category`
 distinguishes `bounded_unsat`, `timeout`, `resource_limit`, `unknown`, and
 `validation_error`; capability mismatches use `UnsupportedSynthesisGoal`.
 `bounded_unsat` means no solution in the fixed, supported CNF family. Limits of
@@ -492,7 +516,8 @@ unbounded allocation; the Python API can configure these limits. The independent
 normalizer limits each definition to 10,000 visited syntax nodes. Shared compiler
 preparation, search, extraction, final validation and optional fitness evaluation
 run in the same killable worker used by `noisy`, under one wall-clock
-budget. Z3 calls also receive the remaining budget as their timeout. At the
+budget, charging context preparation exactly once. The budget must be finite.
+Z3 calls also receive the remaining budget as their timeout. At the
 deadline the parent terminates the worker, escalating to kill if necessary, and
 reports `timeout` without accepting or publishing a candidate. Worker cleanup
 has a short bounded grace period. Direct calls to the Boolean adapter similarly
@@ -500,7 +525,8 @@ contain search, extraction, validation and evaluation. Parsing/compilation befor
 entering synthesis is outside this budget.
 
 This implements a solver-based bounded Boolean search, not BNSynth's neural
-learner. The separate benchmark corpus and evaluation harness are tracked in
+learner. The separate [benchmark corpus and independent checker](../examples/benchmarks/bnsynth/README.md)
+include the published tasks and exhaustive local oracles from
 [#650](https://github.com/alcides/aeon/issues/650).
 
 ---

@@ -192,7 +192,7 @@ def _erase_return_refinement(ty: Type) -> Type:
     return ty
 
 
-_TRUSTED_NATIVE_HEADS = frozenset({"native", "native_import", "uninterpreted"})
+_TRUSTED_NATIVE_HEADS = frozenset(Name(name, 0) for name in ("native", "native_import", "uninterpreted"))
 
 
 def _is_trusted_native_value(t: Term) -> bool:
@@ -219,7 +219,7 @@ def _is_trusted_native_value(t: Term) -> bool:
                 t = body
             case _:
                 break
-    return isinstance(t, Var) and t.name.name in _TRUSTED_NATIVE_HEADS
+    return isinstance(t, Var) and t.name in _TRUSTED_NATIVE_HEADS
 
 
 def _reflected_impl_for(
@@ -279,7 +279,7 @@ def _reflected_impl_for(
     for src, dst in zip(impl_params, ty_params):
         if src != dst:
             liq = substitution_in_liquid(liq, LiquidVar(dst), src)
-    if any(v.name in {"native", "native_import"} for v in liquid_free_vars(liq)):
+    if any(v in {Name("native", 0), Name("native_import", 0)} for v in liquid_free_vars(liq)):
         return None
     allowed = set(ty_params) | {name}
     # ``liquefy_if`` lowers a pure conditional to the SMT builtin ``ite``.
@@ -340,7 +340,10 @@ def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool 
     liq = liquefy(t)
     if liq is None:
         return None
-    if any(v.name in {"native", "native_import", "uninterpreted"} for v in liquid_free_vars(liq)):
+    # A lexical variable may shadow a builtin's spelling. Only the primitive
+    # binding is opaque; dropping a local loses its singleton equality and can
+    # make otherwise satisfiable synthesis obligations inconsistent.
+    if any(v in {Name("native", 0), Name("native_import", 0), Name("uninterpreted", 0)} for v in liquid_free_vars(liq)):
         return None
 
     op_names = {op.name for op in ops} | {"ite"}

@@ -1,0 +1,7 @@
+# Both constants are valid, with conflicting numerical objectives.
+# Search enumerates the fixed K=1 family and retains both Pareto alternatives.
+@bounded_cnf(1)
+@minimize_int(if flag then 0 else 1)
+@maximize_int(if flag then 0 else 1)
+@minimize_size
+def flag : Bool := ?flag;
