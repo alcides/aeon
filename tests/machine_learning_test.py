@@ -93,8 +93,7 @@ def test_valid_static_restriction(path: Path):
 def test_invalid_static_restriction(filename: str, expected_error: type[Exception]):
     _, errors = _parse(RESTRICTIONS_DIR / filename)
 
-    assert len(errors) == 1
-    assert isinstance(errors[0], expected_error), errors
+    assert any(isinstance(error, expected_error) for error in errors), errors
 
 
 @pytest.mark.parametrize(

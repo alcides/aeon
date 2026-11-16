@@ -33,7 +33,7 @@ open ArrayKernels
 def add(acc:Int) (curr:Int) : Int := acc + curr;
 
 @llvm
-def sum_n (1 arr:(Array Int)) (n:Int) : Int :=
+def sum_n (1 arr:(Array Int)) (n:{k:Int | k = Array.size arr}) : Int :=
     reduce_n_int add 0 arr n;
 
 def main (i:Int) : Int :=
@@ -56,7 +56,7 @@ open ArrayKernels
 def inc(x:Int) : Int := x + 1;
 
 @llvm
-def vec_inc (1 arr:(Array Int)) (n:Int) : {r:(Array Int) | size r = n} :=
+def vec_inc (1 arr:(Array Int)) (n:{k:Int | k = Array.size arr}) : {r:(Array Int) | size r = n} :=
     map_n_int inc arr n;
 
 def main (i:Int) : Int :=
@@ -79,7 +79,7 @@ open ArrayKernels
 def gt10(x:Int) : Bool := x > 10;
 
 @llvm
-def c (1 arr:(Array Int)) (n:Int) : Int := count_n_int gt10 arr n;
+def c (1 arr:(Array Int)) (n:{k:Int | k = Array.size arr}) : Int := count_n_int gt10 arr n;
 
 def main (i:Int) : Int :=
     let 1 a0 := Array.mk_empty{Int} unit in
@@ -103,7 +103,7 @@ open ArrayKernels
 def inc(x:Int) : Int := x + 1;
 
 @gpu
-def vec_inc (1 arr:(Array Int)) (n:Int) : {r:(Array Int) | size r = n} :=
+def vec_inc (1 arr:(Array Int)) (n:{k:Int | k = Array.size arr}) : {r:(Array Int) | size r = n} :=
     map_n_int inc arr n;
 
 def main (i:Int) : Int :=
@@ -135,12 +135,14 @@ def main (i:Int) : Float :=
     let 1 df1 := dropna df0 in
     let 1 pr := DataFrame.copy df1 in
     DataFrame.with_pair pr (fun left => fun right =>
+    if is_numeric_col left "score" then
     let 1 col := col_as_array left "score" in
     let _ := DataFrame.dispose left in
     let 1 scaled := scale 2.0 col in
     let 1 df3 := set_col right "score" scaled in
     let 1 col2 := col_as_array df3 "score" in
     let _ := DataFrame.dispose df3 in
-    (Array.consume Array.mean) col2);
+    (Array.consume Array.mean) col2
+    else let _ := DataFrame.dispose left in let _ := DataFrame.dispose right in 0.0);
 """
     assert abs(_run(source) - 4.0) < 1e-9

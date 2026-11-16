@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "twitter" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "twitter" 200;
 
-def score (cases:Cases) (candidate:(tweet:{v:String | String.len v <= 200}) -> {r:String | (String.len tweet = 0 && r = "You didn't type anything") || (String.len tweet > 140 && r = "Too many characters") || (0 < String.len tweet && String.len tweet <= 140 && 27 <= String.len r && String.len r <= 29)}) : (Array Float) :=
+def score (cases:Cases) (candidate:(tweet:{v:String | String.len v <= 200}) -> {r:String | (String.len tweet = 0 && r = "You didn't type anything") || (String.len tweet > 140 && r = "Too many characters") || (0 < String.len tweet && String.len tweet <= 140 && 27 <= String.len r && String.len r <= 29)}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('twitter', cases(None), candidate)";
 
 @doc("Report an empty or overlong tweet, otherwise include its character count in the confirmation.")

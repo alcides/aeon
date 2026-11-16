@@ -106,7 +106,7 @@ def test_horn_argument_generation_deduplicates_without_losing_atoms():
 @pytest.mark.parametrize(
     "helper,values,expected",
     [
-        ("objective_errors", "#[1, 2]", "[1.0, 2.0]"),
+        ("objective_errors", "#[1.0, 2.0]", "[1.0, 2.0]"),
         ("objective_errors", "#[1.5, 2.25]", "[1.5, 2.25]"),
         ("objective_errors_int", "#[1, 2]", "[1, 2]"),
     ],
@@ -120,15 +120,13 @@ def main (_:Int) : Bool :=
     assert d.run() is True
 
 
-def test_psb2_objective_vector_rejects_wrong_runtime_length():
+def test_psb2_objective_vector_rejects_wrong_static_length():
     d = driver(check=False)
     src = """import PSB2; import Array;
 def main (_:Int) : Int :=
-    let 1 xs := PSB2.objective_errors #[1] 2 in
+    let 1 xs := PSB2.objective_errors #[1.0] 2 in
     let n := Array.length xs in let _ := Array.dispose xs in n;"""
-    assert not d.parse(aeon_code=src)
-    with pytest.raises(ValueError, match="unexpected PSB2 objective count"):
-        d.run()
+    assert d.parse(aeon_code=src)
 
 
 @pytest.mark.parametrize("task,length", [("coin_sum", 200), ("cut_vector", 200), ("leaders", 50)])

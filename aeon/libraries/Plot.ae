@@ -18,9 +18,9 @@ def new : Plot := native "(plt.figure(), plt.gca())[0]"; # Returns the figure ob
 #          (Matplotlib's plot modifies in place; we return the same figure object).
 def add_line (p_old: Plot)
                    (1 x_values: (Array Float))
-                   (1 y_values: (Array Float))
-                   (color: String)
-                   (linestyle: String) : Plot :=
+                   (1 y_values: {ys:(Array Float) | Array.size ys = Array.size x_values})
+                   (color: {s:String | validColor s})
+                   (linestyle: {s:String | s = "-" || s = "--" || s = "-." || s = ":" || s = "None" || s = " " || s = ""}) : Plot :=
     native "(lambda fig, x, y, c, ls: (fig.gca().plot(x, y, color=c, linestyle=ls), fig)[1])(p_old, x_values, y_values, color, linestyle)"
 
 
@@ -33,9 +33,9 @@ def add_line (p_old: Plot)
 # returns: The plot object, now with the added scatter plot.
 def add_scatter (p_old: Plot)
                       (1 x_values: (Array Float))
-                      (1 y_values: (Array Float))
-                      (color: String)
-                      (marker: String) : Plot :=
+                      (1 y_values: {ys:(Array Float) | Array.size ys = Array.size x_values})
+                      (color: {s:String | validColor s})
+                      (marker: {s:String | validMarker s}) : Plot :=
     native "(lambda fig, x, y, c, m: (fig.gca().scatter(x, y, color=c, marker=m), fig)[1])(p_old, x_values, y_values, color, marker)"
 
 
@@ -66,7 +66,7 @@ def set_ylabel (p_old: Plot) (label_text: String) : Plot :=
 # Displays the plot.
 # p: The plot object to display.
 def show (p: Plot) : Unit :=
-    native "plt.show(p)" # Pass the specific figure to show, or just plt.show() for all active
+    native "plt.show()" # Pass the specific figure to show, or just plt.show() for all active
 
 
 # Saves the plot to a file.
@@ -74,3 +74,8 @@ def show (p: Plot) : Unit :=
 # filename: The name of the file (e.g., "myplot.png").
 def save (p: Plot) (filename: String) : Unit :=
     native "p.savefig(filename)"
+
+def validColor : (s:String) -> Bool := uninterpreted
+def validMarker : (s:String) -> Bool := uninterpreted
+def isColor (s:String) : {b:Bool | b = validColor s} := native "__import__('matplotlib.colors', fromlist=['is_color_like']).is_color_like(s)"
+def isMarker (s:String) : {b:Bool | b = validMarker s} := native "__import__('aeon.bindings.contracts', fromlist=['plot_marker']).plot_marker(s)"

@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "basement" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "basement" 200;
 
-def score (cases:Cases) (candidate:(nums:{v:(List Int){|fun x => (-100) <= x && x <= 100|} | 1 <= List.size v && List.size v <= 20}) -> {r:Int | 0 <= r && r < List.size nums}) : (Array Float) :=
+def score (cases:Cases) (candidate:(nums:{v:(List Int){|fun x => (-100) <= x && x <= 100|} | 1 <= List.size v && List.size v <= 20}) -> {r:Int | 0 <= r && r < List.size nums}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('basement', cases(None), candidate)";
 
 @doc("Find the first index whose inclusive prefix sum is negative; PSB2 inputs guarantee such an index.")

@@ -23,7 +23,7 @@ def INF : Float := native "math.inf"
 def toFloat (i:Int) : Float := native "float(i)"
 
 # Converts a float to an integer (truncates towards zero).
-def toInt (i:Float) : Int := native "int(i)"
+def toInt (i:{v:Float | finite v}) : Int := native "int(i)"
 
 # ── Integer arithmetic ─────────────────────────────────────────────────
 
@@ -69,27 +69,27 @@ def maxf (i: Float) (j: Float): Float := native "max(i, j)"
 def absf (i:Float) : {v:Float | Refinement.non_negative_float v} := native "abs(i)"
 
 # Raises a float to the power of another float.
-def powf (i:Float) (j:Float) : Float := native "i ** j"
+def powf (i:Float) (j:{v:Float | (i != 0.0 || v >= 0.0) && (i >= 0.0 || integral v)}) : Float := native "i ** j"
 
 # Returns the remainder of i / j (IEEE 754 style).
-def remainder (i:Float) (j:{v:Float | v != 0.0}) : Float := native "math.remainder(i, j)"
+def remainder (i:{v:Float | finite v}) (j:{v:Float | v != 0.0}) : Float := native "math.remainder(i, j)"
 
 # Returns the float modulo.
-def fmod (i:Float) (j:{v:Float | v != 0.0}) : Float := native "math.fmod(i, j)"
+def fmod (i:{v:Float | finite v}) (j:{v:Float | v != 0.0}) : Float := native "math.fmod(i, j)"
 
 # ── Rounding ──────────────────────────────────────────────────────────
 
 # Rounds a float to the nearest integer.
-def round (i:Float) : Int := native "round(i)"
+def round (i:{v:Float | finite v}) : Int := native "round(i)"
 
 # Returns the ceiling of a float as an integer.
-def ceil (i:Float) : Int := native "math.ceil(i)"
+def ceil (i:{v:Float | finite v}) : Int := native "math.ceil(i)"
 
 # Returns the floor of a float as an integer.
-def floor (i:Float) : Int := native "math.floor(i)"
+def floor (i:{v:Float | finite v}) : Int := native "math.floor(i)"
 
 # Truncates a float to an integer (towards zero).
-def trunc (i:Float) : Int := native "math.trunc(i)"
+def trunc (i:{v:Float | finite v}) : Int := native "math.trunc(i)"
 
 # ── Powers, roots, and exponentials ───────────────────────────────────
 
@@ -131,13 +131,13 @@ def log1p (i: {v:Float | v > -1.0}) : Float := native "math.log1p(i)"
 # ── Trigonometry ──────────────────────────────────────────────────────
 
 # Returns the sine of a float (in radians).
-def sin (i: Float) : Float := native "math.sin(i)"
+def sin (i:{v:Float | finite v}) : Float := native "math.sin(i)"
 
 # Returns the cosine of a float (in radians).
-def cos (i: Float) : Float := native "math.cos(i)"
+def cos (i:{v:Float | finite v}) : Float := native "math.cos(i)"
 
 # Returns the tangent of a float (in radians).
-def tan (i: Float) : Float := native "math.tan(i)"
+def tan (i:{v:Float | finite v}) : Float := native "math.tan(i)"
 
 # Returns the arc sine of a float in [-1, 1].
 def asin (i: {v:Float | -1.0 <= v && v <= 1.0}) : Float := native "math.asin(i)"
@@ -193,7 +193,7 @@ def erf (i: Float) : Float := native "math.erf(i)"
 def erfc (i: Float) : Float := native "math.erfc(i)"
 
 # Returns the natural log of the absolute value of the Gamma function.
-def lgamma (i: Float) : Float := native "math.lgamma(i)"
+def lgamma (i: {v:Float | v > 0.0 || !(integral v)}) : Float := native "math.lgamma(i)"
 
 # Returns the Gamma function. Input must be positive or non-integer.
 def gamma (i: {v:Float | v > 0.0}) : {v:Float | v > 0.0} := native "math.gamma(i)"
@@ -201,7 +201,7 @@ def gamma (i: {v:Float | v > 0.0}) : {v:Float | v > 0.0} := native "math.gamma(i
 # ── Classification ────────────────────────────────────────────────────
 
 # Returns true if the float is finite (not infinity or NaN).
-def isfinite (i: Float) : Bool := native "math.isfinite(i)"
+def isfinite (i: Float) : {b:Bool | b = finite i} := native "math.isfinite(i)"
 
 # Returns true if the float is infinity.
 def isinf (i: Float) : Bool := native "math.isinf(i)"
@@ -220,3 +220,8 @@ def clamp (x: Int) (lo: Int) (hi: {v:Int | v >= lo}) : {v:Int | v >= lo && v <= 
 
 # Clamps a float to the range [lo, hi].
 def clampf (x: Float) (lo: Float) (hi: {v:Float | v >= lo}) : {v:Float | v >= lo && v <= hi} := native "max(lo, min(x, hi))"
+
+def integral : (v:Float) -> Bool := uninterpreted
+def isIntegral (v:Float) : {b:Bool | b = integral v} := native "float(v).is_integer()"
+
+def finite : (v:Float) -> Bool := uninterpreted

@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "paired-digits" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "paired-digits" 200;
 
-def score (cases:Cases) (candidate:(nums:{v:String | 2 <= String.len v && String.len v <= 20}) -> {r:Int | 0 <= r && r <= 9 * (String.len nums - 1)}) : (Array Float) :=
+def score (cases:Cases) (candidate:(nums:{v:String | 2 <= String.len v && String.len v <= 20}) -> {r:Int | 0 <= r && r <= 9 * (String.len nums - 1)}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('paired-digits', cases(None), candidate)";
 
 @doc("Sum each decimal digit that equals the following digit; there is no wraparound.")

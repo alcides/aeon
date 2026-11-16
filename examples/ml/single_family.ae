@@ -15,7 +15,9 @@ open LearningTrees
 
 def main (_: Int) : Unit :=
     let 1 df := read_csv "examples/ml/data/iris.csv" in
+    if has_column df "species" then
     let 1 ds0 := target df "species" false false in
+    if n_features ds0 > 0 then
     let 1 ds := require_enough_data ds0 in
     let 1 parts := split ds 0.7 true in
     with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
@@ -23,3 +25,5 @@ def main (_: Int) : Unit :=
         let score := f1 tree owned_right_parts in
         let _ := dispose_classifier tree in
         print score)
+    else dispose_dataset ds0
+    else dispose_dataframe df

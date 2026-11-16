@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "spin-words" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "spin-words" 200;
 
-def score (cases:Cases) (candidate:(phrase:String) -> {r:String | String.len r = String.len phrase}) : (Array Float) :=
+def score (cases:Cases) (candidate:(phrase:String) -> {r:String | String.len r = String.len phrase}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('spin-words', cases(None), candidate)";
 
 @doc("Reverse words of at least five characters, keeping other words and spaces in place.")

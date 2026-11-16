@@ -39,7 +39,7 @@ def join (p: Path) (segment: {s:String | s != ""}) : Path := native "p / segment
 
 # Returns a copy of p with a different suffix. The new suffix must
 # start with "." or be empty (to strip).
-def withSuffix (p: Path) (newSuffix: String) : Path :=
+def withSuffix (p: Path) (newSuffix: {s:String | suffixAllowed p s}) : Path :=
     native "p.with_suffix(newSuffix)"
 
 # Returns the absolute form of p, anchored at the current working dir.
@@ -115,3 +115,7 @@ def rename (p: Path) (dst: Path) : Path := native "p.rename(dst)"
 
 # Copies a file from src to dst, preserving metadata.
 def copy (src: Path) (dst: Path) : Unit := native "shutil.copy2(str(src), str(dst))"
+
+def suffixAllowed : (p:Path) -> (s:String) -> Bool := uninterpreted
+def canWithSuffix (p:Path) (s:String) : {b:Bool | b = suffixAllowed p s} :=
+    native "__import__('aeon.bindings.contracts', fromlist=['suffix_allowed']).suffix_allowed(p, s)"

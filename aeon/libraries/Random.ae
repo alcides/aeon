@@ -17,6 +17,11 @@ linear type Draw
 linear type IntDraw
 linear type RangeDraw
 
+def int_lo : (d:IntDraw) -> Int := uninterpreted
+def int_hi : (d:IntDraw) -> Int := uninterpreted
+def range_lo : (d:RangeDraw) -> Float := uninterpreted
+def range_hi : (d:RangeDraw) -> Float := uninterpreted
+
 # A fresh generator seeded deterministically. The `Int` argument makes this
 # an *applied* action, so each call yields a new generator — a nullary `def`
 # would be a memoised value, aliasing one generator everywhere.
@@ -30,16 +35,16 @@ def draw_next (1 d: Draw) : Rng := native "d[1]"
 # ── Integer draw in [lo, hi] ────────────────────────────────────────────
 # The bounds are repeated on the projection so the refinement survives the
 # opaque `IntDraw`.
-def draw_int (lo: Int) (hi: {y: Int | y >= lo}) (1 g: Rng) : IntDraw :=
-    native "(g.randint(lo, hi), g)"
-def int_value (lo: Int) (hi: {y: Int | y >= lo}) (borrow d: IntDraw) : {r: Int | r >= lo && r <= hi} :=
+def draw_int (lo: Int) (hi: {y: Int | y >= lo}) (1 g: Rng) : {d:IntDraw | int_lo d = lo && int_hi d = hi} :=
+    native "(g.randint(lo, hi), g, lo, hi)"
+def int_value (lo: Int) (hi: {y: Int | y >= lo}) (borrow d: {v:IntDraw | int_lo v = lo && int_hi v = hi}) : {r: Int | r >= lo && r <= hi} :=
     native "d[0]"
 def int_next (1 d: IntDraw) : Rng := native "d[1]"
 
-# ── Float draw in [lo, hi) ──────────────────────────────────────────────
-def draw_range (lo: Float) (hi: {y: Float | y > lo}) (1 g: Rng) : RangeDraw :=
-    native "(g.uniform(lo, hi), g)"
-def range_value (lo: Float) (hi: {y: Float | y > lo}) (borrow d: RangeDraw) : {r: Float | r >= lo && r < hi} :=
+# ── Float draw in [lo, hi] ──────────────────────────────────────────────
+def draw_range (lo: Float) (hi: {y: Float | y > lo}) (1 g: Rng) : {d:RangeDraw | range_lo d = lo && range_hi d = hi} :=
+    native "(g.uniform(lo, hi), g, lo, hi)"
+def range_value (lo: Float) (hi: {y: Float | y > lo}) (borrow d: {v:RangeDraw | range_lo v = lo && range_hi v = hi}) : {r: Float | r >= lo && r <= hi} :=
     native "d[0]"
 def range_next (1 d: RangeDraw) : Rng := native "d[1]"
 

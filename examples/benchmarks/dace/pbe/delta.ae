@@ -5,10 +5,10 @@
 
 import Dace (Column, col_at)
 
-def first : Column := native "[4, 7, 2]";
-def last : Column := native "[15, 9, 10]";
+def first : {c:Column | Dace.size c = 3} := native "[4, 7, 2]";
+def last : {c:Column | Dace.size c = 3} := native "[15, 9, 10]";
 
 @example(fill 0 = 11)
 @example(fill 1 = 2)
 @example(fill 2 = 8)
-def fill (i: Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 3}) : Int := ?hole;

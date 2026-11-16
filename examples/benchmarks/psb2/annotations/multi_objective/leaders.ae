@@ -6,13 +6,13 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "leaders" 50;
+def train : {c:Cases | PSB2Fitness.caseCount c = 50} := PSB2Fitness.cases "leaders" 50;
 
-def score (cases:Cases) (candidate:(vector:{v:(List Int){|fun x => 0 <= x && x <= 1000|} | 0 <= List.size v && List.size v <= 20}) -> {r:(List Int){|fun x => 0 <= x && x <= 1000|} | List.size r <= List.size vector && (List.size vector = 0 || List.size r > 0)}) : (Array Float) :=
+def score (cases:Cases) (candidate:(vector:{v:(List Int){|fun x => 0 <= x && x <= 1000|} | 0 <= List.size v && List.size v <= 20}) -> {r:(List Int){|fun x => 0 <= x && x <= 1000|} | List.size r <= List.size vector && (List.size vector = 0 || List.size r > 0)}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('leaders', cases(None), candidate)";
 
 @doc("Keep values at least as large as every value to their right, including equal maxima.")
-@multi_minimize_float(PSB2Fitness.per_example_errors_50 (score train synth), 50)
+@multi_minimize_float(PSB2Fitness.per_example_errors (score train synth), 50)
 def synth (vector:{v:(List Int){|fun x => 0 <= x && x <= 1000|} | 0 <= List.size v && List.size v <= 20}) : {r:(List Int){|fun x => 0 <= x && x <= 1000|} | List.size r <= List.size vector && (List.size vector = 0 || List.size r > 0)} :=
     let score := unit in
     let train := unit in

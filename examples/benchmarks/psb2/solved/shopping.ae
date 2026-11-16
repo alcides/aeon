@@ -8,4 +8,5 @@ import String
 @doc("Apply percentage discounts to prices, sum the costs, and round the total to two decimal places.")
 def shopping (prices:{v:(List Float){|fun x => 0.0 <= x && x <= 50.0|} | 1 <= List.size v && List.size v <= 20}) (discounts:{v:(List Float){|fun x => 0.0 <= x && x <= 100.0|} | List.size v = List.size prices}) : Float :=
     let total := List.sumFloat (List.zipWith (fun price => fun discount => price * ((100.0 - discount) / 100.0)) prices discounts) in
-    Math.toFloat (Math.floor (total * 100.0 + 0.5)) / 100.0;
+    let cents := total * 100.0 + 0.5 in
+    if Math.isfinite cents then Math.toFloat (Math.floor cents) / 100.0 else 0.0;

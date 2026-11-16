@@ -7,10 +7,10 @@
 
 import Dace (Column, prev_sameid)
 
-def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
-def ids : Column := native "[1, 2, 1, 2, 1, 2, 2]";
+def values : {c:Column | Dace.size c = 7} := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
+def ids : {c:Column | Dace.size c = 7} := native "[1, 2, 1, 2, 1, 2, 2]";
 @example(fill 3 = 3)
 @example(fill 6 = 12)
-def fill (i: Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 7}) : Int := ?hole;
 
 # Intended reconstruction shape: prev_sameid(ids, values, i)

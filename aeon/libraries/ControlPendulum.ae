@@ -13,7 +13,7 @@ def velocity (s:ControlPendulum):Float := match s with | ControlPendulum.mk thet
 def step (s:ControlPendulum) (command:Float):ControlPendulum :=
     match s with | ControlPendulum.mk theta rate =>
         let torque := Control.clip command (0.0 - 2.0) 2.0 in
-        let next_rate := Control.clip (rate + 0.05 * (15.0 * Math.sin theta + 3.0 * torque)) (0.0 - 8.0) 8.0 in
+        let next_rate := Control.clip (rate + 0.05 * (15.0 * (if Math.isfinite theta then Math.sin theta else 0.0) + 3.0 * torque)) (0.0 - 8.0) 8.0 in
         ControlPendulum.mk (Control.angle (theta + 0.05 * next_rate)) next_rate;
 def invalid (s:ControlPendulum):Bool :=
     match s with | ControlPendulum.mk theta rate => !(Math.isfinite theta) || !(Math.isfinite rate);
@@ -22,7 +22,7 @@ def invalid (s:ControlPendulum):Bool :=
 # convention is E=rate^2/6 + 5*cos(theta), desired energy=5.
 def energy_policy (kp:Float) (kd:Float) (ke:Float) (theta:Float) (rate:Float):Float :=
     let error := Control.angle theta in
-    let energy := rate * rate / 6.0 + 5.0 * Math.cos error in
+    let energy := rate * rate / 6.0 + 5.0 * (if Math.isfinite error then Math.cos error else 0.0) in
     let direction := if rate >= 0.0 then 1.0 else (0.0 - 1.0) in
     let command := if error > (0.0 - 0.5) && error < 0.5 && rate > (0.0 - 4.0) && rate < 4.0
                    then (0.0 - kp * error - kd * rate) else ke * (5.0 - energy) * direction in

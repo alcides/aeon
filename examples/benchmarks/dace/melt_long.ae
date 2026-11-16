@@ -1,16 +1,16 @@
 # DACE category: reshape wide -> long (melt / gather).
 open Table
 
-def wide : Table := native "[{'id':1,'x':7,'y':8}]";
+def wide : {t:Table | hasColumn t "id" && hasColumn t "x" && hasColumn t "y"} := native "[{'id':1,'x':7,'y':8}]";
 
-def ids (_: Unit) : (Array String) := native "['id']";
-def vals (_: Unit) : (Array String) := native "['x','y']";
+def ids (_: Unit) : (Array {s:String | hasColumn wide s}) := native "['id']";
+def vals (_: Unit) : (Array {s:String | hasColumn wide s}) := native "['x','y']";
 
 def long (_:Unit) : Table := wide.melt (ids unit) (vals unit) "k" "v";
 
 def v1 : Int :=
     let 1 table := long unit in
-    let value := table.cell 1 "v" in  # second melted row (y) -> 8
+    let value := if nrow table > 1 && is_int_column table "v" then table.cell 1 "v" else 0 in  # second melted row (y) -> 8
     let _ := Table.dispose table in value;
 
 def main (x:Int) : Unit := print v1;

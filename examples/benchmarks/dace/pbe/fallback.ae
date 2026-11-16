@@ -6,9 +6,9 @@
 #
 import Dace (Column, prev_nonmissing, next_nonmissing, has_prev_nonmissing)
 
-def col : Column := native "[-999999, 3, -999999, 7, -999999]";
+def col : {c:Column | Dace.size c = 5} := native "[-999999, 3, -999999, 7, -999999]";
 
 @example(fill 0 = 3)
 @example(fill 2 = 3)
 @example(fill 4 = 7)
-def fill (i:Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 5}) : Int := ?hole;

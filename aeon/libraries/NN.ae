@@ -175,9 +175,8 @@ def predict_unchecked (borrow net: Network) (x: Vector) : Vector :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_predict(net, x)"
 
 # Single scalar forward: output component 0, for a one-unit regression head.
-# Unchecked like ``predict_unchecked``; the ``Models`` ``Regressor`` instance
-# dispatches here.
-def predict_scalar (borrow net: Network) (x: Vector) : Float :=
+# Requires a matching input width and at least one output component.
+def predict_scalar (borrow net: {n:Network | net_out n > 0}) (x: {v:Vector | dim v = net_in net}) : Float :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_predict_scalar(net, x)"
 
 # ─── Loss functions (refined non-negative) ─────────────────────────────
@@ -288,7 +287,7 @@ def train_step_ce
 # refinements. Prefer the single-sample API when widths are static.
 
 # Fraction of correctly classified rows; ``y`` is a vector of class ids.
-def accuracy (net: Network) (X: Matrix) (y: Vector) : {f: Float | f >= 0.0 && f <= 1.0} :=
+def accuracy (net: Network) (X: {m:Matrix | rows m > 0 && cols m = net_in net}) (y: {v:Vector | dim v = rows X && classLabels v (net_out net)}) : {f: Float | f >= 0.0 && f <= 1.0} :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_accuracy(net, X, y)"
 
 # Mini-batch Adam + softmax CE for ``epochs`` passes over ``(X, y)``.
@@ -296,9 +295,13 @@ def accuracy (net: Network) (X: Matrix) (y: Vector) : {f: Float | f >= 0.0 && f 
 # count must be non-negative. Shape of the network is preserved.
 def train_ce_epochs
     (net: Network)
-    (X: Matrix)
-    (y: Vector)
+    (X: {m:Matrix | rows m > 0 && cols m = net_in net})
+    (y: {v:Vector | dim v = rows X && classLabels v (net_out net)})
     (epochs: {k: Int | k >= 0})
     (lr: {f: Float | f > 0.0}) :
     {out: Network | net_in out = net_in net && net_out out = net_out net} :=
     native "__import__('aeon.bindings.nn').bindings.nn.NN_train_ce_epochs(net, X, y, epochs, lr, 64)"
+
+def classLabels : (y:Vector) -> (classes:Int) -> Bool := uninterpreted
+def valid_labels (y:Vector) (classes:Int) : {b:Bool | b = classLabels y classes} := native "bool(np.all(np.isfinite(y) & (y == np.floor(y)) & (y >= 0) & (y < classes)))"
+def predict_scalar_unchecked (borrow net:Network) (x:Vector) : Float := native "__import__('aeon.bindings.nn').bindings.nn.NN_predict_scalar(net, x)"

@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "middle-character" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "middle-character" 200;
 
-def score (cases:Cases) (candidate:(s:{v:String | 1 <= String.len v && String.len v <= 100}) -> {r:String | (String.len s % 2 = 0 && String.len r = 2) || (String.len s % 2 != 0 && String.len r = 1)}) : (Array Float) :=
+def score (cases:Cases) (candidate:(s:{v:String | 1 <= String.len v && String.len v <= 100}) -> {r:String | (String.len s % 2 = 0 && String.len r = 2) || (String.len s % 2 != 0 && String.len r = 1)}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('middle-character', cases(None), candidate)";
 
 @doc("Return the central character, or the central two characters for even lengths.")

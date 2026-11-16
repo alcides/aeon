@@ -48,7 +48,7 @@ def getEnvOr (name: {s:String | s != ""}) (fallback: String) : String :=
     native "os.environ.get(name, fallback)"
 
 # Sets a variable and hands the value back so it can be threaded.
-def setEnv (name: {s:String | s != ""}) (value: String) : String :=
+def setEnv (name: {s:String | validEnvName s}) (value: {s:String | validEnvValue s}) : String :=
     native "(os.environ.__setitem__(name, value), value)[1]"
 
 # Removes a variable if present; a no-op when it is unset (so, KeyError-safe).
@@ -116,3 +116,8 @@ def kill (pid: {p:Int | p > 0}) (sig: {s:Int | s > 0}) : Unit :=
 # handlers, use ``Sys.exit`` instead.
 def exitNow (code: {x:Int | x >= 0 && x <= 255}) : Unit :=
     native "os._exit(code)"
+
+def validEnvName : (s:String) -> Bool := uninterpreted
+def validEnvValue : (s:String) -> Bool := uninterpreted
+def isEnvName (s:String) : {b:Bool | b = validEnvName s} := native "bool(s) and '=' not in s and chr(0) not in s"
+def isEnvValue (s:String) : {b:Bool | b = validEnvValue s} := native "chr(0) not in s"

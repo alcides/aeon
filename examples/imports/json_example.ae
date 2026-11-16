@@ -1,15 +1,18 @@
 open Json
 
-# Round-trip: build an object via mk + setKey, stringify, parse, query.
+# Build, serialize, and parse a JSON object. Accessors use kind/key guards.
+def built : {j:Json | Json.kind j = 6} :=
+    let o0 := Json.mkObject in
+    let o1 := o0.setKey "name" (Json.mkString "Aeon") in
+    o1.setKey "version" (Json.mkInt 4);
 
-def built : Json :=
-    o0 : Json := Json.mkObject;
-    o1 : Json := o0.setKey "name" (Json.mkString "Aeon");
-    o1.setKey "version" (Json.mkInt 4)
+# Serialization supplies the valid-JSON fact required by parse.
+def decoded : Json := Json.parse (built.stringify);
 
-# stringify is refined non-empty, so it can be passed directly to parse.
-def decoded : Json := Json.parse (built.stringify)
+def name : String :=
+    if Json.has decoded "name" then
+        let value := decoded.get "name" in
+        if Json.isString value then value.asString else ""
+    else "";
 
-def name : String := (decoded.get "name").asString
-
-def main (_:Int) : Unit := print name
+def main (_:Int) : Unit := print name;

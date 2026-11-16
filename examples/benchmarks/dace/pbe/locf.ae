@@ -7,11 +7,11 @@
 #
 import Dace (Column, prev_nonmissing)
 
-def col1 : Column := native "[2, 2, -999999, -999999, 8, -999999, 5, -999999, -999999, 10]";
+def col1 : {c:Column | Dace.size c = 10} := native "[2, 2, -999999, -999999, 8, -999999, 5, -999999, -999999, 10]";
 
 @example(fill 2 = 3)
 @example(fill 3 = 3)
 @example(fill 5 = 9)
 @example(fill 7 = 6)
 @example(fill 8 = 6)
-def fill (i:Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 10}) : Int := ?hole;

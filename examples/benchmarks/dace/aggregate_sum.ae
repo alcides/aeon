@@ -3,6 +3,6 @@ open Table
 
 def t : Table := native "[{'amount':10},{'amount':20},{'amount':5}]";
 
-def total : Int := t.sum_col "amount";  # 35
+def total : Int := if is_int_column t "amount" then t.sum_col "amount" else 0;  # 35
 
 def main (x:Int) : Unit := print total;

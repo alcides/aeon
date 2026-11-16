@@ -164,7 +164,7 @@ def test_upstream_dataset_is_available_inside_aeon(tmp_path):
     program.write_text(
         "import Karel;\nopen Karel\n"
         f'def data : Dataset := load_dataset "{dataset}"\n'
-        "def main (_: Int) : Unit := print (fitness move (dataset_task data 0))\n",
+        "def main (_: Int) : Unit := if dataset_size data > 0 then print (fitness move (dataset_task data 0)) else print 0.0\n",
         encoding="utf-8",
     )
     result = subprocess.run(

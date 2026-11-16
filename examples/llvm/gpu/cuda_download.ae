@@ -16,7 +16,7 @@ open Cuda
 #              |-- download_values_i32 --> Array Int   (host snapshot)
 #              +-- download_buffer_i32 --> Buffer Int  (live allocation)
 #
-def read_once (d: Device) : Int :=
+def read_once (d: {v:Device | max_allocation v >= 16}) : Int :=
     let 1 ready := upload_i32 d (Array.mk_2{Int} 4 5) in
     let 1 downloaded := download_i32 ready in
     let 1 pair := unpack_i32_download downloaded in
@@ -29,7 +29,7 @@ def read_once (d: Device) : Int :=
 #
 # The preserved buffer can be downloaded again to obtain another host snapshot.
 #
-def read_twice (d: Device) : Int :=
+def read_twice (d: {v:Device | max_allocation v >= 16}) : Int :=
     let 1 ready0 := upload_i32 d (Array.mk_2{Int} 1 2) in
     let 1 downloaded0 := download_i32 ready0 in
     let 1 pair0 := unpack_i32_download downloaded0 in
@@ -48,6 +48,7 @@ def read_twice (d: Device) : Int :=
 #
 def download_compute_download (u: Unit) : Int :=
     let d := default_device u in
+    if allocation_limit d >= 16 then
     let stream := default_stream d in
     let launch := launch_1d d 3 1 in
     let 1 ready0 := upload_i32 d (Array.mk_concat (Array.mk_2{Int} 1 2) (Array.mk_1{Int} 3)) in
@@ -63,11 +64,11 @@ def download_compute_download (u: Unit) : Int :=
             let _ := (Array.consume Array.sum) snapshot0 in
             let total := (Array.consume Array.sum) snapshot1 in
             let _ := free buffer in
-            total));
+            total)) else 0;
 
 # -- 4. float64 variant ----------------------------------------------------
 
-def read_float64 (d: Device) : Float :=
+def read_float64 (d: {v:Device | max_allocation v >= 16}) : Float :=
     let 1 ready := upload_float64 d (Array.mk_2{Float} ((1.5 : Float)) ((2.5 : Float))) in
     let 1 downloaded := download_float64 ready in
     let 1 pair := unpack_float64_download downloaded in
@@ -78,7 +79,8 @@ def read_float64 (d: Device) : Float :=
 
 def main (args: Int) : Unit :=
     let d := default_device unit in
+    if allocation_limit d >= 16 then
     let _ := print (read_once d) in
     let _ := print (read_twice d) in
     let _ := print (download_compute_download unit) in
-    print (read_float64 d);
+    print (read_float64 d) else print "Device allocation limit is too small";

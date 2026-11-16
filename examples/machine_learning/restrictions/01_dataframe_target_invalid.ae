@@ -13,6 +13,8 @@ def train_and_score
 # WRONG: both target calls try to consume the same DataFrame.
 def select_twice (1 df: {table: DataFrame | df_cols table >= 2}) : Dataset :=
     let 1 first_dataset := target df 0 in
+    if can_split first_dataset 0.7 then
     let 1 parts := split first_dataset 0.7 in
     let first_score := consume_split parts train_and_score in
     target df 1
+    else let _ := dispose_dataset first_dataset in target df 1

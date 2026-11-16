@@ -3,5 +3,7 @@ open DataFrame
 
 def main (args: Int) : Unit :=
     let 1 df0 := read_csv "examples/dataframe/data/people.csv" 4 4 in
+    if is_orderable_col df0 "dept" && is_numeric_col df0 "score" then
     let 1 df1 := groupby_agg df0 "dept" "score" "mean" in
-    to_csv df1 "examples/dataframe/data/dept_means.csv";
+    to_csv df1 "examples/dataframe/data/dept_means.csv"
+    else DataFrame.dispose df0;

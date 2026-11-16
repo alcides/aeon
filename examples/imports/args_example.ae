@@ -7,13 +7,13 @@ open Array
 
 def parser : Parser :=
     p0 : Parser := Args.newParser "Demo CLI";
-    p1 : Parser := Args.addOption p0 "greeting" "Hello" "what to say";
-    Args.addFlag p1 "uppercase" "shout instead of say"
+    p1 : Parser := if Args.canAdd p0 "greeting" then Args.addOption p0 "greeting" "Hello" "what to say" else p0;
+    if Args.canAdd p1 "uppercase" then Args.addFlag p1 "uppercase" "shout instead of say" else p1
 
 def emptyArgs (_: Unit) : (Array String)  := native "[]"
 
 def main (_:Int) : Unit :=
     let 1 a : ParsedArgs := Args.parseList parser (emptyArgs unit) in
-    g : String := Args.getString a "greeting";
+    g : String := if Args.hasString a "greeting" then Args.getString a "greeting" else "";
     let _ := Args.dispose a in
     print g

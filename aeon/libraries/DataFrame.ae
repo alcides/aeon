@@ -36,7 +36,7 @@ def read_csv
     (expected_rows: {rows: Int | rows >= 0})
     (expected_cols: {cols: Int | cols >= 1}) :
     {df: DataFrame | df_nrows df = expected_rows && df_ncols df = expected_cols} :=
-    native "__import__('aeon.bindings.dataframe').bindings.dataframe.read_csv(path)"
+    native "__import__('aeon.bindings.dataframe').bindings.dataframe.read_csv(path, expected_rows, expected_cols)"
 
 
 def to_csv (1 df: DataFrame) (path: String) : Unit :=
@@ -60,7 +60,7 @@ def snd_df (1 pr: DataFramePair) :
     native "pr[1]"
 
 
-def with_col (1 df: DataFrame) (name: String) :
+def with_col (1 df: DataFrame) (name: {s:String | numericColumn df s}) :
     {w: DataFrameCol | wc_nrows w = df_nrows df && wc_ncols w = df_ncols df} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.with_col(df)(name)"
 
@@ -89,7 +89,7 @@ def columns (borrow df: DataFrame) : (Array String) :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.columns(df)"
 
 
-def has_col (borrow df: DataFrame) (name: String) : Bool :=
+def has_col (borrow df: DataFrame) (name: String) : {b:Bool | b = hasColumn df name} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.has_col(df)(name)"
 
 
@@ -100,11 +100,11 @@ def head (1 df: DataFrame) (n: {k:Int | k >= 0}) :
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.head(df)(n)"
 
 
-def select (1 df: DataFrame) (1 cols: (Array String)) : DataFrame :=
+def select (1 df: DataFrame) (1 cols: {xs:(Array String) | hasColumns df xs}) : DataFrame :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.select(df)(cols)"
 
 
-def drop (1 df: DataFrame) (1 cols: (Array String)) : DataFrame :=
+def drop (1 df: DataFrame) (1 cols: {xs:(Array String) | hasColumns df xs}) : DataFrame :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.drop(df)(cols)"
 
 
@@ -113,7 +113,7 @@ def rename (1 df: DataFrame) (old: String) (new: String) :
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.rename(df)(old)(new)"
 
 
-def filter_rows (1 df: DataFrame) (column: String) (pred: (x: Float) -> Bool) :
+def filter_rows (1 df: DataFrame) (column: {s:String | numericColumn df s}) (pred: (x: Float) -> Bool) :
     {r: DataFrame | df_ncols r = df_ncols df && df_nrows r <= df_nrows df} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.filter_rows(df)(column)(pred)"
 
@@ -127,44 +127,44 @@ def fillna (1 df: DataFrame) (value: Float) :
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.fillna(df)(value)"
 
 
-def sort_values (1 df: DataFrame) (column: String) (ascending: Bool) :
+def sort_values (1 df: DataFrame) (column: {s:String | orderableColumn df s}) (ascending: Bool) :
     {r: DataFrame | df_nrows r = df_nrows df && df_ncols r = df_ncols df} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.sort_values(df)(column)(ascending)"
 
 
-def concat (1 left: DataFrame) (1 right: {r: DataFrame | df_ncols r = df_ncols left}) :
-    {out: DataFrame | df_ncols out = df_ncols left} :=
+def concat (1 left: DataFrame) (1 right: {r: DataFrame | sameColumns left r}) :
+    {out: DataFrame | df_ncols out = df_ncols left && df_nrows out = df_nrows left + df_nrows right} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.concat(left)(right)"
 
 
-def join (1 left: DataFrame) (1 right: DataFrame) (on: String) (how: String) : DataFrame :=
+def join (1 left: DataFrame) (1 right: DataFrame) (on: {s:String | joinableColumn left right s}) (how: {s:String | s = "inner" || s = "outer" || s = "left" || s = "right"}) : DataFrame :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.join(left)(right)(on)(how)"
 
 
-def groupby_agg (1 df: DataFrame) (by: String) (column: String) (how: String) : DataFrame :=
+def groupby_agg (1 df: DataFrame) (by: {s:String | orderableColumn df s}) (column: {s:String | numericColumn df s && s != by}) (how: {s:String | s = "sum" || s = "mean" || s = "count" || s = "min" || s = "max"}) : DataFrame :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.groupby_agg(df)(by)(column)(how)"
 
 
 def assign_const (1 df: DataFrame) (name: String) (value: Float) :
-    {r: DataFrame | df_nrows r = df_nrows df} :=
+    {r: DataFrame | df_nrows r = df_nrows df && numericColumn r name} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.assign_const(df)(name)(value)"
 
 
 # ── Array bridge (LLVM / GPU column kernels) ────────────────────────────
 
-def col_as_array (borrow df: DataFrame) (name: String) :
+def col_as_array (borrow df: DataFrame) (name: {s:String | numericColumn df s}) :
     {col: (Array Float) | size col = df_nrows df} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.col_as_array(df)(name)"
 
 
-def set_col (1 df: DataFrame) (name: String) (1 col: (Array Float)) :
-    {r: DataFrame | df_nrows r = size col} :=
+def set_col (1 df: DataFrame) (name: String) (1 col: {xs:(Array Float) | size xs = df_nrows df}) :
+    {r: DataFrame | df_nrows r = size col && numericColumn r name} :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.set_col(df)(name)(col)"
 
 
 # Extract → transform → write back in one step (``f`` may be an ``@llvm`` kernel).
-def map_col (1 df: DataFrame) (name: String)
-    (f: (1 col: (Array Float)) -> (Array Float)) : DataFrame :=
+def map_col (1 df: DataFrame) (name: {s:String | numericColumn df s})
+    (f: (1 col: {xs:(Array Float) | size xs = df_nrows df}) -> {ys:(Array Float) | size ys = df_nrows df}) : DataFrame :=
     native "__import__('aeon.bindings.dataframe').bindings.dataframe.map_col(df)(name)(f)"
 
 def dispose (1 df:DataFrame) : Unit := native "None"
@@ -178,3 +178,19 @@ def with_column (1 token:DataFrameCol)
     (1 consume:(1 frame:{df:DataFrame | df_nrows df = wc_nrows token && df_ncols df = wc_ncols token}) ->
         (1 column:{xs:(Array Float) | size xs = wc_nrows token}) -> b) : b :=
     native "consume(token[0])(token[1])"
+
+def hasColumn : (df:DataFrame) -> (name:String) -> Bool := uninterpreted
+def numericColumn : (df:DataFrame) -> (name:String) -> Bool := uninterpreted
+def sameColumns : (left:DataFrame) -> (right:DataFrame) -> Bool := uninterpreted
+def is_numeric_col (borrow df:DataFrame) (name:String) : {b:Bool | b = numericColumn df name && (b = false || hasColumn df name)} :=
+    native "__import__('aeon.bindings.contracts', fromlist=['numeric_column']).numeric_column(df, name)"
+def same_columns (borrow left:DataFrame) (borrow right:DataFrame) : {b:Bool | b = sameColumns left right && (b = false || df_ncols left = df_ncols right)} :=
+    native "left.columns.equals(right.columns)"
+
+def orderableColumn : (df:DataFrame) -> (s:String) -> Bool := uninterpreted
+def joinableColumn : (left:DataFrame) -> (right:DataFrame) -> (s:String) -> Bool := uninterpreted
+def is_orderable_col (borrow df:DataFrame) (s:String) : {b:Bool | b = orderableColumn df s} := native "__import__('aeon.bindings.contracts', fromlist=['column_family']).column_family(df, s) is not None"
+def can_join_on (borrow left:DataFrame) (borrow right:DataFrame) (s:String) : {b:Bool | b = joinableColumn left right s} := native "__import__('aeon.bindings.contracts', fromlist=['joinable_column']).joinable_column(left, right, s)"
+
+def hasColumns : (df:DataFrame) -> (cols:(Array String)) -> Bool := uninterpreted
+def has_columns (borrow df:DataFrame) (borrow cols:(Array String)) : {b:Bool | b = hasColumns df cols} := native "all(name in df.columns for name in cols)"

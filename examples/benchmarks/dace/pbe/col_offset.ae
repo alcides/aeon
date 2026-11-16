@@ -7,7 +7,7 @@
 
 open Table
 
-def input : Table :=
+def input : {t:Table | Table.rowCount t = 3 && Table.intColumn t "first" && Table.intColumn t "second"} :=
     native "[{'first': 1, 'second': 10}, {'first': 2, 'second': 20}, {'first': 3, 'second': 30}]";
 
 # Target: previous row's second column (spatial offset), or 0 on the first row.

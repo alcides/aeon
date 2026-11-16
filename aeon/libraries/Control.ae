@@ -15,7 +15,7 @@ def clip (x:Float) (lo:Float) (hi:{v:Float | v >= lo}):{v:Float | lo <= v && v <
 
 # [-pi, pi); flooring handles negative angles and multiple revolutions.
 def angle (theta:Float):Float :=
-    theta - 6.283185307179586 * Math.toFloat (Math.floor ((theta + 3.141592653589793) / 6.283185307179586));
+    theta - 6.283185307179586 * Math.toFloat ((let turns := (theta + 3.141592653589793) / 6.283185307179586 in if Math.isfinite turns then Math.floor turns else 0));
 
 # Check failure before the fuel test, including the state reached by the last
 # permitted transition. Failures incur a large loss, never a cheap short run.

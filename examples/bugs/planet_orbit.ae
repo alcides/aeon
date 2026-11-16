@@ -20,14 +20,14 @@ def degrees_to_radians (angle: {deg: Float | 0.0 <= deg && deg <= 360.0 })
 
 def cos_eccentric (tru_anomaly: {v: Float | 0.0 <= v && v <= TAU})
                   (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
-                  : {cos: Float | -1.0 <= cos && cos <= 1.0} := let cos_num := eccentricity + (Math.cos tru_anomaly) in
-   let cos_denom := 1.0 + eccentricity * (Math.cos tru_anomaly) in
+                  : {cos: Float | -1.0 <= cos && cos <= 1.0} := let cos_num := eccentricity + ((if Math.isfinite tru_anomaly then Math.cos tru_anomaly else 0.0)) in
+   let cos_denom := 1.0 + eccentricity * ((if Math.isfinite tru_anomaly then Math.cos tru_anomaly else 0.0)) in
    if cos_denom > 0.0 then clamp (cos_num / cos_denom) (0.0 - 1.0) 1.0 else 0.0;
 
 def sin_eccentric (tru_anomaly: {v: Float | 0.0 <= v && v <= TAU})
                   (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
-                  : {sin: Float | -1.0 <= sin && sin <= 1.0} := let sin_num := (Math.sqrtf (1.0 - eccentricity * eccentricity)) * (Math.sin tru_anomaly) in
-   let sin_denom := 1.0 + eccentricity * (Math.cos tru_anomaly) in
+                  : {sin: Float | -1.0 <= sin && sin <= 1.0} := let sin_num := (Math.sqrtf (1.0 - eccentricity * eccentricity)) * ((if Math.isfinite tru_anomaly then Math.sin tru_anomaly else 0.0)) in
+   let sin_denom := 1.0 + eccentricity * ((if Math.isfinite tru_anomaly then Math.cos tru_anomaly else 0.0)) in
    if sin_denom > 0.0 then clamp (sin_num / sin_denom) (0.0 - 1.0) 1.0 else 0.0;
 
 def tru_to_eccentric_anomaly (tru_anomaly: {v: Float | 0.0 <= v && v <= 360.0})
@@ -44,7 +44,7 @@ def tru_to_eccentric_anomaly (tru_anomaly: {v: Float | 0.0 <= v && v <= 360.0})
 def tru_to_mean_anomaly (tru_anomaly: {v: Float | 0.0 <= v && v <= 360.0})
                         (eccentricity: {e: Float | 0.0 <= e && e < 1.0})
                         : {mean_anomaly: Float | 0.0 <= mean_anomaly && mean_anomaly <= TAU} := let eccentric_anomaly := tru_to_eccentric_anomaly tru_anomaly eccentricity in
-   clamp (eccentric_anomaly - eccentricity * (Math.sin eccentric_anomaly)) 0.0 TAU;
+   clamp (eccentric_anomaly - eccentricity * ((if Math.isfinite eccentric_anomaly then Math.sin eccentric_anomaly else 0.0))) 0.0 TAU;
 
 def min_elapsed_period_fraction (starting_tru_anomaly: {v1: Float | 0.0 <= v1 && v1 <= 360.0})
                                  (final_tru_anomaly: {v2: Float | 0.0 <= v2 && v2 <= 360.0})

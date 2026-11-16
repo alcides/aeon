@@ -12,36 +12,36 @@ def newParser (description: String) : Parser :=
     native "argparse.ArgumentParser(description=description)"
 
 # Adds a required positional string argument.
-def addArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
-    native "(p.add_argument(name, help=help), p)[1]"
+def addArg (p: Parser) (name: {s:String | availableName p s}) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument(name, help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # Adds a required positional integer argument.
-def addIntArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
-    native "(p.add_argument(name, type=int, help=help), p)[1]"
+def addIntArg (p: Parser) (name: {s:String | availableName p s}) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument(name, type=int, help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # Adds a required positional float argument.
-def addFloatArg (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
-    native "(p.add_argument(name, type=float, help=help), p)[1]"
+def addFloatArg (p: Parser) (name: {s:String | availableName p s}) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument(name, type=float, help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # Adds an optional boolean flag (e.g. --verbose). Defaults to false.
-def addFlag (p: Parser) (name: {s:String | s != ""}) (help: String) : Parser :=
-    native "(p.add_argument('--' + name, action='store_true', help=help), p)[1]"
+def addFlag (p: Parser) (name: {s:String | availableName p s}) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument('--' + name, action='store_true', help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # Adds an optional string option, e.g. --output FILE.
-def addOption (p: Parser) (name: {s:String | s != ""}) (default: String) (help: String) : Parser :=
-    native "(p.add_argument('--' + name, default=default, help=help), p)[1]"
+def addOption (p: Parser) (name: {s:String | availableName p s}) (default: String) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument('--' + name, default=default, help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # Adds an optional integer option.
-def addIntOption (p: Parser) (name: {s:String | s != ""}) (default: Int) (help: String) : Parser :=
-    native "(p.add_argument('--' + name, type=int, default=default, help=help), p)[1]"
+def addIntOption (p: Parser) (name: {s:String | availableName p s}) (default: Int) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument('--' + name, type=int, default=default, help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # Adds an optional float option.
-def addFloatOption (p: Parser) (name: {s:String | s != ""}) (default: Float) (help: String) : Parser :=
-    native "(p.add_argument('--' + name, type=float, default=default, help=help), p)[1]"
+def addFloatOption (p: Parser) (name: {s:String | availableName p s}) (default: Float) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument('--' + name, type=float, default=default, help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # Adds an optional argument restricted to a non-empty list of choices.
-def addChoice (p: Parser) (name: {s:String | s != ""}) (1 options: {l: (Array String) | Array.size l > 0}) (default: String) (help: String) : Parser :=
-    native "(p.add_argument('--' + name, default=default, choices=options, help=help), p)[1]"
+def addChoice (p: Parser) (name: {s:String | availableName p s}) (1 options: {l: (Array String) | Array.size l > 0}) (default: String) (help: String) : Parser :=
+    native "(lambda q: (q.add_argument('--' + name, default=default, choices=options, help=help), q)[1])(__import__('copy').deepcopy(p))"
 
 # ── Parsing ────────────────────────────────────────────────────────────
 
@@ -60,20 +60,29 @@ def parseList (1 p: Parser) (1 xs: (Array String)) : ParsedArgs :=
 # their underscored form.
 
 # Reads a string value by name.
-def getString (borrow a: ParsedArgs) (name: {s:String | s != ""}) : String :=
+def getString (borrow a: ParsedArgs) (name: {s:String | valueKind a s = 1}) : String :=
     native "getattr(a, name)"
 
 # Reads an integer value by name.
-def getInt (borrow a: ParsedArgs) (name: {s:String | s != ""}) : Int :=
+def getInt (borrow a: ParsedArgs) (name: {s:String | valueKind a s = 2}) : Int :=
     native "getattr(a, name)"
 
 # Reads a float value by name.
-def getFloat (borrow a: ParsedArgs) (name: {s:String | s != ""}) : Float :=
+def getFloat (borrow a: ParsedArgs) (name: {s:String | valueKind a s = 3}) : Float :=
     native "getattr(a, name)"
 
 # Reads a boolean flag value by name.
-def getBool (borrow a: ParsedArgs) (name: {s:String | s != ""}) : Bool :=
+def getBool (borrow a: ParsedArgs) (name: {s:String | valueKind a s = 4}) : Bool :=
     native "getattr(a, name)"
 
 # Release the parsed namespace after its borrowed observations.
 def dispose (1 a: ParsedArgs) : Unit := native "None"
+
+def availableName : (p:Parser) -> (s:String) -> Bool := uninterpreted
+def valueKind : (a:ParsedArgs) -> (s:String) -> Int := uninterpreted
+def canAdd (p:Parser) (s:String) : {b:Bool | b = availableName p s} :=
+    native "__import__('aeon.bindings.contracts', fromlist=['argument_name']).argument_name(p, s)"
+def hasString (borrow a:ParsedArgs) (s:String) : {b:Bool | b = (valueKind a s = 1)} := native "type(getattr(a, s, None)) is str"
+def hasInt (borrow a:ParsedArgs) (s:String) : {b:Bool | b = (valueKind a s = 2)} := native "type(getattr(a, s, None)) is int"
+def hasFloat (borrow a:ParsedArgs) (s:String) : {b:Bool | b = (valueKind a s = 3)} := native "type(getattr(a, s, None)) is float"
+def hasBool (borrow a:ParsedArgs) (s:String) : {b:Bool | b = (valueKind a s = 4)} := native "type(getattr(a, s, None)) is bool"

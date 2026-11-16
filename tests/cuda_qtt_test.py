@@ -85,7 +85,7 @@ def test_upload_respects_allocation_byte_bound():
     source = (
         IMPORTS
         + f"""
-def bounded (d: Device) : Unit :=
+def bounded (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let 1 xs := {_int_array((1, 2))} in
     let 1 buffer := upload_i32 d xs in
     free buffer;
@@ -138,6 +138,7 @@ def test_i32_upload_add_synchronize_download_lifecycle_typechecks():
         + f"""
 def lifecycle (u: Unit) : Int :=
     let d := default_device u in
+    if allocation_limit d >= 16 then
     let stream := default_stream d in
     let launch := launch_1d d 3 1 in
     let 1 xs := {_int_array((1, 2, 3))} in
@@ -151,7 +152,7 @@ def lifecycle (u: Unit) : Int :=
     Cuda.with_i32_download pair (fun values => fun next =>
     let total := (Array.consume Array.sum) values in
     let _ := free next in
-    total);
+    total) else 0;
 """
         + MAIN
     )
@@ -164,6 +165,7 @@ def test_float64_lifecycle_and_explicit_terminal_operations_typecheck():
         + f"""
 def lifecycle (u: Unit) : Unit :=
     let d := default_device u in
+    if allocation_limit d >= 16 then
     let stream := default_stream d in
     let launch := launch_1d d 2 1 in
     let 1 xs := {_float_array((1.5, 2.5))} in
@@ -178,16 +180,17 @@ def lifecycle (u: Unit) : Unit :=
     let _ := Array.dispose values in
     let _ := free next in
     let 1 spare := upload_i32 d ({_int_array((7,))}) in
-    free spare);
+    free spare) else unit;
 
 def abandon (u: Unit) : Unit :=
     let d := default_device u in
+    if allocation_limit d >= 16 then
     let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
     let 1 right := upload_i32 d ({_int_array((2,))}) in
     let 1 pending := add_i32 launch stream left right in
-    discard pending;
+    discard pending else unit;
 """
         + MAIN
     )
@@ -203,7 +206,7 @@ def test_leaked_buffer_is_rejected():
     source = (
         IMPORTS
         + f"""
-def leak (d: Device) : Int :=
+def leak (d: {{v:Device | max_allocation v >= 16}}) : Int :=
     let 1 buffer := upload_i32 d ({_int_array((1,))}) in
     0;
 """
@@ -216,7 +219,7 @@ def test_leaked_pending_is_rejected():
     source = (
         IMPORTS
         + f"""
-def leak (d: Device) : Int :=
+def leak (d: {{v:Device | max_allocation v >= 16}}) : Int :=
     let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
@@ -233,7 +236,7 @@ def test_linear_result_requires_a_multiplicity_one_binder():
     source = (
         IMPORTS
         + f"""
-def bad_binder (d: Device) : Unit :=
+def bad_binder (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let buffer := upload_i32 d ({_int_array((1,))}) in
     free buffer;
 """
@@ -246,7 +249,7 @@ def test_double_free_is_rejected():
     source = (
         IMPORTS
         + f"""
-def double_free (d: Device) : Unit :=
+def double_free (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let 1 buffer := upload_i32 d ({_int_array((1,))}) in
     let _ := free buffer in
     free buffer;
@@ -260,7 +263,7 @@ def test_stale_input_handle_after_launch_is_rejected():
     source = (
         IMPORTS
         + f"""
-def stale (d: Device) : Unit :=
+def stale (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
@@ -278,7 +281,7 @@ def test_download_can_be_repeated_without_nesting():
     source = (
         IMPORTS
         + f"""
-def repeated (d: Device) : Int :=
+def repeated (d: {{v:Device | max_allocation v >= 16}}) : Int :=
     let stream := default_stream d in
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
     let 1 downloaded0 := download_i32 ready0 in
@@ -303,6 +306,7 @@ def test_download_preserves_size_and_device_refinements():
         + f"""
 def preserved (u: Unit) : Int :=
     let d := default_device u in
+    if allocation_limit d >= 16 then
     let stream := default_stream d in
     let launch := launch_1d d 3 1 in
     let 1 ready0 := upload_i32 d ({_int_array((1, 2, 3))}) in
@@ -318,7 +322,7 @@ def preserved (u: Unit) : Int :=
     Cuda.with_i32_download pair1 (fun values1 => fun ready3 =>
     let result := (Array.consume Array.sum) values1 in
     let _ := free ready3 in
-    result));
+    result)) else 0;
 """
         + MAIN
     )
@@ -329,7 +333,7 @@ def test_download_result_must_free_recovered_buffer():
     source = (
         IMPORTS
         + f"""
-def leak_successor (d: Device) : Int :=
+def leak_successor (d: {{v:Device | max_allocation v >= 16}}) : Int :=
     let stream := default_stream d in
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
     let 1 downloaded := download_i32 ready in
@@ -346,7 +350,7 @@ def test_download_consumes_outer_buffer_handle():
     source = (
         IMPORTS
         + f"""
-def stale (d: Device) : Unit :=
+def stale (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let stream := default_stream d in
     let 1 ready := upload_i32 d ({_int_array((1,))}) in
     let 1 downloaded := download_i32 ready in
@@ -365,7 +369,7 @@ def test_pending_cannot_be_downloaded_before_synchronize():
     source = (
         IMPORTS
         + f"""
-def premature (d: Device) : Int :=
+def premature (d: {{v:Device | max_allocation v >= 16}}) : Int :=
     let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1,))}) in
@@ -417,7 +421,7 @@ def test_empty_upload_is_rejected():
     source = (
         IMPORTS
         + """
-def invalid (d: Device) : Unit :=
+def invalid (d: {v:Device | max_allocation v >= 16}) : Unit :=
     let 1 buffer := upload_i32 d (Array.mk_empty{Int} unit) in
     free buffer;
 """
@@ -430,7 +434,7 @@ def test_add_rejects_unequal_vector_lengths():
     source = (
         IMPORTS
         + f"""
-def invalid (d: Device) : Unit :=
+def invalid (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let stream := default_stream d in
     let launch := launch_1d d 2 2 in
     let 1 left := upload_i32 d ({_int_array((1, 2))}) in
@@ -447,7 +451,7 @@ def test_add_rejects_launch_item_count_different_from_buffer_size():
     source = (
         IMPORTS
         + f"""
-def invalid (d: Device) : Unit :=
+def invalid (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_i32 d ({_int_array((1, 2))}) in
@@ -469,10 +473,11 @@ def invalid (u: Unit) : Unit :=
     let d1 := device 1 in
     let stream := default_stream d0 in
     let launch := launch_1d d0 1 1 in
+    if allocation_limit d0 >= 4 && allocation_limit d1 >= 4 then
     let 1 left := upload_i32 d0 ({_int_array((1,))}) in
     let 1 right := upload_i32 d1 ({_int_array((2,))}) in
     let 1 pending := add_i32 launch stream left right in
-    discard pending;
+    discard pending else unit;
 """
         + MAIN
     )
@@ -483,7 +488,7 @@ def test_add_rejects_mismatched_element_types():
     source = (
         IMPORTS
         + f"""
-def invalid (d: Device) : Unit :=
+def invalid (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let stream := default_stream d in
     let launch := launch_1d d 1 1 in
     let 1 left := upload_float64 d ({_float_array((1.0,))}) in
@@ -512,7 +517,7 @@ def consume_device_rw (1 b: {{buffer: (ReadyBuffer Int) |
     buffer_extent_y buffer = 1}}) : Unit :=
     free b;
 
-def tagged (d: Device) : Unit :=
+def tagged (d: {{v:Device | max_allocation v >= 16}}) : Unit :=
     let 1 buffer := upload_i32 d ({_int_array((1, 2, 3))}) in
     consume_device_rw buffer;
 """
@@ -527,6 +532,7 @@ def test_as_read_only_then_add_typechecks():
         + f"""
 def freeze_then_add (u: Unit) : Int :=
     let d := default_device u in
+    if allocation_limit d >= 16 then
     let stream := default_stream d in
     let launch := launch_1d d 2 1 in
     let 1 xs := {_int_array((1, 2))} in
@@ -542,7 +548,7 @@ def freeze_then_add (u: Unit) : Int :=
     Cuda.with_i32_download pair (fun values => fun next =>
     let total := (Array.consume Array.sum) values in
     let _ := free next in
-    total);
+    total) else 0;
 """
         + MAIN
     )
@@ -553,7 +559,7 @@ def test_leaked_read_only_buffer_is_rejected():
     source = (
         IMPORTS
         + f"""
-def leak_ro (d: Device) : Int :=
+def leak_ro (d: {{v:Device | max_allocation v >= 16}}) : Int :=
     let 1 buffer := upload_i32 d ({_int_array((1,))}) in
     let 1 ro := as_read_only buffer in
     0;
@@ -622,12 +628,14 @@ def test_synchronize_with_status_check_ok_lifecycle():
         + f"""
 def checked (u: Unit) : Int :=
     let d := default_device u in
+    if allocation_limit d >= 16 then
     let stream := default_stream d in
     let launch := launch_1d d 2 1 in
     let 1 left := upload_i32 d ({_int_array((1, 2))}) in
     let 1 right := upload_i32 d ({_int_array((3, 4))}) in
     let 1 pending := add_i32 launch stream left right in
     let 1 sb := synchronize_with_status pending in
+    if status_buffer_succeeded sb then
     let 1 pair := unpack_status_buffer sb in
     Cuda.with_status_pair pair (fun st => fun buf =>
     let _ := check_ok st in
@@ -636,7 +644,8 @@ def checked (u: Unit) : Int :=
     Cuda.with_i32_download dl (fun values => fun next =>
     let total := (Array.consume Array.sum) values in
     let _ := free next in
-    total));
+    total)) else let _ := discard_status_buffer sb in 0
+    else 0;
 """
         + MAIN
     )

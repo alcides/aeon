@@ -50,7 +50,7 @@ instance : Classifier Network where
 
 instance : Regressor Network where
     reg_inputs model := net_in_of model;
-    regress model x := predict_scalar model x;
+    regress model x := predict_scalar_unchecked model x;
 
 # ── Instances: scikit-learn models (Learning) ──────────────────────────
 # A fitted ``SklearnClassifier`` / ``SklearnRegressor`` predicts for one
@@ -59,8 +59,8 @@ instance : Regressor Network where
 instance : Classifier SklearnClassifier where
     cls_inputs model := clf_n_features model;
     cls_classes model := clf_n_classes model;
-    classify model x := classify_one model x;
+    classify model x := classify_one_unchecked model x;
 
 instance : Regressor SklearnRegressor where
     reg_inputs model := reg_n_features model;
-    regress model x := regress_one model x;
+    regress model x := regress_one_unchecked model x;

@@ -6,10 +6,10 @@
 
 import Dace (Column, col_at)
 
-def col : Column := native "[10, 20, 30, 40]";
+def col : {c:Column | Dace.size c = 4} := native "[10, 20, 30, 40]";
 
 @example(fill 0 = 11)
 @example(fill 1 = 21)
 @example(fill 2 = 31)
 @example(fill 3 = 41)
-def fill (i: Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 4}) : Int := ?hole;

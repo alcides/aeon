@@ -140,12 +140,15 @@ def Learning_read_csv(path):
 def Learning_target(df, column, temporal, missing):
     """Designate ``column`` as the target; return the ``(X, y)`` Dataset.
 
-    ``temporal`` / ``missing`` are modelling facts consumed only by the
-    static analyser (they carry the chronological-order and
-    missing-value flags into the refinement); the runtime ignores them.
+    ``temporal`` is a modelling fact. The declared ``missing`` flag is
+    checked against the actual feature and target values at this boundary.
     """
     y = df[column].tolist()
-    X = df.drop(columns=[column]).values.tolist()
+    features = df.drop(columns=[column])
+    actual_missing = bool(features.isna().any().any() or df[column].isna().any())
+    if actual_missing != missing:
+        raise ValueError("Dataset missing-value flag does not match CSV contents")
+    X = features.values.tolist() if len(features) else features.to_numpy()
     return _xy(X, y)
 
 
@@ -174,7 +177,9 @@ def Learning_create_dataset(rows, features, balanced, temporal, missing):
     """
     n = int(rows)
     f = max(int(features), 1)
-    X = np.random.rand(n, f).tolist()
+    X = np.random.rand(n, f)
+    if n:
+        X = X.tolist()
     if balanced:
         y = [i % 2 for i in range(n)]
     else:
@@ -222,9 +227,9 @@ def Learning_n_rows(ds):
 @curried
 def Learning_n_features(ds):
     X, _ = _as_xy(ds)
-    if len(X) == 0:
-        return 0
-    return len(X[0])
+    if hasattr(X, "shape") and len(X.shape) == 2:
+        return int(X.shape[1])
+    return len(X[0]) if len(X) else 0
 
 
 @curried

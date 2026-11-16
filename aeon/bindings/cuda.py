@@ -1107,6 +1107,15 @@ def status_buffer_ok(result: StatusBuffer) -> bool:
     return result.status.ok
 
 
+def discard_status_buffer(result: StatusBuffer) -> None:
+    """Release either outcome of synchronization, including a successful buffer."""
+    try:
+        if result.buffer is not None:
+            result.buffer.free()
+    finally:
+        discard_status(result.status)
+
+
 def unpack_status_buffer(result: StatusBuffer) -> tuple[Status, Buffer | None]:
     return (result.status, result.buffer)
 

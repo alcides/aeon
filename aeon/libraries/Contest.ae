@@ -4,9 +4,9 @@ open Seq
 
 def wordCount (text:String) : Int := native "len(text.split())";
 def wordAt (text:String) (index:Int) : String := native "text.split()[index] if 0 <= index < len(text.split()) else ''";
-def readInt (token:String) : Int := native "int(token)";
+def readInt (token:{s:String | validInt s}) : Int := native "int(token)";
 def showInt (value:Int) : String := native "str(value)";
-def readFloat (token:String) : Float := native "float(token)";
+def readFloat (token:{s:String | validFloat s}) : Float := native "float(token)";
 def showFloat (value:Float) : String := native "str(value)";
 def appendText (left:String) (right:String) : String := native "left + right";
 def character (text:String) (index:Int) : String := native "text[index:index+1] if index >= 0 else ''";
@@ -14,7 +14,7 @@ def textLength (text:String) : Int := native "len(text)";
 def wordsFrom (text:String) (index:Int) : (Seq String) :=
     if index >= wordCount text then nil else cons (wordAt text index) (wordsFrom text (index + 1));
 def words (text:String) : (Seq String) := wordsFrom text 0;
-def integers (text:String) : (Seq Int) := Seq.map readInt (words text);
+def integers (text:{s:String | validIntegers s}) : (Seq Int) := native "__import__('aeon.bindings.contracts', fromlist=['contest_integers']).contest_integers(text)";
 def joinWords (xs:(Seq String)) : String :=
     match xs with | nil => "" | cons x tail =>
         if Seq.empty tail then x else appendText x (appendText " " (joinWords tail));
@@ -23,3 +23,12 @@ def showIntegers (xs:(Seq Int)) : String := joinWords (Seq.map showInt xs);
 # Contest outputs conventionally ignore runs of whitespace. This is an exact
 # token comparison, not a checker for alternate valid witnesses or tolerances.
 def sameTokens (left:String) (right:String) : Bool := native "left.split() == right.split()";
+
+def validInt : (s:String) -> Bool := uninterpreted
+def isInt (s:String) : {b:Bool | b = validInt s} := native "__import__('aeon.bindings.contracts', fromlist=['parseable']).parseable(s, int)"
+
+def validFloat : (s:String) -> Bool := uninterpreted
+def isFloat (s:String) : {b:Bool | b = validFloat s} := native "__import__('aeon.bindings.contracts', fromlist=['parseable']).parseable(s, float)"
+
+def validIntegers : (s:String) -> Bool := uninterpreted
+def isIntegers (s:String) : {b:Bool | b = validIntegers s} := native "all(__import__('aeon.bindings.contracts', fromlist=['parseable']).parseable(x, int) for x in s.split())"

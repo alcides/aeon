@@ -714,7 +714,7 @@ def desugar(
     # Compiled imports retain their inductive declarations separately from
     # type_decls. Their names are concrete types, not implicit type parameters.
     defs = introduce_forall_in_types(defs, type_decls, {decl.name.name for decl in combined_inductives})
-    defs = introduce_rforall_in_types(defs)
+    defs = introduce_rforall_in_types(defs, {Name(name.name) for name in qualified_scope.values()})
 
     defs, metadata = collect_core_decorator_queue(defs, metadata)
 
@@ -1208,7 +1208,7 @@ def _collect_implicit_refinement_params(ty: SType, bound_rho: set[Name], acc: di
             assert False, f"_collect_implicit_refinement_params: unhandled {ty} ({type(ty)})"
 
 
-def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
+def introduce_rforall_in_types(defs: list[Definition], imported_names: set[Name] | None = None) -> list[Definition]:
     """Discover implicit `p` from `t<p>`, append to `rforalls` (with parser `p`s).
 
     If `rtype` begins with `forall t` and there are any `p`s, splice those `∀p`
@@ -1217,13 +1217,24 @@ def introduce_rforall_in_types(defs: list[Definition]) -> list[Definition]:
     Otherwise keep the merged `rforalls` list for `convert_definition_to_srec`.
     """
     ndefs: list[Definition] = []
+    # Import prefixing may leave a reference awaiting its final binding pass.
+    # Such a name is still a concrete predicate, not an abstract parameter.
+    # Imported qualified symbols are visible across sources; bare local names
+    # must not capture abstract parameters in an unrelated imported module.
+    imported_names = imported_names or set()
+    predicates_by_source: dict[str | None, set[Name]] = {}
+    for definition in defs:
+        source = getattr(definition.loc, "file", None)
+        predicates_by_source.setdefault(source, set()).add(Name(definition.name.name))
     for d in defs:
         match d:
             case Definition(name, foralls, args, rtype, body, decorators, rforalls, decreasing_by, loc):
                 acc: dict[Name, SType] = {}
                 tlst: list[SType] = [ty for _, ty in args] + [rtype]
                 for ty in tlst:
-                    _collect_implicit_refinement_params(ty, set(), acc)
+                    _collect_implicit_refinement_params(
+                        ty, imported_names | predicates_by_source[getattr(d.loc, "file", None)], acc
+                    )
                 existing = {p for p, _ in rforalls}
                 new_entries = [(p, s) for p, s in acc.items() if p not in existing]
                 merged_rforalls = rforalls + new_entries

@@ -174,12 +174,12 @@ def partial_input_program():
             aeon_code="""
         open List
         import Math;
-        def bad (_:Unit) : (List Int) := .cons (Math.floor Math.INF) .nil;
+        def bad (_:Unit) : (List Int) := .cons ((native "__import__('math').floor(float('inf'))" : Int)) .nil;
         def good : (List Int) := .cons 7 .nil;
         @property(2)
         def prop_length (xs:(List Int)) : Bool := length xs >= 0;
         @property(2)
-        def prop_crashes (xs:(List Int)) : Bool := Math.floor Math.INF = 0;
+        def prop_crashes (xs:(List Int)) : Bool := (native "__import__('math').floor(float('inf'))" : Int) = 0;
     """
         )
         == []

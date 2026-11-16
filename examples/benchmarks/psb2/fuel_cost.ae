@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "fuel-cost" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "fuel-cost" 200;
 
-def score (cases:Cases) (candidate:(xs:{v:(List Int){|fun x => 6 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) -> {r:Int | 0 <= r && r <= 3331 * List.size xs}) : (Array Float) :=
+def score (cases:Cases) (candidate:(xs:{v:(List Int){|fun x => 6 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) -> {r:Int | 0 <= r && r <= 3331 * List.size xs}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('fuel-cost', cases(None), candidate)";
 
 @doc("Sum floor(mass / 3) - 2 over the input masses.")

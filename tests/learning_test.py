@@ -112,13 +112,17 @@ def test_clean_csv_path_with_require_enough_data():
     open Learning
     def p (path: String) (col: String) : Float :=
         let 1 df := read_csv path in
+        if has_column df col then
         let 1 ds0 := target df col false false in
         let 1 ds := require_enough_data ds0 in
+        if n_features ds > 0 then
         let 1 parts := split ds 0.8 true in
         with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
         let 1 model := random_forest_classifier (owned_left_parts) in
         let score := f1 model (owned_right_parts) in
-        let _ := dispose_classifier model in score );
+        let _ := dispose_classifier model in score )
+        else let _ := dispose_dataset ds in 0.0
+        else let _ := dispose_dataframe df in 0.0;
     """
     assert _typechecks(src)
 

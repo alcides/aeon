@@ -7,10 +7,10 @@
 
 import Dace (Column, sum_before, col_at)
 
-def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
+def values : {c:Column | Dace.size c = 7} := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
 
 @example(fill 1 = 9)
 @example(fill 3 = 1)
-def fill (i: Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 7}) : Int := ?hole;
 
 # Intended reconstruction shape: col_at(values, 4) - sum_before(values, i)

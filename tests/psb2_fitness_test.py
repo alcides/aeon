@@ -1,7 +1,9 @@
-"""Exercise the compiled benchmark adapter, including its shape guard."""
+"""Exercise the compiled benchmark adapter, including arbitrary objective counts."""
 
 from pathlib import Path
 import unittest
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT
@@ -25,11 +27,11 @@ class PSB2FitnessTests(unittest.TestCase):
 import PSB2Fitness
 import Array
 
-def adapt_int (1 values: (Array Int)) : {errors: (Array Float) | Array.size errors = 200} :=
+def adapt_int (1 values: (Array Int)) : {errors: (Array Float) | Array.size errors = Array.size values} :=
+    PSB2Fitness.per_example_errors_int values;
+def adapt_float (1 values: (Array Float)) : {errors: (Array Float) | Array.size errors = Array.size values} :=
     PSB2Fitness.per_example_errors values;
-def adapt_float (1 values: (Array Float)) : {errors: (Array Float) | Array.size errors = 200} :=
-    PSB2Fitness.per_example_errors values;
-def adapt_leaders (1 values: (Array Float)) : {errors: (Array Float) | Array.size errors = 50} :=
+def adapt_leaders (1 values: (Array Float)) : {errors: (Array Float) | Array.size errors = Array.size values} :=
     PSB2Fitness.per_example_errors_50 values;
 """
             )
@@ -52,17 +54,12 @@ def adapt_leaders (1 values: (Array Float)) : {errors: (Array Float) | Array.siz
         errors = [i / 8 for i in range(200)]
         self.assertEqual(self.functions["adapt_float"](errors), errors)
 
-    def test_wrong_vector_length_is_rejected(self):
-        for count in (0, 1, 199, 201):
-            with self.subTest(count=count), self.assertRaisesRegex(ValueError, "200 per-example errors"):
-                self.functions["adapt_int"]([0] * count)
-
-    def test_leaders_uses_fifty_objectives(self):
-        errors = [i / 8 for i in range(50)]
-        self.assertEqual(self.functions["adapt_leaders"](errors), errors)
-        for count in (0, 49, 51, 200):
-            with self.subTest(count=count), self.assertRaisesRegex(ValueError, "50 per-example errors"):
-                self.functions["adapt_leaders"]([0.0] * count)
+    def test_arbitrary_objective_counts(self):
+        for count in (0, 1, 3, 49, 50, 51, 199, 200, 201, 257):
+            for name in ("adapt_int", "adapt_float", "adapt_leaders"):
+                with self.subTest(count=count, adapter=name):
+                    values = list(range(count)) if name == "adapt_int" else [i / 8 for i in range(count)]
+                    self.assertEqual(self.functions[name](values), [float(v) for v in values])
 
 
 class PSB2ReferenceTests(unittest.TestCase):
@@ -99,3 +96,22 @@ class PSB2ReferenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.parametrize("count", [1, 7, 51, 257])
+def test_adapter_preserves_declared_decorator_objectives(count):
+    from tests.driver import check_and_return_core
+    from aeon.backend.evaluator import eval as evaluate
+    from aeon.synthesis.fitness_eval import set_program_tail, as_objective_vector
+    from aeon.core.terms import Var
+
+    core, _, context, metadata = check_and_return_core(f"""
+import Array;
+import PSB2Fitness;
+@multi_minimize_float(PSB2Fitness.per_example_errors (Array.mk_repeat {count} 0.25), {count})
+def candidate (x:Int):Int := x;
+""")
+    goals = [goal for entry in metadata.values() for goal in entry.get("goals", [])]
+    assert len(goals) == 1 and goals[0].length == count
+    values = evaluate(set_program_tail(core, Var(goals[0].function)), context)
+    assert as_objective_vector(values, count) == [0.25] * count

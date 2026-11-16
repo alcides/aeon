@@ -18,8 +18,14 @@ from aeon.bindings.binding_utils import curried
 DataFrame: TypeAlias = pd.DataFrame
 
 
-def read_csv(path: str) -> DataFrame:
-    return pd.read_csv(path)
+def read_csv(path: str, expected_rows: int | None = None, expected_cols: int | None = None) -> DataFrame:
+    """Check claimed dimensions before handing out a refined frame."""
+    frame = pd.read_csv(path)
+    if expected_rows is not None and len(frame) != expected_rows:
+        raise ValueError(f"CSV row count: expected {expected_rows}, got {len(frame)}")
+    if expected_cols is not None and frame.shape[1] != expected_cols:
+        raise ValueError(f"CSV column count: expected {expected_cols}, got {frame.shape[1]}")
+    return frame
 
 
 @curried

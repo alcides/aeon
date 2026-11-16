@@ -1,19 +1,24 @@
-# Fitness adapter for PSB2 programs requesting 200 training examples.
+# Fitness adapters preserve one objective per training example, at any count.
 # Keep one objective per example; convert integer/float errors consistently.
 import Array
 
 # Lazy, deterministic dataset fixture. Only this boundary owns Python values;
 # benchmark functions receive native Aeon List values and correctly typed scalars.
 type Cases
-def cases (problem:String) (count:{n:Int | n > 0}) : Cases :=
+
+def caseCount : (cases:Cases) -> Int := uninterpreted
+def cases (problem:String) (count:{n:Int | n > 0}) : {c:Cases | caseCount c = count} :=
     native "__import__('aeon.bindings.psb2', fromlist=['training_data']).training_data(problem, count, 0)"
 
 def meanError (1 errors:(Array Float)) : Float :=
     native "sum(errors) / len(errors) if errors else 0.0"
 
-def per_example_errors (1 values: (Array a)) : {errors: (Array Float) | Array.size errors = 200} :=
-    native "([float(error) for error in values] if len(values) == 200 else (_ for _ in ()).throw(ValueError('PSB2 fitness requires 200 per-example errors')))";
+def per_example_errors (1 values: (Array Float)) : {errors: (Array Float) | Array.size errors = Array.size values} :=
+    native "[float(error) for error in values]";
 
-# Leaders requests 50 training examples instead of the suite's usual 200.
-def per_example_errors_50 (1 values: (Array a)) : {errors: (Array Float) | Array.size errors = 50} :=
-    native "([float(error) for error in values] if len(values) == 50 else (_ for _ in ()).throw(ValueError('PSB2 fitness requires 50 per-example errors')))";
+def per_example_errors_int (1 values: (Array Int)) : {errors: (Array Float) | Array.size errors = Array.size values} :=
+    native "[float(error) for error in values]";
+
+# Compatibility name: the length now comes from the input, like the main adapter.
+def per_example_errors_50 (1 values: (Array Float)) : {errors: (Array Float) | Array.size errors = Array.size values} :=
+    per_example_errors values;
