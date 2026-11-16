@@ -20,8 +20,10 @@ class TacticState:
 
     def qtt_feasible(self) -> bool:
         """Holes may supply missing uses; known QTT violations cannot be repaired."""
-        if self.check_sketch is not None and not self.check_sketch(self.term):
-            return False
+        if self.check_sketch is not None:
+            # Preserve the ownership facts from implementations in the linked
+            # sketch; a signature-only recheck loses that information.
+            return self.check_sketch(self.term)
         return not check_linearity(Annotation(self.term, self.goal), self.ctx)
 
     def transition(self, term: Term, goal: Type | None = None) -> TacticState | None:

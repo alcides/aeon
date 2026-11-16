@@ -107,7 +107,7 @@ def get_component_library(
 ) -> ComponentLibrary:
     """Return (and memoize) the indexed library for ``ctx``.
 
-    Cached by ``id(ctx)``, expression domain, and retained datatype relations, with a
+    Cached by ``id(ctx)``, expression domain, and goal datatype arguments/relations, with a
     :func:`weakref.finalize` hook that evicts the
     entry when ``ctx`` is garbage collected — otherwise a later context reusing
     the same address would silently receive a stale library (observed as
@@ -120,7 +120,7 @@ def get_component_library(
         domain, goal = goal.domain, goal.type
     key = id(ctx)
     base = base_type_of(goal) if goal is not None else None
-    goal_key = repr(canonicalize_type(base)) if base is not None and base.refinements else None
+    goal_key = repr(canonicalize_type(base)) if base is not None and (base.args or base.refinements) else None
     bucket = _library_cache.get(key)
     if bucket is None:
         bucket = {}

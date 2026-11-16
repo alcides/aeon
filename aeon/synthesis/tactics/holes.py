@@ -1,10 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from aeon.core.liquid import LiquidTerm
 from aeon.core.substitutions import substitution, substitution_in_type
-from aeon.core.terms import Abstraction, Annotation, Application, Hole, If, Literal, Term, TypeApplication, Var
+from aeon.core.terms import (
+    Abstraction,
+    Annotation,
+    Application,
+    Hole,
+    If,
+    Literal,
+    Rec,
+    RefinementApplication,
+    Term,
+    TypeApplication,
+    Var,
+)
 from aeon.core.types import AbstractionType, RefinedType, Type, TypePolymorphism, refined_to_unrefined_type, t_bool
 from aeon.synthesis.identification import get_holes
 from aeon.typechecking.context import TypingContext
@@ -38,6 +50,14 @@ def replace_focal_hole(term: Term, hole_name: Name, replacement: Term) -> Term:
             )
         case TypeApplication(body, ty, loc):
             return TypeApplication(replace_focal_hole(body, hole_name, replacement), ty, loc=loc)
+        case RefinementApplication(body, refinement, loc):
+            return RefinementApplication(replace_focal_hole(body, hole_name, replacement), refinement, loc=loc)
+        case Rec() as binding:
+            return replace(
+                binding,
+                var_value=replace_focal_hole(binding.var_value, hole_name, replacement),
+                body=replace_focal_hole(binding.body, hole_name, replacement),
+            )
         case Var(_) | Literal(_, _) | Hole(_):
             return term
         case _:
@@ -70,6 +90,14 @@ def replace_hole_expected_annotation(term: Term, hole_name: Name, new_ty: Type) 
             )
         case TypeApplication(body, ty, loc):
             return TypeApplication(replace_hole_expected_annotation(body, hole_name, new_ty), ty, loc=loc)
+        case RefinementApplication(body, refinement, loc):
+            return RefinementApplication(replace_hole_expected_annotation(body, hole_name, new_ty), refinement, loc=loc)
+        case Rec() as binding:
+            return replace(
+                binding,
+                var_value=replace_hole_expected_annotation(binding.var_value, hole_name, new_ty),
+                body=replace_hole_expected_annotation(binding.body, hole_name, new_ty),
+            )
         case Var(_) | Literal(_, _) | Hole(_):
             return term
         case _:
@@ -142,6 +170,12 @@ def collect_hole_judgments(
                 | collect_hole_judgments(ctx, then, expected, refined_types)
                 | collect_hole_judgments(ctx, otherwise, expected, refined_types)
             )
+        case Rec(var_name=name, var_type=ty, var_value=value, body=body):
+            return collect_hole_judgments(ctx, value, ty, refined_types) | collect_hole_judgments(
+                ctx.with_var(name, ty), body, expected, refined_types
+            )
+        case RefinementApplication(body=body):
+            return collect_hole_judgments(ctx, body, expected, refined_types)
         case TypeApplication(body=body, type=_):
             _, ty_body = synth(ctx, body)
             match ty_body:

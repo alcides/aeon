@@ -683,9 +683,12 @@ class TDSynOneStepSynthesizer(Synthesizer):
         partial: Term | None = None
         for replacement, new_holes in candidates:
             term = substitute_hole(initial_term, hole.name, replacement)
-            if check_linearity(Annotation(term, type), ctx) or (
-                isinstance(validate, QTTValidator) and not validate.feasible(term)
-            ):
+            feasible = (
+                validate.feasible(term)
+                if isinstance(validate, QTTValidator)
+                else not check_linearity(Annotation(term, type), ctx)
+            )
+            if not feasible:
                 continue
             if not new_holes:
                 try:
