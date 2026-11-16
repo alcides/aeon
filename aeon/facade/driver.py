@@ -290,6 +290,7 @@ class AeonDriver:
 
         return {k: lift(v) for k, v in mapping.items() if v is not None}
 
+    @_in_driver_session
     def synth(self) -> STerm:
         with RecordTime("Synthesis"):
             sterm_mapping = self._run_synthesis(self.cfg.synthesis_ui)

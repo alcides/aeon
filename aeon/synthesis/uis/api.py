@@ -80,14 +80,15 @@ class SynthesisUI(abc.ABC):
         match synthesis_format:
             case SynthesisFormat.JSON:
                 result = {
-                    f"?{name.pretty()}": pretty_print_sterm(terms[name]) if name in terms else "None" for name in terms
+                    f"?{name.pretty()}": pretty_print_sterm(terms[name], top_level=False) if name in terms else "None"
+                    for name in terms
                 }
                 print(json.dumps(result, indent=2))
 
             case _:
                 for name in terms:
                     name_str = name.pretty()
-                    term_str = pretty_print_sterm(terms[name]) if name in terms else "None"
+                    term_str = pretty_print_sterm(terms[name], top_level=False) if name in terms else "None"
                     print(f"?{name_str}: {term_str}")
         # print()
         # pretty_print_term(synthesis_result, 200)

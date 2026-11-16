@@ -534,6 +534,22 @@ def len (l:IntList) : Int :=
 
 Each branch binds the constructor's fields by position. The `match` expression is lowered internally to the inductive eliminator (e.g. `IntList_rec`), so all constructors must be covered.
 
+When printing compiled expressions or synthesis results, Aeon reconstructs
+`match` expressions from fully applied inductive eliminators. This also works
+for directly written calls and calls produced by synthesizers. For example,
+`Candidate_rec c (fun ignored => 0) 1` prints as:
+
+```aeon
+(match c with
+    | Candidate.first _ => 0
+    | Candidate.second => 1)
+```
+
+Named handlers become branch applications to the pattern variables. Computed
+handlers use typed local bindings when needed to preserve eager evaluation
+order. Partial applications remain function applications. Parentheses delimit
+nested matches so the printed expression can be parsed again.
+
 ### Measures
 
 Inductive types can declare measure functions with `+`. A measure is a

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import IntEnum, Enum, auto
 from functools import reduce
 import json
@@ -19,6 +19,8 @@ from aeon.sugar.program import (
     STypeAbstraction,
     STypeApplication,
     SLiteral,
+    SMatch,
+    SRefinementApplication,
     SVar,
     SHole,
     SImplicitRefinementHole,
@@ -531,6 +533,46 @@ def sterm_pretty(sterm: STerm, context: ParenthesisContext = None, depth: int = 
                 )
             )
 
+        case SMatch(scrutinee=scrutinee, branches=branches):
+            # Match has no closing keyword. Parentheses delimit its final
+            # branch, including when nested in another match or application.
+            branch_docs = []
+            for branch in branches:
+                prefix = f"{branch.qualifier}." if branch.qualifier else ""
+                pattern = " ".join([prefix + branch.constructor.pretty(), *(n.pretty() for n in branch.binders)])
+                branch_docs.append(
+                    group(
+                        concat(
+                            [
+                                text(f"| {pattern} => "),
+                                nest(DEFAULT_TAB_SIZE, sterm_pretty(branch.body, depth=depth + 1)),
+                            ]
+                        )
+                    )
+                )
+            return parens(
+                concat(
+                    [
+                        text("match "),
+                        sterm_pretty(scrutinee, depth=depth + 1),
+                        text(" with"),
+                        nest(DEFAULT_TAB_SIZE, concat([hard_line(), insert_between(hard_line(), branch_docs)])),
+                    ]
+                )
+            )
+
+        case SRefinementApplication(body=body, refinement=refinement):
+            return concat(
+                [
+                    pretty_sterm_with_parens(
+                        body, ParenthesisContext(Precedence.TYPE_APPLICATION, Side.LEFT), depth + 1
+                    ),
+                    text("{|"),
+                    sterm_pretty(refinement, depth=depth + 1),
+                    text("|}"),
+                ]
+            )
+
         case SApplication(fun=fun, arg=arg) as term:
             match term:
                 case (
@@ -710,6 +752,24 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
         case SAnnotation(expr=expr, type=type):
             simplified_expr = normalize_term(expr, context, seen)
             return SAnnotation(expr=simplified_expr, type=type)
+        case SMatch(scrutinee=scrutinee, branches=branches):
+            return replace(
+                term,
+                scrutinee=normalize_term(scrutinee, context, seen),
+                branches=[
+                    replace(
+                        branch,
+                        body=normalize_term(
+                            branch.body, {k: v for k, v in context.items() if k not in branch.binders}, seen
+                        ),
+                    )
+                    for branch in branches
+                ],
+            )
+        case SRefinementApplication(body=body, refinement=refinement):
+            return replace(
+                term, body=normalize_term(body, context, seen), refinement=normalize_term(refinement, context, seen)
+            )
         case SIf(cond=cond, then=then, otherwise=otherwise):
             simplified_cond = normalize_term(cond, context, seen)
             if simplified_cond == true:
@@ -743,8 +803,8 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                 case SHole(name=name) if name.pretty() == "main":
                     return SLet(var_name=name, var_value=normalize_term(var_value, context, seen), body=SVar(name=name))
                 case _:
-                    return SLet(
-                        var_name=var_name,
+                    return replace(
+                        term,
                         var_value=normalize_term(var_value, context, seen),
                         body=normalize_term(body, context, seen),
                     )
@@ -762,9 +822,8 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
                         decreasing_by=tuple(normalize_term(m, context, seen) for m in db),
                     )
                 case _:
-                    return SRec(
-                        var_name=var_name,
-                        var_type=var_type,
+                    return replace(
+                        term,
                         var_value=normalize_term(var_value, context, seen),
                         body=normalize_term(body, context, seen),
                         decreasing_by=tuple(normalize_term(m, context, seen) for m in db),
@@ -782,6 +841,23 @@ def normalize_term(term: STerm, context: dict[Name, STerm] = None, seen: set[Nam
 _WILDCARD_NAME = Name("_", 0)
 
 
+def _type_value_vars(ty: SType) -> set[Name]:
+    """Value names in annotations also keep enclosing pattern binders alive."""
+    match ty:
+        case SRefinedType(name=name, type=inner, refinement=predicate):
+            return _type_value_vars(inner) | (_free_value_vars(predicate) - {name})
+        case SAbstractionType(var_name=name, var_type=domain, type=result):
+            return _type_value_vars(domain) | (_type_value_vars(result) - {name})
+        case STypeConstructor(args=args, refinements=predicates):
+            return set().union(*[_type_value_vars(arg) for arg in args], *[_free_value_vars(p) for p in predicates])
+        case STypePolymorphism(body=body):
+            return _type_value_vars(body)
+        case SRefinementPolymorphism(name=name, sort=sort, body=body):
+            return _type_value_vars(sort) | (_type_value_vars(body) - {name})
+        case _:
+            return set()
+
+
 def _free_value_vars(term: STerm) -> set[Name]:
     """Names of value-level free variables (SVar references) in ``term``.
 
@@ -795,17 +871,23 @@ def _free_value_vars(term: STerm) -> set[Name]:
             return _free_value_vars(body) - {name}
         case SLet(var_name=name, var_value=val, body=body):
             return _free_value_vars(val) | (_free_value_vars(body) - {name})
-        case SRec(var_name=name, var_value=val, body=body, decreasing_by=db):
-            inner: set[Name] = _free_value_vars(val) | _free_value_vars(body)
+        case SRec(var_name=name, var_type=ty, var_value=val, body=body, decreasing_by=db):
+            inner: set[Name] = _free_value_vars(val) | _free_value_vars(body) | _type_value_vars(ty)
             for m in db:
                 inner |= _free_value_vars(m)
             return inner - {name}
         case SApplication(fun=fun, arg=arg):
             return _free_value_vars(fun) | _free_value_vars(arg)
+        case SMatch(scrutinee=scrutinee, branches=branches):
+            return _free_value_vars(scrutinee) | set().union(
+                *(_free_value_vars(branch.body) - set(branch.binders) for branch in branches)
+            )
+        case SRefinementApplication(body=body, refinement=refinement):
+            return _free_value_vars(body) | _free_value_vars(refinement)
         case SIf(cond=cond, then=then, otherwise=otherwise):
             return _free_value_vars(cond) | _free_value_vars(then) | _free_value_vars(otherwise)
-        case SAnnotation(expr=expr):
-            return _free_value_vars(expr)
+        case SAnnotation(expr=expr, type=ty):
+            return _free_value_vars(expr) | _type_value_vars(ty)
         case STypeAbstraction(body=body) | SRefinementAbstraction(body=body) | STypeApplication(body=body):
             return _free_value_vars(body)
         case _:
@@ -828,6 +910,10 @@ def _contains_hole(term: STerm) -> bool:
             return _contains_hole(val) or _contains_hole(body)
         case SApplication(fun=fun, arg=arg):
             return _contains_hole(fun) or _contains_hole(arg)
+        case SMatch(scrutinee=scrutinee, branches=branches):
+            return _contains_hole(scrutinee) or any(_contains_hole(branch.body) for branch in branches)
+        case SRefinementApplication(body=body, refinement=refinement):
+            return _contains_hole(body) or _contains_hole(refinement)
         case SIf(cond=cond, then=then, otherwise=otherwise):
             return _contains_hole(cond) or _contains_hole(then) or _contains_hole(otherwise)
         case SAnnotation(expr=expr):
@@ -883,6 +969,26 @@ def rename_unused_variables(term: STerm) -> STerm:
             )
         case SApplication(fun=fun, arg=arg, loc=loc):
             return SApplication(fun=rec(fun), arg=rec(arg), loc=loc)
+        case SMatch(scrutinee=scrutinee, branches=branches):
+            return replace(
+                term,
+                scrutinee=rec(scrutinee),
+                branches=[
+                    replace(
+                        branch,
+                        body=rec(branch.body),
+                        binders=[
+                            _WILDCARD_NAME
+                            if name not in _free_value_vars(branch.body) and not _contains_hole(branch.body)
+                            else name
+                            for name in branch.binders
+                        ],
+                    )
+                    for branch in branches
+                ],
+            )
+        case SRefinementApplication(body=body, refinement=refinement):
+            return replace(term, body=rec(body), refinement=rec(refinement))
         case SIf(cond=cond, then=then, otherwise=otherwise, loc=loc):
             return SIf(cond=rec(cond), then=rec(then), otherwise=rec(otherwise), loc=loc)
         case SAnnotation(expr=expr, type=ty, loc=loc):
@@ -919,10 +1025,12 @@ def pretty_print_param(param_name: Name, param_type: SType, multiplicity: Multip
 
 
 def simplify_sterm(term: STerm) -> STerm:
+    from aeon.sugar.resugar import restore_matches
+
     def apply_func(acc: STerm, func: Callable[[STerm], STerm]) -> STerm:
         return func(acc)
 
-    functions: List[Callable[[STerm], STerm]] = [normalize_term, rename_unused_variables]
+    functions: List[Callable[[STerm], STerm]] = [restore_matches, normalize_term, rename_unused_variables]
     return reduce(apply_func, functions, term)
 
 
@@ -957,18 +1065,32 @@ def node_pretty(node: Node) -> Doc:
                                 text(rho.pretty()),
                                 text(" : "),
                                 stype_pretty(sort),
-                                text(" → Bool>"),
+                                text(">"),
                             ]
                         )
                         for rho, sort in rforalls
                     ],
                 )
             )
-            pretty_constructors = group(
-                insert_between(line(), [concat([text("| "), node_pretty(cons)]) for cons in constructors])
+
+            def member_signature(member: Definition) -> Doc:
+                params = [pretty_param_doc(n, ty, member.multiplicity_of(i)) for i, (n, ty) in enumerate(member.args)]
+                return group(
+                    concat(
+                        [
+                            text(member.name.pretty()),
+                            *[concat([line(), p]) for p in params],
+                            text(" : "),
+                            stype_pretty(member.type),
+                        ]
+                    )
+                )
+
+            pretty_constructors = insert_between(
+                hard_line(), [concat([text("| "), member_signature(cons)]) for cons in constructors]
             )
-            pretty_measures = group(
-                insert_between(line(), [concat([text("+ "), node_pretty(meas)]) for meas in measures])
+            pretty_measures = insert_between(
+                hard_line(), [concat([text("+ "), member_signature(meas)]) for meas in measures]
             )
 
             chunks = [pretty_name, pretty_args]
