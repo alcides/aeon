@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "camel-case" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "camel-case" 200;
 
-def score (cases:Cases) (candidate:(s:String) -> {r:String | String.len r <= String.len s}) : (Array Float) :=
+def score (cases:Cases) (candidate:(s:String) -> {r:String | String.len r <= String.len s}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('camel-case', cases(None), candidate)";
 
 @doc("Remove hyphens and capitalize the following word fragments; lower-case the first result character.")

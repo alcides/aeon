@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "bowling" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "bowling" 200;
 
-def score (cases:Cases) (candidate:(scores:{v:String | 12 <= String.len v && String.len v <= 21}) -> {v:Int | 0 <= v && v <= 300}) : (Array Float) :=
+def score (cases:Cases) (candidate:(scores:{v:String | 12 <= String.len v && String.len v <= 21}) -> {v:Int | 0 <= v && v <= 300}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('bowling', cases(None), candidate)";
 
 @doc("Score ten valid bowling frames, including strike and spare bonuses.")

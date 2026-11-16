@@ -7,9 +7,9 @@ import String
 import Map
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "substitution-cipher" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "substitution-cipher" 200;
 
-def score (cases:Cases) (candidate:(cipher_from:{v:String | String.len v <= 26}) -> (cipher_to:{v:String | String.len v = String.len cipher_from}) -> (message:{v:String | String.len v <= 26}) -> {r:String | String.len r = String.len message}) : (Array Float) :=
+def score (cases:Cases) (candidate:(cipher_from:{v:String | String.len v <= 26}) -> (cipher_to:{v:String | String.len v = String.len cipher_from}) -> (message:{v:String | String.len v <= 26}) -> {r:String | String.len r = String.len message}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('substitution-cipher', cases(None), candidate)";
 
 @doc("Substitute message characters using the equally sized source and destination alphabets; message characters belong to the source alphabet.")

@@ -43,6 +43,8 @@ def np : Unit := native_import "numpy"
 # ─── Uninterpreted shape measures ──────────────────────────────────────
 
 # Length of a vector.
+def l2norm : (v:Vector) -> Float := uninterpreted
+
 def dim : (v: Vector) -> Int := uninterpreted
 
 # Row / column counts of a matrix.
@@ -180,12 +182,12 @@ def dot_nonneg
     native "float(np.dot(a, b))"
 
 # Euclidean (L2) norm; always non-negative.
-def norm (v: Vector) : {f: Float | f >= 0.0} :=
+def norm (v: Vector) : {f: Float | f >= 0.0 && f = l2norm v} :=
     native "float(np.linalg.norm(v))"
 
-# Unit vector in the direction of ``v``; requires a non-empty vector so
-# the norm is non-zero. Length is preserved.
-def normalize (v: {x: Vector | dim x > 0}) : {r: Vector | dim r = dim v} :=
+# Unit vector in the direction of ``v``; guard with ``norm v > 0.0``.
+# Length alone does not guarantee a non-zero norm.
+def normalize (v: {x: Vector | dim x > 0 && l2norm x > 0.0}) : {r: Vector | dim r = dim v} :=
     native "v / np.linalg.norm(v)"
 
 # Sum of all entries.

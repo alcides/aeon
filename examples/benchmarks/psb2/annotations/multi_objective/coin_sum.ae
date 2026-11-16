@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "coin-sums" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "coin-sums" 200;
 
-def score (cases:Cases) (candidate:(cents:{v:Int | 1 <= v && v <= 10000}) -> {r:(List Int) | List.size r = 4 && 0 <= (List.first r) && (List.first r) < 5 && 0 <= (List.first (List.rest r)) && (List.first (List.rest r)) < 2 && 0 <= (List.first (List.rest (List.rest r))) && (List.first (List.rest (List.rest r))) < 3 && 0 <= (List.first (List.rest (List.rest (List.rest r)))) && (List.first r) + 5 * (List.first (List.rest r)) + 10 * (List.first (List.rest (List.rest r))) + 25 * (List.first (List.rest (List.rest (List.rest r)))) = cents && (List.first r) + 5 * (List.first (List.rest r)) + 10 * (List.first (List.rest (List.rest r))) < 25}) : (Array Float) :=
+def score (cases:Cases) (candidate:(cents:{v:Int | 1 <= v && v <= 10000}) -> {r:(List Int) | List.size r = 4 && 0 <= (List.first r) && (List.first r) < 5 && 0 <= (List.first (List.rest r)) && (List.first (List.rest r)) < 2 && 0 <= (List.first (List.rest (List.rest r))) && (List.first (List.rest (List.rest r))) < 3 && 0 <= (List.first (List.rest (List.rest (List.rest r)))) && (List.first r) + 5 * (List.first (List.rest r)) + 10 * (List.first (List.rest (List.rest r))) + 25 * (List.first (List.rest (List.rest (List.rest r)))) = cents && (List.first r) + 5 * (List.first (List.rest r)) + 10 * (List.first (List.rest (List.rest r))) < 25}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('coin-sums', cases(None), candidate)";
 
 @doc("Return minimal coin counts in penny, nickel, dime, quarter order.")

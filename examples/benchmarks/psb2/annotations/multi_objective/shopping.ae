@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "shopping-list" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "shopping-list" 200;
 
-def score (cases:Cases) (candidate:(prices:{v:(List Float){|fun x => 0.0 <= x && x <= 50.0|} | 1 <= List.size v && List.size v <= 20}) -> (discounts:{v:(List Float){|fun x => 0.0 <= x && x <= 100.0|} | List.size v = List.size prices}) -> {r:Float | 0.0 <= r && r <= 1000.0}) : (Array Float) :=
+def score (cases:Cases) (candidate:(prices:{v:(List Float){|fun x => 0.0 <= x && x <= 50.0|} | 1 <= List.size v && List.size v <= 20}) -> (discounts:{v:(List Float){|fun x => 0.0 <= x && x <= 100.0|} | List.size v = List.size prices}) -> {r:Float | 0.0 <= r && r <= 1000.0}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('shopping-list', cases(None), candidate)";
 
 @doc("Apply percentage discounts to prices, sum the costs, and round the total to two decimal places.")

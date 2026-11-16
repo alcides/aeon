@@ -13,5 +13,7 @@ def train_and_score
 # CORRECT: target consumes the DataFrame exactly once.
 def select_once (1 df: {table: DataFrame | df_cols table >= 2}) : Float :=
     let 1 dataset := target df 0 in
-    let 1 parts := split dataset 0.7 in
-    consume_split parts train_and_score
+    if can_split dataset 0.7 then
+        let 1 parts := split dataset 0.7 in
+        consume_split parts train_and_score
+    else let _ := dispose_dataset dataset in 0.0

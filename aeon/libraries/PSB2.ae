@@ -6,20 +6,20 @@ linear type TrainData
 linear type TestData
 linear type Tuple
 
-# Convert per-case errors to a fixed-width objective vector. The runtime check
-# makes the native length contract explicit instead of assuming dataset size.
-def objective_errors (1 errors:(Array a)) (count:{n:Int | n > 0}) :
+# Convert per-case errors to an objective vector of the declared length.
+# The count must match the input array; there is no fixed benchmark width.
+def objective_errors (1 errors:(Array Float)) (count:{n:Int | n >= 0 && n = Array.size errors}) :
     {r:(Array Float) | Array.size r = count} :=
-    native "[float(e) for e in errors] if len(errors) == count else (_ for _ in ()).throw(ValueError('unexpected PSB2 objective count'))"
+    native "[float(e) for e in errors]"
 
-def objective_errors_int (1 errors:(Array Int)) (count:{n:Int | n > 0}) :
+def objective_errors_int (1 errors:(Array Int)) (count:{n:Int | n >= 0 && n = Array.size errors}) :
     {r:(Array Int) | Array.size r = count} :=
-    native "errors if len(errors) == count else (_ for _ in ()).throw(ValueError('unexpected PSB2 objective count'))"
+    native "errors"
 
 
 # A reusable fixture factory: each call receives an owned copy of the same
 # training cases. Loading and sampling happen only once, on the first call.
-def training_data (name:String) (nTrain:Int) (nTest:Int) : TrainingCases :=
+def training_data (name:String) (nTrain:{n:Int | n > 0}) (nTest:{n:Int | n >= 0}) : TrainingCases :=
     native "__import__('aeon.bindings.psb2').bindings.psb2.training_data(name, nTrain, nTest)"
 
 # Each copy transfers a fresh owner, while the fixture remains reusable.
@@ -30,7 +30,7 @@ def with_lists (1 td:TrainData)
     (1 consume:(1 inputs:(Array Int)) -> (1 outputs:(Array Int)) -> a) : a :=
     native "(lambda columns: consume(__import__('copy').deepcopy(columns[0]))(sum(columns[1], [])))(list(map(list, zip(*td))))"
 
-def load_dataset (name:String) (nTrain:Int) (nTest:Int) : Dataset :=
+def load_dataset (name:String) (nTrain:{n:Int | n > 0}) (nTest:{n:Int | n >= 0}) : Dataset :=
     native "__import__('psb2').fetch_examples('path/to/PSB2/datasets/', name, nTrain, nTest, format='lists')"
 
 
@@ -66,25 +66,25 @@ def calculate_list_errors : (1 true_values : (Array Int)) -> (1 expected_values 
 def calculate_list_difference : (1 true_values : (Array Int)) -> (1 expected_values : (Array Int)) ->  (Array Int) :=  fun x => fun y => native "[0 if a == b else 1 for a, b in zip(x, y)]";
 
 
-def calculate_str_list_errors : (1 true_values : (Array Int)) -> (1 expected_values : (Array Int)) ->  (Array Int) :=  fun t => fun e => native "[__import__('textdistance').levenshtein(p, r) for p, r in zip(t, e)]"
+def calculate_str_list_errors : (1 true_values : (Array String)) -> (1 expected_values : (Array String)) ->  (Array Int) :=  fun t => fun e => native "[__import__('textdistance').levenshtein(p, r) for p, r in zip(t, e)]"
 
 
-def join_string_list : (1 list: (Array Int)) -> String := fun xs => native "' '.join(word.strip() for word in xs) "
+def join_string_list : (1 list: (Array String)) -> String := fun xs => native "' '.join(word.strip() for word in xs) "
 
 
-def get_b_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> Int) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_b_synth_values : (1 input : (Array (Array Int))) -> (f:(1 a: (Array Int)) -> Int) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
 def get_bb_synth_values : (1 input : (Array Int)) -> (f:(a: Float) ->( b:Float ) -> (c:Int) -> Float ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y)(z) for x, y, z in inputs]"
 
 
-def get_bowling_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_bowling_synth_values : (1 input : (Array String)) -> (f:(a: String) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
-def get_c_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> String ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_c_synth_values : (1 input : (Array String)) -> (f:(a: String) -> String ) -> (Array String) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
-def get_cv_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_cv_synth_values : (1 input : (Array (Array Int))) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array (Array Int)) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
 def get_dg_synth_values : (1 input : (Array Int)) -> (f: (a:Int) ->( b:Int ) -> Float ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y) for x, y in inputs]"
@@ -93,10 +93,10 @@ def get_dg_synth_values : (1 input : (Array Int)) -> (f: (a:Int) ->( b:Int ) -> 
 def get_fp_synth_values : (1 input : (Array Int)) -> (f: (1 a:(Array Int)) ->( b:Int ) -> (Array Int) ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y) for x, y in inputs]"
 
 
-def get_fb_synth_values : (1 input : (Array Int)) -> (f: (a: Int) -> String ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_fb_synth_values : (1 input : (Array Int)) -> (f: (a: Int) -> String ) -> (Array String) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
-def get_fc_synth_values : (1 input : (Array Int)) -> (f: (1 a: (Array Int)) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_fc_synth_values : (1 input : (Array (Array Int))) -> (f: (1 a: (Array Int)) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
 def get_gcd_synth_values : (1 input : (Array Int)) -> (f:(a: Int) -> (b: Int)->  Int ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y) for x,y in inputs]"
@@ -105,19 +105,19 @@ def get_gcd_synth_values : (1 input : (Array Int)) -> (f:(a: Int) -> (b: Int)-> 
 def get_is_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> (b: String)->  (Array Int) ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y) for x,y in inputs]"
 
 
-def get_l_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array Int) := fun inputs => fun function => native "[function(x)for x in inputs]"
+def get_l_synth_values : (1 input : (Array (Array Int))) -> (f:(1 a: (Array Int)) -> (Array Int) ) -> (Array (Array Int)) := fun inputs => fun function => native "[function(x)for x in inputs]"
 
 
-def get_luhn_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x)for x in inputs]"
+def get_luhn_synth_values : (1 input : (Array (Array Int))) -> (f:(1 a: (Array Int)) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x)for x in inputs]"
 
 
 def get_mm_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> (b:String) -> (Array Int) ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y)for x, y in inputs]"
 
 
-def get_mc_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> String ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_mc_synth_values : (1 input : (Array String)) -> (f:(a: String) -> String ) -> (Array String) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
-def get_pd_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_pd_synth_values : (1 input : (Array String)) -> (f:(a: String) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
 def get_shop_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> (1 b: (Array Int)) -> Int ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y) for x, y in inputs]"
@@ -126,19 +126,19 @@ def get_shop_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> 
 def get_snowd_synth_values : (1 input : (Array Int)) -> (f:(a: Int) ->( b:Float ) -> (c:Float) ->(d:Float)  -> Float ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y)(z)(w) for x, y, z, w in inputs]"
 
 
-def get_sbool_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> Bool ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_sbool_synth_values : (1 input : (Array String)) -> (f:(a: String) -> Bool ) -> (Array Bool) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
-def get_sw_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> String ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_sw_synth_values : (1 input : (Array String)) -> (f:(a: String) -> String ) -> (Array String) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
-def get_sd_synth_values : (1 input : (Array Int)) -> (f:(a: Int) -> String ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_sd_synth_values : (1 input : (Array Int)) -> (f:(a: Int) -> String ) -> (Array String) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
 def get_sc_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> (b: String) -> (c: String) ->  String ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y)(z) for x, y, z in inputs]"
 
 
-def get_tt_synth_values : (1 input : (Array Int)) -> (f:(a: String) -> String ) -> (Array Int) := fun inputs => fun function => native "[function(x) for x in inputs]"
+def get_tt_synth_values : (1 input : (Array String)) -> (f:(a: String) -> String ) -> (Array String) := fun inputs => fun function => native "[function(x) for x in inputs]"
 
 
 def get_vd_synth_values : (1 input : (Array Int)) -> (f:(1 a: (Array Int)) -> (1 b: (Array Int)) -> Float ) -> (Array Int) := fun inputs => fun function => native "[function(x)(y) for x, y in inputs]"

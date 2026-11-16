@@ -59,7 +59,7 @@ def nbody_step
     (xs: (ReadOnly Float)) (n: {v:Int | v >= 0 && v * 7 = ReadOnly.size xs})
     (dt: {v:Float | v > 0.0}) (softening: {v:Float | v > 0.0})
     (1 output: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = 7 && m.elements = n * 7}) :
-    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = 7 && r.elements = n * 7} :=
+    {r:(NDArray Float Rank2) | r.storage = output.storage && r.ndim = output.ndim && r.dimension_size 2 = output.dimension_size 2 && r.dimension_size 0 = n && r.dimension_size 1 = 7 && r.elements = n * 7} :=
     output.map_rows (fun i => fun row => advance_body xs n i dt softening row);
 
 def simulate

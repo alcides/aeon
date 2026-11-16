@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "vector-distance" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "vector-distance" 200;
 
-def score (cases:Cases) (candidate:(vector1:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | 1 <= List.size v && List.size v <= 20}) -> (vector2:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | List.size v = List.size vector1}) -> {r:Float | 0.0 <= r && r <= 1000.0}) : (Array Float) :=
+def score (cases:Cases) (candidate:(vector1:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | 1 <= List.size v && List.size v <= 20}) -> (vector2:{v:(List Float){|fun x => (-100.0) <= x && x <= 100.0|} | List.size v = List.size vector1}) -> {r:Float | 0.0 <= r && r <= 1000.0}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('vector-distance', cases(None), candidate)";
 
 @doc("Compute Euclidean distance between equally sized floating-point vectors.")

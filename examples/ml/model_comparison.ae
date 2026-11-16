@@ -22,7 +22,9 @@ open Math
 # [0, 1], but ``maxf`` returns a plain ``Float``, so we report it as such.)
 def best_f1 (path: String) : Float :=
     let 1 df := read_csv path in
+    if has_column df "species" then
     let 1 ds0 := target df "species" false false in
+    if n_features ds0 > 0 then
     let 1 ds := require_enough_data ds0 in
     let 1 parts := split ds 0.7 true in
     with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
@@ -46,13 +48,19 @@ def best_f1 (path: String) : Float :=
                                 let 1 tree_model := decision_tree_classifier owned_left_tp2 in
                                 let tree := f1 tree_model owned_left_ep2 in
                                 let _ := dispose_classifier tree_model in
+                                let svc_f := if is_multiclass owned_left_tp3 then
                                 let 1 svc_f_model := svc owned_left_tp3 in
                                 let svc_f := f1 svc_f_model owned_left_ep3 in
-                                let _ := dispose_classifier svc_f_model in
+                                let _ := dispose_classifier svc_f_model in svc_f
+                                else let _ := dispose_dataset owned_left_tp3 in let _ := dispose_dataset owned_left_ep3 in 0.0 in
+                                let lda := if is_multiclass owned_right_tp3 && min_class_rows owned_right_tp3 >= 2 && n_rows owned_right_tp3 > n_classes owned_right_tp3 then
                                 let 1 lda_model := linear_discriminant_analysis owned_right_tp3 in
                                 let lda := f1 lda_model owned_right_ep3 in
-                                let _ := dispose_classifier lda_model in
-                                maxf (maxf forest tree) (maxf svc_f lda) )))))));
+                                let _ := dispose_classifier lda_model in lda
+                                else let _ := dispose_dataset owned_right_tp3 in let _ := dispose_dataset owned_right_ep3 in 0.0 in
+                                maxf (maxf forest tree) (maxf svc_f lda) )))))))
+    else let _ := dispose_dataset ds0 in 0.0
+    else let _ := dispose_dataframe df in 0.0;
 
 
 def main (_: Int) : Unit :=

@@ -145,7 +145,7 @@ def open (path:String) : Image := native "__import__('aeon.bindings.image').bind
 # img: first image
 # img2: second image
 # returns: MSE difference as float
-def diff (img : Image) (img2 : Image) : Float := native "__import__('aeon.bindings.image').bindings.image.Image_diff_mse(img, img2)"
+def diff (img : Image) (img2 : {v:Image | width v = width img && height v = height img}) : Float := native "__import__('aeon.bindings.image').bindings.image.Image_diff_mse(img, img2)"
 
 # ── Multi-objective synthesis metrics (candidate first, reference/target second). All are minimized.
 # Mean squared error on luminance (true grayscale), robust for grey-key matching.

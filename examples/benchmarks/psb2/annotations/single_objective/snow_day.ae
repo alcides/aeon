@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "snow-day" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "snow-day" 200;
 
-def score (cases:Cases) (candidate:(hours:{v:Int | 0 <= v && v <= 20}) -> (snow:{v:Float | 0.0 <= v && v <= 20.0}) -> (snowfall:{v:Float | 0.0 <= v}) -> (melt:{v:Float | 0.0 <= v && v <= 1.0}) -> {r:Float | 0.0 <= r && (hours != 0 || r = snow)}) : (Array Float) :=
+def score (cases:Cases) (candidate:(hours:{v:Int | 0 <= v && v <= 20}) -> (snow:{v:Float | 0.0 <= v && v <= 20.0}) -> (snowfall:{v:Float | 0.0 <= v}) -> (melt:{v:Float | 0.0 <= v && v <= 1.0}) -> {r:Float | 0.0 <= r && (hours != 0 || r = snow)}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('snow-day', cases(None), candidate)";
 
 @doc("Each hour, melt the given fraction of existing snow and then add fresh snowfall.")

@@ -12,7 +12,9 @@ open Learning
 
 def main (_: Int) : Unit :=
     let 1 df := read_csv "examples/nn/data/iris2.csv" in
+    if has_column df "species" then
     let 1 ds := target df "species" false false in
+    if is_nonempty ds && n_features ds > 0 then
     let 1 cp := copy_dataset ds in
     with_datasets cp (fun owned_left_cp => fun owned_right_cp =>
         let 1 ds_clf := owned_left_cp in
@@ -26,3 +28,5 @@ def main (_: Int) : Unit :=
         let _ := dispose_classifier c1 in
         let _ := dispose_regressor r1 in
         print total)
+    else dispose_dataset ds
+    else dispose_dataframe df

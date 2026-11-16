@@ -7,11 +7,11 @@
 
 import Dace (Column, interpolate)
 
-def values : Column := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
+def values : {c:Column | Dace.size c = 7} := native "[-999999, 3, 5, -999999, 9, 12, -999999]";
 
 @example(fill 0 = 3)
 @example(fill 3 = 7)
 @example(fill 6 = 12)
-def fill (i: Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 7}) : Int := ?hole;
 
 # Intended reconstruction shape: interpolate(values, i)

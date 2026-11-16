@@ -23,7 +23,9 @@ def main (_: Int) : Unit :=
 
     # A scikit-learn classifier trained on the same 4-feature, 3-class data.
     let 1 df := read_csv "examples/nn/data/iris2.csv" in
+    if has_column df "species" then
     let 1 ds := target df "species" false false in
+    if n_features ds > 0 && is_nonempty ds then
     let 1 tree := decision_tree_classifier ds in
 
     # One feature vector, fed to both through the SAME typeclass method.
@@ -35,3 +37,5 @@ def main (_: Int) : Unit :=
     let classes := cls_classes net + cls_classes tree in
     let _ := dispose_classifier tree in
     print classes
+    else dispose_dataset ds
+    else dispose_dataframe df

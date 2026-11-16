@@ -2,5 +2,5 @@ open ML
 
 # CORRECT: the linear Dataset is consumed by split.
 def consume_dataset
-    (1 dataset: {ds: Dataset | ds_features ds >= 1}) : DatasetSplit :=
+    (1 dataset: {ds: Dataset | ds_features ds >= 1 && validSplit ds 0.7}) : DatasetSplit :=
     split dataset 0.7

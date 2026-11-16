@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "solve-boolean" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "solve-boolean" 200;
 
-def score (cases:Cases) (candidate:(s:{v:String | 1 <= String.len v && String.len v <= 39 && String.len v % 2 = 1}) -> Bool) : (Array Float) :=
+def score (cases:Cases) (candidate:(s:{v:String | 1 <= String.len v && String.len v <= 39 && String.len v % 2 = 1}) -> Bool) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('solve-boolean', cases(None), candidate)";
 
 @doc("Evaluate a valid t/f expression with & and | strictly from left to right.")

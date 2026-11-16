@@ -36,16 +36,14 @@ def testing_split_id : (ds: TestingDataset) -> Int := uninterpreted
 def classifier_features : (model: DecisionTreeClassifier) -> Int := uninterpreted
 def classifier_split_id : (model: DecisionTreeClassifier) -> Int := uninterpreted
 
-# CSV shape is supplied as logical metadata. The expected values are used by
-# the refinement checker but deliberately omitted from the native expression,
-# so the Python binding remains a thin call to pandas.read_csv.
+# CSV dimensions are checked at the I/O boundary before exposing shape facts.
 def read_csv
     (path: String)
     (expected_rows: {rows: Int | rows >= 0})
     (expected_columns: {columns: Int | columns >= 1}) :
     {df: DataFrame | df_rows df = expected_rows
                    && df_cols df = expected_columns} :=
-    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path)"
+    native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.read_csv(path, expected_rows, expected_columns)"
 
 # Select a zero-based target column. The input must be known to contain both a
 # target and at least one feature. DataFrame is linear, so target consumes it.
@@ -61,7 +59,7 @@ def target
 # deterministic stratified split but contains no duplicate argument checks.
 def split
     (1 ds: {dataset: Dataset | ds_features dataset >= 1})
-    (train_size: {fraction: Float | 0.0 < fraction && fraction < 1.0}) :
+    (train_size: {fraction: Float | 0.0 < fraction && fraction < 1.0 && validSplit ds fraction}) :
     {parts: DatasetSplit | split_features parts = ds_features ds} :=
     native "__import__('aeon.bindings.machine_learning').bindings.machine_learning.split(ds, train_size)"
 
@@ -100,3 +98,8 @@ def accuracy
 
 # Release a fitted model after observing its predictions or metrics.
 def dispose_classifier (1 model:DecisionTreeClassifier) : Unit := native "None"
+
+def validSplit : (ds:Dataset) -> (fraction:Float) -> Bool := uninterpreted
+def can_split (borrow ds:Dataset) (fraction:Float) : {b:Bool | b = validSplit ds fraction} := native "__import__('aeon.bindings.contracts', fromlist=['stratified_split']).stratified_split(ds, fraction)"
+
+def dispose_dataset (1 ds:Dataset) : Unit := native "None"

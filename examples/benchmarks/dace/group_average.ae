@@ -8,6 +8,6 @@ def sales : Table :=
 
 def north : Table := sales.filter (fun row => native "row['region'] == 'N'");
 
-def north_avg : Int := north.mean_col "v";  # (10 + 20) / 2 = 15
+def north_avg : Int := if is_int_column north "v" then north.mean_col "v" else 0;  # (10 + 20) / 2 = 15
 
 def main (x:Int) : Unit := print north_avg;

@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "luhn" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "luhn" 200;
 
-def score (cases:Cases) (candidate:(digits:{v:(List Int){|fun x => 0 <= x && x <= 9|} | 16 <= List.size v && List.size v <= 16}) -> {v:Int | 0 <= v && v <= 144}) : (Array Float) :=
+def score (cases:Cases) (candidate:(digits:{v:(List Int){|fun x => 0 <= x && x <= 9|} | 16 <= List.size v && List.size v <= 16}) -> {v:Int | 0 <= v && v <= 144}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('luhn', cases(None), candidate)";
 
 @doc("Sum sixteen Luhn-transformed digits, doubling the digit at index zero and every other digit.")

@@ -51,7 +51,7 @@ PUBLISHED: list[tuple[str, int, str]] = [
     ("examples/benchmarks/dace/pbe/delta.ae", 13, "Fig. 1: difference between two cells (MINUS)"),
 ]
 
-VALUES = "[-999999, 3, 5, -999999, 9, 12, -999999]"
+VALUES = [-999999, 3, 5, -999999, 9, 12, -999999]
 
 
 def specification(category: int) -> tuple[str, str, str, str]:
@@ -75,7 +75,7 @@ def specification(category: int) -> tuple[str, str, str, str]:
         # fill 3 (id 2) must reach back to index 1, not the adjacent index 2.
         return (
             "Column, prev_sameid",
-            'def ids : Column := native "[1, 2, 1, 2, 1, 2, 2]";',
+            'def ids : {c:Column | Dace.size c = 7} := native "[1, 2, 1, 2, 1, 2, 2]";',
             "@example(fill 3 = 3)\n@example(fill 6 = 12)",
             "prev_sameid(ids, values, i)",
         )
@@ -91,7 +91,7 @@ def specification(category: int) -> tuple[str, str, str, str]:
         # (sentinel-)matches over `values`: row 2 is in a group of three.
         return (
             "Column, group_count",
-            'def groups : Column := native "[1, 1, 2, 2, 2, 3, 1]";',
+            'def groups : {c:Column | Dace.size c = 7} := native "[1, 1, 2, 2, 2, 3, 1]";',
             "@example(fill 2 = 3)\n@example(fill 5 = 1)",
             "group_count(groups, i)",
         )
@@ -141,9 +141,9 @@ def specification(category: int) -> tuple[str, str, str, str]:
         op = "+" if category == 12 else "-"
         result = "5, 8, 14" if category == 12 else "2, 4, 8"
         extra = (
-            'def other : Column := native "[1, 2, 3, 4, 5, 6, 7]";'
+            'def other : {c:Column | Dace.size c = 7} := native "[1, 2, 3, 4, 5, 6, 7]";'
             if category == 12
-            else 'def other : Column := native "[1, 1, 1, 1, 1, 1, 1]";'
+            else 'def other : {c:Column | Dace.size c = 7} := native "[1, 1, 1, 1, 1, 1, 1]";'
         )
         return (
             "Column, col_at",
@@ -214,10 +214,10 @@ def render(category: int, index: int, description: str) -> str:
 
 import Dace ({imports})
 
-def values : Column := native "{VALUES}";
+def values : {{c:Column | Dace.size c = {len(VALUES)}}} := native "{VALUES}";
 {extra}
 {examples}
-def fill (i: Int) : Int := ?hole;
+def fill (i:{{n:Int | 0 <= n && n < {len(VALUES)}}}) : Int := ?hole;
 
 # Intended reconstruction shape: {intended}
 '''

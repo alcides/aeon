@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "bouncing-balls" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "bouncing-balls" 200;
 
-def score (cases:Cases) (candidate:(starting_height:{v:Float | 1.0 <= v && v <= 100.0}) -> (bounce_height:{v:Float | 1.0 <= v && v < starting_height}) -> (bounces:{v:Int | 1 <= v && v <= 20}) -> {r:Float | 0.0 <= r && r <= 4000.0}) : (Array Float) :=
+def score (cases:Cases) (candidate:(starting_height:{v:Float | 1.0 <= v && v <= 100.0}) -> (bounce_height:{v:Float | 1.0 <= v && v < starting_height}) -> (bounces:{v:Int | 1 <= v && v <= 20}) -> {r:Float | 0.0 <= r && r <= 4000.0}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('bouncing-balls', cases(None), candidate)";
 
 @doc("Accumulate the downward and upward travel for the requested number of bounces.")

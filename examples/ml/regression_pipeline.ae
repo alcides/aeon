@@ -7,12 +7,15 @@
 # used, follows the same rule.
 
 open Learning
+open Maybe
 
 
-def score_ridge (path: String) (target_col: String) : Float :=
+def score_ridge (path: String) (target_col: String) : (Maybe Float) :=
     let 1 df := read_csv path in
+    if has_column df target_col then
     # not a time series, but has missing values.
     let 1 ds0 := target df target_col false true in
+    if n_features ds0 > 0 then
     let 1 ds := require_enough_data ds0 in
     let 1 parts := split ds 0.8 true in
     with_datasets parts (fun owned_left_parts => fun owned_right_parts =>
@@ -21,13 +24,18 @@ def score_ridge (path: String) (target_col: String) : Float :=
         let 1 test := fill_median (owned_right_parts) in
         let 1 model := ridge_alpha 0.5 train in
         let score := r2 model test in
-        let _ := dispose_regressor model in score );
+        let _ := dispose_regressor model in Maybe.just score )
+    else let _ := dispose_dataset ds0 in Maybe.none
+    else let _ := dispose_dataframe df in Maybe.none;
 
 
-def train_ridge (path: String) (target_col: String) : SklearnRegressor :=
-    let 1 df := read_csv path in
+# Model-producing helpers state the input contract directly. Callers can
+# establish it after read_csv with n_columns and has_column.
+def train_ridge
+    (1 df: {d: DataFrame | df_cols d > 1})
+    (target_col: {s: String | hasColumn df s}) : SklearnRegressor :=
     let 1 ds0 := target df target_col false true in
     let 1 ds := require_enough_data ds0 in
     let 1 parts := split ds 0.8 true in
     let 1 train := fill_median (train_of parts) in
-    ridge train ;
+    ridge train;

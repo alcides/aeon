@@ -1,11 +1,11 @@
 # DACE category: reshape long -> wide (pivot / spread).
 open Table
 
-def long : Table :=
+def long : {t:Table | intColumn t "id" && stringColumn t "k" && hasColumn t "v"} :=
     native "[{'id':1,'k':'x','v':7},{'id':1,'k':'y','v':8},{'id':2,'k':'x','v':9}]";
 
 def wide : Table := long.pivot "id" "k" "v";
 
-def cell_x0 : Int := wide.cell 0 "x";  # row id=1, column x -> 7
+def cell_x0 : Int := if nrow wide > 0 && is_int_column wide "x" then wide.cell 0 "x" else 0;  # row id=1, column x -> 7
 
 def main (x:Int) : Unit := print cell_x0;

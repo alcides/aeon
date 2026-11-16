@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "fizz-buzz" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "fizz-buzz" 200;
 
-def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000000}) -> {r:String | 1 <= String.len r && String.len r <= 8}) : (Array Float) :=
+def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000000}) -> {r:String | 1 <= String.len r && String.len r <= 8}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('fizz-buzz', cases(None), candidate)";
 
 @doc("Return Fizz, Buzz, FizzBuzz, or the decimal input according to divisibility by three and five.")

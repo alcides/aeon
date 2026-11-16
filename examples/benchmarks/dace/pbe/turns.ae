@@ -6,10 +6,10 @@
 #
 import Dace (Column, up_find_value, down_first_nonzero)
 
-def colB : Column := native "[0, 1, 0, 0, 1, 0]";
-def colC : Column := native "[0, 5, 0, 7, 0, 9]";
+def colB : {c:Column | Dace.size c = 6} := native "[0, 1, 0, 0, 1, 0]";
+def colC : {c:Column | Dace.size c = 6} := native "[0, 5, 0, 7, 0, 9]";
 
 @example(fill 2 = 5)
 @example(fill 3 = 5)
 @example(fill 5 = 9)
-def fill (i:Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 6}) : Int := ?hole;

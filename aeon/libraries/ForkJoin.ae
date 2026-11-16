@@ -154,8 +154,8 @@ def parallel2 (workers: {n: Int | n > 0 && n <= 64})
 # Preserves length: the result has the same ``size`` as the input.
 def par_map [Copy a] (workers: {n: Int | n > 0 && n <= 64})
             (f: (x: {v:a | p v}) -> {w:b | q w})
-            (1 xs: (Array a)) :
-    {ys: (Array b) | size ys = size xs} :=
+            (1 xs: (Array a<p>)) :
+    {ys: (Array b<q>) | size ys = size xs} :=
     native "__import__('aeon.bindings.forkjoin', fromlist=['par_map']).par_map(workers, f, xs)"
 
 # ── Divide-and-conquer splitting ─────────────────────────────────────────

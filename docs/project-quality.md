@@ -76,10 +76,11 @@ native implementations are correct, or that accelerator/remote services work.
 The compiler's normal compile-time evaluation of closed refinement expressions
 still applies; `--check` suppresses runtime execution, not refinement verification.
 
-PSB2 multi-objective examples use one objective per training case (200, or 50
-for `leaders`), rather than confusing output-vector arity with objective count.
-Their native objective-vector conversion checks the actual length before
-returning its refined array. Single-objective variants average those per-case
+PSB2 multi-objective examples use one objective per training case. The adapters
+preserve arbitrary array lengths; the examples currently choose 200 cases, or
+50 for `leaders`. `Cases` carries its requested count, checked when the dataset
+is loaded, and each scoring function returns that many errors. Integer errors
+use `per_example_errors_int`; floating errors use `per_example_errors`. Single-objective variants average those per-case
 errors, preserving fractional values and example boundaries.
 Reusable PSB2 fixtures sample lazily once with seed 0 and deep-copy their cases
 for each evaluation. This keeps the benchmark stable even when a synthesized
@@ -225,3 +226,29 @@ a requirement for typing entries, as it was with the previous `seen` set.
 shadowing, empty inputs, and isolation of result-container mutations. Hypothesis
 varies duplicate distributions and metadata conflicts. Compilation integration
 and core property tests cover the surrounding compiler behavior.
+
+## Standard-library native contracts
+
+Partial native operations require their input domain to be established before
+calling them. Runtime observers supply facts for values loaded at runtime:
+`Json.isValid` validates source text, `Json.isInt` validates an accessor,
+`DataFrame.has_columns` validates a selection, `Args.hasInt` checks a parsed
+argument, and `Math.isfinite` guards operations such as float-to-int conversion.
+The successful branch carries the corresponding logical predicate.
+
+CSV shape declarations are checked at the loading boundary. NDArray iteration
+callbacks must preserve the destination's storage and shape. CUDA uploads
+require sufficient `allocation_limit`; `status_buffer_succeeded` distinguishes
+successful synchronization from a failure that must be disposed of.
+
+Sample standard deviation and variance require at least two observations.
+`Tensor.normalize` requires a nonempty vector with `norm v > 0.0`.
+These contracts do not model floating-point overflow or underflow. External
+I/O and backend failures remain runtime errors. Map/Set/Tuple constraints and
+generic Models dimension laws await their typeclass contracts; explicitly
+unchecked model helpers retain the existing generic interface.
+
+`tests/stdlib_exception_refinements_test.py` exercises rejected calls, usable
+guards, native boundary validation and imported predicates. Imported concrete
+predicates must remain preconditions rather than being generalized into
+instantiable abstract refinement parameters.

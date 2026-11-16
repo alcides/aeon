@@ -46,17 +46,19 @@ def singleton (x : String) : (Array String) := native "[x]"
 
 @property
 def prop_int_option_default_roundtrips (d : Int) : Bool :=
-    p : Parser := Args.addIntOption (Args.newParser "t") "num" d "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "num" then Args.addIntOption p0 "num" d "" else p0;
     let 1 a : ParsedArgs := Args.parseList p (argvEmpty unit) in
-    let result := Args.getInt a "num" = d in
+    let result := (if Args.hasInt a "num" then Args.getInt a "num" else 0) = d in
     let _ := Args.dispose a in
     result;
 
 @property
 def prop_float_option_default_roundtrips (d : Float) : Bool :=
-    p : Parser := Args.addFloatOption (Args.newParser "t") "x" d "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "x" then Args.addFloatOption p0 "x" d "" else p0;
     let 1 a : ParsedArgs := Args.parseList p (argvEmpty unit) in
-    let result := Args.getFloat a "x" = d in
+    let result := (if Args.hasFloat a "x" then Args.getFloat a "x" else 0.0) = d in
     let _ := Args.dispose a in
     result;
 
@@ -68,9 +70,10 @@ def prop_float_option_default_roundtrips (d : Float) : Bool :=
 # leading-'-' argparse ambiguity).
 @property
 def prop_int_positional_roundtrips (d : {v : Int | v >= 0}) : Bool :=
-    p : Parser := Args.addIntArg (Args.newParser "t") "count" "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "count" then Args.addIntArg p0 "count" "" else p0;
     let 1 a : ParsedArgs := Args.parseList p (singleton (String.intToString d)) in
-    let result := Args.getInt a "count" = d in
+    let result := (if Args.hasInt a "count" then Args.getInt a "count" else 0) = d in
     let _ := Args.dispose a in
     result;
 
@@ -79,27 +82,30 @@ def prop_int_positional_roundtrips (d : {v : Int | v >= 0}) : Bool :=
 # Required string positional.
 @example(getName (argvAlice unit))
 def getName (1 argv : (Array String)) : Bool :=
-    p : Parser := Args.addArg (Args.newParser "t") "name" "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "name" then Args.addArg p0 "name" "" else p0;
     let 1 a : ParsedArgs := Args.parseList p argv in
-    let result := (Args.getString a "name").equal "alice" in
+    let result := ((if Args.hasString a "name" then Args.getString a "name" else "")).equal "alice" in
     let _ := Args.dispose a in
     result;
 
 # Required int positional.
 @example(getCount (argv42 unit) = 42)
 def getCount (1 argv : (Array String)) : Int :=
-    p : Parser := Args.addIntArg (Args.newParser "t") "count" "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "count" then Args.addIntArg p0 "count" "" else p0;
     let 1 a : ParsedArgs := Args.parseList p argv in
-    let result := Args.getInt a "count" in
+    let result := (if Args.hasInt a "count" then Args.getInt a "count" else 0) in
     let _ := Args.dispose a in
     result;
 
 # Required float positional.
 @example(getRatio (argvRatio unit) = 1.5)
 def getRatio (1 argv : (Array String)) : Float :=
-    p : Parser := Args.addFloatArg (Args.newParser "t") "ratio" "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "ratio" then Args.addFloatArg p0 "ratio" "" else p0;
     let 1 a : ParsedArgs := Args.parseList p argv in
-    let result := Args.getFloat a "ratio" in
+    let result := (if Args.hasFloat a "ratio" then Args.getFloat a "ratio" else 0.0) in
     let _ := Args.dispose a in
     result;
 
@@ -107,9 +113,10 @@ def getRatio (1 argv : (Array String)) : Float :=
 @example(getVerbose (argvVerbose unit) = true)
 @example(getVerbose (argvEmpty unit) = false)
 def getVerbose (1 argv : (Array String)) : Bool :=
-    p : Parser := Args.addFlag (Args.newParser "t") "verbose" "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "verbose" then Args.addFlag p0 "verbose" "" else p0;
     let 1 a : ParsedArgs := Args.parseList p argv in
-    let result := Args.getBool a "verbose" in
+    let result := (if Args.hasBool a "verbose" then Args.getBool a "verbose" else false) in
     let _ := Args.dispose a in
     result;
 
@@ -117,9 +124,10 @@ def getVerbose (1 argv : (Array String)) : Bool :=
 @example(String.equal (getOut (argvEmpty unit)) "stdout")
 @example(String.equal (getOut (argvOutFile unit)) "file.txt")
 def getOut (1 argv : (Array String)) : String :=
-    p : Parser := Args.addOption (Args.newParser "t") "out" "stdout" "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "out" then Args.addOption p0 "out" "stdout" "" else p0;
     let 1 a : ParsedArgs := Args.parseList p argv in
-    let result := Args.getString a "out" in
+    let result := (if Args.hasString a "out" then Args.getString a "out" else "") in
     let _ := Args.dispose a in
     result;
 
@@ -127,9 +135,10 @@ def getOut (1 argv : (Array String)) : String :=
 @example(getNum (argvEmpty unit) = 10)
 @example(getNum (argvNum99 unit) = 99)
 def getNum (1 argv : (Array String)) : Int :=
-    p : Parser := Args.addIntOption (Args.newParser "t") "num" 10 "";
+    p0 : Parser := Args.newParser "t";
+    p : Parser := if Args.canAdd p0 "num" then Args.addIntOption p0 "num" 10 "" else p0;
     let 1 a : ParsedArgs := Args.parseList p argv in
-    let result := Args.getInt a "num" in
+    let result := (if Args.hasInt a "num" then Args.getInt a "num" else 0) in
     let _ := Args.dispose a in
     result;
 
@@ -137,8 +146,9 @@ def getNum (1 argv : (Array String)) : Int :=
 @example(String.equal (getMode (argvEmpty unit)) "fast")
 @example(String.equal (getMode (argvModeSlow unit)) "slow")
 def getMode (1 argv : (Array String)) : String :=
-    let 1 p : Parser := Args.addChoice (Args.newParser "t") "mode" (choicesModes unit) "fast" "" in
+    p0 : Parser := Args.newParser "t";
+    let 1 p : Parser := if Args.canAdd p0 "mode" then Args.addChoice p0 "mode" (choicesModes unit) "fast" "" else p0 in
     let 1 a : ParsedArgs := Args.parseList p argv in
-    let result := Args.getString a "mode" in
+    let result := (if Args.hasString a "mode" then Args.getString a "mode" else "") in
     let _ := Args.dispose a in
     result;

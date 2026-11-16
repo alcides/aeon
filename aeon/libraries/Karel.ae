@@ -4,19 +4,19 @@
 type World
 type Examples
 type Dataset
-def north : Int := 0
-def east : Int := 1
-def south : Int := 2
-def west : Int := 3
-def world (width: Int) (height: Int) (x: Int) (y: Int) (facing: Int) : World :=
+def north : {n:Int | n = 0} := 0
+def east : {n:Int | n = 1} := 1
+def south : {n:Int | n = 2} := 2
+def west : {n:Int | n = 3} := 3
+def world (width: {n:Int | n > 0}) (height: {n:Int | n > 0}) (x: {n:Int | 0 <= n && n < width}) (y: {n:Int | 0 <= n && n < height}) (facing: {n:Int | 0 <= n && n < 4}) : {r:World | worldWidth r = width && worldHeight r = height && markerLimit r = 10 && noWalls r && noMarkers r && robotX r = x && robotY r = y} :=
     native "__import__('aeon.bindings.karel', fromlist=['world']).world(width, height, x, y, facing)"
-def with_wall (w: World) (x: Int) (y: Int) : World :=
+def with_wall (w: World) (x: {n:Int | 0 <= n && n < worldWidth w}) (y: {n:Int | 0 <= n && n < worldHeight w && ((noMarkers w && (x != robotX w || n != robotY w)) || wallAllowed w x n)}) : {r:World | worldWidth r = worldWidth w && worldHeight r = worldHeight w && markerLimit r = markerLimit w && noMarkers r = noMarkers w && robotX r = robotX w && robotY r = robotY w} :=
     native "__import__('aeon.bindings.karel', fromlist=['with_wall']).with_wall(w, x, y)"
-def random_world (width: Int) (height: Int) (seed: Int) : World :=
+def random_world (width: {n:Int | n > 2}) (height: {n:Int | n > 2}) (seed: Int) : {r:World | worldWidth r = width && worldHeight r = height && markerLimit r = 10} :=
     native "__import__('aeon.bindings.karel', fromlist=['random_world']).random_world(width, height, seed)"
-def with_markers (w: World) (x: Int) (y: Int) (count: Int) : World :=
+def with_markers (w: World) (x: {n:Int | 0 <= n && n < worldWidth w}) (y: {n:Int | 0 <= n && n < worldHeight w}) (count: {n:Int | 0 <= n && n <= markerLimit w && (noWalls w || clearCell w x y)}) : {r:World | worldWidth r = worldWidth w && worldHeight r = worldHeight w && markerLimit r = markerLimit w && noWalls r = noWalls w && robotX r = robotX w && robotY r = robotY w} :=
     native "__import__('aeon.bindings.karel', fromlist=['with_markers']).with_markers(w, x, y, count)"
-def marker_count_at (w: World) (x: Int) (y: Int) : Int :=
+def marker_count_at (w: World) (x: {n:Int | 0 <= n && n < worldWidth w}) (y: {n:Int | 0 <= n && n < worldHeight w}) : Int :=
     native "__import__('aeon.bindings.karel', fromlist=['marker_count_at']).marker_count_at(w, x, y)"
 def front_is_clear (w: World) : Bool :=
     native "__import__('aeon.bindings.karel', fromlist=['front_is_clear']).front_is_clear(w)"
@@ -34,9 +34,9 @@ def turn_right (w: World) : World :=
     native "__import__('aeon.bindings.karel', fromlist=['turn_right']).turn_right(w)"
 def pick_marker (w: World) : World :=
     native "__import__('aeon.bindings.karel', fromlist=['pick_marker']).pick_marker(w)"
-def put_marker (w: World) : World :=
+def put_marker (w: {v:World | markerCount v < markerLimit v}) : World :=
     native "__import__('aeon.bindings.karel', fromlist=['put_marker']).put_marker(w)"
-def marker_count (w: World) : Int :=
+def marker_count (w: World) : {n:Int | n = markerCount w && n >= 0} :=
     native "__import__('aeon.bindings.karel', fromlist=['marker_count']).marker_count(w)"
 def render (w: World) : String :=
     native "__import__('aeon.bindings.karel', fromlist=['render']).render(w)"
@@ -48,8 +48,8 @@ def append_examples (a: Examples) (b: Examples) : Examples :=
     native "__import__('aeon.bindings.karel', fromlist=['append_examples']).append_examples(a, b)"
 def load_dataset (path: String) : Dataset :=
     native "__import__('aeon.bindings.karel', fromlist=['load_examples']).load_examples(path)"
-def dataset_size (dataset: Dataset) : Int := native "len(dataset)"
-def dataset_task (dataset: Dataset) (index: Int) : Examples := native "dataset[index]"
+def dataset_size (dataset: Dataset) : {n:Int | n >= 0 && n = taskCount dataset} := native "len(dataset)"
+def dataset_task (dataset: Dataset) (index: {n:Int | 0 <= n && n < taskCount dataset}) : Examples := native "dataset[index]"
 def fitness (program: (w: World) -> World) (examples: Examples) : Float :=
     native "__import__('aeon.bindings.karel', fromlist=['fitness']).fitness(program, examples)"
 def require_finished (fuel: Int) (test: (w: World) -> Bool) (w: World) : World :=
@@ -58,11 +58,11 @@ def repeat_tick (w: World) : World :=
     native "__import__('aeon.bindings.karel', fromlist=['repeat_tick']).repeat_tick(w)"
 def load_task_examples (path: String) : Examples :=
     native "__import__('aeon.benchmarks.karel', fromlist=['load_task_examples']).load_task_examples(path)"
-def robot_x (w: World) : Int := native "w.x"
-def robot_y (w: World) : Int := native "w.y"
-def direction (w: World) : Int := native "w.facing"
-def width (w: World) : Int := native "w.width"
-def height (w: World) : Int := native "w.height"
+def robot_x (w: World) : {n:Int | n = robotX w && 0 <= n && n < worldWidth w} := native "w.x"
+def robot_y (w: World) : {n:Int | n = robotY w && 0 <= n && n < worldHeight w} := native "w.y"
+def direction (w: World) : {n:Int | 0 <= n && n < 4} := native "w.facing"
+def width (w: World) : {n:Int | n = worldWidth w && n >= 0} := native "w.width"
+def height (w: World) : {n:Int | n = worldHeight w && n >= 0} := native "w.height"
 
 def no_markers_present (w: World) : Bool := if markers_present w then false else true
 def not_karel (test: (w: World) -> Bool) (w: World) : Bool := if test w then false else true
@@ -79,3 +79,19 @@ def when_karel (test: (w: World) -> Bool) (step: (w: World) -> World) (w: World)
 def while_karel (fuel: Int) (test: (w: World) -> Bool) (step: (w: World) -> World) (w: World) : World :=
     if fuel <= 0 then require_finished fuel test w
     else if test w then while_karel (fuel - 1) test step (step w) else w
+
+def worldWidth : (w:World) -> Int := uninterpreted
+def worldHeight : (w:World) -> Int := uninterpreted
+def markerLimit : (w:World) -> Int := uninterpreted
+def markerCount : (w:World) -> Int := uninterpreted
+def taskCount : (ds:Dataset) -> Int := uninterpreted
+def clearCell : (w:World) -> (x:Int) -> (y:Int) -> Bool := uninterpreted
+def wallAllowed : (w:World) -> (x:Int) -> (y:Int) -> Bool := uninterpreted
+def marker_limit (w:World) : {n:Int | n = markerLimit w && n >= 0} := native "w.marker_limit"
+def cell_is_clear (w:World) (x:Int) (y:Int) : {b:Bool | b = clearCell w x y} := native "w.inside(x, y) and (x, y) not in w.walls"
+def can_add_wall (w:World) (x:Int) (y:Int) : {b:Bool | b = wallAllowed w x y} := native "w.inside(x, y) and (x, y) != (w.x, w.y) and all((px, py) != (x, y) for px, py, count in w.markers)"
+
+def noWalls : (w:World) -> Bool := uninterpreted
+def noMarkers : (w:World) -> Bool := uninterpreted
+def robotX : (w:World) -> Int := uninterpreted
+def robotY : (w:World) -> Int := uninterpreted

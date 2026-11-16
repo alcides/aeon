@@ -25,7 +25,7 @@ def countTrues (1 l:(Array Bool)) : Int :=
     native "sum(1 for x in l if x)"
 
 
-def ratio (a:Int) (b:Int) : Float := native "a/b"
+def ratio (a:Int) (b:{v:Int | v != 0}) : Float := native "a/b"
 
 def forAllInts (func:(a: Int) -> Bool) : Float :=
     n := 1000;

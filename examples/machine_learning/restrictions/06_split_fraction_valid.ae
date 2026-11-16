@@ -2,5 +2,5 @@ open ML
 
 # CORRECT: 0.7 satisfies the strict static bounds on the training fraction.
 def valid_fraction
-    (1 dataset: {ds: Dataset | ds_features ds >= 1}) : DatasetSplit :=
+    (1 dataset: {ds: Dataset | ds_features ds >= 1 && validSplit ds 0.7}) : DatasetSplit :=
     split dataset 0.7

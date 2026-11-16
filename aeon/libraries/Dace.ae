@@ -11,41 +11,43 @@
 type Column
 
 # Value of cell i.
-def col_at (c: Column) (i: Int) : Int := native "c[i]";
+def col_at (c: Column) (i: {n:Int | n >= 0 && n < size c}) : Int := native "c[i]";
 
 # Whether a value is the missing-cell sentinel.
 def is_missing (x: Int) : Bool := native "x == -999999";
 
 # Previous non-missing value strictly before index i (sentinel if none).
-def prev_nonmissing (c: Column) (i: Int) : Int :=
+def prev_nonmissing (c: Column) (i: {n:Int | n >= 0 && n < size c}) : Int :=
     native "next((c[j] for j in range(i - 1, -1, -1) if c[j] != -999999), -999999)";
 
 # Next non-missing value strictly after index i (sentinel if none).
-def next_nonmissing (c: Column) (i: Int) : Int :=
+def next_nonmissing (c: Column) (i: {n:Int | n >= 0 && n < size c}) : Int :=
     native "next((c[j] for j in range(i + 1, len(c)) if c[j] != -999999), -999999)";
 
 # Whether any non-missing cell exists strictly before index i.
-def has_prev_nonmissing (c: Column) (i: Int) : Bool :=
+def has_prev_nonmissing (c: Column) (i: {n:Int | n >= 0 && n < size c}) : Bool :=
     native "any(c[j] != -999999 for j in range(0, i))";
 
 # Previous non-missing value (before i) in `vals` whose row has the same id as
 # row i in `ids` (sentinel if none) -- a relational predicate over cells.
-def prev_sameid (ids: Column) (vals: Column) (i: Int) : Int :=
+def prev_sameid (ids: Column) (vals: {v:Column | size v = size ids}) (i: {n:Int | n >= 0 && n < size ids}) : Int :=
     native "next((vals[j] for j in range(i - 1, -1, -1) if ids[j] == ids[i] and vals[j] != -999999), -999999)";
 
 # Index of the nearest cell at-or-above i whose value is v (-1 if none) -- the
 # upward spatial path of Example 2.3.
-def up_find_value (c: Column) (i: Int) (v: Int) : Int :=
+def up_find_value (c: Column) (i: {n:Int | n >= 0 && n < size c}) (v: Int) : {r:Int | r >= (0 - 1) && r <= i} :=
     native "next((j for j in range(i, -1, -1) if c[j] == v), -1)";
 
 # First non-zero value at-or-below index k (0 if none) -- the downward path that
 # Example 2.3 turns onto after the upward search.
-def down_first_nonzero (c: Column) (k: Int) : Int :=
+# Python negative indices remain valid when they are within the column.
+# This also admits the -1 sentinel returned by up_find_value on nonempty columns.
+def down_first_nonzero (c: Column) (k: {n:Int | n >= 0 || n >= 0 - size c}) : Int :=
     native "next((c[j] for j in range(k, len(c)) if c[j] != 0), 0)";
 
 # Number of entries sharing row i's group id -- the COUNT-over-a-range of
 # Example 2.4.
-def group_count (groups: Column) (i: Int) : Int :=
+def group_count (groups: Column) (i: {n:Int | n >= 0 && n < size groups}) : Int :=
     native "sum(1 for g in groups if g == groups[i])";
 
 # Additional reconstruction vocabulary for the paper's category families.
@@ -67,8 +69,11 @@ def count_nonmissing_before (c: Column) (i: Int): Int :=
 def max_previous (c: Column) (i: Int) : Int :=
     native "max((x for x in c[max(0, i - 5):i] if x != -999999), default=0)";
 
-def interpolate (c: Column) (i: Int): Int :=
-    native "((next_nonmissing(c, i) + prev_nonmissing(c, i)) // 2 if prev_nonmissing(c, i) != -999999 and next_nonmissing(c, i) != -999999 else (prev_nonmissing(c, i) if prev_nonmissing(c, i) != -999999 else next_nonmissing(c, i)))";
+def interpolate (c: Column) (i: {n:Int | n >= 0 && n < size c}): Int :=
+    native "((next_nonmissing(c)(i) + prev_nonmissing(c)(i)) // 2 if prev_nonmissing(c)(i) != -999999 and next_nonmissing(c)(i) != -999999 else (prev_nonmissing(c)(i) if prev_nonmissing(c)(i) != -999999 else next_nonmissing(c)(i)))";
 
-def extrapolate (c: Column) (i: Int): Int :=
-    native "(next_nonmissing(c, i) + (next_nonmissing(c, i) - next_nonmissing(c, i + 1)) if next_nonmissing(c, i) != -999999 and next_nonmissing(c, i + 1) != -999999 else (prev_nonmissing(c, i) + (prev_nonmissing(c, i) - prev_nonmissing(c, i - 2)) if prev_nonmissing(c, i) != -999999 and prev_nonmissing(c, i - 2) != -999999 else 0))";
+def extrapolate (c: Column) (i: {n:Int | n >= 0 && n < size c}): Int :=
+    native "(next_nonmissing(c)(i) + (next_nonmissing(c)(i) - next_nonmissing(c)(i + 1)) if next_nonmissing(c)(i) != -999999 and next_nonmissing(c)(i + 1) != -999999 else (prev_nonmissing(c)(i) + (prev_nonmissing(c)(i) - prev_nonmissing(c)(max(0, i - 2))) if prev_nonmissing(c)(i) != -999999 and prev_nonmissing(c)(max(0, i - 2)) != -999999 else 0))";
+
+def size : (c:Column) -> Int := uninterpreted
+def length (c:Column) : {n:Int | n >= 0 && n = size c} := native "len(c)"

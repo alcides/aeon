@@ -30,6 +30,8 @@ def training_data(name: str, n_train: int, n_test: int) -> Callable[[Any], Any]:
                 template = fetch_examples("path/to/PSB2/datasets/", name, n_train, n_test, format="lists", seed=0)[0]
             finally:
                 random.setstate(state)
+        if len(template) != n_train:
+            raise ValueError(f"PSB2 requested {n_train} cases, received {len(template)}")
         return deepcopy(template)
 
     return fresh

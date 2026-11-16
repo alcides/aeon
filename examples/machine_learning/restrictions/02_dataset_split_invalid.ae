@@ -12,7 +12,7 @@ def train_and_score
 
 # WRONG: both split calls try to consume the same Dataset.
 def split_twice
-    (1 dataset: {ds: Dataset | ds_features ds >= 1}) : DatasetSplit :=
+    (1 dataset: {ds: Dataset | ds_features ds >= 1 && validSplit ds 0.7}) : DatasetSplit :=
     let 1 first_parts := split dataset 0.7 in
     let first_score := consume_split first_parts train_and_score in
     split dataset 0.7

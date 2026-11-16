@@ -24,7 +24,7 @@ def floyd_pass
     (xs: (ReadOnly Float)) (n: {v:Int | v >= 0 && v <= 46340 && v * v = ReadOnly.size xs})
     (k: {v:Int | v >= 0 && v < n})
     (1 output: {m:(NDArray Float Rank2) | m.dimension_size 0 = n && m.dimension_size 1 = n && m.elements = n * n}) :
-    {r:(NDArray Float Rank2) | r.dimension_size 0 = n && r.dimension_size 1 = n && r.elements = n * n} :=
+    {r:(NDArray Float Rank2) | r.storage = output.storage && r.ndim = output.ndim && r.dimension_size 2 = output.dimension_size 2 && r.dimension_size 0 = n && r.dimension_size 1 = n && r.elements = n * n} :=
     output.map_rows (fun i => fun row => relax_row xs n k i 0 row);
 
 # The default CUDA stream orders pivots while two device buffers alternate.

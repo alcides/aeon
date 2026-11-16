@@ -7,14 +7,16 @@ open ArrayKernels
 def times_two (x: Float) : Float := x * 2.0;
 
 @llvm
-def scale_col (1 col: (Array Float)) (n: Int) : {r: (Array Float) | size r = n} :=
+def scale_col (1 col: (Array Float)) (n:{k:Int | k = Array.size col}) : {r: (Array Float) | size r = n} :=
     map_n_float times_two col n;
 
 def main (args: Int) : Float :=
     let 1 df0 := read_csv "examples/dataframe/data/people.csv" 4 4 in
+    if is_numeric_col df0 "score" then
     let 1 col := col_as_array df0 "score" in
     let 1 scaled := scale_col col 4 in
     let 1 df2 := set_col df0 "score_x2" scaled in
     let 1 out := col_as_array df2 "score_x2" in
     let _ := DataFrame.dispose df2 in
-    Array.consume Array.mean out;
+    Array.consume Array.mean out
+    else let _ := DataFrame.dispose df0 in 0.0;

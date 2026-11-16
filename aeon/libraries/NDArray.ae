@@ -8,6 +8,8 @@ type Rank2
 type Rank3
 linear type NDArray a rank
 
+def storage : (arr:(NDArray a rank)) -> Int := uninterpreted
+
 def ndim : (arr: (NDArray a rank)) -> Int := uninterpreted
 def elements : (arr: (NDArray a rank)) -> Int := uninterpreted
 def dimension_size : (arr: (NDArray a rank)) -> (axis: Int) -> Int := uninterpreted
@@ -36,17 +38,17 @@ def to_array (1 arr: (NDArray a Rank1)) : {r:(Array a) | r.size = arr.elements} 
 
 # Reshape transfers ownership. The element order and count are preserved.
 def to_1d (1 arr: (NDArray a rank)) :
-    {r:(NDArray a Rank1) | r.ndim = 1 && r.elements = arr.elements && r.dimension_size 0 = arr.elements} :=
+    {r:(NDArray a Rank1) | r.storage = arr.storage && r.ndim = 1 && r.elements = arr.elements && r.dimension_size 0 = arr.elements} :=
     native "arr.to_1d()"
 
 def from_1d2 (1 arr: (NDArray a Rank1)) (rows: {v:Int | v >= 0 && v <= 2147483647})
     (cols: {v:Int | v >= 0 && v <= 2147483647 && rows * v = arr.elements}) :
-    {r:(NDArray a Rank2) | r.ndim = 2 && r.elements = arr.elements && r.dimension_size 0 = rows && r.dimension_size 1 = cols} :=
+    {r:(NDArray a Rank2) | r.storage = arr.storage && r.ndim = 2 && r.elements = arr.elements && r.dimension_size 0 = rows && r.dimension_size 1 = cols} :=
     native "arr.from_1d2(rows, cols)"
 
 def from_1d3 (1 arr: (NDArray a Rank1)) (depth: {v:Int | v >= 0 && v <= 2147483647}) (rows: {v:Int | v >= 0 && v <= 2147483647})
     (cols: {v:Int | v >= 0 && v <= 2147483647 && depth * rows * v = arr.elements}) :
-    {r:(NDArray a Rank3) | r.ndim = 3 && r.elements = arr.elements && r.dimension_size 0 = depth && r.dimension_size 1 = rows && r.dimension_size 2 = cols} :=
+    {r:(NDArray a Rank3) | r.storage = arr.storage && r.ndim = 3 && r.elements = arr.elements && r.dimension_size 0 = depth && r.dimension_size 1 = rows && r.dimension_size 2 = cols} :=
     native "arr.from_1d3(depth, rows, cols)"
 
 def dimension (borrow arr: (NDArray a rank)) (axis: {v:Int | v >= 0 && v < arr.ndim}) :
@@ -69,19 +71,19 @@ def take3 (1 arr: (NDArray a Rank3)) (depth: {v:Int | v >= 0 && v < arr.dimensio
     native "arr.get(depth, row, col)"
 
 def set1 (1 arr: (NDArray a Rank1)) (i: {v:Int | v >= 0 && v < arr.dimension_size 0}) (value: a) :
-    {r:(NDArray a Rank1) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0} :=
+    {r:(NDArray a Rank1) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0} :=
     native "arr.set(i, value)"
 def set2 (1 arr: (NDArray a Rank2)) (row: {v:Int | v >= 0 && v < arr.dimension_size 0})
     (col: {v:Int | v >= 0 && v < arr.dimension_size 1}) (value: a) :
-    {r:(NDArray a Rank2) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1} :=
+    {r:(NDArray a Rank2) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1} :=
     native "arr.set(row, col, value)"
 def set3 (1 arr: (NDArray a Rank3)) (depth: {v:Int | v >= 0 && v < arr.dimension_size 0})
     (row: {v:Int | v >= 0 && v < arr.dimension_size 1}) (col: {v:Int | v >= 0 && v < arr.dimension_size 2}) (value: a) :
-    {r:(NDArray a Rank3) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    {r:(NDArray a Rank3) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
     native "arr.set(depth, row, col, value)"
 
 def fill (1 arr: (NDArray a rank)) (value: a) :
-    {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    {r:(NDArray a rank) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
     native "arr.fill(value)"
 
 # Each callback owns one disjoint row. A direct @gpu entry launches one thread per row.
@@ -89,7 +91,7 @@ def map_rows [Copy a] (1 arr: (NDArray a Rank2))
     (f: (i:{v:Int | v >= 0 && v < arr.dimension_size 0}) ->
         (1 row:{r:(NDArray a Rank1) | r.ndim = 1 && r.elements = arr.dimension_size 1 && r.dimension_size 0 = arr.dimension_size 1}) ->
         {r:(NDArray a Rank1) | r.dimension_size 0 = arr.dimension_size 1}) :
-    {r:(NDArray a Rank2) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1} :=
+    {r:(NDArray a Rank2) | r.storage = arr.storage && r.dimension_size 2 = arr.dimension_size 2 && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1} :=
     native "arr.map_rows(f)"
 
 def discard (1 arr: (NDArray a rank)) : Unit := native "arr.discard()"
@@ -107,13 +109,13 @@ def filter [Copy a] (1 arr: (NDArray a rank)) (f: (x:a) -> Bool) :
 # Elementwise operations consume their inputs and preserve their shape.
 # Equal element types allow the runtime to reuse the first input's allocation.
 def map [Copy a] (1 arr: (NDArray a rank)) (f: (x:a) -> b) :
-    {r:(NDArray b rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    {r:(NDArray b rank) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
     native "arr.map(f)"
 
 def zipWith [Copy a] [Copy b] (1 arr: (NDArray a rank))
     (1 other: {r:(NDArray b rank) | r.dimension_size 0 = arr.dimension_size 0 && (arr.ndim < 2 || r.dimension_size 1 = arr.dimension_size 1) && (arr.ndim < 3 || r.dimension_size 2 = arr.dimension_size 2)})
     (f: (x:a) -> (y:b) -> c) :
-    {r:(NDArray c rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    {r:(NDArray c rank) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
     native "arr.zipWith(other, f)"
 
 # Keep the reduced dimension with size one, so the static rank is preserved.
@@ -125,11 +127,11 @@ def reduce_axis [Copy a] (1 arr: (NDArray a rank)) (axis: {v:Int | v >= 0 && v <
 # Row-major prefix folds. The combiner must be pure and associative, as for reduce.
 # z is applied exactly once per prefix; it need not be an identity.
 def scan [Copy a] (1 arr: (NDArray a rank)) (f: (acc:a) -> (x:a) -> a) (z:a) :
-    {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    {r:(NDArray a rank) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
     native "arr.scan(f, z)"
 
 def scan_exclusive [Copy a] (1 arr: (NDArray a rank)) (f: (acc:a) -> (x:a) -> a) (z:a) :
-    {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
+    {r:(NDArray a rank) | r.storage = arr.storage && r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
     native "arr.scan(f, z, exclusive=True)"
 
 # Host scheduling over two reusable buffers. Each destination starts filled with
@@ -138,6 +140,6 @@ def iterate [Copy a] (1 arr: (NDArray a rank)) (steps: {v:Int | v >= 0 && v <= 2
     (f: (step:{v:Int | v >= 0 && v < steps}) ->
         (xs:{v:(ReadOnly a) | ReadOnly.size v = arr.elements}) ->
         (1 output:{r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2}) ->
-        (NDArray a rank)) :
+        {r:(NDArray a rank) | r.storage = output.storage && r.ndim = output.ndim && r.elements = output.elements && r.dimension_size 0 = output.dimension_size 0 && r.dimension_size 1 = output.dimension_size 1 && r.dimension_size 2 = output.dimension_size 2}) :
     {r:(NDArray a rank) | r.ndim = arr.ndim && r.elements = arr.elements && r.dimension_size 0 = arr.dimension_size 0 && r.dimension_size 1 = arr.dimension_size 1 && r.dimension_size 2 = arr.dimension_size 2} :=
     native "arr.iterate(steps, value, f)"

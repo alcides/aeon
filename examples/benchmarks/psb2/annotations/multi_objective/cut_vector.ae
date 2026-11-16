@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "cut-vector" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "cut-vector" 200;
 
-def score (cases:Cases) (candidate:(xs:{v:(List Int){|fun x => 0 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) -> {r:(List (List Int)) | List.size r = 2 && List.size (List.first r) + List.size (List.first (List.rest r)) = List.size xs}) : (Array Float) :=
+def score (cases:Cases) (candidate:(xs:{v:(List Int){|fun x => 0 <= x && x <= 10000|} | 1 <= List.size v && List.size v <= 20}) -> {r:(List (List Int)) | List.size r = 2 && List.size (List.first r) + List.size (List.first (List.rest r)) = List.size xs}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('cut-vector', cases(None), candidate)";
 
 @doc("Split a vector into two parts with the closest sums; match PSB2 tie-breaking.")

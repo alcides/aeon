@@ -233,7 +233,7 @@ def launch_2d_shared (device: Device)
 # values: linear host array; size and byte budget must fit ``device``.
 # returns: device ``ReadyBuffer Int`` with RW access and 1-D extents.
 def upload_i32 (device: Device)
-    (1 values: {xs: (Array Int) | Array.size xs > 0}) :
+    (1 values: {xs: (Array Int) | Array.size xs > 0 && Array.size xs * 4 <= max_allocation device}) :
     {buffer: (ReadyBuffer Int) |
         buffer_device buffer = device_id device &&
         buffer_size buffer = Array.size values &&
@@ -248,7 +248,7 @@ def upload_i32 (device: Device)
 
 # Upload a non-empty ``Float`` array as float64; consumes the host buffer.
 def upload_float64 (device: Device)
-    (1 values: {xs: (Array Float) | Array.size xs > 0}) :
+    (1 values: {xs: (Array Float) | Array.size xs > 0 && Array.size xs * 8 <= max_allocation device}) :
     {buffer: (ReadyBuffer Float) |
         buffer_device buffer = device_id device &&
         buffer_size buffer = Array.size values &&
@@ -343,7 +343,6 @@ def synchronize (1 pending: (Pending a)) :
 # Like ``synchronize`` but returns a linear status token paired with the buffer.
 def synchronize_with_status (1 pending: (Pending a)) :
     {sb: (StatusBuffer a) |
-        status_buffer_ok sb &&
         status_buffer_device sb = pending_device pending &&
         status_buffer_size sb = pending_size pending} :=
     native "__import__('aeon.bindings.cuda', fromlist=['synchronize_with_status']).synchronize_with_status(pending)"
@@ -493,3 +492,10 @@ def with_status_pair (1 token:{pr:(StatusPair a) | status_pair_ok pr})
         buffer_extent_x b = buffer_size b &&
         buffer_extent_y b = 1}) -> b) : b :=
     native "consume(token[0])(token[1])"
+
+def status_buffer_succeeded (borrow sb:(StatusBuffer a)) : {b:Bool | b = status_buffer_ok sb} := native "sb.status.ok"
+def discard_status_buffer (1 sb:(StatusBuffer a)) : Unit := native "__import__('aeon.bindings.cuda', fromlist=['discard_status_buffer']).discard_status_buffer(sb)"
+
+# Maximum individual allocation supported by this device, in bytes.
+def allocation_limit (d:Device) : {n:Int | n = max_allocation d && n >= 0} :=
+    native "__import__('aeon.bindings.cuda', fromlist=['max_allocation']).max_allocation(d)"

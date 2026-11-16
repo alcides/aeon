@@ -68,15 +68,15 @@ def mean(borrow xs: {x: (Array Float) | Array.size x > 0}): {m: Float | m = samp
 # returns: median of the numbers
 def median(borrow xs: {x: (Array Float) | Array.size x > 0}): Float := native "__import__('numpy').median(xs)"
 
-# Returns the sample standard deviation of a non-empty list of numbers.
-# xs: non-empty list of numbers
+# Returns the sample standard deviation of at least two observations.
+# xs: at least two numbers
 # returns: standard deviation
-def std(borrow xs: {x: (Array Float) | Array.size x > 0}): {s: Float | s = sampleStd xs} := native "__import__('numpy').std(xs, ddof=1)"
+def std(borrow xs: {x: (Array Float) | Array.size x >= 2}): {s: Float | s = sampleStd xs} := native "__import__('numpy').std(xs, ddof=1)"
 
-# Returns the sample variance of a non-empty list of numbers.
-# xs: non-empty list of numbers
+# Returns the sample variance of at least two observations.
+# xs: at least two numbers
 # returns: variance
-def var(borrow xs: {x: (Array Float) | Array.size x > 0}): {v: Float | v = sampleVar xs} := native "__import__('numpy').var(xs, ddof=1)"
+def var(borrow xs: {x: (Array Float) | Array.size x >= 2}): {v: Float | v = sampleVar xs} := native "__import__('numpy').var(xs, ddof=1)"
 
 # Returns the minimum value in a non-empty list of numbers.
 # xs: non-empty list of numbers
@@ -97,7 +97,7 @@ def sum(borrow xs: {x: (Array Float) | Array.size x > 0}): Float := native "sum(
 # xs: non-empty list of numbers
 # q: quantile to compute (between 0 and 1, e.g., 0.25 for Q1, 0.5 for median, 0.75 for Q3)
 # returns: quantile value
-def quantile(borrow xs: {x: (Array Float) | Array.size x > 0}) (q: Float): Float := native "__import__('numpy').quantile(xs, q)"
+def quantile(borrow xs: {x: (Array Float) | Array.size x > 0}) (q: {v:Float | 0.0 <= v && v <= 1.0}): Float := native "__import__('numpy').quantile(xs, q)"
 
 # Returns the product of a non-empty list of numbers.
 # xs: non-empty list of numbers
@@ -138,19 +138,19 @@ def argmin(borrow xs: {x: (Array Float) | Array.size x > 0}): Float := native "_
 # xs: non-empty list of numbers
 # p: percentile to compute (between 0 and 100)
 # returns: percentile value
-def percentile(borrow xs: {x: (Array Float) | Array.size x > 0}) (p: Float): Float := native "__import__('numpy').percentile(xs, p)"
+def percentile(borrow xs: {x: (Array Float) | Array.size x > 0}) (p: {v:Float | 0.0 <= v && v <= 100.0}): Float := native "__import__('numpy').percentile(xs, p)"
 
 # Returns the correlation coefficient of two non-empty lists of equal length.
 # xs: non-empty list of numbers
 # ys: non-empty list of numbers, same length as xs
 # returns: correlation coefficient
-def corrcoef(borrow xs: {x: (Array Float) | Array.size x > 0}) (borrow ys: {y: (Array Float) | Array.size y = Array.size xs}): Float := native "__import__('numpy').corrcoef(xs, ys)[0,1]"
+def corrcoef(borrow xs: {x: (Array Float) | Array.size x >= 2}) (borrow ys: {y: (Array Float) | Array.size y = Array.size xs}): Float := native "__import__('numpy').corrcoef(xs, ys)[0,1]"
 
 # Returns the covariance of two non-empty lists of equal length.
 # xs: non-empty list of numbers
 # ys: non-empty list of numbers, same length as xs
 # returns: covariance
-def cov(borrow xs: {x: (Array Float) | Array.size x > 0}) (borrow ys: {y: (Array Float) | Array.size y = Array.size xs}): Float := native "__import__('numpy').cov(xs, ys, ddof=1)[0,1]"
+def cov(borrow xs: {x: (Array Float) | Array.size x >= 2}) (borrow ys: {y: (Array Float) | Array.size y = Array.size xs}): Float := native "__import__('numpy').cov(xs, ys, ddof=1)[0,1]"
 
 # ─── Runtime providers for fraction predicates ────────────────────────
 # Compute the abstract fraction symbols at runtime; the refined return type

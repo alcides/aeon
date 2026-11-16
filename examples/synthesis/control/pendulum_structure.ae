@@ -13,7 +13,7 @@ import Math;
 # with (kp,kd)=(6,1),(8,2),(10,2),(8,3). Saturation is in the plant.
 def command(choice:Int)(theta:Float)(rate:Float):Float :=
     if choice <= 1 then
-        let energy := rate * rate / 6.0 + 5.0 * Math.cos theta in
+        let energy := rate * rate / 6.0 + 5.0 * (if Math.isfinite theta then Math.cos theta else 0.0) in
         let direction := if rate >= 0.0 then 1.0 else (0.0 - 1.0) in
         (if choice = 0 then 1.0 else 2.0) * (5.0 - energy) * direction
     else let kp := if choice = 2 then 6.0 else if choice = 4 then 10.0 else 8.0 in

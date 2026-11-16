@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "mastermind" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "mastermind" 200;
 
-def score (cases:Cases) (candidate:(code:{v:String | String.len v = 4}) -> (guess:{v:String | String.len v = 4}) -> {r:(List Int) | List.size r = 2 && 0 <= (List.first r) && 0 <= (List.first (List.rest r)) && (List.first r) + (List.first (List.rest r)) <= 4}) : (Array Float) :=
+def score (cases:Cases) (candidate:(code:{v:String | String.len v = 4}) -> (guess:{v:String | String.len v = 4}) -> {r:(List Int) | List.size r = 2 && 0 <= (List.first r) && 0 <= (List.first (List.rest r)) && (List.first r) + (List.first (List.rest r)) <= 4}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('mastermind', cases(None), candidate)";
 
 @doc("Return white then black peg counts, counting duplicate colors only as many times as they occur.")

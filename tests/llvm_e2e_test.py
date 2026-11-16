@@ -83,7 +83,7 @@ def test_e2e_llvm_array_sum():
     def add(acc:Int) (curr:Int) : Int := acc + curr;
 
     @llvm
-    def sum_matrix(1 m:(Array Int)) (s:Int) : Int := reduce_n_int add 0 m s;
+    def sum_matrix(1 m:(Array Int)) (s:{k:Int | k = Array.size m}) : Int := reduce_n_int add 0 m s;
 
     def main (i:Int) : Int :=
         let 1 a0 := Array.mk_empty{Int} unit in
@@ -106,7 +106,7 @@ def test_e2e_llvm_array_map():
     def inc(x:Int) : Int := x + 1;
 
     @llvm
-    def vec_inc(1 v:(Array Int)) (s:Int) : {r:(Array Int) | size r = s} :=
+    def vec_inc(1 v:(Array Int)) (s:{k:Int | k = Array.size v}) : {r:(Array Int) | size r = s} :=
         map_n_int inc v s;
 
     def main (i:Int) : Int :=
@@ -134,7 +134,7 @@ def test_e2e_llvm_array_count():
     def gt10(x:Int) : Bool := x > 10;
 
     @llvm
-    def count_gt_10(1 v:(Array Int)) (s:Int) : Int :=
+    def count_gt_10(1 v:(Array Int)) (s:{k:Int | k = Array.size v}) : Int :=
         count_n_int gt10 v s;
 
     def main (i:Int) : Int :=
@@ -159,7 +159,7 @@ def test_e2e_llvm_array_filter():
     def even(x:Int) : Bool := x % 2 = 0;
 
     @llvm
-    def filter_even(1 m:(Array Int)) (s:Int) : (Array Int) :=
+    def filter_even(1 m:(Array Int)) (s:{k:Int | k = Array.size m}) : (Array Int) :=
         filter_n_int even m s;
 
     def main (i:Int) : Int :=
@@ -186,7 +186,7 @@ def test_e2e_llvm_array_zip_with():
     def add2(x:Int) (y:Int) : Int := x + y;
 
     @llvm
-    def vec_add(1 v1:(Array Int)) (1 v2:(Array Int)) (s:Int) : {r:(Array Int) | size r = s} :=
+    def vec_add(1 v1:(Array Int)) (1 v2:{a:(Array Int) | size a = size v1}) (s:{k:Int | k = size v1}) : {r:(Array Int) | size r = s} :=
         zipWith_n_int add2 v1 v2 s;
 
     def main (i:Int) : Int :=
@@ -212,7 +212,7 @@ def test_e2e_llvm_math_integration():
     open Math
 
     @llvm
-    def compute_circle_area(radius:Float) : Float := Math.PI * Math.powf radius 2.0;
+    def compute_circle_area(radius:{r:Float | r >= 0.0}) : Float := Math.PI * Math.powf radius 2.0;
 
     def main (i:Int) : Float := compute_circle_area 5.0;
     """

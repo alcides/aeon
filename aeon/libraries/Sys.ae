@@ -58,7 +58,7 @@ def hasenv (name: {s:String | s != ""}) : Bool :=
 # name: non-empty environment variable name
 # value: value to assign
 # returns: a Map of the environment after the update
-def setenv (name: {s:String | s != ""}) (value: String) : (Map String String) :=
+def setenv (name: {s:String | validEnvName s}) (value: {s:String | validEnvValue s}) : (Map String String) :=
     native "(os.environ.__setitem__(name, value), dict(os.environ))[1]"
 
 # ── Platform info ──────────────────────────────────────────────────────
@@ -71,3 +71,8 @@ def pythonVersion : String := native "sys.version"
 
 # The path to the Python executable.
 def executable : String := native "sys.executable"
+
+def validEnvName : (s:String) -> Bool := uninterpreted
+def validEnvValue : (s:String) -> Bool := uninterpreted
+def isEnvName (s:String) : {b:Bool | b = validEnvName s} := native "bool(s) and '=' not in s and chr(0) not in s"
+def isEnvValue (s:String) : {b:Bool | b = validEnvValue s} := native "chr(0) not in s"

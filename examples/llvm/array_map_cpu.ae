@@ -6,7 +6,7 @@ open ArrayKernels
 def mul10 (x: Int) : Int := x * 10;
 
 @llvm
-def multiply_by_ten (1 v: (Array Int)) (n: Int) : {r: (Array Int) | size r = n} :=
+def multiply_by_ten (1 v: (Array Int)) (n:{k:Int | k = Array.size v}) : {r: (Array Int) | size r = n} :=
     map_n_int mul10 v n;
 
 def main (args: Int) : Int :=

@@ -5,7 +5,7 @@ import ArrayKernels
 def mul10 (x:Int) : Int := x * 10;
 
 @gpu(target:="cuda", debug:=true)
-def multiply_by_ten (1 v:(Array Int)) (n:Int) : {r:(Array Int) | Array.size r = n} :=
+def multiply_by_ten (1 v:(Array Int)) (n:{k:Int | k = Array.size v}) : {r:(Array Int) | Array.size r = n} :=
     ArrayKernels.map_n_int mul10 v n;
 
 def main (args:Int) : Unit :=

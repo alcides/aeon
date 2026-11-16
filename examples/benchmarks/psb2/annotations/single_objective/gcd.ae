@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "gcd" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "gcd" 200;
 
-def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000000}) -> (z:{v:Int | 1 <= v && v <= 1000000}) -> {r:Int | 1 <= r && r <= n && r <= z && n % r = 0 && z % r = 0}) : (Array Float) :=
+def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000000}) -> (z:{v:Int | 1 <= v && v <= 1000000}) -> {r:Int | 1 <= r && r <= n && r <= z && n % r = 0 && z % r = 0}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('gcd', cases(None), candidate)";
 
 @doc("Find the greatest common divisor of two positive integers.")

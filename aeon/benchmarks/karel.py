@@ -40,9 +40,12 @@ PREDICATE_NAMES = {
     "noMarkersPresent": "no_markers_present",
 }
 DSL_IMPORT = (
-    "import Karel (World, Examples, move, turn_left, turn_right, pick_marker, put_marker, "
+    "import Karel (World, Examples, move, turn_left, turn_right, pick_marker, "
     "front_is_clear, left_is_clear, right_is_clear, markers_present, no_markers_present, "
     "not_karel, sequence, repeat, if_karel, when_karel, while_karel, fitness, load_task_examples);\n"
+    # Published Karel deliberately scores invalid actions as failed executions.
+    # Keep that DSL boundary explicit; ordinary stdlib callers must prove capacity.
+    "def put_marker (w:World):World := native \"__import__('aeon.bindings.karel', fromlist=['put_marker']).put_marker(w)\";\n"
 )
 # Linked modules retain qualified bindings in the synthesis context even with
 # selective imports. Shadow every non-DSL helper by its canonical core name.
@@ -74,6 +77,21 @@ HIDDEN_KAREL_NAMES = (
     "width",
     "height",
     "stay",
+    "put_marker",
+    "worldWidth",
+    "worldHeight",
+    "markerLimit",
+    "markerCount",
+    "taskCount",
+    "clearCell",
+    "wallAllowed",
+    "marker_limit",
+    "cell_is_clear",
+    "can_add_wall",
+    "noWalls",
+    "noMarkers",
+    "robotX",
+    "robotY",
 )
 
 

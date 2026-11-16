@@ -4,10 +4,10 @@ open Buffer
 # The caller supplies n <= the allocated element count. The current CUDA
 # entry wrapper runs this loop on one GPU thread and returns the input buffer.
 @gpu
-def zero_matrix (matrix: Buffer) (n: {v:Int | v >= 0}) : Buffer :=
+def zero_matrix (matrix: Buffer) (n: {v:Int | v >= 0 && v <= buf_size matrix}) : {r:Buffer | buf_size r = buf_size matrix} :=
     if n = 0 then matrix else
     let updated := buf_set matrix (n - 1) 0 in
-    zero_matrix updated (n - 1);
+    let _ := zero_matrix updated (n - 1) in updated;
 
 def main (args: Int) : Int :=
     let matrix := buf_alloc (2 * 2 * 4) in

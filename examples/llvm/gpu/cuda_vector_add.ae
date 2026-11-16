@@ -15,6 +15,7 @@ import Cuda;
 # driver/device present this prints 66 (11 + 22 + 33).
 def vector_add (u: Unit) : Int :=
     let d := Cuda.default_device u in
+    if Cuda.allocation_limit d >= 12 then
     let stream := Cuda.default_stream d in
     let launch := Cuda.launch_1d d 3 1 in
     let 1 xs := Array.mk_concat (Array.mk_2{Int} 1 2) (Array.mk_1{Int} 3) in
@@ -28,6 +29,6 @@ def vector_add (u: Unit) : Int :=
     Cuda.with_i32_download pair (fun result => fun next =>
         let total := (Array.consume Array.sum) result in
         let _ := Cuda.free next in
-        total);
+        total) else 0;
 
 def main (args: Int) : Unit := print (vector_add unit);

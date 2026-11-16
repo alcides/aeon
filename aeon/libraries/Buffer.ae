@@ -6,14 +6,17 @@
 
 type Buffer
 
-def buf_get (xs: Buffer) (i: Int) : Int :=
+def buf_size : (xs:Buffer) -> Int := uninterpreted
+def buf_length (xs:Buffer) : {n:Int | n >= 0 && n = buf_size xs} := native "len(xs)"
+
+def buf_get (xs: Buffer) (i: {n:Int | 0 <= n && n < buf_size xs}) : Int :=
     native "xs[i]"
 
-def buf_set (xs: Buffer) (i: Int) (v: Int) : Buffer :=
+def buf_set (xs: Buffer) (i: {n:Int | 0 <= n && n < buf_size xs}) (v: Int) : {r:Buffer | buf_size r = buf_size xs} :=
     native "(xs.__setitem__(i, v), xs)[1]"
 
 # ``bytes`` is the allocation size in bytes (``n_ints * 4``).
-def buf_alloc (bytes: Int) : Buffer :=
+def buf_alloc (bytes: {n:Int | n >= 0}) : {r:Buffer | buf_size r = bytes / 4} :=
     native "[0] * (bytes // 4)"
 
 def buf_free (xs: Buffer) : Unit :=

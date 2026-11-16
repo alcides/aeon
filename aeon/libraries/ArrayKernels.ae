@@ -17,31 +17,31 @@ def to_numpy (1 arr: (Array Float)) : Unit :=
     native "__import__('numpy').asarray(arr, dtype=float)"
 
 
-def map_n_int (f: (x: Int) -> Int) (1 arr: (Array Int)) (n: Int) :
+def map_n_int (f: (x: Int) -> Int) (1 arr: (Array Int)) (n: {v:Int | v = size arr}) :
     {r: (Array Int) | size r = n} :=
     native "list(map(f, arr))"
 
-def map_n_float (f: (x: Float) -> Float) (1 arr: (Array Float)) (n: Int) :
+def map_n_float (f: (x: Float) -> Float) (1 arr: (Array Float)) (n: {v:Int | v = size arr}) :
     {r: (Array Float) | size r = n} :=
     native "list(map(f, arr))"
 
 # Direct @gpu reductions use a parallel tree. f must be pure and associative;
 # z is applied once, and an empty input returns z.
-def reduce_n_int (f: (acc: Int) -> (x: Int) -> Int) (z: Int) (1 arr: (Array Int)) (n: Int) : Int :=
+def reduce_n_int (f: (acc: Int) -> (x: Int) -> Int) (z: Int) (1 arr: (Array Int)) (n: {v:Int | v = size arr}) : Int :=
     native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
 
-def reduce_n_float (f: (acc: Float) -> (x: Float) -> Float) (z: Float) (1 arr: (Array Float)) (n: Int) : Float :=
+def reduce_n_float (f: (acc: Float) -> (x: Float) -> Float) (z: Float) (1 arr: (Array Float)) (n: {v:Int | v = size arr}) : Float :=
     native "functools.reduce(lambda acc, curr: f(acc)(curr), arr, z)"
 
-def filter_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : (Array Int) :=
+def filter_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: {v:Int | v = size arr}) : (Array Int) :=
     native "list(filter(f, arr[:n]))"
 
-def filter_n_float (f: (x: Float) -> Bool) (1 arr: (Array Float)) (n: Int) : (Array Float) :=
+def filter_n_float (f: (x: Float) -> Bool) (1 arr: (Array Float)) (n: {v:Int | v = size arr}) : (Array Float) :=
     native "list(filter(f, arr[:n]))"
 
-def count_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: Int) : Int :=
+def count_n_int (f: (x: Int) -> Bool) (1 arr: (Array Int)) (n: {v:Int | v = size arr}) : Int :=
     native "sum(1 for x in arr if f(x))"
 
-def zipWith_n_int (f: (x: Int) -> (y: Int) -> Int) (1 xs: (Array Int)) (1 ys: (Array Int)) (n: Int) :
+def zipWith_n_int (f: (x: Int) -> (y: Int) -> Int) (1 xs: (Array Int)) (1 ys: {r:(Array Int) | size r = size xs}) (n: {v:Int | v = size xs}) :
     {r: (Array Int) | size r = n} :=
     native "[f(x)(y) for x, y in zip(xs, ys)]"

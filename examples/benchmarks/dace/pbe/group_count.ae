@@ -4,9 +4,9 @@
 #
 import Dace (Column, group_count)
 
-def groups : Column := native "[1, 1, 2, 2, 2, 3]";
+def groups : {c:Column | Dace.size c = 6} := native "[1, 1, 2, 2, 2, 3]";
 
 @example(fill 0 = 2)
 @example(fill 2 = 3)
 @example(fill 5 = 1)
-def fill (i:Int) : Int := ?hole;
+def fill (i:{n:Int | 0 <= n && n < 6}) : Int := ?hole;

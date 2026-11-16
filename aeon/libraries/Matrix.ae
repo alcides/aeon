@@ -25,7 +25,7 @@ def reshape(m: String) (rows: Int) (cols: Int): String :=
 
 # Transpose the matrix (Permute on a 2-D tensor): rows become columns.
 def transpose(m: String): String :=
-    native "(lambda M: (';'.join(','.join(M[i][j] for i in range(len(M))) for j in range(len(M[0]))) if (M and M[0]) else m))([r.split(',') for r in m.split(';')])"
+    native "(lambda M: (';'.join(','.join(M[i][j] for i in range(len(M))) for j in range(len(M[0]))) if (M and M[0] and all(len(row) == len(M[0]) for row in M)) else m))([r.split(',') for r in m.split(';')])"
 
 # Flip left-right: reverse the order of elements within each row (Fliplr).
 def fliplr(m: String): String :=

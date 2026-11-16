@@ -14,7 +14,7 @@ def test_gpu_array_map_fallback():
         def mul2 (x:Int) : Int := x * 2;
 
         @gpu(target:="cuda", debug:=false, cache:=false, block_size:=32, thread_count:=1024)
-        def multiply_by_two (1 v:(Array Int)) (n:Int) : {r:(Array Int) | size r = n} :=
+        def multiply_by_two (1 v:(Array Int)) (n:{k:Int | k = Array.size v}) : {r:(Array Int) | size r = n} :=
             map_n_int mul2 v n;
 
         def main (args:Int) : Int :=

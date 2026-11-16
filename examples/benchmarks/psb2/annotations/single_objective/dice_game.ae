@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "dice-game" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "dice-game" 200;
 
-def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000}) -> (m:{v:Int | 1 <= v && v <= 1000}) -> {r:Float | 0.0 <= r && r < 1.0}) : (Array Float) :=
+def score (cases:Cases) (candidate:(n:{v:Int | 1 <= v && v <= 1000}) -> (m:{v:Int | 1 <= v && v <= 1000}) -> {r:Float | 0.0 <= r && r < 1.0}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('dice-game', cases(None), candidate)";
 
 @doc("Return the probability that an n-sided die rolls strictly above an m-sided die.")

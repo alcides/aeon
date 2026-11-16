@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "indices-of-substring" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "indices-of-substring" 200;
 
-def score (cases:Cases) (candidate:(text:{v:String | 1 <= String.len v && String.len v <= 20}) -> (target:{v:String | 1 <= String.len v && String.len v <= 20}) -> {r:(List Int){|fun i => 0 <= i && i + String.len target <= String.len text|} | List.size r <= String.len text}) : (Array Float) :=
+def score (cases:Cases) (candidate:(text:{v:String | 1 <= String.len v && String.len v <= 20}) -> (target:{v:String | 1 <= String.len v && String.len v <= 20}) -> {r:(List Int){|fun i => 0 <= i && i + String.len target <= String.len text|} | List.size r <= String.len text}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('indices-of-substring', cases(None), candidate)";
 
 @doc("Return all starting indices of a substring, including overlapping matches.")

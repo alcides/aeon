@@ -6,9 +6,9 @@ import Math
 import String
 import PSB2Fitness
 
-def train : Cases := PSB2Fitness.cases "find-pair" 200;
+def train : {c:Cases | PSB2Fitness.caseCount c = 200} := PSB2Fitness.cases "find-pair" 200;
 
-def score (cases:Cases) (candidate:(numbers:{v:(List Int){|fun x => (-10000) <= x && x <= 10000|} | 2 <= List.size v && List.size v <= 20}) -> (target:{v:Int | (-20000) <= v && v <= 20000}) -> {r:(List Int) | List.size r = 2 && (List.first r) + (List.first (List.rest r)) = target && (List.first r) != (List.first (List.rest r))}) : (Array Float) :=
+def score (cases:Cases) (candidate:(numbers:{v:(List Int){|fun x => (-10000) <= x && x <= 10000|} | 2 <= List.size v && List.size v <= 20}) -> (target:{v:Int | (-20000) <= v && v <= 20000}) -> {r:(List Int) | List.size r = 2 && (List.first r) + (List.first (List.rest r)) = target && (List.first r) != (List.first (List.rest r))}) : {r:(Array Float) | Array.size r = PSB2Fitness.caseCount cases} :=
     native "__import__('aeon.bindings.psb2', fromlist=['errors']).errors('find-pair', cases(None), candidate)";
 
 @doc("Find the two distinct input values that sum to the target; PSB2 guarantees a unique pair.")

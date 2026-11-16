@@ -135,7 +135,7 @@ def indexOfFrom(s: String) (sub: String) (start: Int): Int := native "s.find(sub
 
 # Parse the string as an integer, or -1 when it is not a non-negative integer
 # literal (str.to.int).
-def stringToInt(s: String): Int := native "int(s) if s.isdigit() else -1"
+def stringToInt(s: String): Int := native "__import__('aeon.bindings.contracts', fromlist=['string_to_int']).string_to_int(s)"
 
 # Persistent-list counterparts of the array APIs, for functional programs.
 def characters (s:String) : {xs:(List String) | List.size xs = len s} :=

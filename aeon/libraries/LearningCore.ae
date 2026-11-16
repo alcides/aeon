@@ -136,7 +136,7 @@ def read_csv (path: String) : {df: DataFrame | df_cols df >= 1 && df_rows df >= 
 # ``temporal`` declares whether the rows are chronologically ordered and
 # ``missing`` whether any feature still has missing values — both are
 # modelling facts the static analyser cannot infer from a CSV path.
-def target (1 df: DataFrame) (column: String) (temporal: Bool) (missing: Bool) :
+def target (1 df: DataFrame) (column: {s:String | hasColumn df s}) (temporal: Bool) (missing: Bool) :
     {ds: Dataset | ds_rows ds = df_rows df
                 && ds_features ds = (df_cols df) - 1
                 && ds_target ds column = true
@@ -172,7 +172,7 @@ def load (path: String) (temporal: Bool) (missing: Bool) :
 # component used throughout its evaluation pipelines.
 def create_dataset
     (rows: {n: Int | n >= 0})
-    (features: {n: Int | n >= 0})
+    (features: {n: Int | n > 0})
     (bal: Bool) (temporal: Bool) (missing: Bool) :
     {ds: Dataset | ds_rows ds = rows
                 && ds_features ds = features
@@ -197,8 +197,6 @@ def require_enough_data (1 ds: Dataset) :
 def columns (borrow df: DataFrame) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_columns(df)"
 
-def has_column (borrow df: DataFrame) (column: String) : Bool :=
-    native "__import__('aeon.bindings.learning').bindings.learning.Learning_has_column(df, column)"
 
 def n_columns (borrow df: DataFrame) : {n: Int | n = df_cols df && n >= 0} :=
     native "len(df.columns)"
@@ -247,13 +245,13 @@ def class_counts (borrow ds: Dataset) : List :=
 # or temporal leakage surfaces at evaluation time.
 def split
     (1 ds: {d: Dataset | ds_rows d > ds_features d * 10})
-    (fraction: {f: Float | 0.0 < f && f < 1.0})
+    (fraction: {f: Float | 0.0 < f && f < 1.0 && ((0.1 <= f && f <= 0.9 && ds_rows ds >= 11) || validSplit ds f)})
     (shuffle: Bool) :
     {p: DatasetPair
-        | ds_features (dataset_left p) = ds_features ds
+        | ds_rows (dataset_left p) > 0
+       && ds_rows (dataset_right p) > 0
+       && ds_features (dataset_left p) = ds_features ds
        && ds_features (dataset_right p) = ds_features ds
-       && ds_classes (dataset_left p) = ds_classes ds
-       && ds_classes (dataset_right p) = ds_classes ds
        && is_timeseries (dataset_left p) = is_timeseries ds
        && is_timeseries (dataset_right p) = is_timeseries ds
        && has_missing (dataset_left p) = has_missing ds
@@ -319,7 +317,7 @@ def snd_dataset (1 p: DatasetPair) : {d: Dataset | d = dataset_right p} :=
 # SMOTE oversampling; requires multi-class input (guard with
 # ``is_multiclass``). Output is balanced and preserves the feature
 # count; row count only ever grows.
-def smote (1 ds: {d: Dataset | ds_classes d >= 2}) :
+def smote (1 ds: {d: Dataset | ds_classes d >= 2 && minClassRows d >= 6 && ds_features d > 0 && has_missing d = false}) :
     {out: Dataset | is_balanced out = true
                   && ds_features out = ds_features ds
                   && ds_classes out = ds_classes ds
@@ -449,17 +447,17 @@ def fill_constant (value: Float) (1 ds: Dataset) :
 
 def predict
     (borrow model: SklearnClassifier)
-    (1 ds: {d: Dataset | clf_features model = ds_features d}) : List :=
+    (1 ds: {d: Dataset | clf_features model = ds_features d && ds_rows d > 0 && has_missing d = false}) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
 def predict_proba
-    (borrow model: SklearnClassifier)
-    (1 ds: {d: Dataset | clf_features model = ds_features d}) : List :=
+    (borrow model: {m:SklearnClassifier | supportsProba m})
+    (1 ds: {d: Dataset | clf_features model = ds_features d && ds_rows d > 0 && has_missing d = false}) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict_proba(model, ds)"
 
 def predict_value
     (borrow model: SklearnRegressor)
-    (1 ds: {d: Dataset | reg_features model = ds_features d}) : List :=
+    (1 ds: {d: Dataset | reg_features model = ds_features d && ds_rows d > 0 && has_missing d = false}) : List :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_predict(model, ds)"
 
 # ─── Classification metrics ────────────────────────────────────────────
@@ -548,11 +546,11 @@ def explained_variance
 # estimator provides it, otherwise a one-hot of the hard prediction (so even
 # non-probabilistic classifiers — LinearSVC, RidgeClassifier, Perceptron … —
 # satisfy the ``Models.Classifier`` interface).
-def classify_one (borrow model: SklearnClassifier) (x: Vector) : Vector :=
+def classify_one (borrow model: SklearnClassifier) (x: {v:Vector | Tensor.dim v = clf_features model}) : Vector :=
     native "__import__('aeon.bindings.learning').bindings.learning.Learning_classify_one(model, x)"
 
 # Predicted value for one feature vector.
-def regress_one (borrow model: SklearnRegressor) (x: Vector) : Float :=
+def regress_one (borrow model: SklearnRegressor) (x: {v:Vector | Tensor.dim v = reg_features model}) : Float :=
     native "float(model.predict([x])[0])"
 
 # Runtime model introspection, refined against the shape measures.
@@ -576,3 +574,25 @@ def with_datasets (1 token:DatasetPair)
 # Fitted models may retain training storage; release them after borrowed reads.
 def dispose_classifier (1 model:SklearnClassifier) : Unit := native "None"
 def dispose_regressor (1 model:SklearnRegressor) : Unit := native "None"
+
+def hasColumn : (df:DataFrame) -> (s:String) -> Bool := uninterpreted
+def has_column (borrow df:DataFrame) (s:String) : {b:Bool | b = hasColumn df s} := native "s in df.columns and list(df.columns).count(s) == 1"
+def validSplit : (ds:Dataset) -> (fraction:Float) -> Bool := uninterpreted
+def can_split (borrow ds:Dataset) (fraction:Float) : {b:Bool | b = validSplit ds fraction} := native "__import__('aeon.bindings.contracts', fromlist=['learning_split']).learning_split(ds, fraction)"
+def supportsProba : (m:SklearnClassifier) -> Bool := uninterpreted
+def supports_proba (borrow m:SklearnClassifier) : {b:Bool | b = supportsProba m} := native "hasattr(m, 'predict_proba')"
+def nonnegativeFeatures : (ds:Dataset) -> Bool := uninterpreted
+def nonnegativeTarget : (ds:Dataset) -> Bool := uninterpreted
+def positiveTarget : (ds:Dataset) -> Bool := uninterpreted
+def has_nonnegative_features (borrow ds:Dataset) : {b:Bool | b = nonnegativeFeatures ds} := native "bool(__import__('numpy').all(__import__('numpy').asarray(ds[0]) >= 0))"
+def has_nonnegative_target (borrow ds:Dataset) : {b:Bool | b = nonnegativeTarget ds} := native "bool(__import__('numpy').all(__import__('numpy').asarray(ds[1]) >= 0))"
+def has_positive_target (borrow ds:Dataset) : {b:Bool | b = positiveTarget ds} := native "bool(__import__('numpy').all(__import__('numpy').asarray(ds[1]) > 0))"
+def minClassRows : (ds:Dataset) -> Int := uninterpreted
+def min_class_rows (borrow ds:Dataset) : {n:Int | n = minClassRows ds && n >= 0} := native "min(__import__('collections').Counter(ds[1]).values(), default=0)"
+
+# Generic Models dispatch currently has no dimension laws; these explicit
+# escape hatches retain that interface until its typeclass contracts are redesigned.
+def classify_one_unchecked (borrow model:SklearnClassifier) (x:Vector) : Vector := native "__import__('aeon.bindings.learning').bindings.learning.Learning_classify_one(model, x)"
+def regress_one_unchecked (borrow model:SklearnRegressor) (x:Vector) : Float := native "float(model.predict([x])[0])"
+
+def n_classes (borrow ds:Dataset) : {n:Int | n = ds_classes ds && n >= 0} := native "len(set(ds[1]))"
