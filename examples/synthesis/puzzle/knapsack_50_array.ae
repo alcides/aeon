@@ -1,4 +1,4 @@
-# Array version of knapsack_50.ae: the same 50 items and capacity 100.
+# Alternate entrypoint for the array knapsack: the same 50 items and capacity 100.
 # The result is a stdlib Array of Boolean decisions in item order.
 # @require rejects candidates whose weight exceeds 100 after typechecking.
 # Only feasible candidates are scored by the value objective.

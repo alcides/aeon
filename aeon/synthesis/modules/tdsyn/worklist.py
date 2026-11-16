@@ -87,8 +87,11 @@ class PartialAST:
     def qtt_feasible(self) -> bool:
         from aeon.typechecking.linearity import check_linearity
 
-        if self.check_sketch is not None and not self.check_sketch(self.term):
-            return False
+        if self.check_sketch is not None:
+            # The linked sketch includes implementations and their ownership
+            # facts. Checking this fragment again with only signatures treats
+            # reusable constructors as opaque resource-allocating factories.
+            return self.check_sketch(self.term)
         if self.expected_type is None:
             return True
         return not check_linearity(Annotation(self.term, self.expected_type), self.context)

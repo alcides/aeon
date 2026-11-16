@@ -1,30 +1,24 @@
-# 50 Boolean decisions, in the same order as the data arrays; capacity 100.
-# The result contains only booleans and links. Weight and count are logical measures.
-# Run from the repository root:
-# python -m aeon -s ortools --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+# Choose from 50 items, in the same order as the value and weight arrays.
+# Return 50 Boolean decisions; maximize value while keeping weight at most 100.
+# Length is refined in the type; @require enforces capacity before scoring.
+# Each call constructs a fresh array because Array is linear.
+# python -m aeon -s tdsyn_enumerative --budget 30 examples/synthesis/puzzle/knapsack_50.ae
 import Array;
 import examples.synthesis.puzzle.knapsack_data as Data;
 
-# A tail with n decisions covers the final n items, so its new head is item 49 - n.
-inductive Mask forall <fits:Int -> Int -> Bool>
-| empty : {m:Mask{|fits|} | Mask.count m = 0 && Mask.weight m = 0}
-| cons (rest:{m:Mask{|fits|} | 0 <= Mask.count m && Mask.count m < 50})
-       (used:{b:Bool | fits (if b then Array.take (Data.weights unit) (49 - Mask.count rest) else 0) (Mask.weight rest)}) :
-    {m:Mask{|fits|} | Mask.count m = Mask.count rest + 1 &&
-        Mask.weight m = Mask.weight rest + (if used then Array.take (Data.weights unit) (49 - Mask.count rest) else 0)}
-+ count (m:Mask) : Int
-+ weight (m:Mask) : Int
+def selected_value (used:Bool) (value:Int):Int :=
+    if used then value else 0;
 
-def total_value (mask:Mask{|fun w => fun rest => w + rest <= 100|})
-                (i:{n:Int | 0 <= n && n + Mask.count mask <= 50}):Int :=
-    match mask with
-    | empty => 0
-    | cons rest used =>
-        (if used then Array.take (Data.values unit) i else 0) + total_value rest (i + 1)
+def knapsack (_:Unit): {a:(Array Bool) | Array.size a = 50} := ?solution;
 
-@maximize(toFloat (total_value knapsack 0))
-def knapsack: {m:Mask{|fun w => fun rest => w + rest <= 100|} |
-    Mask.count m = 50 && Mask.weight m <= 100} :=
-    ?solution;
+def total_weight (_:Unit):Int :=
+    (Array.consume Array.sum) (Array.zipWith selected_value (knapsack unit) (Data.weights unit));
 
-def main (u:Int):Mask{|fun w => fun rest => w + rest <= 100|} := knapsack;
+def total_value (_:Unit):Int :=
+    (Array.consume Array.sum) (Array.zipWith selected_value (knapsack unit) (Data.values unit));
+
+@require(total_weight unit <= 100)
+@maximize_int(total_value unit)
+def benchmark : Int := total_value unit;
+
+def main (_:Int): {a:(Array Bool) | Array.size a = 50} := knapsack unit;

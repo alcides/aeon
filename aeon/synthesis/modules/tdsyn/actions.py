@@ -13,7 +13,6 @@ from aeon.core.types import (
     TypeConstructor,
     TypePolymorphism,
     RefinementPolymorphism,
-    refined_to_unrefined_type,
     t_bool,
     t_float,
     t_int,
@@ -29,6 +28,7 @@ from aeon.synthesis.modules.tdsyn.helpers import (
     is_subtype,
     monomorphize,
     is_constructor_term,
+    shapes_match,
 )
 from aeon.synthesis.modules.tdsyn.library import get_component_library, iter_concrete_vars
 from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole
@@ -89,11 +89,11 @@ def _build_application(
 
 
 def _compatible_result(ctx: TypingContext, actual: Type, goal: Type) -> bool:
-    # Check the full shape, including datatype parameters, before existential
-    # feasibility. The dependent outer predicate is checked with its witnesses.
-    return bases_match(actual, goal) and is_subtype(
-        ctx, refined_to_unrefined_type(actual), refined_to_unrefined_type(goal)
-    )
+    # Formal arguments are not in scope yet. Nested contracts (e.g. an array
+    # element equal to an argument) are as dependent as the outer refinement.
+    # Bind witnesses before checking contracts; never send this open result
+    # type to SMT. Keep datatype parameters in the cheap structural check.
+    return shapes_match(actual, goal)
 
 
 def backward_abs_candidates(
@@ -386,15 +386,16 @@ def forward_let_app_candidates(
     """Forward let-application tactic: bind a forward application and reopen the goal.
 
     Each option ``forward_candidates`` offers becomes a
-    ``let v := f(x, ...) in ?goal`` candidate. The let-bound variable gets the
-    unrefined result type: dependent refinements on a function's return type
-    mention its parameter binders, which are not in scope at the binding site.
+    ``let v := f(x, ...) in ?goal`` candidate. Check the bound value against
+    the goal contract, which is already well-scoped at the binding site.
+    Extracted return types can mention unopened formals even inside datatype
+    parameters; shallow refinement erasure does not close them.
     """
     if hole.domain is ExpressionDomain.REFINEMENT:
         return []
     return [
-        _let_candidate(hole, value_term, value_holes, refined_to_unrefined_type(value_type))
-        for value_term, value_holes, value_type in _forward_applications(hole, skip)
+        _let_candidate(hole, value_term, value_holes, hole.expected_type)
+        for value_term, value_holes, _ in _forward_applications(hole, skip)
     ]
 
 
@@ -444,7 +445,7 @@ def forward_let_tapp_candidates(
             continue
         if not isinstance(var_type, (TypePolymorphism, RefinementPolymorphism)):
             continue
-        for value_term, mono_type in monomorphize(name, var_type, ctx):
+        for value_term, mono_type in monomorphize(name, var_type, ctx, hole.expected_type):
             candidates.append(_let_candidate(hole, value_term, [], mono_type))
     return candidates
 

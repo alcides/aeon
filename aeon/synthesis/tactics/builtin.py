@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction, Annotation, Application, Hole, Term, Var
-from aeon.core.types import AbstractionType, Type
+from aeon.core.terms import Abstraction, Annotation, Application, Hole, Rec, Term, Var
+from aeon.core.types import AbstractionType, Type, type_free_term_vars
 from aeon.synthesis.grammar.utils import TACTIC_CONTEXT_EXCLUDED_NAMES
+from aeon.synthesis.modules.tdsyn.helpers import get_return_type, shapes_match
+from aeon.synthesis.modules.tdsyn.library import get_component_library
 from aeon.synthesis.tactics.holes import collect_hole_judgments, replace_hole
 from aeon.synthesis.tactics.state import TacticState
 from aeon.synthesis.tactics.subtyping import fits
@@ -54,18 +56,33 @@ def tactic_constructor(state: TacticState, hole_name: Name) -> TacticState | Non
             lam = Abstraction(vn, body, loc=_loc)
             return state.transition(replace_hole(state.term, hole_name, lam))
 
-    for f, fty in hole_ctx.concrete_vars():
-        if f.name in TACTIC_CONTEXT_EXCLUDED_NAMES:
+    library = get_component_library(hole_ctx, lambda n: n.name in TACTIC_CONTEXT_EXCLUDED_NAMES, goal_ty)
+    for f, fty in library.functions_returning(goal_ty):
+        # A dependent return is open until arguments are supplied. Its shape
+        # selects a production; complete validation proves its refinements.
+        if not shapes_match(get_return_type(fty), goal_ty):
             continue
-        params, ret = _split_arrow_spine(fty)
-        if not params:
-            continue
-        if not fits(hole_ctx, ret, goal_ty):
-            continue
-        app: Term = Var(f, _loc)
-        for pt in params:
+        app: Term = f
+        remaining: Type = fty
+        bindings = []
+        while isinstance(remaining, AbstractionType):
+            pt = remaining.var_type
             hn = Name("_h", fresh_counter.fresh())
-            app = Application(app, Annotation(Hole(hn), pt, loc=_loc), loc=_loc)
+            argument: Term = Annotation(Hole(hn), pt, loc=_loc)
+            later_params, _ = _split_arrow_spine(remaining.type)
+            if any(remaining.var_name in type_free_term_vars(ty) for ty in later_params):
+                # Give dependent siblings a real lexical binder, not a free
+                # formal from the component signature.
+                name = Name("_arg", fresh_counter.fresh())
+                bindings.append((name, pt, argument, remaining.multiplicity))
+                argument = Var(name, _loc)
+                rest = substitution_in_type(remaining.type, argument, remaining.var_name)
+            else:
+                rest = remaining.type
+            app = Application(app, argument, loc=_loc)
+            remaining = rest
+        for name, ty, value, multiplicity in reversed(bindings):
+            app = Rec(name, ty, value, app, loc=_loc, multiplicity=multiplicity)
         nxt = state.transition(replace_hole(state.term, hole_name, app))
         if nxt is not None:
             return nxt

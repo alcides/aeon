@@ -620,8 +620,8 @@ Both modes use the same productions, feasibility checks, final validation,
 and objective evaluation. Their visitation order can differ.
 
 ```bash
-python -m aeon -s tdsyn_backward --tdsyn-expansion eager --budget 30 examples/synthesis/puzzle/knapsack_50.ae
-python -m aeon -s tdsyn_backward --tdsyn-expansion lazy --budget 30 examples/synthesis/puzzle/knapsack_50.ae
+python -m aeon -s tdsyn_backward --tdsyn-expansion eager --budget 30 examples/synthesis/puzzle/knapsack_50_list.ae
+python -m aeon -s tdsyn_backward --tdsyn-expansion lazy --budget 30 examples/synthesis/puzzle/knapsack_50_list.ae
 ```
 
 Python callers can use `AeonConfig(..., tdsyn_expansion="lazy")` or
@@ -792,10 +792,15 @@ model. Every completed list is also checked against the original program's type
 and hard specifications. Constraints outside symbolic translation use the
 backend's validated assignment search.
 
-The [50-item knapsack example](../examples/synthesis/puzzle/knapsack_50.ae)
+The [relational-list knapsack example](../examples/synthesis/puzzle/knapsack_50_list.ae)
 uses `@maximize` for value and a refined Boolean list for logical weight. Its
 synthesis body is simply `?solution`; list nodes contain only a Boolean and a
 tail, while item weights and values live in arrays.
+
+The main [50-item knapsack example](../examples/synthesis/puzzle/knapsack_50.ae)
+returns an `Array Bool` with length 50 refined in its type. It uses `@require`
+to reject selections heavier than 100 before `@maximize_int` scores their value.
+Both formulations use the same item arrays.
 
 ## Choosing a Synthesizer
 

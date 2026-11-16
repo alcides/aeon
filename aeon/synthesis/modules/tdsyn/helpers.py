@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import weakref
+from collections.abc import Sequence
+from dataclasses import replace
 from typing import Callable
 
 from aeon.core.equality import core_type_equality
@@ -17,6 +19,7 @@ from aeon.core.terms import (
 )
 from aeon.core.types import (
     AbstractionType,
+    ExistentialType,
     RefinedType,
     RefinementPolymorphism,
     Type,
@@ -130,6 +133,31 @@ def bases_match(t1: Type, t2: Type) -> bool:
     )
 
 
+def type_shape(ty: Type) -> Type:
+    """Erase contracts recursively for grammar selection, without an SMT query.
+
+    A result extracted from a dependent signature is not yet in scope: even
+    refinements inside datatype arguments can mention unopened parameters.
+    This is only a necessary shape check; witnesses and final validation must
+    still discharge the original, unmodified contracts.
+    """
+    if isinstance(ty, RefinedType):
+        return type_shape(ty.type)
+    if isinstance(ty, (ExistentialType, RefinementPolymorphism)):
+        return type_shape(ty.body)
+    if isinstance(ty, TypeConstructor):
+        return replace(ty, args=[type_shape(arg) for arg in ty.args], refinements=[])
+    if isinstance(ty, AbstractionType):
+        return replace(ty, var_type=type_shape(ty.var_type), type=type_shape(ty.type))
+    if isinstance(ty, TypePolymorphism):
+        return replace(ty, body=type_shape(ty.body))
+    return ty
+
+
+def shapes_match(actual: Type, goal: Type) -> bool:
+    return core_type_equality(type_shape(actual), type_shape(goal))
+
+
 def should_skip(name: Name, fun_name: Name, metadata: Metadata, is_recursion_allowed: bool) -> bool:
     """Check if a variable should be skipped during synthesis."""
     if name == fun_name:
@@ -186,6 +214,8 @@ def monomorphize(name: Name, ty: Type, ctx: TypingContext, goal: Type | None = N
     Other abstract predicates remain implicit for final Horn inference, with
     an arity-correct unconstrained approximation used during search.
     """
+    if name.name in _NUMERIC_OPS or name.name in _EQUALITY_OPS:
+        goal = None
     return _monomorphize_term(Var(name, _loc), ty, ctx, _mono_types_for(name, ctx), goal)
 
 
@@ -219,14 +249,15 @@ def _monomorphize_term(
     base_term: Term,
     ty: Type,
     ctx: TypingContext,
-    concrete_types: list[TypeConstructor],
+    concrete_types: Sequence[Type],
     goal: Type | None = None,
 ) -> list[tuple[Term, Type]]:
     """Continue monomorphizing an already partially applied term."""
     match ty:
         case TypePolymorphism(var_name, _, body):
             results: list[tuple[Term, Type]] = []
-            for concrete_type in concrete_types:
+            preferred = goal_instantiations(body, var_name, goal)
+            for concrete_type in preferred or concrete_types:
                 substituted = type_substitution(body, var_name, concrete_type)
                 applied: Term = TypeApplication(base_term, concrete_type, _loc)
                 results.extend(_monomorphize_term(applied, substituted, ctx, concrete_types, goal))
@@ -244,6 +275,40 @@ def _monomorphize_term(
             return _monomorphize_term(applied, substituted, ctx, concrete_types, goal)
         case _:
             return [(base_term, ty)]
+
+
+def goal_instantiations(signature: Type, variable: Name, goal: Type | None) -> list[Type]:
+    """Keep exact goal arguments when specializing a polymorphic result.
+
+    ``List a`` against ``List {v:Int | 5 <= v}`` must instantiate ``a`` at the
+    refined Int, not merely Int. Match corresponding positions so unrelated
+    parameters do not acquire one another's refinements. Context types are
+    used only for parameters that the result goal does not determine.
+    """
+    if goal is None:
+        return []
+    while isinstance(signature, (AbstractionType, TypePolymorphism, RefinementPolymorphism)):
+        signature = signature.type if isinstance(signature, AbstractionType) else signature.body
+    result: list[Type] = []
+
+    def match(pattern: Type, target: Type) -> None:
+        if isinstance(pattern, TypeVar) and pattern.name == variable:
+            if target not in result:
+                result.append(target)
+            return
+        if isinstance(pattern, RefinedType):
+            match(pattern.type, target)
+            return
+        if isinstance(target, RefinedType):
+            match(pattern, target.type)
+            return
+        if isinstance(pattern, TypeConstructor) and isinstance(target, TypeConstructor):
+            if pattern.name == target.name and len(pattern.args) == len(target.args):
+                for left, right in zip(pattern.args, target.args):
+                    match(left, right)
+
+    match(signature, goal)
+    return result
 
 
 def make_skip_fn(fun_name: Name, metadata: Metadata) -> Callable[[Name], bool]:
