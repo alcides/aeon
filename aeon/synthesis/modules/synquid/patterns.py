@@ -44,11 +44,36 @@ def _predicate_term(predicate, assignment, context, sort):
     return predicate_argument(context, LiquidPredicate(predicate.parameters, body), sort)
 
 
+def match_variables(ctx, level, goal, skip, mem, state):
+    """Match each in-scope datatype value. Do not synthesize a scrutinee.
+
+    Branch bodies keep ``level``. A constructor around a recursive call needs
+    application depth 2; below that, the arm only tries leaves and applications.
+    """
+    groups = get_constructor_groups()
+    if not groups:
+        return
+    seen = set()
+    for name, ty in grammar_bindings(ctx):
+        if name in seen or name in state.matched or skip(name):
+            continue
+        erased = erase(ty)
+        if not isinstance(erased, TypeConstructor) or erased.name.name not in groups:
+            continue
+        if not wellformed(ctx, erased):
+            continue
+        seen.add(name)
+        yield from match_terms(ctx, level, goal, skip, mem, state, only=name)
+
+
 def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=None):
     from aeon.synthesis.modules.synquid.engine import synthes_memory, _local_check, _materialize_term
 
     if state.match_depth >= mem.get("synquid_match_depth", level):
         return
+    # A computed scrutinee spends one application. Branches keep ``level``.
+    # Variable scrutinees (``only``) do not go through this generator.
+    scrutinee_level = max(0, level - 1)
     groups = get_constructor_groups()
     datatypes = set()
     for _, ty in grammar_bindings(ctx):
@@ -63,14 +88,14 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
 
     def datatype_shapes():
         yield from sorted(datatypes, key=repr)
-        if level <= 0 or only is not None:
+        if scrutinee_level <= 0 or only is not None:
             return
         # An application can discover an instantiation absent from every
         # in-scope value (e.g. Box (Box Int)). Infer such scrutinee shapes from
         # component signatures and arguments instead of guessing a catalogue.
         from aeon.synthesis.modules.synquid.inference import infer_terms
 
-        for candidate in infer_terms(ctx, level, skip, mem, state):
+        for candidate in infer_terms(ctx, scrutinee_level, skip, mem, state):
             ty = erase(candidate.state.resolve(candidate.type))
             if not isinstance(ty, TypeConstructor) or ty.name.name not in groups:
                 continue
@@ -91,7 +116,7 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
             if only is not None and erase(ctx.type_of(only)) == datatype
             else []
             if only is not None
-            else synthes_memory(ctx, level, datatype, skip, mem, state, conditionals=False)
+            else synthes_memory(ctx, scrutinee_level, datatype, skip, mem, state, conditionals=False)
         )
         for scrutinee in scrutinees:
             if repr(scrutinee) in seen or isinstance(scrutinee, Var) and scrutinee.name in state.matched:

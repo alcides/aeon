@@ -200,7 +200,8 @@ def test_match_can_scrutinize_an_application():
     targets = incomplete_functions_and_holes(ctx, program)
     hole = targets[0][1][0]
     goal, local = get_holes_info(ctx, program, top, targets, refined_types=True)[hole]
-    term, mem = search(local, goal, depth=1, matches=1, names={"x", "observe"})
+    # The scrutinee application costs one depth, so the match itself is depth 2.
+    term, mem = search(local, goal, depth=2, matches=1, names={"x", "observe"})
     from aeon.core.terms import Let
 
     assert isinstance(term, Let)
