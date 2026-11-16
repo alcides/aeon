@@ -72,6 +72,7 @@ class TypecheckingCache:
                 state.generation,
                 state.timeout_ms,
                 _typed_key(tuple(ctx.entries)),
+                _typed_key(ctx.trusted_names),
                 _typed_key(expected_type),
                 _typed_key(program),
             )

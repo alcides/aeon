@@ -44,9 +44,17 @@ def assess(backend, term, validate, evaluate=None, front=None, ui=None):
     )
 
 
-def test_candidate_deduplication_is_opt_in():
-    assert not TDSynSynthesizer().deduplicate
-    assert TDSynSynthesizer(deduplicate=True).deduplicate
+def test_candidate_deduplication_is_enabled_by_default_and_can_be_disabled():
+    assert TDSynSynthesizer().deduplicate
+    assert not TDSynSynthesizer(deduplicate=False).deduplicate
+
+
+@pytest.mark.parametrize("backend", ["tdsyn", "tdsyn_enumerative", "tdsyn_backward", "tdsyn_random"])
+@pytest.mark.parametrize("expansion", ["eager", "lazy"])
+def test_factory_backends_enable_deduplication(backend, expansion):
+    from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
+
+    assert make_synthesizer(backend, tdsyn_expansion=expansion).deduplicate
 
 
 @pytest.mark.parametrize("valid", [True, False])

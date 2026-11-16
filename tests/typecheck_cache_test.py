@@ -7,7 +7,7 @@ from hypothesis import given, settings, strategies as st
 
 from aeon.compilation.session import CompilationSession, current_session
 from aeon.core.liquid import LiquidLiteralBool
-from aeon.core.terms import Annotation, Literal, Var
+from aeon.core.terms import Annotation, Literal, Rec, Var
 from aeon.core.types import RefinedType, TypeConstructor, t_bool, t_int, top
 from aeon.synthesis import entrypoint
 from aeon.synthesis.typecheck_cache import TypecheckingCache, _typed_key
@@ -73,6 +73,19 @@ def test_keys_snapshot_mutable_values_and_distinguish_boolean_integer_elements()
     assert first != _typed_key(literal)
     ty.args[0] = t_int
     assert _typed_key(literal) != _typed_key(Literal([0], TypeConstructor(Name("Array", 0), [t_bool])))
+
+
+def test_trusted_definitions_do_not_leak_proofs_to_an_untrusted_context():
+    with CompilationSession().activate():
+        name = Name("cached_definition", 0)
+        ctx = built_std_context()
+        ctx.trusted_names = frozenset({name})
+        program = Rec(name, t_int, Literal(True, t_bool), Literal(0, t_int))
+        cache = TypecheckingCache()
+        assert cache.check(ctx, program, lambda: check_type(ctx, program, top))
+        ctx.trusted_names = frozenset()
+        assert not cache.check(ctx, program, lambda: check_type(ctx, program, top))
+        assert cache.misses == 2
 
 
 def test_nested_type_refinements_and_hash_collisions_are_distinct():

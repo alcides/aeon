@@ -114,9 +114,9 @@ class TDSynSynthesizer(Synthesizer):
     Loops until the time budget is exhausted, restarting with shuffled expansion
     order on each iteration to explore different term structures.
 
-    ``deduplicate=True`` enables experimental, bounded suppression of completed
-    assessments. It saves repeated validation, but can change the SMT search
-    trajectory, so it remains opt-in pending broader performance measurements.
+    Completed assessments are deduplicated within each search by default.
+    ``deduplicate=False`` disables this bounded cache for comparisons; skipping
+    validation can also change the subsequent SMT search trajectory.
     """
 
     supports_size_objective = True
@@ -128,7 +128,7 @@ class TDSynSynthesizer(Synthesizer):
         *,
         direction: str = "both",
         expansion: str = "eager",
-        deduplicate: bool = False,
+        deduplicate: bool = True,
         dedup_capacity: int = 4096,
     ):
         assert mode in ("enumerative", "random")
