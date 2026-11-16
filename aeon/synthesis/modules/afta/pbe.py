@@ -274,12 +274,23 @@ def synthesize_pbe(
             break
         before = sum(len(v) for v in bank.values())
         snapshot = {k: list(v) for k, v in bank.items()}
-        for comps in builders.values():
-            for comp in comps:
+        # Try goal-producing operators first. Intermediate states still grow
+        # from the same snapshot if no solution has been accepted.
+        for key in sorted(builders, key=lambda key: key != goal_key):
+            for comp in builders[key]:
                 if time.time() >= deadline:
                     break
                 add_bank(comp.ret_key, synth._combos(comp, snapshot, deadline, rnd))
-        solution = cegar_pass()
+                if comp.ret_key == goal_key:
+                    # Validate new goal states before expanding another operator.
+                    # A later, expensive transition must not consume the budget
+                    # while an already-discovered solution waits for the round
+                    # to finish. Optimization still searches on via the archive.
+                    solution = cegar_pass()
+                    if solution is not None:
+                        break
+            if solution is not None:
+                break
         depth += 1
         if sum(len(v) for v in bank.values()) == before:
             break
