@@ -8,6 +8,7 @@ from time import monotonic
 import z3
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
+from aeon.core.liquid_ops import liquid_prelude
 from aeon.core.substitutions import liquefy, substitution_in_liquid
 from aeon.core.terms import Term, Var
 from aeon.core.types import RefinedType, RefinementPolymorphism, Type, TypePolymorphism, t_unit
@@ -103,11 +104,19 @@ def obligations(
     # generation; inventing a logical application blocks scalar completion
     # (e.g. Array.mk_repeat's length argument). Final type checking still checks
     # the actual application, including all argument and result refinements.
-    runtime_polymorphic = isinstance(expression, LiquidApp) and any(
-        isinstance(entry, VariableBinder)
-        and entry.name == expression.fun
-        and isinstance(entry.type, (TypePolymorphism, RefinementPolymorphism))
-        for entry in hole.context.entries
+    # Built-in logical operators are polymorphic too, but SMT knows their
+    # semantics. Preserve their value equation: n = 50 and n = x + y must
+    # constrain x/y even after either leaf is expanded again. Both descendants
+    # and siblings receive these guarded equations through the shared worklist.
+    runtime_polymorphic = (
+        isinstance(expression, LiquidApp)
+        and expression.fun not in liquid_prelude
+        and any(
+            isinstance(entry, VariableBinder)
+            and entry.name == expression.fun
+            and isinstance(entry.type, (TypePolymorphism, RefinementPolymorphism))
+            for entry in hole.context.entries
+        )
     )
     if expression is not None and not runtime_polymorphic:
         predicates.append(guarded_predicate(hole, LiquidApp(Name("==", 0), [value, expression])))
