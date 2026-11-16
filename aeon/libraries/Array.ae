@@ -57,7 +57,7 @@ def pair_size : (pr: (ArrayPair a)) -> Int := uninterpreted
 
 
 # A scoped read: the caller retains ownership and may update the array later.
-def length (borrow arr: (Array a)) : {n:Int | n = size arr} :=
+def length (borrow arr: (Array a)) : {n:Int | n >= 0 && n = size arr} :=
     native "len(arr)"
 
 
@@ -207,9 +207,10 @@ def map [Copy a] (f: (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) : {r
     native "list(map(f, arr))"
 
 
-# Filter an array by ``f``; the length never grows. Consumes the array
-# linearly.
-def filter [Copy a] (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a<p>)) : {r:(Array a<p>) | size r <= size arr} :=
+# Filter an array by ``f``; preserve element refinements and bound its length.
+# Consumes the array linearly.
+def filter [Copy a] (f: (x: {v:a | p v}) -> Bool) (1 arr: (Array a<p>)) :
+    {r:(Array a<p>) | 0 <= size r && size r <= size arr} :=
     native "list(filter(f, arr))"
 
 
@@ -229,8 +230,10 @@ def mean (borrow arr: (Array Float)) : Float :=
     native "(sum(arr) / len(arr)) if len(arr) else 0.0"
 
 
-# Index-aware map: ``f`` receives ``(index, element)``. Length preserved.
-def imap [Copy a] (f: (i: Int) -> (x: {v:a | p v}) -> {w:b | q w}) (1 arr: (Array a<p>)) :
+# Index-aware map: the array comes first so ``f`` can depend on its size.
+# Every callback index is in bounds; length and result refinements are preserved.
+def imap [Copy a] (1 arr: (Array a<p>))
+    (f: (i:{n:Int | 0 <= n && n < size arr}) -> (x: {v:a | p v}) -> {w:b | q w}) :
     {r:(Array b<q>) | size r = size arr} :=
     native "[f(i)(x) for i, x in enumerate(arr)]"
 

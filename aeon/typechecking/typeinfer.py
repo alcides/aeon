@@ -1001,7 +1001,6 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 ex_binders = t_cond.binders
                 t_cond = t_cond.body
             c_sub_cond = sub(ctx, t_cond, t_bool, cond.loc)
-            c_cond = conjoin(c_synth_cond, c_sub_cond)
             if liq_cond is None:
                 # Higher-order guards need not liquefy. A fresh Boolean witness
                 # retains branch path sensitivity without inventing facts about
@@ -1082,10 +1081,13 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 joined = t1
             else:
                 raise CoreSubtypingError(ctx, t, t1, t2)
-            if_constraint: Constraint = conjoin(c_cond, conjoin(c1, c2))
+            # Prove the guard's own calls before assuming facts about their
+            # results. Only the Boolean subtype check and branches may use
+            # the guard's existential witnesses.
+            if_constraint: Constraint = conjoin(c_sub_cond, conjoin(c1, c2))
             for bn, bt in reversed(ex_binders):
                 if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
-            return (if_constraint, with_binders(ex_binders + tuple(branch_binders), joined))
+            return (conjoin(c_synth_cond, if_constraint), with_binders(ex_binders + tuple(branch_binders), joined))
 
         case Hole(hole_name):
             name_a = Name(hole_name.name, fresh_counter.fresh())
@@ -1427,7 +1429,6 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 ex_binders = t_cond.binders
                 t_cond = t_cond.body
             c_sub = sub(ctx, t_cond, t_bool, cond.loc)
-            c0 = conjoin(c_synth, c_sub)
             if liq_cond is None:
                 # Higher-order guards need not liquefy. A fresh Boolean witness
                 # retains branch path sensitivity without inventing facts about
@@ -1462,10 +1463,11 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 check(branch_ctx, otherwise, ty),
                 otherwise.loc,
             )
-            if_constraint: Constraint = conjoin(c0, conjoin(c1, c2))
+            # Guard preconditions cannot assume the guard's result facts.
+            if_constraint: Constraint = conjoin(c_sub, conjoin(c1, c2))
             for bn, bt in reversed(ex_binders):
                 if_constraint = implication_constraint(bn, bt, if_constraint, t.loc)
-            return if_constraint
+            return conjoin(c_synth, if_constraint)
         case TypeAbstraction(name, kind, body), TypePolymorphism(var_name, var_kind, var_body):
             if kind != var_kind:
                 raise CoreWrongKindInTypeApplicationError(

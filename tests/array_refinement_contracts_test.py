@@ -35,7 +35,7 @@ def test_head_requires_its_promised_element_refinement(element, accepted):
         ("def f (x:{v:Int | v > 0}):Int := x;", "Array.map f #[ITEM]", "(Array Int)", [1]),
         ("def f (x:{v:Int | v > 0}):Bool := true;", "Array.filter f #[ITEM]", "(Array Int)", [1]),
         ("def f (x:{v:Int | v > 0}) (acc:Int):Int := x + acc;", "Array.reduce f 0 #[ITEM]", "Int", 1),
-        ("def f (i:Int) (x:{v:Int | v > 0}):Int := x;", "Array.imap f #[ITEM]", "(Array Int)", [1]),
+        ("def f (i:Int) (x:{v:Int | v > 0}):Int := x;", "Array.imap #[ITEM] f", "(Array Int)", [1]),
         ("def f (x:{v:Int | v > 0}) (y:Int):Int := x + y;", "Array.zipWith f #[ITEM] #[1]", "(Array Int)", [2]),
         ("def f (x:Int) (y:{v:Int | v > 0}):Int := x + y;", "Array.zipWith f #[1] #[ITEM]", "(Array Int)", [2]),
         ("def f (x:{v:Int | v > 0}):Bool := true;", "Array.count f #[ITEM]", "Int", 1),

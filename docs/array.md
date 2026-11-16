@@ -137,6 +137,37 @@ shared predicate as `a<p>` (shorthand for `{v:a | p v}`), so their result can be
 used wherever an array with that element refinement is required. The measure
 `size` threads through transforms so length proofs compose.
 
+`head` requires `size arr > 0`, and `get` and `set` require
+`0 <= i < size arr`. Reads return an element satisfying the input array's
+predicate; `set` accepts a replacement satisfying that predicate. `set` and
+`reversed` preserve both the element predicate and length. Preconditions also
+apply when a read appears inside an `if` guard.
+
+For `map`, `imap`, `zipWith`, `filter`, `reduce`, and `count`, every input element
+must satisfy the callback's argument refinement. A callback requiring a positive
+integer cannot be mapped over `#[0]`. `map` and `imap` return `Array b<q>` when
+the callback returns `b<q>`; `zipWith` carries its callback's result predicate in
+the same way. All three preserve length.
+
+`filter` preserves the input element predicate and guarantees
+`0 <= size result <= size input`. `length` returns a nonnegative integer equal
+to `size arr`.
+
+### Bounded indices in `imap`
+
+`imap` takes the array **before** the callback: `imap arr f` (previously
+`imap f arr`). This places `arr` in scope for the callback's index type:
+
+```aeon
+def imap [Copy a] (1 arr:(Array a<p>))
+    (f:(i:{n:Int | 0 <= n && n < size arr}) -> (x:a<p>) -> b<q>) :
+    {r:(Array b<q>) | size r = size arr}
+```
+
+For example, `(consume sum) (imap (mk_repeat 3 7) (fun i => fun x => i))`
+returns `3`, using indices `0`, `1`, and `2`. On an empty array the callback is
+never called.
+
 ---
 
 ## Wrapper types
