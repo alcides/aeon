@@ -28,6 +28,8 @@ def test_opt_if():
     eq("if true then 1 else 0", "1")
     eq("if false then 1 else 0", "0")
     eq("if false then 2 else if true then 1 else 0", "1")
+    eq("if c then true else false", "c")
+    eq("fun c => if c then true else false", "fun c => c")
 
 
 def test_opt_app():
