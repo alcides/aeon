@@ -1,8 +1,9 @@
 # 50-item knapsack solver comparison
 
 Initial run on 2026-11-09 at `b3e7eae74ebfcf2db393377aff64e5839a6dfc72`,
-after merging #680 and #684. The example is unchanged:
-[`knapsack_50.ae`](https://github.com/alcides/aeon/blob/master/examples/synthesis/puzzle/knapsack_50.ae) returns a
+after merging #680 and #684. These historical measurements used the relational-list
+formulation, now preserved as
+[`knapsack_50_list.ae`](../examples/synthesis/puzzle/knapsack_50_list.ae). It returns a
 50-node Boolean `Mask`, with count and weight tracked logically. Capacity is
 100 and `@maximize` scores the selected values.
 
@@ -106,11 +107,12 @@ From the checkout being measured, with the development and optional OR-Tools
 and RL-MCTS dependencies installed:
 
 ```bash
-python scripts/bench_knapsack_solvers.py \
+python scripts/bench_knapsack_solvers.py --example examples/synthesis/puzzle/knapsack_50_list.ae \
   --budget 60 --wall-limit 180 --output /tmp/knapsack-results
 ```
 
-Use `--backends gp synquid`, for example, to select a subset. The runner saves
+Omit `--example` to run the main array formulation. Use `--backends gp synquid`,
+for example, to select a subset. The runner saves
 per-backend logs, JSON results, successful Boolean decisions, and an aggregate
 `results.json`. A timed-out process is terminated, and stale output from an
 earlier invocation is cleared before each backend starts. To compare an older
@@ -120,9 +122,11 @@ working directory.
 Compare TDSyn expansion strategies with separate output directories:
 
 ```bash
-python scripts/bench_knapsack_solvers.py --backends tdsyn_backward tdsyn_enumerative \
+python scripts/bench_knapsack_solvers.py --example examples/synthesis/puzzle/knapsack_50_list.ae \
+  --backends tdsyn_backward tdsyn_enumerative \
   --budget 30 --tdsyn-expansion eager --output /tmp/knapsack-eager
-python scripts/bench_knapsack_solvers.py --backends tdsyn_backward tdsyn_enumerative \
+python scripts/bench_knapsack_solvers.py --example examples/synthesis/puzzle/knapsack_50_list.ae \
+  --backends tdsyn_backward tdsyn_enumerative \
   --budget 30 --tdsyn-expansion lazy --output /tmp/knapsack-lazy
 ```
 

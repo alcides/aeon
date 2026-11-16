@@ -10,7 +10,7 @@ from aeon.errors import LiquidTypeCheckingFailedRelation
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
-EXAMPLE = Path(__file__).resolve().parents[1] / "examples/synthesis/puzzle/knapsack_50.ae"
+EXAMPLE = Path(__file__).resolve().parents[1] / "examples/synthesis/puzzle/knapsack_50_list.ae"
 FITS = "fun w => fun rest => w + rest <= 100"
 MASK = f"Mask{{|{FITS}|}}"
 
@@ -107,7 +107,7 @@ def test_tdsyn_refinements_force_50_nodes_and_feasible_booleans():
     from aeon.core.types import top
     from aeon.synthesis.identification import get_holes_info
     from aeon.synthesis.modules.native_search import initial_partial
-    from aeon.synthesis.modules.tdsyn.actions import backward_app_candidates, backward_close_candidates
+    from aeon.synthesis.modules.tdsyn.actions import iter_backward_candidates
     from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
     from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
     from aeon.synthesis.modules.tdsyn.worklist import expand_at_hole, substitute_holes_map
@@ -124,7 +124,10 @@ def test_tdsyn_refinements_force_50_nodes_and_feasible_booleans():
         skip = make_skip_fn(function, driver.metadata)
         for count in range(51):
             tail = next(h for h in partial.holes if not all_leaf_holes([h]))
-            candidates = backward_app_candidates(tail, skip) + backward_close_candidates(tail, skip)
+            # Use the constructor phase of TDSyn's datatype search. Goal-directed
+            # polymorphism also admits generic functions returning Mask; those
+            # are not constructor choices and need not be pruned here.
+            candidates = list(iter_backward_candidates(tail, skip, constructors_only=True))
             # Every premature empty and every extra cons must be pruned, not
             # deferred to final validation after the Boolean search.
             [(term, children)] = candidates

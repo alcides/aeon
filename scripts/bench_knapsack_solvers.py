@@ -34,13 +34,14 @@ p.add_argument("--wall-limit", type=int, default=180)
 p.add_argument("--output", required=True)
 p.add_argument("--backends", nargs="+", choices=BACKENDS, default=BACKENDS)
 p.add_argument("--tdsyn-expansion", choices=("eager", "lazy"), default="eager")
+p.add_argument("--example", default="examples/synthesis/puzzle/knapsack_50.ae")
 a = p.parse_args()
 if a.budget <= 0 or a.wall_limit <= 5:
     p.error("budget must be positive and wall-limit must exceed 5 seconds")
 out = pathlib.Path(a.output).resolve()
 out.mkdir(parents=True, exist_ok=True)
 root = pathlib.Path.cwd()
-example = "examples/synthesis/puzzle/knapsack_50.ae"
+example = a.example
 
 if a.child:
     sys.path.insert(0, str(root))
@@ -89,12 +90,16 @@ if a.child:
         driver.synth()
         result["synthesis_seconds"] = round(time.monotonic() - ui.synthesis_start, 3)
         value = driver.run()
-        decisions = []
-        while isinstance(value, tuple) and value[0] == "Mask_cons":
-            _, value, used = value
-            assert type(used) is bool
-            decisions.append(used)
-        assert value == ("Mask_empty",) and len(decisions) == 50
+        if isinstance(value, list):
+            decisions = value
+        else:
+            # Keep the relational-list formulation available for comparisons.
+            decisions = []
+            while isinstance(value, tuple) and value[0] == "Mask_cons":
+                _, value, used = value
+                decisions.append(used)
+            assert value == ("Mask_empty",)
+        assert len(decisions) == 50 and all(type(used) is bool for used in decisions)
         data = pathlib.Path("examples/synthesis/puzzle/knapsack_data.ae").read_text()
 
         def column(name):
@@ -142,6 +147,8 @@ else:
             backend,
             "--budget",
             str(a.budget),
+            "--example",
+            example,
             "--tdsyn-expansion",
             a.tdsyn_expansion,
             "--wall-limit",
