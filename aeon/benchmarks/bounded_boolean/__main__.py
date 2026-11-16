@@ -10,9 +10,7 @@ from aeon.benchmarks.bounded_boolean.corpus import (
     ROOT,
     PAPER_SCHEDULE,
     digest,
-    emit,
     fetch,
-    load_case,
     regenerate,
     verify_manifest,
 )
@@ -23,9 +21,12 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("inventory", "import", "fetch"):
         sub.add_parser(name)
+    oracle = sub.add_parser("oracle", help="exhaustively certify the separate local fixtures")
+    oracle.add_argument("--output", type=Path)
     for name in ("run", "audit"):
         command = sub.add_parser(name)
         command.add_argument("--case", action="append", dest="cases")
+        command.add_argument("--suite", choices=("published", "local"), default="published")
         command.add_argument("--backend", action="append", dest="backends")
         command.add_argument("--bound", type=int, default=5)
         command.add_argument("--budget", type=float, default=5)
@@ -37,6 +38,9 @@ def main(argv=None):
         command.add_argument("--paper-schedule", action="store_true")
     verify = sub.add_parser("verify")
     verify.add_argument("result", type=Path)
+    verify.add_argument(
+        "--certificate-only", action="store_true", help="explicitly recheck an archived certificate without its program"
+    )
     worker = sub.add_parser("_worker")
     worker.add_argument("request", type=Path)
     worker.add_argument("destination", type=Path)
@@ -60,38 +64,38 @@ def main(argv=None):
     if args.command == "import":
         print(json.dumps(regenerate()["inventory"], indent=2))
         return 0
+    if args.command == "oracle":
+        from aeon.benchmarks.bounded_boolean.local import oracle_report
+        from aeon.benchmarks.bounded_boolean.runner import write_json
+
+        report = oracle_report()
+        if args.output:
+            write_json(args.output, report)
+        print(json.dumps(report, indent=2))
+        return 0 if report["all_agree"] else 1
     manifest = verify_manifest()
     if args.command == "inventory":
         print(json.dumps(manifest["inventory"], indent=2))
         return 0
     cases = {c["id"]: c for c in manifest["cases"]}
     if args.command == "verify":
-        from aeon.benchmarks.bounded_boolean.checker import CheckFailure, check
-        from aeon.benchmarks.bounded_boolean.runner import candidate_digest
+        from aeon.benchmarks.bounded_boolean.checker import CheckFailure
+        from aeon.benchmarks.bounded_boolean.verification import verify_saved
 
         saved = json.loads(args.result.read_text())
-        config = saved["config"]
-        case = cases[config["task"]]
-        circuit = load_case(case)
-        expected = digest(emit(circuit, case["id"], config["bound"]).encode())
-        if (
-            config["source_sha256"] != expected
-            or config["verilog_sha256"] != digest((ROOT / "upstream" / case["source"]).read_bytes())
-            or config["y_sha256"] != digest((ROOT / "upstream" / case["y_file"]).read_bytes())
-        ):
-            parser.error("saved result belongs to different source bytes or configuration")
-        if "outputs" not in saved:
-            parser.error("result contains no candidate; bounded UNSAT is not a solution certificate")
-        if saved.get("candidate_sha256") != candidate_digest(saved["outputs"]):
-            parser.error("candidate hash mismatch")
         try:
-            result = check(circuit, saved["outputs"], config["bound"])
+            result = verify_saved(saved, args.result.parent, certificate_only=args.certificate_only)
         except CheckFailure as exc:
             result = {"status": exc.status, "reason": str(exc)}
         print(json.dumps(result, indent=2))
         return 0 if result["status"] == "verified_solved" else 1
     from aeon.benchmarks.bounded_boolean.runner import identity, run_one, summary, write_json
 
+    if args.suite == "local":
+        from aeon.benchmarks.bounded_boolean.local import manifest as local_manifest
+
+        manifest = local_manifest()
+        cases = {c["id"]: c for c in manifest["cases"]}
     selected = args.cases or list(cases)
     if any(case not in cases for case in selected):
         parser.error("unknown case; use inventory/manifest.json for task IDs")
@@ -127,8 +131,13 @@ def main(argv=None):
                     write_json(
                         args.output / "summary.json",
                         {
-                            "corpus_revision": manifest["revision"],
-                            "manifest_sha256": digest((ROOT / "manifest.json").read_bytes()),
+                            "suite": args.suite,
+                            "corpus_revision": manifest.get("revision"),
+                            "manifest_sha256": digest(
+                                (
+                                    ROOT / ("local/manifest.json" if args.suite == "local" else "manifest.json")
+                                ).read_bytes()
+                            ),
                             **summary(results),
                             "results": results,
                         },

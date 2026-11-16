@@ -1,0 +1,10 @@
+# Local regression: true. Not a published BNSynth benchmark.
+# Total specification; truth-table oracle is stored separately.
+
+@bounded_cnf(0)
+def choose_vy  : {r:Bool | r} := ?hole_vy;
+
+def relation (vy:Bool) : Bool := vy;
+
+@property(1)
+def law  : Bool := relation (choose_vy);

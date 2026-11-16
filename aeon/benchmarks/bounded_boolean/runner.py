@@ -14,7 +14,8 @@ import time
 import re
 from typing import Any
 
-from aeon.benchmarks.bounded_boolean.corpus import ROOT, ae_name, digest, emit, load_case
+from aeon.benchmarks.bounded_boolean.corpus import ROOT, ae_name, case_hashes, case_source, digest, load_case
+from aeon.benchmarks.bounded_boolean.verilog import VerilogError
 
 
 IMPLEMENTATION = Path(__file__).resolve().parents[3]
@@ -58,7 +59,14 @@ def worker(request: dict, destination: Path) -> None:
     from loguru import logger
 
     logger.remove()
-    from aeon.benchmarks.bounded_boolean.checker import CheckFailure, check, check_import, extract, exhaustive_status
+    from aeon.benchmarks.bounded_boolean.checker import (
+        CheckFailure,
+        check,
+        check_import,
+        check_runtime,
+        extract,
+        exhaustive_status,
+    )
     from aeon.core.substitutions import substitution
     from aeon.core.types import top
     from aeon.facade.driver import AeonConfig, AeonDriver
@@ -86,7 +94,10 @@ def worker(request: dict, destination: Path) -> None:
         write_json(destination, result)
         os.environ["AEON_SEED"] = str(request["seed"])
         root = Path(request["root"])
-        circuit = load_case(request["case"], root)
+        try:
+            circuit = load_case(request["case"], root)
+        except (OSError, VerilogError, ValueError) as exc:
+            raise CheckFailure("translation_failure", str(exc)) from exc
         driver = AeonDriver(AeonConfig(request["backend"], SilentSynthesisUI(), request["budget"], no_main=True))
         errors = list(driver.parse(filename=request["source_path"], aeon_code=request["source"]))
         if errors:
@@ -122,8 +133,13 @@ def worker(request: dict, destination: Path) -> None:
                     raise CheckFailure("type_failure", "completed program failed Aeon validation")
                 outputs = extract(completed, circuit, request["bound"])
                 result.update(check(circuit, outputs, request["bound"]))
+                result.update(check_runtime(completed, circuit, outputs, driver.evaluation_ctx))
                 result["outputs"] = outputs
                 result["candidate_sha256"] = candidate_digest(outputs)
+                candidate_file = Path(request["source_path"]).with_suffix(".candidate.ae")
+                candidate_file.write_text(completed_source(request["source"], outputs, circuit))
+                result["candidate_file"] = candidate_file.name
+                result["candidate_file_sha256"] = digest(candidate_file.read_bytes())
     except UnsupportedSynthesisGoal as exc:
         result.update(status="unsupported", reason=str(exc))
     except TimeoutInEvaluationException as exc:
@@ -181,9 +197,17 @@ def run_one(
     provenance: dict | None = None,
     memory_mb: int = 4096,
 ) -> dict:
-    circuit = load_case(case, root)
-    source = emit(circuit, case["id"], bound)
+    preprocessing_start = time.monotonic()
+    preparation_error = None
+    source = ""
+    try:
+        source = case_source(case, bound, root)
+    except (OSError, KeyError) as exc:
+        preparation_error = {"status": "translation_failure", "reason": str(exc)}
+    preprocessing_time = time.monotonic() - preprocessing_start
     config = {
+        "schema_version": 2,
+        "suite": case.get("suite", "published"),
         "task": case["id"],
         "backend": backend,
         "bound": bound,
@@ -192,22 +216,38 @@ def run_one(
         "memory_mb": memory_mb,
         "seed": seed,
         "audit": audit,
-        "input_count": len(circuit.x),
-        "output_count": len(circuit.y),
+        "input_count": len(case.get("inputs", [])),
+        "output_count": len(case.get("outputs", [])),
         "source_sha256": digest(source.encode()),
-        "verilog_sha256": digest((root / "upstream" / case["source"]).read_bytes()),
-        "y_sha256": digest((root / "upstream" / case["y_file"]).read_bytes()),
+        **case_hashes(case, root),
         **(provenance or identity()),
     }
     key = digest(json.dumps(config, sort_keys=True).encode())
     output.mkdir(parents=True, exist_ok=True)
     final = output / f"{key}.json"
+    if preparation_error is not None:
+        # Failed imports remain in the denominator and do not abort later cases.
+        failed = preparation_error | {
+            "key": key,
+            "config": config,
+            "timings": {"preprocessing": preprocessing_time, "total": preprocessing_time},
+        }
+        write_json(final, failed)
+        return failed
     if resume and final.exists():
         saved = json.loads(final.read_text())
+        artifacts = {"source_file": config["source_sha256"]}
+        if "outputs" in saved:
+            artifacts["candidate_file"] = saved.get("candidate_file_sha256")
         if (
             saved.get("key") == key
             and saved.get("config") == config
             and ("outputs" not in saved or saved.get("candidate_sha256") == candidate_digest(saved["outputs"]))
+        ) and all(
+            (output / saved[field]).is_file() and digest((output / saved[field]).read_bytes()) == expected
+            if field in saved
+            else False
+            for field, expected in artifacts.items()
         ):
             return saved
     source_path = output / f"{key}.ae"
@@ -262,12 +302,9 @@ def run_one(
             status="resource_limit" if resource_signal else "worker_failure",
             reason=f"worker exited {process.returncode}",
         )
-    result.setdefault("timings", {})["total"] = time.monotonic() - start
+    result.setdefault("timings", {})["preprocessing"] = preprocessing_time
+    result["timings"]["total"] = time.monotonic() - start + preprocessing_time
     result.update(key=key, config=config, source_file=source_path.name)
-    if "outputs" in result:
-        candidate_file = output / f"{key}.candidate.ae"
-        candidate_file.write_text(completed_source(source, result["outputs"], circuit))
-        result["candidate_file"] = candidate_file.name
     write_json(final, result)
     request_path.unlink(missing_ok=True)
     progress.unlink(missing_ok=True)

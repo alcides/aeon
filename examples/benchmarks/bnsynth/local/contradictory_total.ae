@@ -1,0 +1,10 @@
+# Local regression: contradictory_total. Not a published BNSynth benchmark.
+# Total specification; truth-table oracle is stored separately.
+
+@bounded_cnf(2)
+def choose_vy  : {r:Bool | r && !r} := ?hole_vy;
+
+def relation (vy:Bool) : Bool := vy && !vy;
+
+@property(1)
+def law  : Bool := relation (choose_vy);

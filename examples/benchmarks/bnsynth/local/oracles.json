@@ -1,0 +1,229 @@
+{
+  "all_agree": true,
+  "cases": [
+    {
+      "aeon_sha256": "9c19216bef47a6ff4627f79b218bb632a3e0a09302e9ea28079f79fa06923a94",
+      "agrees_with_fixture": true,
+      "minimum_bound": 0,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "feasible",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "true"
+    },
+    {
+      "aeon_sha256": "ec88d788e7af3bbbac815201ced03bf21baa721e95d1948484086292195002c7",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "false"
+    },
+    {
+      "aeon_sha256": "ad20548dddb479f74cd7701de0cda3f3011cd71f7fcf45c9c00b1cd90f2427cc",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "identity"
+    },
+    {
+      "aeon_sha256": "6c2f45a44d54c18f64fbce1ac26bd255259961d527ec2b83a08a7676c0dd7223",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "not"
+    },
+    {
+      "aeon_sha256": "0c168a79663e4c8f2718be6d645daee98837460bd60b5cde36b5b01a816b5c6a",
+      "agrees_with_fixture": true,
+      "minimum_bound": 2,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "bounded_unsat",
+        "2": "feasible"
+      },
+      "task": "and"
+    },
+    {
+      "aeon_sha256": "e6b9fd2f5fed143ab9859e93548a4e73eaaba00e27172413e5e01eb638f39a63",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "or"
+    },
+    {
+      "aeon_sha256": "09533305b93871a1dbc123d82f2238e671788039e256e961f332a7c670ced6a5",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "implication"
+    },
+    {
+      "aeon_sha256": "ee03e31896ecde96962fd92e29aa662a0b97166df5a4601870a1cc6564943d76",
+      "agrees_with_fixture": true,
+      "minimum_bound": 2,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "bounded_unsat",
+        "2": "feasible"
+      },
+      "task": "equivalence"
+    },
+    {
+      "aeon_sha256": "37d3f405a0ff7dded0f9f800a265359b31a2f918b970828a6f9ef9757ecb4115",
+      "agrees_with_fixture": true,
+      "minimum_bound": 2,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "bounded_unsat",
+        "2": "feasible"
+      },
+      "task": "xor"
+    },
+    {
+      "aeon_sha256": "cc63fb4439669f047ca1c2f29fcee9f0adf0c65e17cf8942b86890cf19b5d935",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "coupled"
+    },
+    {
+      "aeon_sha256": "749efaa2d09893a4f34dc158fb9ceb269c99b849369e11775bdcad95b7e18048",
+      "agrees_with_fixture": true,
+      "minimum_bound": 0,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "feasible",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "multiple_choices"
+    },
+    {
+      "aeon_sha256": "1435f09d7d4ad6f82960af54d57cdba2bbb12567648a52707795834fbba84fcc",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "partial",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "partial"
+    },
+    {
+      "aeon_sha256": "58b144d8a1e1a53994f5bc21fd53928a46254f9d609afa408fb6be7c87a31484",
+      "agrees_with_fixture": true,
+      "minimum_bound": 0,
+      "minimum_certified": true,
+      "semantics": "partial",
+      "statuses": {
+        "0": "feasible",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "vacuous"
+    },
+    {
+      "aeon_sha256": "7e10e365a16c8a0ef70828ea74e5b13049baaafa9b53b5f463e8bdb06e9c9d9c",
+      "agrees_with_fixture": true,
+      "minimum_bound": null,
+      "minimum_certified": false,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "bounded_unsat",
+        "2": "bounded_unsat"
+      },
+      "task": "inconsistent_total"
+    },
+    {
+      "aeon_sha256": "31eb06ad506582328642ef68decd71c540ade01a8228381f26f57ccabc2c8d77",
+      "agrees_with_fixture": true,
+      "minimum_bound": null,
+      "minimum_certified": false,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "bounded_unsat",
+        "2": "bounded_unsat"
+      },
+      "task": "contradictory_total"
+    },
+    {
+      "aeon_sha256": "aa06a3190cec8cb3e3225e0ae45430baec37a99aa34a4014cea05aa512a43104",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "captured_input"
+    },
+    {
+      "aeon_sha256": "76855f2054b7ad9a119f730517a8a9d85a2a589110b68f7c8c9afed3b0a7a20e",
+      "agrees_with_fixture": true,
+      "minimum_bound": 1,
+      "minimum_certified": true,
+      "semantics": "total",
+      "statuses": {
+        "0": "bounded_unsat",
+        "1": "feasible",
+        "2": "feasible"
+      },
+      "task": "sample_trap"
+    }
+  ],
+  "manifest_sha256": "a3777fa05bc15fbc9b0e2091c5dd5b1dea1bf1cd0d91ba877a69f48176f7e6a5",
+  "method": "exhaustive CNF family and truth-table enumeration; no solver or synthesis calls",
+  "suite": "local"
+}
