@@ -44,6 +44,11 @@ def assess(backend, term, validate, evaluate=None, front=None, ui=None):
     )
 
 
+def test_candidate_deduplication_is_opt_in():
+    assert not TDSynSynthesizer().deduplicate
+    assert TDSynSynthesizer(deduplicate=True).deduplicate
+
+
 @pytest.mark.parametrize("valid", [True, False])
 @pytest.mark.parametrize("deduplicate", [True, False])
 def test_complete_assessments_are_not_repeated(valid, deduplicate):
@@ -62,7 +67,7 @@ def test_complete_assessments_are_not_repeated(valid, deduplicate):
 @settings(max_examples=20, deadline=None)
 @given(st.integers(-100, 100))
 def test_type_annotations_are_not_erased_by_deduplication(value):
-    backend = TDSynSynthesizer()
+    backend = TDSynSynthesizer(deduplicate=True)
     ctx = built_std_context()
     validate = Mock(side_effect=lambda term: check_type(ctx, term, top))
     valid = Annotation(Literal(value, t_int), t_int)
@@ -74,7 +79,7 @@ def test_type_annotations_are_not_erased_by_deduplication(value):
 
 
 def test_snapshots_preserve_mutable_payloads_native_kinds_and_float_bits():
-    backend, validate = TDSynSynthesizer(), Mock(return_value=True)
+    backend, validate = TDSynSynthesizer(deduplicate=True), Mock(return_value=True)
     values = [False]
     literal = Literal(values, TypeConstructor(Name("Array", 0), [t_bool]))
     assess(backend, literal, validate)
@@ -86,7 +91,7 @@ def test_snapshots_preserve_mutable_payloads_native_kinds_and_float_bits():
 
 
 def test_locations_do_not_prevent_deduplication():
-    backend, validate = TDSynSynthesizer(), Mock(return_value=True)
+    backend, validate = TDSynSynthesizer(deduplicate=True), Mock(return_value=True)
     term = Literal(1, t_int)
     assess(backend, term, validate)
     assess(backend, replace(term, loc=SynthesizedLocation("elsewhere")), validate)
@@ -94,7 +99,7 @@ def test_locations_do_not_prevent_deduplication():
 
 
 def test_opaque_payloads_bypass_deduplication():
-    backend, validate = TDSynSynthesizer(), Mock(return_value=True)
+    backend, validate = TDSynSynthesizer(deduplicate=True), Mock(return_value=True)
     term = Literal(object(), t_int)
     for _ in range(2):
         assess(backend, term, validate)
@@ -103,7 +108,7 @@ def test_opaque_payloads_bypass_deduplication():
 
 @pytest.mark.parametrize("stage", ["validate", "evaluate"])
 def test_exceptions_can_be_retried(stage):
-    backend = TDSynSynthesizer()
+    backend = TDSynSynthesizer(deduplicate=True)
     validate, evaluate = Mock(return_value=True), Mock(return_value=[1.0])
     callback = validate if stage == "validate" else evaluate
     callback.side_effect = [RuntimeError("transient failure"), callback.return_value]
@@ -113,7 +118,7 @@ def test_exceptions_can_be_retried(stage):
 
 
 def test_inconclusive_smt_rejections_can_be_retried():
-    backend = TDSynSynthesizer()
+    backend = TDSynSynthesizer(deduplicate=True)
     state = current_session().state(VerificationState)
 
     def uncertain(_):
@@ -143,7 +148,7 @@ def test_worker_status_survives_boolean_validator_wrappers(status):
             raise InvalidIndividualException("invalid candidate")
         return [1]  # A definitive, failed runtime requirement.
 
-    backend = TDSynSynthesizer()
+    backend = TDSynSynthesizer(deduplicate=True)
     validate = Mock(return_value=True)
     pool = EvaluationPool(lambda t: t, {"specification": compute}, budget_eval=0.05)
     try:
@@ -159,7 +164,7 @@ def test_worker_status_survives_boolean_validator_wrappers(status):
 
 
 def test_deduplication_is_bounded_and_uses_recent_entries():
-    backend = TDSynSynthesizer(dedup_capacity=2)
+    backend = TDSynSynthesizer(deduplicate=True, dedup_capacity=2)
     validate = Mock(return_value=True)
     for value in (1, 2, 1, 3, 2):
         assess(backend, Literal(value, t_int), validate)
@@ -175,7 +180,7 @@ def test_deduplication_precedes_qtt_and_constructor_preparation(monkeypatch):
     prepare = Mock(side_effect=lambda term: term)
     monkeypatch.setattr(synthesizer, "bind_constructor_arguments", prepare)
     qtt = Mock(return_value=True)
-    backend = TDSynSynthesizer()
+    backend = TDSynSynthesizer(deduplicate=True)
     backend._has_goals, backend._minimize = True, [False]
     partial = PartialAST(Literal(1, t_int), [], 0, check_sketch=qtt)
     for _ in range(2):
@@ -186,7 +191,7 @@ def test_deduplication_precedes_qtt_and_constructor_preparation(monkeypatch):
 @pytest.mark.parametrize("mode", ["enumerative", "random"])
 @pytest.mark.parametrize("expansion", ["eager", "lazy"])
 def test_reusing_a_synthesizer_does_not_reuse_previous_rejections(monkeypatch, mode, expansion):
-    backend = TDSynSynthesizer(mode=mode, expansion=expansion)
+    backend = TDSynSynthesizer(mode=mode, expansion=expansion, deduplicate=True)
     rejected, answer = Literal(0, t_int), Literal(1, t_int)
 
     def search(initial, skip, validate, evaluate, start_time, budget, ui, front):

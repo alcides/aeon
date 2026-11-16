@@ -113,6 +113,10 @@ class TDSynSynthesizer(Synthesizer):
     or backward-only expansion. All variants share validation and objectives.
     Loops until the time budget is exhausted, restarting with shuffled expansion
     order on each iteration to explore different term structures.
+
+    ``deduplicate=True`` enables experimental, bounded suppression of completed
+    assessments. It saves repeated validation, but can change the SMT search
+    trajectory, so it remains opt-in pending broader performance measurements.
     """
 
     supports_size_objective = True
@@ -124,7 +128,7 @@ class TDSynSynthesizer(Synthesizer):
         *,
         direction: str = "both",
         expansion: str = "eager",
-        deduplicate: bool = True,
+        deduplicate: bool = False,
         dedup_capacity: int = 4096,
     ):
         assert mode in ("enumerative", "random")
