@@ -21,6 +21,7 @@ import dataclasses
 import os
 import socket
 import struct
+from contextvars import ContextVar
 from selectors import DefaultSelector, EVENT_READ
 from time import monotonic
 from typing import Any, Callable, Optional
@@ -45,6 +46,10 @@ Computation = Callable[[Term], Any]
 
 # Per-computation result statuses.
 OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
+
+# Validators expose a Boolean, but a failed worker is not a definitive rejection.
+# Search-local consumers can observe this counter even through validator wrappers.
+inconclusive_evaluations: ContextVar[int] = ContextVar("inconclusive_evaluations", default=0)
 
 # Fork inherits the parent's address space, so the (often large, closure-heavy)
 # replace/computations payload need not be picklable. Spawn was tried to avoid
@@ -324,6 +329,10 @@ class EvaluationPool:
             # other replies have been received or reached their own deadlines.
             for w in failed:
                 self._recycle(w)
+        inconclusive_evaluations.set(
+            inconclusive_evaluations.get()
+            + sum(any(status in (ERROR, TIMEOUT) for status, _ in result.values()) for result in results)
+        )
         return results
 
     def run(self, term: Term) -> dict[str, tuple[str, Any]]:
