@@ -1,27 +1,27 @@
-# Train a random-forest classifier, balancing the training set with SMOTE.
+# Train a random-forest classifier, optionally balancing with SMOTE.
 #
-# SMOTE runs on the training half *after* the split, so the held-out test
-# set stays untouched (no synthetic instances leak into evaluation). The
-# split's minimum-data precondition is discharged with
-# ``require_enough_data`` on the CSV path.
+# Callers load the DataFrame with read_csv and use n_columns / has_column
+# to establish these input contracts. SMOTE runs only on the training
+# half after splitting, and needs at least six rows per class.
 
 open Learning
 
 
-def generate_model_smote (path: String) (target_col: String) : SklearnClassifier :=
-    let 1 df := read_csv path in
+def generate_model_smote
+    (1 df: {d: DataFrame | df_cols d > 1})
+    (target_col: {s: String | hasColumn df s}) : SklearnClassifier :=
     let 1 ds0 := target df target_col false false in
     let 1 ds := require_enough_data ds0 in
     let 1 parts := split ds 0.7 true in
     let 1 train0 := train_of parts in
-    # Witness check consumes one half of a copy; SMOTE (or identity) the other.
-    let 1 train := if is_multiclass train0 then smote train0 else train0 in
-    random_forest_classifier train ;
+    let 1 train := if is_multiclass train0 && min_class_rows train0 >= 6 then smote train0 else train0 in
+    random_forest_classifier train;
 
 
-def generate_model_plain (path: String) (target_col: String) : SklearnClassifier :=
-    let 1 df := read_csv path in
+def generate_model_plain
+    (1 df: {d: DataFrame | df_cols d > 1})
+    (target_col: {s: String | hasColumn df s}) : SklearnClassifier :=
     let 1 ds0 := target df target_col false false in
     let 1 ds := require_enough_data ds0 in
     let 1 parts := split ds 0.7 true in
-    random_forest_classifier (train_of parts) ;
+    random_forest_classifier (train_of parts);
