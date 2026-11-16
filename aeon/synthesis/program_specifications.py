@@ -27,6 +27,7 @@ from aeon.synthesis.identification import get_holes, term_has_holes
 from aeon.synthesis.joint import JointCandidate
 from aeon.synthesis.modules.tdsyn.worklist import substitute_holes_map
 from aeon.synthesis.pbt.runner import make_property_fitness, property_corpora_for_targets
+from aeon.synthesis.typecheck_cache import TypecheckingCache
 from aeon.typechecking.context import TypingContext
 from aeon.typechecking.linearity import check_linearity
 from aeon.typechecking.typeinfer import check_type
@@ -151,6 +152,7 @@ class ProgramSpecifications:
         )
         self._last_candidate: Term | None = None
         self._last_results: dict = {}
+        self._typechecking_cache = TypecheckingCache()
 
     def _results(self, candidate: Term) -> dict:
         assert self.pool is not None
@@ -190,9 +192,13 @@ class ProgramSpecifications:
                 return False
             if not check_program(program, self.source_metadata):
                 return False
-            prepared = prepare_candidate(candidate)
-            checking_program = self.replace(prepared) if prepared is not candidate else program
-            if not check_type(self.ctx, checking_program, top):
+
+            def compute():
+                prepared = prepare_candidate(candidate)
+                checking_program = self.replace(prepared) if prepared is not candidate else program
+                return check_type(self.ctx, checking_program, top)
+
+            if not self._typechecking_cache.check(self.ctx, program, compute):
                 return False
             if not self.checks:
                 return True
