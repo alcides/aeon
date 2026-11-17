@@ -26,24 +26,22 @@ inside `@allow_recursion` definitions receive recursive hypotheses weakened by
 the source's explicit termination metrics. Without a metric, recursive return
 refinements are erased as in the core checker.
 
-At scalar goals the engine enumerates elimination terms (variables, literals,
-and applications), checking partial applications as it constructs them. Depth-0
-leaves come first. Each in-scope datatype variable is then matched at the
-current branch depth, before any deeper application and before IFAB, so a
-parameter match is not stuck behind the elimination enumeration. A nested
-match whose goal is itself a datatype waits until application depth 2, because
-that is the depth that can hold a constructor around a recursive call. Nested
-matches with any other goal still run. IFAB inside a match arm, and IFAB for a
-datatype goal, wait until that same depth. Scalar goals outside a match keep
-IFAB at depth 0. Computed scrutinees are enumerated
-after IFAB and cost one application: their expressions are synthesized one
-depth lower than the branches. Prelude arithmetic, comparison, and Boolean
-operators,
+At scalar goals the engine follows `generateMaybeMatchIf`. Depth-0 elimination
+terms come first. Outside a match, the next step is the match unknown: a
+scalar-constructor equation when the solver can discharge it, and otherwise a
+structural match on each in-scope datatype value. Aeon's Horn theory does not
+solve datatype equations, so lists take the structural match. A datatype
+goal's cases are synthesized at an application depth of at least 2, enough for
+a constructor around one recursive call. That is the original explorer giving
+every case the full `eGuessDepth` rather than the current iterative-deepening
+step. A match arm tries applications before it opens another match, so the
+`cons` arm of `append` is a recursive call. IFAB then proposes a branch under
+an unknown path predicate at the current depth. A computed scrutinee is the
+last fallback and costs one application. Prelude arithmetic, comparison, and
+Boolean operators,
 including `toFloat`, are components only for `Int`, `Bool`, `Float`, and
-`String` goals. It tries
-unconditional solutions first, then IFAB: propose a branch under an unknown path
-predicate, solve for that predicate, construct an executable Boolean guard, and
-synthesize the remaining branch under its negation. Executable atoms are realized
+`String` goals. IFAB solves for the path predicate, constructs an executable
+Boolean guard, and synthesizes the remaining branch under its negation. Executable atoms are realized
 directly, as in the original Synquid implementation; other guards are synthesis
 subgoals of type `{b:Bool | b = condition}`. Nested conditionals retain the
 application-depth bound. Both path regions must be proved nonempty before

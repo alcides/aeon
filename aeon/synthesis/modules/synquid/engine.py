@@ -560,16 +560,14 @@ def _eliminations(
 
 
 def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
-    """Section 3.7: functions, leaves, variable matches, then deeper E-terms and IFAB.
+    """Section 3.7, following ``generateMaybeMatchIf``.
 
-    ``level`` bounds application depth only. The remaining conditional branch
-    keeps that bound; satisfiable, disjoint path regions ensure progress.
-    Matches have a separate nesting bound carried by the constraint branch.
-    A variable match runs after depth-0 leaves and before any depth-``level``
-    application, so a parameter match is not stuck behind the elimination
-    enumeration.     A nested match on a datatype goal waits until depth 2. Other nested matches
-    stay available. Datatype-goal IFAB, and IFAB inside a match arm, wait too.
-    Computed scrutinees stay after IFAB and cost one application.
+    Outside a match: depth-0 E-terms, then the match unknown, then
+    applications and IFAB. Aeon's solver cannot discharge a datatype
+    equation, so the structural match stands in for that unknown and its
+    cases use a full application bound. Inside a match arm, applications
+    come before another match. Computed scrutinees are the final fallback
+    and cost one application. The other conditional branch keeps ``level``.
     """
     from aeon.synthesis.modules.synquid.functions import function_terms
     from aeon.synthesis.modules.synquid.patterns import abduced_matches, match_terms, match_variables
@@ -602,35 +600,25 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
         # here would synthesize a scrutinee by matching again.
         yield from expressions(state)
         return
-    # Unconditional depth-0 leaves are the true-condition case of IFAB. Trying
-    # them first avoids inventing a branch when a variable or literal already
-    # proves the goal. Variable matches come before deeper applications.
+    # A depth-0 E-term with a true condition is returned as itself.
     for term in leaves(state):
         if _local_check(ctx, term, ret_t, state):
             yield term
-    from aeon.verification.constructor_registry import get_constructor_groups
-
-    goal_base = erase(ret_t)
-    inductive_goal = isinstance(goal_base, TypeConstructor) and goal_base.name.name in get_constructor_groups()
-    # A nested match on a datatype goal cannot hold a constructor around a
-    # recursive call below depth 2, and exploring it used to exhaust the
-    # budget. Nested matches whose goal is not a datatype, such as unwrapping
-    # a box down to its element, still run. The outer parameter match
-    # (match_depth 0) always runs.
-    if not (level < 2 and state.match_depth > 0 and inductive_goal):
-        # Scalar-constructor facts, then a general match on each in-scope
-        # value. Both use variables as scrutinees. Abduction stays first so a
-        # nullary datatype such as Flag is solved by the constructor-fact rule.
+    # Outside a match, the match unknown is tried before applications and
+    # before the full conditional qualifier set. Aeon's Horn theory does not
+    # solve datatype equations, so the structural match is that unknown.
+    # Inside an arm, applications come first: the cons case is a recursive
+    # call, and another match is only the fallback.
+    if state.match_depth == 0:
         yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
         yield from match_variables(ctx, level, ret_t, skip, mem, state)
     for term in deeper(state):
         if _local_check(ctx, term, ret_t, state):
             yield term
-    # Below depth 2, IFAB on a datatype goal or inside a match arm cannot put
-    # an application in either branch. Scalar goals outside a match keep IFAB
-    # at depth 0.
-    if level < 2 and (inductive_goal or state.match_depth > 0):
-        return
+    if state.match_depth > 0:
+        yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
+        yield from match_variables(ctx, level, ret_t, skip, mem, state)
+    # IFAB is the path-condition unknown. It runs at this depth for every goal.
     proposals = expressions(branch_environment(state, ret_t))
     for then in islice(proposals, 64):
         if monotonic() >= state.deadline:
@@ -664,7 +652,7 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
                 for otherwise in synthes_memory(ctx, level, ret_t, skip, mem, otherwise_state):
                     if _local_check(ctx, otherwise, ret_t, otherwise_state):
                         yield Annotation(If(guard, then, otherwise), ret_t)
-    # A computed scrutinee spends one application. Depth 0 has none left to
-    # spend; its variable scrutinees were already matched above.
+    # Computed scrutinees are generateMatch after variable scrutinees, and
+    # they cost one application.
     if level > 0:
         yield from match_terms(ctx, level, ret_t, skip, mem, state)

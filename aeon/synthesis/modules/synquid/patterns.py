@@ -47,8 +47,8 @@ def _predicate_term(predicate, assignment, context, sort):
 def match_variables(ctx, level, goal, skip, mem, state):
     """Match each in-scope datatype value. Do not synthesize a scrutinee.
 
-    Branch bodies keep ``level``. A constructor around a recursive call needs
-    application depth 2. Nested variable matches are still tried below that.
+    Branch bodies keep ``level``. This is the ``generateMatch`` fallback:
+    constructor-fact abduction and E-terms are tried first.
     """
     groups = get_constructor_groups()
     if not groups:
@@ -71,6 +71,13 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
 
     if state.match_depth >= mem.get("synquid_match_depth", level):
         return
+    # A datatype goal's cases are a fresh generateI at the explorer's
+    # application bound, not at the iterative-deepening step that chose the
+    # scrutinee. Depth 2 is a constructor around one recursive call. An
+    # element goal, such as unwrapping a box, keeps the caller's depth.
+    goal_base = erase(goal)
+    if isinstance(goal_base, TypeConstructor) and goal_base.name.name in get_constructor_groups():
+        level = max(level, 2)
     # A computed scrutinee spends one application. Branches keep ``level``.
     # Variable scrutinees (``only``) do not go through this generator.
     scrutinee_level = max(0, level - 1)
@@ -281,7 +288,7 @@ def abduced_matches(ctx, level, goal, skip, mem, state):
     from aeon.core.types import extract_parts
     from aeon.core.substitutions import substitution_in_liquid
     from aeon.synthesis.modules.synquid.abduction import abduce
-    from aeon.synthesis.modules.synquid.engine import synthes_memory
+    from aeon.synthesis.modules.synquid.engine import _eliminations, _leaf_proposals
     from aeon.utils.name import Name
     from aeon.verification.vcs import LiquidConstraint
 
@@ -312,10 +319,16 @@ def abduced_matches(ctx, level, goal, skip, mem, state):
     if not facts:
         return
     qualifiers = frozenset(fact for fact, _, _ in facts)
-    proposed = state.fork()
-    path = proposed.fresh_predicate(ctx, qualifiers)
-    proposed = proposed.assume(path)
-    for branch in islice(synthes_memory(ctx, level, goal, skip, mem, proposed, conditionals=False), 64):
+
+    # Shape-correct E-terms, not only terms that already check. The original
+    # generateE asks the match unknown whether a valuation exists; filtering
+    # first would drop the nil branch of append.
+    def proposals():
+        yield from _leaf_proposals(ctx, goal, skip, state.deadline)
+        if level > 0:
+            yield from _eliminations(ctx, level, goal, skip, mem, state, conditionals=False)
+
+    for branch in islice(proposals(), 64):
         result = abduce(state, branch, goal, qualifiers=qualifiers)
         for condition in result.conditions:
             for fact, variable, case in facts:
@@ -324,4 +337,11 @@ def abduced_matches(ctx, level, goal, skip, mem, state):
                     continue
                 if region.query.valid(region.lift(LiquidConstraint(condition))) == Status.VALID:
                     state.stats.match_abductions += 1
-                    yield from match_terms(ctx, level, goal, skip, mem, state, only=variable, fixed_case=(case, branch))
+                    # The scrutinee is a variable, so it costs no application
+                    # depth. The other cases are a fresh generateI at the
+                    # explorer's application bound: enough for a constructor
+                    # around one recursive call, independent of the iterative
+                    # deepening step that found this E-term.
+                    yield from match_terms(
+                        ctx, max(level, 2), goal, skip, mem, state, only=variable, fixed_case=(case, branch)
+                    )
