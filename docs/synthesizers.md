@@ -646,6 +646,16 @@ scalar-dependent/nonlinear equations, unsupported SMT encodings and exhausted
 budgets fall back to ordinary search. This rule does not optimize payloads or
 translate runtime objectives into logical constraints.
 
+A [local comparison from 2026-11-17](benchmarks/tdsyn-measure-shapes.json)
+records both benefits and regressions. In one matched ten-minute knapsack pair,
+the best value increased from 152 to 405 and positive-value candidates from 14
+to 121, while total feasible candidates decreased from 247 to 227. Across three
+driver runs, a refined ten-element list completed in a median 1.10 seconds with
+planning; ordinary search timed out at 30 seconds in all three runs. First-valid
+ten-element arrays instead slowed from 0.81 to 1.90 seconds. These observations
+support better list construction and knapsack search quality, not a universal
+throughput improvement; the flag preserves the ordinary-search comparison.
+
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
 
 QTT usage is checked during search as well as final validation. Partial programs

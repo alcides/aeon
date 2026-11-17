@@ -159,6 +159,51 @@ def test_equal_measure_cycles_cannot_build_a_shape_without_a_base():
         assert _plan(productions, 10) is None
 
 
+@pytest.mark.parametrize("backend", ["tdsyn_enumerative", "tdsyn_backward", "tdsyn_random"])
+@pytest.mark.parametrize("datatype", ["list", "chain", "tree"])
+def test_driver_completes_measured_datatypes_with_element_contracts(backend, datatype):
+    from aeon.facade.driver import AeonConfig, AeonDriver
+
+    sources = {
+        "list": """
+            import List;
+            def main(u:Int):{l:(List {v:Int|v>=5 && v<=10})|List.size l=10}:=?result;
+        """,
+        "chain": chain_source(),
+        "tree": """
+            inductive Tree
+            | leaf(value:{v:Int|v>=5 && v<=10}):{t:Tree|Tree.nodes t=1}
+            | branch(left:Tree)(right:Tree):{t:Tree|Tree.nodes t=1+Tree.nodes left+Tree.nodes right}
+            + nodes(t:Tree):Int
+            def main(u:Int):{t:Tree|Tree.nodes t=7}:=?result;
+        """,
+    }
+    # Use the real driver: the linked sketch supplies ownership information
+    # about reusable ADT constructors that a bare check_type callback lacks.
+    driver = AeonDriver(AeonConfig(backend, SilentSynthesisUI(), 15, tdsyn_expansion="lazy"))
+    assert not driver.parse(aeon_code=sources[datatype])
+    assert driver.has_synth()
+    driver.synth()
+    value = driver.run()
+    if datatype == "tree":
+
+        def count(tree):
+            if tree[0] == "Tree_leaf":
+                assert 5 <= tree[1] <= 10
+                return 1
+            return 1 + count(tree[1]) + count(tree[2])
+
+        assert count(value) == 7
+    else:
+        prefix, constructor, end = ("List", "cons", "nil") if datatype == "list" else ("Chain", "link", "end")
+        elements = []
+        while value[0] == f"{prefix}_{constructor}":
+            _, head, value = value
+            elements.append(head)
+        assert value == (f"{prefix}_{end}",)
+        assert len(elements) == 10 and all(5 <= v <= 10 for v in elements)
+
+
 def goal_rank(hole):
     return next((fixed_measure(hole, m) for m in goal_measures(hole)), None)
 
