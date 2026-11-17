@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from itertools import count, takewhile, islice
+from itertools import count, takewhile, islice, product
 from time import monotonic
 from typing import Callable
 
+from aeon.errors import UnreachablePatternError
 from aeon.synthesis.grammar.nonterminals import grammar_bindings
 from aeon.core.instantiation import type_substitution
 from aeon.core.liquid import LiquidLiteralBool, liquid_free_vars
@@ -131,6 +132,10 @@ def _local_check(ctx: TypingContext, term: Term, goal: Type, state: ConstraintSt
     try:
         trial.add(check(trial.context, term, goal))
         return trial.solve() == Status.VALID
+    except UnreachablePatternError:
+        # A dead constructor is an error in an ambient context and a vacuous
+        # branch under a path implication. The whole-program checker decides.
+        return True
     except Exception:
         return False
 
@@ -148,9 +153,59 @@ def _arg_gen(ctx, level, goal, skip, mem, state):
     )
 
 
-def _application_terms(ctx, level, head, application, skip, mem, filling=False):
+def _slot_terms(ctx, depth, goal, skip, mem, state, app_level):
+    """One argument at exactly ``depth``.
+
+    Depth 0 uses the round-trip argument rule. An unknown shape does too, at
+    the enclosing application's depth, so a nested application can still
+    discover it. A positive depth on a known scalar or datatype is an
+    application, so ``dec n`` is paired with the tail before every other list
+    is built.
+    """
+    if state.unresolved(goal):
+        yield from _arg_gen(ctx, app_level, goal, skip, mem, state)
+        return
+    if depth <= 0 or not isinstance(erase(goal), (TypeConstructor, AbstractionType)):
+        yield from _arg_gen(ctx, 1, goal, skip, mem, state)
+        return
+    yield from _eliminations(ctx, depth, goal, skip, mem, state, conditionals=False, prefer_recursion=True)
+
+
+def _application_terms(ctx, level, head, application, skip, mem, filling=False, depths=None, vector_sum=None):
     if monotonic() >= mem.get("synquid_deadline", float("inf")):
         return
+    # generateEUpTo walks argument-depth vectors by increasing size. Doing this
+    # before check() keeps each vector on its own fork: check() stores the
+    # partial solution back onto the application.
+    if depths is None and not filling and application.params:
+        first_ty = application.params[0][1]
+        higher_order = isinstance(first_ty, AbstractionType) and len(application.params) > 1
+        if not higher_order:
+            from dataclasses import replace
+
+            count_params = len(application.params)
+            deep = any(isinstance(erase(ty), (TypeConstructor, AbstractionType)) for _, ty in application.params)
+            max_depth = max(0, level - 1) if deep else 0
+            # Earlier arguments carry the measure (dec n). Trying that depth
+            # before a deeper later argument is what reaches the recursive
+            # call before the constructor tower of the same size.
+            vectors = sorted(
+                product(range(max_depth + 1), repeat=count_params),
+                key=lambda v: (sum(v), tuple(reversed(v))),
+            )
+            if vector_sum is not None:
+                vectors = [vec for vec in vectors if sum(vec) == vector_sum]
+            for vec in vectors:
+                if monotonic() >= mem.get("synquid_deadline", float("inf")):
+                    return
+                fresh = replace(
+                    application,
+                    state=application.state.fork(),
+                    params=list(application.params),
+                    deferred=list(application.deferred),
+                )
+                yield from _application_terms(ctx, level, head, fresh, skip, mem, depths=vec)
+            return
     status = application.check()
     if status in (Status.INVALID, Status.EXHAUSTED):
         if application.params:
@@ -185,9 +240,16 @@ def _application_terms(ctx, level, head, application, skip, mem, filling=False):
         return
     _, expected = application.params[0]
     seen = set()
+    depth = depths[0] if depths else 0
+    rest = depths[1:] if depths else None
     for assignment in application.state.assignments:
         goal = application.state.materialize(expected, assignment)
-        for argument in _arg_gen(ctx, level, goal, skip, mem, application.state):
+        arguments = (
+            _arg_gen(ctx, level, goal, skip, mem, application.state)
+            if filling
+            else _slot_terms(ctx, depth, goal, skip, mem, application.state, level)
+        )
+        for argument in arguments:
             key = repr(argument)
             if key in seen:
                 continue
@@ -207,7 +269,7 @@ def _application_terms(ctx, level, head, application, skip, mem, filling=False):
 
             argument = argument.term if isinstance(argument, InferredArgument) else argument
             new_head = substitution(head, argument, binder) if filling else Application(head, argument)
-            yield from _application_terms(ctx, level, new_head, child, skip, mem, filling)
+            yield from _application_terms(ctx, level, new_head, child, skip, mem, filling, rest)
 
 
 def _materialize_term(term, assignment, state):
@@ -290,11 +352,18 @@ def _scalar_base_name(ty: Type) -> str | None:
 
 
 def _skip_prelude_operator(name: Name, goal: Type) -> bool:
-    """Prelude operators stay on Int, Bool, Float, and String goals.
+    """Prelude operators are not Synquid components.
 
     Their schemas are polymorphic (``forall a. a -> a -> a``), so a datatype
-    goal would otherwise treat ``+`` as a list producer.
+    goal would otherwise treat ``+`` as a list producer. Integer arithmetic
+    is also skipped on scalar goals: the paper's components are the program's
+    own ``inc`` and ``dec``, and the prelude operators drown those out.
+    Comparisons and Boolean connectives stay, because guards are built from them.
     """
+    from aeon.prelude.prelude import INTEGER_ARITHMETIC_OPERATORS
+
+    if name.name in INTEGER_ARITHMETIC_OPERATORS:
+        return True
     return name.name in _PRELUDE_OPERATORS and _scalar_base_name(goal) not in _SCALAR_BASES
 
 
@@ -502,6 +571,7 @@ def _eliminations(
     state: ConstraintState | None = None,
     *,
     conditionals: bool = True,
+    prefer_recursion: bool = False,
 ):
     if state is None:
         state = ConstraintState(
@@ -511,9 +581,15 @@ def _eliminations(
         )
     if level == 0:
         yield from _leaf_terms(ctx, ret_t, skip, state)
-    for name, typ in [
+    components = [
         (n, ty) for n, ty in grammar_bindings(ctx) if not isinstance(ty, (TypeConstructor, RefinedType)) and not skip(n)
-    ]:
+    ]
+    # In argument position the recursive call is the tail of cons. The case
+    # body itself keeps grammar order, so append's arm is cons, not a second call.
+    if prefer_recursion:
+        components.sort(key=lambda item: 0 if "_sq_fix" in item[0].name else 1)
+    prepared: list[tuple] = []
+    for name, typ in components:
         from aeon.verification.constructor_registry import get_constructor_groups
 
         if name.name.endswith("_rec") and name.name[:-4] in get_constructor_groups():
@@ -556,18 +632,32 @@ def _eliminations(
                     inner = instantiate_refinement_with_horn_in_type(inner.body, inner.name, inner.sort, predicate.name)
                     head = RefinementApplication(head, ImplicitRefinementHole(predicate.name))
         application = ApplicationState.start(branch_state, inner, ret_t)
-        yield from _application_terms(ctx, level, head, application, skip, mem)
+        if level == 0 or not application.params:
+            yield from _application_terms(ctx, level, head, application, skip, mem)
+            continue
+        prepared.append((head, application))
+    # Every component at one argument-depth sum before the next sum, which is
+    # generateEAt: dec n meets the tail before a deeper constructor tower.
+    for budget in range(0, level):
+        for head, application in prepared:
+            if monotonic() >= mem.get("synquid_deadline", float("inf")):
+                return
+            yield from _application_terms(ctx, level, head, application, skip, mem, vector_sum=budget)
 
 
 def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
     """Section 3.7, following ``generateMaybeMatchIf``.
 
-    Outside a match: depth-0 E-terms, then the match unknown, then
-    applications and IFAB. Aeon's solver cannot discharge a datatype
-    equation, so the structural match stands in for that unknown and its
-    cases use a full application bound. Inside a match arm, applications
-    come before another match. Computed scrutinees are the final fallback
-    and cost one application. The other conditional branch keeps ``level``.
+    ``generateE`` tries a depth-0 term under the condition unknown first and
+    cuts. A nontrivial condition's other branch is a fresh ``generateI`` at
+    eGuessDepth (3): that is how ``n = 0`` versus ``inc``/``dec`` is found.
+    ``generateMatch`` is the fallback. Outside a match it runs before deeper
+    applications, which otherwise exhaust the budget on partial applications
+    that cannot satisfy the goal. Inside a match arm, applications come
+    before another match, so a cons case is a constructor around a recursive
+    call. Aeon's Horn theory does not discharge a datatype equation, so the
+    structural match stands in for the match unknown. Computed scrutinees
+    are the final fallback and cost one application.
     """
     from aeon.synthesis.modules.synquid.functions import function_terms
     from aeon.synthesis.modules.synquid.patterns import abduced_matches, match_terms, match_variables
@@ -591,68 +681,80 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
         if level > 0:
             yield from _eliminations(ctx, level, ret_t, skip, mem, branch, conditionals=False)
 
-    def expressions(branch):
-        yield from leaves(branch)
-        yield from deeper(branch)
-
     if not conditionals:
         # Scrutinee and argument generation stay elimination-only. Matching
         # here would synthesize a scrutinee by matching again.
-        yield from expressions(state)
+        yield from leaves(state)
+        yield from deeper(state)
         return
-    # A depth-0 E-term with a true condition is returned as itself.
+
+    def conditional(proposals):
+        # generateThen / generateElse. The else keeps the explorer's application
+        # bound: a constructor around dec/inc is not an E-term at depth 0.
+        for then in islice(proposals, 64):
+            if monotonic() >= state.deadline:
+                return
+            result = abduce(state, then, ret_t)
+            if result.status in (Status.UNKNOWN, Status.UNSUPPORTED) and _local_check(ctx, then, ret_t, state):
+                # Unsupported local logic remains eligible for whole-program
+                # verification; it cannot justify pruning an otherwise valid term.
+                yield then
+            guards = dict(result.guards)
+            for condition in result.conditions:
+                otherwise_state = state.assume(negate(condition))
+                if otherwise_state.inhabited() == Status.VALID:
+                    if _local_check(ctx, then, ret_t, state):
+                        yield then
+                    continue
+                # Both regions must be demonstrably nonempty. In particular, an
+                # unknown SMT answer cannot authorize recursive IFAB expansion.
+                if (
+                    otherwise_state.inhabited() != Status.INVALID
+                    or state.assume(condition).inhabited() != Status.INVALID
+                ):
+                    continue
+                binder = fresh_name("guard")
+                guard_type = RefinedType(binder, t_bool, LiquidApp(Name("==", 0), [LiquidVar(binder), condition]))
+                if condition in guards:
+                    guard_terms = [guards[condition]]
+                else:
+                    guard_terms = synthes_memory(ctx, level, guard_type, skip, mem, state, conditionals=False)
+                for guard in guard_terms:
+                    if not _local_check(ctx, guard, guard_type, state):
+                        continue
+                    state.stats.abduced_guards += 1
+                    for otherwise in synthes_memory(ctx, max(level, 3), ret_t, skip, mem, otherwise_state):
+                        if _local_check(ctx, otherwise, ret_t, otherwise_state):
+                            yield Annotation(If(guard, then, otherwise), ret_t)
+
+    def applications():
+        for term in deeper(state):
+            if _local_check(ctx, term, ret_t, state):
+                yield term
+        if level > 0:
+            yield from conditional(deeper(branch_environment(state, ret_t)))
+
+    def matches():
+        # Constructor facts stay ahead of the general match (Flag's tag split).
+        yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
+        yield from match_variables(ctx, level, ret_t, skip, mem, state)
+
+    # Depth-0 E-term with a true condition, then the same term under the
+    # condition unknown. generateE commits here, before deeper applications.
     for term in leaves(state):
         if _local_check(ctx, term, ret_t, state):
             yield term
-    # Outside a match, the match unknown is tried before applications and
-    # before the full conditional qualifier set. Aeon's Horn theory does not
-    # solve datatype equations, so the structural match is that unknown.
-    # Inside an arm, applications come first: the cons case is a recursive
-    # call, and another match is only the fallback.
+    yield from conditional(leaves(branch_environment(state, ret_t)))
     if state.match_depth == 0:
-        yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
-        yield from match_variables(ctx, level, ret_t, skip, mem, state)
-    for term in deeper(state):
-        if _local_check(ctx, term, ret_t, state):
-            yield term
-    if state.match_depth > 0:
-        yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
-        yield from match_variables(ctx, level, ret_t, skip, mem, state)
-    # IFAB is the path-condition unknown. It runs at this depth for every goal.
-    proposals = expressions(branch_environment(state, ret_t))
-    for then in islice(proposals, 64):
-        if monotonic() >= state.deadline:
-            return
-        result = abduce(state, then, ret_t)
-        if result.status in (Status.UNKNOWN, Status.UNSUPPORTED) and _local_check(ctx, then, ret_t, state):
-            # Unsupported local logic remains eligible for whole-program
-            # verification; it cannot justify pruning an otherwise valid term.
-            yield then
-        guards = dict(result.guards)
-        for condition in result.conditions:
-            otherwise_state = state.assume(negate(condition))
-            if otherwise_state.inhabited() == Status.VALID:
-                if _local_check(ctx, then, ret_t, state):
-                    yield then
-                continue
-            # Both regions must be demonstrably nonempty. In particular, an
-            # unknown SMT answer cannot authorize recursive IFAB expansion.
-            if otherwise_state.inhabited() != Status.INVALID or state.assume(condition).inhabited() != Status.INVALID:
-                continue
-            binder = fresh_name("guard")
-            guard_type = RefinedType(binder, t_bool, LiquidApp(Name("==", 0), [LiquidVar(binder), condition]))
-            if condition in guards:
-                guard_terms = [guards[condition]]
-            else:
-                guard_terms = synthes_memory(ctx, level, guard_type, skip, mem, state, conditionals=False)
-            for guard in guard_terms:
-                if not _local_check(ctx, guard, guard_type, state):
-                    continue
-                state.stats.abduced_guards += 1
-                for otherwise in synthes_memory(ctx, level, ret_t, skip, mem, otherwise_state):
-                    if _local_check(ctx, otherwise, ret_t, otherwise_state):
-                        yield Annotation(If(guard, then, otherwise), ret_t)
-    # Computed scrutinees are generateMatch after variable scrutinees, and
-    # they cost one application.
+        # generateMatch. Deeper E-terms stay after it: enumerating every failed
+        # partial application first is what keeps take and drop from the match
+        # on xs once n = 0 has been cut.
+        yield from matches()
+        yield from applications()
+    else:
+        # Inside a case, the recursive call is an application. Another match
+        # is only the fallback, so append stays a single match.
+        yield from applications()
+        yield from matches()
     if level > 0:
         yield from match_terms(ctx, level, ret_t, skip, mem, state)

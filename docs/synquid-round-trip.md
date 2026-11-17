@@ -26,27 +26,33 @@ inside `@allow_recursion` definitions receive recursive hypotheses weakened by
 the source's explicit termination metrics. Without a metric, recursive return
 refinements are erased as in the core checker.
 
-At scalar goals the engine follows `generateMaybeMatchIf`. Depth-0 elimination
-terms come first. Outside a match, the next step is the match unknown: a
-scalar-constructor equation when the solver can discharge it, and otherwise a
-structural match on each in-scope datatype value. Aeon's Horn theory does not
-solve datatype equations, so lists take the structural match. A datatype
-goal's cases are synthesized at an application depth of at least 2, enough for
-a constructor around one recursive call. That is the original explorer giving
-every case the full `eGuessDepth` rather than the current iterative-deepening
-step. A match arm tries applications before it opens another match, so the
-`cons` arm of `append` is a recursive call. IFAB then proposes a branch under
-an unknown path predicate at the current depth. A computed scrutinee is the
-last fallback and costs one application. Prelude arithmetic, comparison, and
-Boolean operators,
-including `toFloat`, are components only for `Int`, `Bool`, `Float`, and
-`String` goals. IFAB solves for the path predicate, constructs an executable
+At scalar goals the engine follows `generateMaybeMatchIf`. A depth-0 E-term
+is tried under the condition unknown first, and that choice is cut. Condition
+qualifiers are the original `condQuals`: Boolean-component refinements over
+arity-0 scalars, so a measure application such as `len xs` is not a guard. A
+nontrivial condition's other branch is a fresh `generateI` at `eGuessDepth`
+(3), which is how `n = 0` versus `inc`/`dec` is found. `generateMatch` is the
+fallback. Aeon's Horn theory does not solve datatype equations, so the match
+unknown is a structural match on each in-scope datatype value. An unreachable
+constructor is filled and the search continues (`generateError`); the
+whole-program checker sees that branch under the path implication. A datatype
+goal's cases are synthesized at an application depth of at least 2. A match
+arm tries applications before it opens another match, so the `cons` arm of
+`append` is a constructor around a recursive call. Deeper applications follow
+the match outside a case. Argument vectors of one size are tried together,
+with depth on earlier arguments first, so `dec n` is paired with its tail
+before a constructor tower of the same size. In argument position the
+recursive symbol comes before constructors. A computed scrutinee is the last
+fallback and costs one application. Prelude integer arithmetic is not a
+component. Comparisons and Boolean connectives, including `toFloat`, are
+components only for `Int`, `Bool`, `Float`, and `String` goals. IFAB solves
+for the path predicate, constructs an executable
 Boolean guard, and synthesizes the remaining branch under its negation. Executable atoms are realized
 directly, as in the original Synquid implementation; other guards are synthesis
-subgoals of type `{b:Bool | b = condition}`. Nested conditionals retain the
-application-depth bound. Both path regions must be proved nonempty before
+subgoals of type `{b:Bool | b = condition}`. The guard stays at the current
+depth; the other branch is the fresh `generateI` above. Both path regions must be proved nonempty before
 recursive expansion, so each conditional removes a nonempty qualifier region.
-There is no independent conditional-depth bound.
+The other branch uses the explorer's `eGuessDepth`, not a separate conditional-depth parameter.
 
 Match abduction first tries scalar-constructor facts for in-scope datatype
 variables. General MATCH remains the fallback, including datatypes without
