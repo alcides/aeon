@@ -12,6 +12,8 @@ python -m aeon --no-main --budget 5 -s smt \
   examples/benchmarks/bnsynth/cases/misc1_2_1.ae
 python -m aeon --no-main --budget 5 -s boolean_bounded \
   examples/benchmarks/bnsynth/cases/lut1_2_2.ae
+python -m aeon --no-main --budget 10 -s bnsynth \
+  examples/benchmarks/bnsynth/cases/lut1_2_2.ae
 ```
 
 Use the benchmark runner below for claims of success: a baseline's sampled
@@ -157,11 +159,38 @@ other claims are labelled uncertified. Timeout is never reported as UNSAT.
 `--paper-schedule` optionally runs the upstream sequence of (K, seconds):
 (1,60), (5,120), (20,120), (50,180), (500,300), (1000,600), stopping after the
 first independently verified solution. The first successful scheduled K does
-not establish minimum K. These Aeon algorithms differ from the paper's neural
-learner; the included coverage report is a smoke evaluation, not a reproduction
-of its performance claims.
+not establish minimum K. `bnsynth` implements the paper's gated neural CNF
+learner and counterexample loop, using Aeon VCs and Z3 sampling/verification;
+install `AeonLang[synthesis-bnsynth]`. `boolean_bounded` is a separate SAT-template
+algorithm. Sampling, timing and simplification differ from the reference tool,
+so these reports are smoke evaluations, not reproductions of its measurements.
 
 ## Recorded smoke coverage
+
+**Historical report correction:** `coverage.json` and `validation.json` predate
+the exact-application-identity fix. Their `lut7-ctrl_7_1` bounded-UNSAT report at
+K=5 is incorrect. Ordinary typechecking dropped call equations above its
+64-node singleton limit; treating the remaining stronger VCs as exact made the
+synthesis problem falsely infeasible. Synthesis now retains these equations.
+An independent five-clause, eleven-literal certificate and a successful solver
+run are covered by `tests/boolean_bounded_precision_test.py`. Historical reports
+are retained as records; their uncertified UNSAT claims are not ground truth.
+
+[neural-validation.json](neural-validation.json) records the corrected solver
+run and the new neural backend, with source hashes, reproduction commands and
+portable candidate certificates:
+
+| Backend | K | Synthesis budget per case | Verified / 38 | Other outcomes |
+| --- | ---: | ---: | ---: | --- |
+| `boolean_bounded`, after the identity fix | 5 | 2 s | 22 | 7 bounded-UNSAT reports, 9 timeouts |
+| `bnsynth`, neural learner | 5 | 10 s | 16 | 22 timeouts |
+
+The corrected solver also solved `lut7-ctrl_7_1` within a separate 10-second
+budget (about 5.7 seconds of synthesis in that run). These unequal budgets and
+single seeds are executable coverage, not a ranking. The neural run includes
+PyTorch initialization and never reports bounded UNSAT. Archived certificates
+can be rechecked explicitly with `verify RESULT.json --certificate-only`;
+rerun the commands to retain and verify the complete candidate `.ae` files.
 
 [coverage.json](coverage.json) is the original smoke report. It retains every attempt, timings, source/code hashes,
 portable candidate certificates and reproduction commands. All **38/38** imports
