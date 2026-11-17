@@ -48,7 +48,7 @@ def match_variables(ctx, level, goal, skip, mem, state):
     """Match each in-scope datatype value. Do not synthesize a scrutinee.
 
     Branch bodies keep ``level``. A constructor around a recursive call needs
-    application depth 2; below that, the arm only tries leaves and applications.
+    application depth 2. Nested variable matches are still tried below that.
     """
     groups = get_constructor_groups()
     if not groups:

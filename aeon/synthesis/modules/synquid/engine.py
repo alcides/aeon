@@ -37,7 +37,15 @@ from aeon.synthesis.modules.synquid.constraints import ConstraintState, negate, 
 from aeon.synthesis.modules.synquid.round_trip import ApplicationState, erase, match_result
 from aeon.synthesis.modules.synquid.solver import SearchStats, SMTQueryState, Status
 from aeon.synthesis.modules.synquid.abduction import abduce, branch_environment
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import (
+    RefinementBinder,
+    ReflectedBinder,
+    TypeBinder,
+    TypeConstructorBinder,
+    TypingContext,
+    UninterpretedBinder,
+    VariableBinder,
+)
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.name import Name
 from aeon.verification.state import VerificationState
@@ -320,6 +328,17 @@ def _negative_cache(mem: dict) -> _NegativeCache:
     return cache
 
 
+def _context_entry_key(entry: object) -> tuple[str, str] | None:
+    """A stable identity for one context entry in a negative-cache key."""
+    if isinstance(entry, (VariableBinder, RefinementBinder, UninterpretedBinder, ReflectedBinder)):
+        return str(entry.name), repr(entry.type)
+    if isinstance(entry, TypeConstructorBinder):
+        return str(entry.name), repr(tuple(entry.args))
+    if isinstance(entry, TypeBinder):
+        return str(entry.type_name), repr(entry.type_kind)
+    return None
+
+
 def _negative_key(
     level: int,
     goal: Type,
@@ -335,11 +354,7 @@ def _negative_key(
     unknowns. ``id(skip)`` keeps a recursive hypothesis from sharing a failure
     recorded while that hypothesis was hidden.
     """
-    binders = tuple(
-        (str(entry.name), repr(getattr(entry, "type", None)))
-        for entry in state.context.entries
-        if getattr(entry, "name", None) is not None
-    )
+    binders = tuple(key for entry in state.context.entries if (key := _context_entry_key(entry)) is not None)
     return (
         level,
         conditionals,
@@ -552,8 +567,9 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
     Matches have a separate nesting bound carried by the constraint branch.
     A variable match runs after depth-0 leaves and before any depth-``level``
     application, so a parameter match is not stuck behind the elimination
-    enumeration. Nested matches and datatype-goal IFAB wait until depth 2.
-    Computed scrutinees stay after IFAB and start at that depth.
+    enumeration.     A nested match on a datatype goal waits until depth 2. Other nested matches
+    stay available. Datatype-goal IFAB, and IFAB inside a match arm, wait too.
+    Computed scrutinees stay after IFAB and cost one application.
     """
     from aeon.synthesis.modules.synquid.functions import function_terms
     from aeon.synthesis.modules.synquid.patterns import abduced_matches, match_terms, match_variables
@@ -592,33 +608,28 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
     for term in leaves(state):
         if _local_check(ctx, term, ret_t, state):
             yield term
-    # Inside a match, below the depth that can hold a constructor around a
-    # recursive call, another match or a conditional cannot be that term.
-    # Leaves and applications still run, so the nil arm can return its
-    # variable. The outer parameter match is unchanged.
-    if level < 2 and state.match_depth > 0:
-        for term in deeper(state):
-            if _local_check(ctx, term, ret_t, state):
-                yield term
-        return
-    # Scalar-constructor facts, then a general match on each in-scope value.
-    # Both use variables as scrutinees. Abduction stays first so a nullary
-    # datatype such as Flag is solved by the constructor-fact rule.
-    yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
-    yield from match_variables(ctx, level, ret_t, skip, mem, state)
-    for term in deeper(state):
-        if _local_check(ctx, term, ret_t, state):
-            yield term
-    # A datatype goal below depth 2 cannot put an application in either arm of
-    # a conditional, and the qualifier search for those arms is the cost that
-    # used to run out the budget before a parameter match at depth 2. Scalar
-    # goals keep IFAB at depth 0. The same conditional is tried again once an
-    # arm can contain an application.
     from aeon.verification.constructor_registry import get_constructor_groups
 
     goal_base = erase(ret_t)
     inductive_goal = isinstance(goal_base, TypeConstructor) and goal_base.name.name in get_constructor_groups()
-    if inductive_goal and level < 2:
+    # A nested match on a datatype goal cannot hold a constructor around a
+    # recursive call below depth 2, and exploring it used to exhaust the
+    # budget. Nested matches whose goal is not a datatype, such as unwrapping
+    # a box down to its element, still run. The outer parameter match
+    # (match_depth 0) always runs.
+    if not (level < 2 and state.match_depth > 0 and inductive_goal):
+        # Scalar-constructor facts, then a general match on each in-scope
+        # value. Both use variables as scrutinees. Abduction stays first so a
+        # nullary datatype such as Flag is solved by the constructor-fact rule.
+        yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
+        yield from match_variables(ctx, level, ret_t, skip, mem, state)
+    for term in deeper(state):
+        if _local_check(ctx, term, ret_t, state):
+            yield term
+    # Below depth 2, IFAB on a datatype goal or inside a match arm cannot put
+    # an application in either branch. Scalar goals outside a match keep IFAB
+    # at depth 0.
+    if level < 2 and (inductive_goal or state.match_depth > 0):
         return
     proposals = expressions(branch_environment(state, ret_t))
     for then in islice(proposals, 64):
@@ -653,8 +664,7 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
                 for otherwise in synthes_memory(ctx, level, ret_t, skip, mem, otherwise_state):
                     if _local_check(ctx, otherwise, ret_t, otherwise_state):
                         yield Annotation(If(guard, then, otherwise), ret_t)
-    # A computed scrutinee spends one application, so it is only available
-    # from depth 2. Depth 0 and 1 scrutinees are variables, already handled by
-    # match_variables.
-    if level >= 2:
+    # A computed scrutinee spends one application. Depth 0 has none left to
+    # spend; its variable scrutinees were already matched above.
+    if level > 0:
         yield from match_terms(ctx, level, ret_t, skip, mem, state)

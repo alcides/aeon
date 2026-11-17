@@ -30,14 +30,15 @@ At scalar goals the engine enumerates elimination terms (variables, literals,
 and applications), checking partial applications as it constructs them. Depth-0
 leaves come first. Each in-scope datatype variable is then matched at the
 current branch depth, before any deeper application and before IFAB, so a
-parameter match is not stuck behind the elimination enumeration. A nested match
-or a conditional inside a match arm waits until application depth 2, which is
-the depth that can hold a constructor around a recursive call; until then the
-arm only tries leaves and applications. A datatype goal also defers IFAB until
-that depth, because neither arm could contain an application. Scalar goals keep
-IFAB at depth 0. Computed scrutinees are enumerated after IFAB, from depth 2,
-and cost one application: their expressions are synthesized one depth lower
-than the branches. Prelude arithmetic, comparison, and Boolean operators,
+parameter match is not stuck behind the elimination enumeration. A nested
+match whose goal is itself a datatype waits until application depth 2, because
+that is the depth that can hold a constructor around a recursive call. Nested
+matches with any other goal still run. IFAB inside a match arm, and IFAB for a
+datatype goal, wait until that same depth. Scalar goals outside a match keep
+IFAB at depth 0. Computed scrutinees are enumerated
+after IFAB and cost one application: their expressions are synthesized one
+depth lower than the branches. Prelude arithmetic, comparison, and Boolean
+operators,
 including `toFloat`, are components only for `Int`, `Bool`, `Float`, and
 `String` goals. It tries
 unconditional solutions first, then IFAB: propose a branch under an unknown path
