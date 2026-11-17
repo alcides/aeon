@@ -57,7 +57,9 @@ def test_match_preserves_abstract_element_refinement(computed):
     source = definitions + f"def unwrap : forall a:B, forall <q:a -> Bool>, {signature} -> a<q> := ?hole;"
     program, root, hole, goal, local = hole_context(source)
     mem = {"synquid_deadline": monotonic() + 15, "synquid_match_depth": 1}
-    terms = synthes_memory(local, int(computed), goal, skip, mem)
+    # A computed scrutinee is an application, so it spends one depth and the
+    # match itself is searched one depth higher. A variable scrutinee does not.
+    terms = synthes_memory(local, 2 if computed else 0, goal, skip, mem)
     term = next(t for t in terms if check_type(local, t, goal))
     assert mem["synquid_stats"].matches >= 1
     assert "Box_rec" in str(term)

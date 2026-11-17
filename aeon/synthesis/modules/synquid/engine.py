@@ -30,14 +30,31 @@ from aeon.core.types import (
     TypeVar,
     RefinementPolymorphism,
 )
+from aeon.compilation.session import current_session
+from aeon.prelude.prelude import ALL_OPS
 from aeon.synthesis.modules.synquid.decompose import uncurry as uncurry
 from aeon.synthesis.modules.synquid.constraints import ConstraintState, negate, fresh_name
 from aeon.synthesis.modules.synquid.round_trip import ApplicationState, erase, match_result
 from aeon.synthesis.modules.synquid.solver import SearchStats, SMTQueryState, Status
 from aeon.synthesis.modules.synquid.abduction import abduce, branch_environment
-from aeon.typechecking.context import TypingContext
+from aeon.typechecking.context import (
+    RefinementBinder,
+    ReflectedBinder,
+    TypeBinder,
+    TypeConstructorBinder,
+    TypingContext,
+    UninterpretedBinder,
+    VariableBinder,
+)
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.name import Name
+from aeon.verification.state import VerificationState
+
+# Arithmetic, comparison, and Boolean operators are scalar components. ``toFloat``
+# is the one prelude coercion outside ``ALL_OPS`` with the same restriction.
+_PRELUDE_OPERATORS = frozenset(ALL_OPS) | {"toFloat"}
+_SCALAR_BASES = frozenset({"Int", "Bool", "Float", "String"})
+_NEGATIVE_CACHE_LIMIT = 4096
 
 
 def monomorfic(t: Type, typing_ctx: TypingContext, t_l: dict[Name, Type]):
@@ -265,6 +282,107 @@ def closing(elems: tuple, typ: TypeConstructor):
         return Application(closing(elems[:-1], typ), elems[-1])
 
 
+def _scalar_base_name(ty: Type) -> str | None:
+    base = erase(ty)
+    if isinstance(base, TypeConstructor) and not base.args:
+        return base.name.name
+    return None
+
+
+def _skip_prelude_operator(name: Name, goal: Type) -> bool:
+    """Prelude operators stay on Int, Bool, Float, and String goals.
+
+    Their schemas are polymorphic (``forall a. a -> a -> a``), so a datatype
+    goal would otherwise treat ``+`` as a list producer.
+    """
+    return name.name in _PRELUDE_OPERATORS and _scalar_base_name(goal) not in _SCALAR_BASES
+
+
+class _NegativeCache:
+    """Definite failed subgoals for one compilation session.
+
+    Successful terms are not stored. A key has to mention the pending liquid
+    state, so a positive hit would still need to materialize that assignment.
+    """
+
+    def __init__(self) -> None:
+        self.entries: set[tuple[object, ...]] = set()
+        self.session: object = None
+        self.generation = -1
+
+    def prepare(self) -> None:
+        session = current_session()
+        generation = session.state(VerificationState).generation
+        if self.session is not session or self.generation != generation:
+            self.entries.clear()
+            self.session = session
+            self.generation = generation
+
+
+def _negative_cache(mem: dict) -> _NegativeCache:
+    cache = mem.get("synquid_negative_cache")
+    if not isinstance(cache, _NegativeCache):
+        cache = _NegativeCache()
+        mem["synquid_negative_cache"] = cache
+    cache.prepare()
+    return cache
+
+
+def _context_entry_key(entry: object) -> tuple[str, str] | None:
+    """A stable identity for one context entry in a negative-cache key."""
+    if isinstance(entry, (VariableBinder, RefinementBinder, UninterpretedBinder, ReflectedBinder)):
+        return str(entry.name), repr(entry.type)
+    if isinstance(entry, TypeConstructorBinder):
+        return str(entry.name), repr(tuple(entry.args))
+    if isinstance(entry, TypeBinder):
+        return str(entry.type_name), repr(entry.type_kind)
+    return None
+
+
+def _negative_key(
+    level: int,
+    goal: Type,
+    state: ConstraintState,
+    conditionals: bool,
+    skip: Callable[[Name], bool],
+    mem: dict,
+) -> tuple[object, ...]:
+    """Everything a subgoal consults, except a liquid assignment of a success.
+
+    Path assumptions live in the context. Pending obligations are the unsolved
+    constraints. Fresh predicate names distinguish forks that invented different
+    unknowns. ``id(skip)`` keeps a recursive hypothesis from sharing a failure
+    recorded while that hypothesis was hidden.
+    """
+    binders = tuple(key for entry in state.context.entries if (key := _context_entry_key(entry)) is not None)
+    return (
+        level,
+        conditionals,
+        state.match_depth,
+        mem.get("synquid_match_depth"),
+        mem.get("synquid_fix", True),
+        repr(goal),
+        repr(state.pending),
+        repr(state.constraints),
+        tuple(sorted(str(name) for name in state.matched)),
+        binders,
+        tuple(sorted((str(name), repr(ty)) for name, ty in state.type_assignments.items())),
+        tuple(sorted(str(name) for name in state.predicates)),
+        id(skip),
+    )
+
+
+def _definite_failure(before: dict[str, int], after: dict[str, int]) -> bool:
+    """True when every new solver answer was INVALID or EXHAUSTED."""
+    if after.get(Status.UNKNOWN.value, 0) > before.get(Status.UNKNOWN.value, 0):
+        return False
+    if after.get(Status.UNSUPPORTED.value, 0) > before.get(Status.UNSUPPORTED.value, 0):
+        return False
+    invalid = after.get(Status.INVALID.value, 0) - before.get(Status.INVALID.value, 0)
+    exhausted = after.get(Status.EXHAUSTED.value, 0) - before.get(Status.EXHAUSTED.value, 0)
+    return invalid > 0 or exhausted > 0
+
+
 def synthes_memory(
     ctx: TypingContext,
     level: int,
@@ -275,9 +393,9 @@ def synthes_memory(
     *,
     conditionals: bool = True,
 ):
-    # A context/level/type key cannot distinguish liquid assignments or pending
-    # result obligations. Disable term memoization until state equivalence is
-    # established; mem carries instrumentation, the deadline, and SMT state.
+    # Positive term memoization stays off: a hit would have to replay the liquid
+    # assignment that built the term. Failed subgoals are cached only when every
+    # solver answer was a definite invalid or exhausted result.
     if state is None:
         state = ConstraintState(
             ctx,
@@ -285,15 +403,32 @@ def synthes_memory(
             deadline=mem.get("synquid_deadline", float("inf")),
             solver_state=mem.setdefault("synquid_solver_state", SMTQueryState()),
         )
-    if monotonic() >= mem.get("synquid_deadline", float("inf")):
+    deadline = mem.get("synquid_deadline", float("inf"))
+    if monotonic() >= deadline:
         return
+    cache = _negative_cache(mem)
+    try:
+        key = _negative_key(level, ret_t, state, conditionals, skip, mem)
+    except Exception:
+        key = None
+    if key is not None and key in cache.entries:
+        return
+    before = dict(state.stats.outcomes)
+    found = False
     try:
         for item in synthes(ctx, level, ret_t, skip, mem, state, conditionals=conditionals):
-            if monotonic() >= mem.get("synquid_deadline", float("inf")):
+            if monotonic() >= deadline:
                 return
+            found = True
             yield item
     except NotImplementedError:
         return
+    if found or key is None or monotonic() >= deadline:
+        return
+    if not _definite_failure(before, state.stats.outcomes):
+        return
+    if len(cache.entries) < _NEGATIVE_CACHE_LIMIT:
+        cache.entries.add(key)
 
 
 def match_type(t1: Type, t2: Type):
@@ -393,6 +528,8 @@ def _eliminations(
         shape = match_result(result, ret_t, set(tyvars))
         if shape is None:
             continue
+        if _skip_prelude_operator(name, ret_t):
+            continue
         head: Term = Var(name)
         atoms = extract_qualifier_atoms(ctx, goal_type=ret_t, max_atoms=None)
         inner = typ
@@ -423,14 +560,17 @@ def _eliminations(
 
 
 def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
-    """Section 3.7: introduce functions, enumerate E-terms, IFAB, then MATCH.
+    """Section 3.7, following ``generateMaybeMatchIf``.
 
-    ``level`` bounds application depth only. The remaining conditional branch
-    keeps that bound; satisfiable, disjoint path regions ensure progress.
-    Matches have a separate nesting bound carried by the constraint branch.
+    Outside a match: depth-0 E-terms, then the match unknown, then
+    applications and IFAB. Aeon's solver cannot discharge a datatype
+    equation, so the structural match stands in for that unknown and its
+    cases use a full application bound. Inside a match arm, applications
+    come before another match. Computed scrutinees are the final fallback
+    and cost one application. The other conditional branch keeps ``level``.
     """
     from aeon.synthesis.modules.synquid.functions import function_terms
-    from aeon.synthesis.modules.synquid.patterns import match_terms, abduced_matches
+    from aeon.synthesis.modules.synquid.patterns import abduced_matches, match_terms, match_variables
     from aeon.core.liquid import LiquidApp, LiquidVar
     from aeon.core.types import t_bool
 
@@ -444,20 +584,41 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
         yield from function_terms(ctx, level, ret_t, skip, mem, state)
         return
 
-    def expressions(branch):
+    def leaves(branch):
         yield from _eliminations(ctx, 0, ret_t, skip, mem, branch, conditionals=False)
+
+    def deeper(branch):
         if level > 0:
             yield from _eliminations(ctx, level, ret_t, skip, mem, branch, conditionals=False)
 
+    def expressions(branch):
+        yield from leaves(branch)
+        yield from deeper(branch)
+
     if not conditionals:
+        # Scrutinee and argument generation stay elimination-only. Matching
+        # here would synthesize a scrutinee by matching again.
         yield from expressions(state)
         return
-    # Unconditional E-terms are the true-condition case of IFAB. Trying that
-    # case first avoids inventing a branch when the current path already proves
-    # an available recursive call or constructor application.
-    for term in expressions(state):
+    # A depth-0 E-term with a true condition is returned as itself.
+    for term in leaves(state):
         if _local_check(ctx, term, ret_t, state):
             yield term
+    # Outside a match, the match unknown is tried before applications and
+    # before the full conditional qualifier set. Aeon's Horn theory does not
+    # solve datatype equations, so the structural match is that unknown.
+    # Inside an arm, applications come first: the cons case is a recursive
+    # call, and another match is only the fallback.
+    if state.match_depth == 0:
+        yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
+        yield from match_variables(ctx, level, ret_t, skip, mem, state)
+    for term in deeper(state):
+        if _local_check(ctx, term, ret_t, state):
+            yield term
+    if state.match_depth > 0:
+        yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
+        yield from match_variables(ctx, level, ret_t, skip, mem, state)
+    # IFAB is the path-condition unknown. It runs at this depth for every goal.
     proposals = expressions(branch_environment(state, ret_t))
     for then in islice(proposals, 64):
         if monotonic() >= state.deadline:
@@ -491,5 +652,7 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
                 for otherwise in synthes_memory(ctx, level, ret_t, skip, mem, otherwise_state):
                     if _local_check(ctx, otherwise, ret_t, otherwise_state):
                         yield Annotation(If(guard, then, otherwise), ret_t)
-    yield from abduced_matches(ctx, level, ret_t, skip, mem, state)
-    yield from match_terms(ctx, level, ret_t, skip, mem, state)
+    # Computed scrutinees are generateMatch after variable scrutinees, and
+    # they cost one application.
+    if level > 0:
+        yield from match_terms(ctx, level, ret_t, skip, mem, state)
