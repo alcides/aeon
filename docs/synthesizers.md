@@ -656,6 +656,19 @@ ten-element arrays instead slowed from 0.81 to 1.90 seconds. These observations
 support better list construction and knapsack search quality, not a universal
 throughput improvement; the flag preserves the ordinary-search comparison.
 
+An [expanded comparison](benchmarks/tdsyn-measure-examples.json) covers 11
+list, array and image tasks with three seeds per setting (66 trials). Median
+length-five list construction improved from 3.13 to 0.48 seconds, and an
+eight-element array with endpoint constraints from 3.27 to 1.21 seconds.
+Integer/float array fitting errors fell by 68.4%/19.8% within 60-second budgets.
+All successful returned values were independently checked. Increasing relational
+lists timed out in both settings, and a two-hole crop left one hole unfilled.
+Image construction showed no speedup and produced no structural proposals;
+the image-color fitting improvement appears to be an indirect change in SMT
+sampling. The key-image benchmark exposes its target to synthesis and both
+settings achieve zero error by resizing that target, so it is not evidence of
+image reconstruction ability.
+
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
 
 QTT usage is checked during search as well as final validation. Partial programs
