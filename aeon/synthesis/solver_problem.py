@@ -21,7 +21,7 @@ from aeon.synthesis.fitness_eval import without_main_placeholder
 from aeon.synthesis.joint import HoleSpec, JointSynthesizer
 from aeon.typechecking.context import TypingContext, ReflectedBinder
 from aeon.typechecking.entailment import entailment_context
-from aeon.typechecking.typeinfer import check
+from aeon.typechecking.typeinfer import check, exact_application_identities
 from aeon.utils.name import Name, fresh_counter
 from aeon.verification.helpers import simplify_expr
 from aeon.verification.smt import flatten
@@ -113,6 +113,7 @@ def _check_liquid(term: LiquidTerm, symbols: set[Name]) -> None:
             raise SynthesisNotSuccessful(f"Joint solver cannot translate predicate {term}")
 
 
+@exact_application_identities()
 def build_solver_problem(
     ctx: TypingContext,
     program: Term,

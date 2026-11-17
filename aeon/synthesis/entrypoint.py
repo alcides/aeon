@@ -854,10 +854,8 @@ def _synthesize_joint(
         )
         # Backends cannot bypass joint validity or return only some elements.
         if result is not None and not validate(result):
-            if isolated:
-                from aeon.synthesis.modules.boolean_bounded import BoundedBooleanFailure
-
-                raise BoundedBooleanFailure("validation_error", "candidate failed final whole-program validation")
+            if isinstance(synthesizer, BooleanBoundedSynthesizer):
+                raise synthesizer.failure_type("validation_error", "candidate failed final whole-program validation")
             result = None
         if result is not None:
             result = dataclasses.replace(result, terms=tuple(simplify_boolean_conditionals(t) for t in result.terms))

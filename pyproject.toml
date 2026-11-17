@@ -74,6 +74,9 @@ synthesis-rl = [
     # LearnedGuidance uses XGBoost's scikit-learn estimator interface.
     "scikit-learn",
 ]
+synthesis-bnsynth = [
+    "torch>=2.5,<3",
+]
 nn = [
     "torch"
 ]

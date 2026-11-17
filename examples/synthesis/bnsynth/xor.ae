@@ -1,0 +1,4 @@
+# python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/xor.ae
+# Learn two CNF clauses with a gated neural network; verify on every input.
+@bounded_cnf(2)
+def xor(x:Bool)(y:Bool):{r:Bool | r = (x != y)} := ?body;

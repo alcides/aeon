@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import replace
 from contextvars import ContextVar
+from contextlib import contextmanager
 from typing import Iterable
 
 from loguru import logger
@@ -298,6 +299,24 @@ def _reflected_impl_for(
     return (tuple(ty_params), liq)
 
 
+_exact_application_identities: ContextVar[bool] = ContextVar("exact_application_identities", default=False)
+
+
+@contextmanager
+def exact_application_identities():
+    """Retain call equations when VCs define a synthesis problem.
+
+    Ordinary checking can conservatively discard large singleton equalities.
+    Synthesis cannot: making a contract harder can turn a feasible problem into
+    a false UNSAT claim. Callers must contain this exact work with a deadline.
+    """
+    token = _exact_application_identities.set(True)
+    try:
+        yield
+    finally:
+        _exact_application_identities.reset(token)
+
+
 def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool = False) -> LiquidTerm | None:
     """Liquid encoding of an application term for selfification (issue #378).
 
@@ -329,7 +348,7 @@ def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool 
     while pending:
         node = pending.pop()
         visited += 1
-        if visited > 64:
+        if visited > 64 and not _exact_application_identities.get():
             return None
         if isinstance(node, Application):
             pending.extend((node.fun, node.arg))

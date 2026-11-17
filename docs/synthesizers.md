@@ -425,6 +425,65 @@ mismatch rate plus a configurable complexity penalty. See
 supported inputs, and reproducible adaptive/uniform/full-data comparisons.
 
 
+### `bnsynth` — Neural bounded Boolean synthesis
+
+Implements the CNF architecture-1 learner and counterexample loop from
+[BNSynth: Bounded Boolean Functional Synthesis](https://arxiv.org/abs/2212.08170)
+(Algorithm 1 and sections 2.4–3.4). Install its optional CPU-capable dependency:
+
+```bash
+pip install 'AeonLang[synthesis-bnsynth]'
+python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/xor.ae
+python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/coupled.ae
+```
+
+The input contract is the same pure first-order Boolean fragment and hard
+`@bounded_cnf(K)` bound as `boolean_bounded`. Each output gets a gated continuous
+logic network with positive/negative input literals, at most K OR clauses and
+one AND output. Product t-norms and dual t-conorms make the gates differentiable.
+CPU PyTorch trains the gates using Adam (learning rate 0.01), squared-error loss
+and the reference implementation's gate regularizer (coefficient 1e-6). Gates
+are projected into [0,1] and thresholded at 0.5 to reconstruct ordinary Aeon
+expressions. Training checks the extracted Boolean network, not just its soft
+predictions, against the labels.
+
+The loop draws consistent satisfying input/output examples, trains each output,
+then verifies all compiler obligations universally. A counterexample adds a new
+training instance and restarts learning. Nondeterministic output choices are
+selected as a joint satisfying tuple; equal inputs never get contradictory
+labels. Globally unconstrained rows are discarded. Nested calls and lexical
+captures retain the compiler's scoped function dependencies. The exact verifier,
+CNF gate and full Aeon validation must all accept before a result is returned.
+
+Integration differences from the pinned
+[reference implementation](https://github.com/rrlcs/bnsynth/tree/12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4):
+
+- Aeon compiler VCs replace the Verilog input pipeline. Seeded Z3 sampling of
+  satisfying finite relations replaces the external Manthan weighted sampler;
+  Z3 also replaces PicoSAT for exact counterexample queries.
+- Training uses full batches and restarts after 1,000 unsuccessful epochs,
+  within the user's wall-clock budget. Python callers can set `initial_samples`
+  (default 8 per obligation) and `epochs_per_restart`.
+- Extracted candidates must respect K directly. The artifact's optional
+  uncovered-sample patching and extra postprocessing are not used to bypass K.
+- There is no SAT-template candidate search or automatic fallback. SAT assigns
+  training labels and verifies candidates; neural training chooses every gate.
+
+Learning failure is a timeout/search failure, **never a proof of bounded UNSAT**.
+An inconsistent finite sample relation reports `no_solution`; solver unknown,
+runtime failures and validation disagreements remain distinct errors. Report
+fields include epochs, trained models, training rows, restarts, counterexamples
+and validated candidates. `enumeration_complete` is always false. Optional
+objectives retain the Pareto front of verified neural candidates, without an
+optimality claim. CSV and pure `@require` conditions remain hard runtime checks;
+they can reject a network and trigger another restart.
+
+The entire synthesis operation, including PyTorch import, training and final
+validation, runs in one killable worker under `--budget`. The parent process's
+RNG and Torch thread settings are unchanged. A cold PyTorch import can consume
+much of a very short budget. The backend is available in the CLI and LSP without
+importing PyTorch until it is selected for synthesis.
+
 ### `boolean_bounded` — Bounded Boolean CNF with CEGIS
 
 Opt-in, solver-based synthesis using the existing Z3 dependency. Each target
@@ -524,8 +583,12 @@ has a short bounded grace period. Direct calls to the Boolean adapter similarly
 contain search, extraction, validation and evaluation. Parsing/compilation before
 entering synthesis is outside this budget.
 
-This implements a solver-based bounded Boolean search, not BNSynth's neural
-learner. The separate [benchmark corpus and independent checker](../examples/benchmarks/bnsynth/README.md)
+Issue #649 explicitly requested a solver-based alternative without a neural
+dependency. This backend retains that algorithm; use `bnsynth` above for the
+paper's neural learner. Both preserve exact application identities when building
+synthesis obligations: the ordinary compiler's optional singleton-size cutoff
+must not turn a feasible synthesis problem into bounded UNSAT.
+The separate [benchmark corpus and independent checker](../examples/benchmarks/bnsynth/README.md)
 include the published tasks and exhaustive local oracles from
 [#650](https://github.com/alcides/aeon/issues/650).
 

@@ -33,6 +33,7 @@ from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeo
 from aeon.synthesis.solver_problem import ConstraintSynthesizer, SolverHole, SolverProblem
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.utils.name import Name
+from aeon.typechecking.typeinfer import exact_application_identities
 
 
 class BoundedBooleanFailure(SynthesisNotSuccessful):
@@ -176,12 +177,14 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
     lexical_inputs_only = True
     supports_candidate_enumeration = True
     supports_size_objective = True
+    report_type = BooleanReport
+    failure_type = BoundedBooleanFailure
 
     def __init__(self, seed: int = 0, *, max_selectors: int = 100_000, max_nodes: int = 100_000):
         self.seed = seed
         self.max_selectors = max_selectors
         self.max_nodes = max_nodes
-        self.report = BooleanReport()
+        self.report = self.report_type()
         self._in_worker = False
         self.pareto_front = []
 
@@ -194,7 +197,7 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         needed inside this daemon worker.
         """
         started = monotonic()
-        self.report = BooleanReport()
+        self.report = self.report_type()
         self.pareto_front = []
         if not isfinite(budget):
             self.report.status = "unsupported"
@@ -205,7 +208,8 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
             self._in_worker = True
             worker_ui = _WorkerUI()
             try:
-                result = operation(max(0.0, deadline - monotonic()), worker_ui)
+                with exact_application_identities():
+                    result = operation(max(0.0, deadline - monotonic()), worker_ui)
                 return result, None, self.report, worker_ui.solutions, worker_ui.fronts, self.pareto_front
             except BoundedBooleanFailure as exc:
                 return None, (exc.category, exc.message), self.report, [], [], []
@@ -229,7 +233,7 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
                 self.report.status = category
                 if category == "unsupported":
                     raise UnsupportedSynthesisGoal(message)
-                raise BoundedBooleanFailure(category, message)
+                raise self.failure_type(category, message)
             for solution, quality, elapsed, is_best in solutions:
                 ui.register(solution, quality, elapsed, is_best)
             for front, elapsed in fronts:
@@ -237,17 +241,17 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
             return result
         except WorkerTimeout as exc:
             self.report.status = "timeout"
-            raise BoundedBooleanFailure("timeout", "wall-clock budget exhausted") from exc
+            raise self.failure_type("timeout", "wall-clock budget exhausted") from exc
         except WorkerError as exc:
             self.report.status = "validation_error"
-            raise BoundedBooleanFailure("validation_error", str(exc)) from exc
+            raise self.failure_type("validation_error", str(exc)) from exc
         finally:
             if worker is not None:
                 worker.close()
             self.report.elapsed = monotonic() - started
 
     def check_source(self, program: Term, holes: tuple[HoleSpec, ...], metadata: Metadata) -> None:
-        self.report = BooleanReport()
+        self.report = self.report_type()
         try:
             self._check_source(program, holes, metadata)
         except UnsupportedSynthesisGoal:

@@ -57,4 +57,7 @@ class Worker:
         self.process.join(timeout=0.05)
         if self.process.is_alive():
             self.process.kill()
-            self.process.join(timeout=0.05)
+            # SIGKILL is asynchronous. Give a loaded scheduler time to reap
+            # the child; the old 50 ms grace could return with a live PID in CI.
+            # Cleanup remains bounded even if the OS cannot reap it promptly.
+            self.process.join(timeout=0.5)

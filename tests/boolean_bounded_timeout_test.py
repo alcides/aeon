@@ -3,6 +3,7 @@
 import os
 import signal
 from time import monotonic, sleep
+from threading import Event, Timer
 
 import multiprocess as mp
 import pytest
@@ -15,6 +16,41 @@ from aeon.synthesis.modules.boolean_bounded import BooleanBoundedSynthesizer, Bo
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from tests.boolean_bounded_test import direct, direct_problem
 from tests.joint_hole_synthesis_test import parse, solve
+
+
+def test_cleanup_waits_for_delayed_kill_completion():
+    from aeon.synthesis.modules.noisy.worker import Worker
+
+    exited = Event()
+
+    class Process:
+        def is_alive(self):
+            return not exited.is_set()
+
+        def terminate(self):
+            pass  # The child ignores SIGTERM, like the integration tests below.
+
+        def kill(self):
+            self.reaper = Timer(0.15, exited.set)
+            self.reaper.start()
+
+        def join(self, timeout):
+            exited.wait(timeout)
+
+    class Connection:
+        def close(self):
+            pass
+
+    worker = object.__new__(Worker)
+    worker.connection = Connection()
+    worker.process = Process()
+    try:
+        started = monotonic()
+        worker.close()
+        assert exited.is_set(), "cleanup returned before the killed child exited"
+        assert monotonic() - started < 1
+    finally:
+        worker.process.reaper.join()
 
 
 class RecordingUI(SilentSynthesisUI):
