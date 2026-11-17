@@ -40,7 +40,7 @@ def _pretty_program(solution: Term | None) -> str:
     if solution is None:
         return "<none>"
     try:
-        return pretty_print_sterm(lift(solution))
+        return pretty_print_sterm(lift(solution), top_level=False)
     except Exception:
         return str(solution)
 

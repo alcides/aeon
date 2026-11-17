@@ -461,14 +461,18 @@ def _link_compiled_unit(
     *,
     is_main: bool,
 ) -> tuple[Term, TypingContext, Metadata, frozenset[Name]]:
+    from aeon.sugar.resugar import register_recursors
+
     if is_main:
         metadata: Metadata = {}
         if unit.source_metadata:
             metadata = apply_core_decorators_phase(unit.typing_ctx, unit.core_spine, dict(unit.source_metadata))
+        register_recursors(unit.core_spine)
         return unit.core_spine, unit.typing_ctx, metadata, unit.trusted_names
     _ensure_dependencies_cached(unit.dependencies)
     dep_units = collect_dependency_units(unit, _module_cache)
     core, typing_ctx, metadata, trusted = link_compiled_units(unit, dep_units)
+    register_recursors(core)
     return core, typing_ctx, metadata, trusted
 
 

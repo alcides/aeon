@@ -26,6 +26,7 @@ from aeon.core.terms import (
 from aeon.core.types import Top
 from aeon.core.types import top, Type, t_float, t_int, t_string
 from aeon.decorators import Metadata
+from aeon.optimization.normal_form import simplify_boolean_conditionals
 from aeon.synthesis.joint import HoleSpec, JointCandidate, JointSynthesizer
 from aeon.synthesis.qtt import QTTValidator
 from aeon.synthesis.scope import shadow_fitness_helpers, without_excluded_names
@@ -602,7 +603,7 @@ def _synthesize_one(
         if (check_specs or components.definitions) and t is not None and not term_has_holes(t) and not validator(t):
             t = None
         if t is not None:
-            t = components.expand(t)
+            t = simplify_boolean_conditionals(components.expand(t))
     except Exception as e:
         ui.end(None, None)
         raise e
@@ -819,6 +820,8 @@ def _synthesize_joint(
 
                 raise BoundedBooleanFailure("validation_error", "candidate failed final whole-program validation")
             result = None
+        if result is not None:
+            result = dataclasses.replace(result, terms=tuple(simplify_boolean_conditionals(t) for t in result.terms))
     finally:
         if pool is not None:
             pool.close()
@@ -857,6 +860,11 @@ def _partition_targets(
         else:
             singles.extend(members)
     return singles, mutual
+
+
+def _simplify_solutions(mapping: dict[Name, Optional[Term]]) -> dict[Name, Optional[Term]]:
+    """Simplify final Core results before clients substitute or render them."""
+    return {name: simplify_boolean_conditionals(term) if term is not None else None for name, term in mapping.items()}
 
 
 def synthesize_holes(
@@ -948,7 +956,7 @@ def synthesize_holes(
             require_checkable([g for entry in metadata.values() for g in entry.get("goals", [])], synthesizer)
         program_mapping = synthesizer.synthesize_program(ctx, ectx, term, targets, metadata, budget, ui)
         if not program_mapping or any(value is None for value in program_mapping.values()):
-            return program_mapping
+            return _simplify_solutions(program_mapping)
         hard_kinds = frozenset({"example", "constraint"})
         if not synthesizer.supports_optimization:
             hard_kinds |= {"csv"}
@@ -966,7 +974,7 @@ def synthesize_holes(
                 valid = specifications.validate(specifications.candidate(program_mapping))
             except InvalidIndividualException:
                 valid = False
-        return program_mapping if valid else {hole: None for _, holes in targets for hole in holes}
+        return _simplify_solutions(program_mapping) if valid else {hole: None for _, holes in targets for hole in holes}
 
     if budget_eval is None:
         budget_eval = max(budget / 1000, 1)
@@ -984,17 +992,19 @@ def synthesize_holes(
             or getattr(synthesizer, "requires_joint_obligations", False)
         )
     ):
-        return _synthesize_joint(
-            ctx,
-            ectx,
-            term,
-            targets,
-            metadata,
-            synthesizer,
-            budget,
-            ui,
-            budget_eval,
-            constructor_names,
+        return _simplify_solutions(
+            _synthesize_joint(
+                ctx,
+                ectx,
+                term,
+                targets,
+                metadata,
+                synthesizer,
+                budget,
+                ui,
+                budget_eval,
+                constructor_names,
+            )
         )
 
     # Per-hole objective evaluation cannot execute unresolved independent
@@ -1079,7 +1089,7 @@ def synthesize_holes(
             )
         )
 
-    return mapping
+    return _simplify_solutions(mapping)
 
 
 def _pool_backed(pool: EvaluationPool) -> tuple[Callable[[Term], list[float]], Callable[[Term], Any]]:

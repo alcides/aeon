@@ -40,7 +40,7 @@ def _pretty(solution: Term | None) -> Optional[str]:
         from aeon.sugar.lifting import lift
         from aeon.utils.pprint import pretty_print_sterm
 
-        return pretty_print_sterm(lift(solution))
+        return pretty_print_sterm(lift(solution), top_level=False)
     except Exception:
         try:
             return str(solution)

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from aeon.core.substitutions import substitute_vartype_in_term, substitution
 from aeon.core.terms import (
     Abstraction,
@@ -19,6 +21,45 @@ from aeon.core.types import t_bool, t_int
 from aeon.optimization.match import optimize_eliminator, optimize_eliminator_abstraction
 from aeon.optimization.native import beta_reduce_native, fold_native_expr
 from aeon.utils.name import Name
+
+
+def _boolean_identity(t: If) -> Term:
+    match t:
+        case If(cond, Literal(True, then_type), Literal(False, else_type)) if then_type == else_type == t_bool:
+            return cond
+        case _:
+            return t
+
+
+def simplify_boolean_conditionals(t: Term) -> Term:
+    """Remove Boolean identity conditionals without evaluating or inlining terms.
+
+    Suitable for completed synthesis results: retain let sharing, effects,
+    refinement annotations and binding metadata. The condition is still
+    evaluated exactly once. Search candidates and their scores stay untouched.
+    """
+    match t:
+        case If(cond, then, otherwise):
+            return _boolean_identity(
+                replace(
+                    t,
+                    cond=simplify_boolean_conditionals(cond),
+                    then=simplify_boolean_conditionals(then),
+                    otherwise=simplify_boolean_conditionals(otherwise),
+                )
+            )
+        case Let(var_value=value, body=body) | Rec(var_value=value, body=body):
+            return replace(t, var_value=simplify_boolean_conditionals(value), body=simplify_boolean_conditionals(body))
+        case Application(fun, arg):
+            return replace(t, fun=simplify_boolean_conditionals(fun), arg=simplify_boolean_conditionals(arg))
+        case Annotation(expr, _):
+            return replace(t, expr=simplify_boolean_conditionals(expr))
+        case Abstraction(body=body) | TypeAbstraction(body=body) | RefinementAbstraction(body=body):
+            return replace(t, body=simplify_boolean_conditionals(body))
+        case TypeApplication(body=body) | RefinementApplication(body=body):
+            return replace(t, body=simplify_boolean_conditionals(body))
+        case _:
+            return t
 
 
 def nf(t: Term) -> Term:
@@ -152,7 +193,7 @@ def nf(t: Term) -> Term:
             return Rec(var_name, var_type, nf(var_value), nf(body), decreasing_by=decreasing_by, loc=loc)
 
         case If(cond, then, otherwise):
-            return If(nf(cond), nf(then), nf(otherwise))
+            return _boolean_identity(replace(t, cond=nf(cond), then=nf(then), otherwise=nf(otherwise)))
 
         case TypeAbstraction(ty, kind, body):
             return TypeAbstraction(ty, kind, nf(body))

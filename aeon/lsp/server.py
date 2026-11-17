@@ -694,17 +694,18 @@ def _run_synthesis(
 
     ui = LSPProgressUI(ls, synthesizer_name, hole_name_str)
     try:
-        mapping = synthesize_holes(
-            driver.typing_ctx,
-            driver.evaluation_ctx,
-            driver.core,
-            targets,
-            driver.metadata,
-            synthesizer,
-            budget=budget,
-            ui=ui,
-            constructor_names=driver.constructor_names,
-        )
+        with driver.session.activate():
+            mapping = synthesize_holes(
+                driver.typing_ctx,
+                driver.evaluation_ctx,
+                driver.core,
+                targets,
+                driver.metadata,
+                synthesizer,
+                budget=budget,
+                ui=ui,
+                constructor_names=driver.constructor_names,
+            )
     except Exception as e:
         ls.window_show_message(ShowMessageParams(type=MessageType.Error, message=f"Synthesis failed: {e}"))
         return None
@@ -712,7 +713,8 @@ def _run_synthesis(
     for hole_name, term in mapping.items():
         if hole_name.name == hole_name_str and term is not None:
             sterm = lift(term)
-            synthesized_str = pretty_print_sterm(sterm, top_level=False)
+            with driver.session.activate():
+                synthesized_str = pretty_print_sterm(sterm, top_level=False)
             # The hole may sit inside a larger expression (e.g. ``?g1 + ?g2``),
             # and the edit is textual: parenthesise anything that is not an
             # atom so the insertion cannot regroup the surrounding expression.
