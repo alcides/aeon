@@ -1,0 +1,10 @@
+# Local regression: xor. Not a published BNSynth benchmark.
+# Total specification; truth-table oracle is stored separately.
+
+@bounded_cnf(2)
+def choose_vy (vx:Bool) (vz:Bool) : {r:Bool | r = (vx != vz)} := ?hole_vy;
+
+def relation (vx:Bool) (vz:Bool) (vy:Bool) : Bool := vy = (vx != vz);
+
+@property(1)
+def law (vx:Bool) (vz:Bool) : Bool := relation vx vz (choose_vy vx vz);

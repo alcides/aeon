@@ -1,0 +1,10 @@
+# Local regression: captured_input. Not a published BNSynth benchmark.
+# Total specification; truth-table oracle is stored separately.
+
+@bounded_cnf(1)
+def choose_vy (vx:Bool) : {r:Bool | r = !vx} := let captured := vx in (?hole_vy : {r:Bool | r = !captured});
+
+def relation (vx:Bool) (vy:Bool) : Bool := vy = !vx;
+
+@property(1)
+def law (vx:Bool) : Bool := relation vx (choose_vy vx);

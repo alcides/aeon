@@ -23,6 +23,7 @@ class Circuit:
     assignments: tuple[tuple[str, Expr], ...]  # topological order, reachable cone only
     unused: tuple[str, ...]
     y: tuple[str, ...]
+    semantics: str = "partial"
 
     @property
     def x(self) -> tuple[str, ...]:
@@ -167,8 +168,8 @@ def parse(source: str, y_source: str, filename: str = "<verilog>") -> Circuit:
     for name in assignments:
         visit(name)
     listed = y_source.split()
-    if len(set(listed)) != len(listed) or any(n not in inputs for n in listed):
-        error("Y list must contain distinct declared inputs")
+    if not listed or len(set(listed)) != len(listed) or any(n not in inputs for n in listed):
+        error("Y list must contain at least one distinct declared input")
     # Preserve module port order; the list selects Y, it does not create ports.
     ordered_inputs = tuple(p for p in ports if p in inputs)
     y = tuple(p for p in ordered_inputs if p in listed)

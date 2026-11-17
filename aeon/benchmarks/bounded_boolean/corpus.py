@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import re
 import urllib.request
 
 from aeon.benchmarks.bounded_boolean.verilog import Circuit, Expr, VerilogError, parse
@@ -69,11 +70,39 @@ def emit(circuit: Circuit, case: str, bound: int = 5) -> str:
 
 
 def load_case(case: dict, root: Path = ROOT) -> Circuit:
+    if case.get("suite") == "local":
+        from aeon.benchmarks.bounded_boolean.local import circuit
+
+        return circuit(case)
     return parse(
         (root / "upstream" / case["source"]).read_text(),
         (root / "upstream" / case["y_file"]).read_text(),
         case["source"],
     )
+
+
+def case_source(case: dict, bound: int, root: Path = ROOT) -> str:
+    if type(bound) is not int or bound < 0:
+        raise ValueError("bound must be a nonnegative integer")
+    # Use the hash-pinned Aeon task. Parsing and checking the circuit take place
+    # inside the resource-limited worker, not before its wall-clock limit starts.
+    source = (root / case["aeon"]).read_text()
+    return re.sub(r"@bounded_cnf\(\d+\)", f"@bounded_cnf({bound})", source)
+
+
+def case_hashes(case: dict, root: Path = ROOT) -> dict:
+    if case.get("suite") == "local":
+        # Truth tables are independent, tiny regression oracles, never hints to
+        # the synthesizer. Include them in identity so changing a law invalidates
+        # cached results even if the Aeon file happens to remain unchanged.
+        return {"oracle_sha256": digest(json.dumps(case, sort_keys=True).encode())}
+    return {
+        key: digest(path.read_bytes()) if path.is_file() else None
+        for key, path in (
+            ("verilog_sha256", root / "upstream" / case["source"]),
+            ("y_sha256", root / "upstream" / case["y_file"]),
+        )
+    }
 
 
 def regenerate(root: Path = ROOT, bound: int = 5) -> dict:
@@ -96,9 +125,11 @@ def regenerate(root: Path = ROOT, bound: int = 5) -> dict:
             "y_file": y_path.relative_to(upstream).as_posix(),
             "bound": bound,
         }
+        if y_path.exists():
+            # Matching is an inventory fact, independent of parsing success.
+            used.add(y_path)
         try:
             circuit = load_case(case, root)
-            used.add(y_path)
             destination = root / "cases" / f"{path.stem}.ae"
             source = emit(circuit, path.stem, bound)
             destination.write_text(source)
@@ -116,7 +147,7 @@ def regenerate(root: Path = ROOT, bound: int = 5) -> dict:
             case.update(status="unsupported", reason=str(exc))
         cases.append(case)
     # Reference-solution files are deliberately excluded from benchmark inputs.
-    inventory = {
+    inventory: dict = {
         "specifications": len(specs),
         "benchmark_y_lists": len(y_files),
         "matched": len(used),
@@ -127,6 +158,7 @@ def regenerate(root: Path = ROOT, bound: int = 5) -> dict:
         refs = json.loads(provenance.read_text())["excluded_reference_lists"]
         inventory["excluded_reference_y_lists"] = len(refs)
         inventory["repository_y_lists_total"] = len(y_files) + len(refs)
+        inventory["repository_lists_without_specification"] = sorted(inventory["orphan_y_lists"] + list(refs))
     result = {
         "schema_version": 1,
         "repository": REPOSITORY,
@@ -138,6 +170,7 @@ def regenerate(root: Path = ROOT, bound: int = 5) -> dict:
         "paper_schedule": PAPER_SCHEDULE,
         "inventory": inventory,
         "files": files,
+        "inventory_provenance_sha256": digest(provenance.read_bytes()) if provenance.exists() else None,
         "cases": cases,
     }
     (root / "manifest.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
@@ -146,6 +179,8 @@ def regenerate(root: Path = ROOT, bound: int = 5) -> dict:
 
 def verify_manifest(root: Path = ROOT) -> dict:
     manifest = json.loads((root / "manifest.json").read_text())
+    if manifest.get("inventory_provenance_sha256") != digest((root / "inventory-provenance.json").read_bytes()):
+        raise ValueError("inventory provenance hash mismatch")
     actual_files = {p.relative_to(root / "upstream").as_posix() for p in (root / "upstream").rglob("*") if p.is_file()}
     if actual_files != set(manifest["files"]):
         raise ValueError("vendored source inventory differs from manifest")

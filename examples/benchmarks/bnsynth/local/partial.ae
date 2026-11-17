@@ -1,0 +1,10 @@
+# Local regression: partial. Not a published BNSynth benchmark.
+# Partial specification; truth-table oracle is stored separately.
+
+@bounded_cnf(1)
+def choose_vy (vx:Bool) : Bool := ?hole_vy;
+
+def relation (vx:Bool) (vy:Bool) : Bool := vx && !vy;
+
+@property(1)
+def law (vx:Bool) (vy:Bool) : Bool := (relation vx vy) --> (relation vx (choose_vy vx));

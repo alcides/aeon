@@ -39,6 +39,9 @@ Git blob IDs are recorded in `inventory-provenance.json` and excluded from the
 corpus. Thus the repository-wide count is 105 lists, but **not 105 benchmark
 instances**. This corrects the directory/count interpretation in issue #650.
 Neither the orphan lists nor reference solutions become synthesis tasks.
+All 67 lists without a published specification (15 orphans plus 52 reference
+lists) are now explicitly enumerated together in the manifest, with their
+categories retained. The inventory provenance file has its own SHA-256 pin.
 
 The importer accepts scalar combinational modules with input/output/wire
 declarations, continuous assignments, constants, parentheses, negation, AND,
@@ -120,9 +123,13 @@ correct: inspect `status`. The checker validates signatures/dependencies and CNF
 shape independently of the synthesis backend, then translates the **original
 Verilog** to Z3 and checks `F(X,Y) && !F(X, choose(X))` for unsatisfiability.
 It also checks domains up to eight original input ports exhaustively using a
-separate Boolean interpreter. Tests evaluate returned Aeon terms as well.
-`verify` checks the saved certificate against the original relation; it does not
-trust the synthesizer's reported fitness or its own verification routine.
+separate Boolean interpreter, and executes the actual returned Aeon function
+terms on every input in those small domains to cross-check extraction.
+`verify` checks the saved certificate **and the saved `.ae` program**: file hash,
+parsing, Aeon typechecking, output signatures, CNF extraction, agreement with the
+certificate, relation equivalence, and small-domain execution. An altered or
+missing candidate file fails verification. Resume also checks the saved source
+and candidate files before reusing a result. Neither step trusts reported fitness.
 
 The runner isolates every attempt in a subprocess. The default total wall limit
 is synthesis budget + 30 seconds for startup, parsing and checking; override
@@ -133,6 +140,9 @@ Resume keys include case/source hashes, backend, K, seed, budgets, memory limit,
 Python version, Aeon revision and a hash of all Aeon Python sources. Use
 `--no-resume` to repeat matching runs. Results from different bounds or code are
 never reused as the same attempt.
+Circuit parsing and candidate serialization run inside the limited worker.
+Source preparation has its own timing, and import failures remain in the
+attempt denominator instead of aborting the remaining cases.
 
 `summary.json` retains all attempts, per-backend status counts and individual
 results. Statuses distinguish verified solutions, reported bounded UNSAT,
@@ -153,7 +163,7 @@ of its performance claims.
 
 ## Recorded smoke coverage
 
-[coverage.json](coverage.json) retains every attempt, timings, source/code hashes,
+[coverage.json](coverage.json) is the original smoke report. It retains every attempt, timings, source/code hashes,
 portable candidate certificates and reproduction commands. All **38/38** imports
 passed the independent equivalence check. With K=5, seed=0, a two-second synthesis
 budget and a ten-second total wall limit, `boolean_bounded` produced **23 verified
@@ -195,3 +205,44 @@ Run regression tests with:
 ```bash
 pytest tests/bounded_boolean_benchmarks_test.py tests/boolean_bounded_test.py
 ```
+
+## Local exhaustive regression suite
+
+The [17 local fixtures](local/README.md) are separate from the published corpus.
+They cover constants/nullary functions, identity, negation, AND, OR, implication,
+equivalence, XOR, coupled outputs, multiple valid outputs, partial feasibility,
+vacuity, inconsistent total refinements, lexical captures, and a candidate that
+can pass samples but fails exact verification. Their specifications remain in
+ordinary `.ae` files; independent truth tables live in `local/manifest.json` and
+are never exposed to synthesis backends as labels, hints or helper functions.
+
+```bash
+# Independently enumerate every local CNF family at K=0,1,2; no synthesis/SMT.
+python -m aeon.benchmarks.bounded_boolean oracle --output /tmp/local-oracles.json
+# Compare a backend against the same explicit total/partial Aeon contracts.
+python -m aeon.benchmarks.bounded_boolean run --suite local \
+  --bound 2 --budget 2 --wall-timeout 15 --output /tmp/local-boolean-runs
+pytest tests/bounded_boolean_local_test.py tests/bounded_boolean_benchmarks_test.py \
+  tests/boolean_bounded_test.py tests/boolean_bounded_timeout_test.py
+```
+
+[`local/oracles.json`](local/oracles.json) certifies expected minimum K values
+from complete enumeration, including XOR's K=1 failure and K=2 success. Total
+refinements are checked on **every** input; they never acquire partial-relation
+don't-care semantics. Resource-limited enumeration returns `not_checked`, never
+UNSAT. An unsolved large published case still has no independently certified
+minimum or infeasibility claim.
+
+[`validation.json`](validation.json) records the fresh published import audit,
+full-corpus smoke run, and the separate local K=0,1,2 runs for this completion of
+#650. It retains all outcomes and the exact implementation/source hashes used.
+The published run verified 23 solutions, retained 8 uncertified bounded-UNSAT
+claims and 7 timeouts. All 51 local case/bound combinations matched their
+oracles: 30 verified solutions and 21 exhaustively certified bounded-UNSAT
+results. Every solved candidate's saved `.ae` program was rechecked before
+archiving its certificate.
+Its archived certificates can be rechecked with `verify --certificate-only`;
+that mode explicitly reports `verification_scope: certificate_only` and makes
+no claim to have checked an absent `.ae` file. Normal live runs use schema 2 and
+require their adjacent candidate files. Older schema-1 certificate archives
+remain readable and are also labelled with this narrower verification scope.

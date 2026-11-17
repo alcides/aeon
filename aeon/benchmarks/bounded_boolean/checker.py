@@ -127,15 +127,10 @@ def _body(definition, params: tuple[str, ...]):
     for i, _ in enumerate(params):
         while isinstance(body, Annotation):
             body = body.expr
-        base = (
-            ty.var_type.type
-            if isinstance(ty, AbstractionType) and isinstance(ty.var_type, RefinedType)
-            else getattr(ty, "var_type", None)
-        )
         if (
             not isinstance(body, Abstraction)
             or not isinstance(ty, AbstractionType)
-            or base != t_bool
+            or ty.var_type != t_bool
             or ty.multiplicity is not MOmega
         ):
             raise CheckFailure("type_failure", "output signature must have exactly the declared Boolean inputs")
@@ -196,9 +191,11 @@ def check_import(program: Term, circuit: Circuit, timeout_ms: int = 5000) -> str
 
 
 def check(circuit: Circuit, outputs: dict, bound: int, timeout_ms: int = 5000) -> dict[str, Any]:
-    """Verify a portable CNF certificate against the original partial relation."""
-    if type(bound) is not int or bound < 0 or set(outputs) != set(circuit.y):
+    """Verify a certificate, preserving explicit partial vs total semantics."""
+    if type(bound) is not int or bound < 0 or not isinstance(outputs, dict) or set(outputs) != set(circuit.y):
         raise CheckFailure("structural_failure", "wrong output names or clause bound")
+    if circuit.semantics not in {"partial", "total"}:
+        raise CheckFailure("structural_failure", "unknown relation semantics")
     normalized = {}
     for name, clauses in outputs.items():
         if not isinstance(clauses, list) or len(clauses) > 20_000:
@@ -228,7 +225,9 @@ def check(circuit: Circuit, outputs: dict, bound: int, timeout_ms: int = 5000) -
         chosen[name] = z3.And(disjunctions) if disjunctions else z3.BoolVal(True, context)
     solver = z3.Solver(ctx=context)
     solver.set(timeout=max(1, timeout_ms))
-    solver.add(relation(circuit, inputs, context), z3.Not(relation(circuit, chosen, context)))
+    if circuit.semantics == "partial":
+        solver.add(relation(circuit, inputs, context))
+    solver.add(z3.Not(relation(circuit, chosen, context)))
     status = solver.check()
     counts = {n: len(cs) for n, cs in normalized.items()}
     result = {
@@ -237,6 +236,9 @@ def check(circuit: Circuit, outputs: dict, bound: int, timeout_ms: int = 5000) -
         "total_clauses": sum(counts.values()),
         "max_clauses": max(counts.values(), default=0),
         "literal_count": sum(len(c) for cs in normalized.values() for c in cs),
+        "output_count": len(normalized),
+        "normalization": "flatten, deduplicate literals/clauses, remove tautologies; true=[], false=[[]]; no auxiliaries",
+        "semantics": circuit.semantics,
     }
     if status == z3.sat:
         model = solver.model()
@@ -253,7 +255,7 @@ def check(circuit: Circuit, outputs: dict, bound: int, timeout_ms: int = 5000) -
             ys = {
                 n: all(any(xs[abs(v) - 1] == (v > 0) for v in clause) for clause in cs) for n, cs in normalized.items()
             }
-            if evaluate(circuit, values) and not evaluate(circuit, values | ys):
+            if (circuit.semantics == "total" or evaluate(circuit, values)) and not evaluate(circuit, values | ys):
                 valid = False
                 break
         if valid != (status == z3.unsat):
@@ -262,13 +264,45 @@ def check(circuit: Circuit, outputs: dict, bound: int, timeout_ms: int = 5000) -
     return result
 
 
+def check_runtime(program: Term, circuit: Circuit, outputs: dict, evaluation_context) -> dict:
+    """Execute actual returned Aeon functions on tiny domains, without helpers.
+
+    Structural extraction must precede this check: it rejects holes, free
+    variables and helper/native calls even in unused aliases. Execute only the
+    checked function values, not arbitrary top-level initializers or properties.
+    """
+    from aeon.backend.evaluator import eval as aeon_eval
+
+    if len(circuit.inputs) > 8:
+        return {"runtime_checked": False, "runtime_reason": "domain exceeds eight Boolean ports"}
+    definitions = _definitions(program)
+    count = 0
+    for bits in product((False, True), repeat=len(circuit.x)):
+        for name, clauses in outputs.items():
+            term = definitions[f"choose_{ae_name(name)}"].var_value
+            for bit in bits:
+                term = Application(term, Literal(bit, t_bool))
+            expected = all(any(bits[abs(v) - 1] == (v > 0) for v in clause) for clause in clauses)
+            value = aeon_eval(term, evaluation_context)
+            if type(value) is not bool or value != expected:
+                raise CheckFailure("validation_error", "Aeon execution disagrees with extracted CNF certificate")
+            count += 1
+    return {"runtime_checked": True, "runtime_evaluations": count}
+
+
 def exhaustive_status(circuit: Circuit, bound: int, limit: int = 10_000) -> str:
     """Tiny independent finite-family oracle; never infer UNSAT from a limit."""
     from itertools import combinations
     from math import comb
 
     n = len(circuit.x)
-    if n > 3 or len(circuit.y) > 2 or bound < 0:
+    if (
+        n > 3
+        or len(circuit.y) > 2
+        or type(bound) is not int
+        or bound < 0
+        or circuit.semantics not in {"partial", "total"}
+    ):
         return "not_checked"
     # One of absent / positive / negative for every input in each clause.
     clauses = [tuple(sign * (i + 1) for i, sign in enumerate(signs) if sign) for signs in product((0, 1, -1), repeat=n)]
@@ -281,7 +315,7 @@ def exhaustive_status(circuit: Circuit, bound: int, limit: int = 10_000) -> str:
     for vector in product(functions, repeat=len(circuit.y)):
         valid = True
         for values in valuations:
-            if not evaluate(circuit, values):
+            if circuit.semantics == "partial" and not evaluate(circuit, values):
                 continue
             xs = [values[n] for n in circuit.x]
             outputs = {
