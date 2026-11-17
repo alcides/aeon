@@ -32,7 +32,9 @@ qualifiers are the original `condQuals`: Boolean-component refinements over
 arity-0 scalars, so a measure application such as `len xs` is not a guard. A
 nontrivial condition's other branch is a fresh `generateI` at `eGuessDepth`
 (3), which is how `n = 0` versus `inc`/`dec` is found. `generateMatch` is the
-fallback. Aeon's Horn theory does not solve datatype equations, so the match
+fallback. When the goal is not a scalar, one unconditional application is
+tried before that conditional, so a direct recursive call is not hidden
+behind a deeper else. Aeon's Horn theory does not solve datatype equations, so the match
 unknown is a structural match on each in-scope datatype value. An unreachable
 constructor is filled and the search continues (`generateError`); the
 whole-program checker sees that branch under the path implication. A datatype

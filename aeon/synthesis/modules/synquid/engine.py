@@ -744,6 +744,21 @@ def synthes(ctx, level, ret_t, skip, mem, state=None, *, conditionals=True):
     for term in leaves(state):
         if _local_check(ctx, term, ret_t, state):
             yield term
+    # A one-application unconditional term (``build m``) is tried before a
+    # depth-0 conditional whose other branch is searched at eGuessDepth.
+    # Iterative deepening would otherwise return that conditional first.
+    # Scalar goals stay on the explorer's schedule: their level-1 grammar is
+    # the prelude, and the constructor registry is not always populated.
+    goal_base = erase(ret_t)
+    if (
+        level == 0
+        and state.match_depth == 0
+        and isinstance(goal_base, TypeConstructor)
+        and goal_base.name.name not in _SCALAR_BASES
+    ):
+        for term in _eliminations(ctx, 1, ret_t, skip, mem, state, conditionals=False):
+            if _local_check(ctx, term, ret_t, state):
+                yield term
     yield from conditional(leaves(branch_environment(state, ret_t)))
     if state.match_depth == 0:
         # generateMatch. Deeper E-terms stay after it: enumerating every failed
