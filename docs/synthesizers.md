@@ -627,6 +627,25 @@ python -m aeon -s tdsyn_backward --tdsyn-expansion lazy --budget 30 examples/syn
 Python callers can use `AeonConfig(..., tdsyn_expansion="lazy")` or
 `TDSynSynthesizer(..., expansion="lazy")`.
 
+TDSyn can propose finite structures directly from integer measure equations in
+component result types. For example, a constructor whose result satisfies
+`count result = 1 + count tail` can build a fixed-length spine; an equation
+`count result = count left + count right` can compose two smaller structures.
+The planner uses these contracts without recognizing datatype, constructor or
+measure names. Payloads remain ordinary typed holes, including element
+refinements and dependent relations, and completed terms still undergo normal
+validation. Use `TDSynSynthesizer(..., measure_shapes=False)` for comparisons.
+
+This additional production requires SMT to prove a unique nonnegative measure
+value at most 256. It handles nonnegative affine equations with positive child
+coefficients, chooses a template with few structural applications, and bounds
+the template to 512 nodes/holes. Every recursive child's measure must decrease.
+An exact measure need not determine a unique shape, especially for trees:
+ordinary productions remain available alongside the proposal. Ambiguous sizes,
+scalar-dependent/nonlinear equations, unsupported SMT encodings and exhausted
+budgets fall back to ordinary search. This rule does not optimize payloads or
+translate runtime objectives into logical constraints.
+
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
 
 QTT usage is checked during search as well as final validation. Partial programs

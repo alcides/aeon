@@ -42,6 +42,7 @@ from aeon.synthesis.modules.tdsyn.helpers import (
     is_constructor_term,
 )
 from aeon.synthesis.modules.tdsyn.constraints import deadline
+from aeon.synthesis.modules.tdsyn.measure_shapes import iter_measure_shape_candidates, measure_shape_candidates
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
 from aeon.synthesis.modules.tdsyn.bindings import open_abstraction
 from aeon.synthesis.modules.tdsyn.worklist import (
@@ -130,6 +131,7 @@ class TDSynSynthesizer(Synthesizer):
         expansion: str = "eager",
         deduplicate: bool = True,
         dedup_capacity: int = 4096,
+        measure_shapes: bool = True,
     ):
         assert mode in ("enumerative", "random")
         assert direction in ("both", "backward")
@@ -145,6 +147,7 @@ class TDSynSynthesizer(Synthesizer):
         self._iteration = 0
         self.deduplicate = deduplicate
         self.dedup_capacity = dedup_capacity
+        self.measure_shapes = measure_shapes
         self._completed: OrderedDict[tuple, None] = OrderedDict()
         self.duplicates_skipped = 0
         self.dedup_bypassed = 0
@@ -321,6 +324,8 @@ class TDSynSynthesizer(Synthesizer):
         """Expand a hole using the selected directions and the shared worklist."""
         results: list[PartialAST] = []
         actions = [backward_candidates]
+        if self.measure_shapes:
+            actions.insert(0, measure_shape_candidates)
         if self.direction == "both":
             actions.append(forward_candidates)
 
@@ -356,6 +361,8 @@ class TDSynSynthesizer(Synthesizer):
     ) -> Iterator[PartialAST]:
         """Construct and check one production at a time, on consumer demand."""
         actions = [iter_backward_candidates(hole, skip, rng, constructors_only=constructors_only)]
+        if self.measure_shapes:
+            actions.insert(0, iter_measure_shape_candidates(hole, skip))
         if self.direction == "both" and not constructors_only:
             actions.append(iter_forward_candidates(hole, skip, rng))
         for candidates in actions:
