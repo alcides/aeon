@@ -184,6 +184,33 @@ portable candidate certificates:
 | --- | ---: | ---: | ---: | --- |
 | `boolean_bounded`, after the identity fix | 5 | 2 s | 22 | 7 bounded-UNSAT reports, 9 timeouts |
 | `bnsynth`, neural learner | 5 | 10 s | 16 | 22 timeouts |
+| `bnsynth`, neural learner | 5 | 1,800 s | 20 | 18 timeouts |
+
+[neural-30min.json](neural-30min.json) records the completed longer run from
+17 November 2026: all 38 cases, seed=0, eight concurrent single-threaded
+learners on `polaris`, with a 1,800-second synthesis limit and 1,830-second
+outer limit per case. All successful programs were independently verified.
+The run took about 90 minutes overall. It used commit `4627b97d` before this
+PR was rebased; its original revision and implementation hash remain in the
+report. Concurrency and single-seed sampling limit timing comparisons.
+
+The four additional successes were:
+
+| Case | Synthesis time | Maximum clauses per output |
+| --- | ---: | ---: |
+| `lut4-c17b_5_2` | 20.6 s | 5 |
+| `xor_4_3` | 26.2 s | 5 |
+| `lut6-c17d_5_2` | 91.3 s | 5 |
+| `lut7-ctrl_7_1` | 119.8 s | 5 |
+
+No further solutions appeared after two minutes. Timeouts are not proofs of
+infeasibility at K=5. Repeat the same per-case configuration sequentially with:
+
+```bash
+python -m aeon.benchmarks.bounded_boolean run \
+  --backend bnsynth --bound 5 --budget 1800 --wall-timeout 1830 \
+  --seed 0 --output /tmp/bnsynth-30min
+```
 
 The corrected solver also solved `lut7-ctrl_7_1` within a separate 10-second
 budget (about 5.7 seconds of synthesis in that run). These unequal budgets and

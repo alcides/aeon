@@ -437,6 +437,13 @@ python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/xor.a
 python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/coupled.ae
 ```
 
+In the editor, place the cursor on a hole and select **BNSynth neural Boolean
+CNF (G-CLN)** under **Example-driven** in the info view, or choose its synthesis
+code action. It uses the editor's synthesis time budget, reports progress, and
+inserts the verified expression. Install the optional dependency in the Python
+environment running the language server. The solver-based **Bounded Boolean
+CNF (Z3 CEGIS)** remains a separate choice under **Constraint solving**.
+
 The input contract is the same pure first-order Boolean fragment and hard
 `@bounded_cnf(K)` bound as `boolean_bounded`. Each output gets a gated continuous
 logic network with positive/negative input literals, at most K OR clauses and
@@ -483,6 +490,13 @@ validation, runs in one killable worker under `--budget`. The parent process's
 RNG and Torch thread settings are unchanged. A cold PyTorch import can consume
 much of a very short budget. The backend is available in the CLI and LSP without
 importing PyTorch until it is selected for synthesis.
+
+The [recorded benchmark runs](../examples/benchmarks/bnsynth/README.md#recorded-smoke-coverage)
+include all 38 published artifact cases at K=5 and seed=0: the 10-second run
+verified 16 solutions; the 30-minute run verified 20 and timed out on 18.
+The longer run used eight concurrent cases and retained exact source/code
+hashes and independently checked certificates. These are Aeon measurements,
+not a reproduction of the paper's timings.
 
 ### `boolean_bounded` — Bounded Boolean CNF with CEGIS
 

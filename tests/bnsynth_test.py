@@ -172,6 +172,32 @@ def test_factory_and_menu_keep_torch_optional():
     assert result.returncode == 0, result.stderr
 
 
+def test_editor_synthesis_returns_valid_insertable_expression_and_progress(monkeypatch):
+    from aeon.lsp.server import _run_synthesis
+    from aeon.lsp.synthesis_ui import PROGRESS_NOTIFICATION
+    from aeon.synthesis.identification import term_has_holes
+    from tests.lsp_test import MockLS
+
+    monkeypatch.setenv("AEON_SEED", "0")
+    source = "@bounded_cnf(2) def f(x:Bool)(y:Bool):{r:Bool|r = (x != y)} := ?h;"
+    driver = parse(source)
+    client = MockLS(source)
+    result = _run_synthesis(driver, client, "file:///bnsynth_editor.ae", "h", "bnsynth", budget_seconds=15)
+    assert result is not None, client.messages
+    expression, location = result
+    assert location.start.line == location.end.line == 0
+    assert source[location.start.character : location.end.character] == "?h"
+    completed = parse(source[: location.start.character] + expression + source[location.end.character :])
+    assert not term_has_holes(completed.core)
+    for x, y in product((False, True), repeat=2):
+        assert call(completed, completed.core, "f", x, y) is (x != y)
+    updates = [params for method, params in client.protocol.notifications if method == PROGRESS_NOTIFICATION]
+    assert updates and updates[-1]["done"]
+    assert updates[-1]["algorithm"] == "BNSynth neural Boolean CNF (G-CLN)"
+    assert updates[-1]["best"]
+    assert updates[-1]["budget"] == 15
+
+
 def test_seed_reproducibility_and_fresh_run_state():
     source = "@bounded_cnf(1) def f(x:Bool):{r:Bool|r = !x} := ?h;"
     driver = parse(source)

@@ -399,7 +399,12 @@ def test_real_server_exposes_all_algorithms_in_code_actions_and_infoview():
         expected = synthesizer_menu_ids()
         assert [a.command.arguments[2] for a in actions] == expected
         assert [s["id"] for s in info["synthesizers"]] == expected
-        assert {"ortools", "contata", "decision_tree", "llm_type_constrained"} <= set(expected)
+        assert {"ortools", "contata", "decision_tree", "llm_type_constrained", "bnsynth", "boolean_bounded"} <= set(
+            expected
+        )
+        neural = next(s for s in info["synthesizers"] if s["id"] == "bnsynth")
+        assert neural["label"] == "BNSynth neural Boolean CNF (G-CLN)"
+        assert neural["family"] == "Example-driven"
         assert all(s["label"] and s["family"] for s in info["synthesizers"])
     finally:
         aeon_adapter.clear_cache(uri)
