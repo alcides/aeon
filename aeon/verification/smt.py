@@ -939,9 +939,12 @@ def smt_valid(constraint: Constraint) -> bool:
     try:
         valid = _smt_valid(constraint, key)
     except Z3Exception as exc:
+        current_session().state(VerificationState).inconclusive_queries += 1
         record_verification(VerificationResult(constraint, "unsupported", str(exc)))
         raise
     status, reason = _smt_status_cache.get(key, ("valid" if valid else "invalid", None))
+    if status in ("unknown", "unsupported"):
+        current_session().state(VerificationState).inconclusive_queries += 1
     record_verification(VerificationResult(constraint, status, reason, cached))
     return valid
 

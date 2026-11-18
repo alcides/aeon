@@ -41,6 +41,9 @@ class VerificationState:
         default_factory=dict
     )
     generation: int = 0
+    # Includes exploratory Horn queries, even while evidence collection is off.
+    # A higher-level cache must not turn a timeout into a permanent rejection.
+    inconclusive_queries: int = 0
 
     def get_solver(self) -> Solver:
         if self.solver is None:

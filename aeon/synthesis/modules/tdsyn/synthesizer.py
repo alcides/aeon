@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from itertools import count
 from heapq import heappop, heappush
-from collections import deque
+from collections import OrderedDict, deque
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from time import monotonic_ns
@@ -11,10 +11,12 @@ from typing import Callable
 
 from loguru import logger
 
+from aeon.compilation.session import current_session
 from aeon.core.terms import Abstraction, Annotation, Hole, Term
 from aeon.core.types import AbstractionType, Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
+from aeon.synthesis.evaluation_pool import inconclusive_evaluations
 from aeon.synthesis.identification import get_holes
 from aeon.synthesis.modules.tdsyn.actions import (
     backward_abs_candidates,
@@ -53,12 +55,14 @@ from aeon.synthesis.modules.tdsyn.worklist import (
     term_at,
 )
 from aeon.synthesis.qtt import QTTValidator
+from aeon.synthesis.typecheck_cache import _typed_key
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.linearity import check_linearity
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
+from aeon.verification.state import VerificationState
 
 _loc = SynthesizedLocation("tdsyn")
 
@@ -109,21 +113,41 @@ class TDSynSynthesizer(Synthesizer):
     or backward-only expansion. All variants share validation and objectives.
     Loops until the time budget is exhausted, restarting with shuffled expansion
     order on each iteration to explore different term structures.
+
+    Completed assessments are deduplicated within each search by default.
+    ``deduplicate=False`` disables this bounded cache for comparisons; skipping
+    validation can also change the subsequent SMT search trajectory.
     """
 
     supports_size_objective = True
 
-    def __init__(self, mode: str = "enumerative", seed: int = 0, *, direction: str = "both", expansion: str = "eager"):
+    def __init__(
+        self,
+        mode: str = "enumerative",
+        seed: int = 0,
+        *,
+        direction: str = "both",
+        expansion: str = "eager",
+        deduplicate: bool = True,
+        dedup_capacity: int = 4096,
+    ):
         assert mode in ("enumerative", "random")
         assert direction in ("both", "backward")
         if expansion not in ("eager", "lazy"):
             raise ValueError(f"Unknown TDSyn expansion mode: {expansion}")
+        if dedup_capacity < 1:
+            raise ValueError("candidate deduplication capacity must be positive")
         self.mode = mode
         self.direction = direction
         self.expansion = expansion
         self.seed = seed
         self._rng = random.Random(seed)
         self._iteration = 0
+        self.deduplicate = deduplicate
+        self.dedup_capacity = dedup_capacity
+        self._completed: OrderedDict[tuple, None] = OrderedDict()
+        self.duplicates_skipped = 0
+        self.dedup_bypassed = 0
 
     def synthesize(
         self,
@@ -140,6 +164,10 @@ class TDSynSynthesizer(Synthesizer):
         assert isinstance(ctx, TypingContext)
         assert isinstance(type, Type)
 
+        # Retain completed assessments through restarts, never across problems.
+        self._completed.clear()
+        self.duplicates_skipped = 0
+        self.dedup_bypassed = 0
         skip = make_skip_fn(fun_name, metadata)
         goals = metadata.get(fun_name, {}).get("goals", [])
         self._has_goals = bool(goals)
@@ -184,6 +212,12 @@ class TDSynSynthesizer(Synthesizer):
         finally:
             deadline.reset(token)
 
+    def _remember_complete(self, key: tuple | None) -> None:
+        if key is not None:
+            self._completed[key] = None
+            if len(self._completed) > self.dedup_capacity:
+                self._completed.popitem(last=False)
+
     def _try_complete(
         self,
         partial: PartialAST,
@@ -198,11 +232,29 @@ class TDSynSynthesizer(Synthesizer):
         Returns ``(front, early)`` where ``early`` is a no-objective solution
         that should stop the search immediately.
         """
-        if not partial.is_complete() or not partial.qtt_feasible():
+        if not partial.is_complete():
+            return front, None
+        key = None
+        if self.deduplicate:
+            try:
+                # Snapshot before constructor preparation allocates fresh names.
+                # Term equality erases annotations and conflates Boolean/int values.
+                key = _typed_key(partial.term)
+            except (TypeError, RecursionError):
+                self.dedup_bypassed += 1
+            if key is not None and key in self._completed:
+                self._completed.move_to_end(key)
+                self.duplicates_skipped += 1
+                return front, None
+        if not partial.qtt_feasible():
+            self._remember_complete(key)
             return front, None
         term = bind_constructor_arguments(partial.term)
         if term is not partial.term and not replace(partial, term=term).qtt_feasible():
+            self._remember_complete(key)
             return front, None
+        state = current_session().state(VerificationState)
+        uncertain_before = state.inconclusive_queries, inconclusive_evaluations.get()
         try:
             if validate(term):
                 if not self._has_goals:
@@ -219,6 +271,11 @@ class TDSynSynthesizer(Synthesizer):
                 ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
         except Exception:
             ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
+            return front, None
+        # Retry uncertainty and worker failures; remember both successful scores
+        # and definitive type/runtime rejections for this synthesis problem.
+        if uncertain_before == (state.inconclusive_queries, inconclusive_evaluations.get()):
+            self._remember_complete(key)
         return front, None
 
     def _try_smt_complete(
