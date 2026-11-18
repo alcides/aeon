@@ -9,11 +9,11 @@ with their MIT [license](upstream/LICENSE). [manifest.json](manifest.json) recor
 the source checksum, original synthesis goals, fidelity and remaining differences
 for **every** file. Tests check the inventory and checksums without network access.
 
-**These are not all equivalent ports.** The review upgraded 24 files: 22 now
-preserve the original target contracts and relevant datatype invariants; two
-restore abstract relations but still omit set preservation. The other 40 remain
-explicitly labelled legacy approximations. A solution to one of those weaker
-problems must not be reported as a solution to the upstream benchmark.
+**These are not all equivalent ports.** The review upgraded 24 files, which now
+preserve the original target contracts and relevant datatype invariants,
+including `elems` preservation on `List-Snoc` and `List-Reverse`. The other 40
+remain explicitly labelled legacy approximations. A solution to one of those
+weaker problems must not be reported as a solution to the upstream benchmark.
 
 ## Restored specifications
 
@@ -22,7 +22,7 @@ problems must not be reported as a solution to the upstream benchmark.
 | `List-Ith` | `p : Int -> a -> Bool`, `p 0 head`, index-shifted tail, bounded index, result satisfying `p i result` |
 | `List-Foldr` | `p : List a -> b -> Bool`; the step receives the tail, element and related accumulator; the seed relates to nil and the result to the input |
 | `List-Fold-Append`, `List-Fold-Length` | The original dependent `foldr` component, supplied as a checked Aeon definition |
-| `List-Snoc`, `List-Reverse` | Persistent element relation, snoc's element bound and reversed predicate; **partial**, because `elems` preservation is still missing |
+| `List-Snoc`, `List-Reverse` | Persistent element relation, snoc's element bound, reversed predicate, and `elems` preservation |
 | `UniqueList-Range` | Pairwise inequality, length `size`, elements in the **inclusive** interval `[lo, lo + size]`, arguments `size` then `lo` |
 | `List-Concat` | Flatten `ListOfLists a` into `List a`, with length equal to `sumLen`; the old port was a cons operation |
 | `List-Zip`, `List-Product` | Lists of pairs with two independent element types; zip requires equal input lengths and product has multiplicative length |
@@ -64,15 +64,16 @@ paper timings, or that a synthesizer solves every well-formed specification.
 
 | Family | Remaining work |
 | --- | --- |
-| Set-based lists and trees; reverse/snoc | Polymorphic logical `Set a` and element measures with union, difference, intersection and membership. Aeon's SMT `Set` primitives currently operate on integers; the generic runtime `Set` library is not a replacement for that theory. |
+| Set-based lists and trees | `List-Snoc` and `List-Reverse` now keep upstream `elems` preservation. BST, heap, AVL and red-black set contracts are still unrestored. Integer and Boolean sets stay native Z3 sets; other element sorts use macro-expanded membership. |
 | `List-ElemIndex` | Restore indexed predicates **and** the membership precondition before replacing `Maybe Int` by the original dependent `Int` result. Dropping the precondition would make the problem unsatisfiable for absent elements. |
 | `List-Compress`, `List-Nub`, `UniqueList-Insert/Delete` | Element-to-tail predicates and head/element set measures, rather than length bounds. These differ from the element-to-element relation used in `UniqueList-Range`. |
 | `IncList-*`, `StrictIncList-*`, list sorting, `BST-*`, `BinHeap-*` | Polymorphic refined element types, exact component signatures and set contracts. BST children have strict bounds; heap children are **strictly** greater than the parent. The old size approximations can mishandle duplicates. |
 | `AVL-*` | Key bounds, balance, stored height field, balance factor, exact height contracts, set contracts and all rotation/merge goals. |
 | `RBT-*` | Colors, red-child rule, equal black heights, `WeakRBT`'s `Ok`/`Bad` cases, set contracts and all intermediate goals. |
 
-The new relation support makes several of these datatype invariants expressible;
-sets remain a separate missing feature. The manifest records per-file mismatches,
+The new relation support makes several of these datatype invariants expressible.
+`elems` on snoc and reverse is checked; the BST, heap, AVL and red-black set
+contracts are not. The manifest records per-file mismatches,
 including changed argument/result types and missing goals. For example, upstream
 `BST-Sort` has **five** goals, while its legacy Aeon file has only one. The legacy
 files are retained for compatibility, with their former fidelity claims removed.

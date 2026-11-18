@@ -211,6 +211,9 @@ class TreeToSugar(Transformer):
         name_str = str(args[0])
         if name_str in builtin_types:
             name = Name(name_str, 0)
+            # Bare ``Set`` is the integer set. ``(Set a)`` is the applied form.
+            if name_str == "Set":
+                return STypeConstructor(name, [STypeConstructor(Name("Int", 0))])
             return STypeConstructor(name)
         else:
             name = Name(name_str)
