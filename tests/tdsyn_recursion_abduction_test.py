@@ -125,7 +125,7 @@ def test_unrefined_goal_keeps_the_three_hole_if(monkeypatch):
     assert any(isinstance(candidate, If) and isinstance(candidate.cond, Hole) for candidate, _holes in combined)
 
 
-def _solve(filename: str, budget: float = 30):
+def _solve(filename: str, budget: int = 30):
     driver = AeonDriver(AeonConfig("tdsyn_enumerative", SilentSynthesisUI(), budget))
     assert not list(driver.parse(filename=filename))
     assert driver.has_synth()
