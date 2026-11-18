@@ -25,6 +25,32 @@ def base(ty):
     return base(ty.type) if isinstance(ty, RefinedType) else ty
 
 
+def condition_vocabulary(ctx, goal):
+    """Qualifiers of the condition unknown.
+
+    The explorer instantiates Boolean-component refinements over arity-0
+    scalars (``condQuals`` / ``extractCondFromType``). A datatype variable is
+    not one of those scalars, so ``len xs`` and a datatype equation cannot
+    guard a conditional. A predicate on a scalar, such as ``p x``, can.
+    """
+    from aeon.core.liquid import liquid_free_vars
+    from aeon.core.types import TypeConstructor
+    from aeon.synthesis.modules.synquid.round_trip import erase
+    from aeon.verification.constructor_registry import get_constructor_groups
+
+    datatypes = get_constructor_groups()
+
+    def scalar_atom(atom):
+        for var in liquid_free_vars(atom):
+            ty = ctx.type_of(var)
+            erased = erase(ty) if ty is not None else None
+            if isinstance(erased, TypeConstructor) and erased.name.name in datatypes:
+                return False
+        return True
+
+    return frozenset(atom for atom in vocabulary(ctx, goal) if scalar_atom(atom))
+
+
 def vocabulary(ctx, goal):
     """Instantiate spec templates in this scope, including Boolean measures.
 
