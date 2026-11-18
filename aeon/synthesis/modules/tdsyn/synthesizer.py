@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from itertools import count
+from itertools import chain, count
 from heapq import heappop, heappush
 from collections import OrderedDict, deque
 from collections.abc import Iterator
@@ -13,7 +13,7 @@ from loguru import logger
 
 from aeon.compilation.session import current_session
 from aeon.core.terms import Abstraction, Annotation, Hole, Term
-from aeon.core.types import AbstractionType, Type
+from aeon.core.types import AbstractionType, RefinedType, Type
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.evaluation_pool import inconclusive_evaluations
@@ -40,8 +40,9 @@ from aeon.synthesis.modules.tdsyn.helpers import (
     clear_tdsyn_caches,
     make_skip_fn,
     is_constructor_term,
+    is_eliminator_term,
 )
-from aeon.synthesis.modules.tdsyn.constraints import deadline
+from aeon.synthesis.modules.tdsyn.constraints import deadline, has_refinement
 from aeon.synthesis.modules.tdsyn.smt_solve import all_leaf_holes, solve_literals
 from aeon.synthesis.modules.tdsyn.bindings import open_abstraction
 from aeon.synthesis.modules.tdsyn.worklist import (
@@ -50,6 +51,7 @@ from aeon.synthesis.modules.tdsyn.worklist import (
     TypedHole,
     expand_at_hole,
     fresh_hole,
+    locate_holes,
     substitute_hole,
     substitute_holes_map,
     term_at,
@@ -76,6 +78,28 @@ class PendingExpansion:
 
 def _get_elapsed_time(start_time: int) -> float:
     return (monotonic_ns() - start_time) * 0.000000001
+
+
+def _is_arrow(ty: Type) -> bool:
+    while isinstance(ty, RefinedType):
+        ty = ty.type
+    return isinstance(ty, AbstractionType)
+
+
+def _select_hole(holes: list[TypedHole]) -> TypedHole:
+    """Pick the next hole.
+
+    Function holes have a single abstraction production, so they come before
+    a datatype sibling. Otherwise the last structural hole is the handler
+    body of a recursor, which has to be built before the nil branch is guessed.
+    """
+    structural = [hole for hole in holes if not all_leaf_holes([hole])]
+    if not structural:
+        return holes[0]
+    functions = [hole for hole in structural if _is_arrow(hole.expected_type)]
+    if functions:
+        return functions[0]
+    return structural[-1]
 
 
 def _peel_abstractions(ty: Type, ctx: TypingContext) -> tuple[Term, Type, TypingContext, list[TypedHole]]:
@@ -148,6 +172,29 @@ class TDSynSynthesizer(Synthesizer):
         self._completed: OrderedDict[tuple, None] = OrderedDict()
         self.duplicates_skipped = 0
         self.dedup_bypassed = 0
+
+    def prepare_context(self, ctx, program, fun_name, metadata):
+        """Weaken a ``decreasing_by`` hypothesis and allow the recursive name.
+
+        Identification installs the full declared type, and ``should_skip``
+        drops ``fun_name`` unless ``metadata[fun_name]["recursion"]`` is set.
+        ``@allow_recursion`` is the only other writer of that flag. A metric
+        has to do both jobs: replace the binding with ``recursive_context``
+        and open the skip, or the weakened hypothesis is never a component.
+        """
+        from aeon.synthesis.identification import iterate_top_level
+
+        owner = next((node for node in iterate_top_level(program) if node.var_name == fun_name), None)
+        if owner is None or not owner.decreasing_by:
+            return ctx
+        entry = metadata.get(fun_name)
+        if not isinstance(entry, dict):
+            entry = {}
+            metadata[fun_name] = entry
+        entry["recursion"] = True
+        from aeon.synthesis.modules.synquid.functions import recursive_context
+
+        return recursive_context(ctx, program, fun_name)
 
     def synthesize(
         self,
@@ -338,11 +385,33 @@ class TDSynSynthesizer(Synthesizer):
                     if expanded.qtt_feasible():
                         results.append(expanded)
 
-        # Shuffle on non-first iterations to explore different orderings
-        if self._iteration > 0 and results:
-            self._rng.shuffle(results)
-
-        return results
+        # A depth-0 refined eliminator is the match. Keep it ahead of the
+        # shuffle, and keep nested eliminators behind variable closes so a
+        # case arm is not another copy of T_rec.
+        guided: list[PartialAST] = []
+        folds: list[PartialAST] = []
+        values: list[PartialAST] = []
+        ordinary: list[PartialAST] = []
+        nested_elims: list[PartialAST] = []
+        for expanded in results:
+            placed = term_at(expanded.term, hole.path)
+            if is_eliminator_term(placed) and has_refinement(hole.expected_type) and partial.depth == 0:
+                guided.append(expanded)
+            elif is_eliminator_term(placed):
+                nested_elims.append(expanded)
+            elif is_constructor_term(placed) and not locate_holes(placed):
+                # ``cons h (recursive t ys)`` is a finished case arm. Keep it
+                # ahead of the shuffle so the nil branch is tried next.
+                folds.append(expanded)
+            elif not locate_holes(placed):
+                values.append(expanded)
+            else:
+                ordinary.append(expanded)
+        if self._iteration > 0 and ordinary:
+            self._rng.shuffle(ordinary)
+        if self._iteration > 0 and nested_elims:
+            self._rng.shuffle(nested_elims)
+        return guided + folds + values + ordinary + nested_elims
 
     def _iter_expansions(
         self,
@@ -489,13 +558,21 @@ class TDSynSynthesizer(Synthesizer):
         tickets = count()
         worklist: deque[tuple[int, PartialAST | PendingExpansion, bool]] = deque([(next(tickets), initial, True)])
         constructors: list[tuple[int, int, PartialAST]] = []
+        # Siblings of a depth-0 eliminator wait until that match is exhausted.
+        # The worklist would otherwise resume them before the match's body.
+        suspended: deque[tuple[int, PendingExpansion]] = deque()
         visited: set[int] = set()
         guided_turn = False
         work: PartialAST | PendingExpansion
 
-        while worklist or constructors:
+        while worklist or constructors or suspended:
             if _get_elapsed_time(start_time) > budget:
                 break
+
+            if not worklist and not constructors:
+                ticket_s, pending_s = suspended.popleft()
+                worklist.append((ticket_s, pending_s, False))
+                continue
 
             if constructors and (guided_turn or not worklist):
                 _, ticket, work = heappop(constructors)
@@ -522,14 +599,18 @@ class TDSynSynthesizer(Synthesizer):
                 if early is not None:
                     return front, early
 
-                # Leave scalar payloads for joint SMT completion.
-                hole = next((h for h in partial.holes if not all_leaf_holes([h])), partial.holes[0])
+                # Leave scalar payloads for joint SMT completion. A function hole
+                # has one production, so open it before a datatype sibling. The
+                # remaining structural hole is the last one: a recursor's
+                # handler body, not its nil branch.
+                hole = _select_hole(partial.holes)
                 expanded = (
                     self._iter_expansions(partial, hole, skip)
                     if self.expansion == "lazy"
                     else iter(self._expand_hole(partial, hole, skip))
                 )
 
+            saw_value = False
             for new_partial in expanded:
                 if _get_elapsed_time(start_time) > budget:
                     break
@@ -538,7 +619,9 @@ class TDSynSynthesizer(Synthesizer):
                     # child can progress immediately through the guided lane;
                     # postponed alternatives still receive fair FIFO turns.
                     worklist.append((next(tickets), PendingExpansion(partial, hole, expanded), constructive))
+                guide_eliminator = False
                 if new_partial.is_complete():
+                    saw_value = True
                     front, early = self._try_complete(new_partial, validate, evaluate, start_time, ui, front)
                     if early is not None:
                         return front, early
@@ -547,12 +630,31 @@ class TDSynSynthesizer(Synthesizer):
                     front, early, _ = self._try_smt_complete(new_partial, validate, evaluate, start_time, ui, front)
                     if early is not None:
                         return front, early
-                    follows_constructors = constructive and is_constructor_term(term_at(new_partial.term, hole.path))
+                    placed = term_at(new_partial.term, hole.path)
+                    opens = bool(locate_holes(placed))
+                    # A refined goal's eliminator is the match. Give it the
+                    # constructor lane and do not spend the budget proving
+                    # every preceding prelude operator first.
+                    guide_eliminator = (
+                        partial.depth == 0 and has_refinement(hole.expected_type) and is_eliminator_term(placed)
+                    )
+                    # Finished arms (the fold, then variables) are validated
+                    # before a nested eliminator or a three-hole if is built.
+                    if self.expansion != "lazy" and not guide_eliminator and partial.depth > 0 and saw_value and opens:
+                        suspended.append(
+                            (next(tickets), PendingExpansion(partial, hole, chain((new_partial,), expanded)))
+                        )
+                        break
+                    if not opens:
+                        saw_value = True
+                    follows_constructors = constructive and (is_constructor_term(placed) or guide_eliminator)
+                    if guide_eliminator and self.expansion != "lazy":
+                        suspended.append((next(tickets), PendingExpansion(partial, hole, expanded)))
                     ticket = next(tickets)
                     worklist.append((ticket, new_partial, follows_constructors))
                     if follows_constructors:
                         heappush(constructors, (-new_partial.depth, ticket, new_partial))
-                if self.expansion == "lazy":
+                if self.expansion == "lazy" or guide_eliminator:
                     break
 
         return front, None
