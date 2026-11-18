@@ -425,6 +425,79 @@ mismatch rate plus a configurable complexity penalty. See
 supported inputs, and reproducible adaptive/uniform/full-data comparisons.
 
 
+### `bnsynth` — Neural bounded Boolean synthesis
+
+Implements the CNF architecture-1 learner and counterexample loop from
+[BNSynth: Bounded Boolean Functional Synthesis](https://arxiv.org/abs/2212.08170)
+(Algorithm 1 and sections 2.4–3.4). Install its optional CPU-capable dependency:
+
+```bash
+pip install 'AeonLang[synthesis-bnsynth]'
+python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/xor.ae
+python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/coupled.ae
+```
+
+In the editor, place the cursor on a hole and select **BNSynth neural Boolean
+CNF (G-CLN)** under **Example-driven** in the info view, or choose its synthesis
+code action. It uses the editor's synthesis time budget, reports progress, and
+inserts the verified expression. Install the optional dependency in the Python
+environment running the language server. The solver-based **Bounded Boolean
+CNF (Z3 CEGIS)** remains a separate choice under **Constraint solving**.
+
+The input contract is the same pure first-order Boolean fragment and hard
+`@bounded_cnf(K)` bound as `boolean_bounded`. Each output gets a gated continuous
+logic network with positive/negative input literals, at most K OR clauses and
+one AND output. Product t-norms and dual t-conorms make the gates differentiable.
+CPU PyTorch trains the gates using Adam (learning rate 0.01), squared-error loss
+and the reference implementation's gate regularizer (coefficient 1e-6). Gates
+are projected into [0,1] and thresholded at 0.5 to reconstruct ordinary Aeon
+expressions. Training checks the extracted Boolean network, not just its soft
+predictions, against the labels.
+
+The loop draws consistent satisfying input/output examples, trains each output,
+then verifies all compiler obligations universally. A counterexample adds a new
+training instance and restarts learning. Nondeterministic output choices are
+selected as a joint satisfying tuple; equal inputs never get contradictory
+labels. Globally unconstrained rows are discarded. Nested calls and lexical
+captures retain the compiler's scoped function dependencies. The exact verifier,
+CNF gate and full Aeon validation must all accept before a result is returned.
+
+Integration differences from the pinned
+[reference implementation](https://github.com/rrlcs/bnsynth/tree/12a12dab2f3ed8ff92f88dc8a915826a8f9fe6d4):
+
+- Aeon compiler VCs replace the Verilog input pipeline. Seeded Z3 sampling of
+  satisfying finite relations replaces the external Manthan weighted sampler;
+  Z3 also replaces PicoSAT for exact counterexample queries.
+- Training uses full batches and restarts after 1,000 unsuccessful epochs,
+  within the user's wall-clock budget. Python callers can set `initial_samples`
+  (default 8 per obligation) and `epochs_per_restart`.
+- Extracted candidates must respect K directly. The artifact's optional
+  uncovered-sample patching and extra postprocessing are not used to bypass K.
+- There is no SAT-template candidate search or automatic fallback. SAT assigns
+  training labels and verifies candidates; neural training chooses every gate.
+
+Learning failure is a timeout/search failure, **never a proof of bounded UNSAT**.
+An inconsistent finite sample relation reports `no_solution`; solver unknown,
+runtime failures and validation disagreements remain distinct errors. Report
+fields include epochs, trained models, training rows, restarts, counterexamples
+and validated candidates. `enumeration_complete` is always false. Optional
+objectives retain the Pareto front of verified neural candidates, without an
+optimality claim. CSV and pure `@require` conditions remain hard runtime checks;
+they can reject a network and trigger another restart.
+
+The entire synthesis operation, including PyTorch import, training and final
+validation, runs in one killable worker under `--budget`. The parent process's
+RNG and Torch thread settings are unchanged. A cold PyTorch import can consume
+much of a very short budget. The backend is available in the CLI and LSP without
+importing PyTorch until it is selected for synthesis.
+
+The [recorded benchmark runs](../examples/benchmarks/bnsynth/README.md#recorded-smoke-coverage)
+include all 38 published artifact cases at K=5 and seed=0: the 10-second run
+verified 16 solutions; the 30-minute run verified 20 and timed out on 18.
+The longer run used eight concurrent cases and retained exact source/code
+hashes and independently checked certificates. These are Aeon measurements,
+not a reproduction of the paper's timings.
+
 ### `boolean_bounded` — Bounded Boolean CNF with CEGIS
 
 Opt-in, solver-based synthesis using the existing Z3 dependency. Each target
@@ -438,6 +511,8 @@ def xor (x:Bool) (y:Bool) : {r:Bool | r = (x != y)} := ?body;
 ```bash
 python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/xor.ae
 python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/partial_relation.ae
+python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/coupled_bounds.ae
+python -m aeon --no-main --budget 10 -s boolean_bounded examples/synthesis/boolean_bounded/pareto.ae
 ```
 
 `@bounded_cnf(K)` is a **hard maximum of K CNF clauses per completed definition**,
@@ -473,17 +548,39 @@ source, as in `partial_relation.ae`: witnesses belong to the law's quantificatio
 not the synthesized functions' parameters. Ordinary total refinements are never
 automatically weakened to a feasibility domain.
 
-The solver returns the first feasible bounded candidate. Optional objectives
-are evaluated only after structural and full Aeon validation; this release does
-**not** optimize them, minimize K, or prove global synthesis impossibility. Other
-backends may parse the same annotation, but the shared acceptance/scoring gate
+Inactive clause slots have no selected literals; active clauses form a sorted,
+duplicate-free prefix. An empty clause uses the single-clause representation of
+false. These constraints avoid repeatedly enumerating the same normalized CNF;
+they preserve the complete at-most-K family, including K=0 and nullary functions.
+Independent exhaustive tests cover all templates through two inputs and K=2.
+
+Without numerical objectives, the solver returns the first feasible bounded
+candidate. With minimize/maximize, size, CPU-time or energy goals, it enumerates
+feasible selector models under the same fixed K and retains the shared Pareto
+front. Objectives are evaluated only after structural, full Aeon and mandatory
+specification validation. The returned member follows the usual seeded Pareto
+selection. A budget-limited search does not prove optimality or minimum K;
+`report.enumeration_complete` records whether the finite template family was
+exhausted. Runtime CPU/energy measurements retain their usual measurement limits.
+
+Boolean `@csv_data`/`@csv_file` observations must match exactly. Pure Boolean
+`@require` conditions are also mandatory and add no objective dimensions; see
+`csv.ae` and `require.ae` in the same example directory. An evaluated mismatch
+rejects that model and continues finite search. Opaque/native or recursive
+requirements are unsupported. Runtime exceptions, invalid scores, type/CNF
+failures and disagreements with compiler-proved properties are errors, never
+evidence of bounded UNSAT, even when CSV observations are present.
+
+Other backends may parse the same annotation, but the shared acceptance/scoring gate
 still enforces it. Program-level adapters without that gate, and non-joint
 adapters handling multiple annotated holes, reject the annotation explicitly.
 Unannotated programs keep their existing behavior.
 
 `AEON_SEED` controls solver seeds. Each run owns fresh selectors and solvers.
 `BooleanBoundedSynthesizer.report` records status, iterations, counterexamples,
-selector count and elapsed time for the bounded operation. `BoundedBooleanFailure.category`
+selector and solver-call counts, validated candidates, rejected runtime
+observations, complete-enumeration status and elapsed time for the bounded
+operation. `BoundedBooleanFailure.category`
 distinguishes `bounded_unsat`, `timeout`, `resource_limit`, `unknown`, and
 `validation_error`; capability mismatches use `UnsupportedSynthesisGoal`.
 `bounded_unsat` means no solution in the fixed, supported CNF family. Limits of
@@ -492,15 +589,21 @@ unbounded allocation; the Python API can configure these limits. The independent
 normalizer limits each definition to 10,000 visited syntax nodes. Shared compiler
 preparation, search, extraction, final validation and optional fitness evaluation
 run in the same killable worker used by `noisy`, under one wall-clock
-budget. Z3 calls also receive the remaining budget as their timeout. At the
+budget, charging context preparation exactly once. The budget must be finite.
+Z3 calls also receive the remaining budget as their timeout. At the
 deadline the parent terminates the worker, escalating to kill if necessary, and
 reports `timeout` without accepting or publishing a candidate. Worker cleanup
 has a short bounded grace period. Direct calls to the Boolean adapter similarly
 contain search, extraction, validation and evaluation. Parsing/compilation before
 entering synthesis is outside this budget.
 
-This implements a solver-based bounded Boolean search, not BNSynth's neural
-learner. The separate benchmark corpus and evaluation harness are tracked in
+Issue #649 explicitly requested a solver-based alternative without a neural
+dependency. This backend retains that algorithm; use `bnsynth` above for the
+paper's neural learner. Both preserve exact application identities when building
+synthesis obligations: the ordinary compiler's optional singleton-size cutoff
+must not turn a feasible synthesis problem into bounded UNSAT.
+The separate [benchmark corpus and independent checker](../examples/benchmarks/bnsynth/README.md)
+include the published tasks and exhaustive local oracles from
 [#650](https://github.com/alcides/aeon/issues/650).
 
 ---

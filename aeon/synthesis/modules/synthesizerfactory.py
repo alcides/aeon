@@ -25,6 +25,7 @@ from aeon.synthesis.modules.structure_guided import StructureGuidedSynthesizer
 from aeon.synthesis.modules.polynomial import PolynomialSynthesizer
 
 from aeon.synthesis.modules.boolean_bounded import BooleanBoundedSynthesizer
+from aeon.synthesis.modules.bnsynth import BNSynthSynthesizer
 from aeon.synthesis.modules.sygus import SygusSynthesizer
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynOneStepSynthesizer, TDSynSynthesizer
 from aeon.synthesis.modules.symetric import SymetricSynthesizer
@@ -92,6 +93,7 @@ SYNTHESIZER_LABELS: dict[str, str] = {
     "bustle_baseline": "BUSTLE bottom-up search (unguided)",
     "smt": "SMT model finding (Z3)",
     "boolean_bounded": "Bounded Boolean CNF (Z3 CEGIS)",
+    "bnsynth": "BNSynth neural Boolean CNF (G-CLN)",
     "sygus": "SyGuS translation (CVC5)",
     "polynomial": "Polynomial certificates (Handelman / SOS)",
     "ortools": "CP-SAT optimisation (OR-Tools)",
@@ -145,6 +147,7 @@ SYNTHESIZER_FAMILIES: dict[str, SynthesizerFamily] = {
     # Constraint solving — SMT / CP-SAT exact solvers.
     "smt": SynthesizerFamily.CONSTRAINT_SOLVING,
     "boolean_bounded": SynthesizerFamily.CONSTRAINT_SOLVING,
+    "bnsynth": SynthesizerFamily.EXAMPLE_DRIVEN,
     "sygus": SynthesizerFamily.CONSTRAINT_SOLVING,
     "polynomial": SynthesizerFamily.CONSTRAINT_SOLVING,
     "ortools": SynthesizerFamily.CONSTRAINT_SOLVING,
@@ -197,6 +200,7 @@ _BUILTIN_SYNTHESIZER_IDS = frozenset(
         "noisy",
         "smt",
         "boolean_bounded",
+        "bnsynth",
         "sygus",
         "polynomial",
         "tdsyn",
@@ -319,6 +323,8 @@ def make_synthesizer(module: str, *, tdsyn_expansion: str = "eager") -> Synthesi
             return DecisionTreeSynthesizer()
         case "boolean_bounded":
             return BooleanBoundedSynthesizer(seed=seed)
+        case "bnsynth":
+            return BNSynthSynthesizer(seed=seed)
         case "smt":
             return SMTSynthesizer()
         case "noisy":

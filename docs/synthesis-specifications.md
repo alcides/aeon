@@ -67,6 +67,7 @@ same fitness infrastructure, subject to the stated search limits.
 | `polynomial` | Logical examples; exact-fit CSV check | Logical + check | External Pareto | Yes | Arithmetic polynomial fragment and coefficient/certificate bounds. |
 | `ortools`, `ortools_int`, `cpsat` | Hard examples; soft CSV regression | Check and continue to next assignment | Pareto over blocked assignments | Yes | Bounded numeric/Bool holes, fixed-length arrays and lists; fixed-point Float representation. |
 | `boolean_bounded` | Logical examples; exact-fit Bool CSV check | Logical Boolean obligations + check | External Pareto over finite CNF selectors | Yes | First-order Boolean functions and declared CNF bound. |
+| `bnsynth` | Logical examples become training labels; exact-fit Bool CSV check | Universal Boolean verifier + counterexample training | Pareto over verified neural candidates | Yes | Optional PyTorch; gated CNF learner with hard K; learning failure never proves bounded UNSAT. |
 | `amaze` | Fitness; typed Int/Bool CSV | Fitness | Pareto | Yes | Learned Int/Bool grammar. |
 | `regus` | Fitness; CSV does not fit controller signature | Fitness | Pareto | Yes | `ControlProgram` and the `@cluster` execution-observation protocol. |
 | All regular `llm*` IDs | Fitness and prompt hints | Fitness and prompt hints | Pareto among generated terms | Yes | Provider/model generation quality; ordinary compiler validation. |

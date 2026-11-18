@@ -732,15 +732,26 @@ def _synthesize_joint(
     synthesis_metadata = dict(metadata)
     synthesis_metadata[joint_name] = {"goals": goals}
     prepared_at = monotonic()
+    whole_run_budget = getattr(synthesizer, "requires_joint_obligations", False)
     for name in names:
+        # The Boolean solver selects lexical Boolean variables by bound Name,
+        # not grammar components. Keep its original scope for VC generation:
+        # name-based grammar filtering would erase locals shadowing intrinsics
+        # or fitness helpers and leave their refinements ill-formed.
+        scope = (
+            info[name][1]
+            if getattr(synthesizer, "lexical_inputs_only", False)
+            else without_excluded_names(shadow_fitness_helpers(info[name][1], synthesis_metadata))
+        )
         components[name] = prepare_typeclass_components(
-            without_excluded_names(shadow_fitness_helpers(info[name][1], synthesis_metadata)),
+            scope,
             info[name][0],
             exclude=frozenset(open_targets),
             owner=owners[name],
-            deadline=prepared_at + budget,
+            deadline=(start if whole_run_budget else prepared_at) + budget,
         )
-    budget = max(0.0, budget - (monotonic() - prepared_at))
+    if not whole_run_budget:
+        budget = max(0.0, budget - (monotonic() - prepared_at))
     holes = tuple(
         HoleSpec(
             name,
@@ -779,7 +790,7 @@ def _synthesize_joint(
     )
     checks = [g for g in goals if g.kind == "require" or (check_specs and g.kind in CHECKABLE_GOALS)]
     check_specs = bool(checks)
-    if check_specs and checks:
+    if check_specs and checks and not isolated:
         computations["specification"] = make_bundled_fitness_evaluator(
             checks, workers_ctx, anchor, prog, properties, runtime_cache=runtime_cache
         )
@@ -790,14 +801,42 @@ def _synthesize_joint(
             return fitness(replace(candidate))
 
         if check_specs and checks:
+            from math import isfinite
+            from aeon.synthesis.api import SpecificationViolation
+
+            # Compiler-proved properties/examples must still agree at runtime.
+            # Only an explicitly evaluated CSV/require mismatch is a new finite
+            # search constraint. Errors and timeouts are never counterexamples.
+            observations = [g for g in checks if g.kind in {"csv", "require"}]
+            symbolic = [g for g in checks if g.kind not in {"csv", "require"}]
+            proof_checks = (
+                make_bundled_fitness_evaluator(
+                    symbolic, workers_ctx, anchor, prog, properties, runtime_cache=runtime_cache
+                )
+                if symbolic
+                else None
+            )
+            observation_checks = (
+                make_bundled_fitness_evaluator(observations, workers_ctx, anchor, prog, runtime_cache=runtime_cache)
+                if observations
+                else None
+            )
+
+            def matches(computation, completed):
+                scores = computation(completed)
+                if not all(isfinite(score) for score in scores):
+                    raise InvalidIndividualException("runtime specification returned a nonfinite score")
+                return all(score == 0 for score in scores)
 
             def validate(candidate):
                 if not validate_types(candidate):
                     return False
-                try:
-                    return all(score == 0 for score in computations["specification"](replace(candidate)))
-                except Exception:
+                completed = replace(candidate)
+                if proof_checks is not None and not matches(proof_checks, completed):
                     return False
+                if observation_checks is not None and not matches(observation_checks, completed):
+                    raise SpecificationViolation("candidate does not exactly fit its CSV observations")
+                return True
     else:
         pool = EvaluationPool(replace, computations, budget_eval=budget_eval)
         if check_specs and checks:
@@ -827,10 +866,8 @@ def _synthesize_joint(
         )
         # Backends cannot bypass joint validity or return only some elements.
         if result is not None and not validate(result):
-            if isolated:
-                from aeon.synthesis.modules.boolean_bounded import BoundedBooleanFailure
-
-                raise BoundedBooleanFailure("validation_error", "candidate failed final whole-program validation")
+            if isinstance(synthesizer, BooleanBoundedSynthesizer):
+                raise synthesizer.failure_type("validation_error", "candidate failed final whole-program validation")
             result = None
         if result is not None:
             result = dataclasses.replace(result, terms=tuple(simplify_boolean_conditionals(t) for t in result.terms))

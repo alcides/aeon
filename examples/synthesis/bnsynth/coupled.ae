@@ -1,0 +1,10 @@
+# python -m aeon --no-main --budget 10 -s bnsynth examples/synthesis/bnsynth/coupled.ae
+@bounded_cnf(1)
+def left(x:Bool):Bool := ?left_rule;
+
+@bounded_cnf(1)
+def right(x:Bool):Bool := ?right_rule;
+
+# Both outputs are learned from consistent joint examples and verified together.
+@property(1)
+def law(x:Bool):Bool := (left x != right x) && (left x = x);

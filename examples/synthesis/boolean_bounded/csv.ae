@@ -1,0 +1,4 @@
+# Boolean CSV rows are exact observations for this solver backend.
+@bounded_cnf(1)
+@csv_data("false,true\ntrue,false")
+def negate (x:Bool) : Bool := ?body;

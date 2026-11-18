@@ -8,6 +8,7 @@ can also be enumerated and ranked by the shared runtime Pareto archive.
 from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass
+from math import isfinite
 from time import monotonic
 from typing import Callable
 
@@ -18,7 +19,13 @@ from aeon.core.multiplicity import MOmega
 from aeon.core.terms import Application, Let, Literal, Rec, Term, Var
 from aeon.core.types import AbstractionType, Type, t_bool
 from aeon.decorators.api import Metadata
-from aeon.synthesis.api import SynthesisNotSuccessful, TimeoutInEvaluationException, UnsupportedSynthesisGoal
+from aeon.synthesis.api import (
+    InvalidIndividualException,
+    SpecificationViolation,
+    SynthesisNotSuccessful,
+    TimeoutInEvaluationException,
+    UnsupportedSynthesisGoal,
+)
 from aeon.synthesis.candidate_archive import CandidateArchive
 from aeon.synthesis.bounded_cnf import CNFResourceLimit, base, bounds, normalize
 from aeon.synthesis.joint import HoleSpec, JointCandidate
@@ -26,6 +33,7 @@ from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeo
 from aeon.synthesis.solver_problem import ConstraintSynthesizer, SolverHole, SolverProblem
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.utils.name import Name
+from aeon.typechecking.typeinfer import exact_application_identities
 
 
 class BoundedBooleanFailure(SynthesisNotSuccessful):
@@ -42,6 +50,9 @@ class BooleanReport:
     counterexamples: int = 0
     selectors: int = 0
     rejected_candidates: int = 0
+    validated_candidates: int = 0
+    solver_calls: int = 0
+    enumeration_complete: bool = False
     elapsed: float = 0.0
 
 
@@ -106,7 +117,26 @@ class _Template:
 
     def constraints(self):
         # Tautologies may always be replaced by disabled slots (an at-most bound).
-        return [z3.Not(z3.And(p, n)) for ps, ns in zip(self.positive, self.negative) for p, n in zip(ps, ns)]
+        rules = [z3.Not(z3.And(p, n)) for ps, ns in zip(self.positive, self.negative) for p, n in zip(ps, ns)]
+        masks = []
+        for enabled, positive, negative in zip(self.enabled, self.positive, self.negative):
+            bits = positive + negative
+            # Inactive clauses have no don't-care selector bits. Otherwise
+            # objective/CSV enumeration revisits the same program exponentially.
+            rules.extend(z3.Implies(z3.Not(enabled), z3.Not(bit)) for bit in bits)
+            if bits:
+                masks.append(z3.Concat(*[z3.If(bit, z3.BitVecVal(1, 1), z3.BitVecVal(0, 1)) for bit in bits]))
+        for i in range(1, self.k):
+            rules.append(z3.Implies(self.enabled[i], self.enabled[i - 1]))
+            # Sort distinct active clauses. With no inputs, the only active
+            # clause is empty, so at most the first slot can be enabled.
+            rules.append(
+                z3.Implies(self.enabled[i], z3.ULT(masks[i - 1], masks[i])) if masks else z3.Not(self.enabled[i])
+            )
+        if self.k > 1 and masks:
+            # An empty clause absorbs the entire CNF; retain its one-slot form.
+            rules.append(z3.Implies(z3.And(self.enabled[0], masks[0] == 0), z3.Not(self.enabled[1])))
+        return rules
 
     def apply(self, args: list[z3.BoolRef]) -> z3.BoolRef:
         if len(args) != len(self.schema.params):
@@ -147,12 +177,14 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
     lexical_inputs_only = True
     supports_candidate_enumeration = True
     supports_size_objective = True
+    report_type = BooleanReport
+    failure_type = BoundedBooleanFailure
 
     def __init__(self, seed: int = 0, *, max_selectors: int = 100_000, max_nodes: int = 100_000):
         self.seed = seed
         self.max_selectors = max_selectors
         self.max_nodes = max_nodes
-        self.report = BooleanReport()
+        self.report = self.report_type()
         self._in_worker = False
         self.pareto_front = []
 
@@ -165,20 +197,26 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         needed inside this daemon worker.
         """
         started = monotonic()
-        deadline = started + max(0.0, budget)
-        self.report = BooleanReport()
+        self.report = self.report_type()
         self.pareto_front = []
+        if not isfinite(budget):
+            self.report.status = "unsupported"
+            raise UnsupportedSynthesisGoal("boolean_bounded requires a finite wall-clock budget")
+        deadline = started + max(0.0, budget)
 
         def work(_):
             self._in_worker = True
             worker_ui = _WorkerUI()
             try:
-                result = operation(max(0.0, deadline - monotonic()), worker_ui)
+                with exact_application_identities():
+                    result = operation(max(0.0, deadline - monotonic()), worker_ui)
                 return result, None, self.report, worker_ui.solutions, worker_ui.fronts, self.pareto_front
             except BoundedBooleanFailure as exc:
                 return None, (exc.category, exc.message), self.report, [], [], []
             except UnsupportedSynthesisGoal as exc:
                 return None, ("unsupported", str(exc)), self.report, [], [], []
+            except MemoryError:
+                return None, ("resource_limit", "Boolean synthesis memory exhausted"), self.report, [], [], []
 
         worker = None
         try:
@@ -195,7 +233,7 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
                 self.report.status = category
                 if category == "unsupported":
                     raise UnsupportedSynthesisGoal(message)
-                raise BoundedBooleanFailure(category, message)
+                raise self.failure_type(category, message)
             for solution, quality, elapsed, is_best in solutions:
                 ui.register(solution, quality, elapsed, is_best)
             for front, elapsed in fronts:
@@ -203,17 +241,17 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
             return result
         except WorkerTimeout as exc:
             self.report.status = "timeout"
-            raise BoundedBooleanFailure("timeout", "wall-clock budget exhausted") from exc
+            raise self.failure_type("timeout", "wall-clock budget exhausted") from exc
         except WorkerError as exc:
             self.report.status = "validation_error"
-            raise BoundedBooleanFailure("validation_error", str(exc)) from exc
+            raise self.failure_type("validation_error", str(exc)) from exc
         finally:
             if worker is not None:
                 worker.close()
             self.report.elapsed = monotonic() - started
 
     def check_source(self, program: Term, holes: tuple[HoleSpec, ...], metadata: Metadata) -> None:
-        self.report = BooleanReport()
+        self.report = self.report_type()
         try:
             self._check_source(program, holes, metadata)
         except UnsupportedSynthesisGoal:
@@ -236,7 +274,18 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         while isinstance(program, (Let, Rec)):
             definitions[program.var_name] = program
             program = program.body
-        roots = set(owners) | {n for n, e in metadata.items() if isinstance(e, dict) and "property" in e}
+        runtime_requirements = {
+            g.function
+            for e in metadata.values()
+            if isinstance(e, dict)
+            for g in e.get("goals", [])
+            if g.kind == "require"
+        }
+        roots = (
+            set(owners)
+            | runtime_requirements
+            | {n for n, e in metadata.items() if isinstance(e, dict) and "property" in e}
+        )
         roots |= {ex.function for e in metadata.values() if isinstance(e, dict) for ex in e.get("examples", [])}
         visiting: set[Name] = set()
         visited: set[Name] = set()
@@ -250,14 +299,17 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
             definition = definitions[name]
             if not isinstance(definition, Rec):
                 raise UnsupportedSynthesisGoal("Boolean specifications need typed definitions")
-            _boolean_signature(definition.var_type)
+            # @require's generated violation helper returns 0/1. Its logical
+            # dependencies still must be pure, nonrecursive Boolean code.
+            if name not in runtime_requirements:
+                _boolean_signature(definition.var_type)
             for node in _nodes(definition.var_value):
                 if isinstance(node, Rec):
                     raise UnsupportedSynthesisGoal("boolean_bounded does not support local recursion")
                 if isinstance(node, Let) and node.multiplicity is not MOmega:
                     raise UnsupportedSynthesisGoal("boolean_bounded requires unrestricted local bindings")
                 if isinstance(node, Var):
-                    if node.name.name == "native":
+                    if node.name in {Name("native", 0), Name("native_import", 0), Name("uninterpreted", 0)}:
                         raise UnsupportedSynthesisGoal("boolean_bounded cannot translate native specifications")
                     inspect(node.name)
             visiting.remove(name)
@@ -289,7 +341,21 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         search_budget = max(0.0, budget - min(0.05, budget * 0.05))
         deadline = start + search_budget
         self.report = BooleanReport()
-        archive = CandidateArchive(self, fun_name, metadata, evaluate, search_budget, ui)
+
+        def score(candidate):
+            try:
+                values = evaluate(candidate)
+            except TimeoutInEvaluationException as exc:
+                raise BoundedBooleanFailure("timeout", "objective evaluation timed out") from exc
+            except InvalidIndividualException as exc:
+                raise BoundedBooleanFailure(
+                    "validation_error", "feasible candidate has no valid objective score"
+                ) from exc
+            if not all(isfinite(value) for value in values):
+                raise BoundedBooleanFailure("validation_error", "objective returned a nonfinite score")
+            return values
+
+        archive = CandidateArchive(self, fun_name, metadata, score, search_budget, ui)
 
         def remaining():
             value = deadline - monotonic()
@@ -299,6 +365,7 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
 
         def check(solver):
             solver.set(timeout=max(1, int(remaining() * 1000)))
+            self.report.solver_calls += 1
             result = solver.check()
             remaining()
             if result == z3.unknown:
@@ -390,10 +457,15 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
             while True:
                 self.report.iterations += 1
                 if check(candidate_solver) == z3.unsat:
+                    self.report.enumeration_complete = True
                     incumbent = archive.result()
                     if isinstance(incumbent, JointCandidate):
                         self.report.status = "solved"
                         return incumbent
+                    if self.report.validated_candidates:
+                        raise BoundedBooleanFailure(
+                            "validation_error", "feasible candidates had no usable objective result"
+                        )
                     raise BoundedBooleanFailure(
                         "bounded_unsat", "no solution within the stated CNF bounds and supported grammar"
                     )
@@ -407,18 +479,17 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
                     verifier.pop()
                     candidate = JointCandidate(tuple(t.extract(model) for t in templates.values()))
                     remaining()
-                    if not validate(candidate):
-                        if any(goal.kind == "csv" for goal in entry.get("goals", [])):
-                            # CSV observations are exact runtime checks for
-                            # this satisfaction backend. They are not among
-                            # the compiler's symbolic Boolean obligations, so
-                            # their rejection requests the next selector model.
-                            self.report.rejected_candidates += 1
-                            candidate_solver.add(z3.Or([selector != value for selector, value in frozen]))
-                            continue
+                    try:
+                        valid = validate(candidate)
+                    except SpecificationViolation:
+                        self.report.rejected_candidates += 1
+                        candidate_solver.add(z3.Or([selector != value for selector, value in frozen]))
+                        continue
+                    if not valid:
                         raise BoundedBooleanFailure(
                             "validation_error", "solver candidate failed full Aeon/CNF validation"
                         )
+                    self.report.validated_candidates += 1
                     remaining()
                     if archive.consider(candidate):
                         self.report.status = "solved"
@@ -455,6 +526,9 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         except (RecursionError, CNFResourceLimit) as exc:
             self.report.status = "resource_limit"
             raise BoundedBooleanFailure("resource_limit", "Boolean syntax normalization limit exceeded") from exc
+        except MemoryError as exc:
+            self.report.status = "resource_limit"
+            raise BoundedBooleanFailure("resource_limit", "Boolean synthesis memory exhausted") from exc
         except Exception as exc:
             self.report.status = "validation_error"
             raise BoundedBooleanFailure("validation_error", f"{type(exc).__name__}: {exc}") from exc

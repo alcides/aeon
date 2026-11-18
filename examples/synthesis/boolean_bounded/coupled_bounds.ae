@@ -1,0 +1,9 @@
+# Each output has its own hard CNF bound. They are solved together.
+@bounded_cnf(0)
+def left (x:Bool) : Bool := ?left;
+
+@bounded_cnf(1)
+def right (x:Bool) : Bool := ?right;
+
+@property(1)
+def law (x:Bool) : Bool := (left x != right x) = x;
