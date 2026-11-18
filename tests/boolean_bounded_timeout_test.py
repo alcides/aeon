@@ -13,6 +13,7 @@ import aeon.synthesis.entrypoint as entrypoint
 import aeon.synthesis.solver_problem as solver_problem
 from aeon.synthesis.identification import incomplete_functions_and_holes
 from aeon.synthesis.modules.boolean_bounded import BooleanBoundedSynthesizer, BoundedBooleanFailure, _Template
+from aeon.synthesis.typecheck_cache import TypecheckingCache
 from aeon.synthesis.uis.api import SilentSynthesisUI
 from tests.boolean_bounded_test import direct, direct_problem
 from tests.joint_hole_synthesis_test import parse, solve
@@ -34,7 +35,7 @@ def test_cleanup_waits_for_delayed_kill_completion():
             self.reaper = Timer(0.15, exited.set)
             self.reaper.start()
 
-        def join(self, timeout):
+        def join(self, timeout=None):
             exited.wait(timeout)
 
     class Connection:
@@ -63,6 +64,27 @@ class RecordingUI(SilentSynthesisUI):
 
     def end(self, solution, quality):
         self.ends.append(solution)
+
+
+def inject_final_validation(monkeypatch, check):
+    """Inject at final acceptance, even when search has cached the typing proof."""
+    original_search = BooleanBoundedSynthesizer.synthesize_joint
+    original_check = TypecheckingCache.check
+    search_finished = False
+
+    def search(*args, **kwargs):
+        nonlocal search_finished
+        result = original_search(*args, **kwargs)
+        search_finished = True
+        return result
+
+    def validate(*args, **kwargs):
+        if search_finished:
+            return check(lambda: original_check(*args, **kwargs))
+        return original_check(*args, **kwargs)
+
+    monkeypatch.setattr(BooleanBoundedSynthesizer, "synthesize_joint", search)
+    monkeypatch.setattr(TypecheckingCache, "check", validate)
 
 
 @pytest.mark.parametrize(
@@ -97,15 +119,7 @@ def test_entire_joint_run_is_contained(monkeypatch, phase):
     if phase in patches:
         monkeypatch.setattr(*patches[phase], block)
     elif phase == "final":
-        original = entrypoint.check_type
-        calls = 0
-
-        def final_check(*args, **kwargs):
-            nonlocal calls
-            calls += 1
-            return block() if calls == 2 else original(*args, **kwargs)
-
-        monkeypatch.setattr(entrypoint, "check_type", final_check)
+        inject_final_validation(monkeypatch, block)
     else:
         monkeypatch.setattr(entrypoint, "make_bundled_fitness_evaluator", lambda *args, **kwargs: block)
 
@@ -147,14 +161,7 @@ def test_final_rejection_does_not_publish_success(monkeypatch):
     driver = parse("@bounded_cnf(0) def f:Bool := ?h;")
     backend = BooleanBoundedSynthesizer()
     ui = RecordingUI()
-    calls = 0
-
-    def validate(*args):
-        nonlocal calls
-        calls += 1
-        return calls == 1
-
-    monkeypatch.setattr(entrypoint, "check_type", validate)
+    inject_final_validation(monkeypatch, lambda _: False)
     with pytest.raises(BoundedBooleanFailure) as exc:
         entrypoint.synthesize_holes(
             driver.typing_ctx,
@@ -168,6 +175,26 @@ def test_final_rejection_does_not_publish_success(monkeypatch):
         )
     assert exc.value.category == backend.report.status == "validation_error"
     assert not ui.solutions and ui.ends == [None]
+
+
+def test_final_validation_reuses_search_proof(monkeypatch):
+    driver = parse("@bounded_cnf(0) def f:Bool := ?h;")
+    typechecks = mp.Value("i", 0)
+    final_checks = mp.Value("i", 0)
+    original_check = entrypoint.check_type
+
+    def check(*args, **kwargs):
+        typechecks.value += 1
+        return original_check(*args, **kwargs)
+
+    def final_check(cached_check):
+        final_checks.value += 1
+        return cached_check()
+
+    monkeypatch.setattr(entrypoint, "check_type", check)
+    inject_final_validation(monkeypatch, final_check)
+    assert solve(driver, BooleanBoundedSynthesizer(), budget=2)
+    assert typechecks.value == final_checks.value == 1
 
 
 def test_worker_crash_is_not_timeout_or_unsat(monkeypatch):

@@ -18,7 +18,7 @@ from aeon.typechecking.typeinfer import check
 from aeon.utils.name import Name
 from aeon.verification.horn import apply_liquid
 from aeon.verification.vcs import LiquidConstraint
-from aeon.synthesis.modules.synquid.qualifiers import vocabulary, realize
+from aeon.synthesis.modules.synquid.qualifiers import condition_vocabulary, realize
 
 
 @dataclass
@@ -31,7 +31,7 @@ class AbductionResult:
 def branch_environment(state: ConstraintState, goal: Type) -> ConstraintState:
     """Permit branch-local preconditions to constrain κ during construction."""
     child = state.fork()
-    qualifiers = vocabulary(child.context, goal)
+    qualifiers = condition_vocabulary(child.context, goal)
     predicate = child.fresh_predicate(child.context, qualifiers)
     return child.assume(predicate)
 
@@ -48,10 +48,10 @@ def abduce(
     if state.inhabited() == Status.VALID:
         return AbductionResult([], Status.INCONSISTENT)
     atoms = extract_qualifier_atoms(ctx, goal_type=goal, max_atoms=None)
-    terms = bool_terms_from_qualifier_atoms(ctx, atoms | (qualifiers or frozenset()), max_terms=None)
-    realizations = {liquid: term for term in terms if (liquid := liquefy(term)) is not None}
     if qualifiers is None:
-        qualifiers = vocabulary(ctx, goal)
+        qualifiers = condition_vocabulary(ctx, goal)
+    terms = bool_terms_from_qualifier_atoms(ctx, atoms | qualifiers, max_terms=None)
+    realizations = {liquid: term for term in terms if (liquid := liquefy(term)) is not None}
     branch_state = state.fork()
     try:
         predicate = branch_state.fresh_predicate(ctx, qualifiers)

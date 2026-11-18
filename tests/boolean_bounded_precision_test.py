@@ -55,5 +55,7 @@ def test_published_lut7_is_feasible_at_five_clauses():
     certificate = {"i_32": [[30, -31], [-30, 31], [29, 31], [28, 31], [27, 28, 29]]}
     assert check(circuit, certificate, 5)["status"] == "verified_solved"
     driver = parse((ROOT / case["aeon"]).read_text())
-    completed = fill(driver, solve(driver, BooleanBoundedSynthesizer(), budget=15))
+    # This is a correctness regression, not a 15-second performance gate on CI.
+    # Deadline enforcement is exercised separately with injected blocking calls.
+    completed = fill(driver, solve(driver, BooleanBoundedSynthesizer(), budget=60))
     assert check(circuit, extract(completed, circuit, 5), 5)["status"] == "verified_solved"

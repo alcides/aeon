@@ -72,6 +72,7 @@ from aeon.synthesis.decorators import Goal
 from aeon.synthesis.resource_meters import measure_cputime, measure_energy
 from aeon.synthesis.example_adapters import adapt_example_metadata
 from aeon.synthesis.program_specifications import ProgramSpecifications
+from aeon.synthesis.typecheck_cache import TypecheckingCache
 from aeon.synthesis.specifications import CHECKABLE_GOALS, checked_validator, require_checkable
 
 
@@ -107,6 +108,8 @@ def make_validator(
     *,
     check_types: bool = True,
 ) -> Callable[[Term], bool]:
+    typechecking_cache = TypecheckingCache()
+
     def validate(candidate: Term) -> bool:
         from aeon.synthesis.constructors import prepare_candidate
 
@@ -120,10 +123,13 @@ def make_validator(
             return False
         if not check_types:
             return True
-        prepared = prepare_candidate(candidate)
-        if prepared is not candidate:
-            prog = without_main_placeholder(replace(prepared))
-        return check_type(ctx, prog, Top())
+
+        def compute():
+            prepared = prepare_candidate(candidate)
+            checking_program = without_main_placeholder(replace(prepared)) if prepared is not candidate else prog
+            return check_type(ctx, checking_program, Top())
+
+        return typechecking_cache.check(ctx, prog, compute)
 
     return validate
 
@@ -685,6 +691,8 @@ def _synthesize_joint(
             raise InvalidIndividualException()
         return result
 
+    typechecking_cache = TypecheckingCache()
+
     def validate_types(candidate: Term) -> bool:
         from aeon.synthesis.constructors import prepare_candidate
 
@@ -696,8 +704,12 @@ def _synthesize_joint(
             return False
         if not check_program(completed, metadata):
             return False
-        prepared = prepare_candidate(candidate)
-        return check_type(ctx, replace(prepared) if prepared is not candidate else completed, top)
+
+        def compute():
+            prepared = prepare_candidate(candidate)
+            return check_type(ctx, replace(prepared) if prepared is not candidate else completed, top)
+
+        return typechecking_cache.check(ctx, completed, compute)
 
     goals: list[Goal] = []
     for entry in metadata.values():

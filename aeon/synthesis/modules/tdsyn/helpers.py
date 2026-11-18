@@ -175,8 +175,13 @@ BUILTIN_BASE_TYPES: list[TypeConstructor] = [t_int, t_bool, t_float, t_string]
 # constructor-only holes with type-ok junk.
 _NUMERIC_OPS = frozenset({"+", "-", "*", "/", "%", "<", ">", "<=", ">="})
 _EQUALITY_OPS = frozenset({"==", "!="})
+# Logical sets are polymorphic, but the synthesizer only needs the two
+# carriers Z3 can decide. Instantiating ``Set a`` at every ADT changes the
+# candidate order of unrelated goals.
+_SET_OPS = frozenset({"Set_empty", "Set_sng", "Set_cup", "Set_cap", "Set_dif", "Set_mem", "Set_sub"})
 _NUMERIC_MONO_TYPES: list[TypeConstructor] = [t_int, t_float]
 _EQUALITY_MONO_TYPES: list[TypeConstructor] = [t_int, t_float, t_bool, t_string]
+_SET_MONO_TYPES: list[TypeConstructor] = [t_int, t_bool]
 
 
 def _collect_concrete_types(ctx: TypingContext) -> list[TypeConstructor]:
@@ -201,6 +206,8 @@ def _mono_types_for(name: Name, ctx: TypingContext) -> list[TypeConstructor]:
         return list(_NUMERIC_MONO_TYPES)
     if name.name in _EQUALITY_OPS:
         return list(_EQUALITY_MONO_TYPES)
+    if name.name in _SET_OPS:
+        return list(_SET_MONO_TYPES)
     return _collect_concrete_types(ctx)
 
 

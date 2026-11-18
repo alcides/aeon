@@ -8,6 +8,8 @@ from typing import Generator
 from loguru import logger
 
 from z3 import Function
+from z3 import is_array_sort
+from z3 import is_expr
 from z3 import Int
 from z3 import Length
 from z3 import IntVal
@@ -55,6 +57,7 @@ from aeon.core.types import Type
 from aeon.core.types import TypeVar
 from aeon.core.types import t_bool, t_int, t_float, t_set, t_string, t_unit
 from aeon.core.types import type_free_term_vars
+from aeon.verification.set_macros import expand_abstract_sets, set_element
 from aeon.verification.sub import lower_constraint_type
 from aeon.verification.vcs import Conjunction
 from aeon.verification.vcs import alpha_key
@@ -939,9 +942,12 @@ def smt_valid(constraint: Constraint) -> bool:
     try:
         valid = _smt_valid(constraint, key)
     except Z3Exception as exc:
+        current_session().state(VerificationState).inconclusive_queries += 1
         record_verification(VerificationResult(constraint, "unsupported", str(exc)))
         raise
     status, reason = _smt_status_cache.get(key, ("valid" if valid else "invalid", None))
+    if status in ("unknown", "unsupported"):
+        current_session().state(VerificationState).inconclusive_queries += 1
     record_verification(VerificationResult(constraint, status, reason, cached))
     return valid
 
@@ -1193,8 +1199,17 @@ def get_sort(base: Type) -> SortRef:
             return RealSort()
         case TypeConstructor(Name("String", _)):
             return StringSort()
-        case TypeConstructor(Name("Set", _)):
-            return SetSort(IntSort())
+        case TypeConstructor(Name("Set", _), _):
+            kind = set_element(base)
+            element = t_int if kind is None or kind[0] == "z3" else kind[1]
+            if kind is None or kind[0] == "z3":
+                carrier = element if isinstance(element, TypeConstructor) else t_int
+                return SetSort(get_sort(lower_constraint_type(carrier)))
+            token = element.name.name if isinstance(element, (TypeConstructor, TypeVar)) else "elem"
+            key = f"AeonSet_{token}"
+            if key not in sort_cache:
+                sort_cache[key] = DeclareSort(key)
+            return sort_cache[key]
         case TypeConstructor(Name("Array", _), [element]):
             sname = _mangle_sort_name(base)
             if sname not in sort_cache:
@@ -1372,8 +1387,8 @@ def make_variable(name: str, base: TypeConstructor | AbstractionType | Top) -> A
             return Real(name)
         case TypeConstructor(Name("String", _)):
             return String(name)
-        case TypeConstructor(Name("Set", _)):
-            return Const(name, SetSort(IntSort()))
+        case TypeConstructor(Name("Set", _), _):
+            return Const(name, get_sort(base))
         case TypeConstructor(Name("Top", _)):
             return Int(name)
         case TypeConstructor(_, _):
@@ -1503,6 +1518,12 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
         case LiquidApp(fun_name, args):
+            if fun_name.name == "Set_mem" and len(args) == 2:
+                element = translate_liq(args[0], variables, memo)
+                container = translate_liq(args[1], variables, memo)
+                if _is_z3_set(container):
+                    return IsMember(element, container)
+                return _abstract_member(element, container)
             if fun_name.name in {"==", "!="} and len(args) == 2:
                 # Prefer the non-constructor side as the source of a concrete
                 # sort; the other side may be a polymorphic nullary constructor.
@@ -1706,22 +1727,46 @@ def _constructor_distinctness(variables: dict[str, Any]) -> list[BoolRef]:
     return assertions
 
 
+def _is_z3_set(value: Any) -> bool:
+    if not is_expr(value):
+        return False
+    try:
+        return bool(is_array_sort(value)) and str(value.sort().range()) == "Bool"
+    except Z3Exception:
+        return False
+
+
+_abstract_members: dict[tuple[str, str], Any] = {}
+
+
+def _abstract_member(element: Any, container: Any) -> Any:
+    """Membership in a macro-expanded set is an uninterpreted predicate."""
+    key = (str(element.sort()), str(container.sort()))
+    function = _abstract_members.get(key)
+    if function is None:
+        token = f"{key[0]}_{key[1]}".replace(" ", "_")
+        function = Function(f"AeonSetMem_{token}", element.sort(), container.sort(), BoolSort())
+        _abstract_members[key] = function
+    return function(element, container)
+
+
 def translate(
     c: CanonicConstraint,
     memo: dict[int, tuple[LiquidTerm, Any]] | None = None,
 ) -> BoolRef | bool:
+    premise, conclusion, extra_vars = expand_abstract_sets(c.premise, c.conclusion, c.variables, c.functions)
     # P => true is valid independently of P. Avoid materialising every sort
     # and function in a large program for these ubiquitous typing tautologies.
-    if isinstance(c.conclusion, LiquidLiteralBool) and c.conclusion.value:
+    if isinstance(conclusion, LiquidLiteralBool) and conclusion.value:
         return False
-    if isinstance(c.premise, LiquidLiteralBool) and not c.premise.value:
+    if isinstance(premise, LiquidLiteralBool) and not premise.value:
         return False
     sorts = mk_sorts(c.sorts)
     # Uninterpreted declarations have no effect until referenced. A weakening
     # query typically mentions a handful of functions, not every imported
     # library symbol. Keep all premises, but materialise only their symbols.
     referenced: set[str] = set()
-    pending = [c.premise, c.conclusion]
+    pending = [premise, conclusion]
     seen_terms: set[int] = set()
     while pending:
         term = pending.pop()
@@ -1735,6 +1780,9 @@ def translate(
             referenced.add(str(term.name))
     used_functions = {name: ty for name, ty in c.functions.items() if name in referenced}
     used_variables = {name: ty for name, ty in c.variables.items() if name in referenced}
+    for name, ty in extra_vars.items():
+        if name in referenced:
+            used_variables[name] = ty
     # Materialise inductive Datatypes for types mentioned in the VC so
     # constructors are registered before liquid translation (covers VCs that
     # mention ``List_nil`` without listing it under ``functions``).
@@ -1754,8 +1802,8 @@ def translate(
     # LH exact-data-cons + measures: constructors and RecFunction measures win
     # over uninterpreted Functions of the same name.
     env = variables | functions | constructors_for_env() | measures_for_env()
-    e1 = translate_liq(c.premise, env, memo)
-    e2 = translate_liq(c.conclusion, env, memo)
+    e1 = translate_liq(premise, env, memo)
+    e2 = translate_liq(conclusion, env, memo)
     if isinstance(e2, bool) and e2 is True:
         return False
     if isinstance(e1, bool) and isinstance(e2, bool):

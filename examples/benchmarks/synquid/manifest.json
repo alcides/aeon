@@ -653,10 +653,8 @@
       "upstream_goals": [
         "reverse"
       ],
-      "status": "partial",
-      "gaps": [
-        "Element-set preservation is missing from both snoc and reverse."
-      ],
+      "status": "contract-faithful",
+      "gaps": [],
       "notes": [
         "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
         "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar.",
@@ -685,10 +683,8 @@
       "upstream_goals": [
         "snoc"
       ],
-      "status": "partial",
-      "gaps": [
-        "Element-set union is missing from the result."
-      ],
+      "status": "contract-faithful",
+      "gaps": [],
       "notes": [
         "Local datatypes avoid importing the whole List library; lowercase qualified constructors replace upstream uppercase names.",
         "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."

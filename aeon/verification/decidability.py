@@ -23,7 +23,10 @@ What is *in* the fragment (no warning):
   least one side is a *constant* (e.g. ``2 * x``, ``x / 4``, ``x % 2``).
 * Uninterpreted-function applications (measures, datatype projections, reflected
   functions) and predicate-abstraction holes — these live in EUF / Horn.
-* Set operations (``Set_mem``, ``Set_cup``, ...), which Z3 decides natively.
+* Set operations. Integer and Boolean sets stay native Z3 sets. Membership
+  in any other set is macro-expanded into equality and uninterpreted
+  functions before the query, so the solver still sees a quantifier-free
+  formula.
 
 What is *out* of the fragment (warned about here):
 

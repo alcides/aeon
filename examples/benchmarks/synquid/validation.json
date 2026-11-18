@@ -105,17 +105,17 @@
     },
     {
       "id": "List-Reverse",
-      "sha256": "59f24704b3f82fc2daa925ccf79f685d5ae4fe3999d419cb7d513a37b0c982e3",
+      "sha256": "11ffc121cc01f3db7e76db25d1af7debab5e00c61640cd042b6d55cf80aa802c",
       "status": "no-solution",
       "elapsed_seconds": 5.462,
-      "fidelity": "partial"
+      "fidelity": "contract-faithful"
     },
     {
       "id": "List-Snoc",
-      "sha256": "2cd4dff1fe5725c21d56bb81c7b37bc1ba5a1928c9bbac22fe7eba0eb1c486f4",
+      "sha256": "4bda7c9890e66826036a0fcbcf708830bec6575e556417b301608ced593e43ff",
       "status": "no-solution",
       "elapsed_seconds": 5.097,
-      "fidelity": "partial"
+      "fidelity": "contract-faithful"
     },
     {
       "id": "List-Stutter",

@@ -54,7 +54,6 @@ from aeon.core.types import t_bool
 from aeon.core.types import t_float
 from aeon.core.types import t_int
 from aeon.core.types import t_string
-from aeon.core.types import t_set
 from aeon.core.types import t_unit
 from aeon.core.types import top
 from aeon.core.types import type_free_term_vars
@@ -581,17 +580,24 @@ def prim_op(t: Name) -> Type:
             return AbstractionType(name, t_bool, t_bool)
         case "-->":
             return make_binary_app_type(t, t_bool, t_bool)
-        case "Set_sng":
-            name = Name("fresh", fresh_counter.fresh())
-            return AbstractionType(name, t_int, t_set)
-        case "Set_cup" | "Set_cap" | "Set_dif":
-            return make_binary_app_type(t, t_set, t_set)
-        case "Set_mem":
-            xname = Name("x", fresh_counter.fresh())
-            sname = Name("s", fresh_counter.fresh())
-            return AbstractionType(xname, t_int, AbstractionType(sname, t_set, t_bool))
-        case "Set_sub":
-            return make_binary_app_type(t, t_set, t_bool)
+        case "Set_sng" | "Set_cup" | "Set_cap" | "Set_dif" | "Set_mem" | "Set_sub":
+            element_name = Name("_set_a", fresh_counter.fresh())
+            element = TypeVar(element_name)
+            set_type = TypeConstructor(Name("Set", 0), [element])
+            match t.name:
+                case "Set_sng":
+                    body: Type = AbstractionType(Name("x", fresh_counter.fresh()), element, set_type)
+                case "Set_mem":
+                    body = AbstractionType(
+                        Name("x", fresh_counter.fresh()),
+                        element,
+                        AbstractionType(Name("s", fresh_counter.fresh()), set_type, t_bool),
+                    )
+                case "Set_sub":
+                    body = make_binary_app_type(t, set_type, t_bool)
+                case _:
+                    body = make_binary_app_type(t, set_type, set_type)
+            return TypePolymorphism(element_name, Kind.BASE, body)
         case _:
             assert False, f"Unknown selfication of {t}"
 

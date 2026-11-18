@@ -8,7 +8,7 @@ PLDI 2016 Synquid).
 
 from __future__ import annotations
 
-from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm
+from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidTerm, LiquidVar
 from aeon.core.terms import Abstraction, Annotation, Application, If, Let, Literal, Rec, RefinementApplication
 from aeon.core.terms import Term, TypeAbstraction, TypeApplication, Var
 from aeon.core.types import (
@@ -111,6 +111,72 @@ def _collect_from_term(t: Term, sink: set[LiquidTerm]) -> None:
             pass
 
 
+def set_membership_atoms(ctx: TypingContext) -> set[LiquidTerm]:
+    """One ``mem`` template per set-valued measure, at bound element variables.
+
+    The element and the measured container are variables in scope. Applications
+    are not members of the template, so this is not a product over terms.
+    """
+
+    def base_of(ty: Type) -> Type:
+        if isinstance(ty, RefinedType):
+            return base_of(ty.type)
+        if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+            return base_of(ty.body)
+        return ty
+
+    def unary_measure(ty: Type) -> tuple[Type, Type] | None:
+        current: Type = ty
+        while isinstance(current, (TypePolymorphism, RefinementPolymorphism)):
+            current = current.body
+        if not isinstance(current, AbstractionType):
+            return None
+        argument = base_of(current.var_type)
+        result = base_of(current.type)
+        if isinstance(result, AbstractionType):
+            return None
+        if not isinstance(result, TypeConstructor) or result.name.name != "Set" or not result.args:
+            return None
+        return argument, base_of(result.args[0])
+
+    def same(left: Type, right: Type) -> bool:
+        left, right = base_of(left), base_of(right)
+        if isinstance(left, TypeVar) and isinstance(right, TypeVar):
+            return left.name.name == right.name.name
+        if isinstance(left, TypeConstructor) and isinstance(right, TypeConstructor):
+            return (
+                left.name.name == right.name.name
+                and len(left.args) == len(right.args)
+                and all(same(a, b) for a, b in zip(left.args, right.args))
+            )
+        return left == right
+
+    variables: list[tuple[Name, Type]] = []
+    measures: list[tuple[Name, Type, Type]] = []
+    for entry in ctx.entries:
+        if isinstance(entry, VariableBinder):
+            variables.append((entry.name, base_of(entry.type)))
+        if isinstance(entry, (UninterpretedBinder, VariableBinder)):
+            shape = unary_measure(entry.type)
+            if shape is None or entry.name.name.startswith("Set_"):
+                continue
+            measures.append((entry.name, shape[0], shape[1]))
+
+    atoms: set[LiquidTerm] = set()
+    for measure, container_type, element_type in measures:
+        containers = [name for name, ty in variables if same(ty, container_type)]
+        elements = [name for name, ty in variables if same(ty, element_type)]
+        for container in containers:
+            for element in elements:
+                atoms.add(
+                    LiquidApp(
+                        Name("Set_mem", 0),
+                        [LiquidVar(element), LiquidApp(measure, [LiquidVar(container)])],
+                    )
+                )
+    return atoms
+
+
 def extract_qualifier_atoms(
     ctx: TypingContext,
     goal_type: Type | None = None,
@@ -137,6 +203,7 @@ def extract_qualifier_atoms(
         _collect_from_type(goal_type, sink)
     if term is not None:
         _collect_from_term(term, sink)
+    sink.update(set_membership_atoms(ctx))
     if max_atoms is None or len(sink) <= max_atoms:
         return frozenset(sink)
     ordered = sorted(sink, key=repr)
