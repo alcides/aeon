@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, is_dataclass, replace
+from enum import Enum
 from functools import reduce
 from typing import Any, Callable, TypeVar as TypingTypeVar
 from collections.abc import MutableMapping
@@ -776,11 +777,54 @@ class CanonicConstraint:
         self.proof_key = None
 
 
-def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constraint:
+class _RenameOccurrences:
+    """Conservative name occurrences, scoped to one flattening traversal.
+
+    Include bound names too: a false positive only costs an unnecessary rewrite.
+    Unlike free-variable analysis, this also sees abstract predicate arguments
+    and Horn applications. Unknown payloads disable the shortcut. No mutable
+    syntax or proof results are cached across verification calls.
+    """
+
+    def __init__(self) -> None:
+        self.cache: dict[int, tuple[object, frozenset[Name] | None]] = {}
+
+    def contains(self, value: Type | LiquidTerm, name: Name) -> bool:
+        key = id(value)
+        cached = self.cache.get(key)
+        if cached is None:
+            names: set[Name] = set()
+            pending: list[object] = [value]
+            seen: set[int] = set()
+            supported = True
+            while pending:
+                item = pending.pop()
+                if isinstance(item, Name):
+                    names.add(item)
+                elif item is None or isinstance(item, (str, bytes, bool, int, float, Enum)):
+                    continue
+                elif id(item) not in seen:
+                    seen.add(id(item))
+                    if isinstance(item, (list, tuple)):
+                        pending.extend(item)
+                    elif is_dataclass(item) and not isinstance(item, type):
+                        pending.extend(getattr(item, f.name) for f in fields(item) if f.name != "loc")
+                    else:
+                        supported = False
+                        break
+            cached = (value, frozenset(names) if supported else None)
+            self.cache[key] = cached
+        return cached[1] is None or name in cached[1]
+
+
+def rename_constraint(
+    c: Constraint, old_name: Name, new_name: Name, _occurrences: _RenameOccurrences | None = None
+) -> Constraint:
     """Renames a binder within the constraint, to make it is unique."""
     # Verification conditions are DAGs, not necessarily trees. Rebuilding each
     # shared branch independently makes long @example suites exponential.
     memo: dict[int, Constraint] = {}
+    occurrences = _occurrences if _occurrences is not None else _RenameOccurrences()
 
     def visit(node: Constraint) -> Constraint:
         key = id(node)
@@ -789,39 +833,58 @@ def rename_constraint(c: Constraint, old_name: Name, new_name: Name) -> Constrai
         return memo[key]
 
     def rename_node(c: Constraint) -> Constraint:
-        return _rename_constraint_node(c, old_name, new_name, visit)
+        return _rename_constraint_node(c, old_name, new_name, visit, occurrences)
 
     return visit(c)
 
 
 def _rename_constraint_node(
-    c: Constraint, old_name: Name, new_name: Name, visit: Callable[[Constraint], Constraint]
+    c: Constraint,
+    old_name: Name,
+    new_name: Name,
+    visit: Callable[[Constraint], Constraint],
+    occurrences: _RenameOccurrences,
 ) -> Constraint:
+    def rename_liquid(term: LiquidTerm) -> LiquidTerm:
+        return (
+            substitution_in_liquid(term, LiquidVar(new_name), old_name)
+            if occurrences.contains(term, old_name)
+            else term
+        )
+
+    def rename_type(ty: AbstractionType) -> AbstractionType:
+        if not occurrences.contains(ty, old_name):
+            return ty
+        result = substitution_in_type(ty, Var(new_name), old_name)
+        assert isinstance(result, AbstractionType)
+        return result
+
     match c:
         case LiquidConstraint(expr):
-            nexpr = substitution_in_liquid(expr, LiquidVar(new_name), old_name)
-            return LiquidConstraint(expr=nexpr)
+            nexpr = rename_liquid(expr)
+            return c if nexpr is expr else replace(c, expr=nexpr)
         case Conjunction(c1, c2):
-            return Conjunction(visit(c1), visit(c2), loc=c.loc)
+            n1, n2 = visit(c1), visit(c2)
+            return c if n1 is c1 and n2 is c2 else Conjunction(n1, n2, loc=c.loc)
         case Implication(name, base, pred, seq):
             if name == old_name or name == new_name:
                 # This binder shadows the variable being renamed.
                 return c
             else:
-                npred = substitution_in_liquid(pred, LiquidVar(new_name), old_name)
+                npred = rename_liquid(pred)
                 nseq = visit(seq)
-                return Implication(name, base, npred, nseq, loc=c.loc)
+                return c if npred is pred and nseq is seq else Implication(name, base, npred, nseq, loc=c.loc)
         case UninterpretedFunctionDeclaration(name, absty, seq):
             nseq = visit(seq)
-            renamed_type = substitution_in_type(absty, Var(new_name), old_name)
-            assert isinstance(renamed_type, AbstractionType)
-            return replace(c, type=renamed_type, seq=nseq)
+            renamed_type = rename_type(absty)
+            return c if nseq is seq and renamed_type is absty else replace(c, type=renamed_type, seq=nseq)
         case ReflectedFunctionDeclaration(name, absty, params, body, seq):
-            nbody = substitution_in_liquid(body, LiquidVar(new_name), old_name)
+            nbody = rename_liquid(body)
             nparams = tuple(new_name if p == old_name else p for p in params)
             nseq = visit(seq)
-            renamed_type = substitution_in_type(absty, Var(new_name), old_name)
-            assert isinstance(renamed_type, AbstractionType)
+            renamed_type = rename_type(absty)
+            if nbody is body and nparams == params and nseq is seq and renamed_type is absty:
+                return c
             return ReflectedFunctionDeclaration(name, renamed_type, nparams, nbody, nseq)
         case _:
             assert False, f"Unexpected case {c} ({type(c)})"
@@ -852,6 +915,7 @@ def flatten(
     _trivial_memo: dict[int, tuple[Constraint, bool]] | None = None,
     _bound_names: set[str] | None = None,
     _proved: dict[str, bool] | None = None,
+    _rename_occurrences: _RenameOccurrences | None = None,
 ) -> Generator[CanonicConstraint]:
     """Flattens a constraint into a list of SMT-valid constraints."""
     if ctx is None:
@@ -860,6 +924,8 @@ def flatten(
         _trivial_memo = {}
     if _bound_names is None:
         _bound_names = set(ctx.variables) | set(ctx.functions)
+    if _rename_occurrences is None:
+        _rename_occurrences = _RenameOccurrences()
     if _trivial_constraint(c, _trivial_memo):
         return
     match c:
@@ -889,8 +955,8 @@ def flatten(
             clause.proof_key = proof_key
             yield clause
         case Conjunction(c1, c2):
-            yield from flatten(c1, ctx, _trivial_memo, _bound_names, _proved)
-            yield from flatten(c2, ctx, _trivial_memo, _bound_names, _proved)
+            yield from flatten(c1, ctx, _trivial_memo, _bound_names, _proved, _rename_occurrences)
+            yield from flatten(c2, ctx, _trivial_memo, _bound_names, _proved, _rename_occurrences)
         case Implication(oname, base, pred, seq):
             # Bound core names already carry unique IDs. Alpha-rename only
             # when this scope would shadow an existing symbol or reuse a
@@ -902,7 +968,7 @@ def flatten(
                 while str(name) in _bound_names or str(name) in ctx.variables or str(name) in ctx.functions:
                     name = Name(oname.name, fresh_counter.fresh())
                 pred = substitution_in_liquid(pred, LiquidVar(name), oname)
-                seq = rename_constraint(seq, oname, name)
+                seq = rename_constraint(seq, oname, name, _rename_occurrences)
             _bound_names.add(str(name))
             # Lower nested variables too: a binder of ``List a`` must use
             # the same monomorphic carrier as a measure specialised at a.
@@ -912,19 +978,26 @@ def flatten(
             lowered_base = lower_constraint_type(base)
             assert isinstance(lowered_base, TypeConstructor)
             yield from flatten(
-                seq, ctx.with_var(name, lowered_base).with_premise(pred), _trivial_memo, _bound_names, _proved
+                seq,
+                ctx.with_var(name, lowered_base).with_premise(pred),
+                _trivial_memo,
+                _bound_names,
+                _proved,
+                _rename_occurrences,
             )
         case UninterpretedFunctionDeclaration(name, ty, seq):
             assert isinstance(c, UninterpretedFunctionDeclaration)
             nctx = _ctx_with_curried_formals(ctx, ty)
-            yield from flatten(seq, nctx.with_function(name, ty), _trivial_memo, _bound_names, _proved)
+            yield from flatten(
+                seq, nctx.with_function(name, ty), _trivial_memo, _bound_names, _proved, _rename_occurrences
+            )
         case ReflectedFunctionDeclaration(name, ty, params, body, seq):
             nctx = (
                 _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
             )
             app = LiquidApp(name, [LiquidVar(p) for p in params])
             eq = LiquidApp(Name("==", 0), [app, body])
-            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo, _bound_names, _proved)
+            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo, _bound_names, _proved, _rename_occurrences)
         case _:
             assert False, f"Cannot flatten {c}."
 

@@ -771,6 +771,17 @@ their premises, variable sorts, function signatures, and reflected definitions;
 new or changed obligations still require a proof. These caches are bounded and
 cleared between compilation sessions.
 
+The shared verifier also skips variable-renaming work for types and predicates
+that do not contain the renamed name. An occurrence index lives only for one
+constraint-flattening traversal; it includes bound names conservatively and
+falls back to ordinary substitution for unsupported syntax. Sibling scopes
+still receive distinct SMT binders, and every candidate retains its existing
+validation checks. This reduces verification preparation across backends
+without changing their candidate-generation strategies. A
+[local comparison](benchmarks/verification-renaming.json) records paired
+verification timings on identical programs and a separate knapsack synthesis
+comparison.
+
 ---
 
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)

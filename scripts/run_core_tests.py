@@ -18,6 +18,7 @@ CORE_TESTS = [
     "tests/substitutions_test.py",
     "tests/type_substitution_capture_test.py",
     "tests/smt_test.py",
+    "tests/verification_rename_test.py",
     "tests/smt_modulo_runtime_test.py",
     "tests/smt_datatype_test.py",
     "tests/recursion_soundness_test.py",
