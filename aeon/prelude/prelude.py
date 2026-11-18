@@ -67,14 +67,16 @@ prelude = [
     ("||", "(n x:Bool) -> (n y:Bool) -> Bool", lambda x: lambda y: x or y),
     ("-->", "(n x:Bool) -> (n y:Bool) -> Bool", lambda x: lambda y: (not x) or y),
     ("!", "(n x:Bool) -> Bool", lambda x: not x),
-    # SMT Set operations (logical only, used in refinements)
-    ("Set_empty", "Set", set()),
-    ("Set_sng", "(x:Int) -> Set", lambda x: {x}),
-    ("Set_cup", "(a:Set) -> (b:Set) -> Set", lambda a: lambda b: a | b),
-    ("Set_cap", "(a:Set) -> (b:Set) -> Set", lambda a: lambda b: a & b),
-    ("Set_dif", "(a:Set) -> (b:Set) -> Set", lambda a: lambda b: a - b),
-    ("Set_mem", "(x:Int) -> (s:Set) -> Bool", lambda x: lambda s: x in s),
-    ("Set_sub", "(a:Set) -> (b:Set) -> Bool", lambda a: lambda b: a <= b),
+    # Logical sets. ``Set a`` follows the element sort. Bare ``Set`` in source
+    # is ``Set Int``. Integer and Boolean sets are Z3 sets; other elements
+    # are macro-expanded membership, not a Z3 set theory.
+    ("Set_empty", "forall a:B, (Set a)", set()),
+    ("Set_sng", "forall a:B, (x:a) -> (Set a)", lambda x: {x}),
+    ("Set_cup", "forall a:B, (s:(Set a)) -> (t:(Set a)) -> (Set a)", lambda s: lambda t: s | t),
+    ("Set_cap", "forall a:B, (s:(Set a)) -> (t:(Set a)) -> (Set a)", lambda s: lambda t: s & t),
+    ("Set_dif", "forall a:B, (s:(Set a)) -> (t:(Set a)) -> (Set a)", lambda s: lambda t: s - t),
+    ("Set_mem", "forall a:B, (x:a) -> (s:(Set a)) -> Bool", lambda x: lambda s: x in s),
+    ("Set_sub", "forall a:B, (s:(Set a)) -> (t:(Set a)) -> Bool", lambda s: lambda t: s <= t),
     (
         "$",
         "forall a:B, forall b:B, forall <p:a -> Bool>, forall <q:b -> Bool>, (f:(x:a<p>) -> b<q>) -> (x:a<p>) -> b<q>",

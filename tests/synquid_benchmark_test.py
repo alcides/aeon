@@ -102,6 +102,16 @@ def test_indexed_list_shifts_the_predicate_and_ith_returns_the_right_value():
     assert driver_for(program.replace("|} 11\n", "|} 12\n"), run=True)[1]
 
 
+SNOC_BODY = """match xs with
+    | nil => List.cons{a}{|p|} x (List.nil{{v:a | p x v}}{|p|})
+    | cons head tail => List.cons{a}{|p|} head (snoc{{v:a | p head v}}{|p|} x tail)"""
+
+
+def test_snoc_witness_preserves_elems_and_identity_does_not():
+    assert not driver_for(source("List-Snoc").replace("?hole", SNOC_BODY))[1]
+    assert driver_for(source("List-Snoc").replace("?hole", "xs"))[1]
+
+
 def test_reverse_identity_no_longer_satisfies_the_contract():
     assert driver_for(source("List-Reverse").replace("?hole", "xs"))[1]
     body = """match xs with

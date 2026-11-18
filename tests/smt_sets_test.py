@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralBool, LiquidVar
-from aeon.core.types import t_int, t_set
+from aeon.core.types import TypeConstructor, t_int, t_set
 from aeon.sugar.ast_helpers import st_top
 from aeon.verification.smt import smt_valid
 from aeon.verification.vcs import Implication, LiquidConstraint
@@ -100,6 +100,36 @@ def test_set_equality_union_commutative():
         _imp("b", t_set, LiquidLiteralBool(True), LiquidConstraint(eq)),
     )
     assert smt_valid(c)
+
+
+def test_abstract_set_union_is_extensional():
+    """Abstract ``Set a`` is membership, not a Z3 set of integers."""
+    element = TypeConstructor(Name("a", 0))
+    set_a = TypeConstructor(Name("Set", 0), [element])
+    x = Name("x")
+    s = Name("s")
+    sng_x = LiquidApp(Name("Set_sng", 0), [LiquidVar(x)])
+    empty = LiquidVar(Name("Set_empty", 0))
+    left = LiquidApp(Name("Set_cup", 0), [sng_x, empty])
+    right = LiquidApp(Name("Set_cup", 0), [empty, sng_x])
+    swapped = LiquidApp(Name("==", 0), [left, right])
+    keeps = LiquidApp(Name("==", 0), [LiquidApp(Name("Set_cup", 0), [sng_x, LiquidVar(s)]), LiquidVar(s)])
+    assert smt_valid(
+        _imp(
+            "x",
+            element,
+            LiquidLiteralBool(True),
+            _imp("s", set_a, LiquidLiteralBool(True), LiquidConstraint(swapped)),
+        )
+    )
+    assert not smt_valid(
+        _imp(
+            "x",
+            element,
+            LiquidLiteralBool(True),
+            _imp("s", set_a, LiquidLiteralBool(True), LiquidConstraint(keeps)),
+        )
+    )
 
 
 def test_set_invalid_constraint_rejected():
