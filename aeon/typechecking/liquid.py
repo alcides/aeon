@@ -349,6 +349,18 @@ def type_infer_liquid(
                                         f"Recursive sort equation {name} = {resolved} in {liq}"
                                     )
                                 equalities[name] = resolved
+                    case (TypeConstructor(t, a_args), TypeConstructor(e, e_args)) if (
+                        t.name == "Set" and e.name == "Set"
+                    ):
+                        # A nullary ``Set`` is ``Set Int``.
+                        left = a_args or [t_int]
+                        right = e_args or [t_int]
+                        if len(left) != len(right):
+                            raise LiquidTypeCheckException(
+                                f"Argument {arg} in {liq} is expected to be of type {exp_t}, but {k} was found instead."
+                            )
+                        for a_in, e_in in zip(left, right):
+                            _unify(a_in, e_in)
                     case (TypeConstructor(t, a_args), TypeConstructor(e, e_args)) if t == e and len(a_args) == len(
                         e_args
                     ):

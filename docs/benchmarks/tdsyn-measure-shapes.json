@@ -1,0 +1,305 @@
+{
+  "date": "2026-11-17",
+  "environment": {
+    "commit": "bf20a457ca19c3f4b0fd00005a80dfb34ea19b22",
+    "python": "3.13.15 (main, Aug  7 2026, 02:25:50) [Clang 22.1.3 ]",
+    "z3": "5.3.3.0",
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43",
+    "logical_cpus": 48,
+    "budget_seconds": 600,
+    "mode": "tdsyn_enumerative",
+    "expansion": "lazy",
+    "seed": 0,
+    "deduplication": true,
+    "typecheck_cache": true,
+    "incremental_verification": false,
+    "settings": [
+      "measure_shapes=False",
+      "measure_shapes=True"
+    ]
+  },
+  "knapsack": {
+    "method": "One sequential 600-second run per setting on the same commit; lazy TDSyn enumerative, seed 0. Leaf constraints, deduplication and complete-program typecheck cache enabled. Incremental verification excluded. Exact typed AST identity, with source locations omitted.",
+    "results": {
+      "off": {
+        "attempts": 557,
+        "distinct_generated": 426,
+        "duplicates_skipped": 131,
+        "assessed": 426,
+        "distinct_assessed": 426,
+        "typechecked": 418,
+        "distinct_typechecked": 418,
+        "scored": 247,
+        "distinct_scored": 247,
+        "positive_value": 14,
+        "distinct_positive_value": 14,
+        "actual_typechecker_calls": 426,
+        "typechecker_seconds": 452.6144336643629,
+        "repeat_assessment_seconds": 0.010401914361864328,
+        "repeat_assessments": 0,
+        "uncertain_assessments": 0,
+        "exceptions": 0,
+        "synthesis_seconds": 600.587,
+        "best_value": 152,
+        "weight": 26,
+        "best_at_seconds": 506.518
+      },
+      "on": {
+        "attempts": 471,
+        "distinct_generated": 396,
+        "duplicates_skipped": 75,
+        "assessed": 396,
+        "distinct_assessed": 396,
+        "typechecked": 395,
+        "distinct_typechecked": 395,
+        "scored": 227,
+        "distinct_scored": 227,
+        "positive_value": 121,
+        "distinct_positive_value": 121,
+        "actual_typechecker_calls": 396,
+        "typechecker_seconds": 475.2205739831552,
+        "repeat_assessment_seconds": 0.025835901964455843,
+        "repeat_assessments": 0,
+        "uncertain_assessments": 0,
+        "exceptions": 0,
+        "synthesis_seconds": 600.938,
+        "best_value": 405,
+        "weight": 99,
+        "best_at_seconds": 186.785
+      }
+    },
+    "distinct_generated_change_percent": -7.042253521126762,
+    "distinct_assessed_change_percent": -7.042253521126762,
+    "distinct_typechecked_change_percent": -5.502392344497609,
+    "distinct_scored_change_percent": -8.097165991902832,
+    "distinct_positive_value_change_percent": 764.2857142857142
+  },
+  "first_valid_candidate": {
+    "method": "Normal Aeon driver, lazy TDSyn enumerative, 30-second synthesis budget; three fresh-process runs per setting, seeds and PYTHONHASHSEED 0/1/2, alternating on/off order. Timings exclude parsing but include driver synthesis, validation and worker startup. No objectives. Every scalar payload is an Int between 5 and 10. Timeouts are censored observations, not successful completion times.",
+    "cases": {
+      "array10": "10-element Array",
+      "list10": "10-element standard List",
+      "custom10": "10-node custom Parcel chain with mass measure",
+      "tree7": "7-node custom binary Tree with nodes measure"
+    },
+    "summaries": {
+      "array10": {
+        "off": {
+          "median_seconds": 0.8137859720736742,
+          "solved": 3
+        },
+        "on": {
+          "median_seconds": 1.899986654985696,
+          "solved": 3
+        }
+      },
+      "list10": {
+        "off": {
+          "median_seconds": 30.05910050077364,
+          "solved": 0
+        },
+        "on": {
+          "median_seconds": 1.0981783657334745,
+          "solved": 3
+        }
+      },
+      "custom10": {
+        "off": {
+          "median_seconds": 0.1972223143093288,
+          "solved": 3
+        },
+        "on": {
+          "median_seconds": 0.15403616381809115,
+          "solved": 3
+        }
+      },
+      "tree7": {
+        "off": {
+          "median_seconds": 0.11975625110790133,
+          "solved": 3
+        },
+        "on": {
+          "median_seconds": 0.10790317505598068,
+          "solved": 3
+        }
+      }
+    },
+    "runs": [
+      {
+        "case": "array10",
+        "setting": "off",
+        "repeat": 0,
+        "seconds": 0.8217341294512153,
+        "status": "solved"
+      },
+      {
+        "case": "array10",
+        "setting": "on",
+        "repeat": 0,
+        "seconds": 1.899986654985696,
+        "status": "solved"
+      },
+      {
+        "case": "list10",
+        "setting": "off",
+        "repeat": 0,
+        "seconds": 30.058002296835184,
+        "status": "timeout"
+      },
+      {
+        "case": "list10",
+        "setting": "on",
+        "repeat": 0,
+        "seconds": 1.0981783657334745,
+        "status": "solved"
+      },
+      {
+        "case": "custom10",
+        "setting": "off",
+        "repeat": 0,
+        "seconds": 0.1972223143093288,
+        "status": "solved"
+      },
+      {
+        "case": "custom10",
+        "setting": "on",
+        "repeat": 0,
+        "seconds": 0.1549731739796698,
+        "status": "solved"
+      },
+      {
+        "case": "tree7",
+        "setting": "off",
+        "repeat": 0,
+        "seconds": 0.1181057128123939,
+        "status": "solved"
+      },
+      {
+        "case": "tree7",
+        "setting": "on",
+        "repeat": 0,
+        "seconds": 0.10988164320588112,
+        "status": "solved"
+      },
+      {
+        "case": "array10",
+        "setting": "on",
+        "repeat": 1,
+        "seconds": 1.8963991859927773,
+        "status": "solved"
+      },
+      {
+        "case": "array10",
+        "setting": "off",
+        "repeat": 1,
+        "seconds": 0.8137859720736742,
+        "status": "solved"
+      },
+      {
+        "case": "list10",
+        "setting": "on",
+        "repeat": 1,
+        "seconds": 1.0936332680284977,
+        "status": "solved"
+      },
+      {
+        "case": "list10",
+        "setting": "off",
+        "repeat": 1,
+        "seconds": 30.05910050077364,
+        "status": "timeout"
+      },
+      {
+        "case": "custom10",
+        "setting": "on",
+        "repeat": 1,
+        "seconds": 0.15403616381809115,
+        "status": "solved"
+      },
+      {
+        "case": "custom10",
+        "setting": "off",
+        "repeat": 1,
+        "seconds": 0.19889042573049664,
+        "status": "solved"
+      },
+      {
+        "case": "tree7",
+        "setting": "on",
+        "repeat": 1,
+        "seconds": 0.10579592315480113,
+        "status": "solved"
+      },
+      {
+        "case": "tree7",
+        "setting": "off",
+        "repeat": 1,
+        "seconds": 0.12277873186394572,
+        "status": "solved"
+      },
+      {
+        "case": "array10",
+        "setting": "off",
+        "repeat": 2,
+        "seconds": 0.807474615983665,
+        "status": "solved"
+      },
+      {
+        "case": "array10",
+        "setting": "on",
+        "repeat": 2,
+        "seconds": 1.9254235387779772,
+        "status": "solved"
+      },
+      {
+        "case": "list10",
+        "setting": "off",
+        "repeat": 2,
+        "seconds": 30.059875324834138,
+        "status": "timeout"
+      },
+      {
+        "case": "list10",
+        "setting": "on",
+        "repeat": 2,
+        "seconds": 1.108926202636212,
+        "status": "solved"
+      },
+      {
+        "case": "custom10",
+        "setting": "off",
+        "repeat": 2,
+        "seconds": 0.1971715888939798,
+        "status": "solved"
+      },
+      {
+        "case": "custom10",
+        "setting": "on",
+        "repeat": 2,
+        "seconds": 0.1539497608318925,
+        "status": "solved"
+      },
+      {
+        "case": "tree7",
+        "setting": "off",
+        "repeat": 2,
+        "seconds": 0.11975625110790133,
+        "status": "solved"
+      },
+      {
+        "case": "tree7",
+        "setting": "on",
+        "repeat": 2,
+        "seconds": 0.10790317505598068,
+        "status": "solved"
+      }
+    ]
+  },
+  "limitations": [
+    "One ten-minute knapsack pair is not a multi-seed robustness study.",
+    "Positive-value and feasible candidates use distinct typed AST identity, not distinct runtime Boolean masks.",
+    "The optimum knapsack value is 1077; neither run reached it.",
+    "Total candidate throughput and first-valid-array time regressed despite improved knapsack value and list synthesis.",
+    "The initial direct-validator timing harness omitted linked-sketch ownership information; its measurements were discarded and are not included."
+  ]
+}

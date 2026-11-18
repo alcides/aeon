@@ -250,6 +250,9 @@ def type_to_core(ty: SType, available_vars: list[tuple[Name, TypeConstructor | T
         case STypeConstructor(name, args, loc) as constructor:
             from aeon.core.predicates import predicate_from_term
 
+            # Bare ``Set`` is the integer set. ``(Set a)`` keeps its argument.
+            if name.name == "Set" and not args:
+                args = [STypeConstructor(Name("Int", 0))]
             return TypeConstructor(
                 name,
                 [type_to_core(ity, available_vars) for ity in args],

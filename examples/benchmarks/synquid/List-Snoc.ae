@@ -1,14 +1,15 @@
 # List-Snoc — Synquid PLDI16, pinned source in upstream/List-Snoc.sq
-# Partial: original abstract relation and length; elems union still omitted.
+# Contract-faithful: relation, length, and elems union.
 
 inductive List a forall <p:a -> a -> Bool>
-| nil : {xs:(List a){|p|} | len xs = 0}
-| cons (x:a) (xs:(List {v:a | p x v}){|p|}) : {ys:(List a){|p|} | len ys = 1 + len xs}
+| nil : {xs:(List a){|p|} | len xs = 0 && elems xs = Set_empty}
+| cons (x:a) (xs:(List {v:a | p x v}){|p|}) : {ys:(List a){|p|} | len ys = 1 + len xs && elems ys = Set_cup (Set_sng x) (elems xs)}
 + len (xs:(List a)) : {v:Int | v >= 0}
++ elems (xs:(List a)) : (Set a)
 
 def snoc : forall a:B, forall <p:a -> a -> Bool>,
     (x:a) -> (xs:(List {v:a | p v x}){|p|}) ->
-    {ys:(List a){|p|} | List.len ys = List.len xs + 1}
+    {ys:(List a){|p|} | List.len ys = List.len xs + 1 && List.elems ys = Set_cup (List.elems xs) (Set_sng x)}
     decreasing_by [List.len xs] :=
     Λ a:B => Λ <p:a -> a -> Bool> => fun x => fun xs =>
     ?hole;

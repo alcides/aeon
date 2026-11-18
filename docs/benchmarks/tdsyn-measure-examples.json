@@ -1,0 +1,1019 @@
+{
+  "method": {
+    "date_utc": "2026-11-17T15:18:53.049742+00:00",
+    "commit": "728ad86e2c9af45857d0e6fe60a5346ae0bce6bc",
+    "python": "3.13.15 (main, Aug  7 2026, 02:25:50) [Clang 22.1.3 ]",
+    "z3": "5.3.3.0",
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43",
+    "backend": "tdsyn_enumerative",
+    "expansion": "lazy",
+    "deduplicate": true,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "order": "sequential, off/on for seeds 0 and 2; on/off for seed 1",
+    "validation": "normal driver, plus independent runtime checks",
+    "cases": {
+      "list_5": {
+        "group": "Lists",
+        "label": "List: length 5",
+        "budget": 30,
+        "kind": "list",
+        "length": 5,
+        "source": "\n        import List;\n        def result:{xs:(List Int)|List.size xs=5}:=?result;\n    ",
+        "sha256": "29dcbb2ca4b7fdb05bd5cf20f309fc2fa7390bd42c84bcb7e377f1fc861b03a1"
+      },
+      "list_20_bounded": {
+        "group": "Lists",
+        "label": "List: 20 bounded integers",
+        "budget": 30,
+        "kind": "list",
+        "length": 20,
+        "bounds": [
+          5,
+          10
+        ],
+        "source": "\n        import List;\n        def result:{xs:(List {v:Int|v>=5 && v<=10})|List.size xs=20}:=?result;\n    ",
+        "sha256": "27a50feaabd370bfa6ebfd9530b161c30de3345f72e7354d6a316859fc80f27c"
+      },
+      "list_6_increasing": {
+        "group": "Lists",
+        "label": "Relational list: 6 increasing integers",
+        "budget": 30,
+        "kind": "rlist",
+        "length": 6,
+        "bounds": [
+          0,
+          10
+        ],
+        "source": "\n        inductive RList a forall <r:a -> a -> Bool>\n        | nil:{xs:(RList a){|r|}|RList.size xs=0}\n        | cons(head:a)(tail:{xs:(RList {v:a|r head v}){|r|}|RList.size xs>=0}):\n            {xs:(RList a){|r|}|RList.size xs=RList.size tail+1}\n        + size(xs:(RList a)):Int\n        def result:{xs:(RList {v:Int|v>=0 && v<=10}){|fun x => fun y => x<y|}|RList.size xs=6}:=?result;\n    ",
+        "sha256": "f7e5e6fbed28b940b6263a01eebfcea7e07a26420b0761df2f6e23200ce96bde"
+      },
+      "array_8_endpoints": {
+        "group": "Arrays",
+        "label": "Array: length 8 and endpoint values",
+        "budget": 30,
+        "kind": "array",
+        "length": 8,
+        "source": "\n        import Array;\n        def result(_ :Unit):{a:(Array Int)|Array.size a=8 && Array.get a 0=3 && Array.get a 7=9}:=?result;\n    ",
+        "entry": "unit",
+        "sha256": "d2392fa72fe877372aea32d6eaf73d5dc9c08e02eaa6a3f7b552f7982dff423e"
+      },
+      "array_int_fit": {
+        "group": "Arrays",
+        "label": "Integer array: fit [3, -7, 10]",
+        "budget": 60,
+        "kind": "array",
+        "length": 3,
+        "objective": true,
+        "target": [
+          3,
+          -7,
+          10
+        ],
+        "entry": "unit",
+        "path": "examples/synthesis/ortools/array_int.ae",
+        "source": "# (Array Int) hole of fixed size 3: minimise sum (v_i - target_i)^2 with\n# targets (3, -7, 10). CP-SAT returns the exact array [3, -7, 10].\nimport Array;\n\n@minimize_int(\n  (((Array.get (v unit) 0) - 3) * ((Array.get (v unit) 0) - 3))\n  + (((Array.get (v unit) 1) + 7) * ((Array.get (v unit) 1) + 7))\n  + (((Array.get (v unit) 2) - 10) * ((Array.get (v unit) 2) - 10))\n)\ndef v (_: Unit) : {a:(Array Int) | Array.size a = 3} := ?h;\n",
+        "sha256": "bfa5e73f3cb96e525975faad1c138142b9c186318fcd714016e233eafc5c632c"
+      },
+      "array_float_fit": {
+        "group": "Arrays",
+        "label": "Float array: fit [1.5, -2.25, 0.5]",
+        "budget": 60,
+        "kind": "array",
+        "length": 3,
+        "objective": true,
+        "target": [
+          1.5,
+          -2.25,
+          0.5
+        ],
+        "entry": "unit",
+        "path": "examples/synthesis/ortools/array_float.ae",
+        "source": "# (Array Float) hole of fixed size 3 (fixed-point): minimise sum (v_i - t_i)^2\n# with targets (1.5, -2.25, 0.5). The grid-exact optimum is [1.5, -2.25, 0.5].\nimport Array;\n\n@minimize_float(\n  (((Array.get (v unit) 0) - 1.5) * ((Array.get (v unit) 0) - 1.5))\n  + (((Array.get (v unit) 1) + 2.25) * ((Array.get (v unit) 1) + 2.25))\n  + (((Array.get (v unit) 2) - 0.5) * ((Array.get (v unit) 2) - 0.5))\n)\ndef v (_: Unit) : {a:(Array Float) | Array.size a = 3} := ?h;\n",
+        "sha256": "5053a74e3fb55cb43885a83944b7429d8a587f4a19899f3218d9d4f0f6ad81a5"
+      },
+      "image_16x12": {
+        "group": "Images",
+        "label": "Image: synthesize 16 \u00d7 12",
+        "budget": 30,
+        "kind": "image",
+        "size": [
+          16,
+          12
+        ],
+        "source": "\n        import Image;\n        def result:{i:Image|Image.width i=16 && Image.height i=12}:=?result;\n    ",
+        "sha256": "976780598dded8a1447a44b4c3d628bf16f48da12584a67cb9fefcc3c23e04e8"
+      },
+      "image_crop": {
+        "group": "Images",
+        "label": "Image: infer crop offsets for 6 \u00d7 4",
+        "budget": 30,
+        "kind": "image",
+        "size": [
+          6,
+          4
+        ],
+        "color": [
+          200,
+          10,
+          10
+        ],
+        "source": "\n        import Image;\n        import Color;\n        def base:{i:Image|Image.width i=10 && Image.height i=8}:=Image.mk 10 8 (Color.mk 200 10 10);\n        def result:{i:Image|Image.width i=6 && Image.height i=4}:=\n            Image.crop base (?x : {v:Int|v>=0 && v<=4}) (?y : {v:Int|v>=0 && v<=4}) 6 4;\n    ",
+        "sha256": "32a9186df4cae7470fcb4efeca8810950f28e7a177e8b5fad8b76539e72e9661"
+      },
+      "image_key": {
+        "group": "Images",
+        "label": "Image: key reconstruction (5 objectives)",
+        "budget": 60,
+        "kind": "image",
+        "size": [
+          1024,
+          768
+        ],
+        "objective": true,
+        "path": "examples/image/key.ae",
+        "source": "# Grey key synthesis benchmark against examples/image/key_target.jpg (1024\u00d7768).\n#\n# The synthesizer fills `synth_key` so it matches the raster in key_target.jpg.\n# The hole type is inferred from the refined return type: an Image of exactly `target_w`\u00d7`target_h` (1024\u00d7768).\n# Fitness terms still punish size mismatch for synthesizers that ignore liquid constraints.\n#\n# Programmatic refinements still apply wherever geometry is explicit: `reference_key` below uses `Image.mk` and\n# `draw_rectangle` so every rectangle argument stays inside the canvas (see libraries/Image.ae).\n#\n# Five independent objectives are minimized together (Pareto-style in the GP backend): luminance MSE,\n# half-resolution luminance MSE, mismatched scanlines, mismatched columns, and mismatched pixels.\n#\n# Recommended run (GP fits structured Image programs better than type-directed enumeration):\n#   uv run python -m aeon examples/image/key.ae -s gp --budget 120\n#\nopen Image\nopen Color\n\ndef target : Image := Image.open \"examples/image/key_target.jpg\"\n\n# Exact raster size for key_target.jpg (used so refinements prove rectangle bounds against the canvas).\ndef target_w : { v : Int | v = 1024 } := 1024\n\ndef target_h : { v : Int | v = 768 } := 768\n\ndef white : Color := Color.mk 255 255 255\n\ndef key_grey : Color := Color.mk 192 192 192\n\n@minimize_float(fitness_bw_mse synth_key target)\n@minimize_float(fitness_half_size_mse synth_key target)\n@minimize_float(fitness_row_mismatch synth_key target)\n@minimize_float(fitness_col_mismatch synth_key target)\n@minimize_float(fitness_pixel_mismatch synth_key target)\ndef synth_key : { img : Image | (width img = target_w) && (height img = target_h) } := ?hole\n\n# Human-readable reference for the shape (matches the historical hand-written key program).\ndef reference_key : Image :=\n    image0 := Image.mk target_w target_h white;\n    image1 := image0.draw_rectangle 170 256 256 256 key_grey;\n    image2 := image1.draw_rectangle 255 341 85 83 white;\n    image3 := image2.draw_rectangle 426 341 509 83 key_grey;\n    image4 := image3.draw_rectangle 836 424 100 68 key_grey;\n    image5 := image4.draw_rectangle 686 424 100 48 key_grey;\n    image5;\n\n# def dump_reference : Unit = reference_key.save \"examples/image/key.jpg\"\n",
+        "sha256": "c8f2f3113b7aea18968aaca1309e7921fff0c86efed131eff709d102239031f5"
+      }
+    }
+  },
+  "supplemental_cases": {
+    "image_crop_single": {
+      "group": "Images",
+      "label": "Image: single crop offset (control)",
+      "budget": 30,
+      "kind": "image",
+      "size": [
+        6,
+        4
+      ],
+      "color": [
+        200,
+        10,
+        10
+      ],
+      "source": "\n        import Image;\n        import Color;\n        def base:{i:Image|Image.width i=10 && Image.height i=8}:=Image.mk 10 8 (Color.mk 200 10 10);\n        def result:{i:Image|Image.width i=6 && Image.height i=4}:=\n            Image.crop base (?x : {v:Int|v>=0 && v<=4}) 0 6 4;\n    "
+    },
+    "image_color_fit": {
+      "group": "Images",
+      "label": "Image: fit color without target in grammar",
+      "budget": 60,
+      "kind": "image",
+      "size": [
+        16,
+        12
+      ],
+      "objective": true,
+      "source": "\n        import Image;\n        import Color;\n        def loss(candidate:{i:Image|Image.width i=16 && Image.height i=12}):Float:=\n            Image.diff candidate (Image.mk 16 12 (Color.mk 120 80 40));\n        @minimize_float(loss result)\n        def result:{i:Image|Image.width i=16 && Image.height i=12}:=?result;\n    "
+    }
+  },
+  "results": {
+    "list_5": {
+      "label": "List: length 5",
+      "group": "Lists",
+      "budget": 30,
+      "objective": false,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 3.1343723251484334,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 0.48493011109530926,
+          "median_feasible": 1,
+          "planner_proposals": [
+            1,
+            1,
+            1
+          ],
+          "planner_seconds": [
+            0.07642244221642613,
+            0.0768762300722301,
+            0.07700027292594314
+          ]
+        }
+      },
+      "speedup": 6.4635547544549095
+    },
+    "list_20_bounded": {
+      "label": "List: 20 bounded integers",
+      "group": "Lists",
+      "budget": 30,
+      "objective": false,
+      "settings": {
+        "off": {
+          "solved": 0,
+          "trials": 3,
+          "statuses": [
+            "no_solution",
+            "no_solution",
+            "no_solution"
+          ],
+          "median_seconds": 30.058462182059884,
+          "median_feasible": 0,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 5.596441289875656,
+          "median_feasible": 1,
+          "planner_proposals": [
+            1,
+            1,
+            1
+          ],
+          "planner_seconds": [
+            0.6558634345419705,
+            0.6582547728903592,
+            0.6563120963983238
+          ]
+        }
+      }
+    },
+    "list_6_increasing": {
+      "label": "Relational list: 6 increasing integers",
+      "group": "Lists",
+      "budget": 30,
+      "objective": false,
+      "settings": {
+        "off": {
+          "solved": 0,
+          "trials": 3,
+          "statuses": [
+            "no_solution",
+            "no_solution",
+            "no_solution"
+          ],
+          "median_seconds": 30.11313846381381,
+          "median_feasible": 0,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "on": {
+          "solved": 0,
+          "trials": 3,
+          "statuses": [
+            "no_solution",
+            "no_solution",
+            "no_solution"
+          ],
+          "median_seconds": 30.11305464617908,
+          "median_feasible": 0,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            1.2621783572249115,
+            1.25349908368662,
+            1.261844640597701
+          ]
+        }
+      }
+    },
+    "array_8_endpoints": {
+      "label": "Array: length 8 and endpoint values",
+      "group": "Arrays",
+      "budget": 30,
+      "objective": false,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 3.266020668670535,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 1.2139054420404136,
+          "median_feasible": 1,
+          "planner_proposals": [
+            1,
+            1,
+            1
+          ],
+          "planner_seconds": [
+            0.09730935888364911,
+            0.09710894105955958,
+            0.0972557351924479
+          ]
+        }
+      },
+      "speedup": 2.6905066536161075
+    },
+    "array_int_fit": {
+      "label": "Integer array: fit [3, -7, 10]",
+      "group": "Arrays",
+      "budget": 60,
+      "objective": true,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 60.6220778352581,
+          "median_feasible": 65,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "per_run_best_objectives": [
+            [
+              158.0
+            ],
+            [
+              158.0
+            ],
+            [
+              158.0
+            ]
+          ],
+          "median_best_objectives": [
+            158.0
+          ],
+          "returned_scores": [
+            [
+              158
+            ],
+            [
+              158
+            ],
+            [
+              158
+            ]
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 60.545463419985026,
+          "median_feasible": 53,
+          "planner_proposals": [
+            1,
+            1,
+            1
+          ],
+          "planner_seconds": [
+            0.16156498063355684,
+            0.160824544262141,
+            0.15906198974698782
+          ],
+          "per_run_best_objectives": [
+            [
+              50.0
+            ],
+            [
+              50.0
+            ],
+            [
+              50.0
+            ]
+          ],
+          "median_best_objectives": [
+            50.0
+          ],
+          "returned_scores": [
+            [
+              50
+            ],
+            [
+              50
+            ],
+            [
+              50
+            ]
+          ]
+        }
+      },
+      "objective_reduction_percent": [
+        68.35443037974683
+      ]
+    },
+    "array_float_fit": {
+      "label": "Float array: fit [1.5, -2.25, 0.5]",
+      "group": "Arrays",
+      "budget": 60,
+      "objective": true,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 60.626231090631336,
+          "median_feasible": 65,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "per_run_best_objectives": [
+            [
+              7.5625
+            ],
+            [
+              7.5625
+            ],
+            [
+              7.5625
+            ]
+          ],
+          "median_best_objectives": [
+            7.5625
+          ],
+          "returned_scores": [
+            [
+              7.5625
+            ],
+            [
+              7.5625
+            ],
+            [
+              7.5625
+            ]
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 61.20018961187452,
+          "median_feasible": 51,
+          "planner_proposals": [
+            1,
+            1,
+            1
+          ],
+          "planner_seconds": [
+            0.16074917977675796,
+            0.16027753427624702,
+            0.16077594878152013
+          ],
+          "per_run_best_objectives": [
+            [
+              6.0625
+            ],
+            [
+              6.0625
+            ],
+            [
+              6.0625
+            ]
+          ],
+          "median_best_objectives": [
+            6.0625
+          ],
+          "returned_scores": [
+            [
+              6.0625
+            ],
+            [
+              6.0625
+            ],
+            [
+              6.0625
+            ]
+          ]
+        }
+      },
+      "objective_reduction_percent": [
+        19.834710743801654
+      ]
+    },
+    "image_16x12": {
+      "label": "Image: synthesize 16 \u00d7 12",
+      "group": "Images",
+      "budget": 30,
+      "objective": false,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 0.38080389192327857,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 0.38766881404444575,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.02629881165921688,
+            0.026341602206230164,
+            0.02567909099161625
+          ]
+        }
+      },
+      "speedup": 0.9822917865134746
+    },
+    "image_crop": {
+      "label": "Image: infer crop offsets for 6 \u00d7 4",
+      "group": "Images",
+      "budget": 30,
+      "objective": false,
+      "settings": {
+        "off": {
+          "solved": 0,
+          "trials": 3,
+          "statuses": [
+            "no_solution",
+            "no_solution",
+            "no_solution"
+          ],
+          "median_seconds": 0.3487689010798931,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "on": {
+          "solved": 0,
+          "trials": 3,
+          "statuses": [
+            "no_solution",
+            "no_solution",
+            "no_solution"
+          ],
+          "median_seconds": 0.3463806970976293,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    "image_key": {
+      "label": "Image: key reconstruction (5 objectives)",
+      "group": "Images",
+      "budget": 60,
+      "objective": true,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 61.40447052195668,
+          "median_feasible": 190,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "per_run_best_objectives": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "median_best_objectives": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "returned_scores": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 60.74859353713691,
+          "median_feasible": 201,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.02735579712316394,
+            0.0270730541087687,
+            0.027256909292191267
+          ],
+          "per_run_best_objectives": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "median_best_objectives": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "returned_scores": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ]
+        }
+      },
+      "objective_reduction_percent": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    "image_crop_single": {
+      "label": "Image: single crop offset (control)",
+      "group": "Images",
+      "budget": 30,
+      "objective": false,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 0.3509547710418701,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 0.3493558941408992,
+          "median_feasible": 1,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "speedup": 1.0045766421227922
+    },
+    "image_color_fit": {
+      "label": "Image: fit color without target in grammar",
+      "group": "Images",
+      "budget": 60,
+      "objective": true,
+      "settings": {
+        "off": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 60.421939183957875,
+          "median_feasible": 363,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "per_run_best_objectives": [
+            [
+              6390.666666666667
+            ],
+            [
+              6390.666666666667
+            ],
+            [
+              6390.666666666667
+            ]
+          ],
+          "median_best_objectives": [
+            6390.666666666667
+          ],
+          "returned_scores": [
+            [
+              6390.666666666667
+            ],
+            [
+              6390.666666666667
+            ],
+            [
+              6390.666666666667
+            ]
+          ]
+        },
+        "on": {
+          "solved": 3,
+          "trials": 3,
+          "statuses": [
+            "solved",
+            "solved",
+            "solved"
+          ],
+          "median_seconds": 60.21511328406632,
+          "median_feasible": 283,
+          "planner_proposals": [
+            0,
+            0,
+            0
+          ],
+          "planner_seconds": [
+            0.02719238307327032,
+            0.027494128327816725,
+            0.02690313244238496
+          ],
+          "per_run_best_objectives": [
+            [
+              1240.0
+            ],
+            [
+              1240.0
+            ],
+            [
+              1240.0
+            ]
+          ],
+          "median_best_objectives": [
+            1240.0
+          ],
+          "returned_scores": [
+            [
+              1240.0
+            ],
+            [
+              1240.0
+            ],
+            [
+              1240.0
+            ]
+          ]
+        }
+      },
+      "objective_reduction_percent": [
+        80.59670352597539
+      ]
+    }
+  },
+  "checks": {
+    "trials": 66,
+    "successful_runs": 51,
+    "runtime_verified_runs": 51,
+    "invalid_returned_values": 0,
+    "synthesizer_code_changed_during_comparison": false
+  },
+  "interpretation": [
+    "Times are medians of three fresh-process paired runs; all are normal-driver synthesis times, excluding parse time.",
+    "Construction budgets are 30 seconds; objective budgets are 60 seconds. Cooperative checks can finish slightly after budget.",
+    "The bounded length-20 baseline and both increasing-list settings exhausted their budgets without returning a solution.",
+    "The two-hole crop stopped early with y unfilled in both settings; its elapsed time is not a successful synthesis time. The added single-hole control succeeded.",
+    "The original key image benchmark exposes target as a grammar value: both settings return Image_resize target 1024 768 and attain zero on all five objectives.",
+    "The supplemental image-color task keeps the target inside a Float-valued loss function; it is not a reusable Image-valued grammar component.",
+    "No image structural templates were produced. The image-color quality change appears to be an indirect SMT sampling effect of additional measure queries, not evidence that the current planner constructs images.",
+    "Every successful returned list, array, and image was independently checked at runtime; optimization losses were recomputed.",
+    "Three runs on these small tasks do not establish a universal improvement. Existing known first-valid-array regressions from the previous comparison remain relevant."
+  ]
+}

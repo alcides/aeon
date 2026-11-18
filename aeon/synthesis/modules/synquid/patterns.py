@@ -7,7 +7,9 @@ from aeon.core.substitutions import (
     instantiate_refinement_in_type,
     instantiate_refinement_with_horn_in_type,
 )
+from aeon.core.liquid import LiquidApp
 from aeon.core.terms import Abstraction, Application, TypeApplication, RefinementApplication, Hole, Var, Let
+from aeon.utils.name import Name
 from aeon.core.types import (
     AbstractionType,
     TypePolymorphism,
@@ -42,6 +44,36 @@ def _predicate_term(predicate, assignment, context, sort):
     if obtain_holes(body):
         return None
     return predicate_argument(context, LiquidPredicate(predicate.parameters, body), sort)
+
+
+def _vacuous_case(state) -> bool:
+    """Whether this match case is unreachable (``generateError``).
+
+    A datatype equation is not a Horn theory, so emptiness is read off the
+    constructor's measure conjunct. The sort gate can refuse that fact even
+    when the translated arithmetic is unsatisfiable; that unsat result is the
+    same emptiness answer.
+    """
+    import z3
+    from time import monotonic
+
+    from aeon.core.liquid import LiquidLiteralBool
+    from aeon.synthesis.modules.synquid.solver import flatten
+    from aeon.typechecking.entailment import entailment_context
+    from aeon.verification.smt import translate
+    from aeon.verification.vcs import LiquidConstraint
+
+    if monotonic() >= state.deadline:
+        return False
+    constraint = entailment_context(state.context, LiquidConstraint(LiquidLiteralBool(False)))
+    solver = z3.Solver()
+    solver.set(timeout=200)
+    try:
+        for clause in flatten(constraint):
+            solver.add(translate(clause))
+        return solver.check() == z3.unsat
+    except (KeyError, AssertionError, NotImplementedError, AeonError, z3.Z3Exception):
+        return False
 
 
 def match_variables(ctx, level, goal, skip, mem, state):
@@ -251,7 +283,22 @@ def match_terms(ctx, level, goal, skip, mem, state, *, only=None, fixed_case=Non
                     branch.bind(n, ty)
                     branch_ctx = branch_ctx.with_var(n, ty)
                 branch = branch.assume(evidence.fact)
-                if branch.inhabited() == Status.VALID:
+                # generateError fills an unreachable case and continues. The
+                # measure conjunct, without the datatype equation, is what
+                # makes nil impossible once n = 0 has been cut.
+                refinement = evidence.fact
+                if isinstance(refinement, LiquidApp) and refinement.fun == Name("&&", 0) and refinement.args:
+                    refinement = refinement.args[0]
+                if _vacuous_case(partial.fork().assume(refinement)):
+                    from aeon.synthesis.modules.synquid.engine import _leaf_proposals
+
+                    dummy = next(_leaf_proposals(branch_ctx, goal, skip, branch.deadline), None)
+                    if dummy is None:
+                        return
+                    handler = dummy
+                    for n in reversed(fields):
+                        handler = Abstraction(n, handler)
+                    yield from handlers(index + 1, bodies + [handler], branch.fork(partial.context))
                     return
                 candidates = (
                     [fixed_case[1]]
@@ -288,7 +335,7 @@ def abduced_matches(ctx, level, goal, skip, mem, state):
     from aeon.core.types import extract_parts
     from aeon.core.substitutions import substitution_in_liquid
     from aeon.synthesis.modules.synquid.abduction import abduce
-    from aeon.synthesis.modules.synquid.engine import _eliminations, _leaf_proposals
+    from aeon.synthesis.modules.synquid.engine import _leaf_proposals
     from aeon.utils.name import Name
     from aeon.verification.vcs import LiquidConstraint
 
@@ -320,13 +367,11 @@ def abduced_matches(ctx, level, goal, skip, mem, state):
         return
     qualifiers = frozenset(fact for fact, _, _ in facts)
 
-    # Shape-correct E-terms, not only terms that already check. The original
-    # generateE asks the match unknown whether a valuation exists; filtering
-    # first would drop the nil branch of append.
+    # Depth-0 E-terms only. A match unknown is decided on a leaf (nil, a
+    # variable, a scalar constant). Deeper applications are generateE's later
+    # depths and must not run ahead of the variable match.
     def proposals():
         yield from _leaf_proposals(ctx, goal, skip, state.deadline)
-        if level > 0:
-            yield from _eliminations(ctx, level, goal, skip, mem, state, conditionals=False)
 
     for branch in islice(proposals(), 64):
         result = abduce(state, branch, goal, qualifiers=qualifiers)

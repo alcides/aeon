@@ -316,7 +316,7 @@ inference holes. Executable components use the term grammar, and erased predicat
 arguments use the refinement grammar. Lists use ordinary search. Candidates carry
 completed construction proofs, so Synquid skips repeated whole-program typechecking.
 
-**Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). Outside a match the order follows `generateMaybeMatchIf`: depth-0 terms, the match unknown, then applications and IFAB at that depth. Datatype equations are not a Horn theory here, so the match unknown is a structural match, and a datatype goal's cases use application depth at least 2. A match arm tries an application before another match. Computed scrutinees cost one application and run last. Prelude operators are not instantiated at datatype goals. `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, and `synquid_max_candidates`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Successful terms are not memoized, because `(context, level, goal)` does not identify the pending constraint state. A subgoal is cached only when it fails with a definite invalid or qualifier-exhausted answer and no unknown or unsupported query. The cache holds a few thousand keys and is cleared when the compilation session or the verification generation changes.
+**Search.** Default `synquid_search: "paper"` streams rule-directed candidates at increasing application depth, with independent `synquid_match_depth` (default 2). Outside a match the order follows `generateMaybeMatchIf`: a depth-0 E-term under the condition unknown, cut, with the other branch at `eGuessDepth` 3; then the match; then deeper applications. A non-scalar goal tries one unconditional application before that conditional. Condition qualifiers are arity-0 scalars, so a measure application is not a guard. Datatype equations are not a Horn theory here, so the match unknown is a structural match, an unreachable constructor is filled, and a datatype goal's cases use application depth at least 2. A match arm tries an application before another match. Argument vectors of one size share a round, with depth on earlier arguments first. Computed scrutinees cost one application and run last. Prelude integer arithmetic is not a component; other prelude operators are not instantiated at datatype goals. `"size_merge"` merges candidates by AST size and depth; `"iterative_deepening"` exhausts each sorted level. Tunables remain `synquid_max_level`, `synquid_seed_levels`, and `synquid_max_candidates`. The time budget also applies during candidate construction. Each level yields at most 4,000 candidates. Successful terms are not memoized, because `(context, level, goal)` does not identify the pending constraint state. A subgoal is cached only when it fails with a definite invalid or qualifier-exhausted answer and no unknown or unsupported query. The cache holds a few thousand keys and is cleared when the compilation session or the verification generation changes.
 
 **Applications.** The expected result constrains liquid polymorphic instantiations before arguments are chosen. Independent result obligations are checked immediately; dependent obligations remain pending. Selected arguments contribute their inferred refinements and existential witnesses. Consistency checks ask whether remaining arguments and the result can jointly satisfy their contracts, including datatype measures and branch assumptions. Only proved failures prune partial applications. Completed constructions require discharged proofs; unknown or unsupported obligations cannot certify a candidate. Higher-order arguments can be deferred until first-order arguments determine their types.
 
@@ -626,6 +626,48 @@ python -m aeon -s tdsyn_backward --tdsyn-expansion lazy --budget 30 examples/syn
 
 Python callers can use `AeonConfig(..., tdsyn_expansion="lazy")` or
 `TDSynSynthesizer(..., expansion="lazy")`.
+
+TDSyn can propose finite structures directly from integer measure equations in
+component result types. For example, a constructor whose result satisfies
+`count result = 1 + count tail` can build a fixed-length spine; an equation
+`count result = count left + count right` can compose two smaller structures.
+The planner uses these contracts without recognizing datatype, constructor or
+measure names. Payloads remain ordinary typed holes, including element
+refinements and dependent relations, and completed terms still undergo normal
+validation. Use `TDSynSynthesizer(..., measure_shapes=False)` for comparisons.
+
+This additional production requires SMT to prove a unique nonnegative measure
+value at most 256. It handles nonnegative affine equations with positive child
+coefficients, chooses a template with few structural applications, and bounds
+the template to 512 nodes/holes. Every recursive child's measure must decrease.
+An exact measure need not determine a unique shape, especially for trees:
+ordinary productions remain available alongside the proposal. Ambiguous sizes,
+scalar-dependent/nonlinear equations, unsupported SMT encodings and exhausted
+budgets fall back to ordinary search. This rule does not optimize payloads or
+translate runtime objectives into logical constraints.
+
+A [local comparison from 2026-11-17](benchmarks/tdsyn-measure-shapes.json)
+records both benefits and regressions. In one matched ten-minute knapsack pair,
+the best value increased from 152 to 405 and positive-value candidates from 14
+to 121, while total feasible candidates decreased from 247 to 227. Across three
+driver runs, a refined ten-element list completed in a median 1.10 seconds with
+planning; ordinary search timed out at 30 seconds in all three runs. First-valid
+ten-element arrays instead slowed from 0.81 to 1.90 seconds. These observations
+support better list construction and knapsack search quality, not a universal
+throughput improvement; the flag preserves the ordinary-search comparison.
+
+An [expanded comparison](benchmarks/tdsyn-measure-examples.json) covers 11
+list, array and image tasks with three seeds per setting (66 trials). Median
+length-five list construction improved from 3.13 to 0.48 seconds, and an
+eight-element array with endpoint constraints from 3.27 to 1.21 seconds.
+Integer/float array fitting errors fell by 68.4%/19.8% within 60-second budgets.
+All successful returned values were independently checked. Increasing relational
+lists timed out in both settings, and a two-hole crop left one hole unfilled.
+Image construction showed no speedup and produced no structural proposals;
+the image-color fitting improvement appears to be an indirect change in SMT
+sampling. The key-image benchmark exposes its target to synthesis and both
+settings achieve zero error by resizing that target, so it is not evidence of
+image reconstruction ability.
 
 Unchosen application arguments are existential witnesses during feasibility checks. Argument preconditions, dependent return contracts, and the goal refinement travel with the holes, including through type and refinement applications. Choosing one argument constrains its siblings. Only an unsatisfiable query prunes a candidate; unknown or unsupported queries leave it available for the final whole-program validator. For example, `List.size xs = 10` permits `cons` with a tail of size 9 and rejects closing that tail with `nil` too early. These rules are shared by all three full TDSyn variants.
 
