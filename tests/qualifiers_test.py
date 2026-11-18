@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidVar
 from aeon.core.parser import parse_type
-from aeon.core.types import LiquidHornApplication, RefinedType, t_int
+from aeon.core.types import AbstractionType, LiquidHornApplication, RefinedType, TypeConstructor, TypeVar, t_int
 from aeon.typechecking.qualifiers import extract_qualifier_atoms
 from aeon.utils.ctx_helpers import build_context
 from aeon.utils.name import Name
@@ -21,6 +21,34 @@ def test_extract_qualifier_atoms_from_context_refinement():
         and any(isinstance(x, LiquidLiteralInt) and x.value == 42 for x in a.args)
         for a in atoms
     )
+
+
+def test_set_measure_adds_one_membership_template():
+    element = TypeVar(Name("a", 0))
+    list_a = TypeConstructor(Name("List", 0), [element])
+    set_a = TypeConstructor(Name("Set", 0), [element])
+    ctx = build_context(
+        {
+            Name("x", 0): element,
+            Name("xs", 0): list_a,
+            Name("elems", 0): AbstractionType(Name("ys", 0), list_a, set_a),
+        }
+    )
+    atoms = extract_qualifier_atoms(ctx)
+    membership = [
+        atom
+        for atom in atoms
+        if isinstance(atom, LiquidApp)
+        and atom.fun.name == "Set_mem"
+        and len(atom.args) == 2
+        and isinstance(atom.args[0], LiquidVar)
+        and atom.args[0].name.name == "x"
+    ]
+    assert len(membership) == 1
+    container = membership[0].args[1]
+    assert isinstance(container, LiquidApp)
+    assert container.fun.name == "elems"
+    assert [arg.name.name for arg in container.args if isinstance(arg, LiquidVar)] == ["xs"]
 
 
 def test_extract_qualifier_atoms_goal_type():

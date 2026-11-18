@@ -57,4 +57,6 @@ class Worker:
         self.process.join(timeout=0.05)
         if self.process.is_alive():
             self.process.kill()
-            self.process.join(timeout=0.05)
+            # SIGKILL cannot be ignored, but exit/reaping is not instantaneous
+            # on a busy host. Do not return while the child is still present.
+            self.process.join()

@@ -333,7 +333,11 @@ class TypingContext:
         if not self._ensure_builtins:
             return
         for bt in builtin_core_types[::-1]:
-            temp = TypeConstructorBinder(bt.name, [])
+            # ``Set`` is ``Set a``. A source occurrence with no argument is
+            # lowered as ``Set Int`` so existing integer refinements keep
+            # their meaning.
+            parameters = [Name("elem", 0)] if bt.name.name == "Set" else []
+            temp = TypeConstructorBinder(bt.name, parameters)
             if temp not in self.entries:
                 self.entries.insert(0, temp)
 
