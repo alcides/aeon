@@ -1,0 +1,628 @@
+{
+  "date": "2026-11-18",
+  "baseline_revision": "6324b47d99dcc609c352d687ec0589533cfa0cd2",
+  "optimization": "Skip irrelevant type and liquid substitutions during SMT binder renaming, using conservative occurrence sets scoped to one flattening pass. No change to search productions or validation requirements.",
+  "same_program_replays": [
+    {
+      "case": "list_20_bounded",
+      "source_sha256": "27a50feaabd370bfa6ebfd9530b161c30de3345f72e7354d6a316859fc80f27c",
+      "samples": 1,
+      "expected_results": [
+        true
+      ],
+      "trials": [
+        {
+          "repeat": 0,
+          "variant": "baseline",
+          "seconds": [
+            1.1374896191991866
+          ],
+          "total": 1.1374896191991866
+        },
+        {
+          "repeat": 0,
+          "variant": "optimized",
+          "seconds": [
+            0.6035047159530222
+          ],
+          "total": 0.6035047159530222
+        },
+        {
+          "repeat": 1,
+          "variant": "optimized",
+          "seconds": [
+            0.5384114952757955
+          ],
+          "total": 0.5384114952757955
+        },
+        {
+          "repeat": 1,
+          "variant": "baseline",
+          "seconds": [
+            1.1592411752790213
+          ],
+          "total": 1.1592411752790213
+        },
+        {
+          "repeat": 2,
+          "variant": "baseline",
+          "seconds": [
+            1.1689791879616678
+          ],
+          "total": 1.1689791879616678
+        },
+        {
+          "repeat": 2,
+          "variant": "optimized",
+          "seconds": [
+            0.538508428260684
+          ],
+          "total": 0.538508428260684
+        }
+      ],
+      "medians": {
+        "baseline": 1.1592411752790213,
+        "optimized": 0.538508428260684
+      },
+      "speedup": 2.1526890099440554,
+      "reduction_percent": 53.5464716277811,
+      "baseline_revision": "6324b47d99dcc609c352d687ec0589533cfa0cd2",
+      "optimized_smt_sha256": "f599090e6de7f827582be76cc2e2a429095c4b012bf5b47fb2fcc6df0cb66869",
+      "protocol": "Same ASTs, contexts and initial fresh counter; solver caches reset before each batch; paired order reversed in repeat 1; no profiler."
+    },
+    {
+      "case": "array_int_fit",
+      "source_sha256": "bfa5e73f3cb96e525975faad1c138142b9c186318fcd714016e233eafc5c632c",
+      "samples": 8,
+      "expected_results": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "trials": [
+        {
+          "repeat": 0,
+          "variant": "baseline",
+          "seconds": [
+            1.1046705190092325,
+            0.999022135976702,
+            0.9864617609418929,
+            1.1073995041660964,
+            1.022480574902147,
+            1.0346998646855354,
+            0.35672006802633405,
+            0.4237050120718777
+          ],
+          "total": 7.035159439779818
+        },
+        {
+          "repeat": 0,
+          "variant": "optimized",
+          "seconds": [
+            0.6888343398459256,
+            0.6521455100737512,
+            0.5829860786907375,
+            0.5830828221514821,
+            0.667823183350265,
+            0.5984076177701354,
+            0.3535998142324388,
+            0.4206975819543004
+          ],
+          "total": 4.547576948069036
+        },
+        {
+          "repeat": 1,
+          "variant": "optimized",
+          "seconds": [
+            0.6865170332603157,
+            0.6597231831401587,
+            0.5848685754463077,
+            0.5880251773633063,
+            0.6525549441576004,
+            0.5942769558168948,
+            0.43053892999887466,
+            0.3527963967062533
+          ],
+          "total": 4.549301195889711
+        },
+        {
+          "repeat": 1,
+          "variant": "baseline",
+          "seconds": [
+            1.113729499746114,
+            0.9961282797157764,
+            0.993724019266665,
+            1.1119131902232766,
+            1.0156744099222124,
+            1.0361588508822024,
+            0.353751331102103,
+            0.41899375431239605
+          ],
+          "total": 7.040073335170746
+        },
+        {
+          "repeat": 2,
+          "variant": "baseline",
+          "seconds": [
+            1.1110515519976616,
+            1.0023082327097654,
+            0.9954447392374277,
+            1.1037136516533792,
+            1.0292378389276564,
+            1.0325508769601583,
+            0.35241590812802315,
+            0.4243096341378987
+          ],
+          "total": 7.0510324337519705
+        },
+        {
+          "repeat": 2,
+          "variant": "optimized",
+          "seconds": [
+            0.6875227629207075,
+            0.6559741119854152,
+            0.5824673897586763,
+            0.583171078003943,
+            0.6501127309165895,
+            0.5929655991494656,
+            0.35859330696985126,
+            0.4214180829003453
+          ],
+          "total": 4.532225062604994
+        }
+      ],
+      "medians": {
+        "baseline": 7.040073335170746,
+        "optimized": 4.547576948069036
+      },
+      "speedup": 1.5480932847458597,
+      "reduction_percent": 35.40440942070469,
+      "baseline_revision": "6324b47d99dcc609c352d687ec0589533cfa0cd2",
+      "optimized_smt_sha256": "f599090e6de7f827582be76cc2e2a429095c4b012bf5b47fb2fcc6df0cb66869",
+      "protocol": "Same ASTs, contexts and initial fresh counter; solver caches reset before each batch; paired order reversed in repeat 1; no profiler."
+    },
+    {
+      "case": "image_key",
+      "source_sha256": "c8f2f3113b7aea18968aaca1309e7921fff0c86efed131eff709d102239031f5",
+      "samples": 8,
+      "expected_results": [
+        false,
+        true,
+        false,
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "trials": [
+        {
+          "repeat": 0,
+          "variant": "baseline",
+          "seconds": [
+            0.09531793976202607,
+            0.21147185703739524,
+            0.08649765001609921,
+            0.09627142222598195,
+            0.1813394222408533,
+            0.08901413390412927,
+            0.08456858713179827,
+            0.08862825529649854
+          ],
+          "total": 0.9331092676147819
+        },
+        {
+          "repeat": 0,
+          "variant": "optimized",
+          "seconds": [
+            0.070923893712461,
+            0.18464785115793347,
+            0.06255556829273701,
+            0.07347951177507639,
+            0.07425682991743088,
+            0.06127155292779207,
+            0.13990238308906555,
+            0.06332129379734397
+          ],
+          "total": 0.7303588846698403
+        },
+        {
+          "repeat": 1,
+          "variant": "optimized",
+          "seconds": [
+            0.07003061659634113,
+            0.18637089477851987,
+            0.06319452496245503,
+            0.07447297777980566,
+            0.07378712203353643,
+            0.06352934706956148,
+            0.06272231321781874,
+            0.06293101608753204
+          ],
+          "total": 0.6570388125255704
+        },
+        {
+          "repeat": 1,
+          "variant": "baseline",
+          "seconds": [
+            0.0962015800178051,
+            0.21436757734045386,
+            0.1572169279679656,
+            0.09995701303705573,
+            0.0974275660701096,
+            0.08975679567083716,
+            0.08862266363576055,
+            0.08543880982324481
+          ],
+          "total": 0.9289889335632324
+        },
+        {
+          "repeat": 2,
+          "variant": "baseline",
+          "seconds": [
+            0.17651463765650988,
+            0.21450182981789112,
+            0.0874226582236588,
+            0.09707178268581629,
+            0.10035983426496387,
+            0.08914157515391707,
+            0.08606275916099548,
+            0.1686837268061936
+          ],
+          "total": 1.019758803769946
+        },
+        {
+          "repeat": 2,
+          "variant": "optimized",
+          "seconds": [
+            0.07045493833720684,
+            0.1854559271596372,
+            0.06267302995547652,
+            0.07423186209052801,
+            0.07391226897016168,
+            0.06375840026885271,
+            0.06282488675788045,
+            0.06388241378590465
+          ],
+          "total": 0.6571937273256481
+        }
+      ],
+      "medians": {
+        "baseline": 0.9331092676147819,
+        "optimized": 0.6571937273256481
+      },
+      "speedup": 1.4198389741361819,
+      "reduction_percent": 29.569478073498335,
+      "baseline_revision": "6324b47d99dcc609c352d687ec0589533cfa0cd2",
+      "optimized_smt_sha256": "f599090e6de7f827582be76cc2e2a429095c4b012bf5b47fb2fcc6df0cb66869",
+      "protocol": "Same ASTs, contexts and initial fresh counter; solver caches reset before each batch; paired order reversed in repeat 1; no profiler."
+    },
+    {
+      "case": "knapsack_50",
+      "source_sha256": "bced4e230997e9ceb323f6ab1a73552ad28efd5e13487ac3416d349a9c3198a8",
+      "samples": 8,
+      "expected_results": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "trials": [
+        {
+          "repeat": 0,
+          "variant": "baseline",
+          "seconds": [
+            1.240679759066552,
+            1.0397207699716091,
+            1.025563989765942,
+            1.0181050710380077,
+            1.1385873332619667,
+            1.0464192708022892,
+            0.399142496753484,
+            1.0274564940482378
+          ],
+          "total": 7.935675184708089
+        },
+        {
+          "repeat": 0,
+          "variant": "optimized",
+          "seconds": [
+            0.815661296248436,
+            0.626079024747014,
+            0.6949552209116518,
+            0.6444071251899004,
+            0.7050285777077079,
+            0.6137324837036431,
+            0.39709187392145395,
+            0.7010109601542354
+          ],
+          "total": 5.1979665625840425
+        },
+        {
+          "repeat": 1,
+          "variant": "optimized",
+          "seconds": [
+            0.7526339469477534,
+            0.6986044938676059,
+            0.6227133981883526,
+            0.6249689990654588,
+            0.6965815629810095,
+            0.6129021970555186,
+            0.47317778784781694,
+            0.6277716918848455
+          ],
+          "total": 5.109354077838361
+        },
+        {
+          "repeat": 1,
+          "variant": "baseline",
+          "seconds": [
+            1.1431788252666593,
+            1.1232825638726354,
+            1.0442431019619107,
+            1.040670973714441,
+            1.0152302612550557,
+            1.011100280098617,
+            0.471004453022033,
+            1.0404737605713308
+          ],
+          "total": 7.889184219762683
+        },
+        {
+          "repeat": 2,
+          "variant": "baseline",
+          "seconds": [
+            1.13452973915264,
+            1.0121336211450398,
+            1.13115344196558,
+            1.0434063412249088,
+            1.0356448609381914,
+            1.0224720891565084,
+            0.472589747980237,
+            1.047114284709096
+          ],
+          "total": 7.8990441262722015
+        },
+        {
+          "repeat": 2,
+          "variant": "optimized",
+          "seconds": [
+            0.7537689111195505,
+            0.6889602979645133,
+            0.6247864230535924,
+            0.7071964628994465,
+            0.6251615826040506,
+            0.6868239128962159,
+            0.3970430619083345,
+            0.6216408121399581
+          ],
+          "total": 5.105381464585662
+        }
+      ],
+      "medians": {
+        "baseline": 7.8990441262722015,
+        "optimized": 5.109354077838361
+      },
+      "speedup": 1.5459966183463425,
+      "reduction_percent": 35.316805474669245,
+      "baseline_revision": "6324b47d99dcc609c352d687ec0589533cfa0cd2",
+      "optimized_smt_sha256": "f599090e6de7f827582be76cc2e2a429095c4b012bf5b47fb2fcc6df0cb66869",
+      "protocol": "Same ASTs, contexts and initial fresh counter; solver caches reset before each batch; paired order reversed in repeat 1; no profiler."
+    }
+  ],
+  "knapsack_60_seconds": {
+    "baseline": {
+      "result": {
+        "backend": "tdsyn_enumerative",
+        "budget_seconds": 60,
+        "tdsyn_expansion": "lazy",
+        "measure_shapes": "on",
+        "parse_seconds": 1.611,
+        "first_solution_seconds": 1.841,
+        "valid_candidates": 32,
+        "best_quality": [
+          325.0
+        ],
+        "best_at_seconds": 14.042,
+        "best_term": "((((Array_mk_concat\u00b2\u2079\u2077\u2077)[Bool ])[?\u03c1_pred\u2075\u2076\u2078\u00b2] ((((Array_mk_concat\u00b2\u2079\u2077\u2077)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u2074\u00b2\u2074] ((((((((((((((((((((((((((((((((((Array_mk_32\u00b2\u2078\u2077\u00b2)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u00b3\u2079\u2070] false) false) true) true) true) true) true) false) false) false) false) false) true) true) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false)) ((((((((((((((((((Array_mk_16\u00b2\u2078\u00b9\u2075)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u00b3\u2077\u00b2] false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false))) ((((Array_mk_2\u00b2\u2077\u2074\u2076)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u00b3\u2075\u00b2] false) false))",
+        "elapsed_seconds": 59.607,
+        "synthesis_seconds": 60.318,
+        "status": "solved",
+        "decisions": [
+          false,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "selected": 7,
+        "weight": 93,
+        "value": 325,
+        "wall_seconds": 61.934
+      },
+      "counters": {
+        "partial_expansions_yielded": 10,
+        "complete_candidate_attempts": 48,
+        "duplicates_skipped": 7,
+        "validation_attempts": 41,
+        "distinct_typed_candidates": 41,
+        "distinct_candidate_strings": 41,
+        "typecheck_calls": 41,
+        "typecheck_pass_calls": 41,
+        "typecheck_fail_calls": 0,
+        "typecheck_exception_calls": 0,
+        "candidates_reaching_typecheck": 41,
+        "candidates_passing_typecheck": 41,
+        "candidates_passing_validation": 32,
+        "candidates_scored": 32,
+        "candidates_with_positive_value": 20,
+        "typecheck_cache_requests": 73,
+        "typecheck_cache_hits": 32,
+        "typecheck_cache_misses": 41,
+        "typecheck_cache_bypassed": 0,
+        "typecheck_cache_inconclusive": 0,
+        "typecheck_seconds": 44.104392781388015,
+        "elapsed_seconds": 60.317
+      }
+    },
+    "optimized": {
+      "result": {
+        "backend": "tdsyn_enumerative",
+        "budget_seconds": 60,
+        "tdsyn_expansion": "lazy",
+        "measure_shapes": "on",
+        "parse_seconds": 1.201,
+        "first_solution_seconds": 1.508,
+        "valid_candidates": 47,
+        "best_quality": [
+          325.0
+        ],
+        "best_at_seconds": 10.286,
+        "best_term": "((((Array_mk_concat\u00b2\u2079\u2077\u2077)[Bool ])[?\u03c1_pred\u2075\u2076\u2078\u00b2] ((((Array_mk_concat\u00b2\u2079\u2077\u2077)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u2074\u00b2\u2074] ((((((((((((((((((((((((((((((((((Array_mk_32\u00b2\u2078\u2077\u00b2)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u00b3\u2079\u2070] false) false) true) true) true) true) true) false) false) false) false) false) true) true) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false)) ((((((((((((((((((Array_mk_16\u00b2\u2078\u00b9\u2075)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u00b3\u2077\u00b2] false) false) false) false) false) false) false) false) false) false) false) false) false) false) false) false))) ((((Array_mk_2\u00b2\u2077\u2074\u2076)[{ _r2516\u00b2\u2079\u2078\u2077:Bool  | true }])[?\u03c1_pred\u2076\u00b3\u2075\u00b2] false) false))",
+        "elapsed_seconds": 60.166,
+        "synthesis_seconds": 60.33,
+        "status": "solved",
+        "decisions": [
+          false,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "selected": 7,
+        "weight": 93,
+        "value": 325,
+        "wall_seconds": 61.537
+      },
+      "counters": {
+        "partial_expansions_yielded": 13,
+        "complete_candidate_attempts": 69,
+        "duplicates_skipped": 10,
+        "validation_attempts": 59,
+        "distinct_typed_candidates": 59,
+        "distinct_candidate_strings": 59,
+        "typecheck_calls": 59,
+        "typecheck_pass_calls": 59,
+        "typecheck_fail_calls": 0,
+        "typecheck_exception_calls": 0,
+        "candidates_reaching_typecheck": 59,
+        "candidates_passing_typecheck": 59,
+        "candidates_passing_validation": 47,
+        "candidates_scored": 47,
+        "candidates_with_positive_value": 30,
+        "typecheck_cache_requests": 106,
+        "typecheck_cache_hits": 47,
+        "typecheck_cache_misses": 59,
+        "typecheck_cache_bypassed": 0,
+        "typecheck_cache_inconclusive": 0,
+        "typecheck_seconds": 38.316643338650465,
+        "elapsed_seconds": 60.33
+      }
+    }
+  },
+  "limitations": [
+    "Replay timings measure full typechecking on captured, prepared programs; they exclude synthesis, parsing, objective evaluation and runtime specifications.",
+    "One paired end-to-end knapsack run with seed 0, lazy TDSyn enumerative, measure planning and deduplication enabled, 60-second cooperative budgets.",
+    "Shared verifier optimization; other synthesis backends have not been performance-benchmarked here."
+  ],
+  "measured_smt_ast_sha256": "32b28d267d5c67881249e001441a3b6b256a7fe65be4ab919dd22dea3e2d04ac"
+}
