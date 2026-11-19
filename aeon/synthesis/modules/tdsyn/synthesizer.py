@@ -12,8 +12,8 @@ from typing import Callable
 from loguru import logger
 
 from aeon.compilation.session import current_session
-from aeon.core.terms import Abstraction, Annotation, Hole, Term
-from aeon.core.types import AbstractionType, RefinedType, Type
+from aeon.core.terms import Abstraction, Annotation, Application, Hole, Term, Var
+from aeon.core.types import AbstractionType, RefinedType, Type, type_free_term_vars
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.evaluation_pool import inconclusive_evaluations
@@ -84,6 +84,20 @@ def _is_arrow(ty: Type) -> bool:
     while isinstance(ty, RefinedType):
         ty = ty.type
     return isinstance(ty, AbstractionType)
+
+
+def _bound_eliminator(term: Term, goal: Type) -> bool:
+    """Prioritize a match on a concrete input mentioned by the goal contract."""
+    arguments = []
+    while isinstance(term, Application):
+        arguments.append(term.arg)
+        term = term.fun
+    return (
+        bool(arguments)
+        and isinstance(arguments[-1], Var)
+        and arguments[-1].name in type_free_term_vars(goal)
+        and is_eliminator_term(term)
+    )
 
 
 def _select_hole(holes: list[TypedHole]) -> TypedHole:
@@ -167,6 +181,7 @@ class TDSynSynthesizer(Synthesizer):
         self.seed = seed
         self._rng = random.Random(seed)
         self._iteration = 0
+        self._recursive_guidance = False
         self.deduplicate = deduplicate
         self.dedup_capacity = dedup_capacity
         self._completed: OrderedDict[tuple, None] = OrderedDict()
@@ -185,6 +200,7 @@ class TDSynSynthesizer(Synthesizer):
         from aeon.synthesis.identification import iterate_top_level
 
         owner = next((node for node in iterate_top_level(program) if node.var_name == fun_name), None)
+        self._recursive_guidance = bool(owner is not None and owner.decreasing_by)
         if owner is None or not owner.decreasing_by:
             return ctx
         entry = metadata.get(fun_name)
@@ -385,6 +401,14 @@ class TDSynSynthesizer(Synthesizer):
                     if expanded.qtt_feasible():
                         results.append(expanded)
 
+        matching_input = partial.depth == 0 and any(
+            _bound_eliminator(term_at(result.term, hole.path), hole.expected_type) for result in results
+        )
+        if not self._recursive_guidance and not matching_input:
+            if self._iteration > 0 and results:
+                self._rng.shuffle(results)
+            return results
+
         # A depth-0 refined eliminator is the match. Keep it ahead of the
         # shuffle, and keep nested eliminators behind variable closes so a
         # case arm is not another copy of T_rec.
@@ -395,7 +419,7 @@ class TDSynSynthesizer(Synthesizer):
         nested_elims: list[PartialAST] = []
         for expanded in results:
             placed = term_at(expanded.term, hole.path)
-            if is_eliminator_term(placed) and has_refinement(hole.expected_type) and partial.depth == 0:
+            if _bound_eliminator(placed, hole.expected_type) and partial.depth == 0:
                 guided.append(expanded)
             elif is_eliminator_term(placed):
                 nested_elims.append(expanded)
@@ -636,11 +660,20 @@ class TDSynSynthesizer(Synthesizer):
                     # constructor lane and do not spend the budget proving
                     # every preceding prelude operator first.
                     guide_eliminator = (
-                        partial.depth == 0 and has_refinement(hole.expected_type) and is_eliminator_term(placed)
+                        partial.depth == 0
+                        and has_refinement(hole.expected_type)
+                        and _bound_eliminator(placed, hole.expected_type)
                     )
                     # Finished arms (the fold, then variables) are validated
                     # before a nested eliminator or a three-hole if is built.
-                    if self.expansion != "lazy" and not guide_eliminator and partial.depth > 0 and saw_value and opens:
+                    if (
+                        self._recursive_guidance
+                        and self.expansion != "lazy"
+                        and not guide_eliminator
+                        and partial.depth > 0
+                        and saw_value
+                        and opens
+                    ):
                         suspended.append(
                             (next(tickets), PendingExpansion(partial, hole, chain((new_partial,), expanded)))
                         )

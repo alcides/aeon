@@ -140,10 +140,21 @@ def _build_library(
 ) -> ComponentLibrary:
     functions: list[FunEntry] = []
     values: list[ValueEntry] = []
+    classes = {entry.name for entry in ctx._constructor_entries() if entry.is_typeclass}
 
     for name, ty in grammar_bindings(ctx, domain):
         if skip(name):
             continue
+        if classes:
+            signature = ty
+            while isinstance(signature, (TypePolymorphism, RefinementPolymorphism)):
+                signature = signature.body
+            scrutinee = base_type_of(signature.var_type) if isinstance(signature, AbstractionType) else None
+            if scrutinee is not None and scrutinee.name in classes:
+                # Dictionary calls are exposed by prepare_typeclass_components
+                # with checked evidence already supplied. A raw method/recursor would
+                # ask search to invent arbitrary dictionary instances instead.
+                continue
         if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
             for term, mono_ty in monomorphize(name, ty, ctx, goal):
                 if isinstance(mono_ty, AbstractionType):

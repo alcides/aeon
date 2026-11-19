@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from itertools import chain
 from random import Random
 from time import monotonic
 from typing import Callable, TypeVar
@@ -224,6 +225,7 @@ def backward_if_candidates(
 # One then-arm per refined goal. Further arms would re-run Horn abduction on
 # every constructor spine; the first realized guard is the branch-first step.
 _ABDUCTION_ATTEMPTS = 8
+_ABDUCTION_SECONDS = 1.0
 
 _RELATIONS = (
     Name("==", 0),
@@ -356,14 +358,20 @@ def abduced_if_candidates(
     for a refined goal, where copying the goal onto ``?c``, ``?t`` and ``?e``
     does not determine the guard.
     """
-    if not _refined_goal(hole):
+    if not _refined_goal(hole) or monotonic() >= deadline.get():
         return []
     from aeon.synthesis.modules.synquid.abduction import abduce, branch_environment
     from aeon.synthesis.modules.synquid.constraints import ConstraintState
     from aeon.synthesis.modules.synquid.solver import Status
 
     goal = hole.expected_type
-    state = ConstraintState(hole.context)
+    arms = _then_arms(hole, skip)
+    first = next(arms, None)
+    if first is None:
+        return []
+    # Guard inference is one optional production, not the entire search. Pass
+    # the outer deadline through to Synquid and leave time for other tactics.
+    state = ConstraintState(hole.context, deadline=min(deadline.get(), monotonic() + _ABDUCTION_SECONDS))
     # Same split as Synquid's generateThen: open the unknown path condition,
     # then solve the guard against the parent state from one finished arm.
     try:
@@ -375,8 +383,8 @@ def abduced_if_candidates(
     found: list[tuple[Term, list[TypedHole]]] = []
     seen: set[str] = set()
     attempts = 0
-    for arm in _then_arms(hole, skip):
-        if attempts >= _ABDUCTION_ATTEMPTS or monotonic() >= deadline.get():
+    for arm in chain((first,), arms):
+        if attempts >= _ABDUCTION_ATTEMPTS or monotonic() >= state.deadline:
             break
         key = repr(arm)
         if key in seen:
@@ -596,7 +604,7 @@ def backward_candidates(
     3. Look up variables with matching types
     4. For a refined goal, abduce one guard from a complete then-arm
     5. Find functions whose return type matches T
-    6. For an unrefined goal, generate if-then-else
+    6. If abduction supplies no branch, generate an ordinary if-then-else
     """
     abs_candidates = backward_abs_candidates(hole, skip)
     if abs_candidates:
@@ -615,14 +623,14 @@ def backward_candidates(
     candidates.extend(recursive_fold_candidates(hole, skip))
     candidates.extend(backward_lit_candidates(hole, skip))
     candidates.extend(backward_close_candidates(hole, skip))
-    # A refined goal takes its guard from one finished then-arm. An unrefined
-    # goal keeps the three-hole if, so plain enumeration does not pay for Horn.
-    if _refined_goal(hole):
-        candidates.extend(abduced_if_candidates(hole, skip))
+    # Prefer a guard inferred from a finished then-arm. Keep the ordinary
+    # three-hole conditional when inference is inapplicable or inconclusive.
+    branches = abduced_if_candidates(hole, skip) if _refined_goal(hole) else []
+    candidates.extend(branches)
     if applications is None:
         applications = backward_app_candidates(hole, skip)
     candidates.extend(applications)
-    if not _refined_goal(hole):
+    if not branches:
         candidates.extend(backward_if_candidates(hole, skip))
     return candidates
 
@@ -650,10 +658,14 @@ def iter_backward_candidates(
         iter_forward_close_candidates(hole, skip, rng),
     ]
     applications = iter_backward_app_candidates(hole, skip, rng)
-    if _refined_goal(hole):
-        actions = [*leaves, iter(abduced_if_candidates(hole, skip)), applications]
-    else:
-        actions = [*leaves, applications, iter(backward_if_candidates(hole, skip))]
+
+    def branches():
+        inferred = abduced_if_candidates(hole, skip) if _refined_goal(hole) else []
+        yield from inferred or backward_if_candidates(hole, skip)
+
+    # Creating the iterator must not perform Horn inference before the
+    # consumer has even seen a literal, variable or constructor application.
+    actions = [*leaves, applications, branches()]
     for candidates in _ordered(actions, rng):
         yield from candidates
 

@@ -1,5 +1,8 @@
 """Recursive hypotheses from ``decreasing_by`` and branch-first guards on TDSyn."""
 
+from time import monotonic
+from types import SimpleNamespace
+
 from aeon.core.liquid import LiquidApp, LiquidTerm, LiquidVar
 from aeon.core.terms import Hole, If, Var
 from aeon.core.types import t_int, top
@@ -9,6 +12,8 @@ from aeon.synthesis.identification import get_holes_info
 from aeon.synthesis.modules.synquid.abduction import AbductionResult
 from aeon.synthesis.modules.synquid.solver import Status
 from aeon.synthesis.modules.tdsyn.actions import abduced_if_candidates, backward_candidates, backward_if_candidates
+from aeon.synthesis.modules.tdsyn import actions
+from aeon.synthesis.modules.tdsyn.constraints import deadline
 from aeon.synthesis.modules.tdsyn.helpers import make_skip_fn
 from aeon.synthesis.modules.tdsyn.synthesizer import TDSynSynthesizer
 from aeon.synthesis.modules.tdsyn.worklist import PartialAST, expand_at_hole, fresh_hole
@@ -123,6 +128,66 @@ def test_unrefined_goal_keeps_the_three_hole_if(monkeypatch):
     assert len(children) == 3
     combined = backward_candidates(hole, lambda _name: False)
     assert any(isinstance(candidate, If) and isinstance(candidate.cond, Hole) for candidate, _holes in combined)
+
+
+def test_abduction_shares_the_outer_deadline_and_limits_its_own_work(monkeypatch):
+    ctx, goal = _maximum()
+    seen = []
+    monkeypatch.setattr(actions, "_then_arms", lambda *_: iter([Var(name("x"))]))
+    monkeypatch.setattr(
+        "aeon.synthesis.modules.synquid.abduction.branch_environment",
+        lambda *_: SimpleNamespace(inhabited=lambda: Status.UNKNOWN),
+    )
+
+    def infer(state, *args):
+        seen.append((state.deadline, state.query.deadline))
+        return AbductionResult([], Status.UNKNOWN)
+
+    monkeypatch.setattr("aeon.synthesis.modules.synquid.abduction.abduce", infer)
+    for remaining in (0.1, 60):
+        outer = monotonic() + remaining
+        token = deadline.set(outer)
+        try:
+            assert abduced_if_candidates(_hole(ctx, goal), lambda _: False) == []
+        finally:
+            deadline.reset(token)
+        bound, query_bound = seen[-1]
+        assert query_bound == bound <= outer
+        if remaining == 60:
+            assert bound < outer
+
+
+def test_expired_abduction_does_not_enumerate_arms(monkeypatch):
+    def forbidden(*args):
+        raise AssertionError("expired abduction must stop before constructing an arm")
+
+    ctx, goal = _maximum()
+    monkeypatch.setattr(actions, "_then_arms", forbidden)
+    token = deadline.set(0)
+    try:
+        assert abduced_if_candidates(_hole(ctx, goal), lambda _: False) == []
+    finally:
+        deadline.reset(token)
+
+
+def test_lazy_literals_do_not_eagerly_abduce_a_guard(monkeypatch):
+    called = []
+    monkeypatch.setattr(actions, "abduced_if_candidates", lambda *_: called.append(True) or [])
+    hole = _hole(built_std_context(), parse_type("{v:Int | v >= 0}"))
+    stream = actions.iter_backward_candidates(hole, lambda _: True)
+    next(stream)
+    stream.close()
+    assert called == []
+
+
+def test_failed_abduction_retains_refined_conditional_productions(monkeypatch):
+    monkeypatch.setattr(actions, "abduced_if_candidates", lambda *_: [])
+    for expand in (backward_candidates, actions.iter_backward_candidates):
+        hole = _hole(built_std_context(), parse_type("{v:Int | v > 10}"))
+        assert any(
+            isinstance(term, If) and isinstance(term.cond, Hole) and len(children) == 3
+            for term, children in expand(hole, lambda _: True)
+        )
 
 
 def _solve(filename: str, budget: int = 30):
