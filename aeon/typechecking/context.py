@@ -254,7 +254,8 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
         tail: tuple[TypingContextEntry, ...],
         constructors: tuple[TypeConstructorBinder, ...],
         type_binders: tuple[TypeBinder, ...],
-        index: _BindingIndex,
+        index: _BindingIndex | None,
+        indexed_length: int,
     ) -> None:
         self._blocks: tuple[tuple[TypingContextEntry, ...], ...] = blocks
         self._tail: tuple[TypingContextEntry, ...] = tail
@@ -262,6 +263,7 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
         self._type_binders: tuple[TypeBinder, ...] = type_binders
         self._mutable: _ContextEntries | None = None
         self._index = index
+        self._indexed_length = indexed_length
 
     @classmethod
     def extend_scope(
@@ -274,7 +276,10 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
             entries._freeze()
             blocks, tail = entries._blocks, entries._tail
             type_binders = entries._type_binders
-            index = entries.binding_index()
+            # Many temporary checking scopes never perform a name lookup.
+            # Share the indexed prefix and defer inserting new binders until
+            # a lookup needs them, without retaining a parent context chain.
+            index, indexed_length = entries._index, entries._indexed_length
         else:
             values = tuple(entries)
             boundary = len(values) // cls._CHUNK_SIZE * cls._CHUNK_SIZE
@@ -285,13 +290,13 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
                 if isinstance(entries, _ContextEntries)
                 else tuple(e for e in values if isinstance(e, TypeBinder))
             )
-            index = _BindingIndex.build(values)
+            index, indexed_length = None, 0
         if isinstance(binder, TypeBinder):
             type_binders = (*type_binders, binder)
         tail = (*tail, binder)
         if len(tail) == cls._CHUNK_SIZE:
             blocks, tail = (*blocks, tail), ()
-        return cls(blocks, tail, constructors, type_binders, index.extend(binder))
+        return cls(blocks, tail, constructors, type_binders, index, indexed_length)
 
     def _freeze(self) -> None:
         if self._mutable is not None:
@@ -301,12 +306,17 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
             self._tail = values[boundary:]
             self._constructors = self._mutable.constructors()
             self._type_binders = self._mutable.type_binders()
-            self._index = _BindingIndex.build(self._mutable)
+            self._index = None
+            self._indexed_length = 0
             self._mutable = None
 
     def binding_index(self) -> _BindingIndex:
-        if self._index.epoch != names.mutation_epoch:
+        if self._index is None or self._index.epoch != names.mutation_epoch:
             self._index = _BindingIndex.build(self)
+        else:
+            for position in range(self._indexed_length, len(self)):
+                self._index = self._index.extend(self[position])
+        self._indexed_length = len(self)
         return self._index
 
     def _writable(self) -> _ContextEntries:
@@ -443,7 +453,16 @@ class TypingContext:
 
     def type_of(self, name: Name) -> Type | None:
         if isinstance(self.entries, _ContextSnapshot) and self.entries._mutable is None:
-            binder = self.entries.binding_index().bindings.get((name.name, name.id))
+            index = self.entries._index
+            if index is None or index.epoch != names.mutation_epoch:
+                index = self.entries.binding_index()
+            key = (name.name, name.id)
+            binder = index.bindings.get(key)
+            # The first exact binding wins, so a prefix hit is already final.
+            # Temporary refinement scopes need not index their fresh witnesses
+            # merely to look up an outer variable or prelude function.
+            if binder is None and self.entries._indexed_length < len(self.entries):
+                binder = self.entries.binding_index().bindings.get(key)
             return None if binder is None else binder.type
         for e in self.entries:
             match e:

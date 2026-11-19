@@ -790,7 +790,9 @@ after serialization. Caller-owned lists and structurally edited snapshots keep
 their live list behavior. Reverse traversal walks the shared chunks directly.
 
 The index shares unchanged hash buckets across child scopes and uses more
-memory in exchange for faster lookup. It caches bindings, not proof results.
+memory in exchange for faster lookup. Scopes defer index construction and
+extension until a lookup needs them. A hit in the indexed prefix also avoids
+indexing temporary checking binders. It caches bindings, not proof results.
 The [indexed bindings comparison](benchmarks/indexed-bindings.json) records
 verification, lazy TDSyn synthesis, and isolated typing-context measurements;
 the container speedups are not whole-solver speedups. Reproduce them with

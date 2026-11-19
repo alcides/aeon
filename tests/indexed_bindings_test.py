@@ -9,6 +9,7 @@ from hypothesis import given, strategies as st
 
 from aeon.core.types import t_bool, t_int
 from aeon.typechecking.context import TypingContext, VariableBinder, RefinementBinder, UninterpretedBinder
+from aeon.typechecking.context import _BindingIndex
 from aeon.utils.name import Name
 from aeon.utils.persistent import PersistentMap, PersistentSequence
 
@@ -127,3 +128,36 @@ def test_deserialization_rebuilds_indexes_with_stale_names():
     restored = pickle.loads(pickle.dumps(ctx))
     assert restored.type_of(Name("old")) is None
     assert restored.type_of(Name("new")) == t_int
+
+
+def test_unused_scopes_defer_index_work_and_lookups_extend_only_the_missing_suffix(monkeypatch):
+    calls = []
+    build, extend = _BindingIndex.build, _BindingIndex.extend
+
+    def counted_build(cls, entries):
+        calls.append("build")
+        return build(entries)
+
+    def counted_extend(index, binder):
+        calls.append("extend")
+        return extend(index, binder)
+
+    monkeypatch.setattr(_BindingIndex, "build", classmethod(counted_build))
+    monkeypatch.setattr(_BindingIndex, "extend", counted_extend)
+    ctx = TypingContext()
+    for i in range(100):
+        ctx = ctx.with_var(Name("local", i), t_int)
+    assert calls == []
+    assert ctx.type_of(Name("local", 0)) is t_int
+    assert calls == ["build"]
+    child = ctx.with_var(Name("child"), t_bool)
+    sibling = ctx.with_var(Name("sibling"), t_int)
+    assert child.type_of(Name("local", 99)) is t_int
+    duplicate = child.with_var(Name("local", 99), t_bool)
+    assert duplicate.type_of(Name("local", 99)) is t_int
+    assert calls == ["build"]
+    assert child.type_of(Name("child")) is t_bool
+    assert child.type_of(Name("local", 99)) is t_int
+    assert calls == ["build", "extend"]
+    assert sibling.type_of(Name("child")) is None
+    assert calls == ["build", "extend", "extend"]

@@ -33,7 +33,11 @@ class Name:
 
     def __init__(self, name: str, id=-1):
         assert isinstance(name, str)
-        self.__dict__.update(name=str(name).strip(), id=id)
+        # Initialization is not a rename. Set fields directly without building
+        # an extra keyword dictionary or invoking mutation invalidation.
+        fields = self.__dict__
+        fields["name"] = str(name).strip()
+        fields["id"] = id
 
     def __setattr__(self, key, value):
         if key in ("name", "id") and key in self.__dict__:
