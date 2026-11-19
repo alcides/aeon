@@ -76,6 +76,26 @@ def test_scope_extension_shares_complete_chunks():
     assert child.entries._tail[:-1] == previous._tail
 
 
+@pytest.mark.parametrize("mutated", [False, True])
+def test_reverse_iteration_does_not_index_or_materialize_entries(monkeypatch, mutated):
+    ctx = TypingContext()
+    for i in range(100):
+        ctx = ctx.with_var(Name("x", i), t_int)
+    if mutated:
+        ctx.entries.insert(40, VariableBinder(Name("inserted"), t_bool))
+        del ctx.entries[70:80]
+    expected = list(ctx.entries)[::-1]
+    storage = ctx.entries._mutable
+
+    def unexpected_traversal(*args):
+        pytest.fail("Reverse traversal must use the existing chunks or owned list")
+
+    monkeypatch.setattr(type(ctx.entries), "__getitem__", unexpected_traversal)
+    monkeypatch.setattr(type(ctx.entries), "__iter__", unexpected_traversal)
+    assert list(reversed(ctx.entries)) == expected
+    assert ctx.entries._mutable is storage
+
+
 def test_kind_lookup_reuses_type_binders_without_scanning_term_variables(monkeypatch):
     name = Name("f")
     kind = ArrowKind(Kind.BASE, Kind.BASE)
@@ -167,3 +187,4 @@ def test_branching_scopes_match_independent_lists(operations):
             ctx.entries *= 0
             reference *= 0
         assert [list(scope.entries) for scope in scopes] == expected
+        assert [list(reversed(scope.entries)) for scope in scopes] == [entries[::-1] for entries in expected]

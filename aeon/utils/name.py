@@ -16,6 +16,15 @@ class FreshCounter:
 
 fresh_counter = FreshCounter()
 
+# A conservative invalidation token, not a cache of contexts. Ordinary creation
+# does not change it. Renames can affect multiple scopes that share a binder.
+mutation_epoch = 0
+
+
+def invalidate_name_indexes() -> None:
+    global mutation_epoch
+    mutation_epoch += 1
+
 
 @dataclass(init=False, unsafe_hash=True)
 class Name:
@@ -24,8 +33,17 @@ class Name:
 
     def __init__(self, name: str, id=-1):
         assert isinstance(name, str)
-        self.name = str(name).strip()
-        self.id = id
+        self.__dict__.update(name=str(name).strip(), id=id)
+
+    def __setattr__(self, key, value):
+        if key in ("name", "id") and key in self.__dict__:
+            invalidate_name_indexes()
+        object.__setattr__(self, key, value)
+
+    def __delattr__(self, key):
+        if key in ("name", "id"):
+            invalidate_name_indexes()
+        object.__delattr__(self, key)
 
     def __str__(self):
         if self.id == 0:
