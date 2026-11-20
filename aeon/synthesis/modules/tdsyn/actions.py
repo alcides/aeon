@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from itertools import chain
 from random import Random
+from time import monotonic
 from typing import Callable, TypeVar
 
+from aeon.core.instantiation import type_substitution
+from aeon.core.liquid import LiquidApp, LiquidLiteralInt, LiquidTerm, LiquidVar
 from aeon.core.substitutions import substitution_in_type
-from aeon.core.terms import Abstraction, Application, If, Literal, Rec, Term, TypeAbstraction, Var
+from aeon.core.terms import Abstraction, Application, If, Literal, Rec, Term, TypeAbstraction, TypeApplication, Var
 from aeon.core.types import (
     AbstractionType,
     Kind,
+    RefinedType,
     Type,
     TypeConstructor,
     TypePolymorphism,
+    TypeVar as CoreTypeVar,
     RefinementPolymorphism,
     t_bool,
     t_float,
@@ -19,7 +25,13 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.synthesis.modules.tdsyn.bindings import GrammarScope, open_abstraction
-from aeon.synthesis.modules.tdsyn.constraints import candidate_feasible, eager_pruning, obligations
+from aeon.synthesis.modules.tdsyn.constraints import (
+    candidate_feasible,
+    deadline,
+    eager_pruning,
+    has_refinement,
+    obligations,
+)
 from aeon.synthesis.grammar.nonterminals import ExpressionDomain, grammar_bindings
 from aeon.synthesis.modules.tdsyn.helpers import (
     base_type_of,
@@ -28,10 +40,11 @@ from aeon.synthesis.modules.tdsyn.helpers import (
     is_subtype,
     monomorphize,
     is_constructor_term,
+    is_eliminator_term,
     shapes_match,
 )
 from aeon.synthesis.modules.tdsyn.library import get_component_library, iter_concrete_vars
-from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole
+from aeon.synthesis.modules.tdsyn.worklist import TypedHole, fresh_hole, substitute_holes_map
 from aeon.typechecking.context import TypingContext
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name, fresh_counter
@@ -209,6 +222,376 @@ def backward_if_candidates(
     ]
 
 
+# One then-arm per refined goal. Further arms would re-run Horn abduction on
+# every constructor spine; the first realized guard is the branch-first step.
+_ABDUCTION_ATTEMPTS = 8
+_ABDUCTION_SECONDS = 1.0
+
+_RELATIONS = (
+    Name("==", 0),
+    Name("!=", 0),
+    Name("<", 0),
+    Name("<=", 0),
+    Name(">", 0),
+    Name(">=", 0),
+)
+
+
+def _refined_goal(hole: TypedHole) -> bool:
+    return hole.domain is ExpressionDomain.TERM and has_refinement(hole.expected_type)
+
+
+def _type_argument(pattern: Type, actual: Type, variable: Name) -> Type | None:
+    """The instance of ``variable`` that makes ``pattern`` match ``actual``."""
+    if isinstance(pattern, CoreTypeVar) and pattern.name == variable:
+        return actual
+    if isinstance(pattern, RefinedType):
+        return _type_argument(pattern.type, actual, variable)
+    if isinstance(actual, RefinedType):
+        return _type_argument(pattern, actual.type, variable)
+    if isinstance(pattern, TypeConstructor) and isinstance(actual, TypeConstructor):
+        if pattern.name != actual.name or len(pattern.args) != len(actual.args):
+            return None
+        for left, right in zip(pattern.args, actual.args):
+            found = _type_argument(left, right, variable)
+            if found is not None:
+                return found
+    return None
+
+
+def _int_measure(ctx: TypingContext, fun: Name, argument: Term, argument_type: Type) -> Term | None:
+    """Apply an in-scope measure whose liquid form is ``fun(argument)``."""
+    schema = ctx.type_of(fun)
+    if schema is None:
+        return None
+    head: Term = Var(fun)
+    current = schema
+    while isinstance(current, TypePolymorphism):
+        body = current.body
+        while isinstance(body, (TypePolymorphism, RefinementPolymorphism)):
+            body = body.body
+        if not isinstance(body, AbstractionType):
+            return None
+        instance = _type_argument(body.var_type, argument_type, current.name)
+        if instance is None:
+            return None
+        head = TypeApplication(head, instance)
+        current = type_substitution(current.body, current.name, instance)
+    if isinstance(current, RefinementPolymorphism) or not isinstance(current, AbstractionType):
+        return None
+    if not shapes_match(argument_type, current.var_type) or base_type_of(current.type) != t_int:
+        return None
+    return Application(head, argument)
+
+
+def _int_operand(ctx: TypingContext, liquid: LiquidTerm) -> Term | None:
+    if isinstance(liquid, LiquidLiteralInt):
+        return Literal(liquid.value, t_int)
+    if isinstance(liquid, LiquidVar):
+        ty = ctx.type_of(liquid.name)
+        if ty is not None and base_type_of(ty) == t_int:
+            return Var(liquid.name)
+        return None
+    if isinstance(liquid, LiquidApp) and liquid.fun == Name("+", 0) and len(liquid.args) == 2:
+        left, right = _int_operand(ctx, liquid.args[0]), _int_operand(ctx, liquid.args[1])
+        if left is None or right is None:
+            return None
+        return Application(Application(TypeApplication(Var(Name("+", 0)), t_int), left), right)
+    if isinstance(liquid, LiquidApp) and len(liquid.args) == 1 and isinstance(liquid.args[0], LiquidVar):
+        argument_type = ctx.type_of(liquid.args[0].name)
+        if argument_type is None:
+            return None
+        return _int_measure(ctx, liquid.fun, Var(liquid.args[0].name), argument_type)
+    return None
+
+
+def _compile_guard(ctx: TypingContext, guard: LiquidTerm) -> Term | None:
+    """Boolean program for a guard ``abduce`` solved but did not realize.
+
+    ``realize`` covers variables and ``⋆ op ⋆`` over scalars. A measure
+    application such as ``len xs = 0`` is already the abducted condition; it
+    is not a second search for an ``if`` condition.
+    """
+    from aeon.synthesis.modules.synquid.qualifiers import realize
+
+    realized = realize(ctx, guard)
+    if realized is not None:
+        return realized
+    if isinstance(guard, LiquidApp) and guard.fun in _RELATIONS and len(guard.args) == 2:
+        left, right = _int_operand(ctx, guard.args[0]), _int_operand(ctx, guard.args[1])
+        if left is None or right is None:
+            return None
+        return Application(Application(TypeApplication(Var(guard.fun), t_int), left), right)
+    if isinstance(guard, LiquidApp) and guard.fun in (Name("&&", 0), Name("||", 0)) and len(guard.args) == 2:
+        left, right = _compile_guard(ctx, guard.args[0]), _compile_guard(ctx, guard.args[1])
+        if left is None or right is None:
+            return None
+        return Application(Application(Var(guard.fun), left), right)
+    if isinstance(guard, LiquidApp) and guard.fun == Name("!", 0) and guard.args:
+        inner = _compile_guard(ctx, guard.args[0])
+        if inner is None:
+            return None
+        return Application(Var(guard.fun), inner)
+    return None
+
+
+def _then_arms(hole: TypedHole, skip: Callable[[Name], bool]) -> Iterator[Term]:
+    """Complete leaf and depth-1 eliminations already built by TDSyn."""
+    for term, holes in backward_close_candidates(hole, skip):
+        if not holes:
+            yield term
+    for term, holes in backward_lit_candidates(hole, skip):
+        if not holes:
+            yield term
+    for term, holes, _ in _iter_forward_applications(hole, skip):
+        if not holes:
+            yield term
+
+
+def abduced_if_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """One complete then-arm, its abducted guard, and an else hole under the negation.
+
+    Unrefined goals stay on ``backward_if_candidates``. This production is only
+    for a refined goal, where copying the goal onto ``?c``, ``?t`` and ``?e``
+    does not determine the guard.
+    """
+    if not _refined_goal(hole) or monotonic() >= deadline.get():
+        return []
+    from aeon.synthesis.modules.synquid.abduction import abduce, branch_environment
+    from aeon.synthesis.modules.synquid.constraints import ConstraintState
+    from aeon.synthesis.modules.synquid.solver import Status
+
+    goal = hole.expected_type
+    arms = _then_arms(hole, skip)
+    first = next(arms, None)
+    if first is None:
+        return []
+    # Guard inference is one optional production, not the entire search. Pass
+    # the outer deadline through to Synquid and leave time for other tactics.
+    state = ConstraintState(hole.context, deadline=min(deadline.get(), monotonic() + _ABDUCTION_SECONDS))
+    # Same split as Synquid's generateThen: open the unknown path condition,
+    # then solve the guard against the parent state from one finished arm.
+    try:
+        opened = branch_environment(state, goal)
+        if opened.inhabited() == Status.VALID:
+            return []
+    except Exception:
+        return []
+    found: list[tuple[Term, list[TypedHole]]] = []
+    seen: set[str] = set()
+    attempts = 0
+    for arm in chain((first,), arms):
+        if attempts >= _ABDUCTION_ATTEMPTS or monotonic() >= state.deadline:
+            break
+        key = repr(arm)
+        if key in seen:
+            continue
+        seen.add(key)
+        attempts += 1
+        try:
+            result = abduce(state, arm, goal)
+        except Exception:
+            continue
+        guards = list(result.guards)
+        if not guards:
+            for condition in result.conditions:
+                program = _compile_guard(hole.context, condition)
+                if program is not None:
+                    guards.append((condition, program))
+                    break
+        if not guards:
+            continue
+        _condition, guard = guards[0]
+        else_term, else_hole = fresh_hole(goal, hole.context, domain=hole.domain)
+        # ``scoped_children`` records the negated guard when this if is installed.
+        found.append((If(guard, arm, else_term, _loc), [else_hole]))
+        break
+    return found
+
+
+def _scrutinee_eliminators(
+    hole: TypedHole,
+    applications: list[tuple[Term, list[TypedHole]]],
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """Apply ``T_rec`` to one in-scope scrutinee and leave the handlers open.
+
+    The eliminator is an ordinary application. Filling the scrutinee up front
+    keeps a refined datatype goal from enumerating every list producer before
+    the match that the goal actually needs.
+    """
+    if not _refined_goal(hole):
+        return []
+    for term, holes in applications:
+        if not is_eliminator_term(term) or not holes:
+            continue
+        scrutinee = holes[0]
+        for var_name, var_type in iter_concrete_vars(hole.context, skip, hole.domain):
+            if not shapes_match(var_type, scrutinee.expected_type):
+                continue
+            filled = substitute_holes_map(term, {scrutinee.name: Var(var_name)})
+            rest = holes[1:]
+            if candidate_feasible(hole, filled, rest):
+                return [(filled, rest)]
+    return []
+
+
+def _liquid_decreases(term: LiquidTerm) -> bool:
+    if isinstance(term, LiquidApp):
+        return term.fun.name == "<" or any(_liquid_decreases(arg) for arg in term.args)
+    return False
+
+
+def _type_decreases(ty: Type) -> bool:
+    """True when a hypothesis carries the strict metric from ``weaken``."""
+    if isinstance(ty, RefinedType):
+        return _liquid_decreases(ty.refinement) or _type_decreases(ty.type)
+    if isinstance(ty, AbstractionType):
+        return _type_decreases(ty.var_type) or _type_decreases(ty.type)
+    if isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+        return _type_decreases(ty.body)
+    return False
+
+
+def _vars_matching(
+    variables: list[tuple[Name, Type]],
+    target: Type,
+) -> list[tuple[Name, Type]]:
+    return [(name, ty) for name, ty in variables if shapes_match(ty, target)]
+
+
+def _apply_variables(
+    fun: Term,
+    ty: Type,
+    variables: list[tuple[Name, Type]],
+    datatype: Type,
+    *,
+    limit: int,
+) -> list[Term]:
+    """Fully apply ``fun``, using the most recently bound datatype variable first.
+
+    That variable is the case tail. Later datatype arguments are the other
+    lists in scope (``ys`` before the scrutinee, once the tail is used).
+    """
+    found: list[Term] = []
+
+    def walk(term: Term, current: Type, prefer_recent: bool, used: set[Name]) -> None:
+        if len(found) >= limit:
+            return
+        if not isinstance(current, AbstractionType):
+            found.append(term)
+            return
+        matches = _vars_matching(variables, current.var_type)
+        if not matches:
+            return
+        datatype_slot = shapes_match(current.var_type, datatype)
+        ordered = list(reversed(matches)) if prefer_recent and datatype_slot else matches
+        for name, _var_type in ordered:
+            if datatype_slot and name in used:
+                continue
+            arg = Var(name, _loc)
+            walk(
+                Application(term, arg, _loc),
+                substitution_in_type(current.type, arg, current.var_name),
+                False,
+                used | {name},
+            )
+            if len(found) >= limit:
+                return
+
+    walk(fun, ty, True, set())
+    return found
+
+
+def _apply_constructor(
+    fun: Term,
+    ty: Type,
+    recursive_terms: list[Term],
+    variables: list[tuple[Name, Type]],
+    datatype: Type,
+    *,
+    limit: int,
+) -> list[Term]:
+    """Fill one recursive constructor slot with a decreasing call and the rest with variables."""
+    found: list[Term] = []
+
+    def walk(term: Term, current: Type, recursive_open: bool) -> None:
+        if len(found) >= limit:
+            return
+        if not isinstance(current, AbstractionType):
+            if not recursive_open:
+                found.append(term)
+            return
+        if recursive_open and shapes_match(current.var_type, datatype):
+            for recursive in recursive_terms:
+                walk(
+                    Application(term, recursive, _loc),
+                    substitution_in_type(current.type, recursive, current.var_name),
+                    False,
+                )
+                if len(found) >= limit:
+                    return
+            return
+        for name, _var_type in _vars_matching(variables, current.var_type):
+            arg = Var(name, _loc)
+            walk(
+                Application(term, arg, _loc),
+                substitution_in_type(current.type, arg, current.var_name),
+                recursive_open,
+            )
+            if len(found) >= limit:
+                return
+
+    walk(fun, ty, True)
+    return found
+
+
+def recursive_fold_candidates(
+    hole: TypedHole,
+    skip: Callable[[Name], bool],
+) -> list[tuple[Term, list[TypedHole]]]:
+    """``cons h (recursive t ys)`` from the weakened hypothesis and one constructor.
+
+    The case binders are in scope only under the handler, so the nil branch
+    does not see this production. The root goal has no element variable and
+    does not see it either; the scrutinee eliminator stays the first match.
+    """
+    datatype = base_type_of(hole.expected_type)
+    if datatype is None or datatype in (t_int, t_bool, t_float, t_string) or hole.domain is not ExpressionDomain.TERM:
+        return []
+    library = get_component_library(hole.context, skip, hole.nonterminal)
+    functions = library.functions_returning(hole.expected_type)
+    decreasing = [
+        (term, ty)
+        for term, ty in functions
+        if _type_decreases(ty) and not is_constructor_term(term) and not is_eliminator_term(term)
+    ]
+    constructors = [(term, ty) for term, ty in functions if is_constructor_term(term)]
+    if not decreasing or not constructors:
+        return []
+    variables = list(iter_concrete_vars(hole.context, skip, hole.domain))
+    found: list[tuple[Term, list[TypedHole]]] = []
+    seen: set[str] = set()
+    for cons_term, cons_ty in constructors:
+        for dec_term, dec_ty in decreasing:
+            calls = _apply_variables(dec_term, dec_ty, variables, datatype, limit=4)
+            if not calls:
+                continue
+            for term in _apply_constructor(cons_term, cons_ty, calls, variables, datatype, limit=8 - len(found)):
+                key = repr(term)
+                if key in seen:
+                    continue
+                seen.add(key)
+                if candidate_feasible(hole, term, []):
+                    found.append((term, []))
+                if len(found) >= 8:
+                    return found
+    return found
+
+
 def backward_candidates(
     hole: TypedHole,
     skip: Callable[[Name], bool],
@@ -219,18 +602,36 @@ def backward_candidates(
     1. If T is a function type, produce an abstraction (and nothing else)
     2. Generate literals for base types
     3. Look up variables with matching types
-    4. Find functions whose return type matches T
-    5. Generate if-then-else
+    4. For a refined goal, abduce one guard from a complete then-arm
+    5. Find functions whose return type matches T
+    6. If abduction supplies no branch, generate an ordinary if-then-else
     """
     abs_candidates = backward_abs_candidates(hole, skip)
     if abs_candidates:
         return abs_candidates  # For function types, only produce abstractions
 
     candidates: list[tuple[Term, list[TypedHole]]] = []
+    # Applications are computed before the other slices only for a refined
+    # goal, which needs them to fill one scrutinee. An unrefined goal keeps
+    # the historical slice order: literals, variables, applications, if.
+    applications: list[tuple[Term, list[TypedHole]]] | None = None
+    if _refined_goal(hole):
+        applications = backward_app_candidates(hole, skip)
+        candidates.extend(_scrutinee_eliminators(hole, applications, skip))
+    # A case handler with the weakened hypothesis closes as one constructor
+    # around one decreasing call. No element variable, no candidate.
+    candidates.extend(recursive_fold_candidates(hole, skip))
     candidates.extend(backward_lit_candidates(hole, skip))
     candidates.extend(backward_close_candidates(hole, skip))
-    candidates.extend(backward_app_candidates(hole, skip))
-    candidates.extend(backward_if_candidates(hole, skip))
+    # Prefer a guard inferred from a finished then-arm. Keep the ordinary
+    # three-hole conditional when inference is inapplicable or inconclusive.
+    branches = abduced_if_candidates(hole, skip) if _refined_goal(hole) else []
+    candidates.extend(branches)
+    if applications is None:
+        applications = backward_app_candidates(hole, skip)
+    candidates.extend(applications)
+    if not branches:
+        candidates.extend(backward_if_candidates(hole, skip))
     return candidates
 
 
@@ -249,12 +650,22 @@ def iter_backward_candidates(
     if abstractions:
         yield from abstractions
         return
-    actions = [
+    folds = recursive_fold_candidates(hole, skip)
+    if folds:
+        yield from folds
+    leaves = [
         iter_backward_lit_candidates(hole, skip, rng),
         iter_forward_close_candidates(hole, skip, rng),
-        iter_backward_app_candidates(hole, skip, rng),
-        iter(backward_if_candidates(hole, skip)),
     ]
+    applications = iter_backward_app_candidates(hole, skip, rng)
+
+    def branches():
+        inferred = abduced_if_candidates(hole, skip) if _refined_goal(hole) else []
+        yield from inferred or backward_if_candidates(hole, skip)
+
+    # Creating the iterator must not perform Horn inference before the
+    # consumer has even seen a literal, variable or constructor application.
+    actions = [*leaves, applications, branches()]
     for candidates in _ordered(actions, rng):
         yield from candidates
 

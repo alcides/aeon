@@ -228,14 +228,18 @@ def test_adt_property_corpus_uses_constructor_values():
     assert driver.parse(aeon_code=source, filename="<property-fitness-test>") == []
     targets = incomplete_functions_and_holes(driver.typing_ctx, driver.core)
     fun_name, _ = targets[0]
-    corpora = property_corpora_for_target(
-        driver.typing_ctx,
-        driver.core,
-        driver.metadata,
-        fun_name,
-        {name for name, _ in targets},
-        constructor_names=driver.constructor_names,
-    )
+    # Constructor registrations belong to the compiled program's session.
+    # Match AeonDriver.run_tests/synth instead of depending on registrations
+    # left in the compatibility session by an earlier test.
+    with driver.session.activate():
+        corpora = property_corpora_for_target(
+            driver.typing_ctx,
+            driver.core,
+            driver.metadata,
+            fun_name,
+            {name for name, _ in targets},
+            constructor_names=driver.constructor_names,
+        )
 
     assert len(corpora) == 1
     rendered = [repr(case[0]).lower() for case in corpora[0].cases]

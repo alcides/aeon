@@ -24,13 +24,29 @@ from aeon.utils.name import Name, fresh_counter
 _loc = SynthesizedLocation("constructor sharing")
 
 
+def _head(term: Term) -> Term:
+    while isinstance(term, (Application, TypeApplication, RefinementApplication, Annotation)):
+        if isinstance(term, Application):
+            term = term.fun
+        elif isinstance(term, Annotation):
+            term = term.expr
+        else:
+            term = term.body
+    return term
+
+
 def is_constructor_term(term: Term) -> bool:
     """Recognize a registered constructor through applications and instantiation."""
     from aeon.verification.constructor_registry import get_constructor_groups
 
-    while isinstance(term, (Application, TypeApplication, RefinementApplication)):
-        term = term.fun if isinstance(term, Application) else term.body
-    return isinstance(term, Var) and any(term.name.name in names for names in get_constructor_groups().values())
+    head = _head(term)
+    return isinstance(head, Var) and any(head.name.name in names for names in get_constructor_groups().values())
+
+
+def is_eliminator_term(term: Term) -> bool:
+    """A generated datatype eliminator, ``T_rec``, through instantiation and application."""
+    head = _head(term)
+    return isinstance(head, Var) and head.name.name.endswith("_rec")
 
 
 def bind_constructor_arguments(term: Term) -> Term:

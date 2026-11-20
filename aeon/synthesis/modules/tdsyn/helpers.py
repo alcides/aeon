@@ -32,7 +32,11 @@ from aeon.core.types import (
     t_string,
 )
 from aeon.decorators.api import Metadata
-from aeon.synthesis.constructors import bind_constructor_arguments, is_constructor_term  # noqa: F401
+from aeon.synthesis.constructors import (  # noqa: F401
+    bind_constructor_arguments,
+    is_constructor_term,
+    is_eliminator_term,
+)
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.grammar.poly import predicate_argument
 from aeon.typechecking.branch_evidence import stored_match_predicate, unconstrained_predicate
@@ -200,15 +204,21 @@ def _collect_concrete_types(ctx: TypingContext) -> list[TypeConstructor]:
     return result
 
 
-def _mono_types_for(name: Name, ctx: TypingContext) -> list[TypeConstructor]:
-    """Concrete types to instantiate ``name``'s type variables with."""
+def _mono_types_for(name: Name, ctx: TypingContext) -> list[Type]:
+    """Concrete types to instantiate ``name``'s type variables with.
+
+    In-scope type variables come first. A polymorphic eliminator such as
+    ``List_rec`` has to be instantiated at the element ``a`` of the scrutinee,
+    not only at ``Int`` and ``Bool``.
+    """
     if name.name in _NUMERIC_OPS:
         return list(_NUMERIC_MONO_TYPES)
     if name.name in _EQUALITY_OPS:
         return list(_EQUALITY_MONO_TYPES)
     if name.name in _SET_OPS:
         return list(_SET_MONO_TYPES)
-    return _collect_concrete_types(ctx)
+    parameters: list[Type] = [TypeVar(type_name) for type_name, _ in ctx.typevars()]
+    return parameters + _collect_concrete_types(ctx)
 
 
 def monomorphize(name: Name, ty: Type, ctx: TypingContext, goal: Type | None = None) -> list[tuple[Term, Type]]:
