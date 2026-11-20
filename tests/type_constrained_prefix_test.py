@@ -93,6 +93,15 @@ def test_keyword_prefix_can_be_an_identifier_and_shadowing_keeps_ids():
     assert engine.completion_status(State('let x := "hello" in x + ')).status is not Status.LIVE
 
 
+@pytest.mark.parametrize("name", ["omega", "omega1", "omega_value"])
+def test_omega_named_let_prefixes_have_valid_witnesses(name):
+    source = f"let {name} := 1 in {name}"
+    engine = PrefixEngine(Scope(TypingContext(), t_int))
+    for end in range(len(source)):
+        checked(engine, source[:end])
+    checked(engine, source, accepting=True)
+
+
 def test_expected_arrow_and_local_scope():
     ty = AbstractionType(Name("n", 42006), t_int, t_bool)
     engine = PrefixEngine(Scope(context(), ty))

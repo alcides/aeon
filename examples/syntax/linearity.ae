@@ -14,7 +14,7 @@
 #
 # Multiplicity `0` is the dual: an erased binding that must NOT be
 # referenced at run time (useful for proof-only ghost values).
-# Omitting the prefix gives the unrestricted default (`omega`), so
+# Omitting the prefix gives the unrestricted default (`ω`), so
 # every existing program continues to type-check unchanged.
 
 def open_handle (path: Int) : Int := path;

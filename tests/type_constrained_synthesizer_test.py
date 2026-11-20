@@ -109,6 +109,8 @@ def test_scope_hides_goal_fitness_and_intrinsics():
 @pytest.mark.parametrize(
     "source,expression",
     [
+        ("def n : Int := ?hole;", "let omega := 1 in omega"),
+        ("def n (omega:Int) : {v:Int | v = omega} := ?hole;", "let omega1 := omega in omega1"),
         ("def n (x:Int) : {v:Int | v = x + 1} := ?hole;", "x + 1"),
         ("def n : (x:Int) -> {v:Int | v = x + 1} := ?hole;", "fun x => x + 1"),
         ("def n (x:Int) : Bool := ?hole;", "let y := x + 1 in if y > 0 then true else false"),

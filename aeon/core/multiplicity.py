@@ -134,14 +134,14 @@ def mul(a: Multiplicity, b: Multiplicity) -> Multiplicity:
 
 def from_token(tok: str) -> Multiplicity:
     """Parse a surface-syntax multiplicity token (``"0"``, ``"1"``,
-    ``"omega"`` / ``"ω"``, or ``"n"``). Raises ``ValueError`` for
+    ``"ω"``, ``"n"``, or ``"borrow"``). Raises ``ValueError`` for
     anything else."""
     match tok:
         case "0":
             return M0
         case "1":
             return M1
-        case "omega" | "ω":
+        case "ω":
             return MOmega
         case "n":
             return MN

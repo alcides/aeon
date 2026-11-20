@@ -4,7 +4,7 @@ These tests verify:
 
 1. The semiring algebra (`add`, `mul`) behaves as Atkey 2018 specifies.
 2. The grammar accepts the new ``MULT`` prefix on parameters
-   (`(1 x:T)`, `(0 x:T)`, `(omega x:T)` and the unicode `ω` form), on
+   (`(1 x:T)`, `(0 x:T)`, and `(ω x:T)`), on
    let-binders (`let 1 x := …`), and on let-binders with a type
    annotation.
 3. The parsed multiplicity reaches the relevant AST nodes
@@ -20,6 +20,9 @@ and the new fields are inert.
 """
 
 from __future__ import annotations
+
+import pytest
+from lark.exceptions import UnexpectedInput
 
 from aeon.core.bind import bind_ids
 from aeon.core.multiplicity import M0, M1, MN, MOmega, Multiplicity, add, from_token, mul
@@ -76,16 +79,14 @@ def test_mul_omega_omega():
 def test_from_token_accepts_canonical_forms():
     assert from_token("0") is M0
     assert from_token("1") is M1
-    assert from_token("omega") is MOmega
     assert from_token("ω") is MOmega
     assert from_token("n") is MN
 
 
-def test_from_token_rejects_garbage():
-    import pytest
-
+@pytest.mark.parametrize("token", ["two", "omega"])
+def test_from_token_rejects_garbage(token):
     with pytest.raises(ValueError):
-        from_token("two")
+        from_token(token)
 
 
 def test_mul_n_is_identity():
@@ -126,6 +127,28 @@ def f (ω x: Int) : Int := x;
     prog = parse_program(src)
     f = next(d for d in prog.definitions if d.name.name == "f")
     assert f.arg_multiplicities == (MOmega,)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def f (omega x: Int) : Int := x;",
+        "def f : (omega x: Int) -> Int := fun x => x;",
+        "def f : Int := let omega x := 1 in x;",
+    ],
+)
+def test_parser_rejects_ascii_multiplicity(source):
+    with pytest.raises(UnexpectedInput):
+        parse_program(source)
+
+
+@pytest.mark.parametrize("name", ["omega", "omega1", "omega_value"])
+def test_ascii_omega_names_are_ordinary_binders(name):
+    from tests.driver import check_and_return_core
+
+    check_and_return_core(f"def f ({name}: Int) : Int := let {name} := {name} in {name};")
+    check_and_return_core(f"def f : ({name}: Int) -> Int := fun {name} => {name};")
+    check_and_return_core(f"def f : Int := let {name} : Int := 1 in {name};")
 
 
 def test_parser_records_mult_let_e():

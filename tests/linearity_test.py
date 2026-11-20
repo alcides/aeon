@@ -82,10 +82,10 @@ def main (i: Int) : Int :=
 
 
 def test_omega_explicit_no_check():
-    """Explicit ``omega`` matches the default — no enforcement."""
+    """Explicit ``ω`` matches the default — no enforcement."""
     src = """
 def main (i: Int) : Int :=
-    let omega a := 5 in
+    let ω a := 5 in
     a + a;
 """
     errs = _linearity(src)
