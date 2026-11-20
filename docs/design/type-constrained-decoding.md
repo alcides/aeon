@@ -43,6 +43,18 @@ elaborator inserts required type applications. This runs under the captured
 compilation session. The supplied original validator is then called before
 normal example/property/fitness evaluation and Pareto selection.
 
+An assertion raised by the final validator rejects that candidate and restarts
+sampling with rejection feedback in the prompt, within the original attempt
+limit and wall-clock deadline. Rejected candidates never reach fitness
+evaluation. The assertion is recorded in debug logs; assertions from model
+inference or fitness evaluation are not intercepted by this validation handler.
+For example, the prefix grammar currently accepts
+`let x := (fun y => y) in x` for an `Int -> Int` goal, while the core checker
+cannot infer the unannotated let-bound lambda. Final validation rejects it and
+sampling may instead produce `fun y => y`. A LIVE prefix is therefore a
+derivation in the bounded search grammar, not a guarantee that the independent
+compiler and validator will accept the candidate.
+
 ## Completion oracle
 
 `Scope(context, goal)` fixes the environment and session. `PrefixEngine` exposes

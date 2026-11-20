@@ -9,6 +9,7 @@ from time import monotonic
 from typing import Callable
 
 from lark.exceptions import LarkError
+from loguru import logger
 
 from aeon.core.multiplicity import MOmega
 from aeon.core.terms import Annotation, Let, Rec, Term
@@ -147,7 +148,14 @@ class TypeConstrainedSynthesizer(Synthesizer):
                     prompt += f"\nThe previous expression failed elaboration: {source}\nTry another expression:\n"
                     continue
                 check_deadline(deadline, lambda: False)
-                valid = validate(candidate)  # ORIGINAL refinement and shared property/structural gates.
+                try:
+                    valid = validate(candidate)  # ORIGINAL refinement and shared property/structural gates.
+                except AssertionError as error:
+                    # A prefix witness can exceed the core checker's inference
+                    # support (e.g. an unannotated let-bound lambda). Reject it
+                    # through the normal retry path, without evaluating fitness.
+                    logger.debug("Rejecting type-constrained candidate after validation assertion: {}", error)
+                    valid = False
                 check_deadline(deadline, lambda: False)
                 if not valid:
                     self.statistics.validation_failed += 1

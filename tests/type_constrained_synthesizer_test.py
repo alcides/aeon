@@ -1,6 +1,6 @@
 import builtins
 from pathlib import Path
-from time import sleep
+from time import monotonic, sleep
 
 import pytest
 
@@ -18,6 +18,7 @@ from aeon.synthesis.modules.type_constrained import TypeConstrainedSynthesizer
 from aeon.synthesis.modules.type_constrained.sampling import DecodingExhausted
 from aeon.synthesis.modules.type_constrained.transformers_adapter import TransformersAdapter
 from aeon.synthesis.modules.type_constrained.types import Scope
+from aeon.typechecking.context import TypingContext
 from aeon.typechecking.typeinfer import check_type
 from aeon.utils.name import Name
 from tests.driver import check_and_return_core
@@ -68,6 +69,76 @@ def test_full_refinement_gate_precedes_fitness_and_retries(monkeypatch):
     assert evaluated == [1]
     assert backend.statistics.validation_failed == 1 and backend.statistics.validation_passed == 1
     assert "failed final validation: 0" in adapter.prompts[1]
+
+
+def test_validation_assertion_restarts_sampling_before_fitness(monkeypatch):
+    monkeypatch.setenv("AEON_TC_ATTEMPTS", "2")
+    rejected = "let x := (fun y => y) in x"
+    adapter = Attempts([rejected, "fun y => y"])
+    backend = TypeConstrainedSynthesizer(adapter_factory=lambda: adapter)
+    ctx = TypingContext()
+    ty = parse_type("(x:Int) -> Int")
+    evaluated = []
+
+    def evaluate(term):
+        evaluated.append(term)
+        return []
+
+    result = backend.synthesize(
+        ctx, ty, lambda term: check_type(ctx, term, ty), evaluate, Name("goal", 906), {}, budget=10
+    )
+    assert isinstance(result, Abstraction) and check_type(ctx, result, ty)
+    assert evaluated == [result]
+    assert adapter.attempt == backend.statistics.attempts == 2
+    assert backend.statistics.validation_failed == backend.statistics.validation_passed == 1
+    assert f"failed final validation: {rejected}" in adapter.prompts[1]
+
+
+def test_repeated_validation_assertions_exhaust_attempts(monkeypatch):
+    monkeypatch.setenv("AEON_TC_ATTEMPTS", "2")
+    adapter = Attempts(["let x := (fun y => y) in x"])
+    backend = TypeConstrainedSynthesizer(adapter_factory=lambda: adapter)
+    ctx = TypingContext()
+    ty = parse_type("(x:Int) -> Int")
+    with pytest.raises(SynthesisNotSuccessful, match="fully validated"):
+        backend.synthesize(
+            ctx, ty, lambda term: check_type(ctx, term, ty), lambda _: pytest.fail("fitness ran"), Name("goal", 907), {}
+        )
+    assert adapter.attempt == backend.statistics.attempts == backend.statistics.validation_failed == 2
+    assert backend.statistics.validation_passed == 0
+
+
+def test_validation_assertion_does_not_reset_deadline(monkeypatch):
+    clock = [monotonic()]
+    monkeypatch.setattr("aeon.synthesis.modules.type_constrained.monotonic", lambda: clock[0])
+    monkeypatch.setattr("aeon.synthesis.modules.type_constrained.sampling.monotonic", lambda: clock[0])
+    adapter = Attempts(["0"])
+    backend = TypeConstrainedSynthesizer(adapter_factory=lambda: adapter)
+
+    def validate(term):
+        clock[0] += 11
+        raise AssertionError("unsupported candidate")
+
+    with pytest.raises(DecodingExhausted, match="wall-clock"):
+        backend.synthesize(
+            TypingContext(), t_int, validate, lambda _: pytest.fail("fitness ran"), Name("goal", 908), {}, budget=10
+        )
+    assert adapter.attempt == backend.statistics.attempts == 1
+    assert backend.statistics.validation_passed == 0
+
+
+def test_fitness_assertion_is_not_treated_as_validation_failure():
+    adapter = Attempts(["0"])
+    backend = TypeConstrainedSynthesizer(adapter_factory=lambda: adapter)
+
+    def evaluate(term):
+        raise AssertionError("fitness bug")
+
+    with pytest.raises(AssertionError, match="fitness bug"):
+        backend.synthesize(TypingContext(), t_int, lambda _: True, evaluate, Name("goal", 909), {})
+    assert adapter.attempt == backend.statistics.attempts == 1
+    assert backend.statistics.validation_failed == 0
+    assert backend.statistics.validation_passed == 1
 
 
 @pytest.mark.parametrize("minimize,expected", [(True, 1), (False, 3)])
