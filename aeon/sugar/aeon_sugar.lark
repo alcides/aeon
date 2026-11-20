@@ -99,9 +99,6 @@ inst_name :                                                  -> inst_name_none
 inst_constraints : inst_constraint*                          -> list
 inst_constraint : "[" constraint_type "]"                    -> inst_constraint
 type_atoms : type_atom*                                      -> list
-type_atom : type_name                                        -> simple_t
-          | "(" type_name type+ ")"                         -> constructor_t
-          | "(" type ")"                                     -> same
 type_name : ID | QUALIFIED_ID
 // A class constraint head: ``ClassName arg...`` written without outer parens.
 constraint_type : ID type_atoms                              -> constraint_type
@@ -142,18 +139,43 @@ arg : "(" ID ":" type ")"                                       -> arg
     | "[" constraint_type "]"                                   -> instance_arg
 
 
-type : "{" ID ":" type _PIPE expression "}"                -> refined_t // TODO delete later
-     | "(" ID ":" type ")" _ARROW type                       -> abstraction_t
+?type : scoped_type | type_pipeline
+
+// Low-precedence application, matching Lean's <| (right associative) and
+// |> (left associative). Type constructors may already have arguments.
+?type_pipeline : type_forward
+               | type_callee _PIPE_LEFT type                -> apply_type_left
+               | type_piped_forward _PIPE_LEFT type          -> apply_type_left
+?type_forward : type_application
+              | type_piped_forward
+?type_piped_forward : type_forward _PIPE_RIGHT type_callee    -> apply_type_right
+// Prefer a constructor head before a pipe. In particular, bare Set defaults
+// to Set Int as a value type, but Set <| Bool must apply the constructor Set.
+?type_callee.2 : type_name type_argument*                    -> constructor_t
+             | "(" type ")"                                 -> same
+
+?scoped_type : "(" ID ":" type ")" _ARROW type                -> abstraction_t
      | "(" MULT ID ":" type ")" _ARROW type                  -> mult_abstraction_t
      | "(" ID ":" type _PIPE expression ")" _ARROW type      -> abstraction_refined_t
      | "(" MULT ID ":" type _PIPE expression ")" _ARROW type -> mult_abstraction_refined_t
      | "forall" ID ":" kind "," type                       -> polymorphism_t // TODO: desugar
      | "forall" "<" ID ":" pred_sort ">" "," type   -> refinement_polymorphism_t
-     | ID "<" ID ">"                                       -> base_angle_refined_t
-     | type_name                                           -> simple_t
-     | "(" type_name type+ ")"                            -> constructor_t
-     | "(" type ")"                                        -> same
-     | type _REFOPEN expression _REFCLOSE                   -> datatype_refinement_t
+
+// Type application does not need outer parentheses: ``List Int`` and
+// ``Pair Int Bool``. Nested applications still need grouping: ``List (List
+// Int)``. Keep accepting scoped arguments such as ``(List (x:Int) -> Int)``;
+// arrows and quantifiers extend to the right. Class arguments remain atoms.
+?type_application : type_name type_argument+                -> constructor_t
+                  | "(" type ")" type_argument+             -> apply_type_left
+                  | type_atom
+
+?type_argument : type_atom | scoped_type
+
+?type_atom : type_name                                      -> simple_t
+           | ID "<" ID ">"                                 -> base_angle_refined_t
+           | "{" ID ":" type _PIPE expression "}"          -> refined_t
+           | "(" type ")"                                  -> same
+           | type_atom _REFOPEN expression _REFCLOSE         -> datatype_refinement_t
 
 
 // The sort of an abstract refinement parameter: an n-ary predicate
@@ -166,8 +188,16 @@ pred_sort : type (_ARROW type)+                              -> pred_sort
 
 // Inline identity precedence rules. Explicit `same` trees at every level
 // multiply allocation, location propagation and traversal on generated terms.
-?expression : "-" expression_i                           -> minus
-           | expression_i
+?expression : expression_forward
+            | expression_forward _PIPE_LEFT expression    -> application_e
+            | expression_forward "$" expression           -> binop_dollar
+
+?expression_forward : expression_signed
+                    | expression_forward _PIPE_RIGHT expression_signed -> reverse_application_e
+
+// Unary minus belongs to a pipeline operand: -1 |> f means f (-1).
+?expression_signed : "-" expression_i                      -> minus
+                   | expression_i
 
 // `let` may carry an optional QTT multiplicity prefix:
 //   let 1 f := open path in close f
@@ -197,10 +227,7 @@ pred_sort : type (_ARROW type)+                              -> pred_sort
           | "let" "(" DOT_ID pat_binders ")" ":=" expression  ("in"|";") expression       -> let_pat_anon_e
           | "if" expression "then" expression "else" expression    -> if_e
           | "match" expression "with" match_branches              -> match_e
-          | expression_dollar
-
-?expression_dollar : expression_proof
-                  | expression_proof "$" expression_i                  -> binop_dollar
+          | expression_proof
 
 // Proof notation expands to ordinary checked library calls (import required).
 ?expression_proof : expression_chain
@@ -395,6 +422,10 @@ ID.0 : CNAME | /\([\+=\>\<!\*\-&\|\$]{1,3}\)/
 _WHERE.11 : "where"
 _PIPE.10 : "where" | "|"
 _DOUBLEPIPE.11 : "||"
+
+// Keep |> distinct from the refinement/match separator |.
+_PIPE_LEFT.12 : "<|"
+_PIPE_RIGHT.12 : "|>"
 
 // Refinement-application brackets ``{| pred |}`` (supplying an abstract
 // refinement). Priority above ``_PIPE`` so ``{|``/``|}`` lex as one token rather

@@ -182,6 +182,16 @@ def test_type_ast_roundtrip(ty: SType, width: int) -> None:
     assert pretty_print_stype(parsed) == pretty_print_stype(ty)
 
 
+@given(args=st.lists(types, min_size=1, max_size=3), width=widths)
+def test_type_application_roundtrip_without_outer_parentheses(args: list[SType], width: int) -> None:
+    ty = STypeConstructor(Name("Constructor"), args)
+    source = stype_pretty(ty).best(width, 0).layout(0)
+    assert source.startswith("(") and source.endswith(")")
+    source = source[1:-1]
+    note(source)
+    assert structure(parse_type(source)) == structure(ty)
+
+
 @given(term=terms)
 def test_public_term_printer_stability(term: STerm) -> None:
     # The public convenience API deliberately beta-reduces, folds constant
