@@ -20,10 +20,20 @@ from aeon.core.types import (
 from aeon.core.types import Kind
 from aeon.core.types import Type
 from aeon.utils.name import Name
+from aeon.utils import name as names
+from aeon.utils.persistent import PersistentMap
 
 
 class TypingContextEntry(ABC):
-    pass
+    def __setattr__(self, key, value):
+        if key in ("name", "type_name") and key in self.__dict__:
+            names.invalidate_name_indexes()
+        object.__setattr__(self, key, value)
+
+    def __delattr__(self, key):
+        if key in ("name", "type_name"):
+            names.invalidate_name_indexes()
+        object.__delattr__(self, key)
 
 
 @dataclass(unsafe_hash=True)
@@ -108,6 +118,33 @@ class TypeConstructorBinder(TypingContextEntry):
 
     def __hash__(self):
         return hash(self.name) + hash(tuple(self.args))
+
+
+@dataclass
+class _BindingIndex:
+    epoch: int
+    bindings: PersistentMap[tuple[str, int], VariableBinder | UninterpretedBinder | ReflectedBinder]
+
+    @classmethod
+    def build(cls, entries: Iterable[TypingContextEntry]) -> _BindingIndex:
+        bindings: dict[tuple[str, int], VariableBinder | UninterpretedBinder | ReflectedBinder] = {}
+        for entry in entries:
+            if isinstance(entry, (VariableBinder, UninterpretedBinder, ReflectedBinder)):
+                # type_of historically uses the first exact Name occurrence.
+                bindings.setdefault((entry.name.name, entry.name.id), entry)
+        return cls(names.mutation_epoch, PersistentMap(bindings))
+
+    def extend(self, binder: TypingContextEntry) -> _BindingIndex:
+        if isinstance(binder, (VariableBinder, UninterpretedBinder, ReflectedBinder)):
+            key = (binder.name.name, binder.name.id)
+            if key not in self.bindings:
+                return _BindingIndex(self.epoch, self.bindings.set(key, binder))
+        return self
+
+    def __getstate__(self):
+        # Epoch numbers are process-local. Rebuild after deserialization even
+        # if the receiving process happens to have the same counter value.
+        return {"epoch": -1, "bindings": self.bindings}
 
 
 class _ContextEntries(list[TypingContextEntry]):
@@ -217,12 +254,16 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
         tail: tuple[TypingContextEntry, ...],
         constructors: tuple[TypeConstructorBinder, ...],
         type_binders: tuple[TypeBinder, ...],
+        index: _BindingIndex | None,
+        indexed_length: int,
     ) -> None:
         self._blocks: tuple[tuple[TypingContextEntry, ...], ...] = blocks
         self._tail: tuple[TypingContextEntry, ...] = tail
         self._constructors: tuple[TypeConstructorBinder, ...] = constructors
         self._type_binders: tuple[TypeBinder, ...] = type_binders
         self._mutable: _ContextEntries | None = None
+        self._index = index
+        self._indexed_length = indexed_length
 
     @classmethod
     def extend_scope(
@@ -235,6 +276,10 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
             entries._freeze()
             blocks, tail = entries._blocks, entries._tail
             type_binders = entries._type_binders
+            # Many temporary checking scopes never perform a name lookup.
+            # Share the indexed prefix and defer inserting new binders until
+            # a lookup needs them, without retaining a parent context chain.
+            index, indexed_length = entries._index, entries._indexed_length
         else:
             values = tuple(entries)
             boundary = len(values) // cls._CHUNK_SIZE * cls._CHUNK_SIZE
@@ -245,12 +290,13 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
                 if isinstance(entries, _ContextEntries)
                 else tuple(e for e in values if isinstance(e, TypeBinder))
             )
+            index, indexed_length = None, 0
         if isinstance(binder, TypeBinder):
             type_binders = (*type_binders, binder)
         tail = (*tail, binder)
         if len(tail) == cls._CHUNK_SIZE:
             blocks, tail = (*blocks, tail), ()
-        return cls(blocks, tail, constructors, type_binders)
+        return cls(blocks, tail, constructors, type_binders, index, indexed_length)
 
     def _freeze(self) -> None:
         if self._mutable is not None:
@@ -260,7 +306,18 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
             self._tail = values[boundary:]
             self._constructors = self._mutable.constructors()
             self._type_binders = self._mutable.type_binders()
+            self._index = None
+            self._indexed_length = 0
             self._mutable = None
+
+    def binding_index(self) -> _BindingIndex:
+        if self._index is None or self._index.epoch != names.mutation_epoch:
+            self._index = _BindingIndex.build(self)
+        else:
+            for position in range(self._indexed_length, len(self)):
+                self._index = self._index.extend(self[position])
+        self._indexed_length = len(self)
+        return self._index
 
     def _writable(self) -> _ContextEntries:
         if self._mutable is None:
@@ -282,6 +339,13 @@ class _ContextSnapshot(MutableSequence[TypingContextEntry]):
         if self._mutable is not None:
             return iter(self._mutable)
         return chain(chain.from_iterable(self._blocks), self._tail)
+
+    def __reversed__(self):
+        if self._mutable is not None:
+            return reversed(self._mutable)
+        # MutableSequence's fallback indexes every entry through __getitem__.
+        # Traverse shared chunks directly, without materializing a flat list.
+        return chain(reversed(self._tail), chain.from_iterable(map(reversed, reversed(self._blocks))))
 
     def __getitem__(self, index):
         if self._mutable is not None:
@@ -388,6 +452,18 @@ class TypingContext:
         )
 
     def type_of(self, name: Name) -> Type | None:
+        if isinstance(self.entries, _ContextSnapshot) and self.entries._mutable is None:
+            index = self.entries._index
+            if index is None or index.epoch != names.mutation_epoch:
+                index = self.entries.binding_index()
+            key = (name.name, name.id)
+            binder = index.bindings.get(key)
+            # The first exact binding wins, so a prefix hit is already final.
+            # Temporary refinement scopes need not index their fresh witnesses
+            # merely to look up an outer variable or prelude function.
+            if binder is None and self.entries._indexed_length < len(self.entries):
+                binder = self.entries.binding_index().bindings.get(key)
+            return None if binder is None else binder.type
         for e in self.entries:
             match e:
                 case VariableBinder(iname, ty) | UninterpretedBinder(iname, ty):

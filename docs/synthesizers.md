@@ -782,6 +782,23 @@ without changing their candidate-generation strategies. A
 verification timings on identical programs and a separate knapsack synthesis
 comparison.
 
+Typing scope snapshots also share an index from exact names to binder objects.
+Lookups preserve the existing first-binding rule; executable grammar visibility
+still uses `concrete_vars()` and its lexical shadowing rules. The index reads
+the binder's current type, invalidates after a binder/name rename, and rebuilds
+after serialization. Caller-owned lists and structurally edited snapshots keep
+their live list behavior. Reverse traversal walks the shared chunks directly.
+
+The index shares unchanged hash buckets across child scopes and uses more
+memory in exchange for faster lookup. Scopes defer index construction and
+extension until a lookup needs them. A hit in the indexed prefix also avoids
+indexing temporary checking binders. It caches bindings, not proof results.
+The [indexed bindings comparison](benchmarks/indexed-bindings.json) records
+verification, lazy TDSyn synthesis, and isolated typing-context measurements;
+the container speedups are not whole-solver speedups. Reproduce them with
+`scripts/benchmark_contexts.py` and summarize with
+`scripts/analyze_context_benchmarks.py`.
+
 ---
 
 ### `tdsyn_random` — Type-Directed Synthesis (Random Walks)
