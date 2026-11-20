@@ -242,11 +242,13 @@
       "upstream_goals": [
         "singleton"
       ],
-      "status": "legacy-approximation",
-      "gaps": [
-        "Missing strict child-key bound (> parent), original key/left/right constructor order, element-set contract and original components/qualifiers. Cardinality/Bool approximation is not equivalent (upstream sets ignore duplicates)."
-      ],
-      "notes": []
+      "status": "contract-faithful",
+      "gaps": [],
+      "notes": [
+        "Children are heaps of strictly greater keys, in the original key/left/right order. The goal keeps the singleton element set.",
+        "Local datatype; lowercase qualified constructors replace upstream uppercase names. leq and neq are the upstream components, as checked definitions.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
     },
     {
       "id": "BinHeap-Tripleton",
