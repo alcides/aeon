@@ -78,11 +78,15 @@
         "rotLL",
         "rotL0"
       ],
-      "status": "legacy-approximation",
+      "status": "partial",
       "gaps": [
-        "Missing BST ordering, balance invariants, stored height field, balance factor, element sets, original helper components and exact height contracts. Original synthesizes rotLR, rotLL and rotL0 with separate balance-factor preconditions."
+        "BST key bounds and element-set contracts are not restored. Height is a computed measure, not a stored field."
       ],
-      "notes": []
+      "notes": [
+        "Child heights differ by at most one. rotLR, rotLL and rotL0 keep the upstream balance-factor premises and height results.",
+        "Local datatype; lowercase qualified constructors. inc is the upstream component, as a checked definition.",
+        "Aeon supplies its own prelude and qualifier/search policy; the executable grammar is not an exact upstream grammar."
+      ]
     },
     {
       "id": "AVL-RotateR",
