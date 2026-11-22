@@ -1,9 +1,19 @@
-# BinHeap-Singleton — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
-# See manifest.json and upstream/BinHeap-Singleton.sq for the missing contracts.
+# BinHeap-Singleton — Synquid PLDI16, pinned source in upstream/BinHeap-Singleton.sq
+# Contract-faithful: children are strictly greater than the parent, and the singleton set is exact.
 
 inductive Heap a
-| hleaf : {h:(Heap a) | hsz h = 0}
-| hnode (left: (Heap a)) (key: a) (right: (Heap a)) : {h:(Heap a) | hsz h = hsz left + hsz right + 1}
-+ hsz (h: (Heap a)) : Int
+| empty : {h:(Heap a) | size h = 0 && elems h = Set_empty}
+| node (x:a) (left:(Heap {v:a | v > x})) (right:(Heap {v:a | v > x})) :
+    {h:(Heap a) | size h = size left + size right + 1 && elems h = Set_cup (Set_cup (elems left) (elems right)) (Set_sng x)}
++ size (h:(Heap a)) : {v:Int | v >= 0}
++ elems (h:(Heap a)) : (Set a)
 
-def singleton (x: a) : {h:(Heap a) | hsz h = 1} := ?hole;
+def leq : forall a:B, (x:a) -> (y:a) -> {v:Bool | v = (x <= y)} :=
+    Λ a:B => fun x => fun y => x <= y;
+
+def neq : forall a:B, (x:a) -> (y:a) -> {v:Bool | v = (x != y)} :=
+    Λ a:B => fun x => fun y => x != y;
+
+def singleton : forall a:B, (x:a) -> {h:(Heap a) | Heap.elems h = Set_sng x} :=
+    Λ a:B => fun x =>
+    ?hole;

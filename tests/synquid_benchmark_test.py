@@ -134,6 +134,20 @@ def test_unique_range_type_rejects_duplicate_elements(value, valid):
     assert (not driver_for(program)[1]) == valid
 
 
+ORDERED_HEAP = "Heap.node{a} x (Heap.empty{{v:a | v > x}}) (Heap.empty{{v:a | v > x}})"
+UNORDERED_HEAP = """Heap.node{a} x
+    (Heap.node{{v:a | v > x}} x
+        (Heap.empty{{v:a | v > x && v > x}})
+        (Heap.empty{{v:a | v > x && v > x}}))
+    (Heap.empty{{v:a | v > x}})"""
+
+
+def test_heap_singleton_requires_a_strictly_greater_child():
+    program = source("BinHeap-Singleton")
+    assert not driver_for(program.replace("?hole", ORDERED_HEAP))[1]
+    assert driver_for(program.replace("?hole", UNORDERED_HEAP))[1]
+
+
 def test_balanced_tree_requires_equal_child_heights():
     datatype = source("Tree-BalancedReplicate").split("def zero")[0]
     balanced = "def tree : (BalTree Int) := BalTree.node 1 BalTree.empty BalTree.empty;"
