@@ -58,6 +58,17 @@ class TypeClassError(AeonError):
 
 
 @dataclass
+class TypeApplicationSyntaxError(AeonError):
+    loc: Location
+
+    def __str__(self) -> str:
+        return "Type application requires a named type constructor."
+
+    def position(self) -> Location:
+        return self.loc
+
+
+@dataclass
 class ProofElaborationError(AeonError):
     message: str
     loc: Location

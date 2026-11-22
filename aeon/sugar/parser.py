@@ -225,6 +225,26 @@ class TreeToSugar(Transformer):
     def constructor_t(self, args):
         return STypeConstructor(Name(args[0]), args[1:])
 
+    @v_args(meta=True)
+    def apply_type_left(self, meta, args):
+        constructor, *arguments = args
+        if isinstance(constructor, STypeVar):
+            return STypeConstructor(constructor.name, arguments, loc=self._loc(meta))
+        if isinstance(constructor, STypeConstructor):
+            return STypeConstructor(
+                constructor.name,
+                [*constructor.args, *arguments],
+                loc=self._loc(meta),
+                refinements=constructor.refinements,
+            )
+        from aeon.errors import TypeApplicationSyntaxError
+
+        raise TypeApplicationSyntaxError(self._loc(meta))
+
+    @v_args(meta=True)
+    def apply_type_right(self, meta, args):
+        return self.apply_type_left(meta, [args[1], args[0]])
+
     def datatype_refinement_t(self, args):
         ty, predicate = args
         if isinstance(ty, STypeVar):
@@ -473,6 +493,10 @@ class TreeToSugar(Transformer):
     @v_args(meta=True)
     def application_e(self, meta, args):
         return SApplication(args[0], args[1], loc=self._loc(meta))
+
+    @v_args(meta=True)
+    def reverse_application_e(self, meta, args):
+        return SApplication(args[1], args[0], loc=self._loc(meta))
 
     @v_args(meta=True)
     def method_access(self, meta, args):

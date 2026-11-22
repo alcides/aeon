@@ -231,7 +231,9 @@ The formatter (`aeon --format`) normalizes to the Unicode spellings on output, s
 `a >= b` and `fun x => ...` are reformatted to `a ≥ b` and `fun x ↦ ...` (Lean's
 mapsto arrow).
 
-Function application uses spaces (no parentheses around arguments):
+Function application uses spaces. Multiple arguments group to the left:
+`f x y` means `(f x) y`. An application used as an argument needs grouping:
+`f (g x)`.
 
 ```
 open Math
@@ -270,6 +272,25 @@ def add : (x:Int) -> (y:Int) -> Int := fun x => fun y => x + y;
 The above top-level definitions are equal to each other. The first version defines a function that takes two arguments, and has them available directly in the body. The second version defines an object of type function from int, to a function from int to int (curried, like Haskell), and defines that object using nested lambda functions.
 
 `fun x => x + 1` is an anonymous lambda function (using Lean 4's `fun ... =>` syntax). The argument may be annotated with its type by wrapping it in parentheses: `fun (x:Int) => x + 1`.
+
+### Application pipelines
+
+Aeon supports Lean's low-precedence application operators, in expressions and
+types:
+
+```
+f <| g <| x        # f (g x), grouping to the right
+x |> g |> f        # f (g x), grouping to the left
+List <| List Int   # List (List Int)
+Int |> List |> List # List (List Int)
+```
+
+Ordinary application and arithmetic bind more tightly than these operators:
+`f a <| x + 1` means `f a (x + 1)`. With mixed directions, `f <| x |> g`
+means `f (g x)`, and `x |> f <| y` means `(f x) y`.
+
+See [Lean's application reference](https://lean-lang.org/doc/reference/latest/Terms/Function-Application/#pipeline-syntax)
+for the pipeline notation.
 
 ### The `$` operator
 
@@ -320,6 +341,15 @@ Before SMT solving, Aeon also simplifies generated verification constraints (boo
 
 See [Typeclasses](typeclasses.md) for automatic instance selection, superclass
 constraints, constructor-polymorphic methods, and checked method contracts.
+
+Type applications can be written without outer parentheses: `List Int`,
+`Array Bool`, or `Pair Int Bool`. Parenthesized forms remain valid. Group
+nested applications as `List (List Int)`, or use `List <| List Int`.
+
+```
+import List;
+def empty : {xs:List Int | xs = List.nil && List.size xs = 0} := List.nil;
+```
 
 Types in Aeon can be very expressive. In refined types, `where` can be used interchangeably with `|`:
 

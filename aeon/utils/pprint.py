@@ -455,8 +455,8 @@ def stype_pretty(stype: SType, context: ParenthesisContext = None) -> Doc:
             ]
 
             pretty_args_doc = insert_between(text(" "), pretty_args)
-            # Applied constructors are always parenthesized in the grammar,
-            # including at the root and inside another constructor.
+            # Keep explicit grouping in the canonical output, including for
+            # nested applications where parentheses are still necessary.
             base = parens(group(concat([pretty_name, text(" "), pretty_args_doc]))) if args else pretty_name
             if stype.refinements:
                 return concat([base, *[concat([text("{|"), sterm_pretty(p), text("|}")]) for p in stype.refinements]])
