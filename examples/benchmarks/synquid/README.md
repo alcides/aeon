@@ -12,9 +12,9 @@ for **every** file. Tests check the inventory and checksums without network acce
 **These are not all equivalent ports.** 25 files now preserve the original
 target contracts and relevant datatype invariants, including `elems`
 preservation on `List-Snoc` and `List-Reverse` and the strict child bound on
-`BinHeap-Singleton`. The other 39 remain explicitly labelled legacy
-approximations. A solution to one of those weaker problems must not be reported
-as a solution to the upstream benchmark.
+`BinHeap-Singleton`. `AVL-RotateL` restores only the balance factor. The other
+38 remain explicitly labelled legacy approximations. A solution to one of those
+weaker problems must not be reported as a solution to the upstream benchmark.
 
 ## Restored specifications
 
@@ -29,6 +29,7 @@ as a solution to the upstream benchmark.
 | `List-Zip`, `List-Product` | Lists of pairs with two independent element types; zip requires equal input lengths and product has multiplicative length |
 | `Tree-BalancedReplicate` | Equal child heights and requested output **height**, with arguments `x` then `h` |
 | `BinHeap-Singleton` | Children strictly greater than the parent, key/left/right constructor order, and `elems` equal to the singleton set |
+| `AVL-RotateL` | Balance factor: child heights differ by at most one, and the three left rotations keep their balance-factor premises and height results. Partial: no key bounds or element sets |
 | `AddressBook-Make`, `AddressBook-Merge` | Original `Info`/`Address` records, privacy-based business/personal classification and total-size contracts |
 | `Evaluator` | Translate `AST` to opcode-based `PAST` while preserving the result measure, including subtraction; the old port returned an unconstrained integer |
 | `List-Append`, `List-Map`, `List-Null`, `List-Stutter`, `List-ZipWith`, `List-Replicate`, `List-Take`, `List-Drop`, `Tree-Count`, `Tree-ToList` | Preserve original contracts while restoring local datatypes and the declared helper components |
@@ -70,13 +71,14 @@ paper timings, or that a synthesizer solves every well-formed specification.
 | `List-ElemIndex` | Restore indexed predicates **and** the membership precondition before replacing `Maybe Int` by the original dependent `Int` result. Dropping the precondition would make the problem unsatisfiable for absent elements. |
 | `List-Compress`, `List-Nub`, `UniqueList-Insert/Delete` | Element-to-tail predicates and head/element set measures, rather than length bounds. These differ from the element-to-element relation used in `UniqueList-Range`. |
 | `IncList-*`, `StrictIncList-*`, list sorting, `BST-*`, remaining `BinHeap-*` | Polymorphic refined element types, exact component signatures and set contracts. BST children have strict bounds. `BinHeap-Singleton` now has the strict child bound; insert, merge and tripleton do not. The old size approximations can mishandle duplicates. |
-| `AVL-*` | Key bounds, balance, stored height field, balance factor, exact height contracts, set contracts and all rotation/merge goals. |
+| Remaining `AVL-*` | Key bounds, stored height field, set contracts, and the insert, delete, balance, and right-rotation goals. `AVL-RotateL` now has the balance factor. |
 | `RBT-*` | Colors, red-child rule, equal black heights, `WeakRBT`'s `Ok`/`Bad` cases, set contracts and all intermediate goals. |
 
 The new relation support makes several of these datatype invariants expressible.
 `elems` on snoc and reverse is checked, and `BinHeap-Singleton` checks both the
-strict child bound and the singleton set. The other BST, heap, AVL and
-red-black set contracts are not. The manifest records per-file mismatches,
+strict child bound and the singleton set. `AVL-RotateL` checks a height gap of
+at most one. The other BST, heap, AVL and red-black contracts, including key
+order and sets, are not. The manifest records per-file mismatches,
 including changed argument/result types and missing goals. For example, upstream
 `BST-Sort` has **five** goals, while its legacy Aeon file has only one. The legacy
 files are retained for compatibility, with their former fidelity claims removed.
@@ -93,9 +95,10 @@ uv run python -m aeon --no-main --budget 30 -s synquid examples/benchmarks/synqu
 
 The suite is on demand and is not included in `run_examples.sh`. The regression
 tests verify provenance, all 64 files' compilation, and original goal names in
-the 25 revised files. Checked witnesses exercise dependent fold execution,
-indexed-list predicates, reversal, uniqueness, balanced trees, the heap child
-bound, address privacy and AST semantics; invalid witnesses must fail.
+the 25 contract-faithful files and partial `AVL-RotateL`. Checked witnesses
+exercise dependent fold execution, indexed-list predicates, reversal,
+uniqueness, balanced trees, the heap child bound, the AVL height gap, address
+privacy and AST semantics; invalid witnesses must fail.
 
 Two shared verification fixes were needed by the upstream contracts:
 
@@ -109,8 +112,8 @@ Two shared verification fixes were needed by the upstream contracts:
 
 A single five-second Synquid smoke attempt on each of the 24 files from that
 review solved `List-Null` (0.221s including compilation); the other 23 exhausted
-the search budget without a complete solution. `BinHeap-Singleton` was restored
-later and was not part of that smoke. There were no crashes or process timeouts.
+the search budget without a complete solution. `BinHeap-Singleton` and `AVL-RotateL` were restored later and were not part of
+that smoke. There were no crashes or process timeouts.
 The [per-file results](validation.json) include source checksums and timings.
 This is a smoke run, not a success-rate estimate or a comparison to the paper.
 The solved program was checked again as a whole; the manually checked witnesses

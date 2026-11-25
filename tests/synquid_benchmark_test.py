@@ -148,6 +148,14 @@ def test_heap_singleton_requires_a_strictly_greater_child():
     assert driver_for(program.replace("?hole", UNORDERED_HEAP))[1]
 
 
+def test_avl_node_allows_a_height_gap_of_one_and_rejects_two():
+    datatype = source("AVL-RotateL").split("def inc")[0]
+    lean = "def tree : (Avl Int) := Avl.node 1 (Avl.node 0 Avl.leaf Avl.leaf) Avl.leaf;"
+    assert not driver_for(datatype + lean)[1]
+    skewed = "def tree : (Avl Int) := Avl.node 1 (Avl.node 0 (Avl.node 2 Avl.leaf Avl.leaf) Avl.leaf) Avl.leaf;"
+    assert driver_for(datatype + skewed)[1]
+
+
 def test_balanced_tree_requires_equal_child_heights():
     datatype = source("Tree-BalancedReplicate").split("def zero")[0]
     balanced = "def tree : (BalTree Int) := BalTree.node 1 BalTree.empty BalTree.empty;"

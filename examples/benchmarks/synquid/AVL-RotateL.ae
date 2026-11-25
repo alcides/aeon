@@ -1,10 +1,29 @@
-# AVL-RotateL — LEGACY APPROXIMATION, not an equivalent upstream benchmark.
-# See manifest.json and upstream/AVL-RotateL.sq for the missing contracts.
+# AVL-RotateL — Synquid PLDI16, pinned source in upstream/AVL-RotateL.sq
+# Balance only: child heights differ by at most one. Key order and element sets are not restored.
 
 inductive Avl a
-| aleaf : {t:(Avl a) | asz t = 0 && ah t = 0}
-| anode (left: (Avl a)) (key: a) (right: (Avl a)) : {t:(Avl a) | asz t = asz left + asz right + 1 && ah t = (if ah left >= ah right then ah left else ah right) + 1}
-+ asz (t: (Avl a)) : Int
-+ ah  (t: (Avl a)) : Int
+| leaf : {t:(Avl a) | height t = 0 && balFac t = 0}
+| node (x:a) (l:(Avl a)) (r:{v:(Avl a) | height l - height v <= 1 && height v - height l <= 1}) :
+    {t:(Avl a) | height t = (if height l >= height r then height l else height r) + 1 && balFac t = height l - height r}
++ height (t:(Avl a)) : {v:Int | v >= 0}
++ balFac (t:(Avl a)) : Int
 
-def rotateL (left: (Avl a)) (x: a) (right: (Avl a)) : {r:(Avl a) | asz r = asz left + asz right + 1} := ?hole;
+def inc (x:Int) : {v:Int | v = x + 1} := x + 1;
+
+def rotLR : forall a:B,
+    (x:a) -> (left:{t:(Avl a) | Avl.balFac t < 0}) -> (right:{t:(Avl a) | Avl.height left - Avl.height t = 2}) ->
+    {t:(Avl a) | Avl.height t = Avl.height left} :=
+    Λ a:B => fun x => fun left => fun right =>
+    ?hole;
+
+def rotLL : forall a:B,
+    (x:a) -> (left:{t:(Avl a) | Avl.balFac t > 0}) -> (right:{t:(Avl a) | Avl.height left - Avl.height t = 2}) ->
+    {t:(Avl a) | Avl.height t = Avl.height left} :=
+    Λ a:B => fun x => fun left => fun right =>
+    ?hole;
+
+def rotL0 : forall a:B,
+    (x:a) -> (left:{t:(Avl a) | Avl.balFac t = 0}) -> (right:{t:(Avl a) | Avl.height left - Avl.height t = 2}) ->
+    {t:(Avl a) | Avl.height t = Avl.height left + 1} :=
+    Λ a:B => fun x => fun left => fun right =>
+    ?hole;
