@@ -78,3 +78,32 @@ provide the same current-document verification evidence.
 
 These requests are optional client extensions; the standard hover and
 diagnostic paths expose the essential information independently.
+
+## Contradictory hypotheses
+
+Parameter refinements are checked together for satisfiability. For example,
+`examples/vacuous_hypotheses.ae` translates the Lean example with assumptions
+`n > 5` and `n < 3` into separate proof parameters:
+
+```aeon
+def amazing
+    (n:{v:Int | v >= 0})
+    (h1:{p:Unit | n > 5})
+    (h2:{p:Unit | n < 3})
+    : {p:Unit | false} := unit;
+```
+
+The signature represents natural numbers with non-negative integers and
+hypotheses with refined `Unit` parameters. Its impossible result deliberately
+illustrates vacuity; it does not formalise the Riemann Hypothesis.
+
+The definition still typechecks, but the editor shows a Warning diagnostic
+with code `contradictory-parameter-hypotheses`, naming the conflicting parameters
+and linking their locations through `relatedInformation`. The diagnostic's
+`data.parameters` contains those names. The conflicting subset is obtained
+from an SMT unsatisfiable core; it need not be the smallest possible subset.
+Return refinements and parameters of unrelated functions are not assumptions.
+The advisory solver has a timeout of at most 200 ms per signature; unknown or
+unsupported predicates do not establish a contradiction. Absence of a warning
+is not a guarantee of satisfiability. Literal-false parameters retain their
+existing warning, including in strict decidability mode.

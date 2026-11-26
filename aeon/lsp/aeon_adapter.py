@@ -26,7 +26,12 @@ from typing import Dict, List, TextIO, cast
 
 import requests
 from lark.exceptions import UnexpectedCharacters, UnexpectedInput, UnexpectedToken
-from lsprotocol.types import Diagnostic, DiagnosticSeverity
+from lsprotocol.types import (
+    Diagnostic,
+    DiagnosticSeverity,
+    DiagnosticRelatedInformation,
+    Location,
+)
 from lsprotocol.types import Position, Range
 
 from z3.z3types import Z3Exception
@@ -484,6 +489,16 @@ async def _parse(
                     range=_loc_to_range(warning.location),
                     source="aeon",
                     severity=DiagnosticSeverity.Warning,
+                    code=warning.code,
+                    data={"kind": warning.code, "parameters": list(warning.parameters)},
+                    related_information=[
+                        DiagnosticRelatedInformation(
+                            location=Location(uri=uri, range=_loc_to_range(loc)),
+                            message=message,
+                        )
+                        for loc, message in warning.related
+                    ]
+                    or None,
                 )
             )
 

@@ -1,0 +1,12 @@
+# Adapted from the Lean example in:
+# https://tagide.com/blog/research/formal-verification-is-not-the-silver-bullet/
+# Lean: amazing (n : Nat) (h1 : n > 5) (h2 : n < 3)
+# Nat is represented by a non-negative Int; Unit refinements encode hypotheses.
+# We prove false rather than formalising the Riemann Hypothesis: this exposes
+# the same vacuity, since contradictory hypotheses imply any proposition.
+# Expected warning on h2: hypotheses 'h1' and 'h2' are contradictory.
+def amazing
+    (n:{v:Int | v >= 0})
+    (h1:{p:Unit | n > 5})
+    (h2:{p:Unit | n < 3})
+    : {p:Unit | false} := unit;
