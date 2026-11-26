@@ -178,6 +178,8 @@ def test_sygus_combines_refinement_examples_csv_properties_and_objectives():
     from aeon.synthesis.modules.sygus import SygusSynthesizer
 
     backend = SygusSynthesizer()
+    # The budget includes spawning CVC5's worker. Leave room for startup on
+    # loaded CI runners; this test checks specification composition, not speed.
     result = solve_source(
         r"""
         @doc("Return zero.")
@@ -190,7 +192,7 @@ def test_sygus_combines_refinement_examples_csv_properties_and_objectives():
         @property(3) def law(x:Int):Bool := f x = 0;
         """,
         backend,
-        budget=3,
+        budget=10,
     )
     assert next(iter(result.values())) == Literal(0, t_int)
     assert backend.pareto_front
