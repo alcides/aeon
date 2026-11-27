@@ -228,6 +228,7 @@ def _reflected_impl_for(
     impl: Term,
     *,
     has_termination_metric: bool = False,
+    context: TypingContext | None = None,
 ) -> tuple[tuple[Name, ...], LiquidTerm] | None:
     def has_horn(t: LiquidTerm) -> bool:
         if isinstance(t, LiquidHornApplication):
@@ -285,8 +286,25 @@ def _reflected_impl_for(
     # ``liquefy_if`` lowers a pure conditional to the SMT builtin ``ite``.
     # It is not an external free function and must not disable reflection.
     op_names = {op.name for op in ops} | {"ite"} | ARRAY_CONSTRUCTORS
-    if any(v not in allowed and v.name not in op_names for v in liquid_free_vars(liq)):
-        return None
+    from aeon.core.reflection import datatype_operation
+    from aeon.verification.constructor_registry import get_constructor_groups, is_registered_measure
+    from aeon.verification.sub import is_first_order_function
+
+    constructors = {ctor for group in get_constructor_groups().values() for ctor in group}
+    for v in liquid_free_vars(liq):
+        if (
+            v in allowed
+            or v.name in op_names
+            or datatype_operation(v)
+            or v.name in constructors
+            or is_registered_measure(v.name)
+        ):
+            continue
+        external_type = context.type_of(v) if context is not None else None
+        while isinstance(external_type, (TypePolymorphism, RefinementPolymorphism)):
+            external_type = external_type.body
+        if not isinstance(external_type, AbstractionType) or not is_first_order_function(external_type):
+            return None
     is_recursive_body = any(v == name for v in liquid_free_vars(liq))
     if is_recursive_body and not has_termination_metric:
         # Recursive reflection is only enabled when we have explicit termination evidence.
@@ -379,9 +397,12 @@ def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool 
                     fun_ty = ctx.type_of(fun)
                     if isinstance(fun_ty, (TypePolymorphism, RefinementPolymorphism)):
                         from aeon.verification.constructor_registry import get_constructor_groups
+                        from aeon.verification.sub import _has_concrete_base_result
 
-                        if fun.name not in ARRAY_OPERATIONS and not any(
-                            fun.name in group for group in get_constructor_groups().values()
+                        if (
+                            not _has_concrete_base_result(fun_ty)
+                            and fun.name not in ARRAY_OPERATIONS
+                            and not any(fun.name in group for group in get_constructor_groups().values())
                         ):
                             return False
                     while isinstance(fun_ty, (TypePolymorphism, RefinementPolymorphism)):
@@ -853,7 +874,7 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             (c2, t2) = synth(nctx, body)
             term_vars = type_free_term_vars(t1)
             assert t.var_name not in term_vars
-            reflected_impl = _reflected_impl_for(var_name, t1, var_value)
+            reflected_impl = _reflected_impl_for(var_name, t1, var_value, context=ctx)
             inner = implication_constraint(var_name, t1, c2, body.loc, reflected_impl=reflected_impl)
             for bn, bt in reversed(opened_binders):
                 inner = implication_constraint(bn, bt, inner, body.loc)
@@ -907,7 +928,8 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
                 var_name,
                 var_type,
                 var_value,
-                has_termination_metric=has_metric,
+                has_termination_metric=group_has_metric,
+                context=ctx,
             )
             keep_refs = _is_trusted_native_value(var_value)
             c1 = implication_constraint(
@@ -930,7 +952,9 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             # it; otherwise declare it uninterpreted.
             for comp in t.companions:
                 comp_reflected = (
-                    _reflected_impl_for(comp.name, comp.type, comp.value, has_termination_metric=group_has_metric)
+                    _reflected_impl_for(
+                        comp.name, comp.type, comp.value, has_termination_metric=group_has_metric, context=rec_ctx
+                    )
                     if (group_has_metric and comp.value is not None)
                     else None
                 )
@@ -1374,7 +1398,7 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 nctx = nctx.with_var(bn, bt)
             nctx = nctx.with_var(name, t1)
             c2 = check(nctx, body, ty)
-            reflected_impl = _reflected_impl_for(name, t1, val)
+            reflected_impl = _reflected_impl_for(name, t1, val, context=ctx)
             inner = implication_constraint(name, t1, c2, body.loc, reflected_impl=reflected_impl)
             for bn, bt in reversed(opened_binders):
                 inner = implication_constraint(bn, bt, inner, body.loc)
@@ -1414,7 +1438,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
                 var_name,
                 t1,
                 var_value,
-                has_termination_metric=has_metric,
+                has_termination_metric=group_has_metric,
+                context=ctx,
             )
             keep_refs = _is_trusted_native_value(var_value)
             c1 = implication_constraint(
@@ -1434,7 +1459,9 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             # like ``{r | g r = x}`` can use it; otherwise declare it uninterpreted.
             for comp, (cname, ctype) in zip(t.companions, comp_types, strict=True):
                 comp_reflected = (
-                    _reflected_impl_for(cname, ctype, comp.value, has_termination_metric=group_has_metric)
+                    _reflected_impl_for(
+                        cname, ctype, comp.value, has_termination_metric=group_has_metric, context=rec_ctx
+                    )
                     if (group_has_metric and comp.value is not None)
                     else None
                 )

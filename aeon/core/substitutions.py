@@ -778,8 +778,13 @@ def uncurry(t: Term, args: list[LiquidTerm]) -> LiquidTerm | None:
                     return None
 
 
-def liquefy_app(app: Application) -> LiquidApp | None:
+def liquefy_app(app: Application) -> LiquidTerm | None:
     assert isinstance(app, Application), "not application"
+    from aeon.core.reflection import liquefy_eliminator
+
+    eliminated = liquefy_eliminator(app)
+    if eliminated is not None:
+        return eliminated
     lapp = uncurry(app, [])
     assert isinstance(lapp, LiquidApp) or lapp is None
     return lapp
@@ -789,8 +794,8 @@ def liquefy_rec(t: Rec) -> LiquidTerm | None:
     # Best-effort inline by substitution; no inductive unrolling. A genuinely
     # recursive value is an abstraction and liquefies to None, dropping the
     # whole term. Sound reasoning about recursive functions flows through
-    # termination-gated reflection instead. Full induction over recursive
-    # refinements is intentionally not done here — see the scope decision in
+    # termination-gated reflection instead. Explicit induction is handled by recursive proof functions, not by
+    # liquefaction. See
     # docs/design/recursive-refinement-induction.md (issue #328).
     value = liquefy(t.var_value)
     body = liquefy(t.body)

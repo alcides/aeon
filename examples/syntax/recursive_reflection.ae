@@ -1,0 +1,19 @@
+import List;
+
+# Reflection exposes the recursive defining equations after checking termination.
+def reverse (xs:List Int) : {r:List Int | _} decreasing_by [List.size xs] :=
+  match xs with
+  | nil => List.nil
+  | cons x tail => List.append (reverse tail) (List.cons x List.nil);
+
+# PLE unfolds symbolic constructor cases. Induction supplies the tail theorem.
+theorem reverse_size (xs:List Int) : List.size (reverse xs) = List.size xs := by
+  induction xs with
+  | nil => smt
+  | cons x tail ih =>
+    calc
+      List.size (reverse xs) = List.size (List.append (reverse tail) (List.cons x List.nil)) := by smt
+      _ = List.size tail + 1 := by simp [ih]
+      _ = List.size xs := by smt
+
+def main (_:Int) : Unit := print "recursive reflection verified";

@@ -32,7 +32,8 @@ def empty (l: (List a)) : Bool :=
 
 
 # Append two lists.
-def append (xs: (List a)) (ys: (List a)) : (List a) :=
+def append (xs: (List a)) (ys: (List a)) : {r:(List a) | size r = size xs + size ys}
+    decreasing_by [size xs] :=
     match xs with
     | nil => ys
     | cons hd tl => cons hd (append tl ys);

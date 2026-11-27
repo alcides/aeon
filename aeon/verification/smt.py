@@ -495,6 +495,22 @@ def _term_base_type(
     variables: dict[str, TypeConstructor],
     functions: dict[str, AbstractionType] | None = None,
 ) -> TypeConstructor | None:
+    from aeon.core.reflection import datatype_operation
+    from aeon.verification.constructor_registry import get_constructor_fields
+
+    if isinstance(t, LiquidApp) and (operation := datatype_operation(t.fun)) is not None:
+        kind, ctor, index = operation
+        if kind == "$is":
+            return t_bool
+        carrier = _term_base_type(t.args[0], variables, functions)
+        fields = get_constructor_fields(ctor) or []
+        if carrier is not None and index < len(fields):
+            field = fields[index]
+            if field.startswith("#"):
+                return carrier.args[int(field[1:])]  # type: ignore[return-value]
+            if field == carrier.name.name:
+                return carrier
+            return TypeConstructor(Name(field))
     match t:
         case LiquidLiteralInt():
             return t_int
@@ -716,9 +732,17 @@ def _contract_well_scoped(t: LiquidTerm, ctx: SMTContext) -> bool:
 
         return str(t.name) in ctx.variables or any(t.name.name in group for group in get_constructor_groups().values())
     if isinstance(t, LiquidApp):
+        from aeon.core.reflection import datatype_operation
+
         is_operator = all(not c.isalnum() and c != "_" for c in t.fun.name)
         internal_array = t.fun.id == 0 and t.fun.name in _array_functions
-        if not (is_operator or str(t.fun) in ctx.functions or t.fun.name in base_functions or internal_array):
+        if not (
+            is_operator
+            or str(t.fun) in ctx.functions
+            or t.fun.name in base_functions
+            or internal_array
+            or datatype_operation(t.fun)
+        ):
             return False
         return all(_contract_well_scoped(a, ctx) for a in t.args)
     return True
@@ -735,14 +759,9 @@ def _refined_return_contracts(expr: LiquidTerm, ctx: SMTContext) -> list[LiquidT
     seen: set[str] = set()
     for app in apps:
         fname = str(app.fun)
-        # Reflected functions already contribute their body equation
-        # (``f(args) == body``). Assuming their declared postcondition on top of
-        # it is circular: while checking ``f``'s own body against that postcondition
-        # the two combine into a contradiction (issue #378 regression). The
-        # postcondition is only an axiom for *uninterpreted* (native/trusted)
-        # symbols, whose body the solver never sees.
-        if fname in ctx.reflected_functions:
-            continue
+        # Checked definitions retain their postcondition only in continuation
+        # scopes. The reflected signature used for their own body obligations
+        # erases it in implication_constraint, avoiding circular assumptions.
         fun_ty = ctx.functions.get(fname)
         if not isinstance(fun_ty, AbstractionType):
             continue
@@ -949,9 +968,16 @@ def flatten(
                 sp, nfunctions, nref = _specialize_liquid_term(p, nfunctions, ctx.variables, nref, specializations)
                 sprem.append(sp)
             sexpr, nfunctions, nref = _specialize_liquid_term(expr, nfunctions, ctx.variables, nref, specializations)
-            premise = [ple_unfold_fixpoint(p, nref) for p in sprem]
-            out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
-            clause = CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
+            from aeon.verification.reflection import needs_guarded_evaluation, evaluate_reflections
+
+            if needs_guarded_evaluation(nref):
+                out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, sprem, nref)
+                out_ctx = evaluate_reflections(out_ctx, sexpr, specializations)
+                clause = CanonicConstraint(out_ctx, sexpr)
+            else:
+                premise = [ple_unfold_fixpoint(p, nref) for p in sprem]
+                out_ctx = SMTContext(ctx.sorts, nfunctions, ctx.variables, premise, nref)
+                clause = CanonicConstraint(out_ctx, ple_unfold_fixpoint(sexpr, nref))
             clause.proof_key = proof_key
             yield clause
         case Conjunction(c1, c2):
@@ -995,9 +1021,7 @@ def flatten(
             nctx = (
                 _ctx_with_curried_formals(ctx, ty).with_function(name, ty).with_reflected_function(name, params, body)
             )
-            app = LiquidApp(name, [LiquidVar(p) for p in params])
-            eq = LiquidApp(Name("==", 0), [app, body])
-            yield from flatten(seq, nctx.with_premise(eq), _trivial_memo, _bound_names, _proved, _rename_occurrences)
+            yield from flatten(seq, nctx, _trivial_memo, _bound_names, _proved, _rename_occurrences)
         case _:
             assert False, f"Cannot flatten {c}."
 
@@ -1591,6 +1615,19 @@ def _translate_liq(t: LiquidTerm, variables: dict[str, Any], memo: dict[int, tup
         case LiquidHornApplication(name, args):
             assert False, "LiquidHornApplication should not get to SMT solver!"
         case LiquidApp(fun_name, args):
+            from aeon.core.reflection import datatype_operation
+            from aeon.verification.constructor_registry import get_constructor_groups, get_constructor_order
+
+            if (operation := datatype_operation(fun_name)) is not None:
+                kind, ctor, index = operation
+                argument = translate_liq(args[0], variables, memo)
+                datatype = next(t for t, cs in get_constructor_groups().items() if ctor in cs)
+                constructor_index = (get_constructor_order(datatype) or []).index(ctor)
+                sort = argument.sort()
+                function = (
+                    sort.recognizer(constructor_index) if kind == "$is" else sort.accessor(constructor_index, index)
+                )
+                return function(argument)
             if fun_name.name == "Set_mem" and len(args) == 2:
                 element = translate_liq(args[0], variables, memo)
                 container = translate_liq(args[1], variables, memo)
