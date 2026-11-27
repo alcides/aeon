@@ -317,6 +317,19 @@ def _reflected_impl_for(
 
 
 _exact_application_identities: ContextVar[bool] = ContextVar("exact_application_identities", default=False)
+_reflection_call_identities: ContextVar[bool] = ContextVar("reflection_call_identities", default=False)
+
+
+@contextmanager
+def _checking_reflected_result(name: Name, ty: Type):
+    while isinstance(ty, (TypePolymorphism, RefinementPolymorphism, AbstractionType)):
+        ty = ty.type if isinstance(ty, AbstractionType) else ty.body
+    reflected = isinstance(ty, RefinedType) and name in liquid_free_vars(ty.refinement)
+    token = _reflection_call_identities.set(reflected)
+    try:
+        yield
+    finally:
+        _reflection_call_identities.reset(token)
 
 
 @contextmanager
@@ -400,7 +413,7 @@ def _selfification_liquid(ctx: TypingContext, t: Term, *, skip_primitives: bool 
                         from aeon.verification.sub import _has_concrete_base_result
 
                         if (
-                            not _has_concrete_base_result(fun_ty)
+                            not (_reflection_call_identities.get() and _has_concrete_base_result(fun_ty))
                             and fun.name not in ARRAY_OPERATIONS
                             and not any(fun.name in group for group in get_constructor_groups().values())
                         ):
@@ -916,7 +929,8 @@ def _synth(ctx: TypingContext, t: Term) -> tuple[Constraint, Type]:
             for comp in t.companions:
                 comp_type = comp.type if group_has_metric else _erase_return_refinement(comp.type)
                 rec_ctx = rec_ctx.with_var(comp.name, comp_type)
-            c1 = check(rec_ctx, var_value, var_type)
+            with _checking_reflected_result(var_name, var_type):
+                c1 = check(rec_ctx, var_value, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, var_type)
             # Termination obligations (including cross-function calls within the
             # group) are synthesised under a context that knows the siblings.
@@ -1427,7 +1441,8 @@ def check(ctx: TypingContext, t: Term, ty: Type) -> Constraint:
             comp_types: list[tuple[Name, Type]] = [(c.name, fresh(ctx, c.type)) for c in t.companions]
             for cname, ctype in comp_types:
                 rec_ctx = rec_ctx.with_var(cname, ctype if group_has_metric else _erase_return_refinement(ctype))
-            c1 = check(rec_ctx, var_value, var_type)
+            with _checking_reflected_result(var_name, var_type):
+                c1 = check(rec_ctx, var_value, var_type)
             nrctx: TypingContext = ctx.with_var(var_name, t1)
             # Termination obligations (incl. cross-function calls) need siblings.
             term_ctx: TypingContext = nrctx

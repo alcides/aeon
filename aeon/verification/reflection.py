@@ -25,10 +25,28 @@ if TYPE_CHECKING:
 
 
 def needs_guarded_evaluation(reflections: dict[str, tuple[tuple[Name, ...], LiquidTerm]]) -> bool:
-    return any(
-        any(str(v) in reflections or datatype_operation(v) is not None for v in liquid_free_vars(body))
-        for _, body in reflections.values()
-    )
+    dependencies: dict[str, set[str]] = {}
+    for name, (_, body) in reflections.items():
+        names = liquid_free_vars(body)
+        if any(datatype_operation(v) is not None for v in names):
+            return True
+        dependencies[name] = {str(v) for v in names if str(v) in reflections}
+    visited: set[str] = set()
+    active: set[str] = set()
+
+    def cyclic(name: str) -> bool:
+        if name in active:
+            return True
+        if name in visited:
+            return False
+        visited.add(name)
+        active.add(name)
+        if any(cyclic(child) for child in dependencies[name]):
+            return True
+        active.remove(name)
+        return False
+
+    return any(cyclic(name) for name in dependencies)
 
 
 def evaluate_reflections(
