@@ -196,3 +196,15 @@ def test_unfolding_limit_leaves_large_goal_unproved():
     solver = Solver()
     solver.add(translate(CanonicConstraint(expanded, goal)))
     assert solver.check() == sat
+
+
+@pytest.mark.parametrize("bound,valid", [(0, True), (1, False)])
+def test_reflection_does_not_inject_unsolved_predicate_holes(tmp_path, bound, valid):
+    errors = verify(
+        tmp_path,
+        f"""
+def absv (n:Int) : {{v:Int | ?p}} := if n>0 then n else 0-n;
+theorem nonnegative (n:Int) : absv n>={bound} := by smt;
+""",
+    )
+    assert (not errors) == valid

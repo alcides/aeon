@@ -727,6 +727,10 @@ def _contract_well_scoped(t: LiquidTerm, ctx: SMTContext) -> bool:
     by ``translate_liq``; any other applied head must be a declared function (or
     a built-in), and every free variable must be a bound scalar.
     """
+    if isinstance(t, LiquidHornApplication):
+        # Signature metadata may still carry an unsolved inference hole.
+        # It is not a logical fact until Horn solving has assigned it.
+        return False
     if isinstance(t, LiquidVar):
         from aeon.verification.constructor_registry import get_constructor_groups
 
