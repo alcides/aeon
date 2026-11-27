@@ -51,6 +51,7 @@ from aeon.sugar.substitutions import (
 )
 from aeon.sugar.equality import term_equality
 from aeon.utils.name import Name, fresh_counter
+from aeon.utils.location import FileLocation
 from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
 
 
@@ -520,7 +521,7 @@ def unify_single(origin: str, xs: list[SType]) -> SType:
             for snd, snd_r in zip(other[1:], resolved[1:]):
                 merged = _merge_inferred_refinements(fst_r, snd_r)
                 if merged is None:
-                    raise UnificationFailedError(origin, fst_original, snd)
+                    raise UnificationFailedError(origin, fst_original, snd, resolved_types=(fst_r, snd_r))
                 fst_r = merged
             return fst_r
 
@@ -528,9 +529,9 @@ def unify_single(origin: str, xs: list[SType]) -> SType:
 def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) -> SType:
     match ty:
         case Union(united):
-            return unify_single(f"the union type {ty}", united)
+            return unify_single("an inferred type", united)
         case Intersection(intersected):
-            return unify_single(f"the intersection type {ty}", intersected)
+            return unify_single("an inferred type", intersected)
         case SAbstractionType(name, vtype, rtype, loc):
             vtype = remove_unions_and_intersections(ctx, vtype)
             return SAbstractionType(
@@ -1015,6 +1016,38 @@ def _base_subtype(sub: SType, sup: SType) -> bool:
             return sub == sup
 
 
+def _conflicting_bound_source(ty: SType, bound: SType) -> STerm | None:
+    """Recover blame only on failure, without slowing normal inference walks."""
+    pending = [ty]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        match current:
+            case UnificationVar():
+                source = current.lower_sources.get(id(bound))
+                if source is not None and isinstance(source.loc, FileLocation):
+                    return source
+                pending.extend(reversed(current.lower + current.upper))
+            case STypeConstructor(_, args) | AppliedType(_, args):
+                pending.extend(reversed(args))
+                if isinstance(current, AppliedType):
+                    pending.append(current.head)
+            case SAbstractionType(_, argument, result):
+                pending.extend((result, argument))
+            case SRefinedType(_, inner, _) | STypePolymorphism(_, _, inner):
+                pending.append(inner)
+            case SRefinementPolymorphism(_, sort, body):
+                pending.extend((body, sort))
+            case Union(united):
+                pending.extend(reversed(united))
+            case Intersection(intersected):
+                pending.extend(reversed(intersected))
+    return None
+
+
 def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> SType:
     # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
     nt, unions, intersections = replace_unification_variables(ctx, ty)
@@ -1060,7 +1093,14 @@ def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> STyp
         intersections,
         to_be_removed,
     )
-    return remove_unions_and_intersections(ctx, nt)
+    try:
+        return remove_unions_and_intersections(ctx, nt)
+    except UnificationFailedError as error:
+        if error.expr is None:
+            error.expr = _conflicting_bound_source(ty, error.conflict2) or _conflicting_bound_source(
+                ty, error.conflict1
+            )
+        raise
 
 
 def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:

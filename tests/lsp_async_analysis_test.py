@@ -43,6 +43,21 @@ def test_real_compilation_keeps_the_event_loop_responsive():
     asyncio.run(run())
 
 
+def test_inferred_type_conflict_keeps_its_message_and_location_across_worker():
+    ls = make_server()
+    uri = "file:///inferred-conflict.ae"
+    source = "def use : forall a:B, (x:a) -> (y:a) -> Int := fun x => fun y => 0;\ndef bad : Int := use 1 true;"
+    put(ls, uri, source)
+    aeon_adapter.clear_cache(uri)
+    result = asyncio.run(aeon_adapter.parse(ls, uri))
+    assert len(result.diagnostics) == 1
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.message.startswith("Conflicting types in `true`: Int and Bool.")
+    assert diagnostic.range.start.line == 1
+    assert diagnostic.range.start.character == source.splitlines()[1].index("true")
+    assert str(aeon_adapter.get_errors(uri)[0]) == diagnostic.message
+
+
 @pytest.mark.parametrize("unsaved", [False, True])
 def test_dependency_change_invalidates_importer_diagnostics(tmp_path, monkeypatch, unsaved):
     monkeypatch.chdir(tmp_path)

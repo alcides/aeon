@@ -6,12 +6,13 @@ import io
 import pytest
 from lsprotocol.types import DiagnosticSeverity
 
-from aeon.elaboration import unify
+from aeon.elaboration import unify, unify_single
 from aeon.elaboration.context import ElaborationTypingContext
-from aeon.errors import UnificationSubtypingError
+from aeon.errors import UnificationFailedError, UnificationSubtypingError
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.lsp import aeon_adapter
 from aeon.sugar.ast_helpers import st_bool, st_int
+from aeon.sugar.parser import parse_type
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
 
@@ -102,3 +103,64 @@ def test_unification_without_a_source_does_not_invent_an_expression():
         unify(ElaborationTypingContext(), st_int, st_bool)
     assert raised.value.expr is None
     assert str(raised.value) == "Type mismatch: expected Bool, got Int."
+
+
+def test_conflicting_inferred_types_explain_the_user_problem():
+    source = "def use : forall a:B, (x:a) -> (y:a) -> Int := fun x => fun y => 0;\ndef bad : Int := use 1 true;"
+    error = diagnostic(source)
+    assert error.range.start.line == 1
+    assert error.range.start.character == source.splitlines()[1].index("true")
+    assert error.message == (
+        "Conflicting types in `true`: Int and Bool.\n"
+        "These uses must agree on one type. Check the arguments and branch results."
+    )
+
+
+def test_conflict_in_induction_proof_points_to_the_list_argument():
+    source = """import List;
+
+
+def reverse (xs:List Int) : {r:List Int |
+  (List.structuralRank xs = 0 --> r = empty) &&
+  (List.structuralRank xs > 0 -->
+    r = append (reverse (List.rest xs)) (List.cons (List.first xs) empty))}
+  decreasing_by [List.structuralRank xs] :=
+  match xs with
+  | nil => List.nil
+  | cons x tail => List.append (reverse tail) (List.cons x List.nil);
+
+theorem reverse_size (xs:List Int) : List.size (reverse xs) = List.size xs := by
+  induction xs with
+  | nil => smt
+  | cons x tail ih =>
+    calc
+      List.size (reverse xs) = List.size (List.cons (reverse tail) (List.cons{Int}{|fun value => true|} x List.nil)) := by smt
+      _ = List.size tail + 1 := by simp [ih]
+      _ = List.size xs := by smt
+"""
+    error = diagnostic(source)
+    column = source.splitlines()[17].index("reverse tail")
+    assert error.range.start.line == error.range.end.line == 17
+    assert error.range.start.character == column
+    assert error.range.end.character == column + len("reverse tail")
+    assert error.message == (
+        "Cannot mix a single Int with a list of Int values in `reverse tail`.\n"
+        "Conflicting types: Int and (List Int).\n"
+        "List.cons adds one element to a list. Use List.append to join two lists."
+    )
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_list_element_explanation_does_not_depend_on_constraint_order(reverse):
+    types = [st_int, parse_type("List Int")]
+    if reverse:
+        types.reverse()
+    with pytest.raises(UnificationFailedError) as raised:
+        unify_single("the union type internal details", types)
+    message = str(raised.value)
+    assert "Cannot mix a single Int with a list of Int values" in message
+    assert "List.cons adds one element" in message
+    assert "List.append" in message
+    assert "union" not in message
+    assert "STypeConstructor" not in message
+    assert "SynthesizedLocation" not in message

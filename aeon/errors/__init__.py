@@ -15,7 +15,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Kinding
 from aeon.core.types import Type
 from aeon.sugar.program import ImportAe, STerm
-from aeon.sugar.stypes import SType
+from aeon.sugar.stypes import SType, STypeConstructor
 from aeon.typechecking.context import TypingContext
 from aeon.sugar.program import Decorator
 from aeon.utils.location import FileLocation, Location, SynthesizedLocation
@@ -28,6 +28,26 @@ def _restore_error(cls, args, state):
     error = Exception.__new__(cls, *args)
     error.__dict__.update(state)
     return error
+
+
+def _source_excerpt(loc: Location, source: str, filename: str) -> str | None:
+    if not isinstance(loc, FileLocation) or loc.file != filename:
+        return None
+    lines = source.splitlines(keepends=True)
+    (sl, sc), (el, ec) = loc.start, loc.end
+    if not (1 <= sl <= el <= len(lines) and sc >= 1 and ec >= 1):
+        return None
+    selected = lines[sl - 1 : el]
+    selected[-1] = selected[-1][: ec - 1]
+    selected[0] = selected[0][sc - 1 :]
+    return "".join(selected).strip() or None
+
+
+def _diagnostic_expression(expr: STerm, excerpt: str | None) -> str:
+    from aeon.utils.pprint import pretty_print_sterm
+
+    expression = excerpt or pretty_print_sterm(expr, top_level=False)
+    return expression if len(expression) <= 120 else expression[:117] + "..."
 
 
 class AeonError(Exception):
@@ -102,29 +122,17 @@ class UnificationSubtypingError(AeonError):
 
     def attach_source(self, source: str, filename: str) -> None:
         """Quote the user's spelling, not generated binders or eliminators."""
-        loc = self.position()
-        if not isinstance(loc, FileLocation) or loc.file != filename:
-            return
-        lines = source.splitlines(keepends=True)
-        (sl, sc), (el, ec) = loc.start, loc.end
-        if not (1 <= sl <= el <= len(lines) and sc >= 1 and ec >= 1):
-            return
-        selected = lines[sl - 1 : el]
-        selected[-1] = selected[-1][: ec - 1]
-        selected[0] = selected[0][sc - 1 :]
-        self.source_excerpt = "".join(selected).strip() or None
+        self.source_excerpt = _source_excerpt(self.position(), source, filename)
 
     def __str__(self) -> str:
-        from aeon.utils.pprint import pretty_print_sterm, pretty_print_stype
+        from aeon.utils.pprint import pretty_print_stype
 
         expected = pretty_print_stype(self.suptype)
         actual = pretty_print_stype(self.subtype)
         if self.expr is None:
             message = f"Type mismatch: expected {expected}, got {actual}."
         else:
-            expression = self.source_excerpt or pretty_print_sterm(self.expr, top_level=False)
-            if len(expression) > 120:
-                expression = expression[:117] + "..."
+            expression = _diagnostic_expression(self.expr, self.source_excerpt)
             message = f"Type mismatch in `{expression}`: expected {expected}, got {actual}."
         return f"{message} {self.msg}" if self.msg else message
 
@@ -137,14 +145,40 @@ class UnificationFailedError(AeonError):
     name: str
     conflict1: SType
     conflict2: SType
+    expr: STerm | None = None
+    resolved_types: tuple[SType, SType] | None = field(default=None, repr=False)
+    source_excerpt: str | None = field(default=None, repr=False)
+
+    def attach_source(self, source: str, filename: str) -> None:
+        self.source_excerpt = _source_excerpt(self.position(), source, filename)
 
     def __str__(self) -> str:
-        return (
-            f"Could not infer a single type for {self.name}: it would need to be both "
-            f"{self.conflict1} and {self.conflict2} simultaneously, but those two types are not compatible."
-        )
+        from aeon.utils.pprint import pretty_print_stype
+
+        first, second = self.resolved_types or (self.conflict1, self.conflict2)
+        left, right = pretty_print_stype(first), pretty_print_stype(second)
+        context = f" in `{_diagnostic_expression(self.expr, self.source_excerpt)}`" if self.expr is not None else ""
+        message = f"Conflicting types{context}: {left} and {right}."
+        for possible_list, element in ((first, second), (second, first)):
+            if (
+                isinstance(possible_list, STypeConstructor)
+                and possible_list.name.name == "List"
+                and len(possible_list.args) == 1
+                and pretty_print_stype(possible_list.args[0]) == pretty_print_stype(element)
+            ):
+                element_name = pretty_print_stype(element)
+                return (
+                    f"Cannot mix a single {element_name} with a list of {element_name} values{context}.\n"
+                    f"Conflicting types: {left} and {right}.\n"
+                    "List.cons adds one element to a list. Use List.append to join two lists."
+                )
+        return f"{message}\nThese uses must agree on one type. Check the arguments and branch results."
 
     def position(self) -> Location:
+        if self.expr is not None:
+            return self.expr.loc
+        if isinstance(self.conflict2.loc, FileLocation):
+            return self.conflict2.loc
         return self.conflict1.loc
 
 
