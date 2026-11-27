@@ -151,3 +151,9 @@ def test_explicit_recurrence_with_metric_verifies():
     if n = 0 then 0 else double (n - 1) + 2;
 def main (_:Int) : Int := 0"""
     assert _verify(src) == []
+
+
+def test_recursive_value_cannot_use_a_vacuous_metric():
+    src = "def impossible : {r:Int | _ && r > r} decreasing_by [0] := impossible;"
+    with pytest.raises(TypeError, match="recursive value"):
+        reflect_underscore_in_definitions(parse_program(src).definitions)

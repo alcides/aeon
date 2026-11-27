@@ -287,6 +287,11 @@ def reflect_underscore_in_definitions(defs: list[Definition]) -> list[Definition
             )
         recursive = _mentions_function(d.body, d.name)
         if recursive:
+            if not d.args:
+                raise TypeError(
+                    f"Cannot reflect recursive value '{d.name.name}': recursive reflection requires function arguments "
+                    "and a checked termination metric."
+                )
             d = definition_with_inferred_decreasing(d)
             if not d.decreasing_by:
                 raise TypeError(
