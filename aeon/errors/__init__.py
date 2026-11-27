@@ -18,7 +18,7 @@ from aeon.sugar.program import ImportAe, STerm
 from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
 from aeon.sugar.program import Decorator
-from aeon.utils.location import Location, SynthesizedLocation
+from aeon.utils.location import FileLocation, Location, SynthesizedLocation
 from aeon.utils.name import Name
 from aeon.verification.vcs import Constraint
 from aeon.verification.helpers import pretty_print_constraint
@@ -94,18 +94,42 @@ class ModuleNotFoundAeonError(AeonError):
 
 @dataclass
 class UnificationSubtypingError(AeonError):
-    expr: STerm
+    expr: STerm | None
     subtype: SType
     suptype: SType
     msg: str = field(default_factory=lambda: "")
+    source_excerpt: str | None = field(default=None, repr=False)
+
+    def attach_source(self, source: str, filename: str) -> None:
+        """Quote the user's spelling, not generated binders or eliminators."""
+        loc = self.position()
+        if not isinstance(loc, FileLocation) or loc.file != filename:
+            return
+        lines = source.splitlines(keepends=True)
+        (sl, sc), (el, ec) = loc.start, loc.end
+        if not (1 <= sl <= el <= len(lines) and sc >= 1 and ec >= 1):
+            return
+        selected = lines[sl - 1 : el]
+        selected[-1] = selected[-1][: ec - 1]
+        selected[0] = selected[0][sc - 1 :]
+        self.source_excerpt = "".join(selected).strip() or None
 
     def __str__(self) -> str:
-        return (
-            f"Expression {self.expr} has type {self.subtype}, but is expected to have type {self.suptype} ({self.msg})."
-        )
+        from aeon.utils.pprint import pretty_print_sterm, pretty_print_stype
+
+        expected = pretty_print_stype(self.suptype)
+        actual = pretty_print_stype(self.subtype)
+        if self.expr is None:
+            message = f"Type mismatch: expected {expected}, got {actual}."
+        else:
+            expression = self.source_excerpt or pretty_print_sterm(self.expr, top_level=False)
+            if len(expression) > 120:
+                expression = expression[:117] + "..."
+            message = f"Type mismatch in `{expression}`: expected {expected}, got {actual}."
+        return f"{message} {self.msg}" if self.msg else message
 
     def position(self) -> Location:
-        return self.expr.loc
+        return self.expr.loc if self.expr is not None else SynthesizedLocation("type unification")
 
 
 @dataclass

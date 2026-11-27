@@ -29,7 +29,7 @@ from aeon.core.terms import Literal, Term
 from aeon.core.types import t_int, top
 from aeon.decorators import Metadata, apply_core_decorators_phase
 from aeon.elaboration import elaborate_collecting_errors
-from aeon.errors import AeonError, ModuleNotFoundAeonError
+from aeon.errors import AeonError, ModuleNotFoundAeonError, UnificationSubtypingError
 from aeon.sugar.ast_helpers import st_top
 from aeon.sugar.bind import bind, bind_program
 from aeon.sugar.desugar import _bare_name, desugar
@@ -244,6 +244,9 @@ def compile_program(
 
     sterm, elab_errors = elaborate_collecting_errors(desugared.elabcontext, desugared.program, st_top)
     if elab_errors:
+        for error in elab_errors:
+            if isinstance(error, UnificationSubtypingError):
+                error.attach_source(aeon_code, filename)
         return _placeholder_unit(path, digest, dep_module_paths), elab_errors
 
     dep_list = [dep_units[m] for m in dep_module_paths if m in dep_units]

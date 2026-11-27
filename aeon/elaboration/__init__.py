@@ -189,6 +189,7 @@ class UnificationVar(SType):
     lower: list[SType] = field(default_factory=list)
     upper: list[SType] = field(default_factory=list)
     kind: Kinding | None = None
+    lower_sources: dict[int, STerm] = field(default_factory=dict, repr=False, compare=False)
 
     def constrain_upper(self, ty):
         bty = base(ty)
@@ -270,40 +271,46 @@ def elaborate_foralls(e: STerm) -> STerm:
             assert False, f"Could not elaborate {e} ({type(e)})"
 
 
-def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
+def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType, source: STerm | None = None) -> list[SType]:
+    """Keep the expression responsible for a constraint until it is solved.
+
+    Polymorphic arguments can fail only when a later result/branch constrains
+    their type. Bound provenance must survive that propagation; blaming the
+    later generated eliminator or lambda loses the actual argument's span.
+    """
     match (sub, sup):
         case (AppliedType(sh, sa), AppliedType(th, ta)) if len(sa) == len(ta):
-            unify(ctx, sh, th)
+            unify(ctx, sh, th, source)
             for a, b in zip(sa, ta):
-                unify(ctx, a, b)
+                unify(ctx, a, b, source)
             return []
         case (AppliedType(head, args), STypeConstructor(name, actual)) if len(actual) >= len(args):
             split = len(actual) - len(args)
             constructor: SType = STypeConstructor(name, actual[:split])
             if split == 0 and any(isinstance(e, ElabTypeVarBinder) and e.name == name for e in ctx.entries):
                 constructor = STypeVar(name)
-            unify(ctx, head, constructor)
+            unify(ctx, head, constructor, source)
             for a, b in zip(args, actual[split:]):
-                unify(ctx, a, b)
+                unify(ctx, a, b, source)
             return []
         case (STypeConstructor(), AppliedType()):
-            return unify(ctx, sup, sub)
+            return unify(ctx, sup, sub, source)
         case (_, STypeConstructor(Name("Top", 0))):
             return []
         case (STypeConstructor(subn, subargs), STypeConstructor(supn, supargs)):
             if subn != supn:
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
             elif len(subargs) != len(supargs):
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
             else:
                 rt = []
                 for subarg, suparg in zip(subargs, supargs):
-                    rt += unify(ctx, subarg, suparg)
+                    rt += unify(ctx, subarg, suparg, source)
                 return rt
         case (SRefinedType(_, ty, _), _):
-            return unify(ctx, ty, sup)
+            return unify(ctx, ty, sup, source)
         case (_, SRefinedType(_, ty, _)):
-            return unify(ctx, sub, ty)
+            return unify(ctx, sub, ty, source)
         case (UnificationVar(_, _, _), _):
             # Skip if this exact bound is already recorded — propagation is
             # idempotent, and re-adding lets two-way ``?X <: ?Y`` / ``?Y <: ?X``
@@ -316,61 +323,63 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
             if isinstance(sub.kind, ArrowKind):
                 for bound in existing_bounds:
                     if bound is not sup and not isinstance(bound, UnificationVar):
-                        unify(ctx, bound, sup)
-                        unify(ctx, sup, bound)
+                        unify(ctx, bound, sup, source)
+                        unify(ctx, sup, bound, source)
             for l in sub.lower:
-                unify(ctx, l, sup)
+                unify(ctx, l, sup, sub.lower_sources.get(id(l), source))
             return []
         case (_, UnificationVar(_, _, _)):
             if any(s is sub for s in sup.lower):
                 return []
             existing_bounds = list(sup.lower + sup.upper)
             sup.lower.append(sub)
+            if source is not None:
+                sup.lower_sources[id(sub)] = source
             _invalidate_direction_memo(sup)
             if isinstance(sup.kind, ArrowKind):
                 for bound in existing_bounds:
                     if bound is not sub and not isinstance(bound, UnificationVar):
-                        unify(ctx, bound, sub)
-                        unify(ctx, sub, bound)
+                        unify(ctx, bound, sub, source)
+                        unify(ctx, sub, bound, source)
             for u in sup.upper:
-                unify(ctx, sub, u)
+                unify(ctx, sub, u, source)
             return []
 
         case (STypePolymorphism(name, _, body), _):
             u = UnificationVar(ctx.fresh_typevar())
             nty = type_substitution(sub.body, sub.name, u)
-            rt = unify(ctx, nty, sup)
+            rt = unify(ctx, nty, sup, source)
             return [nty] + rt
         case (_, STypePolymorphism(name, _, body)):
             u = UnificationVar(ctx.fresh_typevar())
-            unify(ctx, sub, type_substitution(body, name, u))
+            unify(ctx, sub, type_substitution(body, name, u), source)
             return []
 
         case (SAbstractionType(_, sub_vtype, sub_rtype), SAbstractionType(_, sup_vtype, sup_rtype)):
-            unify(ctx, sup_vtype, sub_vtype)
-            unify(ctx, sub_rtype, sup_rtype)
+            unify(ctx, sup_vtype, sub_vtype, source)
+            unify(ctx, sub_rtype, sup_rtype, source)
             return []
 
         case (STypeVar(subn), STypeVar(supn)):
             if subn == supn:
                 return []
             else:
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
 
         case (STypeConstructor(name1, args), STypeConstructor(name2, args2)):
             if name1 != name2:
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
             elif len(args) != len(args2):
                 raise UnificationSubtypingError(
-                    SHole(Name("todo")), sub, sup, msg="Type constructor with different number of arguments."
+                    source, sub, sup, msg="Type constructor with different number of arguments."
                 )
             else:
                 for a1, a2 in zip(args, args2):
-                    unify(ctx, a1, a2)
+                    unify(ctx, a1, a2, source)
                 return []
 
         case _:
-            raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+            raise UnificationSubtypingError(source, sub, sup)
 
 
 def _resolve_uvars(ty: SType) -> SType:
@@ -735,8 +744,8 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             nthen, nthen_type = elaborate_synth(ctx, then)
             nelse, nelse_type = elaborate_synth(ctx, otherwise)
             u = UnificationVar(ctx.fresh_typevar())
-            unify(ctx, nthen_type, u)
-            unify(ctx, nelse_type, u)
+            unify(ctx, nthen_type, u, then)
+            unify(ctx, nelse_type, u, otherwise)
             return SIf(ncond, nthen, nelse), u
         case SApplication() if (_spine := _method_call_spine(t)) is not None:
             method, receiver, call_args = _spine
@@ -775,7 +784,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             raise UnificationUnknownTypeError(t)
 
 
-def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
+def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType, source: STerm | None = None) -> STerm:
     if isinstance(t, STypeAbstraction) and isinstance(ty, UnificationVar):
         resolved_type = _resolve_uvars(ty)
         if isinstance(resolved_type, STypePolymorphism):
@@ -819,7 +828,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nbody = elaborate_check(nctx, body, nty)
             return STypeAbstraction(name, kind, nbody, loc=loc)
         case (SRefinementAbstraction(pname, sort, body, loc=loc), SRefinementPolymorphism(rname, rsort, tbody)):
-            unify(ctx, sort, rsort)
+            unify(ctx, sort, rsort, t)
             nty = substitute_refinement_param_in_stype(tbody, rname, pname)
             nbody = elaborate_check(ctx.with_var(pname, sort), body, nty)
             return SRefinementAbstraction(pname, sort, nbody, loc=loc)
@@ -845,13 +854,15 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             return elaborate_check(ctx, _build_method_call(ctx, method, receiver, call_args, t.loc), ty)
         case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
-            nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
+            nfun = elaborate_check(
+                ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty), source=source or t
+            )
             narg = elaborate_check(ctx, arg, u)
             return SApplication(nfun, narg, loc=loc)
         case _:
             (c, s) = elaborate_synth(ctx, t)
             (c, s) = get_rid_of_polymorphism(ctx, c, s, ty)
-            unify(ctx, s, ty)
+            unify(ctx, s, ty, source or t)
             return c
 
 
