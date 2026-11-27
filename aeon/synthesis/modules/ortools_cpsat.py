@@ -268,6 +268,16 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
     supports_hard_constraints = True
     supports_size_objective = True
     supports_candidate_enumeration = True
+    supports_deterministic_budget = True
+
+    def _solver_limits(self, solver, seconds):
+        if self.deterministic_budget is None:
+            solver.parameters.max_time_in_seconds = seconds
+        else:
+            solver.parameters.max_time_in_seconds = float("inf")
+            solver.parameters.max_deterministic_time = self.deterministic_budget.cp_sat_work
+            solver.parameters.num_workers = 1
+        solver.parameters.random_seed = self.seed
 
     def __init__(self, bound: int = DEFAULT_BOUND, scale: int = DEFAULT_SCALE, seed: int = 0):
         self.bound = bound
@@ -423,7 +433,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             )
 
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = float(budget)
+        self._solver_limits(solver, float(budget))
         solver.parameters.random_seed = self.seed
         ui.start(ctx, ectx, "+".join(h.name for h in all_holes), top, budget)
         status = solver.solve(model)
@@ -472,7 +482,7 @@ class CPSatHoleSynthesizer(ProgramSynthesizer):
             variables = [variable for _, values in self._hole_meta.values() for variable in values]
             ui.start(ctx, ectx, "+".join(hole.name for hole in specifications.holes), top, budget)
             while not archive.expired:
-                solver.parameters.max_time_in_seconds = max(0.001, deadline - monotonic())
+                self._solver_limits(solver, max(0.001, deadline - monotonic()))
                 status = solver.solve(self._model)
                 if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                     break

@@ -34,6 +34,7 @@ class Stats:
 
 
 class AmazeSynthesizer(Synthesizer):
+    supports_deterministic_budget = True
     supports_size_objective = True
 
     def __init__(self, profile_path=None, *, seed=0, max_cost=9, max_candidates=100_000):

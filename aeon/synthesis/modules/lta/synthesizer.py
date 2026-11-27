@@ -75,6 +75,8 @@ class LTASynthesizer(Synthesizer):
     states). `max_depth`, when set, caps the depth explicitly.
     """
 
+    supports_deterministic_budget = True
+
     supports_optimization = False
     supports_candidate_enumeration = True
 

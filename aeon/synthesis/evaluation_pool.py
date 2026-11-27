@@ -32,6 +32,14 @@ from multiprocess.reduction import ForkingPickler
 from aeon.backend.evaluator import EvaluationContext, eval
 from aeon.core.terms import Term, Var
 from aeon.synthesis.api import InvalidIndividualException
+from aeon.synthesis.budgets import (
+    EvaluationWatchdogExpired,
+    OpcodeBudgetExceeded,
+    OpcodeMeter,
+    current_budget,
+    raise_watchdog,
+    unmetered,
+)
 from aeon.synthesis.fitness_eval import (
     memoize_fitness,
     set_program_tail,
@@ -46,6 +54,7 @@ Computation = Callable[[Term], Any]
 
 # Per-computation result statuses.
 OK, INVALID, ERROR, TIMEOUT = "ok", "invalid", "error", "timeout"
+FATAL = "fatal"
 
 # Validators expose a Boolean, but a failed worker is not a definitive rejection.
 # Search-local consumers can observe this counter even through validator wrappers.
@@ -153,7 +162,10 @@ def _worker_main(static: tuple, task_q: Any, result: socket.socket, parent_resul
 
 
 def _worker_loop(static: tuple, task_q: Any, result: socket.socket) -> None:
-    replace, computations = static
+    import sys
+
+    sys.settrace(None)
+    replace, computations, opcode_budget = static
     while True:
         msg = task_q.get()
         if msg is None:  # shutdown
@@ -173,10 +185,19 @@ def _worker_loop(static: tuple, task_q: Any, result: socket.socket) -> None:
         out: dict[str, tuple[str, Any]] = {}
         for name, comp in computations.items():
             try:
-                # Serialize separately so one unpicklable computation has a
-                # normal error result and successful siblings survive.
-                value = bytes(ForkingPickler.dumps(comp(prog)))
+                # Serialize separately so failed computations preserve their siblings.
+                if opcode_budget is None:
+                    computed = comp(prog)
+                else:
+                    with OpcodeMeter(opcode_budget, include_foreign=True).measure():
+                        computed = comp(prog)
+                value = bytes(ForkingPickler.dumps(computed))
                 out[name] = (OK, value)
+            except OpcodeBudgetExceeded:
+                out[name] = (TIMEOUT, "opcode budget exhausted")
+            except EvaluationWatchdogExpired as exc:
+                out[name] = (FATAL, str(exc))
+                break
             except InvalidIndividualException:
                 out[name] = (INVALID, None)
             except Exception as e:  # noqa: BLE001 — any failure means "no value here"
@@ -239,20 +260,30 @@ def _close_queues(*queues: Any) -> None:
 
 
 class EvaluationPool:
+    @unmetered
     def __init__(
         self,
         replace: Callable[[Term], Term],
         computations: dict[str, Computation],
         budget_eval: float = 1.0,
         n_workers: int = 1,
+        opcode_budget: int | None = None,
+        strict_timeout: bool = False,
     ):
-        self._static = (replace, computations)
+        policy = current_budget()
+        if policy is not None:
+            opcode_budget = policy.evaluation_opcodes if opcode_budget is None else opcode_budget
+            strict_timeout = True
+            budget_eval = 60.0
+        self._static = (replace, computations, opcode_budget)
+        self._strict_timeout = strict_timeout
         self._names = list(computations.keys())
         self._budget = budget_eval
         self._n = max(1, n_workers)
         self._counter = 0
         self._workers: list[_Worker] = [self._spawn() for _ in range(self._n)]
 
+    @unmetered
     def _spawn(self) -> _Worker:
         task_q = _CTX.Queue()
         parent_result, child_result = socket.socketpair()
@@ -281,6 +312,7 @@ class EvaluationPool:
     def _timeout(self) -> dict[str, tuple[str, Any]]:
         return {name: (TIMEOUT, None) for name in self._names}
 
+    @unmetered
     def map(self, terms: list[Term]) -> list[dict[str, tuple[str, Any]]]:
         """Run every computation on each term, returning one ``{name: (status,
         value)}`` map per term. Terms are processed in batches of ``n_workers``
@@ -329,6 +361,14 @@ class EvaluationPool:
             # other replies have been received or reached their own deadlines.
             for w in failed:
                 self._recycle(w)
+            if self._strict_timeout and failed:
+                raise_watchdog(
+                    "Candidate worker exceeded the safety watchdog or failed to reply; deterministic synthesis aborted"
+                )
+            for outcome in results[base : base + self._n]:
+                for status, value in outcome.values():
+                    if status == FATAL:
+                        raise_watchdog(value)
         inconclusive_evaluations.set(
             inconclusive_evaluations.get()
             + sum(any(status in (ERROR, TIMEOUT) for status, _ in result.values()) for result in results)
@@ -338,6 +378,7 @@ class EvaluationPool:
     def run(self, term: Term) -> dict[str, tuple[str, Any]]:
         return self.map([term])[0]
 
+    @unmetered
     def close(self) -> None:
         for w in self._workers:
             try:

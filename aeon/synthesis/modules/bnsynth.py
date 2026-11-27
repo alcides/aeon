@@ -190,6 +190,9 @@ class _Relation:
 
 
 class BNSynthSynthesizer(BooleanBoundedSynthesizer):
+    supports_deterministic_budget = False
+    deterministic_budget_limitation = "PyTorch training kernels are outside opcode accounting and depend on hardware."
+
     report_type = NeuralReport
     failure_type = BNSynthFailure
 

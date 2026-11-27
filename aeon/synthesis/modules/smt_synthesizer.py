@@ -47,6 +47,7 @@ from aeon.core.types import (
 )
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.budgets import EvaluationWatchdogExpired
 from aeon.synthesis.solver_problem import ConstraintSynthesizer
 from aeon.synthesis.grammar.utils import SYNTHESIS_EXCLUDED_NAMES
 from aeon.synthesis.pareto import ParetoEntry, minimize_flags_from_goals, pick_pareto_member, update_pareto_front
@@ -368,6 +369,7 @@ class SMTSynthesizer(ConstraintSynthesizer):
     """
 
     supports_candidate_enumeration = True
+    supports_deterministic_budget = True
 
     def __init__(self, max_depth: int = 5) -> None:
         self.max_depth = max_depth
@@ -377,7 +379,10 @@ class SMTSynthesizer(ConstraintSynthesizer):
         from aeon.synthesis.solver_z3 import enumerate_joint_z3
 
         archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
-        candidates = enumerate_joint_z3(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)))
+        candidates = enumerate_joint_z3(
+            metadata[fun_name]["solver_problem"],
+            None if self.deterministic_budget is not None else max(1, int(budget * 1000)),
+        )
         candidate = archive.search(candidates, validate)
         if candidate is None:
             raise SynthesisNotSuccessful("Joint Z3: no validated assignment within budget")
@@ -429,7 +434,12 @@ class SMTSynthesizer(ConstraintSynthesizer):
             attempt += 1
 
             solver = z3.Solver()
-            solver.set(timeout=min(10_000, int((deadline - time.time()) * 1000)))
+            from aeon.verification.limits import set_solver_limits
+
+            set_solver_limits(
+                solver,
+                0 if self.deterministic_budget is not None else min(10_000, int((deadline - time.time()) * 1000)),
+            )
             for c in ctx_constraints:
                 solver.add(c)
 
@@ -467,6 +477,8 @@ class SMTSynthesizer(ConstraintSynthesizer):
                 if not validate(concrete_term):
                     ui.register(concrete_term, "Invalid", time.time() - start_time, False)
                     continue
+            except EvaluationWatchdogExpired:
+                raise
             except Exception:
                 ui.register(concrete_term, "Invalid", time.time() - start_time, False)
                 continue
@@ -484,6 +496,8 @@ class SMTSynthesizer(ConstraintSynthesizer):
 
             try:
                 score = evaluate(concrete_term)
+            except EvaluationWatchdogExpired:
+                raise
             except Exception:
                 ui.register(concrete_term, "Invalid", time.time() - start_time, False)
                 continue

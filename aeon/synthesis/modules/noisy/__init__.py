@@ -28,6 +28,7 @@ def base(ty):
 
 
 class NoisySynthesizer(Synthesizer):
+    supports_deterministic_budget = True
     supports_size_objective = True
     supports_hard_constraints = True
 

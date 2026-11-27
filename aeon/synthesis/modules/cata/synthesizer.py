@@ -112,6 +112,8 @@ class CATASynthesizer(Synthesizer):
     monomorphised components, and accept states by SMT constraint discharge
     (the liquid typechecker)."""
 
+    supports_deterministic_budget = True
+
     supports_optimization = False
     supports_candidate_enumeration = True
 

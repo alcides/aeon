@@ -14,6 +14,7 @@ from aeon.core.terms import Term
 from aeon.core.types import top
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import InvalidIndividualException, TimeoutInEvaluationException
+from aeon.synthesis.budgets import evaluate_deterministically
 from aeon.synthesis.bounded_cnf import check_program
 from aeon.synthesis.constructors import prepare_candidate
 from aeon.synthesis.decorators import Goal
@@ -203,7 +204,7 @@ class ProgramSpecifications:
             if not self.checks:
                 return True
             if self.pool is None:
-                scores = self._checks(program)
+                scores = evaluate_deterministically(self._checks, program)
             else:
                 status, scores = self._results(candidate).get("specification", ("error", None))
                 if status != OK or not isinstance(scores, list):
@@ -216,7 +217,7 @@ class ProgramSpecifications:
         if any(g.kind == "require" for g in self.all_goals) and not self.validate(candidate):
             raise InvalidIndividualException("candidate violates its type or @require")
         if self.pool is None:
-            return self._fitness(self.replace(candidate))
+            return evaluate_deterministically(self._fitness, self.replace(candidate))
         status, scores = self._results(candidate).get("fitness", ("error", None))
         if status == TIMEOUT:
             raise TimeoutInEvaluationException()

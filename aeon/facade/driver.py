@@ -27,6 +27,7 @@ from aeon.sugar.parser import parse_main_program
 from aeon.sugar.program import Program, STerm
 from aeon.synthesis.entrypoint import synthesize_holes
 from aeon.synthesis.api import SynthesisNotSuccessful
+from aeon.synthesis.budgets import DeterministicBudget
 from aeon.synthesis.identification import get_holes, incomplete_functions_and_holes
 from aeon.synthesis.modules.synthesizerfactory import make_synthesizer
 from aeon.synthesis.uis.api import SilentSynthesisUI, SynthesisUI, SynthesisFormat
@@ -60,6 +61,8 @@ class AeonConfig:
     tdsyn_expansion: str = "eager"
     # Editor buffers are snapshotted per request; they never update disk caches.
     source_overrides: dict[str, str] = field(default_factory=dict)
+    deterministic_budget: DeterministicBudget | None = None
+    synthesis_seed: int = 0
 
 
 P = ParamSpec("P")
@@ -87,7 +90,11 @@ class AeonDriver:
 
     def _new_session(self) -> CompilationSession:
         return CompilationSession(
-            CompilationOptions(self.cfg.smt_timeout_ms, self.cfg.cache_limit),
+            CompilationOptions(
+                self.cfg.smt_timeout_ms,
+                self.cfg.cache_limit,
+                smt_rlimit=self.cfg.deterministic_budget.smt_rlimit if self.cfg.deterministic_budget else None,
+            ),
             source_overrides=self.cfg.source_overrides.copy(),
         )
 
@@ -270,6 +277,15 @@ class AeonDriver:
         """Synthesize the open holes, substitute the results into ``self.core``
         in place, and return the per-hole solutions lifted to sugar terms."""
         synthesizer = make_synthesizer(self.cfg.synthesizer, tdsyn_expansion=self.cfg.tdsyn_expansion)
+        if self.cfg.deterministic_budget is not None:
+            if not getattr(synthesizer, "supports_deterministic_budget", False):
+                raise SynthesisNotSuccessful(
+                    f"{self.cfg.synthesizer} does not support deterministic opcode/SMT budgets. "
+                    + getattr(synthesizer, "deterministic_budget_limitation", "")
+                )
+            synthesizer.deterministic_budget = self.cfg.deterministic_budget
+        if hasattr(synthesizer, "seed"):
+            synthesizer.seed = self.cfg.synthesis_seed
         mapping: dict[Name, Term] = synthesize_holes(
             self.typing_ctx,
             self.evaluation_ctx,
@@ -280,6 +296,7 @@ class AeonDriver:
             self.cfg.synthesis_budget,
             ui,
             constructor_names=self.constructor_names,
+            budget_eval=60.0 if self.cfg.deterministic_budget else None,
         )
 
         synthesized_core: Term = self.core
@@ -303,9 +320,13 @@ class AeonDriver:
                 remaining.remove(tail.name)
             if remaining:
                 names = ", ".join(str(name) for name in remaining)
+                allowance = (
+                    f"{self.cfg.deterministic_budget.opcodes} opcodes"
+                    if self.cfg.deterministic_budget
+                    else f"{self.cfg.synthesis_budget} seconds"
+                )
                 raise SynthesisNotSuccessful(
-                    f"Synthesis did not find a complete solution within {self.cfg.synthesis_budget} seconds; "
-                    f"unfilled holes: {names}"
+                    f"Synthesis did not find a complete solution within {allowance}; unfilled holes: {names}"
                 )
             self.cfg.synthesis_ui.display_results(self.core, sterm_mapping, self.cfg.synthesis_format)
             return lift(self.core)

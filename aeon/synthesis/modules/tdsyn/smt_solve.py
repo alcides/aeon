@@ -38,6 +38,7 @@ from aeon.synthesis.modules.tdsyn.worklist import TypedHole
 from aeon.utils.location import SynthesizedLocation
 from aeon.utils.name import Name
 from aeon.verification.smt import base_functions, make_variable, translate_liq
+from aeon.verification.limits import set_solver_limits
 
 _loc = SynthesizedLocation("tdsyn")
 
@@ -57,7 +58,7 @@ def literal_satisfies(term: Term, ty: RefinedType) -> bool:
     predicate = substitution_in_liquid(ty.refinement, value, ty.name)
     try:
         solver = Solver()
-        solver.set(timeout=500)
+        set_solver_limits(solver, 500)
         solver.add(Not(translate_liq(predicate, base_functions)))
         return solver.check() == unsat
     except (AssertionError, KeyError, TypeError, ValueError, Z3Exception):

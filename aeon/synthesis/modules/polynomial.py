@@ -90,6 +90,10 @@ class CertificateProblem:
             )
 
     def remaining_ms(self) -> int:
+        from aeon.synthesis.budgets import current_budget
+
+        if current_budget() is not None:
+            return 0
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise SynthesisNotSuccessful("Polynomial synthesis exhausted its time budget")
@@ -311,7 +315,9 @@ class CertificateProblem:
     def candidates(self):
         self.build()
         while time.monotonic() < self.deadline:
-            self.solver.set(timeout=self.remaining_ms())
+            from aeon.verification.limits import set_solver_limits
+
+            set_solver_limits(self.solver, self.remaining_ms())
             if self.solver.check() != z3.sat:
                 return
             model = self.solver.model()
@@ -368,6 +374,7 @@ class PolynomialSynthesizer(ConstraintSynthesizer):
 
     supports_optimization = False
     supports_candidate_enumeration = True
+    supports_deterministic_budget = True
 
     def __init__(self, config: PolynomialConfig | None = None):
         self.config = config if config is not None else PolynomialConfig.from_env()

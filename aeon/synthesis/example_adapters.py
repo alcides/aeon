@@ -26,6 +26,7 @@ from aeon.core.terms import (
     Var,
 )
 from aeon.synthesis.api import InvalidIndividualException, UnsupportedSynthesisGoal
+from aeon.synthesis.budgets import current_budget, prepare_deterministically
 from aeon.synthesis.evaluation_pool import EvaluationPool, OK
 from aeon.synthesis.identification import term_has_holes
 from aeon.synthesis.pbt.runner import PropertyCorpus, PropertySpec, _term_references
@@ -199,6 +200,7 @@ def _property_metadata(rows: list, parameters: list[Name]) -> dict[str, Any]:
     }
 
 
+@prepare_deterministically
 def adapt_example_metadata(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -212,6 +214,8 @@ def adapt_example_metadata(
     requires_examples: bool = True,
 ) -> dict[str, Any]:
     """Build local metadata from CSV, property equalities, then refinements."""
+    if current_budget() is not None:
+        budget = float("inf")
     started = monotonic()
     result = dict(entry)
     if entry.get("csv_examples"):

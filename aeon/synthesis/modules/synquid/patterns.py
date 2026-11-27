@@ -67,7 +67,9 @@ def _vacuous_case(state) -> bool:
         return False
     constraint = entailment_context(state.context, LiquidConstraint(LiquidLiteralBool(False)))
     solver = z3.Solver()
-    solver.set(timeout=200)
+    from aeon.verification.limits import set_solver_limits
+
+    set_solver_limits(solver, 200)
     try:
         for clause in flatten(constraint):
             solver.add(translate(clause))

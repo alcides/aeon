@@ -223,6 +223,7 @@ def core_candidate(ctx, input_shape: Schema, output_shape: Schema, function: Nam
 
 
 class StructureGuidedSynthesizer(Synthesizer):
+    supports_deterministic_budget = True
     supports_optimization = False
     supports_candidate_enumeration = True
 

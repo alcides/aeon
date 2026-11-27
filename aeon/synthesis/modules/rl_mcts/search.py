@@ -153,14 +153,18 @@ def search(
                         if monotonic() >= deadline:
                             return SearchResult(root, None, nodes, "timeout")
                         tree = describe(state)
-                        prior = bounded_prediction(guidance.policy(spec, node.tree, tree))
+                        from aeon.synthesis.budgets import evaluate_deterministically
+
+                        prior = bounded_prediction(evaluate_deterministically(guidance.policy, spec, node.tree, tree))
                         child = Node(state, tree, holes(state), parent=node, prior=prior)
                         node.children.append(child)
                         nodes.append(child)
                     node.expanded = True
                     node.exhausted = not bool(node.children)
                     if not node.exhausted:
-                        reward = bounded_prediction(guidance.value(spec, node.tree, node.holes))
+                        reward = bounded_prediction(
+                            evaluate_deterministically(guidance.value, spec, node.tree, node.holes)
+                        )
             for visited in path:
                 visited.visits += 1
                 visited.total += reward * config.decay**step

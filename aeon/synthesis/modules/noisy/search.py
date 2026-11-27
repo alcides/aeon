@@ -10,7 +10,7 @@ from aeon.synthesis.api import InvalidIndividualException, SynthesisNotSuccessfu
 from aeon.synthesis.modules.noisy.model import Report, Residual, risk, same_value, scalar
 from aeon.synthesis.modules.noisy.sampling import select_sample
 from aeon.synthesis.modules.noisy.structure import identity, complexity
-from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeout
+from aeon.synthesis.modules.noisy.worker import Worker, WorkerError, WorkerTimeout, WorkerResourceLimit
 from aeon.synthesis.pareto import pick_pareto_member, update_pareto_front
 
 
@@ -234,6 +234,8 @@ def run_search(
             size = min(count, max(size + 1, size * 2))
     except WorkerTimeout:
         stop_reason = "budget" if monotonic() >= deadline else "worker_timeout"
+    except WorkerResourceLimit:
+        stop_reason = "opcode_budget"
     except WorkerError:
         stop_reason = "worker_error"
     finally:

@@ -12,6 +12,7 @@ from aeon.synthesis.api import (
 )
 from aeon.synthesis.pareto import minimize_flags_from_goals, pick_pareto_member, update_pareto_front
 from aeon.synthesis.specifications import CHECKABLE_GOALS
+from aeon.synthesis.budgets import EvaluationWatchdogExpired
 
 
 class CandidateArchive:
@@ -80,6 +81,8 @@ class CandidateArchive:
                 if validate(candidate) and self.consider(candidate):
                     break
         except UnsupportedSynthesisGoal:
+            raise
+        except EvaluationWatchdogExpired:
             raise
         except SynthesisNotSuccessful:
             if not self.backend.pareto_front and self.first is None:

@@ -65,6 +65,10 @@ def check_program_scope(term: Term, metadata: Metadata) -> None:
 
 class TypeConstrainedSynthesizer(Synthesizer):
     supports_size_objective = True
+    deterministic_budget_limitation = (
+        "Transformer inference uses native tensor kernels; opcode/SMT quotas cannot bound their work, "
+        "and floating-point logits can change token choices across hardware. Use a recorded token adapter for CI."
+    )
 
     def __init__(self, seed: int = 0, adapter_factory: Callable[[], TokenAdapter] | None = None):
         self.seed = seed

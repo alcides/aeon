@@ -24,7 +24,8 @@ from aeon.decorators.api import Metadata
 from aeon.synthesis.api import SynthesisNotSuccessful
 from aeon.synthesis.solver_problem import ConstraintSynthesizer
 from aeon.synthesis.candidate_archive import CandidateArchive
-from aeon.synthesis.modules.sygus.solver import CVC5Unavailable, enumerate_cvc5
+from aeon.synthesis.modules.sygus.solver import CVC5Unavailable
+from aeon.synthesis.modules.sygus import solver as cvc_solver
 from aeon.synthesis.modules.sygus.translation import build_sygus_problem, problem_to_sl
 from aeon.synthesis.uis.api import SynthesisUI
 from aeon.typechecking.context import TypingContext
@@ -36,10 +37,15 @@ class SygusSynthesizer(ConstraintSynthesizer):
 
     supports_optimization = False
     supports_candidate_enumeration = True
+    supports_deterministic_budget = True
 
     def synthesize_joint(self, holes, validate, evaluate, fun_name, metadata, budget=60, ui=SynthesisUI()):
         archive = CandidateArchive(self, fun_name, metadata, evaluate, budget, ui)
-        candidates = enumerate_cvc5(metadata[fun_name]["solver_problem"], max(1, int(budget * 1000)), joint=True)
+        candidates = cvc_solver.enumerate_cvc5(
+            metadata[fun_name]["solver_problem"],
+            None if self.deterministic_budget else max(1, int(budget * 1000)),
+            joint=True,
+        )
         candidate = archive.search(candidates, validate)
         if candidate is None:
             raise SynthesisNotSuccessful("Joint CVC5: no validated assignment within budget")
@@ -68,9 +74,9 @@ class SygusSynthesizer(ConstraintSynthesizer):
 
         logger.log("SYNTHESIZER", f"SyGuS problem:\n{problem_to_sl(problem)}")
 
-        timeout_ms = max(1, int((archive.deadline - time.monotonic()) * 1000))
+        timeout_ms = None if self.deterministic_budget else max(1, int((archive.deadline - time.monotonic()) * 1000))
         try:
-            candidate = archive.search(enumerate_cvc5(problem, timeout_ms), validate)
+            candidate = archive.search(cvc_solver.enumerate_cvc5(problem, timeout_ms), validate)
         except CVC5Unavailable as exc:
             raise SynthesisNotSuccessful(str(exc)) from exc
         if candidate is None:

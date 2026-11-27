@@ -34,7 +34,9 @@ def configure_solver(solver: z3.Solver) -> bool:
     remaining = deadline.get() - monotonic()
     if remaining <= 0:
         return False
-    solver.set(timeout=max(1, min(500, int(remaining * 1000))) if remaining != float("inf") else 500)
+    from aeon.verification.limits import set_solver_limits
+
+    set_solver_limits(solver, max(1, min(500, int(remaining * 1000))) if remaining != float("inf") else 500)
     return True
 
 

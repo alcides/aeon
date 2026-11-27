@@ -14,6 +14,7 @@ from time import monotonic
 from typing import Any
 
 import z3
+from aeon.verification.limits import set_solver_limits
 
 from aeon.core.liquid import LiquidLiteralBool, LiquidLiteralUnit
 from aeon.core.substitutions import substitute_vartype, substitution_in_type
@@ -253,7 +254,7 @@ def derive_refinement_examples(
             solver.add(_domain(value, ty, constructors, env))
         solver.add(_domain(output, declared, constructors, env))
         uniqueness_solver = z3.Solver()
-        uniqueness_solver.set(timeout=200)
+        set_solver_limits(uniqueness_solver, 200)
         uniqueness_solver.add(relation, _domain(output, declared, constructors, env, bounded=False))
         for (_, ty), value in zip(params, variables):
             uniqueness_solver.add(_domain(value, ty, constructors, env, bounded=False))
@@ -267,7 +268,7 @@ def derive_refinement_examples(
             remaining = budget - (monotonic() - started)
             if remaining <= 0 or len(rows) >= max_examples:
                 break
-            solver.set(timeout=max(1, min(200, int(remaining * 1000))))
+            set_solver_limits(solver, 0 if remaining == float("inf") else max(1, min(200, int(remaining * 1000))))
             status = solver.check()
             if status != z3.sat:
                 complete = status == z3.unsat

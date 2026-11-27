@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import sys
 from argparse import ArgumentParser
@@ -29,6 +30,7 @@ from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.facade.exit_codes import ExitCode, error_exit_code
 from aeon.sugar.lowering import LiquefactionException
 from aeon.synthesis.api import SynthesisNotSuccessful, TimeoutInEvaluationException, UnknownSynthesizerError
+from aeon.synthesis.budgets import DeterministicBudget
 from aeon.logger.logger import export_log
 from aeon.logger.logger import setup_logger
 from aeon.lsp.server import AeonLanguageServer
@@ -70,6 +72,20 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
+
+
+def _positive_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number) or number <= 0:
+        raise argparse.ArgumentTypeError("must be positive and finite")
+    return number
+
+
 def _parse_common_arguments(parser: ArgumentParser):
     parser.add_argument(
         "--version",
@@ -77,7 +93,28 @@ def _parse_common_arguments(parser: ArgumentParser):
         version=f"aeon {_package_version()}",
         help="show program's version number and exit",
     )
-    parser.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
+    budgets = parser.add_mutually_exclusive_group()
+    budgets.add_argument("--budget", type=int, default=60, help="Time for synthesis (in seconds).")
+    budgets.add_argument(
+        "--opcode-budget",
+        type=_positive_int,
+        help="Deterministic Aeon CPython opcode quota per search (non-LLM backends). Replaces --budget.",
+    )
+    parser.add_argument(
+        "--evaluation-opcode-budget",
+        type=_positive_int,
+        help="Python opcode quota per candidate computation with --opcode-budget (default: 1000000).",
+    )
+    parser.add_argument(
+        "--smt-rlimit",
+        type=_positive_int,
+        help="Z3/CVC5 resource units per solver check with --opcode-budget (default: 100000).",
+    )
+    parser.add_argument(
+        "--cp-sat-work",
+        type=_positive_float,
+        help="CP-SAT deterministic work units per solve with --opcode-budget (default: 1).",
+    )
     parser.add_argument(
         "--tdsyn-expansion",
         choices=("eager", "lazy"),
@@ -160,7 +197,7 @@ def _parse_common_arguments(parser: ArgumentParser):
         "--seed",
         type=int,
         default=0,
-        help="Random seed for property-based testing (--test). Generation is reproducible for a fixed seed.",
+        help="Random seed for synthesis and property-based testing (--test).",
     )
 
     parser.add_argument(
@@ -273,7 +310,7 @@ def synthesis_requested(argv: list[str] | None = None) -> bool:
     for arg in argv:
         if arg in ("-s", "--synthesizer"):
             return True
-        if arg == "--budget" or arg.startswith("--budget="):
+        if arg in ("--budget", "--opcode-budget") or arg.startswith(("--budget=", "--opcode-budget=")):
             return True
     return False
 
@@ -389,6 +426,11 @@ def main() -> None:
         logger.add(sys.stderr, level="TIME")
 
     run_tests = getattr(args, "test", False)
+    if args.opcode_budget is None and (
+        args.evaluation_opcode_budget is not None or args.smt_rlimit is not None or args.cp_sat_work is not None
+    ):
+        print("--evaluation-opcode-budget, --smt-rlimit and --cp-sat-work require --opcode-budget.", file=sys.stderr)
+        sys.exit(ExitCode.OTHER_ERROR)
     if args.check and run_tests:
         print("--check and --test are mutually exclusive.", file=sys.stderr)
         sys.exit(ExitCode.OTHER_ERROR)
@@ -408,6 +450,17 @@ def main() -> None:
         strict_decidable=getattr(args, "strict_decidable", False),
         contracts=getattr(args, "runtime_verification", False),
         check_only=args.check,
+        deterministic_budget=(
+            DeterministicBudget(
+                args.opcode_budget,
+                args.evaluation_opcode_budget or 1_000_000,
+                args.smt_rlimit or 100_000,
+                args.cp_sat_work or 1.0,
+            )
+            if args.opcode_budget is not None
+            else None
+        ),
+        synthesis_seed=args.seed,
     )
     driver = AeonDriver(cfg)
 

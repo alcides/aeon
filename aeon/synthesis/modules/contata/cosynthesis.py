@@ -14,6 +14,9 @@ import, so there is no top-level import cycle with ``entrypoint``.
 
 from __future__ import annotations
 
+from aeon.verification.limits import set_solver_limits
+from aeon.synthesis.budgets import prepare_deterministically
+
 from typing import Any, Optional
 
 from aeon.backend.evaluator import EvaluationContext
@@ -162,6 +165,7 @@ def _smt_unsat_core_obligations(
     pinned = {(f.name, args) for f, args, _ in spec_facts}
 
     solver = z3.Solver()
+    set_solver_limits(solver, 0)
     solver.set(unsat_core=True)
     label_of: dict = {}
     n = 0
@@ -204,6 +208,7 @@ def _smt_unsat_core_obligations(
     # intended spec, so the model must satisfy it — that is what pins a blamed
     # callee's output, e.g. ``odd(1) = true`` from ``even(1) = !odd(1)``).
     model_solver = z3.Solver()
+    set_solver_limits(model_solver, 0)
     for fname, args, out in spec_facts:
         model_solver.add(app(fname, args) == _z3_value(out, val_sort, consts, rev))
     for (f, fa), (g, ga) in symbolic_eqs:
@@ -591,6 +596,7 @@ def _contata_version_space_group(
     return {hole_of[fn]: body for fn, body in bodies.items()}
 
 
+@prepare_deterministically
 def _cosynthesize_group(
     ctx: TypingContext,
     ectx: EvaluationContext,

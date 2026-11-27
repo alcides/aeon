@@ -110,7 +110,9 @@ def _solve_literal(ret_t: Type, base_t: TypeConstructor, deadline=float("inf")):
 
     try:
         s = Solver()
-        s.set(timeout=max(1, int((deadline - monotonic()) * 1000)) if deadline != float("inf") else 0)
+        from aeon.verification.limits import set_solver_limits
+
+        set_solver_limits(s, max(1, int((deadline - monotonic()) * 1000)) if deadline != float("inf") else 0)
         s.add(translate_liq(refinement, variables))
         if s.check() != sat:
             return

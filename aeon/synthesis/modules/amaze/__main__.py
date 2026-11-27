@@ -5,14 +5,17 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict
 import json
-import math
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
+
+import psutil
 
 from .learning import Config, train
 from .profile import load, save
+from .resources import TrainingMemoryLimitExceeded, apply_worker_limits, wait_for_training
 
 
 def main(argv=None):
@@ -25,6 +28,7 @@ def main(argv=None):
     worker = sub.add_parser("_train-worker")
     worker.add_argument("config")
     worker.add_argument("output", type=Path)
+    worker.add_argument("--display-output", type=Path, help=argparse.SUPPRESS)
     inspect = sub.add_parser("inspect")
     inspect.add_argument("profile", type=Path)
     args = parser.parse_args(argv)
@@ -48,21 +52,16 @@ def main(argv=None):
         from loguru import logger
 
         logger.remove()
-        config = Config(**json.loads(args.config))
-        if os.name == "posix":
-            import resource
-
-            resource.setrlimit(resource.RLIMIT_AS, (4 * 1024**3, 4 * 1024**3))
-            cpu = math.ceil(config.budget) + 5
-            resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
         try:
+            config = Config(**json.loads(args.config))
+            apply_worker_limits(config.budget)
             report = train(config)
             save(args.output, report)
             profile = load(args.output)
             print(
                 json.dumps(
                     {
-                        "profile": str(args.output),
+                        "profile": str(args.display_output or args.output),
                         "sha256": profile.sha256,
                         "corpus": report["corpus"]["split_counts"],
                         "selected_macros": len(profile.macros),
@@ -86,26 +85,37 @@ def main(argv=None):
         config = Config(**values)
     except ValueError as exc:
         parser.error(str(exc))
-    command = [
-        sys.executable,
-        "-m",
-        "aeon.synthesis.modules.amaze",
-        "_train-worker",
-        json.dumps(asdict(config)),
-        str(args.output.resolve()),
-    ]
-    process = subprocess.Popen(command, start_new_session=(os.name == "posix"))
+    output = args.output.resolve()
     try:
-        return process.wait(timeout=config.budget + 10)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix=".amaze-", dir=output.parent) as staging:
+            staged_output = Path(staging) / "profile.json"
+            command = [
+                sys.executable,
+                "-m",
+                "aeon.synthesis.modules.amaze",
+                "_train-worker",
+                json.dumps(asdict(config)),
+                str(staged_output),
+                "--display-output",
+                str(output),
+            ]
+            process = subprocess.Popen(command, start_new_session=(os.name == "posix"))
+            code = wait_for_training(process, config.budget + 10)
+            if code < 0:
+                parser.exit(2, f"AMaze offline worker terminated by signal {-code}; no new profile was committed\n")
+            if code == 0:
+                load(staged_output)
+                staged_output.replace(output)
+            return code
     except subprocess.TimeoutExpired:
-        if os.name == "posix":
-            import signal
-
-            os.killpg(process.pid, signal.SIGKILL)
-        else:
-            process.kill()
-        process.wait()
         parser.exit(2, "AMaze offline wall-clock limit exhausted; no new profile was committed\n")
+    except TrainingMemoryLimitExceeded as exc:
+        parser.exit(2, f"{exc}; no new profile was committed\n")
+    except psutil.Error as exc:
+        parser.exit(2, f"AMaze offline resource monitoring failed: {exc}; no new profile was committed\n")
+    except (OSError, ValueError) as exc:
+        parser.exit(2, f"AMaze offline training failed: {exc}; no new profile was committed\n")
 
 
 if __name__ == "__main__":

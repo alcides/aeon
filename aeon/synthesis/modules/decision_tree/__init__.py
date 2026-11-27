@@ -90,6 +90,7 @@ def _tree_to_term(
 
 
 class DecisionTreeSynthesizer(Synthesizer):
+    supports_deterministic_budget = True
     requires_examples = True
     supports_size_objective = True
 
@@ -130,6 +131,11 @@ class DecisionTreeSynthesizer(Synthesizer):
                 )
             return None
 
+        if (
+            self.deterministic_budget is not None
+            and sum(map(len, training_data)) > self.deterministic_budget.evaluation_opcodes
+        ):
+            raise UnsupportedSynthesisGoal("decision_tree training cells exceed the deterministic native-work bound")
         data = np.array(training_data)
         X = data[:, :-1]
         y = data[:, -1]
@@ -164,7 +170,7 @@ class DecisionTreeSynthesizer(Synthesizer):
             if get_elapsed_time(start_time) > budget:
                 break
 
-            dt = DecisionTreeRegressor(max_depth=depth)
+            dt = DecisionTreeRegressor(max_depth=depth, random_state=0 if self.deterministic_budget else None)
             dt.fit(X, y)
 
             candidate = _tree_to_term(dt, arg_names, return_type, arg_types)

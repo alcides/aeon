@@ -144,6 +144,8 @@ class FTASynthesizer(Synthesizer):
     """Component-based synthesis by building a finite tree automaton bottom-up
     and extracting the smallest spec-consistent program from it."""
 
+    supports_deterministic_budget = True
+
     # Stashed in ``computations`` (called before ``synthesize``) so example-driven
     # runs can evaluate candidate sub-programs on concrete @example/@csv inputs,
     # in the program's context (top-level defs / library primitives in scope).

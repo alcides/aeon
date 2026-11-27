@@ -48,7 +48,9 @@ class GuidanceModel:
         return cls(weights, [np.zeros(width) for width in widths[1:]])
 
     def predict(self, features: Any) -> Any:
-        if np is None:
+        from aeon.synthesis.budgets import current_budget
+
+        if np is None or current_budget() is not None:
             predictions: list[float] = []
             for row in features:
                 if len(row) != FEATURE_COUNT or not all(math.isfinite(v) for v in row):

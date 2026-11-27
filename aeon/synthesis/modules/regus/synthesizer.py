@@ -26,6 +26,7 @@ from aeon.utils.name import Name
 
 
 class ReGuSSynthesizer(Synthesizer):
+    supports_deterministic_budget = True
     supports_size_objective = True
 
     def __init__(self, seed: int = 0, config: Config = Config()):

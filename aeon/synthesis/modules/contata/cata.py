@@ -30,6 +30,8 @@ constant only serves to pin a recursive call's result in the spec (e.g.
 
 from __future__ import annotations
 
+from aeon.verification.limits import set_solver_limits
+
 from time import monotonic
 from collections.abc import Iterator
 
@@ -762,8 +764,7 @@ def synthesize_group(
                     break
                 continue
             solver = z3.Solver()
-            if deadline != float("inf"):
-                solver.set(timeout=max(1, int((deadline - monotonic()) * 1000)))
+            set_solver_limits(solver, max(1, int((deadline - monotonic()) * 1000)) if deadline != float("inf") else 0)
             for s in spec:
                 solver.add(s)
             try:
