@@ -291,12 +291,30 @@ def _reflected_impl_for(
     from aeon.verification.sub import is_first_order_function
 
     constructors = {ctor for group in get_constructor_groups().values() for ctor in group}
-    # Preserve opacity for ordinary datatype/helper definitions. Their new
-    # first-order equations require an explicit reflected result or a checked
-    # recursive metric; the existing primitive/array reflection stays intact.
-    extended_reflection = has_termination_metric or (
-        isinstance(cur_ty, RefinedType) and name in liquid_free_vars(cur_ty.refinement)
-    )
+
+    # Structured `_` reflection exposes r == f(formals). Do not mistake a
+    # manually stated recurrence mentioning f(smaller_arguments) for this
+    # opt-in: unfolding every such helper adds substantial, unnecessary work
+    # to proofs that already use their checked contracts.
+    def reflected_identity(predicate: LiquidTerm) -> bool:
+        if not isinstance(predicate, LiquidApp) or not isinstance(cur_ty, RefinedType):
+            return False
+        if predicate.fun.name == "&&":
+            return any(reflected_identity(arg) for arg in predicate.args)
+        if predicate.fun.name != "==" or len(predicate.args) != 2:
+            return False
+        for result, call in (predicate.args, list(reversed(predicate.args))):
+            if (
+                result == LiquidVar(cur_ty.name)
+                and isinstance(call, LiquidApp)
+                and call.fun == name
+                and len(call.args) == len(ty_params)
+                and all(arg == LiquidVar(param) for arg, param in zip(call.args, ty_params))
+            ):
+                return True
+        return False
+
+    extended_reflection = isinstance(cur_ty, RefinedType) and reflected_identity(cur_ty.refinement)
     for v in liquid_free_vars(liq):
         if v in allowed or v.name in op_names:
             continue
