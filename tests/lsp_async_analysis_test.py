@@ -46,16 +46,19 @@ def test_real_compilation_keeps_the_event_loop_responsive():
 def test_inferred_type_conflict_keeps_its_message_and_location_across_worker():
     ls = make_server()
     uri = "file:///inferred-conflict.ae"
-    source = "def use : forall a:B, (x:a) -> (y:a) -> Int := fun x => fun y => 0;\ndef bad : Int := use 1 true;"
+    source = (
+        "def use : forall a:B, (x:a) -> (y:a) -> Int := Λ a:B => fun x => fun y => 0;\ndef bad : Int := use 1 true;"
+    )
     put(ls, uri, source)
     aeon_adapter.clear_cache(uri)
     result = asyncio.run(aeon_adapter.parse(ls, uri))
     assert len(result.diagnostics) == 1
     diagnostic = result.diagnostics[0]
-    assert diagnostic.message.startswith("Conflicting types in `true`: Int and Bool.")
+    assert diagnostic.message.startswith("Type parameter `a` in `use` must be both Int and Bool.")
     assert diagnostic.range.start.line == 1
     assert diagnostic.range.start.character == source.splitlines()[1].index("true")
     assert str(aeon_adapter.get_errors(uri)[0]) == diagnostic.message
+    assert len(diagnostic.related_information) == 2
 
 
 @pytest.mark.parametrize("unsaved", [False, True])

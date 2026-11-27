@@ -26,7 +26,7 @@ from typing import Dict, List, TextIO, cast
 
 import requests
 from lark.exceptions import UnexpectedCharacters, UnexpectedInput, UnexpectedToken
-from lsprotocol.types import Diagnostic, DiagnosticSeverity
+from lsprotocol.types import Diagnostic, DiagnosticSeverity, DiagnosticRelatedInformation, Location as LSPLocation
 from lsprotocol.types import Position, Range
 
 from z3.z3types import Z3Exception
@@ -425,9 +425,27 @@ async def _parse(
         _refresh_analysis(driver, uri)
 
         for error in errors:
-            from aeon.errors import LiquidTypeCheckingFailedRelation
+            from aeon.errors import LiquidTypeCheckingFailedRelation, UnificationFailedError, UnificationSubtypingError
+            from aeon.utils.location import FileLocation
 
             data = None
+            related = []
+            conflict = error.context if isinstance(error, (UnificationFailedError, UnificationSubtypingError)) else None
+            if conflict is not None:
+                from aeon.utils.pprint import pretty_print_stype
+
+                for requirement in conflict.requirements:
+                    loc = requirement.source.loc if requirement.source is not None else None
+                    if isinstance(loc, FileLocation) and loc.start[0] > 0:
+                        uri_scheme = urllib.parse.urlparse(loc.file).scheme
+                        location_uri = loc.file if uri_scheme else Path(loc.file).resolve().as_uri()
+                        subject = f"Type parameter `{conflict.parameter}`" if conflict.parameter else "The type"
+                        related.append(
+                            DiagnosticRelatedInformation(
+                                location=LSPLocation(uri=location_uri, range=_loc_to_range(loc)),
+                                message=f"{subject} is required to be {pretty_print_stype(requirement.type)} here.",
+                            )
+                        )
             if isinstance(error, LiquidTypeCheckingFailedRelation):
                 from aeon.verification.vcs import alpha_key
 
@@ -456,6 +474,7 @@ async def _parse(
                     severity=DiagnosticSeverity.Error,
                     code="refinement" if data else None,
                     data=data,
+                    related_information=related or None,
                 )
             )
 

@@ -15,7 +15,7 @@ from aeon.core.terms import Term
 from aeon.core.types import Kinding
 from aeon.core.types import Type
 from aeon.sugar.program import ImportAe, STerm
-from aeon.sugar.stypes import SType, STypeConstructor
+from aeon.sugar.stypes import SType
 from aeon.typechecking.context import TypingContext
 from aeon.sugar.program import Decorator
 from aeon.utils.location import FileLocation, Location, SynthesizedLocation
@@ -48,6 +48,60 @@ def _diagnostic_expression(expr: STerm, excerpt: str | None) -> str:
 
     expression = excerpt or pretty_print_sterm(expr, top_level=False)
     return expression if len(expression) <= 120 else expression[:117] + "..."
+
+
+@dataclass
+class TypeRequirement:
+    type: SType
+    source: STerm | None = None
+    excerpt: str | None = field(default=None, repr=False)
+
+    def attach_source(self, source: str, filename: str) -> None:
+        if self.source is not None:
+            self.excerpt = _source_excerpt(self.source.loc, source, filename)
+
+
+@dataclass
+class TypeConflictContext:
+    requirements: tuple[TypeRequirement, TypeRequirement]
+    parameter: str | None = None
+    function: STerm | None = None
+    function_excerpt: str | None = field(default=None, repr=False)
+
+    def attach_source(self, source: str, filename: str) -> None:
+        for requirement in self.requirements:
+            requirement.attach_source(source, filename)
+        if self.function is not None:
+            self.function_excerpt = _source_excerpt(self.function.loc, source, filename)
+
+    def render(self) -> str:
+        from aeon.utils.pprint import pretty_print_stype
+
+        types = [pretty_print_stype(requirement.type) for requirement in self.requirements]
+        if self.parameter:
+            function = (
+                f" in `{_diagnostic_expression(self.function, self.function_excerpt)}`"
+                if self.function is not None
+                else ""
+            )
+            heading = f"Type parameter `{self.parameter}`{function} must be both {types[0]} and {types[1]}."
+        else:
+            heading = f"Conflicting type requirements: {types[0]} and {types[1]}."
+        lines = [heading]
+        for requirement, type_name in zip(self.requirements, types):
+            loc = requirement.source.loc if requirement.source is not None else None
+            if isinstance(loc, FileLocation) and loc.start[0] > 0 and requirement.source is not None:
+                expression = _diagnostic_expression(requirement.source, requirement.excerpt)
+                lines.append(
+                    f"- {type_name} required by `{expression}` at {Path(loc.file).name}:{loc.start[0]}:{loc.start[1]}."
+                )
+            else:
+                lines.append(f"- {type_name} required by the surrounding type constraints.")
+        lines.append(
+            "A type parameter must have one consistent type within an application. "
+            "Check the argument types, type annotations, and explicit type arguments."
+        )
+        return "\n".join(lines)
 
 
 class AeonError(Exception):
@@ -119,14 +173,19 @@ class UnificationSubtypingError(AeonError):
     suptype: SType
     msg: str = field(default_factory=lambda: "")
     source_excerpt: str | None = field(default=None, repr=False)
+    context: TypeConflictContext | None = field(default=None, repr=False)
 
     def attach_source(self, source: str, filename: str) -> None:
         """Quote the user's spelling, not generated binders or eliminators."""
         self.source_excerpt = _source_excerpt(self.position(), source, filename)
+        if self.context is not None:
+            self.context.attach_source(source, filename)
 
     def __str__(self) -> str:
         from aeon.utils.pprint import pretty_print_stype
 
+        if self.context is not None:
+            return self.context.render()
         expected = pretty_print_stype(self.suptype)
         actual = pretty_print_stype(self.subtype)
         if self.expr is None:
@@ -148,31 +207,26 @@ class UnificationFailedError(AeonError):
     expr: STerm | None = None
     resolved_types: tuple[SType, SType] | None = field(default=None, repr=False)
     source_excerpt: str | None = field(default=None, repr=False)
+    context: TypeConflictContext | None = field(default=None, repr=False)
 
     def attach_source(self, source: str, filename: str) -> None:
         self.source_excerpt = _source_excerpt(self.position(), source, filename)
+        if self.context is not None:
+            self.context.attach_source(source, filename)
 
     def __str__(self) -> str:
         from aeon.utils.pprint import pretty_print_stype
 
+        if self.context is not None:
+            return self.context.render()
         first, second = self.resolved_types or (self.conflict1, self.conflict2)
         left, right = pretty_print_stype(first), pretty_print_stype(second)
         context = f" in `{_diagnostic_expression(self.expr, self.source_excerpt)}`" if self.expr is not None else ""
         message = f"Conflicting types{context}: {left} and {right}."
-        for possible_list, element in ((first, second), (second, first)):
-            if (
-                isinstance(possible_list, STypeConstructor)
-                and possible_list.name.name == "List"
-                and len(possible_list.args) == 1
-                and pretty_print_stype(possible_list.args[0]) == pretty_print_stype(element)
-            ):
-                element_name = pretty_print_stype(element)
-                return (
-                    f"Cannot mix a single {element_name} with a list of {element_name} values{context}.\n"
-                    f"Conflicting types: {left} and {right}.\n"
-                    "List.cons adds one element to a list. Use List.append to join two lists."
-                )
-        return f"{message}\nThese uses must agree on one type. Check the arguments and branch results."
+        return (
+            f"{message}\nAll uses of an inferred type must agree. "
+            "Check the argument types, type annotations, and explicit type arguments."
+        )
 
     def position(self) -> Location:
         if self.expr is not None:
