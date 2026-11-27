@@ -2,6 +2,7 @@ import tempfile
 from typing import Any
 
 from aeon.compilation.compile import clear_unit_cache, compile_and_link_program
+from aeon.compilation.session import compilation_entrypoint
 from aeon.core.bind import bind_ctx, bind_ids, bind_term, bind_type
 from aeon.core.parser import parse_term
 from aeon.core.terms import Term
@@ -38,6 +39,8 @@ def _compile_source(source: str, *, is_main_hole: bool = True) -> tuple[Term, Ty
     return core, typing_ctx, metadata
 
 
+# Compilation and its recheck share datatype registrations and reflection state.
+@compilation_entrypoint
 def check_compile(source: str, ty: SType, val=None, extra_vars=None) -> bool:
     if extra_vars:
         ectx = EvaluationContext(evaluation_vars)
@@ -127,6 +130,7 @@ def extract_core(source: str) -> Term:
     return core_ast
 
 
+@compilation_entrypoint
 def check_and_return_core(source) -> tuple[Term, TypingContext, EvaluationContext, Metadata]:
     compiled = _compile_source(source)
     ectx = EvaluationContext(evaluation_vars)

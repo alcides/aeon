@@ -208,3 +208,13 @@ theorem nonnegative (n:Int) : absv n>={bound} := by smt;
 """,
     )
     assert (not errors) == valid
+
+
+@pytest.mark.parametrize("marker,valid", [("", False), ("{r:Flag | _}", True)])
+def test_datatype_definition_equations_require_explicit_reflection(tmp_path, marker, valid):
+    source = f"""
+inductive Flag | off:Flag | on:Flag
+def observe (n:Int) : {marker or "Flag"} := if n=0 then Flag.off else Flag.on;
+theorem body_equation (n:Int | n=0) : observe n = Flag.off := by smt;
+"""
+    assert (not verify(tmp_path, source)) == valid

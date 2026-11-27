@@ -291,14 +291,18 @@ def _reflected_impl_for(
     from aeon.verification.sub import is_first_order_function
 
     constructors = {ctor for group in get_constructor_groups().values() for ctor in group}
+    # Preserve opacity for ordinary datatype/helper definitions. Their new
+    # first-order equations require an explicit reflected result or a checked
+    # recursive metric; the existing primitive/array reflection stays intact.
+    extended_reflection = has_termination_metric or (
+        isinstance(cur_ty, RefinedType) and name in liquid_free_vars(cur_ty.refinement)
+    )
     for v in liquid_free_vars(liq):
-        if (
-            v in allowed
-            or v.name in op_names
-            or datatype_operation(v)
-            or v.name in constructors
-            or is_registered_measure(v.name)
-        ):
+        if v in allowed or v.name in op_names:
+            continue
+        if not extended_reflection:
+            return None
+        if datatype_operation(v) or v.name in constructors or is_registered_measure(v.name):
             continue
         external_type = context.type_of(v) if context is not None else None
         while isinstance(external_type, (TypePolymorphism, RefinementPolymorphism)):

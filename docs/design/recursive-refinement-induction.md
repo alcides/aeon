@@ -28,6 +28,8 @@ and its formal parameters separately. The core extractor translates exhaustive
 inductive eliminators into guarded expressions using SMT datatype recognizers
 and selectors. Pure local values are inlined; native functions, higher-order
 bodies and local recursive functions remain outside the reflection fragment.
+The extended datatype/helper extraction requires a reflected result or checked
+termination metric, preserving the opacity of ordinary unmarked definitions.
 
 Recursive reflection requires a termination metric. Unary integer definitions
 may infer `[argument]`; other definitions use explicit `decreasing_by [...]`.
