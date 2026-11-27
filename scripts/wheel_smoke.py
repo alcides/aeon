@@ -5,14 +5,22 @@ import sys
 import tempfile
 
 SMOKE = """
-from importlib.metadata import version
+from importlib.metadata import metadata, version
 from pathlib import Path
+from urllib.parse import urlsplit
 import aeon
 from loguru import logger
 from aeon.facade.driver import AeonConfig, AeonDriver
 from aeon.synthesis.uis.api import SilentSynthesisUI
 
 logger.remove()
+
+distribution = metadata("AeonLang")
+assert distribution.get("License") == "MIT", distribution.get("License")
+for project_url in distribution.get_all("Project-URL", []):
+    _, url = project_url.split(",", 1)
+    parsed_url = urlsplit(url.strip())
+    assert parsed_url.scheme in ("http", "https") and parsed_url.netloc, project_url
 
 package = Path(aeon.__file__).resolve().parent
 assert "site-packages" in str(package), package

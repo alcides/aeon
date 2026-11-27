@@ -1,11 +1,12 @@
 [project]
 name = "AeonLang"
-version = "4.11.0"
+version = "4.11.1"
 description = "Language with Refinement Types"
 authors = [
     { name = "Alcides Fonseca", email = "me@alcidesfonseca.com" }
 ]
 readme = "Readme.md"
+license = { text = "MIT" }
 requires-python = ">=3.10, <4"
 
 keywords = ["programming language, liquid types"]
@@ -104,8 +105,6 @@ dev = [
 homepage = "https://github.com/alcides/aeon"
 repository = "https://github.com/alcides/aeon"
 documentation = "https://github.com/alcides/aeon"
-
-license = "MIT"
 
 [build-system]
 build-backend = 'setuptools.build_meta'
