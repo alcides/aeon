@@ -19,7 +19,7 @@ wheels = [
 
 [[package]]
 name = "aeonlang"
-version = "4.11.0"
+version = "4.11.1"
 source = { editable = "." }
 dependencies = [
     { name = "cvc5" },
