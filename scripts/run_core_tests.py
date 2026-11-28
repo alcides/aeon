@@ -23,6 +23,8 @@ CORE_TESTS = [
     "tests/smt_modulo_runtime_test.py",
     "tests/smt_datatype_test.py",
     "tests/recursion_soundness_test.py",
+    "tests/recursive_reflection_test.py",
+    "tests/reflect_underscore_test.py",
     "tests/existentials_replace_anf_test.py",
     "tests/polymorphic_subtyping_soundness_test.py",
     "tests/synthesis_list_refinement_soundness_test.py",

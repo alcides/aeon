@@ -117,27 +117,30 @@ def main (_:Int) : Int := 0"""
         reflect_underscore_in_definitions(parse_program(src).definitions)
 
 
-def test_recursive_body_rejected_with_clear_error():
+def test_recursive_body_with_inferred_unbounded_metric_fails():
     src = """def fact (n:Int) : {r:Int | _} := n * fact (n - 1);
 def main (_:Int) : Int := 0"""
-    with pytest.raises(TypeError, match="recursive"):
-        reflect_underscore_in_definitions(parse_program(src).definitions)
+    assert _verify(src)
 
 
-def test_recursive_body_under_if_rejected():
-    # Regression (issue #291): the self-reference guard must see through `if`;
-    # otherwise this slips past and reaches the solver as an unprovable goal.
-    src = """def f (n:Int) : {r:Int | _} := if n = 0 then 0 else f (n - 1) + 2;
+def test_recursive_body_under_if_reflects():
+    src = """def f (n:Int | n >= 0) : {r:Int | _} := if n = 0 then 0 else f (n - 1) + 2;
+def check : {b:Bool | b} := f 3 = 6;
 def main (_:Int) : Int := 0"""
-    with pytest.raises(TypeError, match="recursive"):
-        reflect_underscore_in_definitions(parse_program(src).definitions)
+    assert _verify(src) == []
 
 
-def test_recursive_body_under_let_rejected():
-    # Regression (issue #291): the guard must also see through `let`.
-    src = """def g (n:Int) : {r:Int | _} := (let m := g (n - 1) in m + 1);
+def test_recursive_body_under_let_reflects():
+    src = """def g (n:Int | n >= 0) : {r:Int | _} :=
+    if n = 0 then 0 else (let m := g (n - 1) in m + 1);
+def check : {b:Bool | b} := g 3 = 3;
 def main (_:Int) : Int := 0"""
-    with pytest.raises(TypeError, match="recursive"):
+    assert _verify(src) == []
+
+
+def test_recursive_reflection_requires_a_metric_when_none_can_be_inferred():
+    src = """def loop (b:Bool) : {r:Int | _} := loop b;"""
+    with pytest.raises(TypeError, match="requires a termination metric"):
         reflect_underscore_in_definitions(parse_program(src).definitions)
 
 
@@ -148,3 +151,9 @@ def test_explicit_recurrence_with_metric_verifies():
     if n = 0 then 0 else double (n - 1) + 2;
 def main (_:Int) : Int := 0"""
     assert _verify(src) == []
+
+
+def test_recursive_value_cannot_use_a_vacuous_metric():
+    src = "def impossible : {r:Int | _ && r > r} decreasing_by [0] := impossible;"
+    with pytest.raises(TypeError, match="recursive value"):
+        reflect_underscore_in_definitions(parse_program(src).definitions)

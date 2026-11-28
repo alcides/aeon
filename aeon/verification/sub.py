@@ -153,6 +153,17 @@ def _has_concrete_base_result(ty: Type) -> bool:
     return isinstance(v, TypeConstructor)
 
 
+def _reflection_signature(ty: Type) -> Type:
+    """Retain the domain where a body equation is valid, without assuming its postcondition."""
+    while isinstance(ty, (TypePolymorphism, RefinementPolymorphism)):
+        ty = ty.body
+    if isinstance(ty, AbstractionType):
+        return AbstractionType(
+            ty.var_name, lower_constraint_type_keep_refinements(ty.var_type), _reflection_signature(ty.type)
+        )
+    return lower_constraint_type(ty)
+
+
 def implication_constraint(
     name: Name,
     ty: Type,
@@ -191,7 +202,9 @@ def implication_constraint(
                 assert isinstance(absty, AbstractionType)
                 if reflected_impl is not None:
                     (params, body) = reflected_impl
-                    return ReflectedFunctionDeclaration(name, absty, params, body, c)
+                    signature = absty if keep_refinements else _reflection_signature(ty)
+                    assert isinstance(signature, AbstractionType)
+                    return ReflectedFunctionDeclaration(name, signature, params, body, c)
                 return UninterpretedFunctionDeclaration(name, absty, c)
             else:
                 return c
@@ -203,7 +216,9 @@ def implication_constraint(
                 return c
             if reflected_impl is not None:
                 (params, body) = reflected_impl
-                return ReflectedFunctionDeclaration(name, lowered, params, body, c)
+                signature = lowered if keep_refinements else _reflection_signature(ty)
+                assert isinstance(signature, AbstractionType)
+                return ReflectedFunctionDeclaration(name, signature, params, body, c)
             # Declare first-order polymorphic functions (e.g. typeclass method
             # projections) as uninterpreted so their applications can appear in
             # refinements. Type variables remain as ``TypeVar`` in arg positions;

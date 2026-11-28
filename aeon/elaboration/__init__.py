@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Iterator
 from contextvars import ContextVar
 from itertools import combinations
 from aeon.core.types import Kind, ArrowKind, Kinding
@@ -9,6 +10,8 @@ from aeon.errors import (
     InstanceResolutionError,
     MethodResolutionError,
     NonOrderableComparisonError,
+    TypeConflictContext,
+    TypeRequirement,
     UnificationFailedError,
     UnificationKindError,
     UnificationSubtypingError,
@@ -51,6 +54,7 @@ from aeon.sugar.substitutions import (
 )
 from aeon.sugar.equality import term_equality
 from aeon.utils.name import Name, fresh_counter
+from aeon.utils.location import FileLocation
 from aeon.sugar.ast_helpers import st_top, st_unit, st_bool
 
 
@@ -189,6 +193,10 @@ class UnificationVar(SType):
     lower: list[SType] = field(default_factory=list)
     upper: list[SType] = field(default_factory=list)
     kind: Kinding | None = None
+    lower_sources: dict[int, STerm] = field(default_factory=dict, repr=False, compare=False)
+    upper_sources: dict[int, STerm] = field(default_factory=dict, repr=False, compare=False)
+    parameter: str | None = field(default=None, repr=False, compare=False)
+    function: STerm | None = field(default=None, repr=False, compare=False)
 
     def constrain_upper(self, ty):
         bty = base(ty)
@@ -204,6 +212,23 @@ class Union(SType):
 @dataclass
 class Intersection(SType):
     intersected: list[SType]
+
+
+def _polymorphic_variable(
+    ctx: ElaborationTypingContext,
+    polymorphism: STypePolymorphism,
+    function: STerm | None,
+    *,
+    preserve_kind: bool = True,
+) -> UnificationVar:
+    while isinstance(function, (STypeApplication, SRefinementApplication, SApplication)):
+        function = function.fun if isinstance(function, SApplication) else function.body
+    return UnificationVar(
+        ctx.fresh_typevar(),
+        kind=polymorphism.kind if preserve_kind else None,
+        parameter=polymorphism.name.name,
+        function=function if isinstance(function, SVar) else None,
+    )
 
 
 _direction_memo: ContextVar[dict[int, tuple[SType, list[SType]]] | None] = ContextVar(
@@ -270,40 +295,46 @@ def elaborate_foralls(e: STerm) -> STerm:
             assert False, f"Could not elaborate {e} ({type(e)})"
 
 
-def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
+def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType, source: STerm | None = None) -> list[SType]:
+    """Keep the expression responsible for a constraint until it is solved.
+
+    Polymorphic arguments can fail only when a later result/branch constrains
+    their type. Bound provenance must survive that propagation; blaming the
+    later generated eliminator or lambda loses the actual argument's span.
+    """
     match (sub, sup):
         case (AppliedType(sh, sa), AppliedType(th, ta)) if len(sa) == len(ta):
-            unify(ctx, sh, th)
+            unify(ctx, sh, th, source)
             for a, b in zip(sa, ta):
-                unify(ctx, a, b)
+                unify(ctx, a, b, source)
             return []
         case (AppliedType(head, args), STypeConstructor(name, actual)) if len(actual) >= len(args):
             split = len(actual) - len(args)
             constructor: SType = STypeConstructor(name, actual[:split])
             if split == 0 and any(isinstance(e, ElabTypeVarBinder) and e.name == name for e in ctx.entries):
                 constructor = STypeVar(name)
-            unify(ctx, head, constructor)
+            unify(ctx, head, constructor, source)
             for a, b in zip(args, actual[split:]):
-                unify(ctx, a, b)
+                unify(ctx, a, b, source)
             return []
         case (STypeConstructor(), AppliedType()):
-            return unify(ctx, sup, sub)
+            return unify(ctx, sup, sub, source)
         case (_, STypeConstructor(Name("Top", 0))):
             return []
         case (STypeConstructor(subn, subargs), STypeConstructor(supn, supargs)):
             if subn != supn:
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
             elif len(subargs) != len(supargs):
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
             else:
                 rt = []
                 for subarg, suparg in zip(subargs, supargs):
-                    rt += unify(ctx, subarg, suparg)
+                    rt += unify(ctx, subarg, suparg, source)
                 return rt
         case (SRefinedType(_, ty, _), _):
-            return unify(ctx, ty, sup)
+            return unify(ctx, ty, sup, source)
         case (_, SRefinedType(_, ty, _)):
-            return unify(ctx, sub, ty)
+            return unify(ctx, sub, ty, source)
         case (UnificationVar(_, _, _), _):
             # Skip if this exact bound is already recorded — propagation is
             # idempotent, and re-adding lets two-way ``?X <: ?Y`` / ``?Y <: ?X``
@@ -312,65 +343,77 @@ def unify(ctx: ElaborationTypingContext, sub: SType, sup: SType) -> list[SType]:
                 return []
             existing_bounds = list(sub.lower + sub.upper)
             sub.upper.append(sup)
+            if source is not None:
+                sub.upper_sources[id(sup)] = source
             _invalidate_direction_memo(sub)
-            if isinstance(sub.kind, ArrowKind):
-                for bound in existing_bounds:
-                    if bound is not sup and not isinstance(bound, UnificationVar):
-                        unify(ctx, bound, sup)
-                        unify(ctx, sup, bound)
-            for l in sub.lower:
-                unify(ctx, l, sup)
+            try:
+                if isinstance(sub.kind, ArrowKind):
+                    for bound in existing_bounds:
+                        if bound is not sup and not isinstance(bound, UnificationVar):
+                            unify(ctx, bound, sup, source)
+                            unify(ctx, sup, bound, source)
+                for l in sub.lower:
+                    unify(ctx, l, sup, sub.lower_sources.get(id(l), source))
+            except UnificationSubtypingError as error:
+                _attach_polymorphic_context(error, sub)
+                raise
             return []
         case (_, UnificationVar(_, _, _)):
             if any(s is sub for s in sup.lower):
                 return []
             existing_bounds = list(sup.lower + sup.upper)
             sup.lower.append(sub)
+            if source is not None:
+                sup.lower_sources[id(sub)] = source
             _invalidate_direction_memo(sup)
-            if isinstance(sup.kind, ArrowKind):
-                for bound in existing_bounds:
-                    if bound is not sub and not isinstance(bound, UnificationVar):
-                        unify(ctx, bound, sub)
-                        unify(ctx, sub, bound)
-            for u in sup.upper:
-                unify(ctx, sub, u)
+            try:
+                if isinstance(sup.kind, ArrowKind):
+                    for bound in existing_bounds:
+                        if bound is not sub and not isinstance(bound, UnificationVar):
+                            unify(ctx, bound, sub, source)
+                            unify(ctx, sub, bound, source)
+                for u in sup.upper:
+                    unify(ctx, sub, u, source)
+            except UnificationSubtypingError as error:
+                _attach_polymorphic_context(error, sup)
+                raise
             return []
 
         case (STypePolymorphism(name, _, body), _):
-            u = UnificationVar(ctx.fresh_typevar())
+            u = _polymorphic_variable(ctx, sub, source, preserve_kind=False)
             nty = type_substitution(sub.body, sub.name, u)
-            rt = unify(ctx, nty, sup)
+            rt = unify(ctx, nty, sup, source)
             return [nty] + rt
         case (_, STypePolymorphism(name, _, body)):
-            u = UnificationVar(ctx.fresh_typevar())
-            unify(ctx, sub, type_substitution(body, name, u))
+            u = _polymorphic_variable(ctx, sup, source, preserve_kind=False)
+            unify(ctx, sub, type_substitution(body, name, u), source)
             return []
 
         case (SAbstractionType(_, sub_vtype, sub_rtype), SAbstractionType(_, sup_vtype, sup_rtype)):
-            unify(ctx, sup_vtype, sub_vtype)
-            unify(ctx, sub_rtype, sup_rtype)
+            unify(ctx, sup_vtype, sub_vtype, source)
+            unify(ctx, sub_rtype, sup_rtype, source)
             return []
 
         case (STypeVar(subn), STypeVar(supn)):
             if subn == supn:
                 return []
             else:
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
 
         case (STypeConstructor(name1, args), STypeConstructor(name2, args2)):
             if name1 != name2:
-                raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+                raise UnificationSubtypingError(source, sub, sup)
             elif len(args) != len(args2):
                 raise UnificationSubtypingError(
-                    SHole(Name("todo")), sub, sup, msg="Type constructor with different number of arguments."
+                    source, sub, sup, msg="Type constructor with different number of arguments."
                 )
             else:
                 for a1, a2 in zip(args, args2):
-                    unify(ctx, a1, a2)
+                    unify(ctx, a1, a2, source)
                 return []
 
         case _:
-            raise UnificationSubtypingError(SHole(Name("todo")), sub, sup)
+            raise UnificationSubtypingError(source, sub, sup)
 
 
 def _resolve_uvars(ty: SType) -> SType:
@@ -511,7 +554,7 @@ def unify_single(origin: str, xs: list[SType]) -> SType:
             for snd, snd_r in zip(other[1:], resolved[1:]):
                 merged = _merge_inferred_refinements(fst_r, snd_r)
                 if merged is None:
-                    raise UnificationFailedError(origin, fst_original, snd)
+                    raise UnificationFailedError(origin, fst_original, snd, resolved_types=(fst_r, snd_r))
                 fst_r = merged
             return fst_r
 
@@ -519,9 +562,9 @@ def unify_single(origin: str, xs: list[SType]) -> SType:
 def remove_unions_and_intersections(ctx: ElaborationTypingContext, ty: SType) -> SType:
     match ty:
         case Union(united):
-            return unify_single(f"the union type {ty}", united)
+            return unify_single("an inferred type", united)
         case Intersection(intersected):
-            return unify_single(f"the intersection type {ty}", intersected)
+            return unify_single("an inferred type", intersected)
         case SAbstractionType(name, vtype, rtype, loc):
             vtype = remove_unions_and_intersections(ctx, vtype)
             return SAbstractionType(
@@ -655,7 +698,7 @@ def wrap_unification(ctx: ElaborationTypingContext, t: STerm, us: list[SType]) -
 
 def ensure_not_polymorphism(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> tuple[STerm, SType]:
     while isinstance(ty, STypePolymorphism):
-        u = UnificationVar(ctx.fresh_typevar(), kind=ty.kind)
+        u = _polymorphic_variable(ctx, ty, t)
         ty = type_substitution(ty.body, ty.name, u)
         t = STypeApplication(t, u)
     return t, ty
@@ -688,9 +731,11 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             (inner, innert) = elaborate_synth(ctx, body)
             assert isinstance(innert, STypePolymorphism)
 
-            u = UnificationVar(ctx.fresh_typevar(), kind=innert.kind)
+            u = _polymorphic_variable(ctx, innert, body)
             u.upper.append(ty)
             u.lower.append(ty)
+            u.lower_sources[id(ty)] = t
+            u.upper_sources[id(ty)] = t
             _invalidate_direction_memo(u)
 
             nty = type_substitution(innert.body, innert.name, u)
@@ -735,8 +780,8 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             nthen, nthen_type = elaborate_synth(ctx, then)
             nelse, nelse_type = elaborate_synth(ctx, otherwise)
             u = UnificationVar(ctx.fresh_typevar())
-            unify(ctx, nthen_type, u)
-            unify(ctx, nelse_type, u)
+            unify(ctx, nthen_type, u, then)
+            unify(ctx, nelse_type, u, otherwise)
             return SIf(ncond, nthen, nelse), u
         case SApplication() if (_spine := _method_call_spine(t)) is not None:
             method, receiver, call_args = _spine
@@ -748,7 +793,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
         case SApplication(fun, arg):
             (nfun, nfun_type) = elaborate_synth(ctx, fun)
             while isinstance(nfun_type, STypePolymorphism):
-                u = UnificationVar(ctx.fresh_typevar(), kind=nfun_type.kind)
+                u = _polymorphic_variable(ctx, nfun_type, fun)
                 nfun = STypeApplication(nfun, u)
                 nfun_type = type_substitution(nfun_type.body, nfun_type.name, u)
             while isinstance(nfun_type, SRefinementPolymorphism):
@@ -775,7 +820,7 @@ def elaborate_synth(ctx: ElaborationTypingContext, t: STerm) -> tuple[STerm, STy
             raise UnificationUnknownTypeError(t)
 
 
-def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm:
+def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType, source: STerm | None = None) -> STerm:
     if isinstance(t, STypeAbstraction) and isinstance(ty, UnificationVar):
         resolved_type = _resolve_uvars(ty)
         if isinstance(resolved_type, STypePolymorphism):
@@ -819,7 +864,7 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             nbody = elaborate_check(nctx, body, nty)
             return STypeAbstraction(name, kind, nbody, loc=loc)
         case (SRefinementAbstraction(pname, sort, body, loc=loc), SRefinementPolymorphism(rname, rsort, tbody)):
-            unify(ctx, sort, rsort)
+            unify(ctx, sort, rsort, t)
             nty = substitute_refinement_param_in_stype(tbody, rname, pname)
             nbody = elaborate_check(ctx.with_var(pname, sort), body, nty)
             return SRefinementAbstraction(pname, sort, nbody, loc=loc)
@@ -845,19 +890,21 @@ def elaborate_check(ctx: ElaborationTypingContext, t: STerm, ty: SType) -> STerm
             return elaborate_check(ctx, _build_method_call(ctx, method, receiver, call_args, t.loc), ty)
         case (SApplication(fun, arg, loc=loc), _):
             u = UnificationVar(ctx.fresh_typevar())
-            nfun = elaborate_check(ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty))
+            nfun = elaborate_check(
+                ctx, fun, SAbstractionType(Name("_", fresh_counter.fresh()), u, ty), source=source or t
+            )
             narg = elaborate_check(ctx, arg, u)
             return SApplication(nfun, narg, loc=loc)
         case _:
             (c, s) = elaborate_synth(ctx, t)
             (c, s) = get_rid_of_polymorphism(ctx, c, s, ty)
-            unify(ctx, s, ty)
+            unify(ctx, s, ty, source or t)
             return c
 
 
 def get_rid_of_polymorphism(ctx: ElaborationTypingContext, c: STerm, s: SType, ty: SType) -> tuple[STerm, SType]:
     while isinstance(s, STypePolymorphism) and not isinstance(ty, STypePolymorphism):
-        u = UnificationVar(ctx.fresh_typevar(), kind=s.kind)
+        u = _polymorphic_variable(ctx, s, c)
         c = STypeApplication(c, u)
         s = type_substitution(s.body, s.name, u)
     while isinstance(s, SRefinementPolymorphism) and not isinstance(ty, SRefinementPolymorphism):
@@ -1004,6 +1051,122 @@ def _base_subtype(sub: SType, sup: SType) -> bool:
             return sub == sup
 
 
+def _type_graph(ty: SType) -> Iterator[SType]:
+    """Walk inference bounds without revisiting cycles or shared subgraphs."""
+    pending = [ty]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        yield current
+        match current:
+            case UnificationVar():
+                pending.extend(reversed(current.lower + current.upper))
+            case STypeConstructor(_, args) | AppliedType(_, args):
+                pending.extend(reversed(args))
+                if isinstance(current, AppliedType):
+                    pending.append(current.head)
+            case SAbstractionType(_, argument, result):
+                pending.extend((result, argument))
+            case SRefinedType(_, inner, _) | STypePolymorphism(_, _, inner):
+                pending.append(inner)
+            case SRefinementPolymorphism(_, sort, body):
+                pending.extend((body, sort))
+            case Union(united):
+                pending.extend(reversed(united))
+            case Intersection(intersected):
+                pending.extend(reversed(intersected))
+
+
+def _matches_requirement(bound: SType, resolved: SType) -> bool:
+    if isinstance(bound, UnificationVar):
+        return False
+    try:
+        return _same_inferred_type(_resolve_uvars(bound), resolved)
+    except RecursionError:
+        # Recursive bounds need not be printable to recover another origin.
+        return False
+
+
+def _conflict_context(
+    ty: SType,
+    bounds: tuple[SType, SType],
+    resolved: tuple[SType, SType],
+    primary: STerm | None,
+) -> TypeConflictContext:
+    """Explain arbitrary polymorphic constraints using their original uses."""
+    variables = [node for node in _type_graph(ty) if isinstance(node, UnificationVar)]
+    location = primary.loc if primary is not None else None
+    sources: list[STerm | None] = []
+    for bound, requirement in zip(bounds, resolved):
+        candidates = [
+            source
+            for variable in variables
+            for actual, origins in (
+                [(actual, variable.lower_sources) for actual in variable.lower]
+                + [(actual, variable.upper_sources) for actual in variable.upper]
+            )
+            if (actual is bound or _matches_requirement(actual, requirement))
+            and (source := origins.get(id(actual))) is not None
+            and isinstance(source.loc, FileLocation)
+        ]
+
+        def source_rank(source: STerm):
+            loc = source.loc
+            sl, sc = loc.get_start()
+            el, ec = loc.get_end()
+            same_file = (
+                isinstance(location, FileLocation) and isinstance(loc, FileLocation) and loc.file == location.file
+            )
+            return same_file, -(el - sl), -(ec - sc), sl, sc
+
+        sources.append(max(candidates, key=source_rank) if candidates else None)
+
+    primary = primary or sources[1] or sources[0]
+    location = primary.loc if primary is not None else None
+    owners = [
+        variable
+        for variable in variables
+        if variable.parameter is not None
+        and all(
+            any(_matches_requirement(bound, requirement) for bound in extract_direction(variable))
+            for requirement in resolved
+        )
+    ]
+
+    def owner_rank(variable: UnificationVar):
+        direct = all(
+            any(_matches_requirement(bound, requirement) for bound in variable.lower) for requirement in resolved
+        )
+        loc = variable.function.loc if variable.function is not None else None
+        relevant = (
+            isinstance(loc, FileLocation)
+            and isinstance(location, FileLocation)
+            and loc.file == location.file
+            and loc.start <= location.start
+        )
+        return direct, relevant, loc.get_start() if relevant and loc is not None else (0, 0)
+
+    owner = max(owners, key=owner_rank) if owners else None
+    return TypeConflictContext(
+        requirements=(TypeRequirement(resolved[0], sources[0]), TypeRequirement(resolved[1], sources[1])),
+        parameter=owner.parameter if owner is not None else None,
+        function=owner.function if owner is not None else None,
+    )
+
+
+def _attach_polymorphic_context(error: UnificationSubtypingError, variable: UnificationVar) -> None:
+    if error.context is not None:
+        return
+    bounds = (error.subtype, error.suptype)
+    resolved = (_resolve_uvars(bounds[0]), _resolve_uvars(bounds[1]))
+    context = _conflict_context(variable, bounds, resolved, error.expr)
+    if context.parameter is not None:
+        error.context = context
+
+
 def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> SType:
     # Source: https://dl.acm.org/doi/pdf/10.1145/3409006
     nt, unions, intersections = replace_unification_variables(ctx, ty)
@@ -1049,7 +1212,19 @@ def handle_unification_in_type(ctx: ElaborationTypingContext, ty: SType) -> STyp
         intersections,
         to_be_removed,
     )
-    return remove_unions_and_intersections(ctx, nt)
+    try:
+        return remove_unions_and_intersections(ctx, nt)
+    except UnificationFailedError as error:
+        if error.context is None:
+            error.context = _conflict_context(
+                ty,
+                (error.conflict1, error.conflict2),
+                error.resolved_types or (error.conflict1, error.conflict2),
+                error.expr,
+            )
+        if error.expr is None:
+            error.expr = error.context.requirements[1].source or error.context.requirements[0].source
+        raise
 
 
 def elaborate_remove_unification(ctx: ElaborationTypingContext, t: STerm) -> STerm:

@@ -329,11 +329,32 @@ def abs (x:Int) : {y:Int | _} := if x < 0 then (0 - x) else x;
 def double_nat (x:{v:Int | v >= 0}) : {y:Int | _ && y >= 0} := x + x;
 ```
 
-Reflection is rejected with a clear error when the body cannot be encoded as a
-predicate: `native` and `uninterpreted` definitions have no symbolic body,
-self-referential (recursive) reflection is not yet supported, and some constructs
-are not expressible in a refinement. See [`examples/syntax/reflect_underscore.ae`](https://github.com/alcides/aeon/blob/master/examples/syntax/reflect_underscore.ae)
-for a full walkthrough.
+Recursive functions can also be reflected. Supply a well-founded termination
+metric (a unary integer function can infer its argument as the metric):
+
+```aeon
+def count (n:Int | n >= 0) : {r:Int | _} decreasing_by [n] :=
+  if n = 0 then 0 else count (n - 1) + 1;
+theorem step (n:Int | n > 0) : count n = count (n - 1) + 1 := by smt;
+```
+
+Aeon checks termination independently of the function's reflected equation.
+Exhaustive datatype matches are reflected using constructor tests and field
+selectors. Proof by Logical Evaluation (PLE) adds equations for calls whose
+input preconditions and branch guards follow from the available facts, retaining
+recursive calls on unknown inputs as logical function applications. This works
+on symbolic constructor cases as well as concrete values. Unfolding is bounded;
+reaching a limit leaves a proof obligation to be discharged, rather than
+accepting it.
+
+Reflection does not invent an induction hypothesis. Use `induction` (or a
+terminating recursive lemma) for properties that require induction. See
+[`examples/syntax/recursive_reflection.ae`](https://github.com/alcides/aeon/blob/master/examples/syntax/recursive_reflection.ae)
+for a reflected reverse function and its length-preservation proof.
+
+Native/uninterpreted bodies, higher-order bodies, and locally recursive bindings
+cannot be reflected. Pure local value bindings are inlined. `_` can still be
+combined with manually stated refinements; those properties are checked too.
 
 Before SMT solving, Aeon also simplifies generated verification constraints (boolean identities, redundant equalities, and repeated trivial structure), which helps both solver performance and error-message readability.
 

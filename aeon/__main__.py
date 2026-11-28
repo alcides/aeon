@@ -310,7 +310,7 @@ def _error_kind_and_hint(err: AeonError) -> tuple[str, str | None]:
         case UnificationSubtypingError():
             return "Type mismatch", "The expression's type is incompatible with the expected type."
         case UnificationFailedError():
-            return "Unification error", "The same value is being constrained to two incompatible types."
+            return "Conflicting types", "Make the conflicting uses agree on one type."
         case UnificationKindError():
             return "Kind mismatch", "A type was used at the wrong kind."
         case UnificationUnknownTypeError():

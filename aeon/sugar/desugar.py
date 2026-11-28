@@ -203,9 +203,40 @@ def _unreflectable_construct(body: STerm) -> str | None:
 
     Reflection via `_` strengthens the return type with ``binder == body``, so the
     body has to be a liquid term (variables, literals, applications, and
-    ``if``/``then``/``else`` which lowers to ``ite``). ``match`` and binders
-    (``let``/``\\``) are not yet supported.
+    conditionals and exhaustive matches). Local values are inlined; higher-order
+    and locally recursive definitions remain outside the first-order fragment.
     """
+    # Some dependency ordering passes have already lowered matches to recursor
+    # applications. Only their field handlers may contain lambdas.
+    from aeon.verification.constructor_registry import (
+        get_constructor_groups,
+        get_constructor_order,
+        get_constructor_fields,
+    )
+
+    head = body
+    arguments: list[STerm] = []
+    while isinstance(head, (SApplication, STypeApplication, SRefinementApplication)):
+        if isinstance(head, SApplication):
+            arguments.insert(0, head.arg)
+            head = head.fun
+        else:
+            head = head.body
+    datatype = next(
+        (t for t in get_constructor_groups() if isinstance(head, SVar) and head.name.name == t + "_rec"), None
+    )
+    if datatype is not None:
+        constructors = get_constructor_order(datatype) or []
+        if len(arguments) != len(constructors) + 1:
+            return "partial match"
+        bad = _unreflectable_construct(arguments[0])
+        for ctor, handler in zip(constructors, arguments[1:]):
+            for _ in get_constructor_fields(ctor) or []:
+                if not isinstance(handler, SAbstraction):
+                    return "match handler"
+                handler = handler.body
+            bad = bad or _unreflectable_construct(handler)
+        return bad
     match body:
         case SVar() | SLiteral() | SQualifiedVar() | SHole():
             return None
@@ -217,9 +248,15 @@ def _unreflectable_construct(body: STerm) -> str | None:
             return (
                 _unreflectable_construct(cond) or _unreflectable_construct(then) or _unreflectable_construct(otherwise)
             )
-        case SMatch():
-            return "match"
-        case SLet() | SRec():
+        case STypeApplication(expr, _, _) | SRefinementApplication(expr, _, _):
+            return _unreflectable_construct(expr)
+        case SMatch(scrutinee, branches, _):
+            return _unreflectable_construct(scrutinee) or next(
+                (bad for b in branches if (bad := _unreflectable_construct(b.body)) is not None), None
+            )
+        case SLet(_, value, body, _):
+            return _unreflectable_construct(value) or _unreflectable_construct(body)
+        case SRec():
             return "let"
         case SAbstraction():
             return "lambda"
@@ -248,22 +285,48 @@ def reflect_underscore_in_definitions(defs: list[Definition]) -> list[Definition
                 f"Cannot reflect the body of '{d.name.name}' with `_`: native and uninterpreted "
                 "functions have no encodable implementation."
             )
-        if _mentions_function(d.body, d.name):
-            raise TypeError(
-                f"Cannot reflect the recursive body of '{d.name.name}' with `_`: "
-                "self-referential reflection would require inductive reasoning (see issue #328). "
-                "Instead, state the recurrence explicitly in the return refinement "
-                "(e.g. `: {r:Int | r == n + n} decreasing_by [n]`), which the recursive "
-                "call's declared type discharges soundly."
-            )
+        recursive = _mentions_function(d.body, d.name)
+        if recursive:
+            if not d.args:
+                raise TypeError(
+                    f"Cannot reflect recursive value '{d.name.name}': recursive reflection requires function arguments "
+                    "and a checked termination metric."
+                )
+            d = definition_with_inferred_decreasing(d)
+            if not d.decreasing_by:
+                raise TypeError(
+                    f"Recursive reflection of '{d.name.name}' requires a termination metric. "
+                    "Add `decreasing_by [measure]`; Aeon must prove it decreases and stays non-negative."
+                )
         bad = _unreflectable_construct(d.body)
         if bad is not None:
             raise TypeError(
                 f"Cannot reflect the body of '{d.name.name}' with `_`: "
                 f"'{bad}' is not expressible in a refinement predicate."
             )
+        # Keep an application identity in the public type. The checked core
+        # implementation supplies the defining equations, including matches;
+        # embedding the body here would expose pattern binders in refinements
+        # and expand recursive calls before termination has been checked.
+        if recursive or _reflection_needs_equations(d.body):
+            call: STerm = SVar(d.name, loc=d.body.loc)
+            for arg, _ in d.args:
+                call = SApplication(call, SVar(arg, loc=d.body.loc), loc=d.body.loc)
+            new_ref, _ = _expand_reflection_marker(rtype.refinement, rtype.name, call)
         out.append(replace(d, type=SRefinedType(rtype.name, rtype.type, new_ref, loc=rtype.loc)))
     return out
+
+
+def _reflection_needs_equations(body: STerm) -> bool:
+    if isinstance(body, (SMatch, SLet, SAbstraction)):
+        return True
+    if is_dataclass(body):
+        return any(
+            _reflection_needs_equations(child)
+            for field in fields(body)
+            if isinstance(child := getattr(body, field.name), STerm)
+        )
+    return False
 
 
 def definition_with_inferred_decreasing(d: Definition) -> Definition:

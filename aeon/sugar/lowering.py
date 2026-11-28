@@ -178,9 +178,8 @@ def liquefy(t: STerm, available_vars: list[tuple[Name, TypeConstructor | TypeVar
             # abstraction, which liquefies to None, so the whole term drops to
             # None. Sound reasoning about recursive functions instead flows
             # through termination-gated reflection (see `_reflected_impl_for`
-            # in typeinfer and `ReflectedFunctionDeclaration`). Full induction
-            # over recursive refinements is intentionally not done here — see the
-            # scope decision in docs/design/recursive-refinement-induction.md
+            # in typeinfer and `ReflectedFunctionDeclaration`). Explicit induction is handled by recursive proof functions,
+            # not by liquefaction. See docs/design/recursive-refinement-induction.md
             # (issue #328).
             lval = liquefy(val, available_vars)
             lbody = liquefy(body, available_vars)
