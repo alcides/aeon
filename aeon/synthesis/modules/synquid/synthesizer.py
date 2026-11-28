@@ -31,6 +31,7 @@ def get_elapsed_time(start_time) -> float:
 
 class SynquidSynthesizer(Synthesizer):
     produces_typed_candidates = True
+    supports_deterministic_budget = True
 
     def __init__(self, seed: int = 0):
         self.seed = seed

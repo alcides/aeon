@@ -36,6 +36,8 @@ class ArboristSynthesizer(ProgramSynthesizer):
     accumulators. Only inspecting the hole's typing context would lose them.
     """
 
+    supports_deterministic_budget = True
+
     supports_optimization = False
     supports_candidate_enumeration = True
 

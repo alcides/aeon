@@ -238,6 +238,12 @@ class SMTQuery:
             return Status.UNSUPPORTED
 
     def configure(self, solver: z3.Solver) -> None:
+        from aeon.synthesis.budgets import current_budget
+        from aeon.verification.limits import set_solver_limits
+
+        if current_budget() is not None:
+            set_solver_limits(solver, 0)
+            return
         remaining = max(1, int((self.deadline - monotonic()) * 1000)) if self.deadline != float("inf") else 0
         timeout = min(self.timeout_ms, remaining) if self.timeout_ms and remaining else self.timeout_ms or remaining
         solver.set(timeout=timeout)

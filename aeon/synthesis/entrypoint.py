@@ -71,6 +71,13 @@ from aeon.synthesis.modules.tdsyn.helpers import base_type_of, get_return_type
 from aeon.synthesis.decorators import Goal
 from aeon.synthesis.resource_meters import measure_cputime, measure_energy
 from aeon.synthesis.example_adapters import adapt_example_metadata
+from aeon.synthesis.budgets import (
+    budget_context,
+    evaluate_deterministically,
+    pool_budget_options,
+    run_budgeted_search,
+    search_budget_label,
+)
 from aeon.synthesis.program_specifications import ProgramSpecifications
 from aeon.synthesis.typecheck_cache import TypecheckingCache
 from aeon.synthesis.specifications import CHECKABLE_GOALS, checked_validator, require_checkable
@@ -369,7 +376,7 @@ def _synthesize_one(
     # the synthesizer never builds them (replaces the __internal__ filter).
     tyctx = shadow_fitness_helpers(tyctx, metadata)
     tyctx = without_excluded_names(tyctx)
-    ui.start(tyctx, ectx, hole_name.name, ty, budget)
+    ui.start(tyctx, ectx, hole_name.name, ty, search_budget_label(synthesizer, budget))
 
     replace = make_program(prog, hole_name)
     validator = make_validator(ctx, replace, metadata)
@@ -377,9 +384,13 @@ def _synthesize_one(
     from aeon.synthesis.modules.noisy import NoisySynthesizer
 
     if isinstance(synthesizer, NoisySynthesizer):
-        return synthesizer.synthesize_source(
-            ctx, tyctx, ectx, prog, fun_name, hole_name, ty, metadata, validator, budget, ui
-        )
+
+        def source_search(*, budget, ui):
+            return synthesizer.synthesize_source(
+                ctx, tyctx, ectx, prog, fun_name, hole_name, ty, metadata, validator, budget, ui
+            )
+
+        return run_budgeted_search(synthesizer, source_search, budget=budget, ui=ui)
 
     # Properties are runtime objectives rather than generated Aeon helper
     # bindings. Give the selected target a synthesis-local property goal for each
@@ -463,6 +474,8 @@ def _synthesize_one(
         elif len(tac_map) == 1:
             steps = tuple(next(iter(tac_map.values())))
     syn_impl: Synthesizer = ExplicitTacticSynthesizer(steps) if steps is not None else synthesizer
+    if steps is not None:
+        syn_impl.deterministic_budget = synthesizer.deterministic_budget
     tyctx = syn_impl.prepare_context(tyctx, prog, fun_name, synthesis_metadata)
     if syn_impl.produces_typed_candidates:
         validator = make_validator(ctx, replace, metadata, check_types=False)
@@ -502,7 +515,9 @@ def _synthesize_one(
         )
     if syn_impl.supports_candidate_enumeration:
         computations["fitness"] = bundled_fitness
-    pool = EvaluationPool(replace, computations, budget_eval=syn_impl.evaluation_timeout(budget_eval))
+    pool = EvaluationPool(
+        replace, computations, budget_eval=syn_impl.evaluation_timeout(budget_eval), **pool_budget_options(syn_impl)
+    )
     if check_specs:
         validator = checked_validator(validator, pool)
     evaluator, output_evaluator = _pool_backed(pool)
@@ -549,7 +564,7 @@ def _synthesize_one(
         while isinstance(_t, (Let, Rec)):
             if _t.var_name == fun_name:
                 break
-            _bound = eval(dataclasses.replace(_t, body=Var(_t.var_name)), _base_ctx)
+            _bound = evaluate_deterministically(eval, dataclasses.replace(_t, body=Var(_t.var_name)), _base_ctx)
             _base_ctx = _base_ctx.with_var(_t.var_name, _bound)
             _t = _t.body
 
@@ -559,7 +574,7 @@ def _synthesize_one(
             e = _ctx
             for pname, v in zip(_params, input_values):
                 e = e.with_var(pname, v)
-            return eval(sub_term, e)
+            return evaluate_deterministically(eval, sub_term, e)
 
         synthesis_metadata = dict(synthesis_metadata)
         synthesis_metadata[fun_name] = dict(synthesis_metadata.get(fun_name, {})) | {"pbe_probe": _pbe_probe}
@@ -591,7 +606,9 @@ def _synthesize_one(
             }
 
     try:
-        t = syn_impl.synthesize(
+        t = run_budgeted_search(
+            syn_impl,
+            syn_impl.synthesize,
             ctx=components.context,
             type=ty,
             validate=QTTValidator(validator, lambda candidate: replace(components.expand(candidate)), ctx),
@@ -798,7 +815,7 @@ def _synthesize_joint(
     if isolated:
         # The complete search already runs in a killable worker; avoid nested pools.
         def evaluator(candidate):
-            return fitness(replace(candidate))
+            return evaluate_deterministically(fitness, replace(candidate))
 
         if check_specs and checks:
             from math import isfinite
@@ -823,7 +840,7 @@ def _synthesize_joint(
             )
 
             def matches(computation, completed):
-                scores = computation(completed)
+                scores = evaluate_deterministically(computation, completed)
                 if not all(isfinite(score) for score in scores):
                     raise InvalidIndividualException("runtime specification returned a nonfinite score")
                 return all(score == 0 for score in scores)
@@ -838,7 +855,7 @@ def _synthesize_joint(
                     raise SpecificationViolation("candidate does not exactly fit its CSV observations")
                 return True
     else:
-        pool = EvaluationPool(replace, computations, budget_eval=budget_eval)
+        pool = EvaluationPool(replace, computations, budget_eval=budget_eval, **pool_budget_options(synthesizer))
         if check_specs and checks:
             validate = checked_validator(validate_types, pool)
         evaluator, _ = _pool_backed(pool)
@@ -850,19 +867,17 @@ def _synthesize_joint(
                 raise InvalidIndividualException("candidate violates its type, @bounded_cnf or @require")
             return raw_evaluator(candidate)
 
-    ui.start(ctx, ectx, "+".join(name.name for name in names), None, budget)
+    ui.start(ctx, ectx, "+".join(name.name for name in names), None, search_budget_label(synthesizer, budget))
     result = None
     try:
-        result = synthesizer.synthesize_joint(
-            holes,
-            QTTValidator(validate, replace_partial, ctx),
-            evaluator,
-            joint_name,
-            synthesis_metadata,
-            max(0.0, budget - (monotonic() - start))
+        result = run_budgeted_search(
+            synthesizer,
+            synthesizer.synthesize_joint,
+            positional=(holes, QTTValidator(validate, replace_partial, ctx), evaluator, joint_name, synthesis_metadata),
+            budget=max(0.0, budget - (monotonic() - start))
             if getattr(synthesizer, "requires_joint_obligations", False)
             else budget,
-            ui,
+            ui=ui,
         )
         # Backends cannot bypass joint validity or return only some elements.
         if result is not None and not validate(result):
@@ -916,6 +931,7 @@ def _simplify_solutions(mapping: dict[Name, Optional[Term]]) -> dict[Name, Optio
     return {name: simplify_boolean_conditionals(term) if term is not None else None for name, term in mapping.items()}
 
 
+@budget_context
 def synthesize_holes(
     ctx: TypingContext,
     ectx: EvaluationContext,
@@ -956,6 +972,11 @@ def synthesize_holes(
                 if goal.kind != "size" and goal not in goals:
                     goals.append(goal)
         metadata = dict(metadata) | {owner: owner_entry | {"goals": goals}}
+    if getattr(synthesizer, "deterministic_budget", None) is not None:
+        if not getattr(synthesizer, "supports_deterministic_budget", False):
+            raise UnsupportedSynthesisGoal("This backend does not support deterministic opcode/SMT budgets")
+        if any(g.kind in {"cputime", "energy"} for entry in metadata.values() for g in entry.get("goals", [])):
+            raise UnsupportedSynthesisGoal("CPU-time and energy objectives are not deterministic")
 
     size_objectives = any(goal.kind == "size" for entry in metadata.values() for goal in entry.get("goals", []))
     if size_objectives and not (
@@ -1003,7 +1024,14 @@ def synthesize_holes(
     if isinstance(synthesizer, ProgramSynthesizer):
         if not synthesizer.supports_optimization:
             require_checkable([g for entry in metadata.values() for g in entry.get("goals", [])], synthesizer)
-        program_mapping = synthesizer.synthesize_program(ctx, ectx, term, targets, metadata, budget, ui)
+        program_mapping = run_budgeted_search(
+            synthesizer,
+            synthesizer.synthesize_program,
+            positional=(ctx, ectx, term, targets, metadata),
+            budget=budget,
+            ui=ui,
+            mapping_names=tuple(dict.fromkeys(hole for _, holes in targets for hole in holes)),
+        )
         if not program_mapping or any(value is None for value in program_mapping.values()):
             return _simplify_solutions(program_mapping)
         hard_kinds = frozenset({"example", "constraint"})

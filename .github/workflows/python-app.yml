@@ -194,9 +194,30 @@ jobs:
           name: example-results-${{ matrix.shard }}
           path: example-results/
 
+  synthesis-examples:
+    runs-on: ubuntu-latest
+    # Safety ceiling only. Search acceptance is bounded by opcodes/SMT work.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          # Opcode quotas are specific to a CPython version.
+          python-version: "3.13.16"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked --extra tests --extra synthesis-ortools --extra synthesis-rl
+      - name: Require synthesized results (no timeout skips)
+        run: uv run pytest tests/deterministic_synthesis_test.py tests/backend_deterministic_budget_test.py -q --junitxml=synthesis-results.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthesis-results
+          path: synthesis-results.xml
+
   # Retain the original required check name for branch protection/release gates.
   examples:
-    needs: example-shards
+    needs: [example-shards, synthesis-examples]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -204,7 +225,8 @@ jobs:
       - name: Require every example shard to pass
         env:
           SHARDS_RESULT: ${{ needs.example-shards.result }}
-        run: test "$SHARDS_RESULT" = success
+          SYNTHESIS_RESULT: ${{ needs.synthesis-examples.result }}
+        run: test "$SHARDS_RESULT" = success && test "$SYNTHESIS_RESULT" = success
 
   research:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

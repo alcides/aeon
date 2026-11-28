@@ -39,6 +39,13 @@ class LearnedGuidance:
     @staticmethod
     def _predict(model: Any, vector: list[float]) -> float:
         import numpy as np
+        from aeon.synthesis.budgets import current_budget
+
+        policy = current_budget()
+        if policy is not None:
+            if len(vector) > policy.evaluation_opcodes:
+                raise ValueError("RL-MCTS feature vector exceeds the deterministic native-work bound")
+            model.set_params(n_jobs=1, device="cpu")
 
         return bounded_prediction(float(model.predict(np.asarray([vector], dtype=np.float32))[0]))
 
@@ -85,6 +92,16 @@ class LearnedGuidance:
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
         if manifest.get("format") != 1 or not isinstance(manifest.get("bins"), int) or manifest["bins"] < 1:
             raise ValueError("unsupported RL-MCTS model manifest")
+        from aeon.synthesis.budgets import current_budget
+
+        limits = current_budget()
+        if limits is not None and (
+            3 * manifest["bins"] > limits.evaluation_opcodes
+            or any(
+                (directory / name).stat().st_size > limits.evaluation_opcodes for name in ("value.ubj", "policy.ubj")
+            )
+        ):
+            raise ValueError("RL-MCTS model exceeds the deterministic native-work bound")
         XGBRegressor = _regressor()
         value, policy = XGBRegressor(), XGBRegressor()
         value.load_model(directory / "value.ubj")

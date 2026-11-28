@@ -17,6 +17,7 @@ from aeon.core.types import AbstractionType, RefinedType, Type, type_free_term_v
 from aeon.decorators.api import Metadata
 from aeon.synthesis.api import Synthesizer, SynthesisNotSuccessful
 from aeon.synthesis.evaluation_pool import inconclusive_evaluations
+from aeon.synthesis.budgets import EvaluationWatchdogExpired
 from aeon.synthesis.identification import get_holes
 from aeon.synthesis.modules.tdsyn.actions import (
     backward_abs_candidates,
@@ -158,6 +159,7 @@ class TDSynSynthesizer(Synthesizer):
     """
 
     supports_size_objective = True
+    supports_deterministic_budget = True
 
     def __init__(
         self,
@@ -231,6 +233,10 @@ class TDSynSynthesizer(Synthesizer):
         self._completed.clear()
         self.duplicates_skipped = 0
         self.dedup_bypassed = 0
+        if self.deterministic_budget is not None:
+            self._rng = random.Random(self.seed)
+            self._iteration = 0
+
         skip = make_skip_fn(fun_name, metadata)
         goals = metadata.get(fun_name, {}).get("goals", [])
         self._has_goals = bool(goals)
@@ -332,6 +338,8 @@ class TDSynSynthesizer(Synthesizer):
                 ui.register(term, score, elapsed, is_best)
             else:
                 ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
+        except EvaluationWatchdogExpired:
+            raise
         except Exception:
             ui.register(term, "Invalid", _get_elapsed_time(start_time), False)
             return front, None
@@ -830,6 +838,8 @@ class TDSynOneStepSynthesizer(Synthesizer):
     applied again. Deliberately performs no search — ``tdsyn`` is the backend
     that actually synthesizes a complete, valid term.
     """
+
+    supports_deterministic_budget = True
 
     supports_optimization = False
 

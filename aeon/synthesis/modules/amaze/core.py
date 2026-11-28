@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import z3
+from aeon.verification.limits import set_solver_limits
 
 from aeon.core.multiplicity import MOmega
 from aeon.core.terms import Abstraction, Annotation, Application, If, Let, Literal, Term, TypeApplication, Var
@@ -139,7 +140,7 @@ def equivalent(left: Expr, right: Expr, sorts: tuple[str, ...], timeout_ms=200) 
         return ops[e.op]()
 
     solver = z3.Solver(ctx=context)
-    solver.set(timeout=max(1, timeout_ms))
+    set_solver_limits(solver, max(1, timeout_ms))
     solver.add(convert(left) != convert(right))
     result = solver.check()
     return "equivalent" if result == z3.unsat else "different" if result == z3.sat else "unknown"

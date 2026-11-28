@@ -33,12 +33,24 @@ AEON_AMAZE_PROFILE=/tmp/amaze-stdlib.json python -m aeon \
 ```
 
 The trainer accepts an output path, seed and bounded resource settings; there is
-no `--training-dir`. It runs in a subprocess with a total wall limit, and on POSIX
-with a 4 GiB address-space limit and a CPU limit. Each reconstruction also has a
+no `--training-dir`. It runs in a subprocess with a total wall limit and a parent
+watchdog that checks resident memory (RSS) every 50 ms against a 4 GiB ceiling.
+The parent can terminate the worker even while it is busy in native code. This
+is sampled enforcement, so memory can briefly overshoot between checks. Linux
+also retains a hard 4 GiB address-space limit; POSIX workers retain a CPU limit.
+Stricter inherited kernel limits are preserved. On macOS, a fixed address-space
+cap is unsuitable: Python and system libraries can reserve hundreds of GiB of
+virtual mappings while consuming only a small amount of physical RAM, and the
+kernel refuses to lower the cap below those mappings. The RSS watchdog provides
+the memory guard there. Monitoring or limit-setup failures abort with a controlled
+CLI error rather than silently removing protection. Each reconstruction also has a
 wall limit, cost limit and candidate limit. Search has iteration, pattern and
 selected-production limits. Budgets/limits and censored runs are recorded in the
 profile. Failed collection/training cannot silently produce random model weights
 or use an external corpus.
+The worker writes into a staging directory; the parent validates and atomically
+publishes the profile only after successful completion. A memory/time-aborted run
+leaves an existing profile untouched.
 
 The `amaze-profile` pre-commit hook runs the same read-only `inspect` validation
 against the bundled profile on every commit, including commits that delete

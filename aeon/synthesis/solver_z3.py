@@ -121,11 +121,12 @@ def solve_joint_z3(problem: SolverProblem, timeout_ms: int) -> JointCandidate:
         candidates.close()
 
 
-def enumerate_joint_z3(problem: SolverProblem, timeout_ms: int):
+def enumerate_joint_z3(problem: SolverProblem, timeout_ms: int | None):
     """Block each emitted function interpretation, rather than solver internals."""
-    deadline = monotonic() + max(0, timeout_ms) / 1000
+    from aeon.verification.limits import set_solver_limits
+
+    deadline = float("inf") if timeout_ms is None else monotonic() + max(0, timeout_ms) / 1000
     solver = z3.Solver()
-    solver.set(timeout=max(1, timeout_ms))
     functions = {
         hole.symbol: z3.Function(
             str(hole.symbol), *[_sort(t) for _, t in hole.params] or [z3.IntSort()], _sort(hole.base)
@@ -139,7 +140,7 @@ def enumerate_joint_z3(problem: SolverProblem, timeout_ms: int):
         implication = z3.Implies(translate_liq(clause.premise, env), translate_liq(clause.conclusion, env))
         solver.add(z3.ForAll(variables, implication) if variables else implication)
     while monotonic() < deadline:
-        solver.set(timeout=max(1, int((deadline - monotonic()) * 1000)))
+        set_solver_limits(solver, 0 if timeout_ms is None else max(1, int((deadline - monotonic()) * 1000)))
         result = solver.check()
         if result != z3.sat:
             return

@@ -70,6 +70,10 @@ def is_better(a: list[float], b: list[float] | None, minimize: list[bool]) -> bo
 
 class LLMSynthesizer(Synthesizer):
     supports_size_objective = True
+    deterministic_budget_limitation = (
+        "Model-server inference is outside CPython/SMT accounting, and fixed token/request counts "
+        "do not guarantee identical model responses across providers or machines. Use recorded candidates for CI."
+    )
 
     def __init__(
         self,

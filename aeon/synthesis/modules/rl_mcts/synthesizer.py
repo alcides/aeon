@@ -43,6 +43,7 @@ def grammar_successors(
 
 
 class RLMCTSSynthesizer(Synthesizer):
+    supports_deterministic_budget = True
     supports_optimization = False
     supports_candidate_enumeration = True
 

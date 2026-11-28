@@ -17,6 +17,10 @@ from aeon.utils.pprint import pretty_print_sterm
 _MULTIOBJ_LABELS = ("bw_mse", "half_mse", "rows_bad", "cols_bad", "pixels_bad")
 
 
+def _format_budget(budget: Any) -> str:
+    return f"{budget}s" if isinstance(budget, numbers.Real) else str(budget)
+
+
 def _format_quality(quality: Any) -> str:
     """Pretty-print fitness (object with fitness_components, or a raw numeric list)."""
     components: list[float] | None = None
@@ -70,9 +74,11 @@ def format_pareto_front_lines(
     total = len(front)
     shown = select_pareto_display(front, limit=limit, rng=rng)
     if total > limit:
-        header = f"# pareto t={elapsed_time:.1f}s/{budget}s size={total} (showing {len(shown)} of {total})"
+        header = (
+            f"# pareto t={elapsed_time:.1f}s/{_format_budget(budget)} size={total} (showing {len(shown)} of {total})"
+        )
     else:
-        header = f"# pareto t={elapsed_time:.1f}s/{budget}s size={total}"
+        header = f"# pareto t={elapsed_time:.1f}s/{_format_budget(budget)} size={total}"
     lines = [header]
     for quality, term in shown:
         lines.append(f"#   {_format_quality(quality)}  {_pretty_program(term)}")
@@ -101,7 +107,7 @@ class TerminalUI(SynthesisUI):
         self.pareto_front: list[tuple[Any, Term | None]] = []
         self._uses_front = False
         self._front_rng = random.Random(0)
-        print(f"# Synthesizing ?{target_name} (budget={budget}s)", flush=True)
+        print(f"# Synthesizing ?{target_name} (budget={_format_budget(budget)})", flush=True)
 
     def register(
         self,
@@ -119,7 +125,7 @@ class TerminalUI(SynthesisUI):
         if self._uses_front:
             return
         q_cur = _format_quality(quality)
-        print(f"# best t={elapsed_time:.1f}s/{self.budget}s fitness {q_cur}", flush=True)
+        print(f"# best t={elapsed_time:.1f}s/{_format_budget(self.budget)} fitness {q_cur}", flush=True)
 
     def register_front(
         self,
@@ -191,7 +197,7 @@ class VerboseTerminalUI(TerminalUI):
         self._front_rng = random.Random(0)
         print(
             f"# Synthesis target: ?{target_name} :: {target_type} | "
-            f"budget={budget}s | each line is one evaluated candidate; "
+            f"budget={_format_budget(budget)} | each line is one evaluated candidate; "
             f"pareto front dumps on archive updates.",
             flush=True,
         )
@@ -216,7 +222,7 @@ class VerboseTerminalUI(TerminalUI):
         q_cur = _format_quality(quality)
         star = "*" if is_best else " "
         print(
-            f"{star} t={elapsed_time:6.1f}s/{self.budget}s | fitness {q_cur}",
+            f"{star} t={elapsed_time:6.1f}s/{_format_budget(self.budget)} | fitness {q_cur}",
             flush=True,
         )
         print(cur_pp, flush=True)

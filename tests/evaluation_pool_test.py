@@ -76,26 +76,31 @@ else:
 
 @pytest.mark.parametrize("failure", ["crash", "stall"])
 def test_partial_result_transfer_is_bounded_and_worker_recovers(failure):
-    # Run with an outer watchdog: a broken frame timeout must fail the test,
-    # rather than hanging the entire test runner. The signal is delivered only
-    # after transmission starts, so both a dead and a live blocked writer are
-    # exercised through the normal pool API.
+    # Interrupt the child itself after a fixed prefix of its first reply.
+    # A parent-side signal races with transmission: a fast worker can finish
+    # before the parent's readiness notification is handled (notably on macOS).
+    # Keep an outer watchdog so a broken frame timeout cannot hang pytest.
     code = """
-import os, select, signal, threading
+import os, signal, struct
+import aeon.synthesis.evaluation_pool as transport
+from multiprocess.reduction import ForkingPickler
 from aeon.core.terms import Literal
 from aeon.core.types import t_int
 from aeon.synthesis.evaluation_pool import EvaluationPool, TIMEOUT
-pool = EvaluationPool(lambda t: t, {'fitness': lambda t: b'x' * (64 * 1024 * 1024) if t.value == 0 else 42}, budget_eval=.1)
-worker = pool._workers[0]
-def interrupt_reply():
-    assert select.select([worker.result], [], [], 10)[0]
-    os.kill(worker.proc.pid, signal.SIGKILL if FAILURE == 'crash' else signal.SIGSTOP)
-interrupter = threading.Thread(target=interrupt_reply, daemon=True)
-interrupter.start()
+send_result = transport._send_result
+def interrupt_reply(channel, result):
+    if result[0] == 1:
+        payload = ForkingPickler.dumps(result)
+        assert len(payload) > 32
+        channel.sendall(struct.pack('!Q', len(payload)))
+        channel.sendall(payload[:32])
+        os.kill(os.getpid(), signal.SIGKILL if FAILURE == 'crash' else signal.SIGSTOP)
+        raise AssertionError('interrupted worker unexpectedly resumed')
+    send_result(channel, result)
+transport._send_result = interrupt_reply
+pool = EvaluationPool(lambda t: t, {'fitness': lambda t: b'x' * 4096 if t.value == 0 else 42}, budget_eval=.1)
 try:
     assert pool.run(Literal(0, t_int))['fitness'][0] == TIMEOUT
-    interrupter.join(timeout=2)
-    assert not interrupter.is_alive()
     assert pool.run(Literal(1, t_int))['fitness'] == ('ok', 42)
 finally:
     pool.close()

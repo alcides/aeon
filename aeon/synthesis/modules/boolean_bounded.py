@@ -179,6 +179,7 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
     supports_size_objective = True
     report_type = BooleanReport
     failure_type = BoundedBooleanFailure
+    supports_deterministic_budget = True
 
     def __init__(self, seed: int = 0, *, max_selectors: int = 100_000, max_nodes: int = 100_000):
         self.seed = seed
@@ -196,6 +197,18 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
         extraction, validation and evaluation. No evaluation subprocesses are
         needed inside this daemon worker.
         """
+        if self.deterministic_budget is not None:
+            from aeon.synthesis.budgets import run_budgeted_search
+
+            self._in_worker = True
+
+            def search(*, budget, ui):
+                return operation(budget, ui)
+
+            try:
+                return run_budgeted_search(self, search, budget=budget, ui=ui)
+            finally:
+                self._in_worker = False
         started = monotonic()
         self.report = self.report_type()
         self.pareto_front = []
@@ -364,7 +377,9 @@ class BooleanBoundedSynthesizer(ConstraintSynthesizer):
             return value
 
         def check(solver):
-            solver.set(timeout=max(1, int(remaining() * 1000)))
+            from aeon.verification.limits import set_solver_limits
+
+            set_solver_limits(solver, 0 if self.deterministic_budget else max(1, int(remaining() * 1000)))
             self.report.solver_calls += 1
             result = solver.check()
             remaining()

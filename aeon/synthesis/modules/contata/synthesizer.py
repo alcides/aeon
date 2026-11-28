@@ -55,6 +55,8 @@ _loc = SynthesizedLocation("contata")
 class ContataSynthesizer(Synthesizer):
     """Example-driven CATA version space, single-hole adapter."""
 
+    supports_deterministic_budget = True
+
     requires_examples = True
 
     supports_optimization = False

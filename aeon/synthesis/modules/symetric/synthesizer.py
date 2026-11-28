@@ -246,6 +246,15 @@ def _match_type(pattern: Type, concrete: Type, tyvars: set[Name]) -> Optional[di
 
 
 class SymetricSynthesizer(Synthesizer):
+    supports_deterministic_budget = True
+
+    def _construction_expired(self, deadline):
+        if self.deterministic_budget is not None:
+            from aeon.synthesis.budgets import consumed_opcodes
+
+            return consumed_opcodes() >= self.deterministic_budget.opcodes * self.construct_fraction
+        return time.time() >= deadline
+
     def computations(self, primitives):
         # Beyond the objective fitness, it needs each candidate's output feature
         # to cluster by; the pool computes both in one round-trip.
@@ -607,7 +616,7 @@ class SymetricSynthesizer(Synthesizer):
         def absorb(key: str, terms: list[Term]) -> None:
             scored: list[tuple[float, Term]] = []
             for t in terms:
-                if time.time() >= deadline:
+                if self._construction_expired(deadline):
                     break
                 d = consider(t)
                 if d != INF:
@@ -645,11 +654,11 @@ class SymetricSynthesizer(Synthesizer):
         # stay capped.
         cap = self.combo_cap if has_metric else max(self.combo_cap, 4096)
         for _round in range(self.rounds):
-            if time.time() >= deadline:
+            if self._construction_expired(deadline):
                 break
             for key, comps in self._builders.items():
                 for comp in comps:
-                    if time.time() >= deadline:
+                    if self._construction_expired(deadline):
                         break
                     absorb(comp.ret_key, self._combos(comp, bank, ints, cap, rnd))
         return bank
@@ -872,7 +881,7 @@ class SymetricSynthesizer(Synthesizer):
             len([t for t in bank.get(goal_key, [])]) < seeds_needed
             and attempts < self.sample_attempts
             and not out_of_time()
-            and time.time() < construct_deadline
+            and not self._construction_expired(construct_deadline)
         ):
             attempts += 1
             cand = self._gen(goal_key, rnd.randint(1, self.max_arg_depth + 1), rnd)

@@ -60,6 +60,7 @@ def extract_constants(columns: Sequence[Sequence[Scalar]], outputs: Sequence[Sca
 
 
 class BustleSynthesizer(Synthesizer):
+    supports_deterministic_budget = True
     requires_examples = True
 
     supports_optimization = False

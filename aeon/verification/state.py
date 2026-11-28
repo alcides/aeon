@@ -18,6 +18,7 @@ from aeon.verification.trace import Status
 @dataclass
 class VerificationState:
     timeout_ms: int = field(default_factory=lambda: current_session().options.smt_timeout_ms)
+    smt_rlimit: int | None = field(default_factory=lambda: current_session().options.smt_rlimit)
     solver: Solver | None = field(default=None, init=False, repr=False)
     validity: dict[str, bool] = field(default_factory=dict)
     proved_clauses: dict[str, bool] = field(default_factory=dict)
@@ -48,5 +49,8 @@ class VerificationState:
     def get_solver(self) -> Solver:
         if self.solver is None:
             self.solver = Solver()
-            self.solver.set(timeout=self.timeout_ms)
+            if self.smt_rlimit is None:
+                self.solver.set(timeout=self.timeout_ms)
+            else:
+                self.solver.set(timeout=0, rlimit=self.smt_rlimit, random_seed=0)
         return self.solver

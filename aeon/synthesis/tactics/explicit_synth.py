@@ -40,6 +40,8 @@ TACTIC_REGISTRY: Dict[str, TacticFn] = {
 class ExplicitTacticSynthesizer(Synthesizer):
     """Run a fixed tactic script (surface ``by T`` or ``by (T; U; ...)``), leftmost hole each step."""
 
+    supports_deterministic_budget = True
+
     supports_optimization = False
 
     def __init__(self, steps: tuple[str, ...]):

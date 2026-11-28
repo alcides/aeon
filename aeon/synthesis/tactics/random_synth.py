@@ -29,6 +29,8 @@ _loc = SynthesizedLocation("tactics")
 class TacticRandomSynthesizer(Synthesizer):
     """Random tactic search: ``apply?``, ``assumption``, ``constructor``, ``inst``, ``choose_literal``, ``by_cases``, ``split``."""
 
+    supports_deterministic_budget = True
+
     def __init__(self, seed: int = 0):
         self.seed = seed
 

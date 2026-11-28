@@ -156,7 +156,14 @@ def _enumerate_cvc5(problem: SygusProblem, timeout_ms: int):
     slv = cvc5.Solver()
     slv.setOption("sygus", "true")
     slv.setOption("incremental", "true")
-    slv.setOption("tlimit", str(max(1, timeout_ms)))
+    from aeon.synthesis.budgets import current_budget
+
+    policy = current_budget()
+    if policy:
+        slv.setOption("rlimit-per", str(policy.smt_rlimit))
+        slv.setOption("seed", "0")
+    else:
+        slv.setOption("tlimit", str(max(1, timeout_ms)))
     try:
         slv.setLogic(problem.logic)
     except Exception:
@@ -321,7 +328,14 @@ def _enumerate_joint_cvc5(problem, timeout_ms):
     slv = cvc5.Solver()
     slv.setOption("sygus", "true")
     slv.setOption("incremental", "true")
-    slv.setOption("tlimit", str(max(1, timeout_ms)))
+    from aeon.synthesis.budgets import current_budget
+
+    policy = current_budget()
+    if policy:
+        slv.setOption("rlimit-per", str(policy.smt_rlimit))
+        slv.setOption("seed", "0")
+    else:
+        slv.setOption("tlimit", str(max(1, timeout_ms)))
     slv.setLogic("ALL")
     sorts = {t_int: slv.getIntegerSort(), t_bool: slv.getBooleanSort(), t_float: slv.getRealSort()}
     functions, descriptions = {}, []
@@ -379,17 +393,30 @@ def _clear_type_hashes(value):
             _clear_type_hashes(item)
 
 
-def _candidate_worker(problem, timeout_ms, connection, joint):
+def _candidate_worker(problem, timeout_ms, connection, joint, policy=None):
+    from aeon.compilation.session import CompilationOptions, CompilationSession
+    from aeon.synthesis.budgets import OpcodeBudgetExceeded, OpcodeMeter, budget_scope
+
+    meter = OpcodeMeter(policy.opcodes) if policy else None
+    options = CompilationOptions(smt_rlimit=policy.smt_rlimit if policy else None)
     try:
-        _clear_type_hashes(problem)
-        candidates = _enumerate_joint_cvc5(problem, timeout_ms) if joint else _enumerate_cvc5(problem, timeout_ms)
-        for result in candidates:
-            _clear_type_hashes(result)
-            connection.send(("candidate", result))
-            # Request/response backpressure: do not accumulate unscored models.
-            if not connection.recv():
-                break
-        connection.send(("done", None))
+        with CompilationSession(options).activate(), budget_scope(policy):
+            _clear_type_hashes(problem)
+            candidates = _enumerate_joint_cvc5(problem, timeout_ms) if joint else _enumerate_cvc5(problem, timeout_ms)
+            while True:
+                try:
+                    if meter is None:
+                        result = next(candidates)
+                    else:
+                        with meter.measure():
+                            result = next(candidates)
+                except (StopIteration, OpcodeBudgetExceeded):
+                    connection.send(("done", None))
+                    return
+                _clear_type_hashes(result)
+                connection.send(("candidate", result))
+                if not connection.recv():
+                    return
     except (BrokenPipeError, EOFError):
         pass
     except Exception as exc:
@@ -398,26 +425,43 @@ def _candidate_worker(problem, timeout_ms, connection, joint):
         connection.close()
 
 
+def _close_candidate_worker(reader, process):
+    reader.close()
+    if process.is_alive():
+        process.terminate()
+    process.join(timeout=1)
+    if process.is_alive():
+        process.kill()
+        process.join()
+    process.close()
+
+
 def enumerate_cvc5(problem, timeout_ms, *, joint=False):
     """Enumerate distinct SyGuS solutions in a process with a hard deadline."""
     import multiprocessing
     import time
     from aeon.synthesis.api import SynthesisNotSuccessful
+    from aeon.synthesis.budgets import current_budget, raise_watchdog, unmetered
 
     started = time.monotonic()
     context = multiprocessing.get_context("spawn")
     reader, writer = context.Pipe()
-    process = context.Process(target=_candidate_worker, args=(problem, timeout_ms, writer, joint))
-    process.start()
-    writer.close()
+    policy = current_budget()
+    process = context.Process(target=_candidate_worker, args=(problem, timeout_ms, writer, joint, policy))
+    unmetered(process.start)()
+    unmetered(writer.close)()
     try:
         while True:
-            remaining = max(0, timeout_ms / 1000 - (time.monotonic() - started))
-            if not reader.poll(remaining):
+            remaining = 60.0 if policy else max(0, timeout_ms / 1000 - (time.monotonic() - started))
+            if not unmetered(reader.poll)(remaining):
+                if policy:
+                    raise_watchdog("SyGuS worker exceeded its safety watchdog")
                 return
             try:
-                status, value = reader.recv()
+                status, value = unmetered(reader.recv)()
             except EOFError as exc:
+                if policy:
+                    raise_watchdog("SyGuS worker exited without a deterministic result")
                 raise SynthesisNotSuccessful("SyGuS: solver process exited without a result") from exc
             if status == "done":
                 return
@@ -425,16 +469,9 @@ def enumerate_cvc5(problem, timeout_ms, *, joint=False):
                 raise SynthesisNotSuccessful(value)
             _clear_type_hashes(value)
             yield value
-            reader.send(True)
+            unmetered(reader.send)(True)
     finally:
-        reader.close()
-        if process.is_alive():
-            process.terminate()
-        process.join(timeout=1)
-        if process.is_alive():
-            process.kill()
-            process.join()
-        process.close()
+        unmetered(_close_candidate_worker)(reader, process)
 
 
 def solve_joint_cvc5(problem, timeout_ms):

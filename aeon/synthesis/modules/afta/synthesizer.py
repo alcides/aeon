@@ -111,6 +111,8 @@ class AFTASynthesizer(Synthesizer):
     automaton bottom-up and refining the abstraction (CEGAR) until the smallest
     abstractly-accepting program is concretely validated."""
 
+    supports_deterministic_budget = True
+
     supports_optimization = False
     supports_candidate_enumeration = True
 

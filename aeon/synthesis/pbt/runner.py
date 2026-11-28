@@ -10,6 +10,8 @@ top-level definitions stay in scope), and reports the first counterexample.
 
 from __future__ import annotations
 
+from aeon.synthesis.budgets import prepare_deterministically
+
 import signal
 import threading
 from collections.abc import Callable
@@ -155,6 +157,11 @@ def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[
     armed on the main thread of a platform that supports it (so it stays inert
     under pytest worker threads / Windows), otherwise evaluation runs unguarded.
     """
+    from aeon.synthesis.budgets import current_budget, evaluate_deterministically, raise_watchdog
+
+    policy = current_budget()
+    if policy is not None:
+        timeout = 60.0
     can_alarm = hasattr(signal, "SIGALRM") and threading.current_thread() is threading.main_thread()
 
     def _handler(signum, frame):
@@ -165,8 +172,10 @@ def _eval_bool(program: Term, ectx: EvaluationContext, timeout: float) -> tuple[
         old_handler = signal.signal(signal.SIGALRM, _handler)
         signal.setitimer(signal.ITIMER_REAL, timeout)
     try:
-        result = aeon_eval(program, ectx)
+        result = evaluate_deterministically(aeon_eval, program, ectx)
     except _Timeout:
+        if policy is not None:
+            raise_watchdog("Property evaluation exceeded its deterministic-run safety watchdog")
         return None, f"timeout after {timeout:g}s"
     except Exception as e:  # a crashing input is itself a useful counterexample
         return None, f"{type(e).__name__}: {e}"
@@ -569,6 +578,7 @@ def property_corpora_for_target(
     )
 
 
+@prepare_deterministically
 def property_corpora_for_targets(
     typing_ctx: TypingContext,
     core: Term,

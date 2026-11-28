@@ -1,5 +1,76 @@
 # Local synthesis examples
 
+## Reproducible CI synthesis
+
+Use CPython opcode and Z3 resource quotas instead of seconds for deterministic
+searches:
+
+```sh
+python -m aeon --no-main -s enumerative --seed 0 \
+  --opcode-budget 500000 --evaluation-opcode-budget 1000000 --smt-rlimit 100000 \
+  examples/synthesis/minimize_size.ae
+```
+
+`--opcode-budget` replaces `--budget`. It counts executed opcodes in Aeon's
+Python code during each hole search (one shared search for joint holes),
+including generation and validation. Worker transport and UI presentation are
+excluded, so scheduling and logging speed do not consume search work. Candidate
+computations receive separate, fresh `--evaluation-opcode-budget` quotas that
+also count foreign Python code (but cannot interrupt a native C/C++ call). Z3
+and CVC5 checks use `--smt-rlimit` resource units with their wall-clock timeout disabled.
+CP-SAT uses `--cp-sat-work` deterministic solver units (default 1) and one worker.
+Search returns a completed incumbent on opcode exhaustion; exhaustion without
+an incumbent fails. GP uses a fixed population of 100 instead of timing-based
+population sizing. `--seed` controls seeded synthesis as well as PBT.
+
+The backends listed below support this mode, including explicit tactic
+scripts and sampled properties. CPU-time/energy objectives remain inherently
+machine-dependent and are rejected. This is a shared budget interface, not a claim
+that equal quotas give different methods equal computational effort.
+
+| Backend | Deterministic limit and remaining restriction |
+| --- | --- |
+| `sygus` | CVC5 resources plus a metered solver worker; retains the existing Int/Bool/Float translation subset |
+| `boolean_bounded` | Metered CEGIS, Z3 resources, selector/node caps; still requires the supported finite Boolean CNF fragment |
+| `polynomial` | Metered certificate construction and Z3 resources; configured degrees and coefficient limits remain |
+| `synquid` | Metered enumeration/qualifiers and Z3 resources; the existing refinement/type support is unchanged |
+| `ortools` / `ortools_int` / `cpsat` | CP-SAT deterministic work per solve, fixed seed and one worker; requires supported finite, bounded encodings |
+| `fta`, `afta`, `cata`, `contata`, `lta` | Opcode quotas, existing grammar/state bounds, and solver quotas where needed; each retains its supported DSL |
+| `symetric` / `xfta` | Opcode quota split between construction and repair; requires numeric/vector outputs for its distance metric |
+| `arborist` | Opcode, packed-state and interpreter-step limits; retains its scalar DSL |
+| `structure_guided` | Opcode and existing skeleton/element limits; retains the supported recursive shapes |
+| `regus` | Opcode/state/plan limits and metered observations; requires the ControlProgram/ControlObservation protocol |
+| `amaze` | Opcode, candidate/cost and Z3 limits; the offline profile must be fixed |
+| `bustle`, `bustle_baseline` | Opcode/value/weight limits; deterministic guided runs use the Python predictor, avoiding NumPy acceleration differences |
+| `rl_mcts` | Opcode/node limits and metered guidance calls; loaded models use CPU inference, one native thread and bounded feature/model sizes |
+| `decision_tree` | Fixed random state, finite training cells and depth; native fitting is bounded structurally, not by a CPython counter |
+| `noisy` | Metered worker generation/validation and separate observation quotas; fixed rounds, proposals, data sizes and seed |
+| `tactics`, one-step actions, explicit scripts | Opcode/SMT quotas and existing tactic-step bounds; one-step actions may intentionally leave subgoals |
+| `llm`, provider `llm_*` variants | Rejected: request/token quotas cannot guarantee reproducible model-server responses; use recorded candidates for CI |
+| `bnsynth` | Rejected: native PyTorch training is outside opcode accounting and depends on hardware |
+| `llm_type_constrained` | Rejected: native Transformer kernels are outside opcode accounting and hardware-dependent logits can change token choices |
+
+Example/property preparation gets a separate opcode allowance. Noisy and SyGuS
+workers meter search work independently of parent IPC; individual observations
+have fresh evaluation allowances. The evaluation allowance also caps training
+cells and loaded guidance-model size/features for native learners. These are
+structural work bounds, not elapsed-time guarantees. Property corpora use fixed
+seeds/counts; their evaluations use opcode quotas, with watchdogs only for hangs.
+
+Reproducibility requires the same CPython, Aeon, solver and dependency versions,
+hash seed, input data, and deterministic fitness functions. Opcode counts are
+not stable between Python versions or source revisions. Native/foreign work is
+not covered by Python opcodes; Z3 has its own resource quota. A worker safety
+watchdog aborts the run if a native call hangs rather than treating the candidate
+as an ordinary rejection. It cannot make arbitrary Torch, NumPy, foreign or
+network computations deterministic.
+
+The `synthesis-examples` CI job pins CPython 3.13.16, installs `uv.lock` including
+the OR-Tools and learned-guidance extras, fixes
+`PYTHONHASHSEED=0`, and actually synthesizes examples under these quotas. Its
+tests require success instead of skipping when a machine is slow. The recursive
+example shards continue to check compilation of the full example collection.
+
 This overview covers 112 `.ae` programs and three legacy `.aef` files, excluding
 the DP-GP examples being removed in a separate PR. The
 `.ae` count includes 99 programs with explicit holes and 13 completed reference/property

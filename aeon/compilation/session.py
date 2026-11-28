@@ -32,10 +32,13 @@ class CompilationOptions:
     cache_limit: int = 1024
     # Offline stdlib tools must never resolve project/AEONPATH overrides.
     package_only_imports: bool = False
+    smt_rlimit: int | None = None
 
     def __post_init__(self) -> None:
         if self.smt_timeout_ms <= 0 or self.cache_limit <= 0:
             raise ValueError("SMT timeout and cache limit must be positive")
+        if self.smt_rlimit is not None and self.smt_rlimit <= 0:
+            raise ValueError("SMT resource limit must be positive")
 
 
 @dataclass

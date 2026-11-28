@@ -358,6 +358,7 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
     """Linear-genome genetic programming with adaptive population sizing."""
 
     supports_size_objective = True
+    supports_deterministic_budget = True
 
     def __init__(self, seed: int = 0):
         self.seed = seed
@@ -500,7 +501,9 @@ class GeneticProgrammingSynthesizer(JointSynthesizer):
                 break
         probe_seconds = monotonic() - probe_started
 
-        pop_size = population_size or choose_population_size(probe_seconds, budget)
+        pop_size = population_size or (
+            100 if self.deterministic_budget is not None else choose_population_size(probe_seconds, budget)
+        )
         population = list(probe)
 
         # Fill up to pop_size within remaining init allowance / overall budget.

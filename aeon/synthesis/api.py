@@ -13,6 +13,7 @@ from aeon.decorators.api import Metadata
 
 if TYPE_CHECKING:
     from aeon.synthesis.evaluation_pool import Computation, EvalPrimitives
+    from aeon.synthesis.budgets import DeterministicBudget
 
 
 class SynthesisError(Exception):
@@ -72,6 +73,8 @@ class Synthesizer(ABC):
     # skip the entrypoint's repeated whole-program type check. Non-type
     # specification checks still apply to every candidate.
     produces_typed_candidates: bool = False
+    supports_deterministic_budget: bool = False
+    deterministic_budget: "DeterministicBudget | None" = None
     # False means the entrypoint converts test/error goals into acceptance
     # checks. Arbitrary objectives need a candidate enumeration adapter.
     supports_optimization: bool = True
@@ -129,6 +132,8 @@ class ProgramSynthesizer(ABC):
     """
 
     supports_optimization: bool = True
+    supports_deterministic_budget: bool = False
+    deterministic_budget: "DeterministicBudget | None" = None
     supports_candidate_enumeration: bool = False
     pareto_front: list[tuple[list[float], Term]]
 
